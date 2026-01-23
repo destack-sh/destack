@@ -9,7 +9,7 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::{
     AddressSpace, Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node,
-    NodeTree, NodeTreeImpl, ReferenceKind, Type, TypeAlias,
+    NodeTree, NodeTreeImpl, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias, Value,
 };
 
 use super::types::format_type_expanded;
@@ -113,6 +113,8 @@ pub struct MirFormatContext<'a> {
     pub type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     /// Synthetic aliases generated for readability.
     pub synthetic_aliases: Vec<(LocalNodeId<Type>, String)>,
+    /// The function currently being formatted.
+    pub current_function: Option<LocalNodeId<Function>>,
 }
 
 impl<'a> std::fmt::Debug for MirFormatContext<'a> {
@@ -166,6 +168,7 @@ impl<'a> MirFormatContext<'a> {
             global_names,
             type_alias_by_type,
             synthetic_aliases,
+            current_function: None,
         }
     }
 
@@ -219,6 +222,13 @@ impl<'a> MirFormatContext<'a> {
     pub fn type_alias_name(&self, ty: LocalNodeId<Type>) -> Option<&str> {
         // resolve the alias name when present
         self.type_alias_by_type.get(&ty).map(|name| name.as_str())
+    }
+
+    /// Get the type for a value in the current function.
+    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+        let function_id = self.current_function?;
+        let function = self.tree.get(function_id);
+        function.value_type(value)
     }
 }
 
@@ -583,6 +593,68 @@ fn type_key_for_alias(
                 .join(", ");
             format!("{{ {fields} }}")
         }
+        Type::Vector { element, lanes, .. } => {
+            // format vector keys with element and lane count
+            let element_key = type_key_for_alias(tree, strings, *element);
+            format!("vector<{element_key}, {lanes}>")
+        }
+        Type::Tensor {
+            element,
+            shape,
+            layout,
+            ..
+        } => {
+            // format tensor keys with element, shape, and layout
+            let element_key = type_key_for_alias(tree, strings, *element);
+            let shape_key = format_shape_key(shape);
+            let layout_key = format_tensor_layout_key(layout);
+            format!("tensor<{element_key}, {shape_key}, {layout_key}>")
+        }
+        Type::TensorView {
+            kind,
+            address_space,
+            mutability,
+            element,
+            shape,
+            layout,
+            is_nullable,
+        } => {
+            // format tensor view keys with reference header, shape, and layout
+            let mut result = String::new();
+            if *is_nullable {
+                result.push_str("tensor_view?<");
+            } else {
+                result.push_str("tensor_view<");
+            }
+            result.push_str(match kind {
+                ReferenceKind::Managed => "managed",
+                ReferenceKind::Owned => "owned",
+                ReferenceKind::Borrowed => "borrowed",
+                ReferenceKind::Raw => "raw",
+            });
+            if !address_space.is_generic() {
+                let addrspace = match address_space.keyword() {
+                    Some(name) => format!("addrspace({name})"),
+                    None => match address_space {
+                        AddressSpace::Target(id) => format!("addrspace({id})"),
+                        _ => "addrspace(unknown)".to_string(),
+                    },
+                };
+                result.push(' ');
+                result.push_str(&addrspace);
+            }
+            if *mutability == Mutability::Mutable {
+                result.push_str(" mut");
+            }
+            result.push(' ');
+            result.push_str(&type_key_for_alias(tree, strings, *element));
+            result.push(' ');
+            result.push_str(&format_shape_key(shape));
+            result.push(' ');
+            result.push_str(&format_tensor_layout_key(layout));
+            result.push('>');
+            result
+        }
         Type::FunctionPointer { parameters, result } => {
             // join parameter and result keys
             let params = parameters
@@ -592,6 +664,41 @@ fn type_key_for_alias(
                 .join(", ");
             let result = type_key_for_alias(tree, strings, *result);
             format!("fn({params}) -> {result}")
+        }
+    }
+}
+
+/// Format a shape key for a tensor or vector.
+fn format_shape_key(shape: &[TensorDimension]) -> String {
+    // build a stable shape string
+    let mut result = String::new();
+    result.push('[');
+    for (i, dim) in shape.iter().enumerate() {
+        if i > 0 {
+            result.push_str(", ");
+        }
+        match dim {
+            TensorDimension::Static(value) => {
+                result.push_str(&value.to_string());
+            }
+            TensorDimension::Dynamic => {
+                result.push_str("dynamic");
+            }
+        }
+    }
+    result.push(']');
+    result
+}
+
+/// Format a tensor layout key for a tensor or vector.
+fn format_tensor_layout_key(layout: &TensorLayout) -> String {
+    // encode layout in the structural key
+    match layout {
+        TensorLayout::RowMajor => "layout=row_major".to_string(),
+        TensorLayout::ColumnMajor => "layout=column_major".to_string(),
+        TensorLayout::Strided { strides } => {
+            let stride_shape = format_shape_key(strides);
+            format!("layout=strided({stride_shape})")
         }
     }
 }
@@ -727,6 +834,7 @@ fn collect_type_uses(tree: &NodeTree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::StackDrop { .. }
             | Instruction::Assume { .. }
             | Instruction::Intrinsic { .. } => {}
+            _ => {}
         }
     }
 
@@ -782,6 +890,15 @@ fn record_type_use_inner(
                 let field = tree.get(*field_id);
                 record_type_use_inner(tree, field.ty, counts, visited);
             }
+        }
+        Type::Vector { element, .. } => {
+            record_type_use_inner(tree, *element, counts, visited);
+        }
+        Type::Tensor { element, .. } => {
+            record_type_use_inner(tree, *element, counts, visited);
+        }
+        Type::TensorView { element, .. } => {
+            record_type_use_inner(tree, *element, counts, visited);
         }
         Type::FunctionPointer { parameters, result } => {
             // record function pointer types

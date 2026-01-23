@@ -1,12 +1,10 @@
-//! Function formatting.
-
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
     FormatMirNode, Function, Linkage, LocalNodeId, MirFormatContext, MirFormatter, Mutability,
-    Ownership,
+    Ownership, format_attribute_lines,
 };
 
 impl<'a> FormatMirNode<'a, Function> for Function {
@@ -15,10 +13,13 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         id: LocalNodeId<Function>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
-        // resolve the function name before formatting
+        // function name
         let name = f.context().function_name(id).to_string();
 
-        // imported function: extern function @name(i32, i32) -> void
+        // attributes
+        format_function_attributes(id, self, f)?;
+
+        // imported function
         if self.linkage.is_import() {
             write!(
                 f,
@@ -32,7 +33,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                 ]
             )?;
 
-            // parameters (just types for extern)
+            // extern parameters
             write!(f, [token("(")])?;
             for (i, param) in self.parameters.iter().enumerate() {
                 if i > 0 {
@@ -45,12 +46,12 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             return write!(f, [space(), token("->"), space(), self.return_type]);
         }
 
-        // linkage prefix for exported functions
+        // exported linkage prefix
         if self.linkage == Linkage::Export {
             write!(f, [token("export"), space()])?;
         }
 
-        // build block and local index maps for this function
+        // block and local index maps
         {
             let context = f.context_mut();
             context.block_indices.clear();
@@ -61,9 +62,10 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             for (i, local_id) in self.locals.iter().enumerate() {
                 context.local_indices.insert(*local_id, i);
             }
+            context.current_function = Some(id);
         }
 
-        // function signature: function @name(v0: i32, v1: i32) -> void {
+        // function header
         write!(f, [token("function"), space(), token("@"), text(&name)])?;
 
         // parameters
@@ -89,7 +91,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             ]
         )?;
 
-        // locals (if any)
+        // locals
         let locals = self.locals.clone();
         let blocks = self.blocks.clone();
 
@@ -110,7 +112,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                                 ]
                             )?;
 
-                            // ownership annotation
+                            // ownership
                             write!(f, [space(), token(";"), space()])?;
                             match local.ownership {
                                 Ownership::Owned => write!(f, [token("owned")])?,
@@ -118,7 +120,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                                 Ownership::Copy => write!(f, [token("copy")])?,
                             }
 
-                            // mutability annotation
+                            // mutability
                             if local.mutability == Mutability::Mutable {
                                 write!(f, [token(","), space(), token("mut")])?;
                             }
@@ -137,6 +139,90 @@ impl<'a> FormatMirNode<'a, Function> for Function {
             write!(f, [block_id, hard_line_break()])?;
         }
 
+        f.context_mut().current_function = None;
         write!(f, [token("}")])
     }
+}
+
+/// Format function attributes and derived metadata.
+fn format_function_attributes<'a>(
+    id: LocalNodeId<Function>,
+    function: &Function,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    // format explicit attributes first
+    let attributes = f.context().tree.attributes(id);
+    if !attributes.is_empty() {
+        format_attribute_lines(attributes, f)?;
+    }
+
+    // add derived metadata when no explicit attribute was provided
+    let has_execution_model = attributes.iter().any(|attr| {
+        let name = f.context().strings.get(attr.name);
+        name == "execution_model"
+    });
+    if !has_execution_model && let Some(model) = function.execution_model {
+        write!(
+            f,
+            [
+                token("#"),
+                token("["),
+                token("execution_model"),
+                token("("),
+                text(model.to_str()),
+                token(")"),
+                token("]"),
+                hard_line_break()
+            ]
+        )?;
+    }
+
+    let has_execution_stage = attributes.iter().any(|attr| {
+        let name = f.context().strings.get(attr.name);
+        name == "execution_stage"
+    });
+    if !has_execution_stage && let Some(stage) = function.execution_stage {
+        write!(
+            f,
+            [
+                token("#"),
+                token("["),
+                token("execution_stage"),
+                token("("),
+                text(stage.to_str()),
+                token(")"),
+                token("]"),
+                hard_line_break()
+            ]
+        )?;
+    }
+
+    // derived workgroup size
+    let has_workgroup_size = attributes.iter().any(|attr| {
+        let name = f.context().strings.get(attr.name);
+        name == "workgroup_size"
+    });
+    if !has_workgroup_size && let Some(size) = function.workgroup_size {
+        write!(
+            f,
+            [
+                token("#"),
+                token("["),
+                token("workgroup_size"),
+                token("("),
+                text(&size[0].to_string()),
+                token(","),
+                space(),
+                text(&size[1].to_string()),
+                token(","),
+                space(),
+                text(&size[2].to_string()),
+                token(")"),
+                token("]"),
+                hard_line_break()
+            ]
+        )?;
+    }
+
+    Ok(())
 }

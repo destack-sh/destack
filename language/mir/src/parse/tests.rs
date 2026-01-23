@@ -1,5 +1,3 @@
-//! Parser tests.
-
 use crate::parse::{ParseOptions, Parser};
 use crate::{MirFormatOptions, format_mir};
 use destack_source::FileId;
@@ -17,8 +15,71 @@ fn test_roundtrip_simple_add() {
     roundtrip(
         r#"function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_function_metadata() {
+    roundtrip(
+        r#"#[execution_model(kernel)]
+#[workgroup_size(8, 1, 1)]
+function @kernel() -> void {
+block0:
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_function_workgroup_short_form() {
+    roundtrip(
+        r#"#[execution_model(kernel)]
+#[workgroup_size(8)]
+function @kernel_short() -> void {
+block0:
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_function_stage_metadata() {
+    roundtrip(
+        r#"#[execution_model(graphics)]
+#[execution_stage(vertex)]
+function @vertex_main() -> void {
+block0:
+    return
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_attribute_float_value() {
+    roundtrip(
+        r#"#[tolerance(0.25)]
+function @precision() -> void {
+block0:
+    return
+}"#,
+    );
+}
+
+/// Roundtrip parsing supports attributes on items and fields.
+#[test]
+fn test_roundtrip_item_attributes() {
+    roundtrip(
+        r#"#[packed]
+type @Point = { #[offset(0)] x: i32, #[offset(4)] y: i32 }
+#[section(".rodata")]
+global @Count: i32 = 1i32 ; const
+function @usePoint(v0: @Point) -> i32 {
+block0(v0: @Point):
+    v1: i32 = field.get v0, 0
+    return v1
 }"#,
     );
 }
@@ -50,10 +111,10 @@ fn test_roundtrip_branch() {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3(v1)
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block3(v2)
 block3(v3: i32):
     return v3
@@ -67,11 +128,11 @@ fn test_roundtrip_check_and_assume() {
     roundtrip(
         r#"function @guard(v0: u32, v1: u32, v2: [i32; 4]) -> i32 {
 block0(v0: u32, v1: u32, v2: [i32; 4]):
-    v3 = icmp_ult v0, v1
+    v3: bool = icmp_ult v0, v1
     assume v3
     check v3, bounds.unsigned v0, v1, v2, block1(v0), block2
 block1(v4: u32):
-    v5 = iconst 0i32
+    v5: i32 = iconst 0i32
     return v5
 block2:
     unreachable
@@ -85,19 +146,19 @@ fn test_roundtrip_check_type_guards() {
     roundtrip(
         r#"function @guard(v0: u32, v1: ref<managed void>) -> i32 {
 block0(v0: u32, v1: ref<managed void>):
-    v2 = icmp_eq v0, v0
+    v2: bool = icmp_eq v0, v0
     check v2, type v0, i32, block1, block4
 block1:
-    v5 = icmp_eq v0, v0
+    v5: bool = icmp_eq v0, v0
     check v5, union v0, 1, block4, block5
 block2:
-    v3 = icmp_eq v0, v0
+    v3: bool = icmp_eq v0, v0
     check v3, vtable v1, i32, block2, block4
 block3:
-    v4 = icmp_eq v0, v0
+    v4: bool = icmp_eq v0, v0
     check v4, itab v1, 0, block3, block5
 block4:
-    v6 = iconst 0i32
+    v6: i32 = iconst 0i32
     return v6
 block5:
     unreachable
@@ -111,9 +172,9 @@ fn test_roundtrip_call() {
         r#"extern function @callee(i32, i32) -> i32
 function @caller() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#,
     );
@@ -126,14 +187,47 @@ fn test_roundtrip_switch() {
 block0(v0: i32):
     switch v0, block3, 0 => block1, 1 => block2
 block1:
-    v1 = iconst 100i32
+    v1: i32 = iconst 100i32
     return v1
 block2:
-    v2 = iconst 200i32
+    v2: i32 = iconst 200i32
     return v2
 block3:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_vector_tensor_ops() {
+    roundtrip(
+        r#"function @vector_tensor_ops(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_view<borrowed i32, [2, 2]>) -> tensor<i32, [2, 2]> {
+block0(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_view<borrowed i32, [2, 2]>):
+    v4: vector<i32, 4> = vector.splat v1
+    v5: i32 = vector.extract v4, v1
+    v6: vector<i32, 4> = vector.insert v4, v1, v1
+    v7: vector<i32, 4> = vector.shuffle v4, v6, [0, 1, 2, 3]
+    v8: i32 = vector.reduce add, v7
+    v9: i32 = iconst 0i32
+    v10: i32 = iconst 1i32
+    v11: i32 = tensor.load v3, [v9, v10]
+    tensor.store v3, [v10, v9], v11
+    tensor.fill v3, v9
+    tensor.copy v3, v3
+    v12: tensor<i32, [2, 2]> = tensor.reshape v2, [v9, v10]
+    v13: tensor<i32, [2, 2]> = tensor.broadcast v2, [0, 1]
+    v14: tensor<i32, [2, 2]> = tensor.transpose v2, [1, 0]
+    v15: tensor<i32, [2, 2]> = tensor.slice v2, offsets=[v9, v9], sizes=[v10, v10], strides=[v10, v10]
+    v16: tensor<i32, [2, 2]> = tensor.pad v2, value=v9, low=[v9, v9], high=[v9, v9], interior=[v9, v9]
+    v17: tensor<i32, [2, 2]> = tensor.concat [v2, v2], axis=0
+    v18: tensor<i32, [2, 2]> = tensor.reduce add, v2, v9, axes=[0]
+    v19: tensor<i32, [2, 2]> = tensor.dot v2, v2, dims(lhs_batch=[], rhs_batch=[], lhs_contract=[1], rhs_contract=[0])
+    v20: tensor<i32, [2, 2]> = tensor.convolution v2, v2, dims(input_batch=0, input_feature=1, input_spatial=[2, 3], kernel_input_feature=0, kernel_output_feature=1, kernel_spatial=[2, 3], output_batch=0, output_feature=1, output_spatial=[2, 3]), strides=[1, 1], padding_low=[0, 0], padding_high=[0, 0], lhs_dilation=[1, 1], rhs_dilation=[1, 1], window_reversal=[false, false], feature_group=1, batch_group=1
+    v21: tensor<i32, [2, 2]> = tensor.gather v2, v2, dims(offset_dims=[0], collapsed_slice_dims=[1], start_index_map=[0], index_vector_dim=1), slice_sizes=[1, 1]
+    v22: tensor<i32, [2, 2]> = tensor.scatter v2, v2, v2, dims(update_window_dims=[0], inserted_window_dims=[1], scatter_dims_to_operand_dims=[0], index_vector_dim=1), mode=replace
+    v23: tensor<i32, [2, 2]> = tensor.convert v2
+    return v12
 }"#,
     );
 }
@@ -144,10 +238,10 @@ fn test_roundtrip_yield() {
     roundtrip(
         r#"function @yield_once(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
+    v1: i32 = iconst 5i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#,
     );
@@ -158,7 +252,7 @@ fn test_roundtrip_managed_alloc() {
     roundtrip(
         r#"function @allocTest() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
+    v0: ref<managed i32> = managed.alloc i32
     return v0
 }"#,
     );
@@ -169,7 +263,7 @@ fn test_roundtrip_managed_alloc_array() {
     roundtrip(
         r#"function @arrayAlloc(v0: i64) -> ref<managed i32> {
 block0(v0: i64):
-    v1 = managed.alloc_array i32, v0 -> ref<managed i32>
+    v1: ref<managed i32> = managed.alloc_array i32, v0
     return v1
 }"#,
     );
@@ -180,7 +274,7 @@ fn test_roundtrip_raw_alloc_and_free() {
     roundtrip(
         r#"function @rawAlloc() -> void {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
+    v0: ref<raw i32> = raw.alloc i32
     raw.free v0
     return
 }"#,
@@ -190,9 +284,9 @@ block0:
 #[test]
 fn test_roundtrip_stack_alloc() {
     roundtrip(
-        r#"function @stackAlloc() -> ref<raw i32> {
+        r#"function @stackAlloc() -> ref<raw addrspace(stack) i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     return v0
 }"#,
     );
@@ -214,7 +308,7 @@ fn test_roundtrip_nullable_ref() {
     roundtrip(
         r#"function @nullableTest() -> ref?<managed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
+    v0: ref<managed i32> = managed.alloc i32
     return v0
 }"#,
     );
@@ -226,7 +320,7 @@ fn test_roundtrip_string_constant() {
         r#"global @literal:string:hello_world: ref<managed void> = "hello world" ; const
 function @stringTest() -> void {
 block0:
-    v0 = global.const @literal:string:hello_world
+    v0: ref<managed void> = global.const @literal:string:hello_world
     return
 }"#,
     );
@@ -238,7 +332,7 @@ fn test_roundtrip_string_with_escapes() {
         r#"global @literal:string:hello_world_nl: ref<managed void> = "hello\nworld" ; const
 function @escapeTest() -> void {
 block0:
-    v0 = global.const @literal:string:hello_world_nl
+    v0: ref<managed void> = global.const @literal:string:hello_world_nl
     return
 }"#,
     );
@@ -249,7 +343,7 @@ fn test_roundtrip_char_constant() {
     roundtrip(
         r#"function @charTest() -> void {
 block0:
-    v0 = iconst 'a'
+    v0: u32 = iconst 'a'
     return
 }"#,
     );
@@ -260,7 +354,7 @@ fn test_roundtrip_char_escape() {
     roundtrip(
         r#"function @charEscapeTest() -> void {
 block0:
-    v0 = iconst '\n'
+    v0: u32 = iconst '\n'
     return
 }"#,
     );
@@ -272,7 +366,7 @@ fn test_roundtrip_intrinsic_unary() {
     roundtrip(
         r#"function @sqrtTest(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.sqrt(v0)
+    v1: f64 = intrinsic.sqrt(v0)
     return v1
 }"#,
     );
@@ -284,7 +378,7 @@ fn test_roundtrip_intrinsic_binary() {
     roundtrip(
         r#"function @minTest(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = intrinsic.min(v0, v1)
+    v2: f64 = intrinsic.min(v0, v1)
     return v2
 }"#,
     );
@@ -296,7 +390,7 @@ fn test_roundtrip_intrinsic_ternary() {
     roundtrip(
         r#"function @fmaTest(v0: f64, v1: f64, v2: f64) -> f64 {
 block0(v0: f64, v1: f64, v2: f64):
-    v3 = intrinsic.fma(v0, v1, v2)
+    v3: f64 = intrinsic.fma(v0, v1, v2)
     return v3
 }"#,
     );
@@ -308,7 +402,7 @@ fn test_roundtrip_intrinsic_void() {
     roundtrip(
         r#"function @fenceTest() -> void {
 block0:
-    intrinsic.atomic.fence()
+    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
     return
 }"#,
     );
@@ -320,9 +414,9 @@ fn test_roundtrip_intrinsic_bit_manipulation() {
     roundtrip(
         r#"function @bitTest(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = intrinsic.clz(v0)
-    v2 = intrinsic.ctz(v1)
-    v3 = intrinsic.popcnt(v2)
+    v1: i32 = intrinsic.clz(v0)
+    v2: i32 = intrinsic.ctz(v1)
+    v3: i32 = intrinsic.popcnt(v2)
     return v3
 }"#,
     );
@@ -332,9 +426,9 @@ block0(v0: i32):
 fn test_roundtrip_intrinsic_overflow() {
     // checked arithmetic intrinsics
     roundtrip(
-        r#"function @addOverflowTest(v0: i32, v1: i32) -> i32 {
+        r#"function @addOverflowTest(v0: i32, v1: i32) -> (i32, bool) {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
     return v2
 }"#,
     );
@@ -346,7 +440,7 @@ fn test_roundtrip_intrinsic_atomic() {
     roundtrip(
         r#"function @atomicTest(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = intrinsic.atomic.load(v0, acquire)
+    v1: i32 = intrinsic.atomic.load(v0, ordering=acquire, scope=device, memory_scope=device, semantics=[global, make_visible])
     return v1
 }"#,
     );
@@ -358,7 +452,7 @@ fn test_roundtrip_intrinsic_atomic_fence() {
     roundtrip(
         r#"function @fenceTest() -> void {
 block0:
-    intrinsic.atomic.fence(seq_cst)
+    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
     return
 }"#,
     );
@@ -370,9 +464,9 @@ fn test_roundtrip_field_operations() {
     roundtrip(
         r#"function @fieldTest(v0: (i32, f64)) -> i32 {
 block0(v0: (i32, f64)):
-    v1 = field.get v0, 0
-    v2 = iconst 42i32
-    v3 = field.set v0, 0, v2
+    v1: i32 = field.get v0, 0
+    v2: i32 = iconst 42i32
+    v3: (i32, f64) = field.set v0, 0, v2
     return v1
 }"#,
     );
@@ -384,9 +478,9 @@ fn test_roundtrip_element_operations() {
     roundtrip(
         r#"function @elementTest(v0: [i32; 10], v1: i64) -> i32 {
 block0(v0: [i32; 10], v1: i64):
-    v2 = element.get v0, v1
-    v3 = iconst 42i32
-    v4 = element.set v0, v1, v3
+    v2: i32 = element.get v0, v1
+    v3: i32 = iconst 42i32
+    v4: [i32; 10] = element.set v0, v1, v3
     return v2
 }"#,
     );
@@ -398,8 +492,8 @@ fn test_roundtrip_load_store() {
     roundtrip(
         r#"function @loadStoreTest(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = iconst 42i32
+    v1: i32 = load v0
+    v2: i32 = iconst 42i32
     store v0, v2
     return v1
 }"#,
@@ -412,9 +506,9 @@ fn test_roundtrip_unary_operations() {
     roundtrip(
         r#"function @unaryTest(v0: i32, v1: f64) -> i32 {
 block0(v0: i32, v1: f64):
-    v2 = ineg v0
-    v3 = bnot v0
-    v4 = fneg v1
+    v2: i32 = ineg v0
+    v3: i32 = bnot v0
+    v4: f64 = fneg v1
     return v2
 }"#,
     );
@@ -426,7 +520,7 @@ fn test_roundtrip_cast_operations() {
     roundtrip(
         r#"function @castTest(v0: i32) -> i64 {
 block0(v0: i32):
-    v1 = sextend v0 -> i64
+    v1: i64 = sextend v0 -> i64
     return v1
 }"#,
     );
@@ -515,7 +609,7 @@ fn test_roundtrip_call_indirect() {
     roundtrip(
         r#"function @indirectCallTest(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
     );
@@ -527,7 +621,7 @@ fn test_roundtrip_struct() {
     roundtrip(
         r#"function @makePoint(v0: i32, v1: i32) -> { i32, i32 } {
 block0(v0: i32, v1: i32):
-    v2 = struct { i32, i32 } (v0, v1)
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
     return v2
 }"#,
     );
@@ -539,7 +633,7 @@ fn test_roundtrip_tuple() {
     roundtrip(
         r#"function @makePair(v0: i32, v1: bool) -> (i32, bool) {
 block0(v0: i32, v1: bool):
-    v2 = tuple (i32, bool) (v0, v1)
+    v2: (i32, bool) = tuple (i32, bool) (v0, v1)
     return v2
 }"#,
     );
@@ -551,10 +645,10 @@ fn test_roundtrip_array() {
     roundtrip(
         r#"function @makeArray() -> [i32; 3] {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = array [i32; 3] (v0, v1, v2)
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
     return v3
 }"#,
     );
@@ -567,7 +661,7 @@ fn test_roundtrip_struct_type_alias() {
         r#"type @Point = { i32, i32 }
 function @makePoint(v0: i32, v1: i32) -> @Point {
 block0(v0: i32, v1: i32):
-    v2 = struct @Point (v0, v1)
+    v2: @Point = struct @Point (v0, v1)
     return v2
 }"#,
     );

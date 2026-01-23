@@ -140,6 +140,9 @@ impl<'a> Verifier<'a> {
         // collect defined values and ensure uniqueness
         let defined_values = self.collect_defined_values(function_id, function, entry)?;
 
+        // verify type entries for all defined values
+        self.verify_value_types(function_id, function, &defined_values)?;
+
         // verify instructions and terminators
         self.verify_blocks(function, &locals, &block_ids, &block_order, &defined_values)?;
 
@@ -312,6 +315,25 @@ impl<'a> Verifier<'a> {
         }
 
         Ok(defined)
+    }
+
+    /// Ensure every defined value has a type entry.
+    fn verify_value_types(
+        &self,
+        function_id: LocalNodeId<Function>,
+        function: &Function,
+        defined_values: &HashSet<Value>,
+    ) -> VerifyResult<()> {
+        for value in defined_values {
+            if function.value_type(*value).is_none() {
+                return Err(VerifyError::MissingValueType {
+                    value: *value,
+                    anchor: VerifyAnchor::node(function_id),
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Verify instruction and terminator invariants across blocks.
@@ -1093,6 +1115,46 @@ impl<'a> Verifier<'a> {
                     });
                 }
             }
+            Instruction::TensorSlice {
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+                ..
+            } => {
+                // validate argument counts
+                let expected = *offsets_count as usize
+                    + *sizes_count as usize
+                    + *strides_count as usize;
+                let got = arguments.len();
+                if expected != got {
+                    return Err(VerifyError::AggregateArgumentCountMismatch {
+                        expected,
+                        got,
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorPad {
+                arguments,
+                low_count,
+                high_count,
+                interior_count,
+                ..
+            } => {
+                // validate argument counts
+                let expected = *low_count as usize
+                    + *high_count as usize
+                    + *interior_count as usize;
+                let got = arguments.len();
+                if expected != got {
+                    return Err(VerifyError::AggregateArgumentCountMismatch {
+                        expected,
+                        got,
+                        anchor,
+                    });
+                }
+            }
             _ => {}
         }
 
@@ -1664,6 +1726,9 @@ impl<'a> Verifier<'a> {
             Type::Array { .. } => "array",
             Type::Tuple { .. } => "tuple",
             Type::Struct { .. } => "struct",
+            Type::Vector { .. } => "vector",
+            Type::Tensor { .. } => "tensor",
+            Type::TensorView { .. } => "tensor_view",
             Type::FunctionPointer { .. } => "fn",
         }
     }

@@ -255,12 +255,52 @@ pub struct TypeMetadata {
     pub union_layout: Option<UnionLayout>,
 }
 
+/// Primitive type cache for fast lookups.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct TypeCache {
+    /// Cached void type id.
+    pub void: Option<LocalNodeId<Type>>,
+    /// Cached boolean type id.
+    pub boolean: Option<LocalNodeId<Type>>,
+    /// Cached type tag type id.
+    pub type_tag: Option<LocalNodeId<Type>>,
+    /// Cached isize type id.
+    pub isize: Option<LocalNodeId<Type>>,
+    /// Cached usize type id.
+    pub usize: Option<LocalNodeId<Type>>,
+    /// Cached integer type ids keyed by width and signedness.
+    pub ints: HashMap<(u16, bool), LocalNodeId<Type>>,
+    /// Cached float type ids keyed by width.
+    pub floats: HashMap<u16, LocalNodeId<Type>>,
+}
+
+/// Cache entry describing a primitive type.
+#[derive(Clone, Debug)]
+pub enum TypeCacheEntry {
+    /// Void primitive type.
+    Void,
+    /// Boolean primitive type.
+    Boolean,
+    /// Runtime type tag type.
+    TypeTag,
+    /// Pointer sized signed integer type.
+    Isize,
+    /// Pointer sized unsigned integer type.
+    Usize,
+    /// Integer type with width and signedness.
+    Int { width: u16, signed: bool },
+    /// Float type with width.
+    Float { width: u16 },
+}
+
 /// Table of type metadata entries.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TypeTable {
     /// Drop function for each type that implements Drop.
     /// Maps type id → drop function id.
     pub drop_function_by_type_id: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
+    /// Cached primitive type ids.
+    pub type_cache: TypeCache,
     /// Type metadata keyed by type id.
     pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
     /// Dispatch tables for virtual and interface calls.
@@ -271,6 +311,91 @@ impl TypeTable {
     /// Create a new empty type table.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Return the cache entry for a MIR type when applicable.
+    pub fn cache_entry_for_type(ty: &Type) -> Option<TypeCacheEntry> {
+        match ty {
+            Type::Void => Some(TypeCacheEntry::Void),
+            Type::Boolean => Some(TypeCacheEntry::Boolean),
+            Type::Type => Some(TypeCacheEntry::TypeTag),
+            Type::Isize => Some(TypeCacheEntry::Isize),
+            Type::Usize => Some(TypeCacheEntry::Usize),
+            Type::Int {
+                width,
+                is_signed: signed,
+            } => Some(TypeCacheEntry::Int {
+                width: *width,
+                signed: *signed,
+            }),
+            Type::Float { width } => Some(TypeCacheEntry::Float { width: *width }),
+            _ => None,
+        }
+    }
+
+    /// Register a type id in the primitive cache.
+    pub fn register_type_entry(&mut self, type_id: LocalNodeId<Type>, entry: TypeCacheEntry) {
+        match entry {
+            TypeCacheEntry::Void => {
+                self.type_cache.void.get_or_insert(type_id);
+            }
+            TypeCacheEntry::Boolean => {
+                self.type_cache.boolean.get_or_insert(type_id);
+            }
+            TypeCacheEntry::TypeTag => {
+                self.type_cache.type_tag.get_or_insert(type_id);
+            }
+            TypeCacheEntry::Isize => {
+                self.type_cache.isize.get_or_insert(type_id);
+            }
+            TypeCacheEntry::Usize => {
+                self.type_cache.usize.get_or_insert(type_id);
+            }
+            TypeCacheEntry::Int { width, signed } => {
+                self.type_cache
+                    .ints
+                    .entry((width, signed))
+                    .or_insert(type_id);
+            }
+            TypeCacheEntry::Float { width } => {
+                self.type_cache.floats.entry(width).or_insert(type_id);
+            }
+        }
+    }
+
+    /// Return the cached boolean type id.
+    pub fn boolean_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.boolean
+    }
+
+    /// Return the cached void type id.
+    pub fn void_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.void
+    }
+
+    /// Return the cached type tag type id.
+    pub fn type_tag_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.type_tag
+    }
+
+    /// Return the cached isize type id.
+    pub fn isize_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.isize
+    }
+
+    /// Return the cached usize type id.
+    pub fn usize_type(&self) -> Option<LocalNodeId<Type>> {
+        self.type_cache.usize
+    }
+
+    /// Return the cached integer type id for a width and signedness.
+    pub fn int_type(&self, width: u16, signed: bool) -> Option<LocalNodeId<Type>> {
+        self.type_cache.ints.get(&(width, signed)).copied()
+    }
+
+    /// Return the cached float type id for a width.
+    pub fn float_type(&self, width: u16) -> Option<LocalNodeId<Type>> {
+        self.type_cache.floats.get(&width).copied()
     }
 
     /// Return type metadata for a type id.

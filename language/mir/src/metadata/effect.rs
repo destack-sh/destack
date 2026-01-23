@@ -1,13 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::AddressSpace;
-
-/// Set of memory locations that an operation may access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct MemoryLocationSet(
-    /// Bitset describing accessible memory locations.
-    u16,
-);
+use crate::{AddressSpace, MemoryLocationSet};
 
 /// Set of address spaces that an operation may access.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -40,77 +33,6 @@ impl AddressSpaceSet {
     /// Check whether two address space sets are disjoint.
     pub fn is_disjoint(&self, other: &Self) -> bool {
         !self.intersects(other)
-    }
-}
-
-impl MemoryLocationSet {
-    /// No memory locations.
-    pub const NONE: Self = Self(0);
-    /// Memory reachable from pointer arguments.
-    pub const ARGUMENTS: Self = Self(1 << 0);
-    /// Heap allocated memory.
-    pub const HEAP: Self = Self(1 << 1);
-    /// Stack memory.
-    pub const STACK: Self = Self(1 << 2);
-    /// Global or static memory.
-    pub const GLOBAL: Self = Self(1 << 3);
-    /// Shared or workgroup memory.
-    pub const SHARED: Self = Self(1 << 4);
-    /// Target local or thread local memory.
-    pub const LOCAL: Self = Self(1 << 5);
-    /// Target constant or read only memory.
-    pub const CONSTANT: Self = Self(1 << 6);
-    /// Inaccessible memory that cannot be aliased.
-    pub const INACCESSIBLE: Self = Self(1 << 7);
-    /// Memory mapped IO or other side channel memory.
-    pub const IO: Self = Self(1 << 8);
-    /// All memory locations.
-    pub const ANY: Self = Self(
-        Self::ARGUMENTS.0
-            | Self::HEAP.0
-            | Self::STACK.0
-            | Self::GLOBAL.0
-            | Self::SHARED.0
-            | Self::LOCAL.0
-            | Self::CONSTANT.0
-            | Self::INACCESSIBLE.0
-            | Self::IO.0,
-    );
-
-    /// Check if the set is empty.
-    pub fn is_empty(self) -> bool {
-        self.0 == 0
-    }
-
-    /// Check if this set contains the other set.
-    pub fn contains(self, other: Self) -> bool {
-        self.0 & other.0 == other.0
-    }
-
-    /// Insert another set of locations.
-    pub fn insert(&mut self, other: Self) {
-        self.0 |= other.0;
-    }
-
-    /// Return the intersection of two location sets.
-    pub fn intersection(self, other: Self) -> Self {
-        Self(self.0 & other.0)
-    }
-
-    /// Check whether two location sets intersect.
-    pub fn intersects(self, other: Self) -> bool {
-        self.0 & other.0 != 0
-    }
-
-    /// Check whether two location sets are disjoint.
-    pub fn is_disjoint(self, other: Self) -> bool {
-        self.0 & other.0 == 0
-    }
-}
-
-impl Default for MemoryLocationSet {
-    fn default() -> Self {
-        Self::ANY
     }
 }
 

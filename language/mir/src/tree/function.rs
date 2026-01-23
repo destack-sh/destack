@@ -78,6 +78,118 @@ impl CoroutineKind {
     }
 }
 
+/// Execution model for GPU and accelerator kernels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ExecutionModel {
+    /// General-purpose kernel entry point.
+    Kernel,
+    /// Graphics pipeline entry point.
+    Graphics,
+    /// Ray tracing pipeline entry point.
+    RayTracing,
+}
+
+impl ExecutionModel {
+    /// Text representation for formatting and parsing.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            ExecutionModel::Kernel => "kernel",
+            ExecutionModel::Graphics => "graphics",
+            ExecutionModel::RayTracing => "ray_tracing",
+        }
+    }
+}
+
+/// Parse execution models from their text identifiers.
+impl TryFrom<&str> for ExecutionModel {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "kernel" => Ok(ExecutionModel::Kernel),
+            "compute" => Ok(ExecutionModel::Kernel),
+            "graphics" => Ok(ExecutionModel::Graphics),
+            "ray_tracing" => Ok(ExecutionModel::RayTracing),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Execution stage within a pipeline.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ExecutionStage {
+    /// Vertex stage.
+    Vertex,
+    /// Tessellation control stage.
+    TessellationControl,
+    /// Tessellation evaluation stage.
+    TessellationEvaluation,
+    /// Geometry stage.
+    Geometry,
+    /// Fragment stage.
+    Fragment,
+    /// Task stage.
+    Task,
+    /// Mesh stage.
+    Mesh,
+    /// Ray generation stage.
+    RayGen,
+    /// Any hit stage.
+    AnyHit,
+    /// Closest hit stage.
+    ClosestHit,
+    /// Miss stage.
+    Miss,
+    /// Intersection stage.
+    Intersection,
+    /// Callable stage.
+    Callable,
+}
+
+impl ExecutionStage {
+    /// Text representation for formatting and parsing.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            ExecutionStage::Vertex => "vertex",
+            ExecutionStage::TessellationControl => "tessellation_control",
+            ExecutionStage::TessellationEvaluation => "tessellation_evaluation",
+            ExecutionStage::Geometry => "geometry",
+            ExecutionStage::Fragment => "fragment",
+            ExecutionStage::Task => "task",
+            ExecutionStage::Mesh => "mesh",
+            ExecutionStage::RayGen => "raygen",
+            ExecutionStage::AnyHit => "any_hit",
+            ExecutionStage::ClosestHit => "closest_hit",
+            ExecutionStage::Miss => "miss",
+            ExecutionStage::Intersection => "intersection",
+            ExecutionStage::Callable => "callable",
+        }
+    }
+}
+
+/// Parse execution stages from their text identifiers.
+impl TryFrom<&str> for ExecutionStage {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "vertex" => Ok(ExecutionStage::Vertex),
+            "tessellation_control" => Ok(ExecutionStage::TessellationControl),
+            "tessellation_evaluation" => Ok(ExecutionStage::TessellationEvaluation),
+            "geometry" => Ok(ExecutionStage::Geometry),
+            "fragment" => Ok(ExecutionStage::Fragment),
+            "task" => Ok(ExecutionStage::Task),
+            "mesh" => Ok(ExecutionStage::Mesh),
+            "raygen" => Ok(ExecutionStage::RayGen),
+            "any_hit" => Ok(ExecutionStage::AnyHit),
+            "closest_hit" => Ok(ExecutionStage::ClosestHit),
+            "miss" => Ok(ExecutionStage::Miss),
+            "intersection" => Ok(ExecutionStage::Intersection),
+            "callable" => Ok(ExecutionStage::Callable),
+            _ => Err(()),
+        }
+    }
+}
 /// A function in MIR.
 ///
 /// Functions are the top-level compilation unit, containing:
@@ -92,13 +204,11 @@ pub struct Function {
     pub parameters: Vec<TypedValue>,
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
+    /// SSA value types by value id.
+    pub value_types: Vec<Option<LocalNodeId<Type>>>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
-    ///
-    /// Specifies which parameters the return value may borrow from.
-    /// Only meaningful when return type contains borrowed references.
-    /// Defaults to `Inferred`, which uses signature-based inference rules.
     pub return_lifetime: Lifetime,
     /// Memory effects for this function, when known.
     pub memory_effects: Option<MemoryEffect>,
@@ -115,16 +225,18 @@ pub struct Function {
     /// Memory allocation restrictions for this function.
     pub allocation: AllocationMode,
     /// The kind of coroutine, if this function is a coroutine.
-    /// `None` for regular functions, `Some(kind)` for generators/async.
     pub coroutine: Option<CoroutineKind>,
+    /// The execution model for GPU kernels.
+    pub execution_model: Option<ExecutionModel>,
+    /// The execution stage within the pipeline.
+    pub execution_stage: Option<ExecutionStage>,
+    /// The workgroup size for compute kernels.
+    pub workgroup_size: Option<[u32; 3]>,
     /// Local variables (stack-allocated slots for mutable bindings).
-    /// Empty for imported functions.
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
-    /// Empty for imported functions.
     pub blocks: Vec<LocalNodeId<Block>>,
     /// The entry block (execution starts here).
-    /// None for imported functions.
     pub entry: Option<LocalNodeId<Block>>,
 
     /// Counter for allocating unique SSA value IDs.
@@ -149,12 +261,14 @@ impl Function {
 
         // compute the next value id from parameters
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
+        let value_types = Self::seed_value_types(&parameters, next_value_id);
 
         // construct the function
         Self {
             name,
             parameters,
             parameter_names,
+            value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,
@@ -165,6 +279,9 @@ impl Function {
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
+            execution_model: None,
+            execution_stage: None,
+            workgroup_size: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: Some(entry),
@@ -181,12 +298,15 @@ impl Function {
         // seed parameter attributes
         let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
         let parameter_names = vec![None; parameters.len()];
+        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
+        let value_types = Self::seed_value_types(&parameters, next_value_id);
 
         // construct the imported function
         Self {
             name,
             parameters,
             parameter_names,
+            value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,
@@ -197,11 +317,56 @@ impl Function {
             linkage: Linkage::Import,
             allocation: AllocationMode::Any,
             coroutine: None,
+            execution_model: None,
+            execution_stage: None,
+            workgroup_size: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
-            next_value_id: 0,
+            next_value_id,
         }
+    }
+
+    /// Get the type for an SSA value.
+    pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+        self.value_types.get(value.0 as usize).copied().flatten()
+    }
+
+    /// Get the type for an SSA value or panic if missing.
+    pub fn require_value_type(&self, value: Value) -> LocalNodeId<Type> {
+        // ensure value types are always recorded for SSA values
+        match self.value_type(value) {
+            Some(ty) => ty,
+            None => panic!("missing type for value {value:?}"),
+        }
+    }
+
+    /// Record the type for an SSA value.
+    pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+        let index = value.0 as usize;
+        if self.value_types.len() <= index {
+            self.value_types.resize(index + 1, None);
+        }
+        self.value_types[index] = Some(ty);
+    }
+
+    /// Seed the value type table from typed parameters.
+    fn seed_value_types(
+        parameters: &[TypedValue],
+        next_value_id: u32,
+    ) -> Vec<Option<LocalNodeId<Type>>> {
+        // initialize the type table with the next value id
+        let mut value_types = vec![None; next_value_id as usize];
+
+        // populate parameter types by their value ids
+        for param in parameters {
+            let index = param.value.0 as usize;
+            if index >= value_types.len() {
+                value_types.resize(index + 1, None);
+            }
+            value_types[index] = Some(param.ty);
+        }
+        value_types
     }
 
     /// Set the return lifetime and return self (builder pattern).
@@ -237,6 +402,19 @@ impl Function {
         let id = self.next_value_id;
         self.next_value_id += 1;
         Value::new(id)
+    }
+
+    /// Allocate a new SSA value and record its type.
+    pub fn next_typed_value(&mut self, ty: LocalNodeId<Type>) -> Value {
+        let value = self.next_value();
+        self.set_value_type(value, ty);
+        value
+    }
+
+    /// Allocate a new SSA value with the same type as an existing value.
+    pub fn next_typed_value_like(&mut self, source: Value) -> Value {
+        let ty = self.require_value_type(source);
+        self.next_typed_value(ty)
     }
 
     /// Recompute `next_value_id` by scanning all values in the function.

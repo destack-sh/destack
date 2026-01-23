@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{AddressSpace, Global, Local, LocalNodeId, MemoryOrdering, Value};
+use crate::{
+    AddressSpace, AtomicScope, Global, Local, LocalNodeId, MemoryOrdering, MemoryScope,
+    MemorySemantics, Value,
+};
 
 use super::{AliasScopeId, TbaaTagId};
 
@@ -55,6 +58,12 @@ pub struct MemoryAccessMetadata {
     pub is_non_temporal: bool,
     /// Memory ordering for atomic accesses.
     pub ordering: Option<MemoryOrdering>,
+    /// Atomic scope for synchronization.
+    pub scope: Option<AtomicScope>,
+    /// Memory scope for synchronization.
+    pub memory_scope: Option<MemoryScope>,
+    /// Memory semantics for atomic operations and barriers.
+    pub semantics: Option<MemorySemantics>,
     /// Address space override for the access.
     pub address_space: Option<AddressSpace>,
     /// Alias scopes that the access participates in.

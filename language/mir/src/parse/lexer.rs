@@ -1,5 +1,3 @@
-//! MIR lexer.
-
 use super::token::{Token, TokenType};
 
 /// Lexer for MIR text format.
@@ -99,6 +97,7 @@ impl<'a> Lexer<'a> {
 
             // symbols
             '@' => TokenType::At,
+            '#' => TokenType::Hash,
             '(' => TokenType::OpenParen,
             ')' => TokenType::CloseParen,
             '{' => TokenType::OpenBrace,
@@ -172,6 +171,16 @@ impl<'a> Lexer<'a> {
                     TokenType::RefNullable
                 } else {
                     TokenType::Ref
+                }
+            }
+            "vector" => TokenType::Vector,
+            "tensor" => TokenType::Tensor,
+            "tensor_view" => {
+                if self.peek() == Some('?') {
+                    self.advance();
+                    TokenType::TensorViewNullable
+                } else {
+                    TokenType::TensorView
                 }
             }
             "addrspace" => TokenType::AddrSpace,

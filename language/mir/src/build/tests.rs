@@ -1,5 +1,6 @@
 use crate::{
-    AddressSpace, Copyability, MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
+    AddressSpace, AtomicScope, Copyability, MemoryOrdering, MemoryScope, MemorySemantics,
+    MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
 };
 
 use super::ModuleBuilder;
@@ -54,7 +55,7 @@ fn test_build_function_with_parameters() {
     let expected = "\
 function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -88,9 +89,9 @@ fn test_build_function_with_locals() {
 function @with_local() -> i64 {
     local0: i64 ; owned, mut
 block0:
-    v0 = iconst 42i64
+    v0: i64 = iconst 42i64
     local.set local0, v0
-    v1 = local.get local0
+    v1: i64 = local.get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -146,10 +147,10 @@ function @select(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block3
 block3:
     return v1
@@ -188,7 +189,7 @@ fn test_ssa_define_use_single_block() {
     let expected = "\
 function @var_test() -> i32 {
 block0:
-    v0 = iconst 10i32
+    v0: i32 = iconst 10i32
     return v0
 }";
     assert_eq!(output, expected);
@@ -227,8 +228,8 @@ fn test_ssa_redefine_variable() {
     let expected = "\
 function @redefine() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
     return v1
 }";
     assert_eq!(output, expected);
@@ -289,10 +290,10 @@ function @phi_test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3(v1)
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block3(v2)
 block3(v3: i32):
     return v3
@@ -351,7 +352,7 @@ fn test_ssa_trivial_phi_removal() {
     let expected = "\
 function @trivial_phi(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     branch v0, block1, block2
 block1:
     jump block3
@@ -413,7 +414,7 @@ fn test_ssa_trivial_phi_unsealed() {
     let expected = "\
 function @trivial_phi_unsealed(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     branch v0, block1, block2
 block1:
     jump block3
@@ -455,10 +456,10 @@ fn test_build_arithmetic_operations() {
     let expected = "\
 function @arithmetic(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = isub v2, v1
-    v4 = imul v3, v0
-    v5 = sdiv v4, v1
+    v2: i32 = iadd v0, v1
+    v3: i32 = isub v2, v1
+    v4: i32 = imul v3, v0
+    v5: i32 = sdiv v4, v1
     return v5
 }";
     assert_eq!(output, expected);
@@ -494,9 +495,9 @@ fn test_build_comparison_operations() {
     let expected = "\
 function @compare(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
-    v3 = icmp_slt v0, v1
-    v4 = band v2, v3
+    v2: bool = icmp_eq v0, v1
+    v3: bool = icmp_slt v0, v1
+    v4: bool = band v2, v3
     return v4
 }";
     assert_eq!(output, expected);
@@ -656,7 +657,7 @@ fn test_build_managed_alloc() {
     let expected = "\
 function @alloc_test() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
+    v0: ref<managed i32> = managed.alloc i32
     return v0
 }";
     assert_eq!(output, expected);
@@ -687,7 +688,7 @@ fn test_build_managed_alloc_array() {
     let expected = "\
 function @alloc_array_test(v0: i64) -> ref<managed i32> {
 block0(v0: i64):
-    v1 = managed.alloc_array i32, v0 -> ref<managed i32>
+    v1: ref<managed i32> = managed.alloc_array i32, v0
     return v1
 }";
     assert_eq!(output, expected);
@@ -722,8 +723,8 @@ fn test_build_raw_alloc_and_free() {
     let expected = "\
 function @raw_alloc_test() -> void {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
-    v1 = iconst 42i32
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     raw.free v0
     return
@@ -737,7 +738,7 @@ fn test_build_stack_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let raw_ref_type = module.tree_mut().insert(Type::Reference {
+    let raw_ref_type = module.tree_mut().insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
         address_space: AddressSpace::Stack,
         mutability: Mutability::Immutable,
@@ -760,7 +761,7 @@ fn test_build_stack_alloc() {
     let expected = "\
 function @stack_alloc_test() -> ref<raw addrspace(stack) i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     return v0
 }";
     assert_eq!(output, expected);
@@ -783,9 +784,9 @@ fn test_build_intrinsics() {
     // chain of intrinsic operations
     let x = builder.function_parameter(0);
     let y = builder.function_parameter(1);
-    let sqrt_x = builder.intrinsic(Intrinsic::Sqrt, vec![x]);
-    let min_val = builder.intrinsic(Intrinsic::Min, vec![sqrt_x, y]);
-    let result = builder.intrinsic(Intrinsic::Abs, vec![min_val]);
+    let sqrt_x = builder.intrinsic(Intrinsic::Sqrt, f64_type, vec![x]);
+    let min_val = builder.intrinsic(Intrinsic::Min, f64_type, vec![sqrt_x, y]);
+    let result = builder.intrinsic(Intrinsic::Abs, f64_type, vec![min_val]);
     builder.return_(Some(result));
     builder.seal_block(entry_block);
     builder.finish();
@@ -796,9 +797,9 @@ fn test_build_intrinsics() {
     let expected = "\
 function @intrinsic_test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = intrinsic.sqrt(v0)
-    v3 = intrinsic.min(v2, v1)
-    v4 = intrinsic.abs(v3)
+    v2: f64 = intrinsic.sqrt(v0)
+    v3: f64 = intrinsic.min(v2, v1)
+    v4: f64 = intrinsic.abs(v3)
     return v4
 }";
     assert_eq!(output, expected);
@@ -817,7 +818,14 @@ fn test_build_void_intrinsic() {
     let mut builder = module.function("fence_test", &[], void_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    builder.intrinsic_void(Intrinsic::AtomicFence, vec![]);
+    builder.atomic_intrinsic_void(
+        Intrinsic::AtomicFence,
+        vec![],
+        MemoryOrdering::SeqCst,
+        AtomicScope::Device,
+        MemoryScope::Device,
+        MemorySemantics::default(),
+    );
     builder.return_(None);
     builder.seal_block(entry_block);
     builder.finish();
@@ -828,7 +836,7 @@ fn test_build_void_intrinsic() {
     let expected = "\
 function @fence_test() -> void {
 block0:
-    intrinsic.atomic.fence()
+    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
     return
 }";
     assert_eq!(output, expected);
@@ -865,7 +873,7 @@ fn test_build_struct() {
     let expected = "\
 function @make_point(v0: i32, v1: f64) -> { i32, f64 } {
 block0(v0: i32, v1: f64):
-    v2 = struct { i32, f64 } (v0, v1)
+    v2: { i32, f64 } = struct { i32, f64 } (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
@@ -898,7 +906,7 @@ fn test_build_tuple() {
     let expected = "\
 function @make_pair(v0: i32, v1: bool) -> (i32, bool) {
 block0(v0: i32, v1: bool):
-    v2 = tuple (i32, bool) (v0, v1)
+    v2: (i32, bool) = tuple (i32, bool) (v0, v1)
     return v2
 }";
     assert_eq!(output, expected);
@@ -931,10 +939,10 @@ fn test_build_array() {
     let expected = "\
 function @make_array() -> [i32; 3] {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = array [i32; 3] (v0, v1, v2)
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
     return v3
 }";
     assert_eq!(output, expected);
@@ -968,7 +976,7 @@ fn test_build_field_get_struct() {
     let expected = "\
 function @get_y(v0: { i32, f64 }) -> f64 {
 block0(v0: { i32, f64 }):
-    v1 = field.get v0, 1
+    v1: f64 = field.get v0, 1
     return v1
 }";
     assert_eq!(output, expected);
@@ -1000,7 +1008,7 @@ fn test_build_field_get_tuple() {
     let expected = "\
 function @get_first(v0: (i32, bool)) -> i32 {
 block0(v0: (i32, bool)):
-    v1 = field.get v0, 0
+    v1: i32 = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1033,7 +1041,7 @@ fn test_build_element_get_array() {
     let expected = "\
 function @get_element(v0: [i32; 3], v1: i64) -> i32 {
 block0(v0: [i32; 3], v1: i64):
-    v2 = element.get v0, v1
+    v2: i32 = element.get v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -1120,13 +1128,13 @@ fn test_ssa_passthrough_intermediate_block() {
     let expected = "\
 function @passthrough(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block1(v1)
 block1(v2: i32):
     branch v0, block2, block4
 block2:
-    v4 = iconst 10i32
-    v5 = iadd v2, v4
+    v4: i32 = iconst 10i32
+    v5: i32 = iadd v2, v4
     jump block3
 block3:
     jump block1(v5)
@@ -1201,15 +1209,15 @@ function @multi_phi(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
-    v2 = iconst 10i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 10i32
     jump block3(v1, v2)
 block2:
-    v3 = iconst 2i32
-    v4 = iconst 20i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iconst 20i32
     jump block3(v3, v4)
 block3(v5: i32, v6: i32):
-    v7 = iadd v5, v6
+    v7: i32 = iadd v5, v6
     return v7
 }";
     assert_eq!(output, expected);

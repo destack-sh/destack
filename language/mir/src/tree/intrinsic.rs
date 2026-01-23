@@ -1,8 +1,3 @@
-//! MIR intrinsic operations.
-//!
-//! Intrinsics are primitive operations handled directly by backends.
-//! They have no function body and usually have target-defined implementations (or just panic).
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -168,6 +163,9 @@ pub enum Intrinsic {
     /// Memory fence/barrier.
     /// `() -> ()`
     AtomicFence,
+    /// Execution and memory barrier.
+    /// `() -> ()`
+    Barrier,
 
     // float math
     /// Square root.
@@ -272,37 +270,6 @@ pub enum Intrinsic {
     /// `(T) -> T`
     BlackBox,
 
-    // SIMD (Zig-style: vectors are first-class, operators work element-wise via type system)
-    /// Shuffle vector lanes according to a mask.
-    /// `(vec<N, T>, vec<N, T>, mask<M>) -> vec<M, T>`
-    Shuffle,
-    /// Per-lane conditional select: select(mask, a, b) returns a[i] if mask[i] else b[i].
-    /// `(vec<N, bool>, vec<N, T>, vec<N, T>) -> vec<N, T>`
-    Select,
-    /// Broadcast scalar to all lanes.
-    /// `(T) -> vec<N, T>`
-    Splat,
-    /// Horizontal reduction: sum all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceAdd,
-    /// Horizontal reduction: multiply all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceMul,
-    /// Horizontal reduction: minimum of all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceMin,
-    /// Horizontal reduction: maximum of all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceMax,
-    /// Horizontal reduction: bitwise AND of all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceAnd,
-    /// Horizontal reduction: bitwise OR of all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceOr,
-    /// Horizontal reduction: bitwise XOR of all lanes.
-    /// `(vec<N, T>) -> T`
-    ReduceXor,
 }
 
 impl Intrinsic {
@@ -372,6 +339,7 @@ impl Intrinsic {
             Intrinsic::AtomicFetchMin => "atomic.fetch.min",
             Intrinsic::AtomicFetchMax => "atomic.fetch.max",
             Intrinsic::AtomicFence => "atomic.fence",
+            Intrinsic::Barrier => "barrier",
 
             // float
             Intrinsic::Sqrt => "sqrt",
@@ -410,17 +378,6 @@ impl Intrinsic {
             Intrinsic::Unlikely => "unlikely",
             Intrinsic::BlackBox => "black_box",
 
-            // SIMD
-            Intrinsic::Shuffle => "shuffle",
-            Intrinsic::Select => "select",
-            Intrinsic::Splat => "splat",
-            Intrinsic::ReduceAdd => "reduce.add",
-            Intrinsic::ReduceMul => "reduce.mul",
-            Intrinsic::ReduceMin => "reduce.min",
-            Intrinsic::ReduceMax => "reduce.max",
-            Intrinsic::ReduceAnd => "reduce.and",
-            Intrinsic::ReduceOr => "reduce.or",
-            Intrinsic::ReduceXor => "reduce.xor",
         }
     }
 
@@ -490,16 +447,6 @@ impl Intrinsic {
                 | Intrinsic::Likely
                 | Intrinsic::Unlikely
                 | Intrinsic::BlackBox
-                | Intrinsic::Shuffle
-                | Intrinsic::Select
-                | Intrinsic::Splat
-                | Intrinsic::ReduceAdd
-                | Intrinsic::ReduceMul
-                | Intrinsic::ReduceMin
-                | Intrinsic::ReduceMax
-                | Intrinsic::ReduceAnd
-                | Intrinsic::ReduceOr
-                | Intrinsic::ReduceXor
         )
     }
 
@@ -527,6 +474,7 @@ impl Intrinsic {
                 | Intrinsic::AtomicFetchMin
                 | Intrinsic::AtomicFetchMax
                 | Intrinsic::AtomicFence
+                | Intrinsic::Barrier
         )
     }
 }
@@ -588,6 +536,7 @@ impl FromStr for Intrinsic {
             "atomic.fetch.min" => Ok(Intrinsic::AtomicFetchMin),
             "atomic.fetch.max" => Ok(Intrinsic::AtomicFetchMax),
             "atomic.fence" => Ok(Intrinsic::AtomicFence),
+            "barrier" => Ok(Intrinsic::Barrier),
             "sqrt" => Ok(Intrinsic::Sqrt),
             "abs" => Ok(Intrinsic::Abs),
             "fma" => Ok(Intrinsic::Fma),
@@ -621,67 +570,6 @@ impl FromStr for Intrinsic {
             "likely" => Ok(Intrinsic::Likely),
             "unlikely" => Ok(Intrinsic::Unlikely),
             "black_box" => Ok(Intrinsic::BlackBox),
-            "shuffle" => Ok(Intrinsic::Shuffle),
-            "select" => Ok(Intrinsic::Select),
-            "splat" => Ok(Intrinsic::Splat),
-            "reduce.add" => Ok(Intrinsic::ReduceAdd),
-            "reduce.mul" => Ok(Intrinsic::ReduceMul),
-            "reduce.min" => Ok(Intrinsic::ReduceMin),
-            "reduce.max" => Ok(Intrinsic::ReduceMax),
-            "reduce.and" => Ok(Intrinsic::ReduceAnd),
-            "reduce.or" => Ok(Intrinsic::ReduceOr),
-            "reduce.xor" => Ok(Intrinsic::ReduceXor),
-
-            _ => Err(()),
-        }
-    }
-}
-
-/// Memory ordering for atomic operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum MemoryOrdering {
-    /// No ordering constraints (weakest).
-    Relaxed,
-    /// Acquire semantics (reads can't be reordered before this).
-    Acquire,
-    /// Release semantics (writes can't be reordered after this).
-    Release,
-    /// Both acquire and release semantics.
-    AcqRel,
-    /// Sequentially consistent (strongest, default).
-    #[default]
-    SeqCst,
-}
-
-impl MemoryOrdering {
-    /// Text representation for formatting/parsing.
-    pub fn to_str(self) -> &'static str {
-        match self {
-            MemoryOrdering::Relaxed => "relaxed",
-            MemoryOrdering::Acquire => "acquire",
-            MemoryOrdering::Release => "release",
-            MemoryOrdering::AcqRel => "acq_rel",
-            MemoryOrdering::SeqCst => "seq_cst",
-        }
-    }
-}
-
-impl fmt::Display for MemoryOrdering {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.to_str())
-    }
-}
-
-impl FromStr for MemoryOrdering {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "relaxed" => Ok(MemoryOrdering::Relaxed),
-            "acquire" => Ok(MemoryOrdering::Acquire),
-            "release" => Ok(MemoryOrdering::Release),
-            "acq_rel" => Ok(MemoryOrdering::AcqRel),
-            "seq_cst" => Ok(MemoryOrdering::SeqCst),
             _ => Err(()),
         }
     }
@@ -743,20 +631,15 @@ pub enum IntrinsicSignature {
     /// Control flow / debugging (no result, may not return)
     Control { args: u8 },
 
+    /// Barrier operation with explicit scope and semantics.
+    Barrier,
+
     /// Branch hint: (bool) -> bool or (bool, bool) -> bool
     BranchHint { args: u8 },
 
     /// Optimization barrier: (T) -> T
     Passthrough,
 
-    /// SIMD shuffle: (vec, vec, mask) -> vec
-    Shuffle,
-
-    /// SIMD reduce: (vec) -> scalar
-    Reduce,
-
-    /// SIMD splat: (scalar) -> vec
-    Splat,
 }
 
 impl Intrinsic {
@@ -844,6 +727,7 @@ impl Intrinsic {
                 args: 0,
                 has_result: false,
             },
+            Intrinsic::Barrier => IntrinsicSignature::Barrier,
 
             // float math (unary)
             Intrinsic::Sqrt
@@ -885,23 +769,20 @@ impl Intrinsic {
             Intrinsic::Likely | Intrinsic::Unlikely => IntrinsicSignature::BranchHint { args: 1 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
 
-            // SIMD
-            Intrinsic::Shuffle => IntrinsicSignature::Shuffle,
-            Intrinsic::Select => IntrinsicSignature::Ternary,
-            Intrinsic::Splat => IntrinsicSignature::Splat,
-            Intrinsic::ReduceAdd
-            | Intrinsic::ReduceMul
-            | Intrinsic::ReduceMin
-            | Intrinsic::ReduceMax
-            | Intrinsic::ReduceAnd
-            | Intrinsic::ReduceOr
-            | Intrinsic::ReduceXor => IntrinsicSignature::Reduce,
         }
     }
 
     /// Whether this intrinsic requires a memory ordering argument.
     pub fn requires_ordering(self) -> bool {
         matches!(self.signature(), IntrinsicSignature::Atomic { .. })
+    }
+
+    /// Whether this intrinsic requires a scope and memory semantics.
+    pub fn requires_memory_semantics(self) -> bool {
+        matches!(
+            self.signature(),
+            IntrinsicSignature::Atomic { .. } | IntrinsicSignature::Barrier
+        )
     }
 
     /// Get the expected number of value arguments for this intrinsic.
@@ -922,11 +803,9 @@ impl Intrinsic {
             IntrinsicSignature::Atomic { args, .. } => args,
             IntrinsicSignature::Reflection { args } => args,
             IntrinsicSignature::Control { args } => args,
+            IntrinsicSignature::Barrier => 0,
             IntrinsicSignature::BranchHint { args } => args,
             IntrinsicSignature::Passthrough => 1,
-            IntrinsicSignature::Shuffle => 3,
-            IntrinsicSignature::Reduce => 1,
-            IntrinsicSignature::Splat => 1,
         }
     }
 
@@ -948,11 +827,9 @@ impl Intrinsic {
             IntrinsicSignature::Atomic { has_result, .. } => has_result,
             IntrinsicSignature::Reflection { .. } => true,
             IntrinsicSignature::Control { .. } => false,
+            IntrinsicSignature::Barrier => false,
             IntrinsicSignature::BranchHint { .. } => true,
             IntrinsicSignature::Passthrough => true,
-            IntrinsicSignature::Shuffle => true,
-            IntrinsicSignature::Reduce => true,
-            IntrinsicSignature::Splat => true,
         }
     }
 

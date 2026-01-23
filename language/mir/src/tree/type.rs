@@ -178,6 +178,36 @@ impl Copyability {
     }
 }
 
+/// Layout for a tensor or tensor view.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorLayout {
+    /// Contiguous row-major layout.
+    RowMajor,
+    /// Contiguous column-major layout.
+    ColumnMajor,
+    /// Explicit strided layout.
+    Strided {
+        /// Strides for each dimension in element units.
+        strides: Vec<TensorDimension>,
+    },
+}
+
+/// Dimension size for tensor shapes and layouts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TensorDimension {
+    /// Compile time static dimension size.
+    Static(u64),
+    /// Runtime dynamic dimension size.
+    Dynamic,
+}
+
+impl TensorDimension {
+    /// Check whether this dimension is dynamic.
+    pub fn is_dynamic(self) -> bool {
+        matches!(self, TensorDimension::Dynamic)
+    }
+}
+
 /// Concrete type in MIR (post-monomorphization).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
@@ -232,6 +262,44 @@ pub enum Type {
         fields: Vec<LocalNodeId<Field>>,
         /// Copyability of this struct type.
         copyability: Copyability,
+    },
+
+    /// Fixed-width SIMD vector.
+    Vector {
+        /// The element type.
+        element: LocalNodeId<Type>,
+        /// The number of lanes.
+        lanes: u32,
+        /// Copyability of this vector type.
+        copyability: Copyability,
+    },
+    /// Fixed-shape tensor value.
+    Tensor {
+        /// The element type.
+        element: LocalNodeId<Type>,
+        /// The static shape.
+        shape: Vec<TensorDimension>,
+        /// The tensor layout.
+        layout: TensorLayout,
+        /// Copyability of this tensor type.
+        copyability: Copyability,
+    },
+    /// Reference-like view into tensor-shaped memory.
+    TensorView {
+        /// The reference kind (managed, owned, borrowed, raw).
+        kind: ReferenceKind,
+        /// The address space for this view.
+        address_space: AddressSpace,
+        /// The view mutability.
+        mutability: Mutability,
+        /// The element type.
+        element: LocalNodeId<Type>,
+        /// The static shape.
+        shape: Vec<TensorDimension>,
+        /// The tensor layout.
+        layout: TensorLayout,
+        /// Whether the view can be null.
+        is_nullable: bool,
     },
 
     /// Function pointer type.
@@ -337,6 +405,8 @@ impl Type {
                 | Type::Float { .. }
                 | Type::Type
                 | Type::Reference { .. }
+                | Type::Vector { .. }
+                | Type::TensorView { .. }
         )
     }
 
@@ -345,6 +415,9 @@ impl Type {
         matches!(
             self,
             Type::Reference {
+                kind: ReferenceKind::Raw,
+                ..
+            } | Type::TensorView {
                 kind: ReferenceKind::Raw,
                 ..
             }
@@ -358,13 +431,16 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Managed,
                 ..
+            } | Type::TensorView {
+                kind: ReferenceKind::Managed,
+                ..
             }
         )
     }
 
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
-        matches!(self, Type::Reference { .. })
+        matches!(self, Type::Reference { .. } | Type::TensorView { .. })
     }
 
     /// Whether this type is a borrowed reference.
@@ -372,6 +448,9 @@ impl Type {
         matches!(
             self,
             Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                ..
+            } | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 ..
             }
@@ -383,6 +462,10 @@ impl Type {
         matches!(
             self,
             Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                mutability: Mutability::Mutable,
+                ..
+            } | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
                 mutability: Mutability::Mutable,
                 ..
@@ -420,7 +503,18 @@ impl Type {
             // aggregates have explicit copyability
             Type::Array { copyability, .. }
             | Type::Tuple { copyability, .. }
-            | Type::Struct { copyability, .. } => *copyability,
+            | Type::Struct { copyability, .. }
+            | Type::Vector { copyability, .. }
+            | Type::Tensor { copyability, .. } => *copyability,
+
+            // tensor views behave like references
+            Type::TensorView { kind, .. } => {
+                if kind.is_owning() {
+                    Copyability::Linear
+                } else {
+                    Copyability::Trivial
+                }
+            }
 
             // function pointers are trivially copyable
             Type::FunctionPointer { .. } => Copyability::Trivial,

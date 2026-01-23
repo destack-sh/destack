@@ -1,11 +1,15 @@
+use destack_base::StringId;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AddressSpace, AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallEffects,
-    CastOperator, CheckConstraint, CheckTarget, Constant, Function, Global, Instruction, Intrinsic,
-    Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, MemoryOrdering, Mutability, NodeTree,
-    Ownership, PointerAttributes, ReferenceKind, Terminator, Type, TypedValue, UnaryOperator,
-    Value,
+    AddressSpace, AllocSize, AllocationMode, AtomicScope, BinaryOperator, Block, CallBehavior,
+    CallEffects, CastOperator, CheckConstraint, CheckTarget, Constant, ExecutionModel,
+    ExecutionStage, Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local,
+    LocalNodeId, MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Mutability, NodeTree,
+    Ownership, PointerAttributes, ReferenceKind, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Terminator, Type,
+    TypedValue, UnaryOperator, Value, VectorReduceOperator,
 };
 
 use super::Variable;
@@ -65,12 +69,14 @@ pub struct FunctionBuilder<'a> {
     blocks: Vec<LocalNodeId<Block>>,
 }
 
+// allow builder helpers with many parameters
+#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
     /// NOTE: the entry block is NOT created automatically (call `create_block()` first).
     pub fn new(
         tree: &'a mut NodeTree,
-        name: destack_base::StringId,
+        name: StringId,
         parameter_types: &[LocalNodeId<Type>],
         return_type: LocalNodeId<Type>,
     ) -> Self {
@@ -84,12 +90,17 @@ impl<'a> FunctionBuilder<'a> {
                 TypedValue::new(value, ty)
             })
             .collect();
+        let mut value_types = vec![None; next_value_id as usize];
+        for param in &parameters {
+            value_types[param.value.0 as usize] = Some(param.ty);
+        }
 
         // blank function (entry will be set in finish())
         let function = Function {
             name,
             parameters,
             parameter_names: vec![None; parameter_types.len()],
+            value_types,
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,
@@ -100,6 +111,9 @@ impl<'a> FunctionBuilder<'a> {
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
+            execution_model: None,
+            execution_stage: None,
+            workgroup_size: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -187,6 +201,27 @@ impl<'a> FunctionBuilder<'a> {
         function.return_attributes = attributes;
     }
 
+    /// Set the execution model for this function.
+    pub fn set_execution_model(&mut self, model: ExecutionModel) {
+        // update the execution model
+        let function = self.tree.get_mut(self.function_id);
+        function.execution_model = Some(model);
+    }
+
+    /// Set the execution stage for this function.
+    pub fn set_execution_stage(&mut self, stage: ExecutionStage) {
+        // update the execution stage
+        let function = self.tree.get_mut(self.function_id);
+        function.execution_stage = Some(stage);
+    }
+
+    /// Set the workgroup size for this function.
+    pub fn set_workgroup_size(&mut self, size: [u32; 3]) {
+        // update the workgroup size
+        let function = self.tree.get_mut(self.function_id);
+        function.workgroup_size = Some(size);
+    }
+
     /// Set allocation mode for this function.
     pub fn set_allocation_mode(&mut self, allocation: AllocationMode) {
         // update allocation mode
@@ -219,7 +254,29 @@ impl<'a> FunctionBuilder<'a> {
     fn allocate_value(&mut self) -> Value {
         let value = Value::new(self.next_value_id);
         self.next_value_id += 1;
+        let function = self.tree.get_mut(self.function_id);
+        if function.value_types.len() <= value.0 as usize {
+            function.value_types.resize(value.0 as usize + 1, None);
+        }
         value
+    }
+
+    /// Record the type for a value produced by an instruction.
+    fn define_value(&mut self, value: Value, ty: LocalNodeId<Type>) {
+        let function = self.tree.get_mut(self.function_id);
+        function.set_value_type(value, ty);
+    }
+
+    /// Get the type of an existing SSA value.
+    fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
+        let function = self.tree.get(self.function_id);
+        function.value_type(value)
+    }
+
+    /// Require the type of an SSA value.
+    fn value_type_or_panic(&self, value: Value, context: &str) -> LocalNodeId<Type> {
+        self.value_type(value)
+            .unwrap_or_else(|| panic!("missing value type for {context}"))
     }
 
     /// Create a new variable for SSA construction.
@@ -273,6 +330,7 @@ impl<'a> FunctionBuilder<'a> {
         let value = self.allocate_value();
         let block_data = self.tree.get_mut(block);
         block_data.parameters.push(TypedValue::new(value, ty));
+        self.define_value(value, ty);
         value
     }
 
@@ -482,6 +540,27 @@ impl<'a> FunctionBuilder<'a> {
                 }
                 Instruction::Unary { argument, .. }
                 | Instruction::Cast { argument, .. }
+                | Instruction::VectorSplat {
+                    value: argument, ..
+                }
+                | Instruction::VectorReduce {
+                    vector: argument, ..
+                }
+                | Instruction::TensorReshape {
+                    tensor: argument, ..
+                }
+                | Instruction::TensorBroadcast {
+                    tensor: argument, ..
+                }
+                | Instruction::TensorTranspose {
+                    tensor: argument, ..
+                }
+                | Instruction::TensorSlice {
+                    tensor: argument, ..
+                }
+                | Instruction::TensorConvert {
+                    tensor: argument, ..
+                }
                 | Instruction::CallIndirect {
                     callee: argument, ..
                 }
@@ -489,6 +568,73 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::RawDrop { value: argument }
                 | Instruction::StackDrop { value: argument } => {
                     Self::replace_value_in_slot(argument, from, to);
+                }
+                Instruction::VectorExtract { vector, index, .. } => {
+                    Self::replace_value_in_slot(vector, from, to);
+                    Self::replace_value_in_slot(index, from, to);
+                }
+                Instruction::VectorInsert {
+                    vector,
+                    index,
+                    value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(vector, from, to);
+                    Self::replace_value_in_slot(index, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::VectorShuffle { left, right, .. } => {
+                    Self::replace_value_in_slot(left, from, to);
+                    Self::replace_value_in_slot(right, from, to);
+                }
+                Instruction::TensorLoad { view, .. } => {
+                    Self::replace_value_in_slot(view, from, to);
+                }
+                Instruction::TensorStore { view, value, .. } => {
+                    Self::replace_value_in_slot(view, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::TensorFill { view, value } => {
+                    Self::replace_value_in_slot(view, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::TensorCopy { target, source } => {
+                    Self::replace_value_in_slot(target, from, to);
+                    Self::replace_value_in_slot(source, from, to);
+                }
+                Instruction::TensorPad { tensor, value, .. } => {
+                    Self::replace_value_in_slot(tensor, from, to);
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::TensorReduce {
+                    tensor, initial, ..
+                } => {
+                    Self::replace_value_in_slot(tensor, from, to);
+                    Self::replace_value_in_slot(initial, from, to);
+                }
+                Instruction::TensorDot { left, right, .. } => {
+                    Self::replace_value_in_slot(left, from, to);
+                    Self::replace_value_in_slot(right, from, to);
+                }
+                Instruction::TensorConvolution { input, kernel, .. } => {
+                    Self::replace_value_in_slot(input, from, to);
+                    Self::replace_value_in_slot(kernel, from, to);
+                }
+                Instruction::TensorGather {
+                    operand, indices, ..
+                } => {
+                    Self::replace_value_in_slot(operand, from, to);
+                    Self::replace_value_in_slot(indices, from, to);
+                }
+                Instruction::TensorScatter {
+                    operand,
+                    indices,
+                    updates,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(operand, from, to);
+                    Self::replace_value_in_slot(indices, from, to);
+                    Self::replace_value_in_slot(updates, from, to);
                 }
                 Instruction::CallVirtual { receiver, .. }
                 | Instruction::CallInterface { receiver, .. } => {
@@ -550,6 +696,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::Tuple { .. }
                 | Instruction::Array { .. }
                 | Instruction::Call { .. }
+                | Instruction::TensorConcat { .. }
                 | Instruction::Intrinsic { .. } => {}
             }
             argument_slice
@@ -837,10 +984,16 @@ impl<'a> FunctionBuilder<'a> {
                 width,
             }
         };
+        let ty = Type::Int {
+            width: width.into(),
+            is_signed: signed,
+        };
+        let ty_id = self.tree.insert_type(ty);
         self.insert_instruction(Instruction::Const {
             destination,
             value: constant,
         });
+        self.define_value(destination, ty_id);
         destination
     }
 
@@ -861,6 +1014,8 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Boolean { value },
         });
+        let ty_id = self.tree.insert_type(Type::Boolean);
+        self.define_value(destination, ty_id);
         destination
     }
 
@@ -876,6 +1031,10 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Float { bits, width },
         });
+        let ty_id = self.tree.insert_type(Type::Float {
+            width: width.into(),
+        });
+        self.define_value(destination, ty_id);
         destination
     }
 
@@ -884,12 +1043,25 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a binary operation.
     fn binary(&mut self, operator: BinaryOperator, left_value: Value, right_value: Value) -> Value {
         let destination = self.allocate_value();
+        let left_type_id = self.value_type_or_panic(left_value, "binary left");
+        let right_type_id = self.value_type_or_panic(right_value, "binary right");
+        let left_type = self.tree.get(left_type_id);
+        let right_type = self.tree.get(right_type_id);
+        if left_type != right_type {
+            panic!("binary operator expects matching operand types");
+        }
         self.insert_instruction(Instruction::Binary {
             destination,
             operator,
             left: left_value,
             right: right_value,
         });
+        if operator.is_comparison() {
+            let bool_type = self.tree.insert_type(Type::Boolean);
+            self.define_value(destination, bool_type);
+        } else {
+            self.define_value(destination, left_type_id);
+        }
         destination
     }
 
@@ -983,11 +1155,13 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a unary operation.
     fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
         let destination = self.allocate_value();
+        let argument_type = self.value_type_or_panic(argument_value, "unary argument");
         self.insert_instruction(Instruction::Unary {
             destination,
             operator,
             argument: argument_value,
         });
+        self.define_value(destination, argument_type);
         destination
     }
 
@@ -1026,7 +1200,7 @@ impl<'a> FunctionBuilder<'a> {
         address_space: AddressSpace,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Reference {
+        self.tree.insert_type(Type::Reference {
             kind,
             address_space,
             mutability,
@@ -1039,6 +1213,8 @@ impl<'a> FunctionBuilder<'a> {
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalGet { destination, local });
+        let local_ty = self.tree.get(local).ty;
+        self.define_value(destination, local_ty);
         destination
     }
 
@@ -1054,6 +1230,7 @@ impl<'a> FunctionBuilder<'a> {
             local,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1074,6 +1251,7 @@ impl<'a> FunctionBuilder<'a> {
             global,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1084,6 +1262,8 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             global,
         });
+        let global_ty = self.tree.get(global).ty;
+        self.define_value(destination, global_ty);
         destination
     }
 
@@ -1095,6 +1275,7 @@ impl<'a> FunctionBuilder<'a> {
             pointer: pointer_value,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1106,16 +1287,80 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
+    /// Resolve a field type for a struct or tuple aggregate.
+    fn field_type_for_aggregate(
+        &self,
+        aggregate_type: LocalNodeId<Type>,
+        index: u32,
+    ) -> LocalNodeId<Type> {
+        let aggregate = self.tree.get(aggregate_type);
+        match aggregate {
+            Type::Struct { fields, .. } => fields
+                .get(index as usize)
+                .map(|field_id| self.tree.get(*field_id).ty)
+                .unwrap_or_else(|| panic!("field index out of bounds")),
+            Type::Tuple { elements, .. } => elements
+                .get(index as usize)
+                .copied()
+                .unwrap_or_else(|| panic!("field index out of bounds")),
+            _ => panic!("field access expects struct or tuple"),
+        }
+    }
+
+    /// Resolve the element type for an array aggregate.
+    fn element_type_for_array(&self, array_type: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let array = self.tree.get(array_type);
+        match array {
+            Type::Array { element, .. } => *element,
+            _ => panic!("element access expects array type"),
+        }
+    }
+
+    /// Resolve the element type for a vector type.
+    fn element_type_for_vector(&self, vector_type: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let vector = self.tree.get(vector_type);
+        match vector {
+            Type::Vector { element, .. } => *element,
+            _ => panic!("vector access expects vector type"),
+        }
+    }
+
+    /// Resolve the element type for a tensor view.
+    fn element_type_for_tensor_view(&self, view_type: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let view = self.tree.get(view_type);
+        match view {
+            Type::TensorView { element, .. } => *element,
+            _ => panic!("tensor access expects tensor view type"),
+        }
+    }
+
+    /// Convert a list length into u16 for instruction metadata.
+    fn to_u16_count(&self, count: usize, context: &str) -> u16 {
+        u16::try_from(count).unwrap_or_else(|_| panic!("{context} is too large"))
+    }
+
+    /// Resolve the return type for a function signature.
+    fn signature_result_type(&self, signature: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        let signature_type = self.tree.get(signature);
+        match signature_type {
+            Type::FunctionPointer { result, .. } => *result,
+            _ => panic!("call expects function pointer signature"),
+        }
+    }
+
     // instruction builders: aggregates
 
     /// Extract a field from a struct or tuple.
     pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
         let destination = self.allocate_value();
+        let aggregate_type = self.value_type_or_panic(aggregate, "field.get aggregate");
+        let field_type = self.field_type_for_aggregate(aggregate_type, index);
         self.insert_instruction(Instruction::FieldGet {
             destination,
             aggregate,
             index,
         });
+        self.define_value(destination, field_type);
         destination
     }
 
@@ -1133,29 +1378,35 @@ impl<'a> FunctionBuilder<'a> {
             index,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
     /// Insert a value into a struct or tuple field.
     pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
+        let aggregate_type = self.value_type_or_panic(aggregate, "field.set aggregate");
         self.insert_instruction(Instruction::FieldSet {
             destination,
             aggregate,
             index,
             value,
         });
+        self.define_value(destination, aggregate_type);
         destination
     }
 
     /// Extract an element from an array.
     pub fn element_get(&mut self, array: Value, index: Value) -> Value {
         let destination = self.allocate_value();
+        let array_type = self.value_type_or_panic(array, "element.get array");
+        let element_type = self.element_type_for_array(array_type);
         self.insert_instruction(Instruction::ElementGet {
             destination,
             array,
             index,
         });
+        self.define_value(destination, element_type);
         destination
     }
 
@@ -1173,18 +1424,21 @@ impl<'a> FunctionBuilder<'a> {
             index,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
     /// Insert a value into an array element.
     pub fn element_set(&mut self, array: Value, index: Value, value: Value) -> Value {
         let destination = self.allocate_value();
+        let array_type = self.value_type_or_panic(array, "element.set array");
         self.insert_instruction(Instruction::ElementSet {
             destination,
             array,
             index,
             value,
         });
+        self.define_value(destination, array_type);
         destination
     }
 
@@ -1199,6 +1453,7 @@ impl<'a> FunctionBuilder<'a> {
             ty,
             fields,
         });
+        self.define_value(destination, ty);
         destination
     }
 
@@ -1213,6 +1468,7 @@ impl<'a> FunctionBuilder<'a> {
             ty,
             elements,
         });
+        self.define_value(destination, ty);
         destination
     }
 
@@ -1227,6 +1483,367 @@ impl<'a> FunctionBuilder<'a> {
             ty,
             elements,
         });
+        self.define_value(destination, ty);
+        destination
+    }
+
+    // instruction builders: vector operations
+
+    /// Broadcast a scalar to all vector lanes.
+    pub fn vector_splat(&mut self, vector_type: LocalNodeId<Type>, value: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VectorSplat { destination, value });
+        self.define_value(destination, vector_type);
+        destination
+    }
+
+    /// Extract a lane from a vector.
+    pub fn vector_extract(&mut self, vector: Value, index: Value) -> Value {
+        let destination = self.allocate_value();
+        let vector_type = self.value_type_or_panic(vector, "vector.extract vector");
+        let element_type = self.element_type_for_vector(vector_type);
+        self.insert_instruction(Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        });
+        self.define_value(destination, element_type);
+        destination
+    }
+
+    /// Insert a lane into a vector.
+    pub fn vector_insert(&mut self, vector: Value, index: Value, value: Value) -> Value {
+        let destination = self.allocate_value();
+        let vector_type = self.value_type_or_panic(vector, "vector.insert vector");
+        self.insert_instruction(Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        });
+        self.define_value(destination, vector_type);
+        destination
+    }
+
+    /// Shuffle vector lanes with a constant mask.
+    pub fn vector_shuffle(
+        &mut self,
+        vector_type: LocalNodeId<Type>,
+        left: Value,
+        right: Value,
+        mask: Vec<u32>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        });
+        self.define_value(destination, vector_type);
+        destination
+    }
+
+    /// Reduce a vector to a scalar.
+    pub fn vector_reduce(&mut self, operator: VectorReduceOperator, vector: Value) -> Value {
+        let destination = self.allocate_value();
+        let vector_type = self.value_type_or_panic(vector, "vector.reduce vector");
+        let element_type = self.element_type_for_vector(vector_type);
+        self.insert_instruction(Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        });
+        self.define_value(destination, element_type);
+        destination
+    }
+
+    // instruction builders: tensor operations
+
+    /// Load a tensor element from a tensor view.
+    pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
+        let destination = self.allocate_value();
+        let view_type = self.value_type_or_panic(view, "tensor.load view");
+        let element_type = self.element_type_for_tensor_view(view_type);
+        let indices = self.tree.add_arguments(&indices);
+        self.insert_instruction(Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        });
+        self.define_value(destination, element_type);
+        destination
+    }
+
+    /// Store a tensor element into a tensor view.
+    pub fn tensor_store(&mut self, view: Value, indices: Vec<Value>, value: Value) {
+        let indices = self.tree.add_arguments(&indices);
+        self.insert_instruction(Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        });
+    }
+
+    /// Fill a tensor view with a scalar value.
+    pub fn tensor_fill(&mut self, view: Value, value: Value) {
+        self.insert_instruction(Instruction::TensorFill { view, value });
+    }
+
+    /// Copy elements from a source tensor view into a destination tensor view.
+    pub fn tensor_copy(&mut self, target: Value, source: Value) {
+        self.insert_instruction(Instruction::TensorCopy { target, source });
+    }
+
+    /// Reshape a tensor value into a new shape.
+    pub fn tensor_reshape(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensor: Value,
+        shape_values: Vec<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let shape = self.tree.add_arguments(&shape_values);
+        self.insert_instruction(Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Broadcast a tensor into a larger shape.
+    pub fn tensor_broadcast(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensor: Value,
+        dimensions: Vec<u32>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Permute tensor dimensions.
+    pub fn tensor_transpose(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensor: Value,
+        permutation: Vec<u32>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Slice a tensor by offsets, sizes, and strides.
+    pub fn tensor_slice(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensor: Value,
+        offsets: Vec<Value>,
+        sizes: Vec<Value>,
+        strides: Vec<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let offsets_count = self.to_u16_count(offsets.len(), "offsets count");
+        let sizes_count = self.to_u16_count(sizes.len(), "sizes count");
+        let strides_count = self.to_u16_count(strides.len(), "strides count");
+        let mut values = Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
+        values.extend_from_slice(&offsets);
+        values.extend_from_slice(&sizes);
+        values.extend_from_slice(&strides);
+        let arguments = self.tree.add_arguments(&values);
+        self.insert_instruction(Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Pad a tensor with low, high, and interior padding.
+    pub fn tensor_pad(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensor: Value,
+        value: Value,
+        low: Vec<Value>,
+        high: Vec<Value>,
+        interior: Vec<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let low_count = self.to_u16_count(low.len(), "low padding count");
+        let high_count = self.to_u16_count(high.len(), "high padding count");
+        let interior_count = self.to_u16_count(interior.len(), "interior padding count");
+        let mut values = Vec::with_capacity(low.len() + high.len() + interior.len());
+        values.extend_from_slice(&low);
+        values.extend_from_slice(&high);
+        values.extend_from_slice(&interior);
+        let arguments = self.tree.add_arguments(&values);
+        self.insert_instruction(Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Concatenate tensors along a dimension.
+    pub fn tensor_concat(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        tensors: Vec<Value>,
+        axis: u32,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let tensors = self.tree.add_arguments(&tensors);
+        self.insert_instruction(Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Reduce a tensor along axes with a fixed operator.
+    pub fn tensor_reduce(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operator: TensorReduceOperator,
+        tensor: Value,
+        initial: Value,
+        axes: Vec<u32>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Compute a tensor dot product.
+    pub fn tensor_dot(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        left: Value,
+        right: Value,
+        dimensions: TensorDotDimensionNumbers,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Perform a tensor convolution.
+    pub fn tensor_convolution(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        input: Value,
+        kernel: Value,
+        dimensions: TensorConvolutionDimensionNumbers,
+        window: TensorConvolutionWindow,
+        feature_group_count: u32,
+        batch_group_count: u32,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Gather slices from a tensor based on indices.
+    pub fn tensor_gather(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operand: Value,
+        indices: Value,
+        dimensions: TensorGatherDimensionNumbers,
+        slice_sizes: Vec<u32>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Scatter updates into a tensor based on indices.
+    pub fn tensor_scatter(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operand: Value,
+        indices: Value,
+        updates: Value,
+        dimensions: TensorScatterDimensionNumbers,
+        mode: TensorScatterMode,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Convert a tensor element type.
+    pub fn tensor_convert(&mut self, result_type: LocalNodeId<Type>, tensor: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorConvert {
+            destination,
+            tensor,
+        });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1245,6 +1862,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1263,6 +1881,7 @@ impl<'a> FunctionBuilder<'a> {
             length,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1279,6 +1898,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1300,6 +1920,7 @@ impl<'a> FunctionBuilder<'a> {
             layout,
             result_type,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1320,6 +1941,7 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
+        let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: Some(destination),
@@ -1328,6 +1950,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: None,
         });
+        self.define_value(destination, result_type);
         Some(destination)
     }
 
@@ -1359,6 +1982,7 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
+        let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::CallVirtual {
             destination: Some(destination),
@@ -1370,6 +1994,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: None,
         });
+        self.define_value(destination, result_type);
         Some(destination)
     }
 
@@ -1407,6 +2032,7 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
+        let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::CallInterface {
             destination: Some(destination),
@@ -1418,6 +2044,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: None,
         });
+        self.define_value(destination, result_type);
         Some(destination)
     }
 
@@ -1453,6 +2080,7 @@ impl<'a> FunctionBuilder<'a> {
         effects: CallEffects,
     ) -> Option<Value> {
         let destination = self.allocate_value();
+        let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: Some(destination),
@@ -1461,6 +2089,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: Some(effects),
         });
+        self.define_value(destination, result_type);
         Some(destination)
     }
 
@@ -1490,6 +2119,7 @@ impl<'a> FunctionBuilder<'a> {
         args: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
+        let result_type = self.signature_result_type(signature);
         let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
@@ -1498,6 +2128,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: None,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1534,6 +2165,7 @@ impl<'a> FunctionBuilder<'a> {
             argument,
             to_type,
         });
+        self.define_value(destination, to_type);
         destination
     }
 
@@ -1565,19 +2197,32 @@ impl<'a> FunctionBuilder<'a> {
     /// Both values must have the same type.
     pub fn select(&mut self, condition: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();
+        let then_type = self.value_type_or_panic(then_value, "select then");
+        let else_type = self.value_type_or_panic(else_value, "select else");
+        let then_ty = self.tree.get(then_type);
+        let else_ty = self.tree.get(else_type);
+        if then_ty != else_ty {
+            panic!("select expects matching value types");
+        }
         self.insert_instruction(Instruction::Select {
             destination,
             condition,
             then_value,
             else_value,
         });
+        self.define_value(destination, then_type);
         destination
     }
 
     // instruction builders: intrinsics
 
     /// Call an intrinsic that returns a value.
-    pub fn intrinsic(&mut self, intrinsic: Intrinsic, args: Vec<Value>) -> Value {
+    pub fn intrinsic(
+        &mut self,
+        intrinsic: Intrinsic,
+        result_type: LocalNodeId<Type>,
+        args: Vec<Value>,
+    ) -> Value {
         let destination = self.allocate_value();
         let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
@@ -1585,7 +2230,11 @@ impl<'a> FunctionBuilder<'a> {
             intrinsic,
             arguments,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1597,6 +2246,9 @@ impl<'a> FunctionBuilder<'a> {
             intrinsic,
             arguments,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
         });
     }
 
@@ -1606,6 +2258,10 @@ impl<'a> FunctionBuilder<'a> {
         intrinsic: Intrinsic,
         args: Vec<Value>,
         ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
+        result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         let arguments = self.tree.add_arguments(&args);
@@ -1614,7 +2270,11 @@ impl<'a> FunctionBuilder<'a> {
             intrinsic,
             arguments,
             ordering: Some(ordering),
+            scope: Some(scope),
+            memory_scope: Some(memory_scope),
+            semantics: Some(semantics),
         });
+        self.define_value(destination, result_type);
         destination
     }
 
@@ -1624,6 +2284,9 @@ impl<'a> FunctionBuilder<'a> {
         intrinsic: Intrinsic,
         args: Vec<Value>,
         ordering: MemoryOrdering,
+        scope: AtomicScope,
+        memory_scope: MemoryScope,
+        semantics: MemorySemantics,
     ) {
         let arguments = self.tree.add_arguments(&args);
         self.insert_instruction(Instruction::Intrinsic {
@@ -1631,6 +2294,9 @@ impl<'a> FunctionBuilder<'a> {
             intrinsic,
             arguments,
             ordering: Some(ordering),
+            scope: Some(scope),
+            memory_scope: Some(memory_scope),
+            semantics: Some(semantics),
         });
     }
 

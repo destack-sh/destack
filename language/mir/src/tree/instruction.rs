@@ -1,5 +1,3 @@
-//! MIR instructions.
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -7,13 +5,16 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local, LocalNodeId,
-    MemoryOrdering, Node, NodeType, Type, UnaryOperator, Value,
+    AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local,
+    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator,
+    Value, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
 ///
-/// Used by Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic instructions to reference arguments.
+/// Used by aggregate, call, intrinsic, and tensor instructions to reference value lists.
 /// This saves 16 bytes per instruction compared to using `Vec<Value>` inline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ArgumentSlice {
@@ -291,6 +292,233 @@ pub enum Instruction {
         elements: ArgumentSlice,
     },
 
+    // vector operations (vector.splat, vector.extract, vector.insert, vector.shuffle, vector.reduce)
+    /// Broadcast a scalar to all vector lanes.
+    VectorSplat {
+        /// The SSA value to define with the vector result.
+        destination: Value,
+        /// The scalar value to broadcast.
+        value: Value,
+    },
+    /// Extract a lane from a vector.
+    VectorExtract {
+        /// The SSA value to define with the extracted lane.
+        destination: Value,
+        /// The vector value to extract from.
+        vector: Value,
+        /// The lane index to extract.
+        index: Value,
+    },
+    /// Insert a lane into a vector.
+    VectorInsert {
+        /// The SSA value to define with the updated vector.
+        destination: Value,
+        /// The original vector value.
+        vector: Value,
+        /// The lane index to update.
+        index: Value,
+        /// The lane value to insert.
+        value: Value,
+    },
+    /// Shuffle vector lanes using a constant mask.
+    VectorShuffle {
+        /// The SSA value to define with the shuffled result.
+        destination: Value,
+        /// The left vector operand.
+        left: Value,
+        /// The right vector operand.
+        right: Value,
+        /// The shuffle mask indices.
+        mask: Vec<u32>,
+    },
+    /// Reduce a vector to a scalar.
+    VectorReduce {
+        /// The SSA value to define with the reduced result.
+        destination: Value,
+        /// The reduction operator to apply.
+        operator: VectorReduceOperator,
+        /// The vector value to reduce.
+        vector: Value,
+    },
+
+    // tensor operations (tensor.*)
+    /// Load a tensor element from a tensor view.
+    TensorLoad {
+        /// The SSA value to define with the loaded element.
+        destination: Value,
+        /// The tensor view to load from.
+        view: Value,
+        /// The index values (stored in NodeTree's argument buffer).
+        indices: ArgumentSlice,
+    },
+    /// Store a tensor element into a tensor view.
+    TensorStore {
+        /// The tensor view to store into.
+        view: Value,
+        /// The index values (stored in NodeTree's argument buffer).
+        indices: ArgumentSlice,
+        /// The value to store.
+        value: Value,
+    },
+    /// Fill a tensor view with a scalar value.
+    TensorFill {
+        /// The tensor view to fill.
+        view: Value,
+        /// The scalar value to write.
+        value: Value,
+    },
+    /// Copy elements from a source tensor view into a destination tensor view.
+    TensorCopy {
+        /// The destination tensor view.
+        target: Value,
+        /// The source tensor view.
+        source: Value,
+    },
+    /// Reshape a tensor value into a new shape.
+    TensorReshape {
+        /// The SSA value to define with the reshaped tensor.
+        destination: Value,
+        /// The tensor value to reshape.
+        tensor: Value,
+        /// The shape values (stored in NodeTree's argument buffer).
+        shape: ArgumentSlice,
+    },
+    /// Broadcast a tensor into a larger shape.
+    TensorBroadcast {
+        /// The SSA value to define with the broadcasted tensor.
+        destination: Value,
+        /// The tensor value to broadcast.
+        tensor: Value,
+        /// The operand dimensions mapped into the result.
+        dimensions: Vec<u32>,
+    },
+    /// Permute tensor dimensions.
+    TensorTranspose {
+        /// The SSA value to define with the transposed tensor.
+        destination: Value,
+        /// The tensor value to transpose.
+        tensor: Value,
+        /// The permutation of dimensions.
+        permutation: Vec<u32>,
+    },
+    /// Slice a tensor by offsets, sizes, and strides.
+    TensorSlice {
+        /// The SSA value to define with the sliced tensor.
+        destination: Value,
+        /// The tensor value to slice.
+        tensor: Value,
+        /// The slice arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
+        arguments: ArgumentSlice,
+        /// The number of offset values.
+        offsets_count: u16,
+        /// The number of size values.
+        sizes_count: u16,
+        /// The number of stride values.
+        strides_count: u16,
+    },
+    /// Pad a tensor with low, high, and interior padding.
+    TensorPad {
+        /// The SSA value to define with the padded tensor.
+        destination: Value,
+        /// The tensor value to pad.
+        tensor: Value,
+        /// The padding arguments (low, high, interior) stored in NodeTree's argument buffer.
+        arguments: ArgumentSlice,
+        /// The number of low padding values.
+        low_count: u16,
+        /// The number of high padding values.
+        high_count: u16,
+        /// The number of interior padding values.
+        interior_count: u16,
+        /// The scalar padding value.
+        value: Value,
+    },
+    /// Concatenate tensors along a dimension.
+    TensorConcat {
+        /// The SSA value to define with the concatenated tensor.
+        destination: Value,
+        /// The tensor operands stored in NodeTree's argument buffer.
+        tensors: ArgumentSlice,
+        /// The concatenation axis.
+        axis: u32,
+    },
+    /// Reduce a tensor along axes with a fixed operator.
+    TensorReduce {
+        /// The SSA value to define with the reduced tensor.
+        destination: Value,
+        /// The reduction operator to apply.
+        operator: TensorReduceOperator,
+        /// The tensor value to reduce.
+        tensor: Value,
+        /// The initial value for the reduction.
+        initial: Value,
+        /// The axes to reduce.
+        axes: Vec<u32>,
+    },
+    /// Dot product of two tensors.
+    TensorDot {
+        /// The SSA value to define with the dot result.
+        destination: Value,
+        /// The left operand.
+        left: Value,
+        /// The right operand.
+        right: Value,
+        /// The dot dimension numbers.
+        dimensions: TensorDotDimensionNumbers,
+    },
+    /// Convolution between an input tensor and a kernel tensor.
+    TensorConvolution {
+        /// The SSA value to define with the convolution result.
+        destination: Value,
+        /// The input tensor.
+        input: Value,
+        /// The kernel tensor.
+        kernel: Value,
+        /// The convolution dimension numbers.
+        dimensions: TensorConvolutionDimensionNumbers,
+        /// The convolution window parameters.
+        window: TensorConvolutionWindow,
+        /// The number of feature groups.
+        feature_group_count: u32,
+        /// The number of batch groups.
+        batch_group_count: u32,
+    },
+    /// Gather slices from a tensor based on indices.
+    TensorGather {
+        /// The SSA value to define with the gathered tensor.
+        destination: Value,
+        /// The operand tensor.
+        operand: Value,
+        /// The indices tensor.
+        indices: Value,
+        /// The gather dimension numbers.
+        dimensions: TensorGatherDimensionNumbers,
+        /// The slice sizes for each operand dimension.
+        slice_sizes: Vec<u32>,
+    },
+    /// Scatter updates into a tensor based on indices.
+    TensorScatter {
+        /// The SSA value to define with the scatter result.
+        destination: Value,
+        /// The operand tensor.
+        operand: Value,
+        /// The indices tensor.
+        indices: Value,
+        /// The updates tensor.
+        updates: Value,
+        /// The scatter dimension numbers.
+        dimensions: TensorScatterDimensionNumbers,
+        /// The scatter update mode.
+        mode: TensorScatterMode,
+    },
+    /// Convert a tensor element type.
+    TensorConvert {
+        /// The SSA value to define with the converted tensor.
+        destination: Value,
+        /// The tensor value to convert.
+        tensor: Value,
+    },
+
     // function calls (call, call.virtual, call.interface, call.indirect)
     /// Call a function directly.
     Call {
@@ -447,6 +675,12 @@ pub enum Instruction {
         arguments: ArgumentSlice,
         /// Memory ordering for atomic operations (None for non-atomic intrinsics).
         ordering: Option<MemoryOrdering>,
+        /// Execution scope for synchronization.
+        scope: Option<AtomicScope>,
+        /// Memory scope for synchronization.
+        memory_scope: Option<MemoryScope>,
+        /// Memory semantics for atomic operations and barriers.
+        semantics: Option<MemorySemantics>,
     },
 }
 
@@ -479,6 +713,27 @@ impl Instruction {
             Instruction::Struct { destination, .. } => Some(*destination),
             Instruction::Tuple { destination, .. } => Some(*destination),
             Instruction::Array { destination, .. } => Some(*destination),
+            Instruction::VectorSplat { destination, .. } => Some(*destination),
+            Instruction::VectorExtract { destination, .. } => Some(*destination),
+            Instruction::VectorInsert { destination, .. } => Some(*destination),
+            Instruction::VectorShuffle { destination, .. } => Some(*destination),
+            Instruction::VectorReduce { destination, .. } => Some(*destination),
+            Instruction::TensorLoad { destination, .. } => Some(*destination),
+            Instruction::TensorStore { .. } => None,
+            Instruction::TensorFill { .. } => None,
+            Instruction::TensorCopy { .. } => None,
+            Instruction::TensorReshape { destination, .. } => Some(*destination),
+            Instruction::TensorBroadcast { destination, .. } => Some(*destination),
+            Instruction::TensorTranspose { destination, .. } => Some(*destination),
+            Instruction::TensorSlice { destination, .. } => Some(*destination),
+            Instruction::TensorPad { destination, .. } => Some(*destination),
+            Instruction::TensorConcat { destination, .. } => Some(*destination),
+            Instruction::TensorReduce { destination, .. } => Some(*destination),
+            Instruction::TensorDot { destination, .. } => Some(*destination),
+            Instruction::TensorConvolution { destination, .. } => Some(*destination),
+            Instruction::TensorGather { destination, .. } => Some(*destination),
+            Instruction::TensorScatter { destination, .. } => Some(*destination),
+            Instruction::TensorConvert { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
             Instruction::CallVirtual { destination, .. } => *destination,
             Instruction::CallInterface { destination, .. } => *destination,
@@ -535,6 +790,41 @@ impl Instruction {
             Instruction::Struct { .. } => smallvec![],
             Instruction::Tuple { .. } => smallvec![],
             Instruction::Array { .. } => smallvec![],
+            Instruction::VectorSplat { value, .. } => smallvec![*value],
+            Instruction::VectorExtract { vector, index, .. } => smallvec![*vector, *index],
+            Instruction::VectorInsert {
+                vector,
+                index,
+                value,
+                ..
+            } => smallvec![*vector, *index, *value],
+            Instruction::VectorShuffle { left, right, .. } => smallvec![*left, *right],
+            Instruction::VectorReduce { vector, .. } => smallvec![*vector],
+            Instruction::TensorLoad { view, .. } => smallvec![*view],
+            Instruction::TensorStore { view, value, .. } => smallvec![*view, *value],
+            Instruction::TensorFill { view, value } => smallvec![*view, *value],
+            Instruction::TensorCopy { target, source } => smallvec![*target, *source],
+            Instruction::TensorReshape { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorBroadcast { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorTranspose { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorSlice { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorPad { tensor, value, .. } => smallvec![*tensor, *value],
+            Instruction::TensorConcat { .. } => smallvec![],
+            Instruction::TensorReduce { tensor, initial, .. } => smallvec![*tensor, *initial],
+            Instruction::TensorDot { left, right, .. } => smallvec![*left, *right],
+            Instruction::TensorConvolution { input, kernel, .. } => {
+                smallvec![*input, *kernel]
+            }
+            Instruction::TensorGather { operand, indices, .. } => {
+                smallvec![*operand, *indices]
+            }
+            Instruction::TensorScatter {
+                operand,
+                indices,
+                updates,
+                ..
+            } => smallvec![*operand, *indices, *updates],
+            Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
             Instruction::Call { .. } => smallvec![],
             Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
@@ -555,13 +845,19 @@ impl Instruction {
     /// Get the argument slice for instructions that have externalized arguments.
     ///
     /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallInterface,
-    /// CallIndirect, and Intrinsic.
+    /// CallIndirect, Intrinsic, and tensor instructions that externalize value lists.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ArgumentSlice> {
         match self {
             Instruction::Struct { fields, .. } => Some(*fields),
             Instruction::Tuple { elements, .. } => Some(*elements),
             Instruction::Array { elements, .. } => Some(*elements),
+            Instruction::TensorLoad { indices, .. } => Some(*indices),
+            Instruction::TensorStore { indices, .. } => Some(*indices),
+            Instruction::TensorReshape { shape, .. } => Some(*shape),
+            Instruction::TensorSlice { arguments, .. } => Some(*arguments),
+            Instruction::TensorPad { arguments, .. } => Some(*arguments),
+            Instruction::TensorConcat { tensors, .. } => Some(*tensors),
             Instruction::Call { arguments, .. } => Some(*arguments),
             Instruction::CallVirtual { arguments, .. } => Some(*arguments),
             Instruction::CallInterface { arguments, .. } => Some(*arguments),

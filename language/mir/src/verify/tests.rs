@@ -16,8 +16,8 @@ fn test_verify_rejects_local_not_in_function() {
     let pool = StringPool::new();
     let name = pool.intern("test");
 
-    let ty = tree.insert(Type::Void);
-    let local_ty = tree.insert(Type::Int {
+    let ty = tree.insert_type(Type::Void);
+    let local_ty = tree.insert_type(Type::Int {
         width: 32,
         is_signed: true,
     });
@@ -39,6 +39,7 @@ fn test_verify_rejects_local_not_in_function() {
     let block_id = tree.insert(block);
 
     let mut function = Function::new(name, Vec::new(), ty, block_id);
+    function.set_value_type(Value::new(0), local_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -56,7 +57,7 @@ fn test_verify_rejects_local_not_in_function() {
 fn test_reject_duplicate_value_definitions() {
     let source = r#"function @dup() -> i32 {
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     jump block1(v0)
 block1(v0: i32):
     return v0
@@ -91,9 +92,9 @@ fn test_reject_call_argument_mismatch() {
     let source = r#"extern function @callee(i32) -> i32
 function @caller() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = call @callee(v0, v1) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32) -> i32
     return v2
 }"#;
 
@@ -111,7 +112,7 @@ fn test_reject_call_return_value_for_void() {
     let source = r#"extern function @noop() -> void
 function @caller() -> void {
 block0:
-    v0 = call @noop() -> fn() -> void
+    v0: void = call @noop() -> fn() -> void
     return
 }"#;
 
@@ -134,7 +135,7 @@ block0:
 
 function @bad() -> void {
 block0:
-    v0 = local.get local0
+    v0: i32 = local.get local0
     return
 }"#;
 
@@ -193,10 +194,10 @@ fn test_reject_duplicate_switch_case_value() {
 block0(v0: i32):
     switch v0, block1, 0 => block1, 0 => block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -212,7 +213,11 @@ fn test_reject_duplicate_instruction_id() {
     let pool = StringPool::new();
     let name = pool.intern("dup_inst");
 
-    let ty = tree.insert(Type::Void);
+    let ty = tree.insert_type(Type::Void);
+    let value_ty = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
     let value = Value::new(0);
     let instruction = tree.insert(Instruction::Const {
         destination: value,
@@ -227,6 +232,7 @@ fn test_reject_duplicate_instruction_id() {
     let block_id = tree.insert(block);
 
     let mut function = Function::new(name, Vec::new(), ty, block_id);
+    function.set_value_type(value, value_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -246,8 +252,8 @@ fn test_reject_duplicate_local_id() {
     let pool = StringPool::new();
     let name = pool.intern("dup_local");
 
-    let ty = tree.insert(Type::Void);
-    let local_ty = tree.insert(Type::Int {
+    let ty = tree.insert_type(Type::Void);
+    let local_ty = tree.insert_type(Type::Int {
         width: 32,
         is_signed: true,
     });
@@ -284,8 +290,8 @@ fn test_reject_argument_slice_out_of_bounds() {
     let pool = StringPool::new();
     let name = pool.intern("arg_slice");
 
-    let void_ty = tree.insert(Type::Void);
-    let signature = tree.insert(Type::FunctionPointer {
+    let void_ty = tree.insert_type(Type::Void);
+    let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
         result: void_ty,
     });
@@ -328,8 +334,8 @@ fn test_reject_call_effect_argument_count_mismatch() {
     let pool = StringPool::new();
     let name = pool.intern("bad_effects");
 
-    let void_ty = tree.insert(Type::Void);
-    let signature = tree.insert(Type::FunctionPointer {
+    let void_ty = tree.insert_type(Type::Void);
+    let signature = tree.insert_type(Type::FunctionPointer {
         parameters: Vec::new(),
         result: void_ty,
     });

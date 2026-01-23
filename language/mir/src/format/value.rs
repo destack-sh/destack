@@ -1,5 +1,3 @@
-//! Value and constant formatting.
-
 use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
