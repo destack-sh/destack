@@ -31,7 +31,7 @@ function statusValue(): int32 {
         r#"
 function @statusValue() -> i32 {
 block0:
-    v0 = iconst 4i32
+    v0: i32 = iconst 4i32
     return v0
 }
         "#,
@@ -133,14 +133,14 @@ function checkStatic(): boolean {
         r#"
 function @Status.isActive(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_eq v0, v1
     return v2
 }
 function @checkStatic() -> bool {
 block0:
-    v0 = iconst 1i32
-    v1 = call @Status.isActive(v0) -> fn(i32) -> bool
+    v0: i32 = iconst 1i32
+    v1: bool = call @Status.isActive(v0) -> fn(i32) -> bool
     return v1
 }
         "#,
@@ -181,14 +181,14 @@ function checkInstance(): boolean {
         r#"
 function @isActive(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_eq v0, v1
     return v2
 }
 function @checkInstance() -> bool {
 block0:
-    v0 = iconst 1i32
-    v1 = call @isActive(v0) -> fn(i32) -> bool
+    v0: i32 = iconst 1i32
+    v1: bool = call @isActive(v0) -> fn(i32) -> bool
     return v1
 }
         "#,
@@ -228,7 +228,7 @@ function defaultValue(): int32 {
 global @Status.Default: i32 = 1i32 ; const
 function @defaultValue() -> i32 {
 block0:
-    v0 = global.const @Status.Default
+    v0: i32 = global.const @Status.Default
     return v0
 }
         "#,

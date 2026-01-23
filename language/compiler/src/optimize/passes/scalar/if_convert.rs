@@ -308,7 +308,7 @@ fn apply_if_convert(
         let then_value = remap_value(*then_value, &then_value_map);
         let else_value = remap_value(*else_value, &else_value_map);
 
-        let destination = function.next_value();
+        let destination = function.next_typed_value_like(then_value);
         let select = mir::Instruction::Select {
             destination,
             condition: candidate.condition,
@@ -436,7 +436,7 @@ fn build_value_map(
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id);
         if let Some(destination) = instruction.destination() {
-            let new_value = function.next_value();
+            let new_value = function.next_typed_value_like(destination);
             value_map.insert(destination, new_value);
         }
     }
@@ -501,28 +501,28 @@ mod tests {
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1(v1, v2), block2(v1, v2)
 block1(v3: i32, v4: i32):
-    v5 = iadd v3, v4
+    v5: i32 = iadd v3, v4
     jump block3(v5)
 block2(v6: i32, v7: i32):
-    v8 = isub v6, v7
+    v8: i32 = isub v6, v7
     jump block3(v8)
 block3(v9: i32):
     return v9
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    v10 = iadd v1, v2
-    v11 = isub v1, v2
-    v12 = select v0, v10, v11
-    jump block3(v12)
-block1(v3: i32, v4: i32):
-    v5 = iadd v3, v4
+    v3: i32 = iadd v1, v2
+    v4: i32 = isub v1, v2
+    v5: i32 = select v0, v3, v4
     jump block3(v5)
-block2(v6: i32, v7: i32):
-    v8 = isub v6, v7
+block1(v6: i32, v7: i32):
+    v8: i32 = iadd v6, v7
     jump block3(v8)
-block3(v9: i32):
-    return v9
+block2(v9: i32, v10: i32):
+    v11: i32 = isub v9, v10
+    jump block3(v11)
+block3(v12: i32):
+    return v12
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -537,76 +537,76 @@ block3(v9: i32):
 block0(v0: bool, v1: i32):
     branch v0, block1(v1), block2(v1)
 block1(v2: i32):
-    v3 = iadd v2, v2
-    v4 = iadd v3, v2
-    v5 = iadd v4, v2
-    v6 = iadd v5, v2
-    v7 = iadd v6, v2
-    v8 = iadd v7, v2
-    v9 = iadd v8, v2
-    v10 = iadd v9, v2
-    v11 = iadd v10, v2
+    v3: i32 = iadd v2, v2
+    v4: i32 = iadd v3, v2
+    v5: i32 = iadd v4, v2
+    v6: i32 = iadd v5, v2
+    v7: i32 = iadd v6, v2
+    v8: i32 = iadd v7, v2
+    v9: i32 = iadd v8, v2
+    v10: i32 = iadd v9, v2
+    v11: i32 = iadd v10, v2
     jump block3(v11)
 block2(v12: i32):
-    v13 = isub v12, v12
-    v14 = iadd v13, v12
-    v15 = iadd v14, v12
-    v16 = iadd v15, v12
-    v17 = iadd v16, v12
-    v18 = iadd v17, v12
-    v19 = iadd v18, v12
-    v20 = iadd v19, v12
-    v21 = iadd v20, v12
+    v13: i32 = isub v12, v12
+    v14: i32 = iadd v13, v12
+    v15: i32 = iadd v14, v12
+    v16: i32 = iadd v15, v12
+    v17: i32 = iadd v16, v12
+    v18: i32 = iadd v17, v12
+    v19: i32 = iadd v18, v12
+    v20: i32 = iadd v19, v12
+    v21: i32 = iadd v20, v12
     jump block3(v21)
 block3(v22: i32):
     return v22
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v23 = iadd v1, v1
-    v24 = iadd v23, v1
-    v25 = iadd v24, v1
-    v26 = iadd v25, v1
-    v27 = iadd v26, v1
-    v28 = iadd v27, v1
-    v29 = iadd v28, v1
-    v30 = iadd v29, v1
-    v31 = iadd v30, v1
-    v32 = isub v1, v1
-    v33 = iadd v32, v1
-    v34 = iadd v33, v1
-    v35 = iadd v34, v1
-    v36 = iadd v35, v1
-    v37 = iadd v36, v1
-    v38 = iadd v37, v1
-    v39 = iadd v38, v1
-    v40 = iadd v39, v1
-    v41 = select v0, v31, v40
-    jump block3(v41)
-block1(v2: i32):
-    v3 = iadd v2, v2
-    v4 = iadd v3, v2
-    v5 = iadd v4, v2
-    v6 = iadd v5, v2
-    v7 = iadd v6, v2
-    v8 = iadd v7, v2
-    v9 = iadd v8, v2
-    v10 = iadd v9, v2
-    v11 = iadd v10, v2
-    jump block3(v11)
-block2(v12: i32):
-    v13 = isub v12, v12
-    v14 = iadd v13, v12
-    v15 = iadd v14, v12
-    v16 = iadd v15, v12
-    v17 = iadd v16, v12
-    v18 = iadd v17, v12
-    v19 = iadd v18, v12
-    v20 = iadd v19, v12
-    v21 = iadd v20, v12
-    jump block3(v21)
-block3(v22: i32):
-    return v22
+    v2: i32 = iadd v1, v1
+    v3: i32 = iadd v2, v1
+    v4: i32 = iadd v3, v1
+    v5: i32 = iadd v4, v1
+    v6: i32 = iadd v5, v1
+    v7: i32 = iadd v6, v1
+    v8: i32 = iadd v7, v1
+    v9: i32 = iadd v8, v1
+    v10: i32 = iadd v9, v1
+    v11: i32 = isub v1, v1
+    v12: i32 = iadd v11, v1
+    v13: i32 = iadd v12, v1
+    v14: i32 = iadd v13, v1
+    v15: i32 = iadd v14, v1
+    v16: i32 = iadd v15, v1
+    v17: i32 = iadd v16, v1
+    v18: i32 = iadd v17, v1
+    v19: i32 = iadd v18, v1
+    v20: i32 = select v0, v10, v19
+    jump block3(v20)
+block1(v21: i32):
+    v22: i32 = iadd v21, v21
+    v23: i32 = iadd v22, v21
+    v24: i32 = iadd v23, v21
+    v25: i32 = iadd v24, v21
+    v26: i32 = iadd v25, v21
+    v27: i32 = iadd v26, v21
+    v28: i32 = iadd v27, v21
+    v29: i32 = iadd v28, v21
+    v30: i32 = iadd v29, v21
+    jump block3(v30)
+block2(v31: i32):
+    v32: i32 = isub v31, v31
+    v33: i32 = iadd v32, v31
+    v34: i32 = iadd v33, v31
+    v35: i32 = iadd v34, v31
+    v36: i32 = iadd v35, v31
+    v37: i32 = iadd v36, v31
+    v38: i32 = iadd v37, v31
+    v39: i32 = iadd v38, v31
+    v40: i32 = iadd v39, v31
+    jump block3(v40)
+block3(v41: i32):
+    return v41
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -621,10 +621,10 @@ block3(v22: i32):
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1(v1, v2), block2(v1, v2)
 block1(v3: i32, v4: i32):
-    v5 = sdiv v3, v4
+    v5: i32 = sdiv v3, v4
     jump block3(v5)
 block2(v6: i32, v7: i32):
-    v8 = isub v6, v7
+    v8: i32 = isub v6, v7
     jump block3(v8)
 block3(v9: i32):
     return v9
@@ -664,10 +664,10 @@ block0(v0: bool, v1: bool, v2: i32, v3: i32):
 block1(v4: bool, v5: i32, v6: i32):
     branch v4, block2(v5, v6), block3(v5, v6)
 block2(v7: i32, v8: i32):
-    v9 = iadd v7, v8
+    v9: i32 = iadd v7, v8
     jump block5(v9)
 block3(v10: i32, v11: i32):
-    v12 = isub v10, v11
+    v12: i32 = isub v10, v11
     jump block5(v12)
 block4(v13: i32):
     jump block5(v13)
@@ -689,32 +689,32 @@ block5(v14: i32):
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1(v1, v2), block2(v1, v2)
 block1(v3: i32, v4: i32):
-    v5 = iadd v3, v4
+    v5: i32 = iadd v3, v4
     jump block3(v5, v3)
 block2(v6: i32, v7: i32):
-    v8 = isub v6, v7
+    v8: i32 = isub v6, v7
     jump block3(v8, v7)
 block3(v9: i32, v10: i32):
-    v11 = iadd v9, v10
+    v11: i32 = iadd v9, v10
     return v11
 }"#;
         // expected output
         let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    v12 = iadd v1, v2
-    v13 = isub v1, v2
-    v14 = select v0, v12, v13
-    v15 = select v0, v1, v2
-    jump block3(v14, v15)
-block1(v3: i32, v4: i32):
-    v5 = iadd v3, v4
-    jump block3(v5, v3)
-block2(v6: i32, v7: i32):
-    v8 = isub v6, v7
-    jump block3(v8, v7)
-block3(v9: i32, v10: i32):
-    v11 = iadd v9, v10
-    return v11
+    v3: i32 = iadd v1, v2
+    v4: i32 = isub v1, v2
+    v5: i32 = select v0, v3, v4
+    v6: i32 = select v0, v1, v2
+    jump block3(v5, v6)
+block1(v7: i32, v8: i32):
+    v9: i32 = iadd v7, v8
+    jump block3(v9, v7)
+block2(v10: i32, v11: i32):
+    v12: i32 = isub v10, v11
+    jump block3(v12, v11)
+block3(v13: i32, v14: i32):
+    v15: i32 = iadd v13, v14
+    return v15
 }"#;
 
         // run the pass and verify output

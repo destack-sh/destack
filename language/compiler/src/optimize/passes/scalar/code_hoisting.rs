@@ -272,7 +272,7 @@ fn hoist_common_prefix(
             }
 
             // allocate a new destination for the hoisted instruction
-            let new_dest = function.next_value();
+            let new_dest = function.next_typed_value_like(candidate.then_dest);
             value_map.insert(candidate.then_dest, new_dest);
 
             // clone instruction with updated destinations and operands
@@ -484,10 +484,10 @@ mod tests {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5
@@ -496,14 +496,14 @@ block3(v5: i32):
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v6 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     branch v2, block1, block2
 block1:
-    jump block3(v6)
+    jump block3(v3)
 block2:
-    jump block3(v6)
-block3(v5: i32):
-    return v5
+    jump block3(v3)
+block3(v4: i32):
+    return v4
 }"#;
 
         // run the pass and verify output
@@ -520,10 +520,10 @@ block3(v5: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = sdiv v0, v1
+    v3: i32 = sdiv v0, v1
     jump block3(v3)
 block2:
-    v4 = sdiv v0, v1
+    v4: i32 = sdiv v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5
@@ -543,10 +543,10 @@ block3(v5: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5
@@ -566,12 +566,12 @@ block3(v5: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
-    v4 = iadd v3, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v3, v1
     jump block3(v4)
 block2:
-    v5 = iadd v0, v1
-    v6 = iadd v5, v1
+    v5: i32 = iadd v0, v1
+    v6: i32 = iadd v5, v1
     jump block3(v6)
 block3(v7: i32):
     return v7
@@ -580,15 +580,15 @@ block3(v7: i32):
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v8 = iadd v0, v1
-    v9 = iadd v8, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v3, v1
     branch v2, block1, block2
 block1:
-    jump block3(v9)
+    jump block3(v4)
 block2:
-    jump block3(v9)
-block3(v7: i32):
-    return v7
+    jump block3(v4)
+block3(v5: i32):
+    return v5
 }"#;
 
         // run the pass and verify output
@@ -605,10 +605,10 @@ block3(v7: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1(v0, v1), block2(v0, v1)
 block1(v3: i32, v4: i32):
-    v5 = iadd v3, v4
+    v5: i32 = iadd v3, v4
     jump block3(v5)
 block2(v6: i32, v7: i32):
-    v8 = iadd v6, v7
+    v8: i32 = iadd v6, v7
     jump block3(v8)
 block3(v9: i32):
     return v9
@@ -617,14 +617,14 @@ block3(v9: i32):
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v10 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     branch v2, block1(v0, v1), block2(v0, v1)
-block1(v3: i32, v4: i32):
-    jump block3(v10)
+block1(v4: i32, v5: i32):
+    jump block3(v3)
 block2(v6: i32, v7: i32):
-    jump block3(v10)
-block3(v9: i32):
-    return v9
+    jump block3(v3)
+block3(v8: i32):
+    return v8
 }"#;
 
         // run the pass and verify output
@@ -641,12 +641,12 @@ block3(v9: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = imul v0, v1
-    v4 = iadd v0, v1
+    v3: i32 = imul v0, v1
+    v4: i32 = iadd v0, v1
     jump block3(v4)
 block2:
-    v5 = isub v0, v1
-    v6 = iadd v0, v1
+    v5: i32 = isub v0, v1
+    v6: i32 = iadd v0, v1
     jump block3(v6)
 block3(v7: i32):
     return v7
@@ -655,16 +655,16 @@ block3(v7: i32):
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v8 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     branch v2, block1, block2
 block1:
-    v3 = imul v0, v1
-    jump block3(v8)
+    v4: i32 = imul v0, v1
+    jump block3(v3)
 block2:
-    v5 = isub v0, v1
-    jump block3(v8)
-block3(v7: i32):
-    return v7
+    v5: i32 = isub v0, v1
+    jump block3(v3)
+block3(v6: i32):
+    return v6
 }"#;
 
         // run the pass and verify output
@@ -681,10 +681,10 @@ block3(v7: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5

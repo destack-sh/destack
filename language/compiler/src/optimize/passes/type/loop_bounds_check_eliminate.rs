@@ -915,18 +915,18 @@ mod tests {
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block3
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     check v6, bounds.unsigned v4, v3, v0, block4, block5
 block4:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block5:
     unreachable
@@ -937,18 +937,18 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block5
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     jump block3
 block3:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block4:
     unreachable
@@ -968,16 +968,16 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     check v5, bounds.unsigned v4, v3, v0, block2, block5
 block2:
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
+    v6: u32 = iadd v4, v2
+    v7: bool = icmp_ult v6, v3
     branch v7, block1(v6), block3
 block5:
     unreachable
@@ -988,16 +988,16 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     check v5, bounds.unsigned v4, v3, v0, block2, block3
 block2:
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
+    v6: u32 = iadd v4, v2
+    v7: bool = icmp_ult v6, v3
     branch v7, block1(v6), block4
 block3:
     unreachable
@@ -1017,18 +1017,18 @@ block4:
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_uge v4, v3
+    v5: bool = icmp_uge v4, v3
     branch v5, block3, block2
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     check v6, bounds.unsigned v4, v3, v0, block4, block5
 block4:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block5:
     unreachable
@@ -1039,18 +1039,18 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_uge v4, v3
+    v5: bool = icmp_uge v4, v3
     branch v5, block5, block2
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     jump block3
 block3:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block4:
     unreachable
@@ -1070,17 +1070,17 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_slt v4, v3
+    v5: bool = icmp_slt v4, v3
     branch v5, block2, block3
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     check v6, bounds.signed v4, v3, v0, block4, block5
 block4:
-    v7 = iadd v4, v2
+    v7: i32 = iadd v4, v2
     jump block1(v7)
 block5:
     unreachable
@@ -1091,17 +1091,17 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_slt v4, v3
+    v5: bool = icmp_slt v4, v3
     branch v5, block2, block5
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     check v6, bounds.signed v4, v3, v0, block3, block4
 block3:
-    v7 = iadd v4, v2
+    v7: i32 = iadd v4, v2
     jump block1(v7)
 block4:
     unreachable
@@ -1121,18 +1121,18 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2(v4), block3
 block2(v6: u32):
-    v7 = icmp_ult v6, v3
+    v7: bool = icmp_ult v6, v3
     check v7, bounds.unsigned v6, v3, v0, block4, block5
 block4:
-    v8 = iadd v6, v2
+    v8: u32 = iadd v6, v2
     jump block1(v8)
 block5:
     unreachable
@@ -1143,18 +1143,18 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2(v4), block5
 block2(v6: u32):
-    v7 = icmp_ult v6, v3
+    v7: bool = icmp_ult v6, v3
     jump block3
 block3:
-    v8 = iadd v6, v2
+    v8: u32 = iadd v6, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1174,21 +1174,21 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sge v4, v2
+    v5: bool = icmp_sge v4, v2
     branch v5, block2, block3
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block4, block3
 block4:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     check v7, bounds.signed v4, v3, v0, block5, block6
 block5:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block6:
     unreachable
@@ -1199,21 +1199,21 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sge v4, v2
+    v5: bool = icmp_sge v4, v2
     branch v5, block2, block6
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block3, block6
 block3:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     jump block4
 block4:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block5:
     unreachable
@@ -1233,21 +1233,21 @@ block6:
         // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 2i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sge v4, v2
+    v5: bool = icmp_sge v4, v2
     branch v5, block2, block3
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block4, block3
 block4:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     check v7, bounds.signed v4, v3, v0, block5, block6
 block5:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block6:
     unreachable
@@ -1258,21 +1258,21 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 2i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sge v4, v2
+    v5: bool = icmp_sge v4, v2
     branch v5, block2, block6
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block3, block6
 block3:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     jump block4
 block4:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block5:
     unreachable
@@ -1292,21 +1292,21 @@ block6:
         // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sle v2, v4
+    v5: bool = icmp_sle v2, v4
     branch v5, block2, block3
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block4, block3
 block4:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     check v7, bounds.signed v4, v3, v0, block5, block6
 block5:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block6:
     unreachable
@@ -1317,21 +1317,21 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_sle v2, v4
+    v5: bool = icmp_sle v2, v4
     branch v5, block2, block6
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     branch v6, block3, block6
 block3:
-    v7 = icmp_slt v4, v3
+    v7: bool = icmp_slt v4, v3
     jump block4
 block4:
-    v8 = iconst 1i32
-    v9 = iadd v4, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v4, v8
     jump block1(v9)
 block5:
     unreachable
@@ -1351,21 +1351,21 @@ block6:
         // source test
         let input = r#"function @test(v0: [u32; 4]) -> void {
 block0(v0: [u32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
-    v6 = bnot v5
+    v5: bool = icmp_ult v4, v3
+    v6: bool = bnot v5
     branch v6, block2, block3
 block2:
     return
 block3:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     check v7, bounds.unsigned v4, v3, v0, block4, block5
 block4:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block5:
     unreachable
@@ -1373,21 +1373,21 @@ block5:
         // expected output
         let expected = r#"function @test(v0: [u32; 4]) -> void {
 block0(v0: [u32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
-    v6 = bnot v5
+    v5: bool = icmp_ult v4, v3
+    v6: bool = bnot v5
     branch v6, block2, block3
 block2:
     return
 block3:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     jump block4
 block4:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block5:
     unreachable
@@ -1405,18 +1405,18 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     check v5, bounds.unsigned v4, v3, v0, block2, block3
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     check v6, bounds.unsigned v4, v3, v0, block4, block5
 block4:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block5:
     unreachable
@@ -1427,18 +1427,18 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     check v5, bounds.unsigned v4, v3, v0, block2, block5
 block2:
-    v6 = icmp_ult v4, v3
+    v6: bool = icmp_ult v4, v3
     jump block3
 block3:
-    v7 = iadd v4, v2
+    v7: u32 = iadd v4, v2
     jump block1(v7)
 block4:
     unreachable
@@ -1458,17 +1458,17 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 4i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block3
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     check v6, bounds.signed v4, v3, v0, block4, block5
 block4:
-    v7 = iadd v4, v2
+    v7: i32 = iadd v4, v2
     jump block1(v7)
 block5:
     unreachable
@@ -1479,17 +1479,17 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 4i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block5
 block2:
-    v6 = icmp_slt v4, v3
+    v6: bool = icmp_slt v4, v3
     check v6, bounds.signed v4, v3, v0, block3, block4
 block3:
-    v7 = iadd v4, v2
+    v7: i32 = iadd v4, v2
     jump block1(v7)
 block4:
     unreachable
@@ -1509,19 +1509,19 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = iadd v4, v2
-    v6 = icmp_ult v5, v3
+    v5: u32 = iadd v4, v2
+    v6: bool = icmp_ult v5, v3
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     check v7, bounds.unsigned v4, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1532,19 +1532,19 @@ block5:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = iadd v4, v2
-    v6 = icmp_ult v5, v3
+    v5: u32 = iadd v4, v2
+    v6: bool = icmp_ult v5, v3
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     jump block3
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1564,19 +1564,19 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block5
 block2:
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
+    v6: u32 = iadd v4, v2
+    v7: bool = icmp_ult v6, v3
     check v7, bounds.unsigned v6, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1587,19 +1587,19 @@ block5:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block5
 block2:
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
+    v6: u32 = iadd v4, v2
+    v7: bool = icmp_ult v6, v3
     check v7, bounds.unsigned v6, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1619,19 +1619,19 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = isub v3, v2
-    v6 = icmp_ult v4, v5
+    v5: u32 = isub v3, v2
+    v6: bool = icmp_ult v4, v5
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     check v7, bounds.unsigned v4, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1642,19 +1642,19 @@ block5:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = isub v3, v2
-    v6 = icmp_ult v4, v5
+    v5: u32 = isub v3, v2
+    v6: bool = icmp_ult v4, v5
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     jump block3
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1674,19 +1674,19 @@ block5:
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = iadd v3, v2
-    v6 = icmp_ult v4, v5
+    v5: u32 = iadd v3, v2
+    v6: bool = icmp_ult v4, v5
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     check v7, bounds.unsigned v4, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable
@@ -1697,19 +1697,19 @@ block5:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = iadd v3, v2
-    v6 = icmp_ult v4, v5
+    v5: u32 = iadd v3, v2
+    v6: bool = icmp_ult v4, v5
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v4, v3
+    v7: bool = icmp_ult v4, v3
     check v7, bounds.unsigned v4, v3, v0, block3, block4
 block3:
-    v8 = iadd v4, v2
+    v8: u32 = iadd v4, v2
     jump block1(v8)
 block4:
     unreachable

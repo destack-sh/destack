@@ -10,7 +10,7 @@ fn test_lower_module_constants() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-const PI = 3.14159;
+const PI = 3.141592653589793;
 const TWO = 2;
 
 function getCircumference(radius: number): number {
@@ -28,7 +28,7 @@ function getCircumference(radius: number): number {
         "native",
         "getCircumference",
         &[Value::float64(1.0)],
-        Value::float64(6.28318),
+        Value::float64(std::f64::consts::TAU),
     );
 }
 
@@ -58,11 +58,11 @@ function assignReturn(x: number): number {
         r#"
 function @assignReturn(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = iconst 1f64
-    v2 = fadd v0, v1
-    v3 = iconst 2f64
-    v4 = fadd v2, v3
-    v5 = fadd v4, v0
+    v1: f64 = iconst 1f64
+    v2: f64 = fadd v0, v1
+    v3: f64 = iconst 2f64
+    v4: f64 = fadd v2, v3
+    v5: f64 = fadd v4, v0
     return v5
 }
         "#,
@@ -103,7 +103,7 @@ function @borrowLocal(v0: i32) -> ref<borrowed i32> {
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed i32>
+    v1: ref<borrowed i32> = local.addr local0
     return v1
 }
         "#,
@@ -134,10 +134,10 @@ function borrowTemp(x: int32): &int32 {
 function @borrowTemp(v0: i32) -> ref<borrowed i32> {
     local0: i32 ; owned
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     local.set local0, v2
-    v3 = local.addr local0 -> ref<borrowed i32>
+    v3: ref<borrowed i32> = local.addr local0
     return v3
 }
         "#,
@@ -173,7 +173,7 @@ function borrowField(point: &Point): &int32 {
 type @test/test:Point = { x: i32, y: i32 }
 function @borrowField(v0: ref<borrowed @test/test:Point>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed @test/test:Point>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }
         "#,
@@ -207,9 +207,9 @@ function @borrowElement(v0: [i32; 4]) -> ref<borrowed i32> {
     local0: [i32; 4] ; owned
 block0(v0: [i32; 4]):
     local.set local0, v0
-    v1 = local.get local0
-    v2 = iconst 2i32
-    v3 = element.addr v1, v2 -> ref<borrowed i32>
+    v1: [i32; 4] = local.get local0
+    v2: i32 = iconst 2i32
+    v3: ref<borrowed i32> = element.addr v1, v2
     return v3
 }
         "#,
@@ -246,20 +246,20 @@ function @borrowElementChecked(v0: [i32; 4]) -> ref<borrowed i32> {
     local0: [i32; 4] ; owned
 block0(v0: [i32; 4]):
     local.set local0, v0
-    v1 = local.get local0
-    v2 = iconst 2i32
-    v3 = iconst 4i32
-    v4 = iconst 0i32
-    v5 = icmp_sge v2, v4
-    v6 = icmp_slt v2, v3
-    v7 = band v5, v6
+    v1: [i32; 4] = local.get local0
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 0i32
+    v5: bool = icmp_sge v2, v4
+    v6: bool = icmp_slt v2, v3
+    v7: bool = band v5, v6
     check v7, bounds.signed v2, v3, v1, block2, block1
 block1:
-    v8 = global.const @${bounds_check_failed}
+    v8: ref<managed @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v8)
     unreachable
 block2:
-    v9 = element.addr v1, v2 -> ref<borrowed i32>
+    v9: ref<borrowed i32> = element.addr v1, v2
     return v9
 }
         "#;
@@ -293,8 +293,8 @@ function borrowElementRef(values: &int32[4]): &int32 {
         r#"
 function @borrowElementRef(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed [i32; 4]>):
-    v1 = iconst 2i32
-    v2 = element.addr v0, v1 -> ref<borrowed i32>
+    v1: i32 = iconst 2i32
+    v2: ref<borrowed i32> = element.addr v0, v1
     return v2
 }
         "#,
@@ -329,19 +329,19 @@ global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; c
 
 function @borrowElementRefChecked(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed [i32; 4]>):
-    v1 = iconst 2i32
-    v2 = iconst 4i32
-    v3 = iconst 0i32
-    v4 = icmp_sge v1, v3
-    v5 = icmp_slt v1, v2
-    v6 = band v4, v5
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_sge v1, v3
+    v5: bool = icmp_slt v1, v2
+    v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7 = global.const @${bounds_check_failed}
+    v7: ref<managed @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
-    v8 = element.addr v0, v1 -> ref<borrowed i32>
+    v8: ref<borrowed i32> = element.addr v0, v1
     return v8
 }
         "#;
@@ -381,7 +381,7 @@ function @borrowGreeter(v0: @test/test:Greeter) -> ref<borrowed @test/test:Greet
     local0: @test/test:Greeter ; owned
 block0(v0: @test/test:Greeter):
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed @test/test:Greeter>
+    v1: ref<borrowed @test/test:Greeter> = local.addr local0
     return v1
 }
         "#,
@@ -417,7 +417,7 @@ type @test/test:Counter = { @vtable: ref<raw void>, value: i32 }
 global @test/test:Counter#vtable: [ref?<raw void>; 3] = zeroinit ; const
 function @borrowValue(v0: ref<managed @test/test:Counter>) -> ref<borrowed i32> {
 block0(v0: ref<managed @test/test:Counter>):
-    v1 = field.addr v0, 1 -> ref<borrowed i32>
+    v1: ref<borrowed i32> = field.addr v0, 1
     return v1
 }
         "#,

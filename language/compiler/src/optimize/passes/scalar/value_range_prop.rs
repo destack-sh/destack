@@ -144,16 +144,16 @@ mod tests {
     fn test_value_range_prop_constant_comparison() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = icmp_slt v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst true
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: bool = iconst true
     return v2
 }"#;
 
@@ -167,16 +167,16 @@ block0:
     fn test_value_range_prop_constant_equals() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 4i32
-    v1 = iconst 4i32
-    v2 = icmp_eq v0, v1
+    v0: i32 = iconst 4i32
+    v1: i32 = iconst 4i32
+    v2: bool = icmp_eq v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst 4i32
-    v1 = iconst 4i32
-    v2 = iconst true
+    v0: i32 = iconst 4i32
+    v1: i32 = iconst 4i32
+    v2: bool = iconst true
     return v2
 }"#;
 
@@ -190,7 +190,7 @@ block0:
     fn test_value_range_prop_preserves_non_constant() {
         let input = r#"function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_slt v0, v1
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
 

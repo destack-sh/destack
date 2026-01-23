@@ -169,7 +169,7 @@ pub fn build_signature_type(
     let parameters = function.parameters.iter().map(|param| param.ty).collect();
 
     // insert the function pointer type
-    tree.insert(mir::Type::FunctionPointer {
+    tree.insert_type(mir::Type::FunctionPointer {
         parameters,
         result: function.return_type,
     })

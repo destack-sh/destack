@@ -133,11 +133,26 @@ impl FunctionContext<'_> {
             }
         };
 
-        // emit the checked intrinsic
-        let pair = self
+        // build the intrinsic result tuple type
+        let result_type = self.lower_type_for_expression(expression_id)?;
+        let bool_type = self.state.builder.tree_mut().boolean_type();
+        let result_copyability = self
             .state
             .builder
-            .intrinsic(intrinsic, vec![left_value, right_value]);
+            .tree()
+            .get(result_type)
+            .copyability()
+            .combine(mir::Copyability::Trivial);
+        let pair_type = self.state.builder.tree_mut().insert_type(mir::Type::Tuple {
+            elements: vec![result_type, bool_type],
+            copyability: result_copyability,
+        });
+
+        // emit the checked intrinsic
+        let pair =
+            self.state
+                .builder
+                .intrinsic(intrinsic, pair_type, vec![left_value, right_value]);
         let result = self.state.builder.field_get(pair, 0);
         let overflow = self.state.builder.field_get(pair, 1);
 

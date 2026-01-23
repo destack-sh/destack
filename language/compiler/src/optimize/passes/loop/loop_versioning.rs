@@ -4,12 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ControlFlowGraph, LoopAnalysis, OwnershipAnalysis, RangeAnalysis, ScalarEvolution, Scev,
-    ValueRange,
+    ControlFlowGraph, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev, ValueRange,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, build_use_def_maps, clone_loop_blocks, terminator_remap,
-    unsigned_int_width_for_value,
+    BlockParamForwarding, UseDefMaps, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
+    terminator_remap, unsigned_int_width_for_value,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -138,7 +137,6 @@ fn run_loop_versioning(
     let loops = analyses.get::<LoopAnalysis>().clone();
     let cfg = analyses.get::<ControlFlowGraph>().clone();
     let scev = analyses.get::<ScalarEvolution>().clone();
-    let ownership = analyses.get::<OwnershipAnalysis>().clone();
     let ranges = analyses.get::<RangeAnalysis>().clone();
     let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
@@ -149,6 +147,7 @@ fn run_loop_versioning(
 
     // track whether we rewrote any loops
     let use_def = build_use_def_maps(function, tree);
+    let value_types = ValueTypeMap::new(function, tree);
     let mut changed = false;
     function.recompute_next_value_id(tree);
 
@@ -199,7 +198,7 @@ fn run_loop_versioning(
         // require consistent unsigned integer types
         let Some(bound_width) = unsigned_int_width_for_value(
             resolved_bound,
-            &ownership,
+            &value_types,
             ctx.type_context().pointer_width_bits,
             tree,
         ) else {
@@ -207,7 +206,7 @@ fn run_loop_versioning(
         };
         let Some(length_width) = unsigned_int_width_for_value(
             resolved_length,
-            &ownership,
+            &value_types,
             ctx.type_context().pointer_width_bits,
             tree,
         ) else {
@@ -215,7 +214,7 @@ fn run_loop_versioning(
         };
         let Some(induction_width) = unsigned_int_width_for_value(
             guard.induction,
-            &ownership,
+            &value_types,
             ctx.type_context().pointer_width_bits,
             tree,
         ) else {
@@ -338,7 +337,7 @@ fn guard_from_header(
     header: mir::LocalNodeId<mir::Block>,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::NodeTree,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
 ) -> Option<GuardInfo> {
     // read the header terminator
     let header_block = tree.get(header);
@@ -461,7 +460,7 @@ fn bounds_check_in_loop(
 fn value_is_loop_invariant(
     value: mir::Value,
     lp: &crate::optimize::analyses::Loop,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
     forwarding: &BlockParamForwarding,
 ) -> bool {
     // resolve forwarded block parameters
@@ -499,7 +498,8 @@ fn insert_preheader_guard(
     }
 
     // build the guard instruction
-    let destination = function.next_value();
+    let bool_type = tree.boolean_type();
+    let destination = function.next_typed_value(bool_type);
     let guard = mir::Instruction::Binary {
         destination,
         operator: mir::BinaryOperator::UnsignedLessEqual,
@@ -555,7 +555,7 @@ fn preheader_guard_bound(
     }
 
     // build a constant one value for the add
-    let one_value = function.next_value();
+    let one_value = function.next_typed_value_like(bound);
     let one_inst = tree.insert(mir::Instruction::Const {
         destination: one_value,
         value: mir::Constant::UInt {
@@ -565,7 +565,7 @@ fn preheader_guard_bound(
     });
 
     // build the incremented bound
-    let add_value = function.next_value();
+    let add_value = function.next_typed_value_like(bound);
     let add_inst = tree.insert(mir::Instruction::Binary {
         destination: add_value,
         operator: mir::BinaryOperator::Add,
@@ -632,20 +632,20 @@ mod tests {
     fn test_loop_versioning_bounds_guard() {
         let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = icmp_ult v5, v1
+    v7: bool = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
+    v8: ref<borrowed u8> = element.addr v0, v5
+    v9: u8 = iconst 1u8
     store v8, v9
-    v10 = iadd v5, v4
+    v10: u32 = iadd v5, v4
     jump block1(v10)
 block5:
     unreachable
@@ -655,37 +655,37 @@ block3:
 
         let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 1u32
-    v11 = icmp_ule v2, v1
-    branch v11, block6(v3), block1(v3)
-block1(v5: u32):
-    v6 = icmp_ult v5, v2
-    branch v6, block2, block5
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
+    v5: bool = icmp_ule v2, v1
+    branch v5, block6(v3), block1(v3)
+block1(v6: u32):
+    v7: bool = icmp_ult v6, v2
+    branch v7, block2, block5
 block2:
-    v7 = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block3, block4
+    v8: bool = icmp_ult v6, v1
+    check v8, bounds.unsigned v6, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
-    store v8, v9
-    v10 = iadd v5, v4
-    jump block1(v10)
+    v9: ref<borrowed u8> = element.addr v0, v6
+    v10: u8 = iconst 1u8
+    store v9, v10
+    v11: u32 = iadd v6, v4
+    jump block1(v11)
 block4:
     unreachable
 block5:
     return
 block6(v12: u32):
-    v13 = icmp_ult v12, v2
+    v13: bool = icmp_ult v12, v2
     branch v13, block7, block5
 block7:
-    v14 = icmp_ult v12, v1
+    v14: bool = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12 -> ref<borrowed u8>
-    v16 = iconst 1u8
+    v15: ref<borrowed u8> = element.addr v0, v12
+    v16: u8 = iconst 1u8
     store v15, v16
-    v17 = iadd v12, v4
+    v17: u32 = iadd v12, v4
     jump block6(v17)
 }"#;
 
@@ -699,20 +699,20 @@ block8:
     fn test_loop_versioning_non_zero_start() {
         let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = icmp_ult v5, v1
+    v7: bool = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
+    v8: ref<borrowed u8> = element.addr v0, v5
+    v9: u8 = iconst 1u8
     store v8, v9
-    v10 = iadd v5, v4
+    v10: u32 = iadd v5, v4
     jump block1(v10)
 block5:
     unreachable
@@ -722,37 +722,37 @@ block3:
 
         let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 2u32
-    v4 = iconst 1u32
-    v11 = icmp_ule v2, v1
-    branch v11, block6(v3), block1(v3)
-block1(v5: u32):
-    v6 = icmp_ult v5, v2
-    branch v6, block2, block5
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
+    v5: bool = icmp_ule v2, v1
+    branch v5, block6(v3), block1(v3)
+block1(v6: u32):
+    v7: bool = icmp_ult v6, v2
+    branch v7, block2, block5
 block2:
-    v7 = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block3, block4
+    v8: bool = icmp_ult v6, v1
+    check v8, bounds.unsigned v6, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
-    store v8, v9
-    v10 = iadd v5, v4
-    jump block1(v10)
+    v9: ref<borrowed u8> = element.addr v0, v6
+    v10: u8 = iconst 1u8
+    store v9, v10
+    v11: u32 = iadd v6, v4
+    jump block1(v11)
 block4:
     unreachable
 block5:
     return
 block6(v12: u32):
-    v13 = icmp_ult v12, v2
+    v13: bool = icmp_ult v12, v2
     branch v13, block7, block5
 block7:
-    v14 = icmp_ult v12, v1
+    v14: bool = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12 -> ref<borrowed u8>
-    v16 = iconst 1u8
+    v15: ref<borrowed u8> = element.addr v0, v12
+    v16: u8 = iconst 1u8
     store v15, v16
-    v17 = iadd v12, v4
+    v17: u32 = iadd v12, v4
     jump block6(v17)
 }"#;
 
@@ -766,22 +766,22 @@ block8:
     fn test_loop_versioning_skips_signed_bounds() {
         let input = r#"function @test(v0: [i32; 8], v1: i32, v2: i32) -> void {
 block0(v0: [i32; 8], v1: i32, v2: i32):
-    v3 = iconst 0i32
-    v4 = iconst 1i32
+    v3: i32 = iconst 0i32
+    v4: i32 = iconst 1i32
     jump block1(v3)
 block1(v5: i32):
-    v6 = icmp_slt v5, v2
+    v6: bool = icmp_slt v5, v2
     branch v6, block2, block3
 block2:
-    v7 = icmp_slt v5, v1
+    v7: bool = icmp_slt v5, v1
     check v7, bounds.signed v5, v1, v0, block4, block5
 block3:
     return
 block4:
-    v8 = element.addr v0, v5 -> ref<borrowed i32>
-    v9 = iconst 1i32
+    v8: ref<borrowed i32> = element.addr v0, v5
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v5, v4
+    v10: i32 = iadd v5, v4
     jump block1(v10)
 block5:
     unreachable
@@ -797,22 +797,22 @@ block5:
     fn test_loop_versioning_skips_type_mismatch() {
         let input = r#"function @test(v0: [u8; 8], v1: i32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: i32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = icmp_ult v5, v2
+    v7: bool = icmp_ult v5, v2
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block3:
     return
 block4:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
+    v8: ref<borrowed u8> = element.addr v0, v5
+    v9: u8 = iconst 1u8
     store v8, v9
-    v10 = iadd v5, v4
+    v10: u32 = iadd v5, v4
     jump block1(v10)
 block5:
     unreachable
@@ -828,20 +828,20 @@ block5:
     fn test_loop_versioning_handles_non_unit_stride() {
         let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 2u32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 2u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = icmp_ult v5, v1
+    v7: bool = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
+    v8: ref<borrowed u8> = element.addr v0, v5
+    v9: u8 = iconst 1u8
     store v8, v9
-    v10 = iadd v5, v4
+    v10: u32 = iadd v5, v4
     jump block1(v10)
 block5:
     unreachable
@@ -851,37 +851,37 @@ block3:
 
         let expected = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 2u32
-    v11 = icmp_ule v2, v1
-    branch v11, block6(v3), block1(v3)
-block1(v5: u32):
-    v6 = icmp_ult v5, v2
-    branch v6, block2, block5
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 2u32
+    v5: bool = icmp_ule v2, v1
+    branch v5, block6(v3), block1(v3)
+block1(v6: u32):
+    v7: bool = icmp_ult v6, v2
+    branch v7, block2, block5
 block2:
-    v7 = icmp_ult v5, v1
-    check v7, bounds.unsigned v5, v1, v0, block3, block4
+    v8: bool = icmp_ult v6, v1
+    check v8, bounds.unsigned v6, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
-    store v8, v9
-    v10 = iadd v5, v4
-    jump block1(v10)
+    v9: ref<borrowed u8> = element.addr v0, v6
+    v10: u8 = iconst 1u8
+    store v9, v10
+    v11: u32 = iadd v6, v4
+    jump block1(v11)
 block4:
     unreachable
 block5:
     return
 block6(v12: u32):
-    v13 = icmp_ult v12, v2
+    v13: bool = icmp_ult v12, v2
     branch v13, block7, block5
 block7:
-    v14 = icmp_ult v12, v1
+    v14: bool = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12 -> ref<borrowed u8>
-    v16 = iconst 1u8
+    v15: ref<borrowed u8> = element.addr v0, v12
+    v16: u8 = iconst 1u8
     store v15, v16
-    v17 = iadd v12, v4
+    v17: u32 = iadd v12, v4
     jump block6(v17)
 }"#;
 
@@ -895,20 +895,20 @@ block8:
     fn test_loop_versioning_skips_non_strict_guard() {
         let input = r#"function @test(v0: [u8; 8], v1: u32, v2: u32) -> void {
 block0(v0: [u8; 8], v1: u32, v2: u32):
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ule v5, v2
+    v6: bool = icmp_ule v5, v2
     branch v6, block2, block5
 block2:
-    v7 = icmp_ult v5, v1
+    v7: bool = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5 -> ref<borrowed u8>
-    v9 = iconst 1u8
+    v8: ref<borrowed u8> = element.addr v0, v5
+    v9: u8 = iconst 1u8
     store v8, v9
-    v10 = iadd v5, v4
+    v10: u32 = iadd v5, v4
     jump block1(v10)
 block4:
     unreachable

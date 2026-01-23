@@ -89,10 +89,10 @@ function sumPoint(a: int32, b: int32): int32 {
         r#"
 function @sumPoint(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = struct { x: i32, y: i32 } (v0, v1)
-    v3 = field.get v2, 0
-    v4 = field.get v2, 1
-    v5 = iadd v3, v4
+    v2: { x: i32, y: i32 } = struct { x: i32, y: i32 } (v0, v1)
+    v3: i32 = field.get v2, 0
+    v4: i32 = field.get v2, 1
+    v5: i32 = iadd v3, v4
     return v5
 }
         "#,

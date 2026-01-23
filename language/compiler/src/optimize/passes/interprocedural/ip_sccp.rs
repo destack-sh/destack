@@ -735,20 +735,20 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 7i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 7i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 7i32
+    v1: i32 = iconst 7i32
     return v1
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 7i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 7i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -762,23 +762,23 @@ block0:
     fn test_ip_sccp_replaces_pure_call() {
         let input = r#"function @pure() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     return v0
 }
 function @root() -> i32 {
 block0:
-    v0 = call @pure() -> fn() -> i32
+    v0: i32 = call @pure() -> fn() -> i32
     return v0
 }"#;
 
         let expected = r#"function @pure() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     return v0
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     return v0
 }"#;
 
@@ -800,14 +800,14 @@ block0(v0: i32):
 }
 function @first() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }
 function @second() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -825,9 +825,9 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = call @callee(v1) -> fn(i32) -> i32
-    v3 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = iconst 1i32
+    v2: i32 = call @callee(v1) -> fn(i32) -> i32
+    v3: i32 = call @callee(v0) -> fn(i32) -> i32
     return v2
 }"#;
 
@@ -845,18 +845,18 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     tailcall @callee(v0)
 }"#;
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 9i32
+    v1: i32 = iconst 9i32
     return v1
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     tailcall @callee(v0)
 }"#;
 
@@ -870,12 +870,12 @@ block0:
     fn test_ip_sccp_skips_call_without_metadata() {
         let input = r#"function @pure() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     return v0
 }
 function @root() -> i32 {
 block0:
-    v0 = call @pure() -> fn() -> i32
+    v0: i32 = call @pure() -> fn() -> i32
     return v0
 }"#;
 
@@ -893,9 +893,9 @@ block0(v0: i32):
 }
 function @root(v0: fn(i32) -> i32) -> i32 {
 block0(v0: fn(i32) -> i32):
-    v1 = iconst 7i32
-    v2 = call @callee(v1) -> fn(i32) -> i32
-    v3 = call.indirect v0(v1) -> fn(i32) -> i32
+    v1: i32 = iconst 7i32
+    v2: i32 = call @callee(v1) -> fn(i32) -> i32
+    v3: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
 

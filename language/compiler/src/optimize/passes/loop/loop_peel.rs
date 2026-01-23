@@ -290,13 +290,13 @@ mod tests {
     fn test_loop_peel_single_iteration() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 0u32
+    v1: u32 = iconst 0u32
     jump block1(v1)
 block1(v2: u32):
-    v3 = iadd v2, v0
-    v4 = iconst 1u32
-    v5 = iadd v2, v4
-    v6 = icmp_ult v5, v0
+    v3: u32 = iadd v2, v0
+    v4: u32 = iconst 1u32
+    v5: u32 = iadd v2, v4
+    v6: bool = icmp_ult v5, v0
     branch v6, block1(v5), block2
 block2:
     return v3
@@ -304,21 +304,21 @@ block2:
 
         let expected = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 0u32
+    v1: u32 = iconst 0u32
     jump block3(v1)
 block1(v2: u32):
-    v3 = iadd v2, v0
-    v4 = iconst 1u32
-    v5 = iadd v2, v4
-    v6 = icmp_ult v5, v0
+    v3: u32 = iadd v2, v0
+    v4: u32 = iconst 1u32
+    v5: u32 = iadd v2, v4
+    v6: bool = icmp_ult v5, v0
     branch v6, block1(v5), block2
 block2:
     return v3
 block3(v7: u32):
-    v8 = iadd v7, v0
-    v9 = iconst 1u32
-    v10 = iadd v7, v9
-    v11 = icmp_ult v10, v0
+    v8: u32 = iadd v7, v0
+    v9: u32 = iconst 1u32
+    v10: u32 = iadd v7, v9
+    v11: bool = icmp_ult v10, v0
     branch v11, block1(v10), block2
 }"#;
 
@@ -332,14 +332,14 @@ block3(v7: u32):
     fn test_loop_peel_skips_header_guard() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
     jump block1(v1)
 block1(v3: u32):
-    v4 = icmp_ult v3, v0
+    v4: bool = icmp_ult v3, v0
     branch v4, block2(v3), block3
 block2(v5: u32):
-    v6 = iadd v5, v2
+    v6: u32 = iadd v5, v2
     jump block1(v6)
 block3:
     return v3
@@ -355,16 +355,16 @@ block3:
     fn test_loop_peel_skips_multiple_exits() {
         let input = r#"function @test(v0: u32, v1: bool) -> u32 {
 block0(v0: u32, v1: bool):
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block4
 block2(v6: u32):
     branch v1, block3(v6), block5
 block3(v7: u32):
-    v8 = iadd v7, v3
+    v8: u32 = iadd v7, v3
     jump block1(v8)
 block4:
     return v4

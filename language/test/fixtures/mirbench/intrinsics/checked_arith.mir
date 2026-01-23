@@ -26,19 +26,19 @@ block4:
 
 // loop body, advance state
 block6:
-    v18: i64 = iconst 0i64
-    jump block5(v18)
+    v11: i64 = iconst 0i64
+    jump block5(v11)
 
 // merge branches, advance loop
-block5(v11: i64):
-    v12: i64 = iadd v5, v11
-    v13: i64 = iconst 1i64
-    v14: i64 = iadd v3, v13
-    v15: i64 = iconst 127i64
-    v16: i64 = srem v8, v15
-    jump block1(v14, v16, v12)
+block5(v12: i64):
+    v13: i64 = iadd v5, v12
+    v14: i64 = iconst 1i64
+    v15: i64 = iadd v3, v14
+    v16: i64 = iconst 127i64
+    v17: i64 = srem v8, v16
+    jump block1(v15, v17, v13)
 
 // return result
-block3(v17: i64):
-    return v17
+block3(v18: i64):
+    return v18
 }

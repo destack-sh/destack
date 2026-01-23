@@ -235,11 +235,8 @@ impl<'a> TestModuleView<'a> {
     /// Collect the first object field list available for a type.
     fn object_fields_for_type(&self, ty_id: LocalTypeId) -> Vec<TypeField> {
         // prefer direct object types
-        match self.types.get_type(ty_id) {
-            Type::Object { fields, .. } => {
-                return fields.to_vec();
-            }
-            _ => {}
+        if let Type::Object { fields, .. } = self.types.get_type(ty_id) {
+            return fields.to_vec();
         }
 
         // scan intersection elements for an object type
@@ -447,11 +444,8 @@ const raw: int32 = status;
     let enum_value_id = view.expect_value_type_id(enum_symbol);
 
     // ensure the enum value type is resolved
-    match view.types().get_type(enum_value_id) {
-        Type::InferVar { .. } => {
-            panic!("unexpected enum value type inferred as infer var");
-        }
-        _ => {}
+    if let Type::InferVar { .. } = view.types().get_type(enum_value_id) {
+        panic!("unexpected enum value type inferred as infer var");
     }
 
     // resolve the enum field value type

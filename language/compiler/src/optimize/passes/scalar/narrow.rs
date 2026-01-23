@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{OwnershipAnalysis, RangeAnalysis, RangeMap, ValueRange};
-use crate::optimize::common::is_comparison_operator;
+use crate::optimize::analyses::{RangeAnalysis, RangeMap, ValueRange};
+use crate::optimize::common::{ValueTypeMap, is_comparison_operator};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -51,10 +51,10 @@ impl FunctionPass for Narrow {
         // gather analyses
         let analyses = ctx.function_analyses(function, tree);
         let ranges = analyses.get::<RangeAnalysis>().clone();
-        let ownership = analyses.get::<OwnershipAnalysis>().clone();
+        let value_types = ValueTypeMap::new(function, tree);
 
         // apply narrowing
-        let changed = run_narrow(function, tree, &ranges, &ownership);
+        let changed = run_narrow(function, tree, &ranges, &value_types);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -89,7 +89,7 @@ fn run_narrow(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     ranges: &RangeAnalysis,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> bool {
     // refresh value ids before inserting casts
     function.recompute_next_value_id(tree);
@@ -135,7 +135,7 @@ fn run_narrow(
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
-                    ownership,
+                    value_types,
                 )
             {
                 instruction = mir::Instruction::Binary {
@@ -184,7 +184,7 @@ fn run_narrow(
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
-                    ownership,
+                    value_types,
                 )
             {
                 updated_constraint = mir::CheckConstraint::Bounds {
@@ -259,7 +259,7 @@ fn required_integer_width(min: i128, max: i128, is_signed: bool, original_width:
 fn integer_info_for_value(
     value: mir::Value,
     ranges: &RangeMap,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     tree: &mut mir::NodeTree,
 ) -> Option<IntegerInfo> {
     // fetch the integer range for this value
@@ -274,22 +274,17 @@ fn integer_info_for_value(
         return None;
     };
 
-    // require a matching integer type when one is available
-    let (original_width, original_signed) = match ownership.value_type(value) {
-        Some(type_id) => {
-            let original = tree.get(type_id);
-            let mir::Type::Int {
-                width: original_width,
-                is_signed: signed,
-            } = original
-            else {
-                return None;
-            };
-
-            (*original_width, *signed)
-        }
-        None => (u16::from(*width), *is_signed),
+    // require a matching integer type
+    let type_id = value_types.require_value_type(value);
+    let original = tree.get(type_id);
+    let mir::Type::Int {
+        width: original_width,
+        is_signed: signed,
+    } = original
+    else {
+        return None;
     };
+    let (original_width, original_signed) = (*original_width, *signed);
 
     if original_signed != *is_signed || original_width as u8 != *width {
         return None;
@@ -320,11 +315,11 @@ fn narrow_pair(
     type_cache: &mut HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
     value_cast_width: &mut HashMap<mir::Value, u16>,
     ranges: &RangeMap,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
-    let left_info = integer_info_for_value(left, ranges, ownership, tree)?;
-    let right_info = integer_info_for_value(right, ranges, ownership, tree)?;
+    let left_info = integer_info_for_value(left, ranges, value_types, tree)?;
+    let right_info = integer_info_for_value(right, ranges, value_types, tree)?;
 
     // require compatible operand types
     if left_info.signed != right_info.signed
@@ -392,14 +387,14 @@ fn narrow_value_to_width(
 
     // cache or create the narrower integer type
     let ty_id = *type_cache.entry((width, signed)).or_insert_with(|| {
-        tree.insert(mir::Type::Int {
+        tree.insert_type(mir::Type::Int {
             width,
             is_signed: signed,
         })
     });
 
     // insert a truncating cast before the use
-    let destination = function.next_value();
+    let destination = function.next_typed_value(ty_id);
     let cast = mir::Instruction::Cast {
         destination,
         operator: mir::CastOperator::Truncate,
@@ -423,24 +418,24 @@ mod tests {
     fn test_narrow_comparison_operands() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 3u32
-    v1 = iconst 4u32
-    v2 = icmp_ult v0, v1
-    v3 = icmp_ult v0, v0
-    v4 = band v2, v3
+    v0: u32 = iconst 3u32
+    v1: u32 = iconst 4u32
+    v2: bool = icmp_ult v0, v1
+    v3: bool = icmp_ult v0, v0
+    v4: bool = band v2, v3
     return v4
 }"#;
 
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst 3u32
-    v1 = iconst 4u32
-    v5 = trunc v0 -> u3
-    v6 = trunc v1 -> u3
-    v2 = icmp_ult v5, v6
-    v3 = icmp_ult v5, v5
-    v4 = band v2, v3
-    return v4
+    v0: u32 = iconst 3u32
+    v1: u32 = iconst 4u32
+    v2: u3 = trunc v0 -> u3
+    v3: u3 = trunc v1 -> u3
+    v4: bool = icmp_ult v2, v3
+    v5: bool = icmp_ult v2, v2
+    v6: bool = band v4, v5
+    return v6
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -453,20 +448,20 @@ block0:
     fn test_narrow_signed_comparison() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 1i32
-    v2 = icmp_slt v0, v1
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
 
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 1i32
-    v3 = trunc v0 -> i2
-    v4 = trunc v1 -> i2
-    v2 = icmp_slt v3, v4
-    return v2
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: i2 = trunc v0 -> i2
+    v3: i2 = trunc v1 -> i2
+    v4: bool = icmp_slt v2, v3
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -479,12 +474,12 @@ block0:
     fn test_narrow_bounds_check_operands() {
         let input = r#"function @test(v0: [u8; 8]) -> u8 {
 block0(v0: [u8; 8]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block1, block2
 block1:
-    v4 = element.get v0, v1
+    v4: u8 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -492,15 +487,15 @@ block2:
 
         let expected = r#"function @test(v0: [u8; 8]) -> u8 {
 block0(v0: [u8; 8]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v5 = trunc v1 -> u3
-    v6 = trunc v2 -> u3
-    v3 = icmp_ult v5, v6
-    check v3, bounds.unsigned v5, v6, v0, block1, block2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: u3 = trunc v1 -> u3
+    v4: u3 = trunc v2 -> u3
+    v5: bool = icmp_ult v3, v4
+    check v5, bounds.unsigned v3, v4, v0, block1, block2
 block1:
-    v4 = element.get v0, v1
-    return v4
+    v6: u8 = element.get v0, v1
+    return v6
 block2:
     unreachable
 }"#;
@@ -515,7 +510,7 @@ block2:
     fn test_narrow_skips_unknown_ranges() {
         let input = r#"function @test(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
-    v2 = icmp_ult v0, v1
+    v2: bool = icmp_ult v0, v1
     return v2
 }"#;
 
@@ -529,9 +524,9 @@ block0(v0: u32, v1: u32):
     fn test_narrow_skips_mismatched_widths() {
         let input = r#"function @test(v0: [u8; 8]) -> void {
 block0(v0: [u8; 8]):
-    v1 = iconst 2u32
-    v2 = iconst 4u64
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u64 = iconst 4u64
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block1, block2
 block1:
     return
@@ -549,9 +544,9 @@ block2:
     fn test_narrow_skips_full_range_signed() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst -2147483648i32
-    v1 = iconst 2147483647i32
-    v2 = icmp_slt v0, v1
+    v0: i32 = iconst -2147483648i32
+    v1: i32 = iconst 2147483647i32
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
 

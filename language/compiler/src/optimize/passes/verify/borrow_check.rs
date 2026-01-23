@@ -12,6 +12,7 @@ use crate::optimize::{
     FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation, PipelineContext,
     ResolvedLifetime,
 };
+use crate::optimize::common::ValueTypeMap;
 use crate::{OptimizeError, OptimizeWarning};
 
 declare_pass! {
@@ -80,7 +81,7 @@ struct BorrowCheckContext<'a> {
     /// Whether any aliasing violations were found.
     had_aliasing_violations: bool,
     /// Known types for values (for mutability detection).
-    value_types: HashMap<Value, mir::LocalNodeId<Type>>,
+    value_types: ValueTypeMap,
     /// Map from local to borrow IDs that borrow from it.
     local_borrows: HashMap<mir::LocalNodeId<mir::Local>, HashSet<BorrowId>>,
     /// The BorrowAnalysis entry state for the current block.
@@ -111,7 +112,7 @@ impl<'a> BorrowCheckContext<'a> {
             target_id,
             strict_mode,
             had_aliasing_violations: false,
-            value_types: HashMap::new(),
+            value_types: ValueTypeMap::new(function, tree),
             local_borrows: HashMap::new(),
             entry_borrow_state: None,
         }
@@ -124,36 +125,27 @@ impl<'a> BorrowCheckContext<'a> {
         id
     }
 
-    /// Register a value's type.
-    fn register_value_type(&mut self, value: Value, ty_id: mir::LocalNodeId<Type>) {
-        self.value_types.insert(value, ty_id);
-    }
-
     /// Determine mutability for a derived reference based on source type.
     ///
     /// For field.addr/element.addr, the result inherits mutability from source.
     fn derive_mutability(&self, source: Value) -> bool {
-        if let Some(&ty_id) = self.value_types.get(&source) {
-            let ty = self.tree.get(ty_id);
-            if let Type::Reference { mutability, .. } = ty {
-                return *mutability == Mutability::Mutable;
-            }
-        }
+        let ty_id = self.value_types.require_value_type(source);
+        let ty = self.tree.get(ty_id);
+        let Type::Reference { mutability, .. } = ty else {
+            panic!("expected reference type for {source:?}, found {ty:?}");
+        };
 
-        // conservative: assume mutable if type unknown
-        // this catches more potential conflicts than assuming shared
-        true
+        *mutability == Mutability::Mutable
     }
 
     /// Determine mutability directly from a reference type.
     fn mutability_from_reference_type(&self, ty_id: mir::LocalNodeId<Type>) -> bool {
         let ty = self.tree.get(ty_id);
-        if let Type::Reference { mutability, .. } = ty {
-            return *mutability == Mutability::Mutable;
-        }
+        let Type::Reference { mutability, .. } = ty else {
+            panic!("expected reference type for {ty_id:?}, found {ty:?}");
+        };
 
-        // conservative: assume mutable if type unknown
-        true
+        *mutability == Mutability::Mutable
     }
 
     /// Reset borrows for a new block and seed from BorrowAnalysis.
@@ -490,10 +482,7 @@ impl<'a> BorrowCheckContext<'a> {
         at: mir::LocalNodeId<Instruction>,
         context: &impl DiagnosticEmitter,
     ) {
-        let Some(&ty_id) = self.value_types.get(&value) else {
-            return;
-        };
-
+        let ty_id = self.value_types.require_value_type(value);
         let ty = self.tree.get(ty_id);
         let Type::Reference { kind, .. } = ty else {
             return;
@@ -702,19 +691,9 @@ impl FunctionPass for BorrowCheck {
             strict_mode,
         );
 
-        // register function parameter types
-        for param in &function.parameters {
-            checker.register_value_type(param.value, param.ty);
-        }
-
         // process blocks
         for &block_id in &function.blocks {
             let block = tree.get(block_id);
-
-            // register block parameter types
-            for param in &block.parameters {
-                checker.register_value_type(param.value, param.ty);
-            }
 
             // seed borrows from BorrowAnalysis at block entry
             if let Some(entry_state) = borrow_analysis.state_at_entry(block_id) {
@@ -804,9 +783,6 @@ fn check_instruction(
             result_type,
             ..
         } => {
-            // track reference type for later borrow lookups
-            checker.register_value_type(*destination, *result_type);
-
             // derive mutability from reference type
             let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(
@@ -825,9 +801,6 @@ fn check_instruction(
             result_type,
             ..
         } => {
-            // track reference type for later borrow lookups
-            checker.register_value_type(*destination, *result_type);
-
             // derive mutability from reference type
             let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(*destination, *array, is_mutable, instruction_id, context);
@@ -850,11 +823,7 @@ fn check_instruction(
         }
 
         // local.get loads a value without creating a borrow
-        Instruction::LocalGet { destination, local } => {
-            // track the value type for later use
-            let local_decl = checker.tree.get(*local);
-            checker.register_value_type(*destination, local_decl.ty);
-        }
+        Instruction::LocalGet { .. } => {}
 
         // local.addr creates a borrow of a local
         Instruction::LocalAddr {
@@ -862,9 +831,6 @@ fn check_instruction(
             local,
             result_type,
         } => {
-            // track reference type for later borrow lookups
-            checker.register_value_type(*destination, *result_type);
-
             // only references participate in borrow checking
             let ty = checker.tree.get(*result_type);
             if matches!(ty, Type::Reference { .. }) {
@@ -890,19 +856,8 @@ fn check_instruction(
         }
 
         // load through a reference
-        Instruction::Load {
-            destination,
-            pointer,
-            ..
-        } => {
+        Instruction::Load { .. } => {
             // borrow validity is checked via liveness-based expiry in expire_dead_borrows
-            // propagate reference type info if loading a reference
-            if let Some(&ty_id) = checker.value_types.get(pointer) {
-                let ty = checker.tree.get(ty_id);
-                if let Type::Reference { pointee, .. } = ty {
-                    checker.register_value_type(*destination, *pointee);
-                }
-            }
         }
 
         // call: arguments are moved (for owned types)
@@ -916,144 +871,64 @@ fn check_instruction(
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
-            // register return type from function signature
             if let Some(dest) = destination {
-                let func = checker.tree.get(*function);
-                checker.register_value_type(*dest, func.return_type);
-
                 // track borrows created by the call based on callee's lifetime bounds
                 checker.track_call_return_borrows(*dest, *function, args, instruction_id);
             }
         }
 
-        Instruction::CallVirtual {
-            destination,
-            arguments,
-            signature,
-            ..
-        }
-        | Instruction::CallInterface {
-            destination,
-            arguments,
-            signature,
-            ..
-        }
+        Instruction::CallVirtual { arguments, .. }
+        | Instruction::CallInterface { arguments, .. }
         | Instruction::CallIndirect {
-            destination,
-            callee: _,
-            arguments,
-            signature,
-            ..
+            arguments, ..
         } => {
             // callee is used, not moved
             let args = checker.tree.get_arguments(*arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
             }
-            if let Some(dest) = destination {
-                let signature_type = checker.tree.get(*signature);
-                if let Type::FunctionPointer { result, .. } = signature_type {
-                    checker.register_value_type(*dest, *result);
-                }
-            }
         }
 
         // field.set moves value into aggregate
-        Instruction::FieldSet {
-            destination,
-            aggregate,
-            value,
-            ..
-        } => {
+        Instruction::FieldSet { value, .. } => {
             checker.check_move_while_borrowed(*value, instruction_id, context);
-            // propagate type from aggregate
-            if let Some(&ty_id) = checker.value_types.get(aggregate) {
-                checker.register_value_type(*destination, ty_id);
-            }
         }
 
         // element.set moves value into array
-        Instruction::ElementSet {
-            destination,
-            array,
-            value,
-            ..
-        } => {
+        Instruction::ElementSet { value, .. } => {
             checker.check_move_while_borrowed(*value, instruction_id, context);
-            if let Some(&ty_id) = checker.value_types.get(array) {
-                checker.register_value_type(*destination, ty_id);
-            }
         }
 
         // struct/tuple/array construction moves all fields
-        Instruction::Struct {
-            destination,
-            ty,
-            fields,
-        } => {
+        Instruction::Struct { fields, .. } => {
             let field_values = checker.tree.get_arguments(*fields);
             for &field in field_values {
                 checker.check_move_while_borrowed(field, instruction_id, context);
             }
-            checker.register_value_type(*destination, *ty);
         }
 
-        Instruction::Tuple {
-            destination,
-            ty,
-            elements,
-        } => {
+        Instruction::Tuple { elements, .. } => {
             let element_values = checker.tree.get_arguments(*elements);
             for &elem in element_values {
                 checker.check_move_while_borrowed(elem, instruction_id, context);
             }
-            checker.register_value_type(*destination, *ty);
         }
 
-        Instruction::Array {
-            destination,
-            ty,
-            elements,
-        } => {
+        Instruction::Array { elements, .. } => {
             let element_values = checker.tree.get_arguments(*elements);
             for &elem in element_values {
                 checker.check_move_while_borrowed(elem, instruction_id, context);
             }
-            checker.register_value_type(*destination, *ty);
         }
 
         // cast preserves type info
-        Instruction::Cast {
-            destination,
-            to_type,
-            ..
-        } => {
-            checker.register_value_type(*destination, *to_type);
-        }
+        Instruction::Cast { .. } => {}
 
         // allocations produce references
-        Instruction::ManagedAlloc {
-            destination,
-            result_type,
-            ..
-        }
-        | Instruction::RawAlloc {
-            destination,
-            result_type,
-            ..
-        }
-        | Instruction::StackAlloc {
-            destination,
-            result_type,
-            ..
-        }
-        | Instruction::ManagedAllocArray {
-            destination,
-            result_type,
-            ..
-        } => {
-            checker.register_value_type(*destination, *result_type);
-        }
+        Instruction::ManagedAlloc { .. }
+        | Instruction::RawAlloc { .. }
+        | Instruction::StackAlloc { .. }
+        | Instruction::ManagedAllocArray { .. } => {}
 
         _ => {}
     }
@@ -1063,14 +938,23 @@ fn check_instruction(
 mod tests {
     use super::*;
     use crate::OptimizeError;
+    use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
+
+    /// Build strict borrow mode options for verification tests.
+    fn strict_options() -> PipelineOptions {
+        PipelineOptions {
+            strict_borrow_mode: true,
+            ..Default::default()
+        }
+    }
 
     /// Simple function with no borrows passes verification.
     #[test]
     fn test_verify_no_borrows() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -1085,10 +969,10 @@ block0:
     fn test_verify_single_field_addr() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -1102,9 +986,9 @@ block0:
     fn test_verify_sequential_loads() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = load v0 -> i32
-    v3 = iadd v1, v2
+    v1: i32 = load v0
+    v2: i32 = load v0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
 
@@ -1132,10 +1016,10 @@ block0(v0: ref<raw i32>, v1: i32):
     fn test_detect_drop_while_borrowed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<borrowed i32> = field.addr v0, 0
     raw.drop v0
-    v2 = load v1 -> i32
+    v2: i32 = load v1
     return v2
 }"#;
 
@@ -1149,10 +1033,10 @@ block0:
     fn test_detect_raw_free_while_borrowed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v0: ref<raw i32> = raw.alloc i32
+    v1: ref<borrowed i32> = field.addr v0, 0
     raw.free v0
-    v2 = load v1 -> i32
+    v2: i32 = load v1
     return v2
 }"#;
 
@@ -1167,9 +1051,9 @@ block0:
         let input = r#"function @test() -> i32 {
 local0: i32
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
 
@@ -1184,12 +1068,12 @@ block0:
         let input = r#"function @test() -> void {
 local0: i32 ; owned, mut
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
-    v2 = iconst 2i32
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v2: i32 = iconst 2i32
     local.set local0, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return
 }"#;
 
@@ -1204,12 +1088,12 @@ block0:
         let input = r#"function @test() -> void {
 local0: i32 ; owned, mut
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
-    v2 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v2: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v3: i32 = load v1
+    v4: i32 = load v2
     return
 }"#;
 
@@ -1224,14 +1108,14 @@ block0:
         let input = r#"function @test() -> void {
 local0: i32 ; owned, mut
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
     jump block1(v1)
 block1(v2: ref<borrowed addrspace(stack) i32>):
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     local.set local0, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     return
 }"#;
 
@@ -1246,12 +1130,12 @@ block1(v2: ref<borrowed addrspace(stack) i32>):
         let input = r#"function @test() -> void {
 local0: i32 ; owned, mut
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
-    v2 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
+    v1: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    v2: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    v3: i32 = load v1
+    v4: i32 = load v2
     return
 }"#;
 
@@ -1265,9 +1149,9 @@ block0:
     fn test_verify_multiple_params_no_conflict() {
         let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = load v0 -> i32
-    v3 = load v1 -> i32
-    v4 = iadd v2, v3
+    v2: i32 = load v0
+    v3: i32 = load v1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
 
@@ -1281,17 +1165,16 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_strict_mode_drop_while_borrowed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
     raw.drop v0
-    v3 = load v2 -> i32
+    v3: i32 = load v2
     return v3
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1303,12 +1186,12 @@ block0:
     fn test_detect_drop_while_borrowed_lenient_mode() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
     raw.drop v0
-    v3 = load v2 -> i32
+    v3: i32 = load v2
     return v3
 }"#;
 
@@ -1322,10 +1205,10 @@ block0:
     fn test_verify_single_field_access() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -1339,7 +1222,7 @@ block0:
     fn test_verify_load() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     return v1
 }"#;
 
@@ -1371,11 +1254,11 @@ block0(v0: ref<raw i32>, v1: i32, v2: i32):
     fn test_verify_borrow_expires_after_use() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = load v2 -> i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = load v2
     raw.drop v0
     return v3
 }"#;
@@ -1392,12 +1275,12 @@ block0:
     fn test_detect_borrow_still_live() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
     raw.drop v0
-    v3 = load v2 -> i32
+    v3: i32 = load v2
     return v3
 }"#;
 
@@ -1413,12 +1296,12 @@ block0:
     fn test_verify_element_addr_borrow_expires() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = iconst 0i32
-    v3 = element.addr v0, v2 -> ref<borrowed i32>
-    v4 = load v3 -> i32
+    v2: i32 = iconst 0i32
+    v3: ref<borrowed i32> = element.addr v0, v2
+    v4: i32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1434,13 +1317,13 @@ block0:
     fn test_detect_direct_borrow_still_live() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = iconst 10i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = iconst 10i32
     raw.drop v0
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     return v4
 }"#;
 
@@ -1458,13 +1341,13 @@ block0:
     fn test_detect_transitive_borrow_chain() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v2, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v2, 0
     raw.drop v0
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -1479,14 +1362,14 @@ block0:
     fn test_detect_deep_transitive_chain() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v2, 0 -> ref<borrowed i32>
-    v4 = field.addr v3, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v2, 0
+    v4: ref<borrowed i32> = field.addr v3, 0
     raw.drop v0
-    v5 = load v4 -> i32
+    v5: i32 = load v4
     return v5
 }"#;
 
@@ -1501,12 +1384,12 @@ block0:
     fn test_verify_transitive_borrow_expires() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v2, 0 -> ref<borrowed i32>
-    v4 = load v3 -> i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v2, 0
+    v4: i32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1523,13 +1406,13 @@ block0:
     fn test_detect_drop_intermediate_while_borrowed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v2, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v2, 0
     raw.drop v2
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -1544,16 +1427,15 @@ block0:
     fn test_detect_mutable_borrow_conflict_strict() {
         let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed mut i32>
-    v2 = field.addr v0, 0 -> ref<borrowed mut i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
-    v5 = iadd v3, v4
+    v1: ref<borrowed mut i32> = field.addr v0, 0
+    v2: ref<borrowed mut i32> = field.addr v0, 0
+    v3: i32 = load v1
+    v4: i32 = load v2
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1567,11 +1449,11 @@ block0(v0: ref<borrowed mut i32>):
     fn test_verify_multiple_shared_borrows() {
         let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
 block0(v0: ref<borrowed i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
-    v5 = iadd v3, v4
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = load v1
+    v4: i32 = load v2
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
 
@@ -1586,10 +1468,10 @@ block0(v0: ref<borrowed i32>):
     fn test_detect_borrow_through_diamond() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v1, v2
-    v3 = field.addr v1, 0 -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v1, 0
     branch v0, block1, block2
 block1:
     jump block3
@@ -1597,7 +1479,7 @@ block2:
     jump block3
 block3:
     raw.drop v1
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -1615,21 +1497,21 @@ block3:
     fn test_detect_maybe_borrowed_one_branch() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 42i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 42i32
     store v1, v3
     store v2, v3
     branch v0, block1, block2
 block1:
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
+    v4: ref<borrowed i32> = field.addr v1, 0
     jump block3(v4)
 block2:
-    v5 = field.addr v2, 0 -> ref<borrowed i32>
+    v5: ref<borrowed i32> = field.addr v2, 0
     jump block3(v5)
 block3(v6: ref<raw i32>):
     raw.drop v1
-    v7 = load v6 -> i32
+    v7: i32 = load v6
     raw.drop v2
     return v7
 }"#;
@@ -1648,17 +1530,17 @@ block3(v6: ref<raw i32>):
     fn test_verify_borrow_expires_before_merge() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v1, v2
     branch v0, block1, block2
 block1:
-    v3 = field.addr v1, 0 -> ref<borrowed i32>
-    v4 = load v3 -> i32
+    v3: ref<borrowed i32> = field.addr v1, 0
+    v4: i32 = load v3
     jump block3(v4)
 block2:
-    v5 = field.addr v1, 0 -> ref<borrowed i32>
-    v6 = load v5 -> i32
+    v5: ref<borrowed i32> = field.addr v1, 0
+    v6: i32 = load v5
     jump block3(v6)
 block3(v7: i32):
     raw.drop v1
@@ -1677,22 +1559,22 @@ block3(v7: i32):
     fn test_verify_loop_borrow_local() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     store v1, v0
     jump block1
 block1:
-    v2 = field.addr v1, 0 -> ref<borrowed i32>
-    v3 = load v2 -> i32
-    v4 = iconst 0i32
-    v5 = icmp_sgt v3, v4
+    v2: ref<borrowed i32> = field.addr v1, 0
+    v3: i32 = load v2
+    v4: i32 = iconst 0i32
+    v5: bool = icmp_sgt v3, v4
     branch v5, block2, block3
 block2:
-    v6 = iconst 1i32
-    v7 = isub v3, v6
+    v6: i32 = iconst 1i32
+    v7: i32 = isub v3, v6
     store v1, v7
     jump block1
 block3:
-    v8 = load v1 -> i32
+    v8: i32 = load v1
     raw.drop v1
     return v8
 }"#;
@@ -1709,14 +1591,14 @@ block3:
     fn test_detect_borrow_escapes_loop() {
         let input = r#"function @test(v0: i32) -> ref<raw i32> {
 block0(v0: i32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     store v1, v0
-    v2 = field.addr v1, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v1, 0
     jump block1(v2)
 block1(v3: ref<raw i32>):
-    v4 = load v3 -> i32
-    v5 = iconst 0i32
-    v6 = icmp_sgt v4, v5
+    v4: i32 = load v3
+    v5: i32 = iconst 0i32
+    v6: bool = icmp_sgt v4, v5
     branch v6, block2, block3
 block2:
     jump block1(v3)
@@ -1740,24 +1622,23 @@ block3:
     fn test_alias_different_allocations_no_conflict() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
-    v3 = iconst 2i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
     store v0, v2
     store v1, v3
-    v4 = field.addr v0, 0 -> ref<borrowed i32>
-    v5 = field.addr v1, 0 -> ref<borrowed i32>
-    v6 = load v4 -> i32
-    v7 = load v5 -> i32
-    v8 = iadd v6, v7
+    v4: ref<borrowed i32> = field.addr v0, 0
+    v5: ref<borrowed i32> = field.addr v1, 0
+    v6: i32 = load v4
+    v7: i32 = load v5
+    v8: i32 = iadd v6, v7
     raw.drop v0
     raw.drop v1
     return v8
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1773,15 +1654,15 @@ block0:
     fn test_alias_store_unrelated_pointers_no_conflict() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = iconst 99i32
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: i32 = iconst 99i32
     store v1, v4
-    v5 = load v3 -> i32
+    v5: i32 = load v3
     raw.drop v0
     raw.drop v1
     return v5
@@ -1801,19 +1682,18 @@ block0:
     fn test_alias_concurrent_mutable_borrows_different_allocs() {
         let input = r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v1, 0 -> ref<borrowed i32>
-    v4 = iconst 42i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v1, 0
+    v4: i32 = iconst 42i32
     store v2, v4
     store v3, v4
-    v5 = load v0 -> i32
-    v6 = load v1 -> i32
-    v7 = iadd v5, v6
+    v5: i32 = load v0
+    v6: i32 = load v1
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1829,14 +1709,14 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
     fn test_alias_drop_unrelated_allocation_while_other_borrowed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
     raw.drop v1
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -1856,21 +1736,20 @@ block0:
         let input = r#"global @g1: i32 = 42i32
 function @test() -> i32 {
 block0:
-    v0 = global.addr @g1 -> ref<raw addrspace(global) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(global) i32> = global.addr @g1
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = load v3 -> i32
-    v6 = load v4 -> i32
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: i32 = load v3
+    v6: i32 = load v4
     raw.drop v1
-    v7 = iadd v5, v6
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1885,22 +1764,21 @@ block0:
     fn test_alias_managed_vs_raw_no_conflict() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
-    v1 = raw.alloc i32 -> ref<raw i32>
-    v2 = iconst 42i32
+    v0: ref<managed i32> = managed.alloc i32
+    v1: ref<raw i32> = raw.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = load v3 -> i32
-    v6 = load v4 -> i32
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: i32 = load v3
+    v6: i32 = load v4
     raw.free v1
-    v7 = iadd v5, v6
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1916,31 +1794,30 @@ block0:
     fn test_alias_sequential_allocations_no_conflict() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 1i32
-    v4 = iconst 2i32
-    v5 = iconst 3i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 1i32
+    v4: i32 = iconst 2i32
+    v5: i32 = iconst 3i32
     store v0, v3
     store v1, v4
     store v2, v5
-    v6 = field.addr v0, 0 -> ref<borrowed i32>
-    v7 = field.addr v1, 0 -> ref<borrowed i32>
-    v8 = field.addr v2, 0 -> ref<borrowed i32>
-    v9 = load v6 -> i32
-    v10 = load v7 -> i32
-    v11 = load v8 -> i32
-    v12 = iadd v9, v10
-    v13 = iadd v12, v11
+    v6: ref<borrowed i32> = field.addr v0, 0
+    v7: ref<borrowed i32> = field.addr v1, 0
+    v8: ref<borrowed i32> = field.addr v2, 0
+    v9: i32 = load v6
+    v10: i32 = load v7
+    v11: i32 = load v8
+    v12: i32 = iadd v9, v10
+    v13: i32 = iadd v12, v11
     raw.drop v0
     raw.drop v1
     raw.drop v2
     return v13
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1957,16 +1834,15 @@ block0:
         // in strict mode with mutable ref, same field access conflicts
         let input_mut = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed mut i32>
-    v2 = field.addr v0, 0 -> ref<borrowed mut i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
-    v5 = iadd v3, v4
+    v1: ref<borrowed mut i32> = field.addr v0, 0
+    v2: ref<borrowed mut i32> = field.addr v0, 0
+    v3: i32 = load v1
+    v4: i32 = load v2
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input_mut);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -1981,15 +1857,14 @@ block0(v0: ref<borrowed mut i32>):
     fn test_alias_store_invalidates_aliasing_borrow() {
         let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 99i32
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 99i32
     store v0, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -2005,15 +1880,15 @@ block0(v0: ref<borrowed mut i32>):
     fn test_alias_drop_aliasing_value_detected() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = field.addr v0, 0
     raw.drop v0
-    v4 = load v2 -> i32
-    v5 = load v3 -> i32
-    v6 = iadd v4, v5
+    v4: i32 = load v2
+    v5: i32 = load v3
+    v6: i32 = iadd v4, v5
     return v6
 }"#;
 
@@ -2030,13 +1905,13 @@ block0:
     fn test_alias_cast_preserves_provenance() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = bitcast v0 -> ref<raw i32>
-    v3 = field.addr v2, 0 -> ref<borrowed i32>
+    v2: ref<raw i32> = bitcast v0 -> ref<raw i32>
+    v3: ref<borrowed i32> = field.addr v2, 0
     raw.drop v0
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -2060,13 +1935,13 @@ block0(v0: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -2091,13 +1966,13 @@ block0(v0: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @getStatic(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = call @getStatic(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
-    v4 = load v3 -> i32
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -2124,16 +1999,16 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickFirst(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: ref<borrowed i32> = call @pickFirst(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v1
-    v6 = load v5 -> i32
+    v6: i32 = load v5
     raw.drop v0
     return v6
 }"#;
@@ -2160,16 +2035,16 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pick_any(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: ref<borrowed i32> = call @pick_any(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v1
-    v6 = load v5 -> i32
+    v6: i32 = load v5
     raw.drop v0
     return v6
 }"#;
@@ -2190,17 +2065,17 @@ block0:
     fn test_track_call_no_borrow_for_value_return() {
         let input = r#"function @deref(v0: ref<borrowed i32>) -> i32 {
 block0(v0: ref<borrowed i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     return v1
 }
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @deref(v2) -> fn(ref<borrowed i32>) -> i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = call @deref(v2) -> fn(ref<borrowed i32>) -> i32
     raw.drop v0
     return v3
 }"#;
@@ -2226,12 +2101,12 @@ block0(v0: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v4 = load v3 -> i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed i32> = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v4: i32 = load v3
     raw.drop v0
     return v4
 }"#;
@@ -2257,16 +2132,16 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickEither(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: ref<borrowed i32> = call @pickEither(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
-    v6 = load v5 -> i32
+    v6: i32 = load v5
     raw.drop v1
     return v6
 }"#;
@@ -2294,16 +2169,16 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickSecond(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: ref<borrowed i32> = field.addr v1, 0
+    v5: ref<borrowed i32> = call @pickSecond(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
-    v6 = load v5 -> i32
+    v6: i32 = load v5
     raw.drop v1
     return v6
 }"#;
@@ -2332,16 +2207,15 @@ block0(v0: ref<borrowed mut i32>):
 
 function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
-    v5 = iadd v3, v4
+    v1: ref<borrowed mut i32> = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = load v1
+    v4: i32 = load v2
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -2365,16 +2239,15 @@ block0(v0: ref<borrowed i32>):
 
 function @test(v0: ref<borrowed i32>) -> i32 {
 block0(v0: ref<borrowed i32>):
-    v1 = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = load v1 -> i32
-    v4 = load v2 -> i32
-    v5 = iadd v3, v4
+    v1: ref<borrowed i32> = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = load v1
+    v4: i32 = load v2
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
@@ -2393,26 +2266,25 @@ block0(v0: ref<borrowed i32>):
     fn test_track_call_mutable_borrow_then_field_addr_conflict() {
         let input = r#"function @getMutRef(v0: ref<borrowed mut i32>) -> ref<borrowed mut i32> {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }
 
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = call @getMutRef(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
-    v3 = field.addr v0, 0 -> ref<borrowed i32>
-    v4 = load v2 -> i32
-    v5 = load v3 -> i32
-    v6 = iadd v4, v5
+    v2: ref<borrowed mut i32> = call @getMutRef(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
+    v3: ref<borrowed i32> = field.addr v0, 0
+    v4: i32 = load v2
+    v5: i32 = load v3
+    v6: i32 = iadd v4, v5
     raw.drop v0
     return v6
 }"#;
 
-        let mut options = crate::optimize::PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);

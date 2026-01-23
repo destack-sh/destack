@@ -167,11 +167,11 @@ fn try_accumulator_transform(
     let recursive_call_blocks: Vec<_> = patterns.iter().map(|p| p.block_id).collect();
     let call_sites = find_external_call_sites(current_function_id, &recursive_call_blocks, tree);
 
-    let mut next_value = find_max_value_in_module(tree) + 1;
+    // ensure we allocate fresh values with types recorded
+    function.recompute_next_value_id(tree);
 
     // add accumulator parameter to entry block
-    let acc_value = mir::Value::new(next_value);
-    next_value += 1;
+    let acc_value = function.next_typed_value(return_type);
 
     let entry = tree.get(entry_block);
     let mut new_entry = entry.clone();
@@ -188,25 +188,34 @@ fn try_accumulator_transform(
     });
 
     // update all external call sites to pass the identity constant
-    for call_site in &call_sites {
-        update_call_site(call_site, &identity, &mut next_value, tree);
+    let mut call_sites_by_function: HashMap<_, Vec<_>> = HashMap::new();
+    for call_site in call_sites {
+        call_sites_by_function
+            .entry(call_site.function_id)
+            .or_default()
+            .push(call_site);
+    }
+
+    for (function_id, sites) in call_sites_by_function {
+        let mut function = tree.get(function_id).clone();
+        function.recompute_next_value_id(tree);
+
+        for call_site in sites {
+            let identity_value = function.next_typed_value(return_type);
+            update_call_site(&call_site, identity_value, &identity, tree);
+        }
+
+        *tree.get_mut(function_id) = function;
     }
 
     // transform each accumulator pattern block
     for pattern in &patterns {
-        transform_accumulator_block(pattern, entry_block, acc_value, &mut next_value, tree);
+        transform_accumulator_block(pattern, entry_block, acc_value, function, tree);
     }
 
     // transform base case blocks
     for &(block_id, is_identity) in &base_cases {
-        transform_base_case_block(
-            block_id,
-            acc_value,
-            operator,
-            is_identity,
-            &mut next_value,
-            tree,
-        );
+        transform_base_case_block(block_id, acc_value, operator, is_identity, function, tree);
     }
 
     true
@@ -264,11 +273,11 @@ fn try_accumulator_transform_exported(
         );
     }
 
-    let mut next_value = find_max_value_in_module(tree) + 1;
+    let mut impl_function = tree.get(impl_function_id).clone();
+    impl_function.recompute_next_value_id(tree);
 
     // add accumulator parameter to impl entry block
-    let acc_value = mir::Value::new(next_value);
-    next_value += 1;
+    let acc_value = impl_function.next_typed_value(return_type);
 
     let impl_entry = tree.get(impl_entry_block);
     let mut new_impl_entry = impl_entry.clone();
@@ -279,17 +288,20 @@ fn try_accumulator_transform_exported(
     tree.replace(impl_entry_block, new_impl_entry);
 
     // add to impl function parameters
-    {
-        let impl_func = tree.get_mut(impl_function_id);
-        impl_func.parameters.push(mir::TypedValue {
-            value: acc_value,
-            ty: return_type,
-        });
-    }
+    impl_function.parameters.push(mir::TypedValue {
+        value: acc_value,
+        ty: return_type,
+    });
 
     // transform impl function's accumulator blocks
     for pattern in &impl_patterns {
-        transform_accumulator_block(pattern, impl_entry_block, acc_value, &mut next_value, tree);
+        transform_accumulator_block(
+            pattern,
+            impl_entry_block,
+            acc_value,
+            &mut impl_function,
+            tree,
+        );
     }
 
     // transform impl function's base case blocks
@@ -299,20 +311,15 @@ fn try_accumulator_transform_exported(
             acc_value,
             operator,
             is_identity,
-            &mut next_value,
+            &mut impl_function,
             tree,
         );
     }
 
+    *tree.get_mut(impl_function_id) = impl_function;
+
     // rewrite original function as wrapper: call impl with identity
-    rewrite_as_wrapper(
-        function,
-        tree,
-        entry_block,
-        impl_function_id,
-        identity,
-        &mut next_value,
-    );
+    rewrite_as_wrapper(function, tree, entry_block, impl_function_id, identity);
 
     true
 }
@@ -382,6 +389,7 @@ fn clone_function_as_impl(
     impl_function.coroutine = original.coroutine;
     impl_function.locals = original.locals.clone();
     impl_function.blocks = impl_blocks;
+    impl_function.value_types = original.value_types.clone();
 
     // recompute next_value_id after cloning
     impl_function.recompute_next_value_id(tree);
@@ -518,11 +526,15 @@ fn rewrite_as_wrapper(
     entry_block: mir::LocalNodeId<mir::Block>,
     impl_function_id: mir::LocalNodeId<mir::Function>,
     identity: &Constant,
-    next_value: &mut u32,
 ) {
+    // ensure new values get typed ids
+    function.recompute_next_value_id(tree);
+
+    // resolve the return type for wrapper values
+    let return_type = function.return_type;
+
     // create identity constant
-    let identity_value = mir::Value::new(*next_value);
-    *next_value += 1;
+    let identity_value = function.next_typed_value(return_type);
     let const_instr = Instruction::Const {
         destination: identity_value,
         value: identity.clone(),
@@ -535,8 +547,7 @@ fn rewrite_as_wrapper(
     let call_arguments = tree.add_arguments(&call_args);
 
     // create call to impl
-    let result_value = mir::Value::new(*next_value);
-    *next_value += 1;
+    let result_value = function.next_typed_value(return_type);
     let signature = build_signature_type(impl_function_id, tree);
     let call_instr = Instruction::Call {
         destination: Some(result_value),
@@ -565,6 +576,8 @@ fn rewrite_as_wrapper(
 /// Information about a call site that needs to be updated.
 #[derive(Debug)]
 struct CallSite {
+    /// The function containing the call.
+    function_id: mir::LocalNodeId<mir::Function>,
     /// The block containing the call.
     block_id: mir::LocalNodeId<mir::Block>,
     /// Index of the call instruction in the block.
@@ -606,6 +619,7 @@ fn find_external_call_sites(
                     && *function == target_function_id
                 {
                     call_sites.push(CallSite {
+                        function_id: func_id,
                         block_id,
                         instruction_index: idx,
                         instruction_id: instr_id,
@@ -621,8 +635,8 @@ fn find_external_call_sites(
 /// Update a call site to pass the identity constant as the accumulator argument.
 fn update_call_site(
     call_site: &CallSite,
+    identity_value: mir::Value,
     identity: &Constant,
-    next_value: &mut u32,
     tree: &mut mir::NodeTree,
 ) {
     // get the existing call instruction
@@ -639,9 +653,6 @@ fn update_call_site(
     };
 
     // create a value for the identity constant
-    let identity_value = mir::Value::new(*next_value);
-    *next_value += 1;
-
     // create the const instruction
     let const_instr = Instruction::Const {
         destination: identity_value,
@@ -894,40 +905,6 @@ fn detect_accumulator_pattern(
     None
 }
 
-/// Find the maximum value number used across all functions in the module.
-///
-/// Needed when we're updating call sites in other functions.
-fn find_max_value_in_module(tree: &mir::NodeTree) -> u32 {
-    let mut max_val = 0u32;
-
-    for (_, func) in tree.iter_nodes::<mir::Function>() {
-        // check function parameters
-        for param in &func.parameters {
-            max_val = max_val.max(param.value.0);
-        }
-
-        // check all blocks
-        for &block_id in &func.blocks {
-            let block = tree.get(block_id);
-
-            // block parameters
-            for param in &block.parameters {
-                max_val = max_val.max(param.value.0);
-            }
-
-            // instructions
-            for &instr_id in &block.instructions {
-                let instr = tree.get(instr_id);
-                if let Some(dest) = instr.destination() {
-                    max_val = max_val.max(dest.0);
-                }
-            }
-        }
-    }
-
-    max_val
-}
-
 /// Find blocks that return without recursion (base cases).
 ///
 /// Returns (block_id, is_identity) pairs where is_identity indicates
@@ -1006,15 +983,15 @@ fn transform_accumulator_block(
     pattern: &AccumulatorPattern,
     entry_block: mir::LocalNodeId<mir::Block>,
     acc_value: mir::Value,
-    next_value: &mut u32,
+    function: &mut mir::Function,
     tree: &mut mir::NodeTree,
 ) {
     // get the call arguments before any mutations
     let call_args: Vec<mir::Value> = tree.get_arguments(pattern.call_arguments).to_vec();
 
     // create new accumulator value
-    let new_acc = mir::Value::new(*next_value);
-    *next_value += 1;
+    let acc_type = function.return_type;
+    let new_acc = function.next_typed_value(acc_type);
 
     // create new binary instruction: new_acc = OP acc, other
     let new_binary = Instruction::Binary {
@@ -1067,7 +1044,7 @@ fn transform_base_case_block(
     acc_value: mir::Value,
     operator: BinaryOperator,
     is_identity: bool,
-    next_value: &mut u32,
+    function: &mut mir::Function,
     tree: &mut mir::NodeTree,
 ) {
     // clone block first to avoid borrow conflicts
@@ -1089,8 +1066,8 @@ fn transform_base_case_block(
         tree.replace(block_id, new_block);
     } else {
         // return OP(acc, original_value)
-        let result_val = mir::Value::new(*next_value);
-        *next_value += 1;
+        let acc_type = function.return_type;
+        let result_val = function.next_typed_value(acc_type);
 
         let combine_instr = Instruction::Binary {
             destination: result_val,
@@ -1305,29 +1282,29 @@ mod tests {
         // factorial(n, acc) with accumulator style
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block1, block2
 block1:
     return v1
 block2:
-    v4 = imul v0, v1
-    v5 = iconst 1i32
-    v6 = isub v0, v5
-    v7 = call @test(v6, v4) -> fn(i32, i32) -> i32
+    v4: i32 = imul v0, v1
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
+    v7: i32 = call @test(v6, v4) -> fn(i32, i32) -> i32
     return v7
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block1, block2
 block1:
     return v1
 block2:
-    v4 = imul v0, v1
-    v5 = iconst 1i32
-    v6 = isub v0, v5
+    v4: i32 = imul v0, v1
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
     jump block0(v6, v4)
 }"#;
 
@@ -1341,27 +1318,27 @@ block2:
         // countdown to zero
         let input = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
     call @test(v4) -> fn(i32) -> void
     return
 }"#;
         let expected = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
     jump block0(v4)
 }"#;
 
@@ -1375,29 +1352,29 @@ block2:
         // classic factorial: n * factorial(n-1), transformed via accumulator
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_sle v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = isub v0, v1
-    v4 = call @test(v3) -> fn(i32) -> i32
-    v5 = imul v0, v4
+    v3: i32 = isub v0, v1
+    v4: i32 = call @test(v3) -> fn(i32) -> i32
+    v5: i32 = imul v0, v4
     return v5
 }"#;
         // after accumulator transform: adds v6 param, base returns v6, recurse accumulates
-        let expected = r#"function @test(v0: i32, v6: i32) -> i32 {
-block0(v0: i32, v6: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 1i32
+    v3: bool = icmp_sle v0, v2
+    branch v3, block1, block2
 block1:
-    return v6
+    return v1
 block2:
-    v3 = isub v0, v1
-    v7 = imul v6, v0
-    jump block0(v3, v7)
+    v4: i32 = isub v0, v2
+    v5: i32 = imul v1, v0
+    jump block0(v4, v5)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1410,16 +1387,16 @@ block2:
         // subtraction is not associative, cannot transform
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v5 = call @test(v4) -> fn(i32) -> i32
-    v6 = isub v0, v5
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
+    v5: i32 = call @test(v4) -> fn(i32) -> i32
+    v6: i32 = isub v0, v5
     return v6
 }"#;
 
@@ -1433,7 +1410,7 @@ block2:
         // sibling call (to different function) in tail position becomes tailcall
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @other(v0) -> fn(i32) -> i32
+    v1: i32 = call @other(v0) -> fn(i32) -> i32
     return v1
 }
 function @other(v0: i32) -> i32 {
@@ -1459,25 +1436,25 @@ block0(v0: i32):
         // euclidean gcd is naturally tail recursive
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v1, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v1, v2
     branch v3, block1, block2
 block1:
     return v0
 block2:
-    v4 = srem v0, v1
-    v5 = call @test(v1, v4) -> fn(i32, i32) -> i32
+    v4: i32 = srem v0, v1
+    v5: i32 = call @test(v1, v4) -> fn(i32, i32) -> i32
     return v5
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v1, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v1, v2
     branch v3, block1, block2
 block1:
     return v0
 block2:
-    v4 = srem v0, v1
+    v4: i32 = srem v0, v1
     jump block0(v1, v4)
 }"#;
 
@@ -1509,8 +1486,8 @@ block0:
         // returning different value than call result
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = call @test(v0) -> fn(i32) -> i32
+    v1: i32 = iconst 1i32
+    v2: i32 = call @test(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1524,29 +1501,29 @@ block0(v0: i32):
         // fib(n, a, b) where a and b are accumulators
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iconst 0i32
-    v4 = icmp_eq v0, v3
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_eq v0, v3
     branch v4, block1, block2
 block1:
     return v1
 block2:
-    v5 = iconst 1i32
-    v6 = isub v0, v5
-    v7 = iadd v1, v2
-    v8 = call @test(v6, v2, v7) -> fn(i32, i32, i32) -> i32
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
+    v7: i32 = iadd v1, v2
+    v8: i32 = call @test(v6, v2, v7) -> fn(i32, i32, i32) -> i32
     return v8
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iconst 0i32
-    v4 = icmp_eq v0, v3
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_eq v0, v3
     branch v4, block1, block2
 block1:
     return v1
 block2:
-    v5 = iconst 1i32
-    v6 = isub v0, v5
-    v7 = iadd v1, v2
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
+    v7: i32 = iadd v1, v2
     jump block0(v6, v2, v7)
 }"#;
 
@@ -1560,39 +1537,39 @@ block2:
         // function with multiple blocks that have tail calls
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = ineg v0
-    v4 = call @test(v3) -> fn(i32) -> i32
+    v3: i32 = ineg v0
+    v4: i32 = call @test(v3) -> fn(i32) -> i32
     return v4
 block2:
-    v5 = iconst 10i32
-    v6 = icmp_sgt v0, v5
+    v5: i32 = iconst 10i32
+    v6: bool = icmp_sgt v0, v5
     branch v6, block3, block4
 block3:
-    v7 = isub v0, v5
-    v8 = call @test(v7) -> fn(i32) -> i32
+    v7: i32 = isub v0, v5
+    v8: i32 = call @test(v7) -> fn(i32) -> i32
     return v8
 block4:
     return v0
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = ineg v0
+    v3: i32 = ineg v0
     jump block0(v3)
 block2:
-    v5 = iconst 10i32
-    v6 = icmp_sgt v0, v5
-    branch v6, block3, block4
+    v4: i32 = iconst 10i32
+    v5: bool = icmp_sgt v0, v4
+    branch v5, block3, block4
 block3:
-    v7 = isub v0, v5
-    jump block0(v7)
+    v6: i32 = isub v0, v4
+    jump block0(v6)
 block4:
     return v0
 }"#;
@@ -1607,17 +1584,17 @@ block4:
         // swap(a, b) calls swap(b, a)
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_sgt v0, v1
+    v2: bool = icmp_sgt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = call @test(v1, v0) -> fn(i32, i32) -> i32
+    v3: i32 = call @test(v1, v0) -> fn(i32, i32) -> i32
     return v3
 block2:
     return v0
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_sgt v0, v1
+    v2: bool = icmp_sgt v0, v1
     branch v2, block1, block2
 block1:
     jump block0(v1, v0)
@@ -1648,10 +1625,10 @@ block0(v0: i32):
         // call followed by other instruction before return
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = isub v0, v1
-    v3 = call @test(v2) -> fn(i32) -> i32
-    v4 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: i32 = isub v0, v1
+    v3: i32 = call @test(v2) -> fn(i32) -> i32
+    v4: i32 = iconst 0i32
     return v3
 }"#;
 
@@ -1665,56 +1642,56 @@ block0(v0: i32):
         // even/odd mutual recursion becomes sibling tail calls
         let input = r#"function @even(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst true
+    v3: bool = iconst true
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = call @odd(v5) -> fn(i32) -> bool
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: bool = call @odd(v5) -> fn(i32) -> bool
     return v6
 }
 function @odd(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst false
+    v3: bool = iconst false
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = call @even(v5) -> fn(i32) -> bool
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: bool = call @even(v5) -> fn(i32) -> bool
     return v6
 }"#;
         let expected = r#"function @even(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst true
+    v3: bool = iconst true
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
     tailcall @odd(v5)
 }
 function @odd(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst false
+    v3: bool = iconst false
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
     tailcall @even(v5)
 }"#;
 
@@ -1728,30 +1705,30 @@ block2:
         // sum(n) = n + sum(n-1), identity for add is 0
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v5 = call @test(v4) -> fn(i32) -> i32
-    v6 = iadd v0, v5
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
+    v5: i32 = call @test(v4) -> fn(i32) -> i32
+    v6: i32 = iadd v0, v5
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v7: i32) -> i32 {
-block0(v0: i32, v7: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
+    branch v3, block1, block2
 block1:
-    return v7
+    return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v8 = iadd v7, v0
-    jump block0(v4, v8)
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = iadd v1, v0
+    jump block0(v5, v6)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1764,30 +1741,30 @@ block2:
         // or_bits(n) = n | or_bits(n-1), identity for or is 0
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v5 = call @test(v4) -> fn(i32) -> i32
-    v6 = bor v0, v5
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
+    v5: i32 = call @test(v4) -> fn(i32) -> i32
+    v6: i32 = bor v0, v5
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v7: i32) -> i32 {
-block0(v0: i32, v7: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
+    branch v3, block1, block2
 block1:
-    return v7
+    return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v8 = bor v7, v0
-    jump block0(v4, v8)
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = bor v1, v0
+    jump block0(v5, v6)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1800,34 +1777,34 @@ block2:
         // sum with non-zero base: returns 5 when n=0
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst 5i32
+    v3: i32 = iconst 5i32
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = call @test(v5) -> fn(i32) -> i32
-    v7 = iadd v0, v6
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = call @test(v5) -> fn(i32) -> i32
+    v7: i32 = iadd v0, v6
     return v7
 }"#;
         // base case returns OP(acc, 5) since 5 is not the identity
-        let expected = r#"function @test(v0: i32, v8: i32) -> i32 {
-block0(v0: i32, v8: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
+    branch v3, block1, block2
 block1:
-    v3 = iconst 5i32
-    v10 = iadd v8, v3
-    return v10
+    v4: i32 = iconst 5i32
+    v5: i32 = iadd v1, v4
+    return v5
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v9 = iadd v8, v0
-    jump block0(v5, v9)
+    v6: i32 = iconst 1i32
+    v7: i32 = isub v0, v6
+    v8: i32 = iadd v1, v0
+    jump block0(v7, v8)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1840,16 +1817,16 @@ block2:
         // call result used in multiple places, not just the binary op
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_sle v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = isub v0, v1
-    v4 = call @test(v3) -> fn(i32) -> i32
-    v5 = imul v0, v4
-    v6 = iadd v5, v4
+    v3: i32 = isub v0, v1
+    v4: i32 = call @test(v3) -> fn(i32) -> i32
+    v5: i32 = imul v0, v4
+    v6: i32 = iadd v5, v4
     return v6
 }"#;
 
@@ -1863,23 +1840,23 @@ block2:
         // multiple recursive sites with different operators
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 0i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block1, block2
 block1:
-    v4 = iconst 1i32
+    v4: i32 = iconst 1i32
     return v4
 block2:
-    v5 = iconst 1i32
-    v6 = isub v0, v5
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
     branch v1, block3, block4
 block3:
-    v7 = call @test(v6, v1) -> fn(i32, bool) -> i32
-    v8 = imul v0, v7
+    v7: i32 = call @test(v6, v1) -> fn(i32, bool) -> i32
+    v8: i32 = imul v0, v7
     return v8
 block4:
-    v9 = call @test(v6, v1) -> fn(i32, bool) -> i32
-    v10 = iadd v0, v9
+    v9: i32 = call @test(v6, v1) -> fn(i32, bool) -> i32
+    v10: i32 = iadd v0, v9
     return v10
 }"#;
 
@@ -1895,41 +1872,41 @@ block4:
         // should transform and update the call site in main to pass identity
         let input = r#"function @factorial(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_sle v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = isub v0, v1
-    v4 = call @factorial(v3) -> fn(i32) -> i32
-    v5 = imul v0, v4
+    v3: i32 = isub v0, v1
+    v4: i32 = call @factorial(v3) -> fn(i32) -> i32
+    v5: i32 = imul v0, v4
     return v5
 }
 function @main() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v1 = call @factorial(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 5i32
+    v1: i32 = call @factorial(v0) -> fn(i32) -> i32
     return v1
 }"#;
         // after transform: factorial gets accumulator param, main's tail call becomes tailcall
-        let expected = r#"function @factorial(v0: i32, v6: i32) -> i32 {
-block0(v0: i32, v6: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @factorial(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 1i32
+    v3: bool = icmp_sle v0, v2
+    branch v3, block1, block2
 block1:
-    return v6
+    return v1
 block2:
-    v3 = isub v0, v1
-    v8 = imul v6, v0
-    jump block0(v3, v8)
+    v4: i32 = isub v0, v2
+    v5: i32 = imul v1, v0
+    jump block0(v4, v5)
 }
 function @main() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v7 = iconst 1i32
-    tailcall @factorial(v0, v7)
+    v0: i32 = iconst 5i32
+    v1: i32 = iconst 1i32
+    tailcall @factorial(v0, v1)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1942,35 +1919,35 @@ block0:
         // exported factorial: should create impl + wrapper
         let input = r#"export function @factorial(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_sle v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = isub v0, v1
-    v4 = call @factorial(v3) -> fn(i32) -> i32
-    v5 = imul v0, v4
+    v3: i32 = isub v0, v1
+    v4: i32 = call @factorial(v3) -> fn(i32) -> i32
+    v5: i32 = imul v0, v4
     return v5
 }"#;
         // exported wrapper tail-calls internal impl with identity
         // impl has tail-recursive structure
         let expected = r#"export function @factorial(v0: i32) -> i32 {
 block0(v0: i32):
-    v8 = iconst 1i32
-    tailcall @factorial$impl(v0, v8)
+    v1: i32 = iconst 1i32
+    tailcall @factorial$impl(v0, v1)
 }
-function @factorial$impl(v0: i32, v6: i32) -> i32 {
-block0(v0: i32, v6: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
-    branch v2, block1, block2
+function @factorial$impl(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 1i32
+    v3: bool = icmp_sle v0, v2
+    branch v3, block1, block2
 block1:
-    return v6
+    return v1
 block2:
-    v3 = isub v0, v1
-    v7 = imul v6, v0
-    jump block0(v3, v7)
+    v4: i32 = isub v0, v2
+    v5: i32 = imul v1, v0
+    jump block0(v4, v5)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1983,7 +1960,7 @@ block2:
         // indirect call in tail position becomes tailcall.indirect
         let input = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
         let expected = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
@@ -2028,32 +2005,32 @@ block0(v0: i32):
         // base case returns v1 (defined in block0) to avoid leftover instruction
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    v3 = iconst -1i32
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
+    v3: i32 = iconst -1i32
     branch v2, block1, block2
 block1:
     return v3
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = call @test(v5) -> fn(i32) -> i32
-    v7 = band v0, v6
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = call @test(v5) -> fn(i32) -> i32
+    v7: i32 = band v0, v6
     return v7
 }"#;
-        let expected = r#"function @test(v0: i32, v8: i32) -> i32 {
-block0(v0: i32, v8: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    v3 = iconst -1i32
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
+    v4: i32 = iconst -1i32
+    branch v3, block1, block2
 block1:
-    return v8
+    return v1
 block2:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v9 = band v8, v0
-    jump block0(v5, v9)
+    v5: i32 = iconst 1i32
+    v6: i32 = isub v0, v5
+    v7: i32 = band v1, v0
+    jump block0(v6, v7)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -2066,30 +2043,30 @@ block2:
         // xor_bits(n) = n ^ xor_bits(n-1), identity for bxor is 0
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v5 = call @test(v4) -> fn(i32) -> i32
-    v6 = bxor v0, v5
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
+    v5: i32 = call @test(v4) -> fn(i32) -> i32
+    v6: i32 = bxor v0, v5
     return v6
 }"#;
-        let expected = r#"function @test(v0: i32, v7: i32) -> i32 {
-block0(v0: i32, v7: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
-    branch v2, block1, block2
+        let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
+    branch v3, block1, block2
 block1:
-    return v7
+    return v1
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v8 = bxor v7, v0
-    jump block0(v4, v8)
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = bxor v1, v0
+    jump block0(v5, v6)
 }"#;
 
         let mut test = TestProgram::new(input);

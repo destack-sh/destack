@@ -27,23 +27,23 @@ function fibonacci(n: number): number {
         r#"
 function @fibonacci(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = iconst 2i32
-    v2 = scvt_to_float v1 -> f64
-    v3 = fcmp_lt v0, v2
+    v1: i32 = iconst 2i32
+    v2: f64 = scvt_to_float v1 -> f64
+    v3: bool = fcmp_lt v0, v2
     branch v3, block1, block2
 block1:
     return v0
 block2:
     jump block3
 block3:
-    v6 = iconst 1f64
-    v7 = fsub v0, v6
-    v8 = call @fibonacci(v7) -> fn(f64) -> f64
-    v9 = iconst 2f64
-    v10 = fsub v0, v9
-    v11 = call @fibonacci(v10) -> fn(f64) -> f64
-    v12 = fadd v8, v11
-    return v12
+    v4: f64 = iconst 1f64
+    v5: f64 = fsub v0, v4
+    v6: f64 = call @fibonacci(v5) -> fn(f64) -> f64
+    v7: f64 = iconst 2f64
+    v8: f64 = fsub v0, v7
+    v9: f64 = call @fibonacci(v8) -> fn(f64) -> f64
+    v10: f64 = fadd v6, v9
+    return v10
 }"#,
     );
 

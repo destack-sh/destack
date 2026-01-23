@@ -7,8 +7,8 @@ use crate::optimize::analyses::{
     AliasAnalysis, ControlFlowGraph, MemoryAccess, MemoryAccessId, MemorySSA,
 };
 use crate::optimize::common::{
-    EdgeSplitPolicy, collect_non_escaping_stack_allocs, effect_is_trackable, ensure_edge_block,
-    instruction_has_atomic_ordering, stack_alloc_base,
+    EdgeSplitPolicy, build_value_definition_map, collect_non_escaping_stack_allocs,
+    effect_is_trackable, ensure_edge_block, instruction_has_atomic_ordering, stack_alloc_base,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -127,7 +127,7 @@ fn run_store_sink(
     let alias = analyses.get::<AliasAnalysis>().clone();
 
     // build pointer definition info
-    let definitions = crate::optimize::common::build_value_definition_map(function, tree);
+    let definitions = build_value_definition_map(function, tree);
     let non_escaping_stack_allocs = collect_non_escaping_stack_allocs(function, tree, &definitions);
 
     // collect store candidates
@@ -473,12 +473,12 @@ mod tests {
     fn test_store_sink_to_single_successor() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
     store v1, v2
     branch v0, block1, block2
 block1:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 block2:
     return v2
@@ -486,14 +486,14 @@ block2:
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
     branch v0, block1, block3
 block1:
     store v1, v2
     jump block2
 block2:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 block3:
     return v2
@@ -509,15 +509,15 @@ block3:
     fn test_store_sink_skips_all_successors() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
     store v1, v2
     branch v0, block1, block2
 block1:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 block2:
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     return v4
 }"#;
 
@@ -531,7 +531,7 @@ block2:
     fn test_store_sink_skips_escaping_store() {
         let input = r#"function @test(v0: bool, v1: ref<raw addrspace(global) i32>) -> void {
 block0(v0: bool, v1: ref<raw addrspace(global) i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
     branch v0, block1, block2
 block1:

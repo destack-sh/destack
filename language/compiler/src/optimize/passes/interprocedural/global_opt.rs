@@ -615,16 +615,16 @@ mod tests {
         let input = r#"global @value: i32 = 42i32 ; mut
 function @root() -> i32 {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
-    v1 = load v0 -> i32
+    v0: ref<raw mut i32> = global.addr @value
+    v1: i32 = load v0
     return v1
 }"#;
 
         let expected = r#"global @value: i32 = 42i32 ; const
 function @root() -> i32 {
 block0:
-    v1 = global.const @value
-    return v1
+    v0: i32 = global.const @value
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -638,8 +638,8 @@ block0:
         let input = r#"global @value: i32 = 0i32 ; mut
 function @root() -> void {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
-    v1 = iconst 1i32
+    v0: ref<raw mut i32> = global.addr @value
+    v1: i32 = iconst 1i32
     store v0, v1
     return
 }"#;
@@ -655,9 +655,9 @@ block0:
         let input = r#"global @value: i32 = 0i32 ; mut
 function @root() -> void {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
-    v1 = intrinsic.addrspace.cast(v0)
-    v2 = iconst 1i32
+    v0: ref<raw mut i32> = global.addr @value
+    v1: ref<raw mut i32> = intrinsic.addrspace.cast(v0)
+    v2: i32 = iconst 1i32
     store v1, v2
     return
 }"#;
@@ -673,7 +673,7 @@ block0:
         let input = r#"global @value: i32 = 42i32 ; mut
 function @root() -> ref<raw mut i32> {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
+    v0: ref<raw mut i32> = global.addr @value
     return v0
 }"#;
 
@@ -688,16 +688,16 @@ block0:
         let input = r#"global @value: i32 = 42i32 ; mut
 function @root() -> i32 {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
-    v1 = load v0 -> i32
+    v0: ref<raw mut i32> = global.addr @value
+    v1: i32 = load v0
     return v1
 }"#;
 
         let expected = r#"global @value: i32 = 42i32 ; const
 function @root() -> i32 {
 block0:
-    v1 = global.const @value
-    return v1
+    v0: i32 = global.const @value
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);

@@ -4,13 +4,15 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, OwnershipAnalysis, ScalarEvolution, Scev,
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
 };
+use crate::optimize::common::ValueTypeMap;
 use crate::optimize::common::{
-    BlockParamForwarding, CallsiteHotness, block_execution_counts, block_hotness_from_counts,
-    build_use_def_maps, build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
-    constant_from_global, instruction_is_speculatable, instruction_map,
-    terminator_arguments_for_successor, terminator_remap,
+    BlockParamForwarding, CallsiteHotness, CallsiteHotnessPolicy, block_execution_counts,
+    block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
+    clone_instruction_metadata, clone_loop_blocks, constant_from_global,
+    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
+    terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -497,7 +499,7 @@ fn run_loop_unroll_and_jam(
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let scev = analyses.get::<ScalarEvolution>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
-        let ownership = analyses.get::<OwnershipAnalysis>().clone();
+        let value_types = ValueTypeMap::new(function, tree);
 
         // bail out when no loops exist
         if loops.num_loops() == 0 {
@@ -572,7 +574,7 @@ fn run_loop_unroll_and_jam(
         // apply transformation
         function.recompute_next_value_id(tree);
         if !unroll_and_jam_loop(
-            function, tree, ctx, &candidate, plan, &cfg, &domtree, &ownership,
+            function, tree, ctx, &candidate, plan, &cfg, &domtree, &value_types,
         ) {
             break;
         }
@@ -1101,33 +1103,6 @@ fn outer_equivalent_values(
     ordered
 }
 
-/// Find a value type from function and block parameters.
-fn value_type_from_params(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-    value: mir::Value,
-) -> Option<mir::LocalNodeId<mir::Type>> {
-    // check function parameters
-    for param in &function.parameters {
-        if param.value == value {
-            return Some(param.ty);
-        }
-    }
-
-    // check block parameters
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for param in &block.parameters {
-            if param.value == value {
-                return Some(param.ty);
-            }
-        }
-    }
-
-    // no type available
-    None
-}
-
 /// Return the outer loop step for the induction value.
 fn outer_step_for_guard(
     loop_index: usize,
@@ -1557,7 +1532,7 @@ fn unroll_and_jam_loop(
     plan: JamPlan,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> bool {
     // reject degenerate factors
     if plan.factor < 2 {
@@ -1579,7 +1554,7 @@ fn unroll_and_jam_loop(
     };
 
     // update the outer latch induction step
-    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor, ownership) {
+    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor, value_types) {
         return false;
     }
 
@@ -1591,7 +1566,7 @@ fn unroll_and_jam_loop(
         candidate,
         plan.factor,
         &update_info,
-        ownership,
+        value_types,
     ) {
         return false;
     }
@@ -1808,16 +1783,10 @@ fn rewrite_outer_latch_step(
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = match ownership
-        .value_type(candidate.outer_induction)
-        .or_else(|| value_type_from_params(function, tree, candidate.outer_induction))
-    {
-        Some(ty) => ty,
-        None => return false,
-    };
+    let outer_type = value_types.require_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.type_context().pointer_width_bits;
     let scaled_constant = match scaled_step_constant(
@@ -1846,14 +1815,14 @@ fn rewrite_outer_latch_step(
     let current_value = candidate.outer_latch_param;
 
     // build the scaled induction update
-    let const_value = function.next_value();
+    let const_value = function.next_typed_value_like(current_value);
     let const_instruction = mir::Instruction::Const {
         destination: const_value,
         value: scaled_constant,
     };
     let const_id = tree.insert(const_instruction);
 
-    let updated_value = function.next_value();
+    let updated_value = function.next_typed_value_like(current_value);
     let add_instruction = mir::Instruction::Binary {
         destination: updated_value,
         operator: mir::BinaryOperator::Add,
@@ -1886,16 +1855,10 @@ fn jam_inner_body(
     candidate: &JamCandidate,
     factor: u64,
     update_info: &InnerUpdateInfo,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> bool {
     // resolve the outer induction type
-    let outer_type = match ownership
-        .value_type(candidate.outer_induction)
-        .or_else(|| value_type_from_params(function, tree, candidate.outer_induction))
-    {
-        Some(ty) => ty,
-        None => return false,
-    };
+    let outer_type = value_types.require_value_type(candidate.outer_induction);
 
     let pointer_width_bits = ctx.type_context().pointer_width_bits;
     let mut new_instructions = Vec::new();
@@ -1914,7 +1877,7 @@ fn jam_inner_body(
             None => return false,
         };
 
-        let offset_const_value = function.next_value();
+        let offset_const_value = function.next_typed_value_like(candidate.inner_outer_param);
         let offset_const_instruction = mir::Instruction::Const {
             destination: offset_const_value,
             value: step_constant,
@@ -1922,7 +1885,7 @@ fn jam_inner_body(
         let offset_const_id = tree.insert(offset_const_instruction);
         new_instructions.push(offset_const_id);
 
-        let offset_value = function.next_value();
+        let offset_value = function.next_typed_value_like(candidate.inner_outer_param);
         let offset_add_instruction = mir::Instruction::Binary {
             destination: offset_value,
             operator: mir::BinaryOperator::Add,
@@ -1942,7 +1905,7 @@ fn jam_inner_body(
             let instruction = tree.get(instruction_id).clone();
 
             if let Some(destination) = instruction.destination() {
-                let new_value = function.next_value();
+                let new_value = function.next_typed_value_like(destination);
                 value_map.insert(destination, new_value);
             }
 
@@ -2018,7 +1981,7 @@ fn unroll_limits_for_loop(
     header: mir::LocalNodeId<mir::Block>,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
-    policy: &crate::optimize::common::CallsiteHotnessPolicy,
+    policy: &CallsiteHotnessPolicy,
     unroll_threshold: usize,
 ) -> Option<UnrollLimits> {
     // default to base limits when no profile data exists
@@ -2804,44 +2767,44 @@ mod tests {
     fn test_full_unroll_small_trip_count() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 3i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 3i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block4(v6)
 block3(v7: i32):
     return v7
 block4(v8: i32):
-    v9 = icmp_slt v8, v1
+    v9: bool = icmp_slt v8, v1
     branch v9, block5(v8), block3(v8)
 block5(v10: i32):
-    v11 = iadd v10, v2
+    v11: i32 = iadd v10, v2
     jump block6(v11)
 block6(v12: i32):
-    v13 = icmp_slt v12, v1
+    v13: bool = icmp_slt v12, v1
     branch v13, block7(v12), block3(v12)
 block7(v14: i32):
-    v15 = iadd v14, v2
+    v15: i32 = iadd v14, v2
     jump block3(v15)
 }"#;
 
@@ -2856,15 +2819,15 @@ block7(v14: i32):
     fn test_full_unroll_decreasing_trip_count() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 3i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_sgt v3, v1
+    v4: bool = icmp_sgt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = isub v5, v2
+    v6: i32 = isub v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
@@ -2872,29 +2835,29 @@ block3(v7: i32):
 
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 3i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_sgt v3, v1
+    v4: bool = icmp_sgt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = isub v5, v2
+    v6: i32 = isub v5, v2
     jump block4(v6)
 block3(v7: i32):
     return v7
 block4(v8: i32):
-    v9 = icmp_sgt v8, v1
+    v9: bool = icmp_sgt v8, v1
     branch v9, block5(v8), block3(v8)
 block5(v10: i32):
-    v11 = isub v10, v2
+    v11: i32 = isub v10, v2
     jump block6(v11)
 block6(v12: i32):
-    v13 = icmp_sgt v12, v1
+    v13: bool = icmp_sgt v12, v1
     branch v13, block7(v12), block3(v12)
 block7(v14: i32):
-    v15 = isub v14, v2
+    v15: i32 = isub v14, v2
     jump block3(v15)
 }"#;
 
@@ -2909,14 +2872,14 @@ block7(v14: i32):
     fn test_unroll_requires_constant_trip_count() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1)
 block1(v3: i32):
-    v4 = icmp_slt v3, v0
+    v4: bool = icmp_slt v3, v0
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
@@ -2933,48 +2896,48 @@ block3(v7: i32):
     fn test_partial_unroll_with_remainder() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 10i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = iadd v3, v2
-    v5 = icmp_slt v4, v1
+    v4: i32 = iadd v3, v2
+    v5: bool = icmp_slt v4, v1
     branch v5, block1(v4), block2(v4)
 block2(v6: i32):
     return v6
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 10i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 1i32
     jump block3(v0)
 block1(v3: i32):
-    v4 = iadd v3, v2
-    v5 = icmp_slt v4, v1
+    v4: i32 = iadd v3, v2
+    v5: bool = icmp_slt v4, v1
     jump block5(v4)
 block2(v6: i32):
     return v6
 block3(v7: i32):
-    v8 = iadd v7, v2
-    v9 = icmp_slt v8, v1
+    v8: i32 = iadd v7, v2
+    v9: bool = icmp_slt v8, v1
     jump block4(v8)
 block4(v10: i32):
-    v11 = iadd v10, v2
-    v12 = icmp_slt v11, v1
+    v11: i32 = iadd v10, v2
+    v12: bool = icmp_slt v11, v1
     jump block1(v11)
 block5(v13: i32):
-    v14 = iadd v13, v2
-    v15 = icmp_slt v14, v1
+    v14: i32 = iadd v13, v2
+    v15: bool = icmp_slt v14, v1
     jump block6(v14)
 block6(v16: i32):
-    v17 = iadd v16, v2
-    v18 = icmp_slt v17, v1
+    v17: i32 = iadd v16, v2
+    v18: bool = icmp_slt v17, v1
     jump block7(v17)
 block7(v19: i32):
-    v20 = iadd v19, v2
-    v21 = icmp_slt v20, v1
+    v20: i32 = iadd v19, v2
+    v21: bool = icmp_slt v20, v1
     branch v21, block1(v20), block2(v20)
 }"#;
 
@@ -2989,50 +2952,50 @@ block7(v19: i32):
     fn test_partial_unroll_header_guard() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 9i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 9i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 9i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 9i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block4(v6)
 block3(v7: i32):
     return v7
 block4(v8: i32):
-    v9 = icmp_slt v8, v1
+    v9: bool = icmp_slt v8, v1
     branch v9, block5(v8), block3(v8)
 block5(v10: i32):
-    v11 = iadd v10, v2
+    v11: i32 = iadd v10, v2
     jump block6(v11)
 block6(v12: i32):
-    v13 = icmp_slt v12, v1
+    v13: bool = icmp_slt v12, v1
     branch v13, block7(v12), block3(v12)
 block7(v14: i32):
-    v15 = iadd v14, v2
+    v15: i32 = iadd v14, v2
     jump block8(v15)
 block8(v16: i32):
-    v17 = icmp_slt v16, v1
+    v17: bool = icmp_slt v16, v1
     branch v17, block9(v16), block3(v16)
 block9(v18: i32):
-    v19 = iadd v18, v2
+    v19: i32 = iadd v18, v2
     jump block1(v19)
 }"#;
 
@@ -3047,15 +3010,15 @@ block9(v18: i32):
     fn test_unroll_non_unit_stride() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 6i32
-    v2 = iconst 2i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 6i32
+    v2: i32 = iconst 2i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
@@ -3063,29 +3026,29 @@ block3(v7: i32):
 
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 6i32
-    v2 = iconst 2i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 6i32
+    v2: i32 = iconst 2i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block4(v6)
 block3(v7: i32):
     return v7
 block4(v8: i32):
-    v9 = icmp_slt v8, v1
+    v9: bool = icmp_slt v8, v1
     branch v9, block5(v8), block3(v8)
 block5(v10: i32):
-    v11 = iadd v10, v2
+    v11: i32 = iadd v10, v2
     jump block6(v11)
 block6(v12: i32):
-    v13 = icmp_slt v12, v1
+    v13: bool = icmp_slt v12, v1
     branch v13, block7(v12), block3(v12)
 block7(v14: i32):
-    v15 = iadd v14, v2
+    v15: i32 = iadd v14, v2
     jump block3(v15)
 }"#;
 
@@ -3100,17 +3063,17 @@ block7(v14: i32):
     fn test_unroll_skips_multiple_exits() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i32
-    v2 = iconst 4i32
-    v3 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 1i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_slt v4, v2
+    v5: bool = icmp_slt v4, v2
     branch v5, block2(v4), block5(v4)
 block2(v6: i32):
     branch v0, block3(v6), block4(v6)
 block3(v7: i32):
-    v8 = iadd v7, v3
+    v8: i32 = iadd v7, v3
     jump block1(v8)
 block4(v9: i32):
     return v9
@@ -3129,15 +3092,15 @@ block5(v10: i32):
     fn test_unroll_skips_cold_profile() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 3i32
-    v2 = iconst 1i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2(v3), block3(v3)
 block2(v5: i32):
-    v6 = iadd v5, v2
+    v6: i32 = iadd v5, v2
     jump block1(v6)
 block3(v7: i32):
     return v7
@@ -3164,27 +3127,27 @@ block3(v7: i32):
     fn test_unroll_and_jam_nested_loop() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 2u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block6
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v14 = iadd v12, v4
+    v14: u32 = iadd v12, v4
     jump block3(v11, v14)
 block5(v15: u32):
-    v16 = iadd v15, v4
+    v16: u32 = iadd v15, v4
     jump block1(v16)
 block6:
     return
@@ -3192,34 +3155,34 @@ block6:
 
         let expected = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 2u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block6
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v19 = iconst 1u32
-    v20 = iadd v8, v19
-    v21 = element.addr v0, v12 -> ref<borrowed u32>
-    store v21, v20
-    v14 = iadd v12, v4
-    jump block3(v11, v14)
-block5(v15: u32):
-    v16 = iadd v15, v4
-    v17 = iconst 2u32
-    v18 = iadd v15, v17
-    jump block1(v18)
+    v14: u32 = iconst 1u32
+    v15: u32 = iadd v8, v14
+    v16: ref<borrowed u32> = element.addr v0, v12
+    store v16, v15
+    v17: u32 = iadd v12, v4
+    jump block3(v11, v17)
+block5(v18: u32):
+    v19: u32 = iadd v18, v4
+    v20: u32 = iconst 2u32
+    v21: u32 = iadd v18, v20
+    jump block1(v21)
 block6:
     return
 }"#;
@@ -3235,28 +3198,28 @@ block6:
     fn test_unroll_and_jam_skips_outer_dependency() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 4u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 4u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block7
 block2:
-    v7 = iconst 0u32
-    v8 = iadd v5, v4
+    v7: u32 = iconst 0u32
+    v8: u32 = iadd v5, v4
     jump block3(v5, v7, v8)
 block3(v9: u32, v10: u32, v11: u32):
-    v12 = icmp_ult v10, v3
+    v12: bool = icmp_ult v10, v3
     branch v12, block4(v9, v10, v11), block5(v9)
 block4(v13: u32, v14: u32, v15: u32):
-    v16 = element.addr v0, v15 -> ref<borrowed u32>
+    v16: ref<borrowed u32> = element.addr v0, v15
     store v16, v13
-    v17 = iadd v14, v4
+    v17: u32 = iadd v14, v4
     jump block3(v13, v17, v15)
 block5(v18: u32):
-    v19 = iadd v18, v4
+    v19: u32 = iadd v18, v4
     jump block1(v19)
 block7:
     return
@@ -3275,28 +3238,28 @@ block7:
     fn test_unroll_and_jam_skips_inner_update_not_last() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 4u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 4u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block7
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v14 = iadd v12, v4
-    v15 = iadd v11, v4
+    v14: u32 = iadd v12, v4
+    v15: u32 = iadd v11, v4
     jump block3(v15, v14)
 block5(v16: u32):
-    v17 = iadd v16, v4
+    v17: u32 = iadd v16, v4
     jump block1(v17)
 block7:
     return
@@ -3315,28 +3278,28 @@ block7:
     fn test_unroll_and_jam_allows_trailing_invariants() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 2u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block6
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v14 = iadd v12, v4
-    v15 = iadd v14, v4
+    v14: u32 = iadd v12, v4
+    v15: u32 = iadd v14, v4
     jump block3(v11, v14)
 block5(v16: u32):
-    v17 = iadd v16, v4
+    v17: u32 = iadd v16, v4
     jump block1(v17)
 block6:
     return
@@ -3344,35 +3307,35 @@ block6:
 
         let expected = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 2u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block6
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v20 = iconst 1u32
-    v21 = iadd v8, v20
-    v22 = element.addr v0, v12 -> ref<borrowed u32>
-    store v22, v21
-    v14 = iadd v12, v4
-    v15 = iadd v14, v4
-    jump block3(v11, v14)
-block5(v16: u32):
-    v17 = iadd v16, v4
-    v18 = iconst 2u32
-    v19 = iadd v16, v18
-    jump block1(v19)
+    v14: u32 = iconst 1u32
+    v15: u32 = iadd v8, v14
+    v16: ref<borrowed u32> = element.addr v0, v12
+    store v16, v15
+    v17: u32 = iadd v12, v4
+    v18: u32 = iadd v17, v4
+    jump block3(v11, v17)
+block5(v19: u32):
+    v20: u32 = iadd v19, v4
+    v21: u32 = iconst 2u32
+    v22: u32 = iadd v19, v21
+    jump block1(v22)
 block6:
     return
 }"#;
@@ -3388,88 +3351,88 @@ block6:
     fn test_unroll_and_jam_peels_remainder_trip_count() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 5u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 5u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block1(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block7
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v14 = iadd v12, v4
+    v14: u32 = iadd v12, v4
     jump block3(v11, v14)
 block5(v15: u32):
-    v16 = iadd v15, v4
+    v16: u32 = iadd v15, v4
     jump block1(v16)
 block7:
     return
 }"#;
         let expected = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 5u32
-    v3 = iconst 2u32
-    v4 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 5u32
+    v3: u32 = iconst 2u32
+    v4: u32 = iconst 1u32
     jump block7(v1)
 block1(v5: u32):
-    v6 = icmp_ult v5, v2
+    v6: bool = icmp_ult v5, v2
     branch v6, block2, block6
 block2:
-    v7 = iconst 0u32
+    v7: u32 = iconst 0u32
     jump block3(v5, v7)
 block3(v8: u32, v9: u32):
-    v10 = icmp_ult v9, v3
+    v10: bool = icmp_ult v9, v3
     branch v10, block4(v8, v9), block5(v8)
 block4(v11: u32, v12: u32):
-    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    v13: ref<borrowed u32> = element.addr v0, v12
     store v13, v11
-    v31 = iconst 1u32
-    v32 = iadd v8, v31
-    v33 = element.addr v0, v12 -> ref<borrowed u32>
-    store v33, v32
-    v34 = iconst 2u32
-    v35 = iadd v8, v34
-    v36 = element.addr v0, v12 -> ref<borrowed u32>
-    store v36, v35
-    v37 = iconst 3u32
-    v38 = iadd v8, v37
-    v39 = element.addr v0, v12 -> ref<borrowed u32>
-    store v39, v38
-    v14 = iadd v12, v4
-    jump block3(v11, v14)
-block5(v15: u32):
-    v16 = iadd v15, v4
-    v29 = iconst 4u32
-    v30 = iadd v15, v29
-    jump block1(v30)
+    v14: u32 = iconst 1u32
+    v15: u32 = iadd v8, v14
+    v16: ref<borrowed u32> = element.addr v0, v12
+    store v16, v15
+    v17: u32 = iconst 2u32
+    v18: u32 = iadd v8, v17
+    v19: ref<borrowed u32> = element.addr v0, v12
+    store v19, v18
+    v20: u32 = iconst 3u32
+    v21: u32 = iadd v8, v20
+    v22: ref<borrowed u32> = element.addr v0, v12
+    store v22, v21
+    v23: u32 = iadd v12, v4
+    jump block3(v11, v23)
+block5(v24: u32):
+    v25: u32 = iadd v24, v4
+    v26: u32 = iconst 4u32
+    v27: u32 = iadd v24, v26
+    jump block1(v27)
 block6:
     return
-block7(v17: u32):
-    v18 = icmp_ult v17, v2
-    branch v18, block8, block6
+block7(v28: u32):
+    v29: bool = icmp_ult v28, v2
+    branch v29, block8, block6
 block8:
-    v19 = iconst 0u32
-    jump block9(v17, v19)
-block9(v20: u32, v21: u32):
-    v22 = icmp_ult v21, v3
-    branch v22, block10(v20, v21), block11(v20)
-block10(v23: u32, v24: u32):
-    v25 = element.addr v0, v24 -> ref<borrowed u32>
-    store v25, v23
-    v26 = iadd v24, v4
-    jump block9(v23, v26)
-block11(v27: u32):
-    v28 = iadd v27, v4
-    jump block1(v28)
+    v30: u32 = iconst 0u32
+    jump block9(v28, v30)
+block9(v31: u32, v32: u32):
+    v33: bool = icmp_ult v32, v3
+    branch v33, block10(v31, v32), block11(v31)
+block10(v34: u32, v35: u32):
+    v36: ref<borrowed u32> = element.addr v0, v35
+    store v36, v34
+    v37: u32 = iadd v35, v4
+    jump block9(v34, v37)
+block11(v38: u32):
+    v39: u32 = iadd v38, v4
+    jump block1(v39)
 }"#;
 
         let mut test = TestProgram::new(input);

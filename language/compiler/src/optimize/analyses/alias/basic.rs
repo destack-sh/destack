@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use destack_mir as mir;
 
 use crate::optimize::TypeContext;
 use crate::optimize::common::{
-    DecomposedPointer, MemoryLocation, PointerBase, PointerDecomposer, RangeRelation,
+    DecomposedPointer, MemoryLocation, PointerBase, PointerDecomposer, RangeRelation, ValueTypeMap,
     alias_scopes_may_alias, range_relation, tbaa_tags_may_alias,
 };
 
@@ -27,8 +25,8 @@ pub(crate) struct BasicAA {
     param_attrs: Vec<ParameterAttributes>,
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
-    /// Optional value type map for pointer decomposition.
-    value_types: Option<HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+    /// Value type map for pointer decomposition.
+    value_types: ValueTypeMap,
     /// Type context for layout sensitive operations.
     type_context: TypeContext,
 }
@@ -39,7 +37,7 @@ impl BasicAA {
         function: &mir::Function,
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
-        value_types: Option<&HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        value_types: &ValueTypeMap,
         type_context: TypeContext,
     ) -> Self {
         let info = FunctionAA::collect(function, tree);
@@ -62,7 +60,7 @@ impl BasicAA {
             function: info,
             param_attrs,
             strict_borrow_mode,
-            value_types: value_types.cloned(),
+            value_types: value_types.clone(),
             type_context,
         }
     }
@@ -86,7 +84,7 @@ impl BasicAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
-            self.value_types.as_ref(),
+            &self.value_types,
             self.type_context,
         );
 
@@ -827,7 +825,7 @@ impl BasicAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
-            self.value_types.as_ref(),
+            &self.value_types,
             self.type_context,
         );
         let decomposed = decomposer.decompose(loc.ptr);
@@ -858,7 +856,7 @@ impl BasicAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
-            self.value_types.as_ref(),
+            &self.value_types,
             self.type_context,
         );
         let decomposed = decomposer.decompose(loc.ptr);
@@ -938,7 +936,7 @@ impl BasicAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
-            self.value_types.as_ref(),
+            &self.value_types,
             self.type_context,
         );
 
@@ -951,7 +949,24 @@ impl BasicAA {
 mod tests {
     use super::*;
     use crate::optimize::TypeContext;
+    use crate::optimize::common::ValueTypeMap;
     use crate::optimize::common::tests::TestProgram;
+
+    /// Build a BasicAA instance for a test function.
+    fn build_basic_aa(
+        function: &mir::Function,
+        program: &TestProgram,
+        strict_borrow_mode: bool,
+    ) -> BasicAA {
+        let value_types = ValueTypeMap::new(function, &program.tree);
+        BasicAA::build(
+            function,
+            &program.tree,
+            strict_borrow_mode,
+            &value_types,
+            TypeContext::default(),
+        )
+    }
 
     #[test]
     fn test_different_allocations_no_alias() {
@@ -959,9 +974,9 @@ mod tests {
             r#"type @Point = { i32, i32 }
 function @test() -> void {
 block0:
-    v0 = managed.alloc @Point -> ref<managed @Point>
-    v1 = managed.alloc @Point -> ref<managed @Point>
-    v2 = iconst 1i32
+    v0: ref<managed @Point> = managed.alloc @Point
+    v1: ref<managed @Point> = managed.alloc @Point
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -970,7 +985,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -983,10 +998,10 @@ block0:
         let mut program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1012,7 +1027,7 @@ block0:
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
         let loc = MemoryLocation::from_ptr(pointer_query);
         let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
 
@@ -1024,8 +1039,8 @@ block0:
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1046,7 +1061,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
 
@@ -1069,8 +1084,8 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -1094,7 +1109,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
 
@@ -1118,14 +1133,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
             r#"type @Point = { i32, i32 }
 function @test() -> void {
 block0:
-    v0 = managed.alloc @Point -> ref<managed @Point>
+    v0: ref<managed @Point> = managed.alloc @Point
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc = MemoryLocation::with_size(mir::Value::new(0), 8);
 
@@ -1138,10 +1153,10 @@ block0:
             r#"type @Point = { i32, i32 }
 function @test() -> void {
 block0:
-    v0 = managed.alloc @Point -> ref<managed @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 1 -> ref<borrowed i32>
-    v3 = iconst 1i32
+    v0: ref<managed @Point> = managed.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 1
+    v3: i32 = iconst 1i32
     store v1, v3
     store v2, v3
     return
@@ -1150,7 +1165,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
         let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
@@ -1163,9 +1178,9 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = managed.alloc i32 -> ref<managed i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<managed i32> = managed.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -1174,7 +1189,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1188,9 +1203,9 @@ block0:
             r#"global @g: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g -> ref<raw addrspace(global) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(global) i32> = global.addr @g
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -1199,7 +1214,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1213,12 +1228,12 @@ block0:
             r#"type @Arr = [i32; 10]
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Arr -> ref<raw addrspace(stack) @Arr>
-    v1 = iconst 0i64
-    v2 = iconst 1i64
-    v3 = element.addr v0, v1 -> ref<borrowed i32>
-    v4 = element.addr v0, v2 -> ref<borrowed i32>
-    v5 = iconst 42i32
+    v0: ref<raw addrspace(stack) @Arr> = stack.alloc @Arr
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 1i64
+    v3: ref<borrowed i32> = element.addr v0, v1
+    v4: ref<borrowed i32> = element.addr v0, v2
+    v5: i32 = iconst 42i32
     store v3, v5
     store v4, v5
     return
@@ -1227,7 +1242,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));
         let loc4 = MemoryLocation::from_ptr(mir::Value::new(4));
@@ -1240,7 +1255,7 @@ block0:
         let program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -1249,7 +1264,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1263,7 +1278,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -1278,7 +1293,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         }
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1292,14 +1307,14 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
+    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         // same pointer, different sizes
         let loc_small = MemoryLocation::with_size(mir::Value::new(0), 4);
@@ -1317,14 +1332,14 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
+    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         // same pointer, one unknown size
         let loc_known = MemoryLocation::with_size(mir::Value::new(0), 4);
@@ -1342,15 +1357,15 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = raw.alloc i64 -> ref<raw i64>
-    v1 = managed.alloc i64 -> ref<managed i64>
+    v0: ref<raw i64> = raw.alloc i64
+    v1: ref<managed i64> = managed.alloc i64
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1364,16 +1379,16 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = bitcast v0 -> ref<raw i8>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw i8> = bitcast v0 -> ref<raw i8>
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         // v0 and v2 alias (v2 is just a cast of v0)
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
@@ -1394,16 +1409,16 @@ block0:
             r#"type @Arr = [i32; 10]
 function @test(v0: i64) -> void {
 block0(v0: i64):
-    v1 = stack.alloc @Arr -> ref<raw addrspace(stack) @Arr>
-    v2 = element.addr v1, v0 -> ref<borrowed i32>
-    v3 = element.addr v1, v0 -> ref<borrowed i32>
+    v1: ref<raw addrspace(stack) @Arr> = stack.alloc @Arr
+    v2: ref<borrowed i32> = element.addr v1, v0
+    v3: ref<borrowed i32> = element.addr v1, v0
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));
@@ -1420,18 +1435,18 @@ block0(v0: i64):
 type @Outer = { @Inner, @Inner }
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Outer -> ref<raw addrspace(stack) @Outer>
-    v1 = field.addr v0, 0 -> ref<borrowed @Inner>
-    v2 = field.addr v0, 1 -> ref<borrowed @Inner>
-    v3 = field.addr v1, 0 -> ref<borrowed i32>
-    v4 = field.addr v2, 0 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) @Outer> = stack.alloc @Outer
+    v1: ref<borrowed @Inner> = field.addr v0, 0
+    v2: ref<borrowed @Inner> = field.addr v0, 1
+    v3: ref<borrowed i32> = field.addr v1, 0
+    v4: ref<borrowed i32> = field.addr v2, 0
     return
 }"#,
         );
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
+        let aa = build_basic_aa(function, &program, false);
 
         // v3 is outer.0.0, v4 is outer.1.0, different top level fields
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));

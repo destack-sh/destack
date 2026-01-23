@@ -424,7 +424,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -434,8 +434,8 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0) -> fn(i32) -> i32
-    return v2
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -478,7 +478,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -496,8 +496,8 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: fn(i32, i32) -> i32, v1: i32, v2: i32) -> i32 {
 block0(v0: fn(i32, i32) -> i32, v1: i32, v2: i32):
-    v3 = call.indirect v0(v1, v2) -> fn(i32, i32) -> i32
-    v4 = call @callee(v1, v2) -> fn(i32, i32) -> i32
+    v3: i32 = call.indirect v0(v1, v2) -> fn(i32, i32) -> i32
+    v4: i32 = call @callee(v1, v2) -> fn(i32, i32) -> i32
     return v4
 }"#;
 
@@ -515,7 +515,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -525,8 +525,8 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0) -> fn(i32) -> i32
-    return v2
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -572,18 +572,18 @@ block0(v0: i32, v1: i32, v2: i32):
 }
 function @root(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
+    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
     return v3
 }"#;
 
-        let expected = r#"function @callee(v0: i32, v2: i32) -> i32 {
-block0(v0: i32, v2: i32):
+        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
     return v0
 }
-function @root(v0: i32, v2: i32) -> i32 {
-block0(v0: i32, v2: i32):
-    v3 = call @callee(v0, v2) -> fn(i32, i32) -> i32
-    return v3
+function @root(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -630,7 +630,7 @@ block0(v0: i32, v1: i32, v2: i32):
 }
 function @root(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
+    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
     return v3
 }"#;
 
@@ -640,8 +640,8 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v3 = call @callee(v0) -> fn(i32) -> i32
-    return v3
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -705,7 +705,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -715,8 +715,8 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0) -> fn(i32) -> i32
-    return v2
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);

@@ -541,15 +541,15 @@ block6:
         // header passes all its params to body, so rotation is valid
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_slt v2, v1
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_slt v2, v1
     jump block1(v2, v3)
 block1(v4: i32, v5: bool):
     branch v5, block2(v4, v5), block3(v4)
 block2(v6: i32, v7: bool):
-    v8 = iconst 1i32
-    v9 = iadd v6, v8
-    v10 = icmp_slt v9, v1
+    v8: i32 = iconst 1i32
+    v9: i32 = iadd v6, v8
+    v10: bool = icmp_slt v9, v1
     jump block1(v9, v10)
 block3(v11: i32):
     return v11
@@ -561,24 +561,24 @@ block3(v11: i32):
         // - critical edges are split into jump blocks
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_slt v2, v1
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_slt v2, v1
     branch v3, block2(v2, v3), block1(v2)
-block1(v14: i32):
-    jump block6(v14)
-block2(v12: i32, v13: bool):
-    jump block3(v12, v13)
-block3(v6: i32, v7: bool):
-    v8 = iconst 1i32
-    v9 = iadd v6, v8
-    v10 = icmp_slt v9, v1
-    branch v10, block5(v9, v10), block4(v9)
-block4(v17: i32):
-    jump block6(v17)
-block5(v15: i32, v16: bool):
-    jump block3(v15, v16)
-block6(v11: i32):
-    return v11
+block1(v4: i32):
+    jump block6(v4)
+block2(v5: i32, v6: bool):
+    jump block3(v5, v6)
+block3(v7: i32, v8: bool):
+    v9: i32 = iconst 1i32
+    v10: i32 = iadd v7, v9
+    v11: bool = icmp_slt v10, v1
+    branch v11, block5(v10, v11), block4(v10)
+block4(v12: i32):
+    jump block6(v12)
+block5(v13: i32, v14: bool):
+    jump block3(v13, v14)
+block6(v15: i32):
+    return v15
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -632,8 +632,8 @@ block6:
 block0(v0: bool, v1: i32):
     jump block1
 block1:
-    v2 = iconst 1i32
-    v3 = iadd v1, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v1, v2
     branch v0, block2, block3
 block2:
     jump block1
@@ -699,8 +699,8 @@ block0(v0: bool, v1: i32):
 block1(v2: i32):
     branch v0, block2, block3
 block2:
-    v3 = iconst 1i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 1i32
+    v4: i32 = iadd v2, v3
     jump block1(v4)
 block3:
     return v2
@@ -718,8 +718,8 @@ block3:
     fn test_no_loops() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -735,19 +735,19 @@ block0(v0: i32):
         // body block (block2) has same parameters as header (block1).
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 1i32
-    v4 = icmp_slt v2, v0
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
+    v4: bool = icmp_slt v2, v0
     jump block1(v2, v3, v4)
 block1(v5: i32, v6: i32, v7: bool):
     branch v7, block2(v5, v6, v7), block3(v5, v6)
 block2(v8: i32, v9: i32, v10: bool):
-    v11 = iadd v8, v9
-    v12 = iadd v9, v3
-    v13 = icmp_slt v11, v0
+    v11: i32 = iadd v8, v9
+    v12: i32 = iadd v9, v3
+    v13: bool = icmp_slt v11, v0
     jump block1(v11, v12, v13)
 block3(v14: i32, v15: i32):
-    v16 = iadd v14, v15
+    v16: i32 = iadd v14, v15
     return v16
 }"#;
         // after rotation:
@@ -757,26 +757,26 @@ block3(v14: i32, v15: i32):
         // - critical edges are split into jump blocks
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 1i32
-    v4 = icmp_slt v2, v0
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
+    v4: bool = icmp_slt v2, v0
     branch v4, block2(v2, v3, v4), block1(v2, v3)
-block1(v20: i32, v21: i32):
-    jump block6(v20, v21)
-block2(v17: i32, v18: i32, v19: bool):
-    jump block3(v17, v18, v19)
-block3(v8: i32, v9: i32, v10: bool):
-    v11 = iadd v8, v9
-    v12 = iadd v9, v3
-    v13 = icmp_slt v11, v0
-    branch v13, block5(v11, v12, v13), block4(v11, v12)
-block4(v25: i32, v26: i32):
-    jump block6(v25, v26)
-block5(v22: i32, v23: i32, v24: bool):
-    jump block3(v22, v23, v24)
-block6(v14: i32, v15: i32):
-    v16 = iadd v14, v15
-    return v16
+block1(v5: i32, v6: i32):
+    jump block6(v5, v6)
+block2(v7: i32, v8: i32, v9: bool):
+    jump block3(v7, v8, v9)
+block3(v10: i32, v11: i32, v12: bool):
+    v13: i32 = iadd v10, v11
+    v14: i32 = iadd v11, v3
+    v15: bool = icmp_slt v13, v0
+    branch v15, block5(v13, v14, v15), block4(v13, v14)
+block4(v16: i32, v17: i32):
+    jump block6(v16, v17)
+block5(v18: i32, v19: i32, v20: bool):
+    jump block3(v18, v19, v20)
+block6(v21: i32, v22: i32):
+    v23: i32 = iadd v21, v22
+    return v23
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);

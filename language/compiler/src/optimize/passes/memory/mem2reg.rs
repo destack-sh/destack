@@ -398,7 +398,7 @@ fn insert_block_parameters(
 
         for local in sorted_locals {
             let ty = promotable[&local].ty;
-            let param_value = function.next_value();
+            let param_value = function.next_typed_value(ty);
 
             block.parameters.push(mir::TypedValue {
                 value: param_value,
@@ -896,7 +896,7 @@ mod tests {
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
@@ -918,7 +918,7 @@ block0(v0: i32):
     local.set local0, v0
     jump block1
 block1:
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
@@ -936,36 +936,36 @@ block1:
     /// Diamond CFG with block parameter needed at join point.
     #[test]
     fn test_promote_in_diamond_cfg() {
-        let input = r#"function @test(v0: bool, v99: i32) -> i32 {
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
     local0: i32 ; owned, mut
-block0(v0: bool, v99: i32):
-    local.set local0, v99
+block0(v0: bool, v1: i32):
+    local.set local0, v1
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
-    local.set local0, v1
-    jump block3
-block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 1i32
     local.set local0, v2
     jump block3
+block2:
+    v3: i32 = iconst 2i32
+    local.set local0, v3
+    jump block3
 block3:
-    v3 = local.get local0
-    return v3
+    v4: i32 = local.get local0
+    return v4
 }"#;
         // block3 needs a block parameter for the different values from block1/block2
-        // v100 is the new block parameter value allocated by the pass
-        let expected = r#"function @test(v0: bool, v99: i32) -> i32 {
-block0(v0: bool, v99: i32):
+        // v4 is the new block parameter value allocated by the pass
+        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
-    jump block3(v1)
-block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 1i32
     jump block3(v2)
-block3(v100: i32):
-    return v100
+block2:
+    v3: i32 = iconst 2i32
+    jump block3(v3)
+block3(v4: i32):
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -982,15 +982,15 @@ block3(v100: i32):
 block0(v0: i32, v1: i32):
     local.set local0, v0
     local.set local1, v1
-    v2 = local.get local0
-    v3 = local.get local1
-    v4 = iadd v2, v3
+    v2: i32 = local.get local0
+    v3: i32 = local.get local1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v4 = iadd v0, v1
-    return v4
+    v2: i32 = iadd v0, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1018,7 +1018,7 @@ block0(v0: i32):
         let input = r#"function @test() -> i32 {
     local0: i32 ; owned, mut
 block0:
-    v0 = local.get local0
+    v0: i32 = local.get local0
     return v0
 }"#;
         // reading a local before writing is a bug in the MIR
@@ -1032,37 +1032,37 @@ block0:
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     local.set local0, v1
     jump block1
 block1:
-    v2 = local.get local0
-    v3 = icmp_slt v2, v0
+    v2: i32 = local.get local0
+    v3: bool = icmp_slt v2, v0
     branch v3, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v2, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v2, v4
     local.set local0, v5
     jump block1
 block3:
-    v6 = local.get local0
+    v6: i32 = local.get local0
     return v6
 }"#;
         // block1 is at dominance frontier (join point from block0 and block2)
         // v0-v6 exist in input -> next_value_id = 7
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1)
-block1(v7: i32):
-    v3 = icmp_slt v7, v0
+block1(v2: i32):
+    v3: bool = icmp_slt v2, v0
     branch v3, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v7, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v2, v4
     jump block1(v5)
 block3:
-    return v7
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1077,14 +1077,14 @@ block3:
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     local.set local0, v1
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     return v1
 }"#;
 
@@ -1102,8 +1102,8 @@ block0(v0: i32, v1: i32):
     local.set local0, v0
     jump block1(v1)
 block1(v2: i32):
-    v3 = local.get local0
-    v4 = iadd v2, v3
+    v3: i32 = local.get local0
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         // block1 keeps its existing parameter, local0 value is dominated by entry
@@ -1111,8 +1111,8 @@ block1(v2: i32):
 block0(v0: i32, v1: i32):
     jump block1(v1)
 block1(v2: i32):
-    v4 = iadd v2, v0
-    return v4
+    v3: i32 = iadd v2, v0
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1126,19 +1126,19 @@ block1(v2: i32):
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     local.set local0, v1
     switch v0, block3, 0 => block1, 1 => block2
 block1:
-    v2 = iconst 100i32
+    v2: i32 = iconst 100i32
     local.set local0, v2
     jump block3
 block2:
-    v3 = iconst 200i32
+    v3: i32 = iconst 200i32
     local.set local0, v3
     jump block3
 block3:
-    v4 = local.get local0
+    v4: i32 = local.get local0
     return v4
 }"#;
         // block3 is join point with 3 predecessors (block0, block1, block2)
@@ -1146,16 +1146,16 @@ block3:
         // new block parameter is v5
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     switch v0, block3(v1), 0 => block1, 1 => block2
 block1:
-    v2 = iconst 100i32
+    v2: i32 = iconst 100i32
     jump block3(v2)
 block2:
-    v3 = iconst 200i32
+    v3: i32 = iconst 200i32
     jump block3(v3)
-block3(v5: i32):
-    return v5
+block3(v4: i32):
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1170,16 +1170,16 @@ block3(v5: i32):
 function @test() -> void {
     local0: i32 ; owned, mut
 block0:
-    v0 = iconst 7i32
+    v0: i32 = iconst 7i32
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     call @sink(v1) -> fn(i32) -> void
     return
 }"#;
         let expected = r#"extern function @sink(i32) -> void
 function @test() -> void {
 block0:
-    v0 = iconst 7i32
+    v0: i32 = iconst 7i32
     call @sink(v0) -> fn(i32) -> void
     return
 }"#;

@@ -34,13 +34,13 @@ global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
 
 function @sum(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 0
-    v4 = field.get v2, 1
-    v5 = bnot v4
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: i32 = field.get v2, 0
+    v4: bool = field.get v2, 1
+    v5: bool = bnot v4
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
-    v6 = global.const @${integer_overflow}
+    v6: ref<managed @String> = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
@@ -78,10 +78,10 @@ function sum(a: int32, b: int32): int32 {
         r#"
 function @sum(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 0
-    v4 = field.get v2, 1
-    v5 = bnot v4
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: i32 = field.get v2, 0
+    v4: bool = field.get v2, 1
+    v5: bool = bnot v4
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
     intrinsic.abort()
@@ -121,13 +121,13 @@ global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
 
 function @sum(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 0
-    v4 = field.get v2, 1
-    v5 = bnot v4
+    v2: (u32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: u32 = field.get v2, 0
+    v4: bool = field.get v2, 1
+    v5: bool = bnot v4
     check v5, overflow.unsigned.iadd v0, v1, block2, block1
 block1:
-    v6 = global.const @${integer_overflow}
+    v6: ref<managed @String> = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
@@ -165,7 +165,7 @@ function sum(a: int32, b: int32): int32 {
         r#"
 function @sum(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
         "#,
@@ -202,27 +202,27 @@ global @${division_overflow}: ref<managed @String> = "division overflow" ; const
 
 function @quotient(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_ne v1, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4 = global.const @${division_by_zero}
+    v4: ref<managed @String> = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
-    v5 = iconst -2147483648i32
-    v6 = iconst -1i32
-    v7 = icmp_eq v0, v5
-    v8 = icmp_eq v1, v6
-    v9 = band v7, v8
-    v10 = bnot v9
+    v5: i32 = iconst -2147483648i32
+    v6: i32 = iconst -1i32
+    v7: bool = icmp_eq v0, v5
+    v8: bool = icmp_eq v1, v6
+    v9: bool = band v7, v8
+    v10: bool = bnot v9
     check v10, overflow.signed.sdiv v0, v1, block4, block3
 block3:
-    v11 = global.const @${division_overflow}
+    v11: ref<managed @String> = global.const @${division_overflow}
     intrinsic.panic(v11)
     unreachable
 block4:
-    v12 = sdiv v0, v1
+    v12: i32 = sdiv v0, v1
     return v12
 }
         "#;
@@ -259,23 +259,23 @@ function quotient(a: int32, b: int32): int32 {
         r#"
 function @quotient(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_ne v1, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
     unreachable
 block2:
-    v4 = iconst -2147483648i32
-    v5 = iconst -1i32
-    v6 = icmp_eq v0, v4
-    v7 = icmp_eq v1, v5
-    v8 = band v6, v7
-    v9 = bnot v8
+    v4: i32 = iconst -2147483648i32
+    v5: i32 = iconst -1i32
+    v6: bool = icmp_eq v0, v4
+    v7: bool = icmp_eq v1, v5
+    v8: bool = band v6, v7
+    v9: bool = bnot v8
     check v9, overflow.signed.sdiv v0, v1, block4, block3
 block3:
     unreachable
 block4:
-    v10 = sdiv v0, v1
+    v10: i32 = sdiv v0, v1
     return v10
 }
         "#,
@@ -312,15 +312,15 @@ global @${division_overflow}: ref<managed @String> = "division overflow" ; const
 
 function @quotient(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = iconst 0u32
-    v3 = icmp_ne v1, v2
+    v2: u32 = iconst 0u32
+    v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4 = global.const @${division_by_zero}
+    v4: ref<managed @String> = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
-    v5 = udiv v0, v1
+    v5: u32 = udiv v0, v1
     return v5
 }
         "#;
@@ -359,18 +359,18 @@ global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; con
 
 function @shift(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 32i32
-    v3 = iconst 0i32
-    v4 = icmp_sge v1, v3
-    v5 = icmp_slt v1, v2
-    v6 = band v4, v5
+    v2: i32 = iconst 32i32
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_sge v1, v3
+    v5: bool = icmp_slt v1, v2
+    v6: bool = band v4, v5
     check v6, shift.signed v1, 32, block2, block1
 block1:
-    v7 = global.const @${shift_out_of_range}
+    v7: ref<managed @String> = global.const @${shift_out_of_range}
     intrinsic.panic(v7)
     unreachable
 block2:
-    v8 = ishl v0, v1
+    v8: i32 = ishl v0, v1
     return v8
 }
         "#;
@@ -405,17 +405,17 @@ function shift(value: int32, amount: int32): int32 {
         r#"
 function @shift(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 32i32
-    v3 = iconst 0i32
-    v4 = icmp_sge v1, v3
-    v5 = icmp_slt v1, v2
-    v6 = band v4, v5
+    v2: i32 = iconst 32i32
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_sge v1, v3
+    v5: bool = icmp_slt v1, v2
+    v6: bool = band v4, v5
     check v6, shift.signed v1, 32, block2, block1
 block1:
     intrinsic.abort()
     unreachable
 block2:
-    v7 = ishl v0, v1
+    v7: i32 = ishl v0, v1
     return v7
 }
         "#,
@@ -450,15 +450,15 @@ global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; con
 
 function @shift(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = iconst 32u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 32u32
+    v3: bool = icmp_ult v1, v2
     check v3, shift.unsigned v1, 32, block2, block1
 block1:
-    v4 = global.const @${shift_out_of_range}
+    v4: ref<managed @String> = global.const @${shift_out_of_range}
     intrinsic.panic(v4)
     unreachable
 block2:
-    v5 = ishl v0, v1
+    v5: u32 = ishl v0, v1
     return v5
 }
         "#;
@@ -495,18 +495,18 @@ global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; c
 
 function @element(v0: [i32; 4], v1: i32) -> i32 {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 4i32
-    v3 = iconst 0i32
-    v4 = icmp_sge v1, v3
-    v5 = icmp_slt v1, v2
-    v6 = band v4, v5
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_sge v1, v3
+    v5: bool = icmp_slt v1, v2
+    v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7 = global.const @${bounds_check_failed}
+    v7: ref<managed @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
-    v8 = element.get v0, v1
+    v8: i32 = element.get v0, v1
     return v8
 }
         "#;
@@ -541,16 +541,16 @@ function element(values: int32[4], index: int32): int32 {
         r#"
 function @element(v0: [i32; 4], v1: i32) -> i32 {
 block0(v0: [i32; 4], v1: i32):
-    v2 = iconst 4i32
-    v3 = iconst 0i32
-    v4 = icmp_sge v1, v3
-    v5 = icmp_slt v1, v2
-    v6 = band v4, v5
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 0i32
+    v4: bool = icmp_sge v1, v3
+    v5: bool = icmp_slt v1, v2
+    v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
     unreachable
 block2:
-    v7 = element.get v0, v1
+    v7: i32 = element.get v0, v1
     return v7
 }
         "#,
@@ -585,15 +585,15 @@ global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; c
 
 function @element(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block2, block1
 block1:
-    v4 = global.const @${bounds_check_failed}
+    v4: ref<managed @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v4)
     unreachable
 block2:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }
         "#;

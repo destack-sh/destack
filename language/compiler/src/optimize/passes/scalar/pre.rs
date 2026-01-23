@@ -3,13 +3,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
-    AvailableExpressions, ControlFlowGraph, DominatorTree, OwnershipAnalysis,
-};
+use crate::optimize::analyses::{AvailableExpressions, ControlFlowGraph, DominatorTree};
+use crate::optimize::common::ValueTypeMap;
 use crate::optimize::common::{
-    EdgeSplitPolicy, append_successor_arguments, build_use_def_maps, collect_reachable_blocks,
-    compute_dominance_frontiers, ensure_edge_block, instruction_has_side_effects,
-    instruction_is_speculatable,
+    EdgeSplitPolicy, UseDefMaps, append_successor_arguments, build_use_def_maps,
+    collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
+    instruction_has_side_effects, instruction_is_speculatable,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
@@ -75,11 +74,11 @@ impl FunctionPass for PartialRedundancyElim {
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
         let available = analyses.get::<AvailableExpressions>().clone();
-        let ownership = analyses.get::<OwnershipAnalysis>().clone();
+        let value_types = ValueTypeMap::new(function, tree);
 
         // run PRE
         let changed = run_pre(
-            entry, function, tree, &cfg, &domtree, &available, &ownership,
+            entry, function, tree, &cfg, &domtree, &available, &value_types,
         );
 
         if changed {
@@ -150,7 +149,7 @@ fn run_pre(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     available: &AvailableExpressions,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> bool {
     // collect reachable blocks
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -184,9 +183,7 @@ fn run_pre(
             let Some(destination) = instruction.destination() else {
                 continue;
             };
-            let Some(value_type) = ownership.value_type(destination) else {
-                continue;
-            };
+            let value_type = value_types.require_value_type(destination);
 
             // track whether the expression can be speculated
             let is_speculatable = instruction_is_speculatable(instruction);
@@ -275,7 +272,7 @@ fn run_pre(
             }
 
             // allocate a new parameter for the expression
-            let param_value = function.next_value();
+            let param_value = function.next_typed_value(value_type);
             let param = mir::TypedValue::new(param_value, value_type);
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
@@ -363,6 +360,7 @@ fn run_pre(
                         pred,
                         insertion_block,
                         placement.key.clone(),
+                        placement.param.ty,
                         function,
                         tree,
                         templates.get(&placement.key),
@@ -464,7 +462,7 @@ fn phi_is_fillable(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     available: &AvailableExpressions,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
 ) -> bool {
     // every predecessor must either have the expression available or be able to compute it
     for &pred in cfg.predecessors(*block) {
@@ -486,7 +484,7 @@ fn operands_available_in_block(
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     domtree: &DominatorTree,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
 ) -> bool {
     // collect operands for the expression
     let operands = expression_operands(key);
@@ -508,7 +506,7 @@ fn value_available_in_block(
     block: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
     domtree: &DominatorTree,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
 ) -> bool {
     // function parameters are always available
     if function.parameters.iter().any(|param| param.value == value) {
@@ -643,10 +641,11 @@ fn insert_expression_in_block(
     availability_block: mir::LocalNodeId<mir::Block>,
     insert_block: mir::LocalNodeId<mir::Block>,
     key: ExpressionKey,
+    value_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     template: Option<&ExpressionTemplate>,
-    use_def: &crate::optimize::common::UseDefMaps,
+    use_def: &UseDefMaps,
     domtree: &DominatorTree,
 ) -> Option<mir::Value> {
     // require a template describing how to rebuild the expression
@@ -658,7 +657,7 @@ fn insert_expression_in_block(
     }
 
     // build the new instruction
-    let destination = function.next_value();
+    let destination = function.next_typed_value(value_type);
     let instruction = build_instruction_from_key(&key, template, destination);
     let instruction_id = tree.insert(instruction);
 
@@ -750,12 +749,12 @@ mod tests {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3
 block2:
     jump block3
 block3:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 }"#;
 
@@ -763,11 +762,11 @@ block3:
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v6 = iadd v0, v1
-    jump block3(v6)
+    v4: i32 = iadd v0, v1
+    jump block3(v4)
 block3(v5: i32):
     return v5
 }"#;
@@ -784,12 +783,12 @@ block3(v5: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3
 block2:
     branch v2, block3, block4
 block3:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 block4:
     return v0
@@ -799,13 +798,13 @@ block4:
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block4(v3)
 block2:
     branch v2, block3, block5
 block3:
-    v6 = iadd v0, v1
-    jump block4(v6)
+    v4: i32 = iadd v0, v1
+    jump block4(v4)
 block4(v5: i32):
     return v5
 block5:
@@ -824,10 +823,10 @@ block5:
 block0(v0: i32, v1: i32, v2: i32):
     switch v2, block2, 0 => block1
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block2
 block2:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 }"#;
 
@@ -835,11 +834,11 @@ block2:
 block0(v0: i32, v1: i32, v2: i32):
     switch v2, block1, 0 => block2
 block1:
-    v6 = iadd v0, v1
-    jump block3(v6)
-block2:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
+block2:
+    v4: i32 = iadd v0, v1
+    jump block3(v4)
 block3(v5: i32):
     return v5
 }"#;
@@ -854,33 +853,33 @@ block3(v5: i32):
     fn test_pre_switch_case_appends_expression() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iconst 7i32
+    v3: i32 = iconst 7i32
     switch v2, block2, 0 => block1, 1 => block3(v3)
 block1:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v5 = iconst 0i32
+    v5: i32 = iconst 0i32
     return v5
 block3(v6: i32):
-    v7 = iadd v0, v1
+    v7: i32 = iadd v0, v1
     return v7
 }"#;
 
         let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iconst 7i32
+    v3: i32 = iconst 7i32
     switch v2, block3, 0 => block2, 1 => block1
 block1:
-    v9 = iadd v0, v1
-    jump block4(v3, v9)
-block2:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     jump block4(v3, v4)
+block2:
+    v5: i32 = iadd v0, v1
+    jump block4(v3, v5)
 block3:
-    v5 = iconst 0i32
-    return v5
-block4(v6: i32, v8: i32):
+    v6: i32 = iconst 0i32
+    return v6
+block4(v7: i32, v8: i32):
     return v8
 }"#;
 
@@ -896,13 +895,13 @@ block4(v6: i32, v8: i32):
 block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
     branch v2, block1, block2
 block1:
-    v4 = iadd v0, v1
-    v5 = icmp_ult v0, v1
+    v4: u32 = iadd v0, v1
+    v5: bool = icmp_ult v0, v1
     check v5, bounds.unsigned v0, v1, v3, block3, block4
 block2:
     jump block3
 block3:
-    v6 = iadd v0, v1
+    v6: u32 = iadd v0, v1
     return v6
 block4:
     unreachable
@@ -912,14 +911,14 @@ block4:
 block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
     branch v2, block1, block3
 block1:
-    v4 = iadd v0, v1
-    v5 = icmp_ult v0, v1
+    v4: u32 = iadd v0, v1
+    v5: bool = icmp_ult v0, v1
     check v5, bounds.unsigned v0, v1, v3, block2, block5
 block2:
     jump block4(v4)
 block3:
-    v8 = iadd v0, v1
-    jump block4(v8)
+    v6: u32 = iadd v0, v1
+    jump block4(v6)
 block4(v7: u32):
     return v7
 block5:
@@ -938,15 +937,15 @@ block5:
 block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
     branch v2, block1, block2
 block1:
-    v4 = iadd v0, v1
-    v5 = icmp_ult v0, v1
+    v4: u32 = iadd v0, v1
+    v5: bool = icmp_ult v0, v1
     check v5, bounds.unsigned v0, v1, v3, block3, block4
 block2:
     jump block4
 block3:
     return v4
 block4:
-    v6 = iadd v0, v1
+    v6: u32 = iadd v0, v1
     return v6
 }"#;
 
@@ -954,14 +953,14 @@ block4:
 block0(v0: u32, v1: u32, v2: bool, v3: [u8; 8]):
     branch v2, block1, block3
 block1:
-    v4 = iadd v0, v1
-    v5 = icmp_ult v0, v1
+    v4: u32 = iadd v0, v1
+    v5: bool = icmp_ult v0, v1
     check v5, bounds.unsigned v0, v1, v3, block4, block2
 block2:
     jump block5(v4)
 block3:
-    v8 = iadd v0, v1
-    jump block5(v8)
+    v6: u32 = iadd v0, v1
+    jump block5(v6)
 block4:
     return v4
 block5(v7: u32):
@@ -980,14 +979,14 @@ block5(v7: u32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
-    v4 = iconst 1i32
+    v3: i32 = iadd v0, v1
+    v4: i32 = iconst 1i32
     yield v4, block3(v0)
 block2:
-    v5 = iconst 2i32
+    v5: i32 = iconst 2i32
     yield v5, block3(v0)
 block3(v6: i32, v7: i32):
-    v8 = iadd v0, v1
+    v8: i32 = iadd v0, v1
     return v8
 }"#;
 
@@ -995,14 +994,14 @@ block3(v6: i32, v7: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
-    v4 = iconst 1i32
+    v3: i32 = iadd v0, v1
+    v4: i32 = iconst 1i32
     yield v4, block3(v0, v3)
 block2:
-    v5 = iconst 2i32
-    v10 = iadd v0, v1
-    yield v5, block3(v0, v10)
-block3(v6: i32, v7: i32, v9: i32):
+    v5: i32 = iconst 2i32
+    v6: i32 = iadd v0, v1
+    yield v5, block3(v0, v6)
+block3(v7: i32, v8: i32, v9: i32):
     return v9
 }"#;
 
@@ -1018,12 +1017,12 @@ block3(v6: i32, v7: i32, v9: i32):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = sdiv v0, v1
+    v3: i32 = sdiv v0, v1
     jump block3
 block2:
     jump block3
 block3:
-    v4 = sdiv v0, v1
+    v4: i32 = sdiv v0, v1
     return v4
 }"#;
 
@@ -1039,12 +1038,12 @@ block3:
 block0(v0: f32, v1: bool):
     branch v1, block1, block2
 block1:
-    v2 = fcvt_to_sint v0 -> i32
+    v2: i32 = fcvt_to_sint v0 -> i32
     jump block3
 block2:
     jump block3
 block3:
-    v3 = fcvt_to_sint v0 -> i32
+    v3: i32 = fcvt_to_sint v0 -> i32
     return v3
 }"#;
 
@@ -1060,17 +1059,17 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = call @get_value() -> fn() -> i32
+    v1: i32 = call @get_value() -> fn() -> i32
     jump block3
 block2:
     jump block3
 block3:
-    v2 = call @get_value() -> fn() -> i32
+    v2: i32 = call @get_value() -> fn() -> i32
     return v2
 }
 function @get_value() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -1086,13 +1085,13 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     jump block3
 block3:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
 
@@ -1106,14 +1105,14 @@ block3:
     fn test_pre_skips_fully_redundant_expression() {
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     branch v2, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 }"#;
 

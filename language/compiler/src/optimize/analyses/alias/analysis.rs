@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_mir as mir;
 
-use crate::optimize::common::{MemoryLocation, TypeKey};
+use crate::optimize::common::{MemoryLocation, TypeKey, ValueTypeMap};
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
 use super::basic::BasicAA;
@@ -10,7 +10,6 @@ use super::globals::GlobalsAA;
 use super::result::{AliasResult, ModRefInfo};
 use super::scoped::ScopedNoAliasAA;
 use super::tbaa::TypeBasedAA;
-use crate::optimize::analyses::OwnershipAnalysis;
 
 /// Combined alias analysis results.
 ///
@@ -42,7 +41,7 @@ impl AliasAnalysis {
         function: &mir::Function,
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
-        value_types: Option<&std::collections::HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        value_types: &ValueTypeMap,
         type_context: TypeContext,
     ) -> Self {
         Self {
@@ -55,7 +54,13 @@ impl AliasAnalysis {
             ),
             tbaa: TypeBasedAA::default(),
             globals: GlobalsAA::build(function, tree),
-            scoped: ScopedNoAliasAA::build(function, tree, strict_borrow_mode, type_context),
+            scoped: ScopedNoAliasAA::build(
+                function,
+                tree,
+                strict_borrow_mode,
+                value_types,
+                type_context,
+            ),
             tree: Arc::new(tree.clone()),
         }
     }
@@ -205,7 +210,7 @@ impl AliasAnalysis {
 
 impl Analysis for AliasAnalysis {
     const ID: AnalysisId = AnalysisId("alias");
-    const DEPENDENCIES: &'static [AnalysisId] = &[OwnershipAnalysis::ID];
+    const DEPENDENCIES: &'static [AnalysisId] = &[];
 }
 
 impl FunctionAnalysis for AliasAnalysis {
@@ -214,12 +219,12 @@ impl FunctionAnalysis for AliasAnalysis {
         tree: &mir::NodeTree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
-        let ownership = analyses.get::<OwnershipAnalysis>();
+        let value_types = ValueTypeMap::new(function, tree);
         Self::build(
             function,
             tree,
             analyses.options().strict_borrow_mode,
-            Some(ownership.value_types()),
+            &value_types,
             analyses.type_context(),
         )
     }
@@ -236,8 +241,8 @@ mod tests {
             r#"type @Point = { i32, i32 }
 function @test() -> void {
 block0:
-    v0 = managed.alloc @Point -> ref<managed @Point>
-    v1 = managed.alloc @Point -> ref<managed @Point>
+    v0: ref<managed @Point> = managed.alloc @Point
+    v1: ref<managed @Point> = managed.alloc @Point
     return
 }"#,
         );
@@ -256,11 +261,11 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#,
         );
@@ -284,9 +289,9 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     return
 }"#,
@@ -317,9 +322,9 @@ block0:
 global @g2: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g1 -> ref<raw addrspace(global) i32>
-    v1 = global.addr @g2 -> ref<raw addrspace(global) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(global) i32> = global.addr @g1
+    v1: ref<raw addrspace(global) i32> = global.addr @g2
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     return
 }"#,
         );
@@ -341,8 +346,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc f64 -> ref<raw addrspace(stack) f64>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) f64> = stack.alloc f64
     return
 }"#,
         );
@@ -408,8 +413,8 @@ block0(v0: ref<raw i32>):
             r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     call @external(v0, v1) -> fn(ref<raw i32>, ref<raw i32>) -> void
     return
 }"#,
@@ -418,10 +423,14 @@ block0:
         let function_id = program.entry_function_id();
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        let mut arg0 = mir::CallArgumentMetadata::default();
-        arg0.access = mir::ArgumentAccess::Read;
-        let mut arg1 = mir::CallArgumentMetadata::default();
-        arg1.access = mir::ArgumentAccess::None;
+        let arg0 = mir::CallArgumentMetadata {
+            access: mir::ArgumentAccess::Read,
+            ..Default::default()
+        };
+        let arg1 = mir::CallArgumentMetadata {
+            access: mir::ArgumentAccess::None,
+            ..Default::default()
+        };
         let effects =
             mir::MemoryEffect::read_only(mir::MemoryLocationSet::ARGUMENTS).with_argmemonly();
         let effects = mir::CallEffects::default()
@@ -458,8 +467,8 @@ block0:
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -496,8 +505,8 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -538,8 +547,8 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 4i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,
@@ -576,8 +585,8 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let mut program = TestProgram::new(
             r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    v2 = iconst 0i8
-    v3 = iconst 16i64
+    v2: i8 = iconst 0i8
+    v3: i64 = iconst 16i64
     intrinsic.memset(v1, v2, v3)
     return
 }"#,

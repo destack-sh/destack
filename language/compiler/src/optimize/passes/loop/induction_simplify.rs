@@ -434,7 +434,7 @@ fn insert_offset_value(
     >,
 ) -> mir::Value {
     // materialize the offset constant
-    let const_value = function.next_value();
+    let const_value = function.next_typed_value_like(base_value);
     let const_instruction = mir::Instruction::Const {
         destination: const_value,
         value: offset,
@@ -442,7 +442,7 @@ fn insert_offset_value(
     let const_id = tree.insert(const_instruction);
 
     // materialize the adjusted value
-    let adjusted_value = function.next_value();
+    let adjusted_value = function.next_typed_value_like(base_value);
     let add_instruction = mir::Instruction::Binary {
         destination: adjusted_value,
         operator: mir::BinaryOperator::Add,
@@ -663,13 +663,13 @@ mod tests {
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1, v1)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
-    v5 = iconst 1i32
-    v6 = iadd v2, v5
-    v7 = icmp_slt v6, v0
+    v4: i32 = iadd v2, v3
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v2, v5
+    v7: bool = icmp_slt v6, v0
     branch v7, block1(v6, v6), block2(v3)
 block2(v8: i32):
     return v8
@@ -678,16 +678,16 @@ block2(v8: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1)
 block1(v2: i32):
-    v4 = iadd v2, v2
-    v5 = iconst 1i32
-    v6 = iadd v2, v5
-    v7 = icmp_slt v6, v0
-    branch v7, block1(v6), block2(v2)
-block2(v8: i32):
-    return v8
+    v3: i32 = iadd v2, v2
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v2, v4
+    v6: bool = icmp_slt v5, v0
+    branch v6, block1(v5), block2(v2)
+block2(v7: i32):
+    return v7
 }"#;
 
         // run the pass and verify output
@@ -702,14 +702,14 @@ block2(v8: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 2i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
     jump block1(v1, v1)
 block1(v4: i32, v5: i32):
-    v6 = iadd v4, v2
-    v7 = iadd v5, v3
-    v8 = icmp_slt v6, v0
+    v6: i32 = iadd v4, v2
+    v7: i32 = iadd v5, v3
+    v8: bool = icmp_slt v6, v0
     branch v8, block1(v6, v7), block2(v5)
 block2(v9: i32):
     return v9
@@ -727,14 +727,14 @@ block2(v9: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1, v1, v1)
 block1(v2: i32, v3: i32, v4: i32):
-    v5 = iadd v2, v3
-    v6 = iadd v3, v4
-    v7 = iconst 1i32
-    v8 = iadd v2, v7
-    v9 = icmp_slt v8, v0
+    v5: i32 = iadd v2, v3
+    v6: i32 = iadd v3, v4
+    v7: i32 = iconst 1i32
+    v8: i32 = iadd v2, v7
+    v9: bool = icmp_slt v8, v0
     branch v9, block1(v8, v8, v8), block2(v4)
 block2(v10: i32):
     return v10
@@ -743,17 +743,17 @@ block2(v10: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1)
 block1(v2: i32):
-    v5 = iadd v2, v2
-    v6 = iadd v2, v2
-    v7 = iconst 1i32
-    v8 = iadd v2, v7
-    v9 = icmp_slt v8, v0
-    branch v9, block1(v8), block2(v2)
-block2(v10: i32):
-    return v10
+    v3: i32 = iadd v2, v2
+    v4: i32 = iadd v2, v2
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v2, v5
+    v7: bool = icmp_slt v6, v0
+    branch v7, block1(v6), block2(v2)
+block2(v8: i32):
+    return v8
 }"#;
 
         // run the pass and verify output
@@ -768,15 +768,15 @@ block2(v10: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1, v1)
 block1(v2: i32, v3: i32):
     jump block2(v2, v3)
 block2(v4: i32, v5: i32):
-    v6 = iadd v4, v5
-    v7 = iconst 1i32
-    v8 = iadd v4, v7
-    v9 = icmp_slt v8, v0
+    v6: i32 = iadd v4, v5
+    v7: i32 = iconst 1i32
+    v8: i32 = iadd v4, v7
+    v9: bool = icmp_slt v8, v0
     branch v9, block2(v8, v8), block3(v5)
 block3(v10: i32):
     return v10
@@ -785,18 +785,18 @@ block3(v10: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1, v1)
 block1(v2: i32, v3: i32):
     jump block2(v2)
 block2(v4: i32):
-    v6 = iadd v4, v4
-    v7 = iconst 1i32
-    v8 = iadd v4, v7
-    v9 = icmp_slt v8, v0
-    branch v9, block2(v8), block3(v4)
-block3(v10: i32):
-    return v10
+    v5: i32 = iadd v4, v4
+    v6: i32 = iconst 1i32
+    v7: i32 = iadd v4, v6
+    v8: bool = icmp_slt v7, v0
+    branch v8, block2(v7), block3(v4)
+block3(v9: i32):
+    return v9
 }"#;
 
         // run the pass and verify output
@@ -811,15 +811,15 @@ block3(v10: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 0u32
-    v3 = iconst 1i32
-    v4 = iconst 1u32
+    v1: i32 = iconst 0i32
+    v2: u32 = iconst 0u32
+    v3: i32 = iconst 1i32
+    v4: u32 = iconst 1u32
     jump block1(v1, v2)
 block1(v5: i32, v6: u32):
-    v7 = iadd v5, v3
-    v8 = iadd v6, v4
-    v9 = icmp_slt v7, v0
+    v7: i32 = iadd v5, v3
+    v8: u32 = iadd v6, v4
+    v9: bool = icmp_slt v7, v0
     branch v9, block1(v7, v8), block2(v5)
 block2(v10: i32):
     return v10
@@ -837,13 +837,13 @@ block2(v10: i32):
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1, v1)
 block1(v4: u32, v5: u32):
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
+    v6: u32 = iadd v4, v2
+    v7: bool = icmp_ult v6, v3
     check v7, bounds.unsigned v6, v3, v0, block1(v6, v6), block2
 block2:
     return
@@ -852,14 +852,14 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 4u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 4u32
     jump block1(v1)
 block1(v4: u32):
-    v6 = iadd v4, v2
-    v7 = icmp_ult v6, v3
-    check v7, bounds.unsigned v6, v3, v0, block1(v6), block2
+    v5: u32 = iadd v4, v2
+    v6: bool = icmp_ult v5, v3
+    check v6, bounds.unsigned v5, v3, v0, block1(v5), block2
 block2:
     return
 }"#;
@@ -876,13 +876,13 @@ block2:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1, v1)
 block1(v3: i32, v4: i32):
-    v5 = iadd v3, v2
-    v6 = iadd v4, v2
-    v7 = icmp_slt v5, v0
+    v5: i32 = iadd v3, v2
+    v6: i32 = iadd v4, v2
+    v7: bool = icmp_slt v5, v0
     switch v7, block2, 0 => block1(v5, v6), 1 => block2
 block2:
     return v3
@@ -891,14 +891,14 @@ block2:
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1)
 block1(v3: i32):
-    v5 = iadd v3, v2
-    v6 = iadd v3, v2
-    v7 = icmp_slt v5, v0
-    switch v7, block2, 0 => block1(v5), 1 => block2
+    v4: i32 = iadd v3, v2
+    v5: i32 = iadd v3, v2
+    v6: bool = icmp_slt v4, v0
+    switch v6, block2, 0 => block1(v4), 1 => block2
 block2:
     return v3
 }"#;
@@ -915,14 +915,14 @@ block2:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1, v2)
 block1(v4: i32, v5: i32):
-    v6 = iadd v4, v2
-    v7 = iadd v5, v2
-    v8 = icmp_slt v6, v3
+    v6: i32 = iadd v4, v2
+    v7: i32 = iadd v5, v2
+    v8: bool = icmp_slt v6, v3
     branch v8, block1(v6, v7), block2(v5)
 block2(v9: i32):
     return v9
@@ -930,19 +930,19 @@ block2(v9: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v10 = iconst 1i32
-    v11 = iadd v4, v10
-    v6 = iadd v4, v2
-    v7 = iadd v11, v2
-    v8 = icmp_slt v6, v3
-    branch v8, block1(v6), block2(v11)
-block2(v9: i32):
-    return v9
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v4, v5
+    v7: i32 = iadd v4, v2
+    v8: i32 = iadd v6, v2
+    v9: bool = icmp_slt v7, v3
+    branch v9, block1(v7), block2(v6)
+block2(v10: i32):
+    return v10
 }"#;
 
         // run the pass and verify output
@@ -957,13 +957,13 @@ block2(v9: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1, v1)
 block1(v3: i32, v4: i32):
-    v5 = iadd v3, v2
-    v6 = iadd v4, v2
-    v7 = icmp_slt v5, v0
+    v5: i32 = iadd v3, v2
+    v6: i32 = iadd v4, v2
+    v7: bool = icmp_slt v5, v0
     branch v7, block1(v5, v6), block2(v4)
 block2(v8: i32):
     return v8
@@ -972,16 +972,16 @@ block2(v8: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1)
 block1(v3: i32):
-    v5 = iadd v3, v2
-    v6 = iadd v3, v2
-    v7 = icmp_slt v5, v0
-    branch v7, block1(v5), block2(v3)
-block2(v8: i32):
-    return v8
+    v4: i32 = iadd v3, v2
+    v5: i32 = iadd v3, v2
+    v6: bool = icmp_slt v4, v0
+    branch v6, block1(v4), block2(v3)
+block2(v7: i32):
+    return v7
 }"#;
 
         // run the pass and verify output
@@ -996,13 +996,13 @@ block2(v8: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1, v1)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
-    v5 = iconst 1i32
-    v6 = iadd v2, v5
-    v7 = icmp_slt v6, v0
+    v4: i32 = iadd v2, v3
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v2, v5
+    v7: bool = icmp_slt v6, v0
     branch v7, block1(v6, v6), block2(v3)
 block2(v8: i32):
     return v8
@@ -1028,12 +1028,11 @@ block2(v8: i32):
         assert_eq!(loops.num_loops(), 1);
         assert_eq!(loops.loops()[0].header, header);
 
-        let mut canonical_signatures = Vec::new();
-        canonical_signatures.push(CanonicalSignature {
+        let canonical_signatures = [CanonicalSignature {
             signature: signature_left.unwrap(),
             ty: TypeKey::from_type(param_left.ty, &test.tree),
             value: param_left.value,
-        });
+        }];
         let canonical_value = signature_right.and_then(|signature| {
             let param_right_ty = TypeKey::from_type(param_right.ty, &test.tree);
             canonical_signatures.iter().find_map(|entry| {

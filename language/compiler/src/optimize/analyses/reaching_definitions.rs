@@ -270,7 +270,7 @@ mod tests {
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#,
         );
@@ -315,7 +315,7 @@ block0(v0: i32):
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#,
         );
@@ -348,7 +348,7 @@ block0(v0: i32):
 block0(v0: i32, v1: i32):
     local.set local0, v0
     local.set local0, v1
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#,
         );
@@ -396,13 +396,13 @@ block0(v0: i32, v1: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     local.set local0, v1
     jump block3
 block2:
     jump block3
 block3:
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#,
         );
@@ -444,9 +444,9 @@ block2:
     local.set local1, v2
     jump block3
 block3:
-    v3 = local.get local0
-    v4 = local.get local1
-    v5 = iadd v3, v4
+    v3: i32 = local.get local0
+    v4: i32 = local.get local1
+    v5: i32 = iadd v3, v4
     return v5
 }"#,
         );
@@ -491,15 +491,15 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     local.set local0, v1
     jump block3
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     local.set local0, v2
     jump block3
 block3:
-    v3 = local.get local0
+    v3: i32 = local.get local0
     return v3
 }"#,
         );
@@ -535,13 +535,13 @@ block3:
 block0(v0: bool):
     jump block1
 block1:
-    v1 = local.get local0
-    v2 = iconst 1i32
-    v3 = iadd v1, v2
+    v1: i32 = local.get local0
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v1, v2
     local.set local0, v3
     branch v0, block1, block2
 block2:
-    v4 = local.get local0
+    v4: i32 = local.get local0
     return v4
 }"#,
         );
@@ -577,10 +577,10 @@ block0(v0: i32):
     local.set local0, v0
     jump block1
 block1:
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 block2:
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#,
         );

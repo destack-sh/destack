@@ -7,14 +7,12 @@ use crate::optimize::common::{
     MemoryLocation, TypeKey, address_spaces_may_alias, alias_scopes_may_alias,
     build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
     location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_pointee_type,
-    tbaa_tags_may_alias,
+    tbaa_tags_may_alias, ValueTypeMap,
 };
 use crate::optimize::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
     TypeContext,
 };
-
-use super::OwnershipAnalysis;
 
 /// Identifier for a memory access in MemorySSA.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -310,7 +308,6 @@ impl MemorySSA {
         tree: &mir::NodeTree,
         cfg: &ControlFlowGraph,
         domtree: &DominatorTree,
-        ownership: &OwnershipAnalysis,
         type_context: TypeContext,
     ) -> Self {
         // handle imported functions
@@ -329,8 +326,7 @@ impl MemorySSA {
         };
 
         // collect memory accesses and definition blocks
-        let mut access_collector =
-            MemoryAccessCollector::new(function, tree, ownership, type_context);
+        let mut access_collector = MemoryAccessCollector::new(function, tree, type_context);
         let collected = access_collector.collect(entry);
 
         // compute dominance frontier for memory defs
@@ -684,11 +680,8 @@ impl MemorySSA {
 
 impl Analysis for MemorySSA {
     const ID: AnalysisId = AnalysisId("memory-ssa");
-    const DEPENDENCIES: &'static [AnalysisId] = &[
-        DominatorTree::ID,
-        OwnershipAnalysis::ID,
-        ControlFlowGraph::ID,
-    ];
+    const DEPENDENCIES: &'static [AnalysisId] =
+        &[DominatorTree::ID, ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for MemorySSA {
@@ -700,16 +693,8 @@ impl FunctionAnalysis for MemorySSA {
         // read dependencies
         let cfg = analyses.get::<ControlFlowGraph>();
         let domtree = analyses.get::<DominatorTree>();
-        let ownership = analyses.get::<OwnershipAnalysis>();
 
-        Self::build(
-            function,
-            tree,
-            &cfg,
-            &domtree,
-            &ownership,
-            analyses.type_context(),
-        )
+        Self::build(function, tree, &cfg, &domtree, analyses.type_context())
     }
 }
 
@@ -746,8 +731,8 @@ struct MemoryAccessCollector<'a> {
     function: &'a mir::Function,
     /// MIR node tree.
     tree: &'a mir::NodeTree,
-    /// Ownership analysis for value type inference.
-    ownership: &'a OwnershipAnalysis,
+    /// Value type lookup for pointer resolution.
+    value_types: ValueTypeMap,
     /// Map from value to defining instruction.
     definitions: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     /// Type key cache.
@@ -761,17 +746,19 @@ impl<'a> MemoryAccessCollector<'a> {
     fn new(
         function: &'a mir::Function,
         tree: &'a mir::NodeTree,
-        ownership: &'a OwnershipAnalysis,
         type_context: TypeContext,
     ) -> Self {
         // collect value definitions for pointer resolution
         let definitions = build_value_definition_map(function, tree);
 
+        // build value type lookup
+        let value_types = ValueTypeMap::new(function, tree);
+
         // build collector state
         Self {
             function,
             tree,
-            ownership,
+            value_types,
             definitions,
             type_keys: HashMap::new(),
             type_context,
@@ -862,7 +849,84 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Struct { .. }
             | mir::Instruction::Tuple { .. }
             | mir::Instruction::Array { .. }
+            | mir::Instruction::VectorSplat { .. }
+            | mir::Instruction::VectorExtract { .. }
+            | mir::Instruction::VectorInsert { .. }
+            | mir::Instruction::VectorShuffle { .. }
+            | mir::Instruction::VectorReduce { .. }
+            | mir::Instruction::VectorCompare { .. }
+            | mir::Instruction::VectorConvert { .. }
+            | mir::Instruction::TensorReshape { .. }
+            | mir::Instruction::TensorBroadcast { .. }
+            | mir::Instruction::TensorTranspose { .. }
+            | mir::Instruction::TensorCast { .. }
+            | mir::Instruction::TensorView { .. }
+            | mir::Instruction::TensorSlice { .. }
+            | mir::Instruction::TensorPad { .. }
+            | mir::Instruction::TensorConcat { .. }
+            | mir::Instruction::TensorReduce { .. }
+            | mir::Instruction::TensorDot { .. }
+            | mir::Instruction::TensorConvolution { .. }
+            | mir::Instruction::TensorGather { .. }
+            | mir::Instruction::TensorScatter { .. }
+            | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorConvert { .. }
             | mir::Instruction::Assume { .. } => SmallVec::new(),
+            mir::Instruction::TensorLoad { view, .. } => {
+                let access_type = self.pointer_access_type(*view);
+                let mut effect = MemoryAccessEffect::read(
+                    MemoryAccessLocation::from_pointer(
+                        *view,
+                        access_type,
+                        self.type_context.pointer_width_bits,
+                    ),
+                    false,
+                );
+                self.apply_pointer_location(&mut effect, *view);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::TensorStore { view, .. }
+            | mir::Instruction::TensorFill { view, .. } => {
+                let access_type = self.pointer_access_type(*view);
+                let mut effect = MemoryAccessEffect::write(
+                    MemoryAccessLocation::from_pointer(
+                        *view,
+                        access_type,
+                        self.type_context.pointer_width_bits,
+                    ),
+                    false,
+                );
+                self.apply_pointer_location(&mut effect, *view);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::TensorCopy { target, source } => {
+                let mut effects = SmallVec::new();
+                let target_access = self.pointer_access_type(*target);
+                let mut target_effect = MemoryAccessEffect::write(
+                    MemoryAccessLocation::from_pointer(
+                        *target,
+                        target_access,
+                        self.type_context.pointer_width_bits,
+                    ),
+                    false,
+                );
+                self.apply_pointer_location(&mut target_effect, *target);
+                effects.push(target_effect);
+
+                let source_access = self.pointer_access_type(*source);
+                let mut source_effect = MemoryAccessEffect::read(
+                    MemoryAccessLocation::from_pointer(
+                        *source,
+                        source_access,
+                        self.type_context.pointer_width_bits,
+                    ),
+                    false,
+                );
+                self.apply_pointer_location(&mut source_effect, *source);
+                effects.push(source_effect);
+
+                effects
+            }
             mir::Instruction::Load { pointer, .. } => {
                 let access_type = self.pointer_access_type(*pointer);
                 let mut effect = MemoryAccessEffect::read(
@@ -1067,10 +1131,8 @@ impl<'a> MemoryAccessCollector<'a> {
     ) -> (mir::MemoryLocationSet, Option<mir::AddressSpaceSet>) {
         let Some(address_space) = resolve_pointer_address_space(
             pointer,
-            self.function,
             self.tree,
-            self.ownership,
-            &self.definitions,
+            &self.value_types,
         ) else {
             return (mir::MemoryLocationSet::ANY, None);
         };
@@ -1705,6 +1767,9 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects
             }
             mir::Intrinsic::AtomicFence => Self::single_effect(MemoryAccessEffect::barrier()),
+            mir::Intrinsic::Barrier => Self::single_effect(MemoryAccessEffect::barrier()),
+
+            // tensor operations
 
             // float math
             mir::Intrinsic::Sqrt
@@ -1742,18 +1807,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::Likely
             | mir::Intrinsic::Unlikely
             | mir::Intrinsic::BlackBox => SmallVec::new(),
-
-            // simd
-            mir::Intrinsic::Shuffle
-            | mir::Intrinsic::Select
-            | mir::Intrinsic::Splat
-            | mir::Intrinsic::ReduceAdd
-            | mir::Intrinsic::ReduceMul
-            | mir::Intrinsic::ReduceMin
-            | mir::Intrinsic::ReduceMax
-            | mir::Intrinsic::ReduceAnd
-            | mir::Intrinsic::ReduceOr
-            | mir::Intrinsic::ReduceXor => SmallVec::new(),
         }
     }
 
@@ -1792,7 +1845,7 @@ impl<'a> MemoryAccessCollector<'a> {
     fn pointer_access_type(&mut self, pointer: mir::Value) -> Option<TypeKey> {
         // reuse cached type keys
         let pointee_type =
-            resolve_pointer_pointee_type(pointer, self.function, self.tree, self.ownership)?;
+            resolve_pointer_pointee_type(pointer, self.tree, &self.value_types)?;
 
         Some(self.type_key(pointee_type))
     }
@@ -2187,9 +2240,9 @@ mod tests {
         let test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#,
         );
@@ -2230,15 +2283,15 @@ block0(v0: ref<raw mut i32>):
 block0(v0: ref<raw mut i32>, v1: bool):
     branch v1, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
     jump block3
 block2:
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v0, v3
     jump block3
 block3:
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2276,13 +2329,13 @@ block3:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2316,11 +2369,11 @@ block0:
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2382,11 +2435,11 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2452,11 +2505,11 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2519,11 +2572,11 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2588,11 +2641,11 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2655,9 +2708,9 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#,
         );
@@ -2708,9 +2761,9 @@ block0(v0: ref<raw i32>):
         let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#,
         );
@@ -2729,6 +2782,9 @@ block0(v0: ref<raw i32>):
             is_invariant: false,
             is_non_temporal: false,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: Some(mir::AddressSpace::Stack),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -2743,6 +2799,9 @@ block0(v0: ref<raw i32>):
             is_invariant: false,
             is_non_temporal: false,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: Some(mir::AddressSpace::Global),
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -2772,13 +2831,13 @@ block0(v0: ref<raw i32>):
         let mut test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#,
         );
@@ -2826,9 +2885,9 @@ block0:
             r#"function @test() -> i32 {
     local0: i32
 block0:
-    v0 = iconst 7i32
+    v0: i32 = iconst 7i32
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#,
         );
@@ -2860,11 +2919,11 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#,
         );
@@ -2914,10 +2973,10 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
-    v3 = intrinsic.memcmp(v0, v1, v2)
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
+    v3: i32 = intrinsic.memcmp(v0, v1, v2)
     return v3
 }"#,
         );
@@ -2947,8 +3006,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = intrinsic.volatile.load(v0)
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = intrinsic.volatile.load(v0)
     intrinsic.volatile.store(v0, v1)
     return v1
 }"#,
@@ -2986,8 +3045,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    intrinsic.atomic.fence(seq_cst)
-    v0 = iconst 0i32
+    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    v0: i32 = iconst 0i32
     return v0
 }"#,
         );
@@ -3021,7 +3080,7 @@ block0:
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
     call @external(v0) -> fn(ref<raw i32>) -> void
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v1
 }"#,
         );
@@ -3062,7 +3121,7 @@ block0(v0: ref<raw i32>):
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
     call @external(v0) -> fn(ref<raw i32>) -> void
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v1
 }"#,
         );
@@ -3098,7 +3157,7 @@ block0(v0: ref<raw i32>):
 function @test(v0: ref<raw i32>, v1: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: i32):
     call @external(v0, v1) -> fn(ref<raw i32>, i32) -> void
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#,
         );
@@ -3110,8 +3169,10 @@ block0(v0: ref<raw i32>, v1: i32):
         };
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let mut arg0 = mir::CallArgumentMetadata::default();
-        arg0.access = mir::ArgumentAccess::Read;
+        let arg0 = mir::CallArgumentMetadata {
+            access: mir::ArgumentAccess::Read,
+            ..Default::default()
+        };
         let arg1 = mir::CallArgumentMetadata::default();
 
         let effects =
@@ -3154,7 +3215,7 @@ block0(v0: ref<raw i32>, v1: i32):
 function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
     call @external(v0, v1) -> fn(ref<raw i32>, ref<raw i32>) -> void
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#,
         );
@@ -3181,6 +3242,9 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
             is_invariant: false,
             is_non_temporal: false,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -3195,6 +3259,9 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
             is_invariant: false,
             is_non_temporal: false,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -3242,19 +3309,19 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: i32) -> i32 {
 block0(v0: ref<raw mut i32>, v1: i32):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     store v0, v2
     jump block1(v2)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2, block3
 block2:
-    v5 = iconst 1i32
+    v5: i32 = iconst 1i32
     store v0, v5
-    v6 = iadd v3, v5
+    v6: i32 = iadd v3, v5
     jump block1(v6)
 block3:
-    v7 = load v0 -> i32
+    v7: i32 = load v0
     return v7
 }"#,
         );
@@ -3288,11 +3355,11 @@ block3:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     return v0
 block1:
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
     return v2
 }"#,

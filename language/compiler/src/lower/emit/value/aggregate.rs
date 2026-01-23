@@ -481,6 +481,13 @@ impl FunctionContext<'_> {
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
             }
+            mir::Type::TensorReference { .. } => {
+                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
+                let zero = self.state.builder.iconst(0, pointer_bits, false);
+                self.state
+                    .builder
+                    .cast(mir::CastOperator::IntToPointer, zero, ty)
+            }
             mir::Type::Array {
                 element, length, ..
             } => {
@@ -516,6 +523,12 @@ impl FunctionContext<'_> {
                 self.state
                     .builder
                     .cast(mir::CastOperator::IntToPointer, zero, ty)
+            }
+            mir::Type::Vector { .. } | mir::Type::Tensor { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "constructor cannot initialize vector or tensor values".to_string(),
+                });
             }
         };
 

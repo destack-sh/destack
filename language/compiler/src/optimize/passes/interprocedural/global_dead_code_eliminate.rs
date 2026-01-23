@@ -138,7 +138,7 @@ mod tests {
 global @dead: i32 = 2i32 ; const
 function @root() -> i32 {
 block0:
-    v0 = global.const @live
+    v0: i32 = global.const @live
     return v0
 }"#;
 
@@ -146,7 +146,7 @@ block0:
 extern global @dead: i32 ; const
 function @root() -> i32 {
 block0:
-    v0 = global.const @live
+    v0: i32 = global.const @live
     return v0
 }"#;
 
@@ -162,7 +162,7 @@ block0:
 global @dead: i32 = 2i32 ; const
 function @root() -> ref<raw i32> {
 block0:
-    v0 = global.addr @live -> ref<raw i32>
+    v0: ref<raw i32> = global.addr @live
     return v0
 }"#;
 
@@ -170,7 +170,7 @@ block0:
 extern global @dead: i32 ; const
 function @root() -> ref<raw i32> {
 block0:
-    v0 = global.addr @live -> ref<raw i32>
+    v0: ref<raw i32> = global.addr @live
     return v0
 }"#;
 
@@ -186,7 +186,7 @@ block0:
 global @dead: i32 = 2i32 ; const
 function @root() -> i32 {
 block0:
-    v0 = global.const @live
+    v0: i32 = global.const @live
     return v0
 }"#;
 

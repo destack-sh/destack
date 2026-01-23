@@ -155,7 +155,7 @@ pub fn apply_constant_parameters(
         };
 
         // allocate a new constant value
-        let destination = function.next_value();
+        let destination = function.next_typed_value(param.ty);
         substitutions.insert(param.value, destination);
         new_instructions.push((destination, constant.clone()));
     }

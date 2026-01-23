@@ -93,13 +93,13 @@ mod tests {
         let input = r#"global @dead: i32 = 1i32 ; const
 function @dead() -> i32 {
 block0:
-    v0 = iconst 2i32
+    v0: i32 = iconst 2i32
     return v0
 }
 export function @root() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iadd v0, v0
+    v0: i32 = iconst 1i32
+    v1: i32 = iadd v0, v0
     return v0
 }"#;
 
@@ -107,8 +107,8 @@ block0:
 extern function @dead() -> i32
 export function @root() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iadd v0, v0
+    v0: i32 = iconst 1i32
+    v1: i32 = iadd v0, v0
     return v0
 }"#;
 
@@ -124,7 +124,7 @@ block0:
 global @dead: i32 = 2i32 ; const
 export function @root() -> i32 {
 block0:
-    v0 = global.const @live
+    v0: i32 = global.const @live
     return v0
 }"#;
 
@@ -132,7 +132,7 @@ block0:
 extern global @dead: i32 ; const
 export function @root() -> i32 {
 block0:
-    v0 = global.const @live
+    v0: i32 = global.const @live
     return v0
 }"#;
 

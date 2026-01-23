@@ -68,13 +68,6 @@ impl RawCell {
     }
 }
 
-impl Default for RawCell {
-    /// Return an empty value cell.
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// A raw heap for manual memory management (not GC-tracked).
 #[derive(Debug, Default)]
 pub struct RawHeap {

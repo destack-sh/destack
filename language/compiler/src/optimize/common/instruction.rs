@@ -28,6 +28,28 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
+        | Instruction::VectorSplat { .. }
+        | Instruction::VectorExtract { .. }
+        | Instruction::VectorInsert { .. }
+        | Instruction::VectorShuffle { .. }
+        | Instruction::VectorReduce { .. }
+        | Instruction::VectorCompare { .. }
+        | Instruction::VectorConvert { .. }
+        | Instruction::TensorReshape { .. }
+        | Instruction::TensorBroadcast { .. }
+        | Instruction::TensorTranspose { .. }
+        | Instruction::TensorCast { .. }
+        | Instruction::TensorView { .. }
+        | Instruction::TensorSlice { .. }
+        | Instruction::TensorPad { .. }
+        | Instruction::TensorConcat { .. }
+        | Instruction::TensorReduce { .. }
+        | Instruction::TensorDot { .. }
+        | Instruction::TensorConvolution { .. }
+        | Instruction::TensorGather { .. }
+        | Instruction::TensorScatter { .. }
+        | Instruction::TensorCompare { .. }
+        | Instruction::TensorConvert { .. }
         | Instruction::FieldGet { .. }
         | Instruction::FieldAddr { .. }
         | Instruction::FieldSet { .. }
@@ -39,6 +61,14 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::LocalAddr { .. } => true,
+
+        // tensor loads read memory
+        Instruction::TensorLoad { .. } => false,
+
+        // tensor stores mutate memory
+        Instruction::TensorStore { .. }
+        | Instruction::TensorFill { .. }
+        | Instruction::TensorCopy { .. } => false,
 
         // reads mutable state, not speculatable
         Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
@@ -111,6 +141,29 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::Struct { .. }
         | Instruction::Tuple { .. }
         | Instruction::Array { .. }
+        | Instruction::VectorSplat { .. }
+        | Instruction::VectorExtract { .. }
+        | Instruction::VectorInsert { .. }
+        | Instruction::VectorShuffle { .. }
+        | Instruction::VectorReduce { .. }
+        | Instruction::VectorCompare { .. }
+        | Instruction::VectorConvert { .. }
+        | Instruction::TensorLoad { .. }
+        | Instruction::TensorReshape { .. }
+        | Instruction::TensorBroadcast { .. }
+        | Instruction::TensorTranspose { .. }
+        | Instruction::TensorCast { .. }
+        | Instruction::TensorView { .. }
+        | Instruction::TensorSlice { .. }
+        | Instruction::TensorPad { .. }
+        | Instruction::TensorConcat { .. }
+        | Instruction::TensorReduce { .. }
+        | Instruction::TensorDot { .. }
+        | Instruction::TensorConvolution { .. }
+        | Instruction::TensorGather { .. }
+        | Instruction::TensorScatter { .. }
+        | Instruction::TensorCompare { .. }
+        | Instruction::TensorConvert { .. }
         | Instruction::FieldGet { .. }
         | Instruction::FieldAddr { .. }
         | Instruction::ElementGet { .. }
@@ -124,7 +177,11 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
 
         // memory writes have side effects
-        Instruction::LocalSet { .. } | Instruction::Store { .. } => true,
+        Instruction::LocalSet { .. }
+        | Instruction::Store { .. }
+        | Instruction::TensorStore { .. }
+        | Instruction::TensorFill { .. }
+        | Instruction::TensorCopy { .. } => true,
 
         // aggregate updates create new values, but FieldSet/ElementSet don't have
         // side effects if the result is unused (they produce new values, not mutate)
@@ -164,7 +221,7 @@ pub fn instruction_is_memory_read(instruction: &Instruction) -> bool {
     // identify instructions that read mutable memory
     matches!(
         instruction,
-        Instruction::Load { .. } | Instruction::LocalGet { .. }
+        Instruction::Load { .. } | Instruction::LocalGet { .. } | Instruction::TensorLoad { .. }
     )
 }
 
@@ -179,6 +236,9 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
         instruction,
         Instruction::Store { .. }
             | Instruction::LocalSet { .. }
+            | Instruction::TensorStore { .. }
+            | Instruction::TensorFill { .. }
+            | Instruction::TensorCopy { .. }
             | Instruction::Call { .. }
             | Instruction::CallVirtual { .. }
             | Instruction::CallInterface { .. }
@@ -447,6 +507,275 @@ pub fn instruction_substitute_uses(
             index: substitute(index),
             value: substitute(value),
         },
+        mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
+            destination: *destination,
+            value: substitute(value),
+        },
+        mir::Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        } => mir::Instruction::VectorExtract {
+            destination: *destination,
+            vector: substitute(vector),
+            index: substitute(index),
+        },
+        mir::Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        } => mir::Instruction::VectorInsert {
+            destination: *destination,
+            vector: substitute(vector),
+            index: substitute(index),
+            value: substitute(value),
+        },
+        mir::Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        } => mir::Instruction::VectorShuffle {
+            destination: *destination,
+            left: substitute(left),
+            right: substitute(right),
+            mask: mask.clone(),
+        },
+        mir::Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        } => mir::Instruction::VectorReduce {
+            destination: *destination,
+            operator: *operator,
+            vector: substitute(vector),
+        },
+        mir::Instruction::VectorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::VectorCompare {
+            destination: *destination,
+            operator: *operator,
+            left: substitute(left),
+            right: substitute(right),
+        },
+        mir::Instruction::VectorConvert {
+            destination,
+            mode,
+            vector,
+        } => mir::Instruction::VectorConvert {
+            destination: *destination,
+            mode: *mode,
+            vector: substitute(vector),
+        },
+        mir::Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        } => mir::Instruction::TensorLoad {
+            destination: *destination,
+            view: substitute(view),
+            indices: *indices,
+        },
+        mir::Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        } => mir::Instruction::TensorStore {
+            view: substitute(view),
+            indices: *indices,
+            value: substitute(value),
+        },
+        mir::Instruction::TensorFill { view, value } => mir::Instruction::TensorFill {
+            view: substitute(view),
+            value: substitute(value),
+        },
+        mir::Instruction::TensorCopy { target, source } => mir::Instruction::TensorCopy {
+            target: substitute(target),
+            source: substitute(source),
+        },
+        mir::Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        } => mir::Instruction::TensorReshape {
+            destination: *destination,
+            tensor: substitute(tensor),
+            shape: *shape,
+        },
+        mir::Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        } => mir::Instruction::TensorBroadcast {
+            destination: *destination,
+            tensor: substitute(tensor),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        } => mir::Instruction::TensorTranspose {
+            destination: *destination,
+            tensor: substitute(tensor),
+            permutation: permutation.clone(),
+        },
+        mir::Instruction::TensorCast {
+            destination,
+            tensor,
+        } => mir::Instruction::TensorCast {
+            destination: *destination,
+            tensor: substitute(tensor),
+        },
+        mir::Instruction::TensorView {
+            destination,
+            view,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorView {
+            destination: *destination,
+            view: substitute(view),
+            arguments: *arguments,
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorSlice {
+            destination: *destination,
+            tensor: substitute(tensor),
+            arguments: *arguments,
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        } => mir::Instruction::TensorPad {
+            destination: *destination,
+            tensor: substitute(tensor),
+            arguments: *arguments,
+            low_count: *low_count,
+            high_count: *high_count,
+            interior_count: *interior_count,
+            value: substitute(value),
+        },
+        mir::Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        } => mir::Instruction::TensorConcat {
+            destination: *destination,
+            tensors: *tensors,
+            axis: *axis,
+        },
+        mir::Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        } => mir::Instruction::TensorReduce {
+            destination: *destination,
+            operator: *operator,
+            tensor: substitute(tensor),
+            initial: substitute(initial),
+            axes: axes.clone(),
+        },
+        mir::Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        } => mir::Instruction::TensorDot {
+            destination: *destination,
+            left: substitute(left),
+            right: substitute(right),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        } => mir::Instruction::TensorConvolution {
+            destination: *destination,
+            input: substitute(input),
+            kernel: substitute(kernel),
+            dimensions: dimensions.clone(),
+            window: window.clone(),
+            feature_group_count: *feature_group_count,
+            batch_group_count: *batch_group_count,
+        },
+        mir::Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        } => mir::Instruction::TensorGather {
+            destination: *destination,
+            operand: substitute(operand),
+            indices: substitute(indices),
+            dimensions: dimensions.clone(),
+            slice_sizes: slice_sizes.clone(),
+        },
+        mir::Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        } => mir::Instruction::TensorScatter {
+            destination: *destination,
+            operand: substitute(operand),
+            indices: substitute(indices),
+            updates: substitute(updates),
+            dimensions: dimensions.clone(),
+            mode: *mode,
+        },
+        mir::Instruction::TensorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::TensorCompare {
+            destination: *destination,
+            operator: *operator,
+            left: substitute(left),
+            right: substitute(right),
+        },
+        mir::Instruction::TensorConvert {
+            destination,
+            mode,
+            tensor,
+        } => mir::Instruction::TensorConvert {
+            destination: *destination,
+            mode: *mode,
+            tensor: substitute(tensor),
+        },
         mir::Instruction::LocalSet { local, value } => mir::Instruction::LocalSet {
             local: *local,
             value: substitute(value),
@@ -602,6 +931,275 @@ pub fn instruction_substitute_uses_in_tree(
             ty: *ty,
             elements: substitute_arguments(*elements),
         },
+        mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
+            destination: *destination,
+            value: substitute(*value),
+        },
+        mir::Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        } => mir::Instruction::VectorExtract {
+            destination: *destination,
+            vector: substitute(*vector),
+            index: substitute(*index),
+        },
+        mir::Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        } => mir::Instruction::VectorInsert {
+            destination: *destination,
+            vector: substitute(*vector),
+            index: substitute(*index),
+            value: substitute(*value),
+        },
+        mir::Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        } => mir::Instruction::VectorShuffle {
+            destination: *destination,
+            left: substitute(*left),
+            right: substitute(*right),
+            mask: mask.clone(),
+        },
+        mir::Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        } => mir::Instruction::VectorReduce {
+            destination: *destination,
+            operator: *operator,
+            vector: substitute(*vector),
+        },
+        mir::Instruction::VectorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::VectorCompare {
+            destination: *destination,
+            operator: *operator,
+            left: substitute(*left),
+            right: substitute(*right),
+        },
+        mir::Instruction::VectorConvert {
+            destination,
+            mode,
+            vector,
+        } => mir::Instruction::VectorConvert {
+            destination: *destination,
+            mode: *mode,
+            vector: substitute(*vector),
+        },
+        mir::Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        } => mir::Instruction::TensorLoad {
+            destination: *destination,
+            view: substitute(*view),
+            indices: substitute_arguments(*indices),
+        },
+        mir::Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        } => mir::Instruction::TensorStore {
+            view: substitute(*view),
+            indices: substitute_arguments(*indices),
+            value: substitute(*value),
+        },
+        mir::Instruction::TensorFill { view, value } => mir::Instruction::TensorFill {
+            view: substitute(*view),
+            value: substitute(*value),
+        },
+        mir::Instruction::TensorCopy { target, source } => mir::Instruction::TensorCopy {
+            target: substitute(*target),
+            source: substitute(*source),
+        },
+        mir::Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        } => mir::Instruction::TensorReshape {
+            destination: *destination,
+            tensor: substitute(*tensor),
+            shape: substitute_arguments(*shape),
+        },
+        mir::Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        } => mir::Instruction::TensorBroadcast {
+            destination: *destination,
+            tensor: substitute(*tensor),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        } => mir::Instruction::TensorTranspose {
+            destination: *destination,
+            tensor: substitute(*tensor),
+            permutation: permutation.clone(),
+        },
+        mir::Instruction::TensorCast {
+            destination,
+            tensor,
+        } => mir::Instruction::TensorCast {
+            destination: *destination,
+            tensor: substitute(*tensor),
+        },
+        mir::Instruction::TensorView {
+            destination,
+            view,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorView {
+            destination: *destination,
+            view: substitute(*view),
+            arguments: substitute_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorSlice {
+            destination: *destination,
+            tensor: substitute(*tensor),
+            arguments: substitute_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        } => mir::Instruction::TensorPad {
+            destination: *destination,
+            tensor: substitute(*tensor),
+            arguments: substitute_arguments(*arguments),
+            low_count: *low_count,
+            high_count: *high_count,
+            interior_count: *interior_count,
+            value: substitute(*value),
+        },
+        mir::Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        } => mir::Instruction::TensorConcat {
+            destination: *destination,
+            tensors: substitute_arguments(*tensors),
+            axis: *axis,
+        },
+        mir::Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        } => mir::Instruction::TensorReduce {
+            destination: *destination,
+            operator: *operator,
+            tensor: substitute(*tensor),
+            initial: substitute(*initial),
+            axes: axes.clone(),
+        },
+        mir::Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        } => mir::Instruction::TensorDot {
+            destination: *destination,
+            left: substitute(*left),
+            right: substitute(*right),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        } => mir::Instruction::TensorConvolution {
+            destination: *destination,
+            input: substitute(*input),
+            kernel: substitute(*kernel),
+            dimensions: dimensions.clone(),
+            window: window.clone(),
+            feature_group_count: *feature_group_count,
+            batch_group_count: *batch_group_count,
+        },
+        mir::Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        } => mir::Instruction::TensorGather {
+            destination: *destination,
+            operand: substitute(*operand),
+            indices: substitute(*indices),
+            dimensions: dimensions.clone(),
+            slice_sizes: slice_sizes.clone(),
+        },
+        mir::Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        } => mir::Instruction::TensorScatter {
+            destination: *destination,
+            operand: substitute(*operand),
+            indices: substitute(*indices),
+            updates: substitute(*updates),
+            dimensions: dimensions.clone(),
+            mode: *mode,
+        },
+        mir::Instruction::TensorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::TensorCompare {
+            destination: *destination,
+            operator: *operator,
+            left: substitute(*left),
+            right: substitute(*right),
+        },
+        mir::Instruction::TensorConvert {
+            destination,
+            mode,
+            tensor,
+        } => mir::Instruction::TensorConvert {
+            destination: *destination,
+            mode: *mode,
+            tensor: substitute(*tensor),
+        },
         mir::Instruction::Call {
             destination,
             function,
@@ -671,11 +1269,17 @@ pub fn instruction_substitute_uses_in_tree(
             intrinsic,
             arguments,
             ordering,
+            scope,
+            memory_scope,
+            semantics,
         } => mir::Instruction::Intrinsic {
             destination: *destination,
             intrinsic: *intrinsic,
             arguments: substitute_arguments(*arguments),
             ordering: *ordering,
+            scope: *scope,
+            memory_scope: *memory_scope,
+            semantics: *semantics,
         },
         _ => instruction_substitute_uses(instruction, substitutions),
     }
@@ -1221,6 +1825,275 @@ pub fn instruction_map(
             ty: *ty,
             elements: remap_arguments(*elements),
         },
+        mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
+            destination: remap(*destination),
+            value: remap(*value),
+        },
+        mir::Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        } => mir::Instruction::VectorExtract {
+            destination: remap(*destination),
+            vector: remap(*vector),
+            index: remap(*index),
+        },
+        mir::Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        } => mir::Instruction::VectorInsert {
+            destination: remap(*destination),
+            vector: remap(*vector),
+            index: remap(*index),
+            value: remap(*value),
+        },
+        mir::Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        } => mir::Instruction::VectorShuffle {
+            destination: remap(*destination),
+            left: remap(*left),
+            right: remap(*right),
+            mask: mask.clone(),
+        },
+        mir::Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        } => mir::Instruction::VectorReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            vector: remap(*vector),
+        },
+        mir::Instruction::VectorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::VectorCompare {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::VectorConvert {
+            destination,
+            mode,
+            vector,
+        } => mir::Instruction::VectorConvert {
+            destination: remap(*destination),
+            mode: *mode,
+            vector: remap(*vector),
+        },
+        mir::Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        } => mir::Instruction::TensorLoad {
+            destination: remap(*destination),
+            view: remap(*view),
+            indices: remap_arguments(*indices),
+        },
+        mir::Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        } => mir::Instruction::TensorStore {
+            view: remap(*view),
+            indices: remap_arguments(*indices),
+            value: remap(*value),
+        },
+        mir::Instruction::TensorFill { view, value } => mir::Instruction::TensorFill {
+            view: remap(*view),
+            value: remap(*value),
+        },
+        mir::Instruction::TensorCopy { target, source } => mir::Instruction::TensorCopy {
+            target: remap(*target),
+            source: remap(*source),
+        },
+        mir::Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        } => mir::Instruction::TensorReshape {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            shape: remap_arguments(*shape),
+        },
+        mir::Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        } => mir::Instruction::TensorBroadcast {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        } => mir::Instruction::TensorTranspose {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            permutation: permutation.clone(),
+        },
+        mir::Instruction::TensorCast {
+            destination,
+            tensor,
+        } => mir::Instruction::TensorCast {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+        },
+        mir::Instruction::TensorView {
+            destination,
+            view,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorView {
+            destination: remap(*destination),
+            view: remap(*view),
+            arguments: remap_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorSlice {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            arguments: remap_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        } => mir::Instruction::TensorPad {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            arguments: remap_arguments(*arguments),
+            low_count: *low_count,
+            high_count: *high_count,
+            interior_count: *interior_count,
+            value: remap(*value),
+        },
+        mir::Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        } => mir::Instruction::TensorConcat {
+            destination: remap(*destination),
+            tensors: remap_arguments(*tensors),
+            axis: *axis,
+        },
+        mir::Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        } => mir::Instruction::TensorReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            tensor: remap(*tensor),
+            initial: remap(*initial),
+            axes: axes.clone(),
+        },
+        mir::Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        } => mir::Instruction::TensorDot {
+            destination: remap(*destination),
+            left: remap(*left),
+            right: remap(*right),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        } => mir::Instruction::TensorConvolution {
+            destination: remap(*destination),
+            input: remap(*input),
+            kernel: remap(*kernel),
+            dimensions: dimensions.clone(),
+            window: window.clone(),
+            feature_group_count: *feature_group_count,
+            batch_group_count: *batch_group_count,
+        },
+        mir::Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        } => mir::Instruction::TensorGather {
+            destination: remap(*destination),
+            operand: remap(*operand),
+            indices: remap(*indices),
+            dimensions: dimensions.clone(),
+            slice_sizes: slice_sizes.clone(),
+        },
+        mir::Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        } => mir::Instruction::TensorScatter {
+            destination: remap(*destination),
+            operand: remap(*operand),
+            indices: remap(*indices),
+            updates: remap(*updates),
+            dimensions: dimensions.clone(),
+            mode: *mode,
+        },
+        mir::Instruction::TensorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::TensorCompare {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::TensorConvert {
+            destination,
+            mode,
+            tensor,
+        } => mir::Instruction::TensorConvert {
+            destination: remap(*destination),
+            mode: *mode,
+            tensor: remap(*tensor),
+        },
         mir::Instruction::Call {
             destination,
             function,
@@ -1331,11 +2204,17 @@ pub fn instruction_map(
             intrinsic,
             arguments,
             ordering,
+            scope,
+            memory_scope,
+            semantics,
         } => mir::Instruction::Intrinsic {
             destination: destination.map(remap),
             intrinsic: *intrinsic,
             arguments: remap_arguments(*arguments),
             ordering: *ordering,
+            scope: *scope,
+            memory_scope: *memory_scope,
+            semantics: *semantics,
         },
     }
 }
@@ -1491,6 +2370,275 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             ty: *ty,
             elements: remap_arguments(*elements),
+        },
+        mir::Instruction::VectorSplat { destination, value } => mir::Instruction::VectorSplat {
+            destination: remap(*destination),
+            value: remap(*value),
+        },
+        mir::Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        } => mir::Instruction::VectorExtract {
+            destination: remap(*destination),
+            vector: remap(*vector),
+            index: remap(*index),
+        },
+        mir::Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        } => mir::Instruction::VectorInsert {
+            destination: remap(*destination),
+            vector: remap(*vector),
+            index: remap(*index),
+            value: remap(*value),
+        },
+        mir::Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        } => mir::Instruction::VectorShuffle {
+            destination: remap(*destination),
+            left: remap(*left),
+            right: remap(*right),
+            mask: mask.clone(),
+        },
+        mir::Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        } => mir::Instruction::VectorReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            vector: remap(*vector),
+        },
+        mir::Instruction::VectorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::VectorCompare {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::VectorConvert {
+            destination,
+            mode,
+            vector,
+        } => mir::Instruction::VectorConvert {
+            destination: remap(*destination),
+            mode: *mode,
+            vector: remap(*vector),
+        },
+        mir::Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        } => mir::Instruction::TensorLoad {
+            destination: remap(*destination),
+            view: remap(*view),
+            indices: remap_arguments(*indices),
+        },
+        mir::Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        } => mir::Instruction::TensorStore {
+            view: remap(*view),
+            indices: remap_arguments(*indices),
+            value: remap(*value),
+        },
+        mir::Instruction::TensorFill { view, value } => mir::Instruction::TensorFill {
+            view: remap(*view),
+            value: remap(*value),
+        },
+        mir::Instruction::TensorCopy { target, source } => mir::Instruction::TensorCopy {
+            target: remap(*target),
+            source: remap(*source),
+        },
+        mir::Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        } => mir::Instruction::TensorReshape {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            shape: remap_arguments(*shape),
+        },
+        mir::Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        } => mir::Instruction::TensorBroadcast {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        } => mir::Instruction::TensorTranspose {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            permutation: permutation.clone(),
+        },
+        mir::Instruction::TensorCast {
+            destination,
+            tensor,
+        } => mir::Instruction::TensorCast {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+        },
+        mir::Instruction::TensorView {
+            destination,
+            view,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorView {
+            destination: remap(*destination),
+            view: remap(*view),
+            arguments: remap_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => mir::Instruction::TensorSlice {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            arguments: remap_arguments(*arguments),
+            offsets_count: *offsets_count,
+            sizes_count: *sizes_count,
+            strides_count: *strides_count,
+        },
+        mir::Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        } => mir::Instruction::TensorPad {
+            destination: remap(*destination),
+            tensor: remap(*tensor),
+            arguments: remap_arguments(*arguments),
+            low_count: *low_count,
+            high_count: *high_count,
+            interior_count: *interior_count,
+            value: remap(*value),
+        },
+        mir::Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        } => mir::Instruction::TensorConcat {
+            destination: remap(*destination),
+            tensors: remap_arguments(*tensors),
+            axis: *axis,
+        },
+        mir::Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        } => mir::Instruction::TensorReduce {
+            destination: remap(*destination),
+            operator: *operator,
+            tensor: remap(*tensor),
+            initial: remap(*initial),
+            axes: axes.clone(),
+        },
+        mir::Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        } => mir::Instruction::TensorDot {
+            destination: remap(*destination),
+            left: remap(*left),
+            right: remap(*right),
+            dimensions: dimensions.clone(),
+        },
+        mir::Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        } => mir::Instruction::TensorConvolution {
+            destination: remap(*destination),
+            input: remap(*input),
+            kernel: remap(*kernel),
+            dimensions: dimensions.clone(),
+            window: window.clone(),
+            feature_group_count: *feature_group_count,
+            batch_group_count: *batch_group_count,
+        },
+        mir::Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        } => mir::Instruction::TensorGather {
+            destination: remap(*destination),
+            operand: remap(*operand),
+            indices: remap(*indices),
+            dimensions: dimensions.clone(),
+            slice_sizes: slice_sizes.clone(),
+        },
+        mir::Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        } => mir::Instruction::TensorScatter {
+            destination: remap(*destination),
+            operand: remap(*operand),
+            indices: remap(*indices),
+            updates: remap(*updates),
+            dimensions: dimensions.clone(),
+            mode: *mode,
+        },
+        mir::Instruction::TensorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::TensorCompare {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::TensorConvert {
+            destination,
+            mode,
+            tensor,
+        } => mir::Instruction::TensorConvert {
+            destination: remap(*destination),
+            mode: *mode,
+            tensor: remap(*tensor),
         },
         mir::Instruction::FieldGet {
             destination,
@@ -1670,11 +2818,17 @@ pub fn instruction_map_with_locals(
             intrinsic,
             arguments,
             ordering,
+            scope,
+            memory_scope,
+            semantics,
         } => mir::Instruction::Intrinsic {
             destination: destination.map(remap),
             intrinsic: *intrinsic,
             arguments: remap_arguments(*arguments),
             ordering: *ordering,
+            scope: *scope,
+            memory_scope: *memory_scope,
+            semantics: *semantics,
         },
     }
 }

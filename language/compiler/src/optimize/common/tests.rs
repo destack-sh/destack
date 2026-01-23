@@ -36,6 +36,7 @@ pub(crate) struct TestProgram {
 }
 
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
@@ -416,6 +417,9 @@ impl TestProgram {
             is_invariant: false,
             is_non_temporal: false,
             ordering,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: None,
             alias_scopes,
             noalias_scopes,
@@ -474,7 +478,7 @@ impl TestProgram {
         let return_ty = callee_function.return_type;
 
         // insert the function pointer type
-        self.tree.insert(mir::Type::FunctionPointer {
+        self.tree.insert_type(mir::Type::FunctionPointer {
             parameters: param_tys,
             result: return_ty,
         })
@@ -524,17 +528,11 @@ impl TestProgram {
 
     /// Return the first function id in the program.
     pub(crate) fn first_function_id(&self) -> mir::LocalNodeId<mir::Function> {
-        // select the first function id
-        let function_id = self
-            .tree
+        self.tree
             .iter_nodes::<mir::Function>()
             .next()
             .expect("missing function")
-            .0;
-
-        // return the id
-
-        function_id
+            .0
     }
 
     /// Return entry branch targets for a function.
@@ -761,8 +759,7 @@ impl TestProgram {
     where
         F: Fn(&OptimizeError) -> bool,
     {
-        let has_match = self.errors.iter().any(|e| predicate(e));
-
+        let has_match = self.errors.iter().any(predicate);
         if !has_match {
             panic!(
                 "expected an error matching predicate, got: {:?}",
@@ -777,8 +774,7 @@ impl TestProgram {
     where
         F: Fn(&OptimizeWarning) -> bool,
     {
-        let has_match = self.warnings.iter().any(|w| predicate(w));
-
+        let has_match = self.warnings.iter().any(predicate);
         if !has_match {
             panic!(
                 "expected a warning matching predicate, got: {:?}",

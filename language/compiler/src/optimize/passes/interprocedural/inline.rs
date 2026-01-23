@@ -7,7 +7,7 @@ use crate::optimize::analyses::CallGraphScc;
 use crate::optimize::common::{
     CallsiteHotness, CallsiteHotnessPolicy, block_execution_counts, block_hotness_from_counts,
     build_value_definition_map, callsite_hotness, constant_for_value, instruction_map_with_locals,
-    instruction_substitute_uses_in_tree, scaled_profile_count, terminator_remap,
+    instruction_substitute_uses_in_tree, scaled_profile_count, terminator_remap, ValueTypeMap,
     terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
@@ -765,6 +765,9 @@ fn clone_callee_blocks(
     let mut value_map = argument_map.clone();
     let mut block_map = HashMap::new();
 
+    // build value type lookup for the callee
+    let callee_value_types = ValueTypeMap::new(callee, tree);
+
     // clone each callee block and allocate new values
     for block_id in &callee.blocks {
         // load the original callee block
@@ -775,7 +778,7 @@ fn clone_callee_blocks(
             .parameters
             .iter()
             .map(|param| {
-                let new_value = caller.next_value();
+                let new_value = caller.next_typed_value(param.ty);
                 value_map.insert(param.value, new_value);
                 mir::TypedValue {
                     value: new_value,
@@ -788,7 +791,8 @@ fn clone_callee_blocks(
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
-                let new_value = caller.next_value();
+                let destination_type = callee_value_types.require_value_type(destination);
+                let new_value = caller.next_typed_value(destination_type);
                 value_map.insert(destination, new_value);
             }
         }
@@ -836,7 +840,7 @@ fn split_block_for_inline(
 
     // allocate a continuation parameter when a value is returned
     if destination.is_some() {
-        let new_value = caller.next_value();
+        let new_value = caller.next_typed_value(return_type);
         continuation_block.parameters.push(mir::TypedValue {
             value: new_value,
             ty: return_type,
@@ -1318,6 +1322,32 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
+        mir::Instruction::VectorSplat { .. }
+        | mir::Instruction::VectorExtract { .. }
+        | mir::Instruction::VectorInsert { .. }
+        | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorReduce { .. }
+        | mir::Instruction::VectorCompare { .. }
+        | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorReshape { .. }
+        | mir::Instruction::TensorBroadcast { .. }
+        | mir::Instruction::TensorTranspose { .. }
+        | mir::Instruction::TensorCast { .. }
+        | mir::Instruction::TensorView { .. }
+        | mir::Instruction::TensorSlice { .. }
+        | mir::Instruction::TensorPad { .. }
+        | mir::Instruction::TensorConcat { .. }
+        | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorDot { .. }
+        | mir::Instruction::TensorConvolution { .. }
+        | mir::Instruction::TensorGather { .. }
+        | mir::Instruction::TensorScatter { .. }
+        | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorConvert { .. } => INLINE_COST_SIMPLE,
+        mir::Instruction::TensorLoad { .. }
+        | mir::Instruction::TensorStore { .. }
+        | mir::Instruction::TensorFill { .. }
+        | mir::Instruction::TensorCopy { .. } => INLINE_COST_MEMORY,
         mir::Instruction::Load { .. } | mir::Instruction::Store { .. } => INLINE_COST_MEMORY,
         mir::Instruction::FieldGet { .. }
         | mir::Instruction::FieldAddr { .. }
@@ -1384,30 +1414,30 @@ mod tests {
     fn test_inline_basic_call() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
-    v2 = iadd v1, v0
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    v2: i32 = iadd v1, v0
     return v2
 }"#;
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
-block1(v3: i32):
-    v4 = iadd v3, v3
-    jump block2(v4)
-block2(v5: i32):
-    v2 = iadd v5, v0
-    return v2
+block1(v1: i32):
+    v2: i32 = iadd v1, v1
+    jump block2(v2)
+block2(v3: i32):
+    v4: i32 = iadd v3, v0
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1420,7 +1450,7 @@ block2(v5: i32):
     fn test_inline_skips_recursive_call() {
         let input = r#"function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @caller(v0) -> fn(i32) -> i32
+    v1: i32 = call @caller(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1438,7 +1468,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1453,33 +1483,33 @@ block0(v0: i32):
         let input = r#"function @callee(v0: i32) -> i32 {
     local0: i32 ; owned
 block0(v0: i32):
-    v1 = local.get local0
-    v2 = iadd v1, v0
+    v1: i32 = local.get local0
+    v2: i32 = iadd v1, v0
     return v2
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
         let expected = r#"function @callee(v0: i32) -> i32 {
     local0: i32 ; owned
 block0(v0: i32):
-    v1 = local.get local0
-    v2 = iadd v1, v0
+    v1: i32 = local.get local0
+    v2: i32 = iadd v1, v0
     return v2
 }
 function @caller(v0: i32) -> i32 {
     local0: i32 ; owned
 block0(v0: i32):
     jump block1(v0)
-block1(v2: i32):
-    v3 = local.get local0
-    v4 = iadd v3, v2
-    jump block2(v4)
-block2(v5: i32):
-    return v5
+block1(v1: i32):
+    v2: i32 = local.get local0
+    v3: i32 = iadd v2, v1
+    jump block2(v3)
+block2(v4: i32):
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1492,15 +1522,15 @@ block2(v5: i32):
     fn test_inline_skips_large_callee() {
         let mut input = String::from("function @callee(v0: i32) -> i32 {\n");
         input.push_str("block0(v0: i32):\n");
-        input.push_str("    v1 = iadd v0, v0\n");
+        input.push_str("    v1: i32 = iadd v0, v0\n");
         for index in 2..=97 {
-            input.push_str(&format!("    v{index} = iadd v{}, v0\n", index - 1));
+            input.push_str(&format!("    v{index}: i32 = iadd v{}, v0\n", index - 1));
         }
         input.push_str("    return v97\n");
         input.push_str("}\n");
         input.push_str("function @caller(v0: i32) -> i32 {\n");
         input.push_str("block0(v0: i32):\n");
-        input.push_str("    v1 = call @callee(v0) -> fn(i32) -> i32\n");
+        input.push_str("    v1: i32 = call @callee(v0) -> fn(i32) -> i32\n");
         input.push_str("    return v1\n");
         input.push_str("}\n");
 
@@ -1514,7 +1544,7 @@ block2(v5: i32):
     fn test_inline_unused_return() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> void {
@@ -1525,14 +1555,14 @@ block0(v0: i32):
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> void {
 block0(v0: i32):
     jump block1(v0)
 block1(v1: i32):
-    v2 = iadd v1, v1
+    v2: i32 = iadd v1, v1
     jump block2
 block2:
     return
@@ -1548,20 +1578,20 @@ block2:
     fn test_inline_skips_cold_callsite() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
-    v2 = iadd v1, v0
-    v3 = iadd v2, v0
-    v4 = iadd v3, v0
-    v5 = iadd v4, v0
-    v6 = iadd v5, v0
-    v7 = iadd v6, v0
-    v8 = iadd v7, v0
-    v9 = iadd v8, v0
+    v1: i32 = iadd v0, v0
+    v2: i32 = iadd v1, v0
+    v3: i32 = iadd v2, v0
+    v4: i32 = iadd v3, v0
+    v5: i32 = iadd v4, v0
+    v6: i32 = iadd v5, v0
+    v7: i32 = iadd v6, v0
+    v8: i32 = iadd v7, v0
+    v9: i32 = iadd v8, v0
     return v9
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1582,66 +1612,66 @@ block0(v0: i32):
     fn test_inline_uses_hot_callsite() {
         let input = r#"function @helper(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
-    v2 = iadd v1, v0
-    v3 = iadd v2, v0
-    v4 = iadd v3, v0
-    v5 = iadd v4, v0
-    v6 = iadd v5, v0
-    v7 = iadd v6, v0
-    v8 = iadd v7, v0
-    v9 = iadd v8, v0
+    v1: i32 = iadd v0, v0
+    v2: i32 = iadd v1, v0
+    v3: i32 = iadd v2, v0
+    v4: i32 = iadd v3, v0
+    v5: i32 = iadd v4, v0
+    v6: i32 = iadd v5, v0
+    v7: i32 = iadd v6, v0
+    v8: i32 = iadd v7, v0
+    v9: i32 = iadd v8, v0
     return v9
 }
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @helper(v0) -> fn(i32) -> i32
-    v2 = call @helper(v1) -> fn(i32) -> i32
-    v3 = call @helper(v2) -> fn(i32) -> i32
-    v4 = call @helper(v3) -> fn(i32) -> i32
-    v5 = call @helper(v4) -> fn(i32) -> i32
+    v1: i32 = call @helper(v0) -> fn(i32) -> i32
+    v2: i32 = call @helper(v1) -> fn(i32) -> i32
+    v3: i32 = call @helper(v2) -> fn(i32) -> i32
+    v4: i32 = call @helper(v3) -> fn(i32) -> i32
+    v5: i32 = call @helper(v4) -> fn(i32) -> i32
     return v5
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
         let expected = r#"function @helper(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
-    v2 = iadd v1, v0
-    v3 = iadd v2, v0
-    v4 = iadd v3, v0
-    v5 = iadd v4, v0
-    v6 = iadd v5, v0
-    v7 = iadd v6, v0
-    v8 = iadd v7, v0
-    v9 = iadd v8, v0
+    v1: i32 = iadd v0, v0
+    v2: i32 = iadd v1, v0
+    v3: i32 = iadd v2, v0
+    v4: i32 = iadd v3, v0
+    v5: i32 = iadd v4, v0
+    v6: i32 = iadd v5, v0
+    v7: i32 = iadd v6, v0
+    v8: i32 = iadd v7, v0
+    v9: i32 = iadd v8, v0
     return v9
 }
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @helper(v0) -> fn(i32) -> i32
-    v2 = call @helper(v1) -> fn(i32) -> i32
-    v3 = call @helper(v2) -> fn(i32) -> i32
-    v4 = call @helper(v3) -> fn(i32) -> i32
-    v5 = call @helper(v4) -> fn(i32) -> i32
+    v1: i32 = call @helper(v0) -> fn(i32) -> i32
+    v2: i32 = call @helper(v1) -> fn(i32) -> i32
+    v3: i32 = call @helper(v2) -> fn(i32) -> i32
+    v4: i32 = call @helper(v3) -> fn(i32) -> i32
+    v5: i32 = call @helper(v4) -> fn(i32) -> i32
     return v5
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
-block1(v2: i32):
-    v3 = call @helper(v2) -> fn(i32) -> i32
-    v4 = call @helper(v3) -> fn(i32) -> i32
-    v5 = call @helper(v4) -> fn(i32) -> i32
-    v6 = call @helper(v5) -> fn(i32) -> i32
-    v7 = call @helper(v6) -> fn(i32) -> i32
-    jump block2(v7)
-block2(v8: i32):
-    return v8
+block1(v1: i32):
+    v2: i32 = call @helper(v1) -> fn(i32) -> i32
+    v3: i32 = call @helper(v2) -> fn(i32) -> i32
+    v4: i32 = call @helper(v3) -> fn(i32) -> i32
+    v5: i32 = call @helper(v4) -> fn(i32) -> i32
+    v6: i32 = call @helper(v5) -> fn(i32) -> i32
+    jump block2(v6)
+block2(v7: i32):
+    return v7
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1726,15 +1756,15 @@ block1:
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     return v4
 }
 function @caller(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, bool) -> i32
+    v3: i32 = call @callee(v0, v1, v2) -> fn(i32, i32, bool) -> i32
     return v3
 }"#;
 
@@ -1742,25 +1772,25 @@ block0(v0: i32, v1: i32, v2: bool):
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     return v4
 }
 function @caller(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     jump block1(v0, v1, v2)
-block1(v4: i32, v5: i32, v6: bool):
-    branch v6, block2, block3
+block1(v3: i32, v4: i32, v5: bool):
+    branch v5, block2, block3
 block2:
-    v7 = iadd v4, v5
-    jump block4(v7)
+    v6: i32 = iadd v3, v4
+    jump block4(v6)
 block3:
-    v8 = isub v4, v5
-    jump block4(v8)
-block4(v9: i32):
-    return v9
+    v7: i32 = isub v3, v4
+    jump block4(v7)
+block4(v8: i32):
+    return v8
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1773,12 +1803,12 @@ block4(v9: i32):
     fn test_inline_continuation_argument() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     jump block1(v1)
 block1(v2: i32):
     return v2
@@ -1786,19 +1816,19 @@ block1(v2: i32):
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
     jump block2(v0)
-block1(v2: i32):
-    return v2
-block2(v3: i32):
-    v4 = iadd v3, v3
-    jump block3(v4)
-block3(v5: i32):
-    jump block1(v5)
+block1(v1: i32):
+    return v1
+block2(v2: i32):
+    v3: i32 = iadd v2, v2
+    jump block3(v3)
+block3(v4: i32):
+    jump block1(v4)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1811,12 +1841,12 @@ block3(v5: i32):
     fn test_inline_skips_indirect_call() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
 
