@@ -18,8 +18,8 @@ block2:
 
 // merge branch, continue
 block3(v5: i64):
-    v6: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
-    v7: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v6: ref<managed i64> = managed.alloc_array i64, v5
+    v7: ref<managed i64> = managed.alloc_array i64, v5
     v8: i64 = iconst 0i64
     jump block4(v8, v6, v7, v5)
 
@@ -30,7 +30,7 @@ block4(v9: i64, v10: ref<managed i64>, v11: ref<managed i64>, v12: i64):
 
 // loop body, update aggregates
 block5:
-    v14: ref<borrowed i64> = element.addr v10, v9 -> ref<borrowed i64>
+    v14: ref<borrowed i64> = element.addr v10, v9
     v15: i64 = iconst 7i64
     v16: i64 = imul v9, v15
     store v14, v16
@@ -58,11 +58,11 @@ block7(
 
 // loop body, update aggregates
 block8:
-    v33: ref<borrowed i64> = element.addr v28, v31 -> ref<borrowed i64>
+    v33: ref<borrowed i64> = element.addr v28, v31
     store v33, v26
     intrinsic.memcpy(v29, v28, v30)
-    v34: ref<borrowed i64> = element.addr v29, v31 -> ref<borrowed i64>
-    v35: i64 = load v34 -> i64
+    v34: ref<borrowed i64> = element.addr v29, v31
+    v35: i64 = load v34
     v36: i64 = iadd v27, v35
     v37: i64 = iconst 1i64
     v38: i64 = iadd v26, v37

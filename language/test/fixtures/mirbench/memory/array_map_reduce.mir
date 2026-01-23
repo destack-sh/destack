@@ -3,7 +3,7 @@ function @array_map_reduce(v0: i64) -> i64 {
 
 // entry, init allocations
 block0(v0: i64):
-    v1: ref<managed i64> = managed.alloc_array i64, v0 -> ref<managed i64>
+    v1: ref<managed i64> = managed.alloc_array i64, v0
     v2: i64 = iconst 0i64
     jump block1(v2, v1)
 
@@ -14,7 +14,7 @@ block1(v3: i64, v4: ref<managed i64>):
 
 // loop body, update aggregates
 block2:
-    v6: ref<borrowed i64> = element.addr v4, v3 -> ref<borrowed i64>
+    v6: ref<borrowed i64> = element.addr v4, v3
     store v6, v3
     v7: i64 = iconst 1i64
     v8: i64 = iadd v3, v7
@@ -33,8 +33,8 @@ block4(v12: i64, v13: i64, v14: ref<managed i64>):
 
 // loop body, update aggregates
 block5:
-    v16: ref<borrowed i64> = element.addr v14, v12 -> ref<borrowed i64>
-    v17: i64 = load v16 -> i64
+    v16: ref<borrowed i64> = element.addr v14, v12
+    v17: i64 = load v16
     v18: i64 = iconst 3i64
     v19: i64 = imul v17, v18
     v20: i64 = iconst 7i64

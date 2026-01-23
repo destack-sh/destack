@@ -18,11 +18,11 @@ block2:
 // update state, merge branch
 block3(v4: i64):
     v5: i64 = imul v0, v4
-    v6: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
-    v7: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v6: ref<managed i64> = managed.alloc_array i64, v5
+    v7: ref<managed i64> = managed.alloc_array i64, v5
     v8: i64 = iconst 2i64
     v9: i64 = imul v5, v8
-    v10: ref<managed i64> = managed.alloc_array i64, v9 -> ref<managed i64>
+    v10: ref<managed i64> = managed.alloc_array i64, v9
     v11: i64 = iconst 0i64
     jump block4(v11, v5, v6, v7, v10)
 
@@ -37,15 +37,15 @@ block5:
     v19: i64 = iadd v12, v18
     v20: i64 = iconst 2i64
     v21: i64 = imul v19, v20
-    v22: ref<borrowed i64> = element.addr v14, v12 -> ref<borrowed i64>
+    v22: ref<borrowed i64> = element.addr v14, v12
     store v22, v19
-    v23: ref<borrowed i64> = element.addr v15, v12 -> ref<borrowed i64>
+    v23: ref<borrowed i64> = element.addr v15, v12
     store v23, v21
     v24: i64 = imul v12, v20
-    v25: ref<borrowed i64> = element.addr v16, v24 -> ref<borrowed i64>
+    v25: ref<borrowed i64> = element.addr v16, v24
     store v25, v19
     v26: i64 = iadd v24, v18
-    v27: ref<borrowed i64> = element.addr v16, v26 -> ref<borrowed i64>
+    v27: ref<borrowed i64> = element.addr v16, v26
     store v27, v21
     v28: i64 = iadd v12, v18
     jump block4(v28, v13, v14, v15, v16)
@@ -63,19 +63,19 @@ block7(v35: i64, v36: i64, v37: i64, v38: ref<managed i64>, v39: ref<managed i64
 
 // loop body, update aggregates
 block8:
-    v42: ref<borrowed i64> = element.addr v38, v35 -> ref<borrowed i64>
-    v43: i64 = load v42 -> i64
-    v44: ref<borrowed i64> = element.addr v39, v35 -> ref<borrowed i64>
-    v45: i64 = load v44 -> i64
+    v42: ref<borrowed i64> = element.addr v38, v35
+    v43: i64 = load v42
+    v44: ref<borrowed i64> = element.addr v39, v35
+    v45: i64 = load v44
     v46: i64 = iadd v43, v45
     v47: i64 = iconst 2i64
     v48: i64 = imul v35, v47
-    v49: ref<borrowed i64> = element.addr v40, v48 -> ref<borrowed i64>
-    v50: i64 = load v49 -> i64
+    v49: ref<borrowed i64> = element.addr v40, v48
+    v50: i64 = load v49
     v51: i64 = iconst 1i64
     v52: i64 = iadd v48, v51
-    v53: ref<borrowed i64> = element.addr v40, v52 -> ref<borrowed i64>
-    v54: i64 = load v53 -> i64
+    v53: ref<borrowed i64> = element.addr v40, v52
+    v54: i64 = load v53
     v55: i64 = iadd v50, v54
     v56: i64 = iadd v46, v55
     v57: i64 = iadd v36, v56

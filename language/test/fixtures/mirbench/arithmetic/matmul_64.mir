@@ -5,9 +5,9 @@ function @matmul_64(v0: i64) -> i64 {
 block0(v0: i64):
     v1: i64 = iconst 64i64
     v2: i64 = imul v1, v1
-    v3: ref<managed i64> = managed.alloc_array i64, v2 -> ref<managed i64>
-    v4: ref<managed i64> = managed.alloc_array i64, v2 -> ref<managed i64>
-    v5: ref<managed i64> = managed.alloc_array i64, v2 -> ref<managed i64>
+    v3: ref<managed i64> = managed.alloc_array i64, v2
+    v4: ref<managed i64> = managed.alloc_array i64, v2
+    v5: ref<managed i64> = managed.alloc_array i64, v2
     v6: i64 = iconst 0i64
     jump block1(v6)
 
@@ -18,13 +18,13 @@ block1(v7: i64):
 
 // loop body, update aggregates
 block2:
-    v9: ref<borrowed i64> = element.addr v3, v7 -> ref<borrowed i64>
+    v9: ref<borrowed i64> = element.addr v3, v7
     v10: i64 = iconst 3i64
     v11: i64 = imul v7, v10
     v12: i64 = iconst 1i64
     v13: i64 = iadd v11, v12
     store v9, v13
-    v14: ref<borrowed i64> = element.addr v4, v7 -> ref<borrowed i64>
+    v14: ref<borrowed i64> = element.addr v4, v7
     v15: i64 = iconst 5i64
     v16: i64 = imul v7, v15
     v17: i64 = iconst 7i64
@@ -88,10 +88,10 @@ block13:
     v50: i64 = iadd v43, v41
     v51: i64 = imul v41, v1
     v52: i64 = iadd v51, v44
-    v53: ref<borrowed i64> = element.addr v3, v50 -> ref<borrowed i64>
-    v54: i64 = load v53 -> i64
-    v55: ref<borrowed i64> = element.addr v4, v52 -> ref<borrowed i64>
-    v56: i64 = load v55 -> i64
+    v53: ref<borrowed i64> = element.addr v3, v50
+    v54: i64 = load v53
+    v55: ref<borrowed i64> = element.addr v4, v52
+    v56: i64 = load v55
     v57: i64 = imul v54, v56
     v58: i64 = iadd v42, v57
     v59: i64 = iconst 1i64
@@ -100,7 +100,7 @@ block13:
 
 // loop body, update aggregates
 block12(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
-    v68: ref<borrowed i64> = element.addr v5, v64 -> ref<borrowed i64>
+    v68: ref<borrowed i64> = element.addr v5, v64
     store v68, v61
     v69: i64 = iadd v66, v61
     v70: i64 = iconst 1i64

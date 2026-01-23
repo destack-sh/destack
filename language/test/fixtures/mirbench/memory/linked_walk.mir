@@ -11,10 +11,10 @@ block0(v0: i64, v1: ref<raw addrspace(heap) mut @Node>):
 
 // return accumulated value
 block1:
-    v4: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node -> ref<raw addrspace(heap) mut @Node>
-    v5: ref<raw addrspace(heap) mut i64> = field.addr v4, 0 -> ref<raw addrspace(heap) mut i64>
+    v4: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node
+    v5: ref<raw addrspace(heap) mut i64> = field.addr v4, 0
     store v5, v0
-    v6: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v4, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
+    v6: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v4, 1
     store v6, v1
     v7: i64 = iconst 1i64
     v8: i64 = isub v0, v7
@@ -30,8 +30,8 @@ function @walk_list(v0: ref<raw addrspace(heap) mut @Node>, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: ref<raw addrspace(heap) mut @Node>, v1: i64):
-    v2: ref<raw addrspace(heap) mut i64> = field.addr v0, 0 -> ref<raw addrspace(heap) mut i64>
-    v3: i64 = load v2 -> i64
+    v2: ref<raw addrspace(heap) mut i64> = field.addr v0, 0
+    v3: i64 = load v2
     v4: i64 = iconst 0i64
     v5: bool = icmp_eq v3, v4
     branch v5, block2, block1
@@ -39,8 +39,8 @@ block0(v0: ref<raw addrspace(heap) mut @Node>, v1: i64):
 // return accumulated value
 block1:
     v6: i64 = iadd v1, v3
-    v7: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v0, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
-    v8: ref<raw addrspace(heap) mut @Node> = load v7 -> ref<raw addrspace(heap) mut @Node>
+    v7: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v0, 1
+    v8: ref<raw addrspace(heap) mut @Node> = load v7
     v9: i64 = call @walk_list(v8, v6)
     return v9
 
@@ -54,13 +54,13 @@ local0: ref<raw addrspace(heap) mut @Node>
 
 // entry, init allocations, call helper
 block0(v0: i64):
-    v1: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node -> ref<raw addrspace(heap) mut @Node>
+    v1: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node
     v2: i64 = iconst 0i64
     local.set local0, v1
     v3: ref<raw addrspace(heap) mut @Node> = local.get local0
-    v4: ref<raw addrspace(heap) mut i64> = field.addr v1, 0 -> ref<raw addrspace(heap) mut i64>
+    v4: ref<raw addrspace(heap) mut i64> = field.addr v1, 0
     store v4, v2
-    v5: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v1, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
+    v5: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v1, 1
     store v5, v3
     v6: ref<raw addrspace(heap) mut @Node> = call @build_list(v0, v1)
     v7: i64 = call @walk_list(v6, v2)
