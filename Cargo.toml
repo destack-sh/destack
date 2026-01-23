@@ -48,6 +48,7 @@ members = [
 	# platform
 	"platform/cli",
 	"platform/daemon",
+	"platform/test",
 	"platform/lsp",
 	"platform/lsp/server",
 	"platform/lsp/types",

@@ -1,35 +1,18 @@
-mod tests;
-
-mod cache;
-
-mod script;
-
-mod clean;
-
-mod init;
-
-mod input;
-
-mod fmt;
-
-mod check;
-
-mod eval;
-
 mod build;
-
-mod lint;
-
-mod run;
-
+mod cache;
+mod check;
+mod clean;
 mod config;
-
-mod targets;
-
-mod task;
-
+mod eval;
+mod fmt;
 mod info;
-
+mod init;
+mod input;
+mod lint;
 mod report;
-
+mod run;
+mod script;
+mod targets;
+mod task;
+mod tests;
 mod watch;

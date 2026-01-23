@@ -445,7 +445,12 @@ where
     // configure the daemon client for incremental updates
     let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
     let daemon_options = build_daemon_options(&request.program, diagnostic_options.clone(), None);
-    let daemon = match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone()) {
+    let daemon = match ProtocolDaemonClient::new(
+        session.clone(),
+        daemon_options,
+        roots.clone(),
+        &request.program,
+    ) {
         Ok(daemon) => daemon,
         Err(error) => {
             let message = watch_error(&error.to_string());

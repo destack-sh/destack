@@ -1,0 +1,24 @@
+[package]
+name = "destack_platform_test"
+description = "Destack platform tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# language
+destack_source = { workspace = true }
+destack_workspace = { workspace = true }
+
+# platform
+destack_cli = { workspace = true }
+destack_daemon = { workspace = true }
+destack_lsp = { workspace = true, features = ["test"] }
+
+# general
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+
+[lints]
+workspace = true

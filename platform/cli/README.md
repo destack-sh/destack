@@ -43,6 +43,7 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `bench` | Run benchmarks (stub). |
 | `doc` | Generate docs (stub). |
 | `lsp` | Run the language server. |
+| `daemon` | Manage the background daemon service. |
 
 `run` resolves `dsconfig.json` tasks first, then `package.json` scripts when the argument is not a file path.
 
@@ -57,7 +58,7 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `--workspace <dir>` | Set the workspace root. |
 | `--cache-dir <dir>` | Override the cache directory. |
 | `--workers <n>` | Number of worker threads. |
-| `--watch` | Watch mode (not yet implemented). |
+| `--watch` | Watch mode for supported commands. |
 | `--dev` | Dev mode (not yet implemented). |
 | `--timings` | Emit timing diagnostics when supported. |
 | `--profile` | Emit profiling diagnostics when supported. |

@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use destack_compiler::{CompilerEventHandler, CompilerOptions};
@@ -10,11 +9,13 @@ use destack_daemon::protocol::{
     CommandRequest, CommandResponse, CommandStats, CommandTargetOverrides, CommonCommandOptions,
     ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonRequest,
     DaemonResponse, DiagnosticBatch, FileSnapshot, OpenWorkspaceRequest, OutputStream,
-    ProtocolClient, ProtocolClientOptions, RescanReason, RescanWorkspaceRequest,
-    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
-    WorkspaceHandleId, WorkspaceOpenOptions, loopback_transport_pair,
+    ProtocolClient, RescanReason, RescanWorkspaceRequest, WatchBatch as ProtocolWatchBatch,
+    WatchBatchRequest, WatchEvent, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
 };
-use destack_daemon::{DaemonService, DaemonServiceError, DaemonServiceOptions};
+use destack_daemon::{
+    DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
+    connect_in_process_daemon, connect_ipc_daemon,
+};
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
@@ -35,17 +36,145 @@ use crate::pipeline::watch::{
 #[derive(Debug)]
 pub struct ProtocolDaemonClient {
     /// Protocol client for daemon requests.
-    client: ProtocolClient,
+    client: Arc<ProtocolClient>,
     /// Workspace handles keyed by root path.
     handles: Vec<WorkspaceHandle>,
-    /// Server thread for the in process daemon.
-    server_handle: Option<JoinHandle<Result<(), DaemonServiceError>>>,
+    /// Connection state for the daemon.
+    connection: Option<DaemonConnection>,
 }
 
+/// Workspace handle metadata for CLI usage.
 #[derive(Debug, Clone)]
 struct WorkspaceHandle {
+    /// Workspace root for the handle.
     root: PathBuf,
+    /// Daemon handle identifier.
     handle: WorkspaceHandleId,
+}
+
+/// Settings used to build a daemon launch config.
+#[derive(Debug, Clone)]
+pub(crate) struct DaemonLaunchContext {
+    /// Current working directory for the daemon.
+    cwd: PathBuf,
+    /// Cache directory override.
+    cache_dir: Option<PathBuf>,
+    /// Config path override.
+    config_path: Option<PathBuf>,
+}
+
+impl DaemonLaunchContext {
+    /// Build a launch context from program arguments.
+    pub(crate) fn from_program(program: &ProgramArgs) -> Self {
+        // resolve the cwd for the daemon
+        let cwd = program
+            .cwd
+            .clone()
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+
+        // resolve cache dir relative to the cwd
+        let cache_dir = program.cache_dir.as_ref().map(|cache_dir| {
+            if cache_dir.is_absolute() {
+                cache_dir.clone()
+            } else {
+                cwd.join(cache_dir)
+            }
+        });
+
+        Self {
+            cwd,
+            cache_dir,
+            config_path: program.config.clone(),
+        }
+    }
+
+    /// Build a launch config for a daemon instance.
+    pub(crate) fn build_launch_config(&self, instance: &DaemonInstance) -> DaemonLaunchConfig {
+        // build the base launch config from the instance
+        let mut launch = DaemonLaunchConfig::for_instance(instance);
+
+        // apply overrides from program settings
+        launch.cache_dir = self.cache_dir.clone();
+        launch.config_path = self.config_path.clone();
+        launch.cwd = Some(self.cwd.clone());
+
+        launch
+    }
+}
+
+/// Connector for daemon clients.
+#[derive(Debug)]
+struct DaemonConnector {
+    /// Session for in process daemons.
+    session: Arc<Session>,
+    /// Connect options for the daemon.
+    options: DaemonConnectOptions,
+    /// Instance metadata for ipc daemons.
+    instance: DaemonInstance,
+    /// Launch configuration for ipc daemons.
+    launch: DaemonLaunchConfig,
+    /// Whether to prefer in process daemons.
+    allow_in_process: bool,
+}
+
+impl DaemonConnector {
+    /// Create a connector from program settings.
+    fn new(
+        session: Arc<Session>,
+        compiler_options: CompilerOptions,
+        program: &ProgramArgs,
+    ) -> Self {
+        // build connect options
+        let options = DaemonConnectOptions {
+            compiler: compiler_options,
+            ..DaemonConnectOptions::default()
+        };
+
+        // resolve daemon instance metadata
+        let instance = DaemonInstance::from_session(&session);
+        let launch_context = DaemonLaunchContext::from_program(program);
+        let launch = launch_context.build_launch_config(&instance);
+
+        // decide whether to use in process connections
+        let allow_in_process = program.fs_override.is_some();
+
+        Self {
+            session,
+            options,
+            instance,
+            launch,
+            allow_in_process,
+        }
+    }
+
+    /// Connect to the daemon with the configured mode.
+    fn connect(&self) -> CliResult<DaemonConnection> {
+        // prefer in process connections when configured
+        if self.allow_in_process {
+            return self.connect_in_process();
+        }
+
+        // fall back to ipc connections
+        self.connect_ipc()
+    }
+
+    /// Connect to an in process daemon.
+    fn connect_in_process(&self) -> CliResult<DaemonConnection> {
+        // connect via loopback transport
+        connect_in_process_daemon(self.session.clone(), self.options.clone())
+            .map_err(|error| CliError::message(format!("daemon connect failed: {error}")))
+    }
+
+    /// Connect to an ipc daemon, spawning when needed.
+    fn connect_ipc(&self) -> CliResult<DaemonConnection> {
+        // connect via ipc, spawning when needed
+        connect_ipc_daemon(
+            &self.instance,
+            self.options.clone(),
+            Some(self.launch.clone()),
+        )
+        .map_err(|error| CliError::message(format!("daemon connect failed: {error}")))
+    }
 }
 
 /// Result of a daemon command execution.
@@ -147,26 +276,12 @@ impl ProtocolDaemonClient {
         session: Arc<Session>,
         compiler_options: CompilerOptions,
         roots: Vec<PathBuf>,
+        program: &ProgramArgs,
     ) -> CliResult<Self> {
-        // configure the daemon service
-        let options = DaemonServiceOptions {
-            compiler_options,
-            ..DaemonServiceOptions::default()
-        };
-        let service = DaemonService::with_options(session, options);
-
-        // start the protocol server over a loopback transport
-        let (client_transport, server_transport) = loopback_transport_pair(16);
-        let server_handle = thread::spawn(move || service.serve_transport(&server_transport));
-
-        // build the protocol client and handshake
-        let client = ProtocolClient::new(Arc::new(client_transport));
-        if let Err(error) = client.handshake(ProtocolClientOptions::default()) {
-            shutdown_server(&client, server_handle);
-            return Err(CliError::message(format!(
-                "protocol handshake failed: {error}"
-            )));
-        }
+        // connect to the daemon
+        let connector = DaemonConnector::new(session.clone(), compiler_options, program);
+        let connection = connector.connect()?;
+        let client = connection.client.clone();
 
         // open each workspace root
         let mut handles = Vec::new();
@@ -182,18 +297,15 @@ impl ProtocolDaemonClient {
             let response = match client.send_request(DaemonRequest::OpenWorkspace(request)) {
                 Ok(response) => response,
                 Err(error) => {
-                    shutdown_server(&client, server_handle);
                     return Err(CliError::message(format!("open workspace failed: {error}")));
                 }
             };
             let handle = match response {
                 DaemonResponse::WorkspaceOpened(response) => response.handle,
                 DaemonResponse::Error(error) => {
-                    shutdown_server(&client, server_handle);
                     return Err(CliError::message(format!("open workspace failed: {error}")));
                 }
                 other => {
-                    shutdown_server(&client, server_handle);
                     return Err(CliError::message(format!("unexpected response: {other:?}")));
                 }
             };
@@ -203,7 +315,7 @@ impl ProtocolDaemonClient {
         Ok(Self {
             client,
             handles,
-            server_handle: Some(server_handle),
+            connection: Some(connection),
         })
     }
 
@@ -244,17 +356,9 @@ impl ProtocolDaemonClient {
         Ok(command_result_from_response(response))
     }
 
-    /// Shutdown the protocol daemon and join the server thread.
-    pub fn shutdown(self) {
-        let _ = self.client.send_request(DaemonRequest::Shutdown);
-        self.join();
-    }
-
-    /// Join the server thread without sending a shutdown request.
-    pub fn join(mut self) {
-        if let Some(handle) = self.server_handle.take() {
-            let _ = handle.join();
-        }
+    /// Release the daemon connection.
+    pub fn shutdown(mut self) {
+        let _ = self.connection.take();
     }
 
     /// Return handles matching the provided roots.
@@ -365,16 +469,6 @@ impl ProtocolDaemonClient {
                 Err(CliError::message(format!("rescan failed: {error}")))
             }
             other => Err(CliError::message(format!("unexpected response: {other:?}"))),
-        }
-    }
-}
-
-impl Drop for ProtocolDaemonClient {
-    fn drop(&mut self) {
-        // ensure the server thread is joined when callers forget to shut down
-        if let Some(handle) = self.server_handle.take() {
-            let _ = self.client.send_request(DaemonRequest::Shutdown);
-            let _ = handle.join();
         }
     }
 }
@@ -554,7 +648,7 @@ pub fn run_daemon_command_with_session(
 
     // build compiler options for the daemon
     let daemon_options = build_daemon_options(program, diagnostic, event_handler);
-    let daemon = ProtocolDaemonClient::new(session.clone(), daemon_options, roots)?;
+    let daemon = ProtocolDaemonClient::new(session.clone(), daemon_options, roots, program)?;
 
     // execute the command and shutdown
     let result = daemon.run_command(&root, common, payload)?;
@@ -771,12 +865,4 @@ fn duration_to_ns(duration: Duration) -> u64 {
     } else {
         nanos as u64
     }
-}
-
-fn shutdown_server(
-    client: &ProtocolClient,
-    server_handle: JoinHandle<Result<(), DaemonServiceError>>,
-) {
-    let _ = client.send_request(DaemonRequest::Shutdown);
-    let _ = server_handle.join();
 }

@@ -179,27 +179,37 @@ pub(super) fn watch_loop_options_for_test(watcher: MemoryFileWatcher) -> WatchLo
 
 /// Merge compiler options into a base dsconfig payload.
 pub(super) fn merge_dsconfig_base(extra: Value) -> Value {
-    let mut base = json!({
+    let base = json!({
         "compilerOptions": {
             "target": "esnext",
             "module": "esnext",
         },
     });
 
-    if let (Value::Object(base_map), Value::Object(extra_map)) = (&mut base, extra) {
-        for (key, value) in extra_map {
-            if key == "compilerOptions" {
-                if let Value::Object(extra_options) = value {
-                    if let Some(Value::Object(base_options)) = base_map.get_mut("compilerOptions") {
-                        base_options.extend(extra_options);
-                        continue;
-                    }
-                    base_map.insert(key, Value::Object(extra_options));
-                    continue;
-                }
+    // merge compiler options without clobbering defaults
+    merge_json_object(base, extra, &["compilerOptions"])
+}
+
+/// Merge JSON objects with selective deep merge keys.
+fn merge_json_object(mut base: Value, extra: Value, merge_keys: &[&str]) -> Value {
+    // return early when merge inputs are not objects
+    let (Value::Object(base_map), Value::Object(extra_map)) = (&mut base, extra) else {
+        return base;
+    };
+
+    // merge extra keys into the base map
+    for (key, value) in extra_map {
+        if merge_keys.contains(&key.as_str())
+            && let Value::Object(extra_options) = value
+        {
+            if let Some(Value::Object(base_options)) = base_map.get_mut(&key) {
+                base_options.extend(extra_options);
+                continue;
             }
-            base_map.insert(key, value);
+            base_map.insert(key, Value::Object(extra_options));
+            continue;
         }
+        base_map.insert(key, value);
     }
 
     base
