@@ -117,6 +117,7 @@ fn to_infix_operator(
     // (only a subset of binary operators are allowed in static and tree contexts)
     else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_type
+            || options.in_static
             || matches!(
                 binary_operator,
                 BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
