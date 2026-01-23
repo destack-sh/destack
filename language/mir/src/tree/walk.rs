@@ -143,6 +143,18 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_field(tree, *field_id, field);
             }
         }
+        Type::Vector { element, .. } => {
+            let element_ty = tree.get(*element);
+            visitor.visit_type(tree, *element, element_ty);
+        }
+        Type::Tensor { element, .. } => {
+            let element_ty = tree.get(*element);
+            visitor.visit_type(tree, *element, element_ty);
+        }
+        Type::TensorView { element, .. } => {
+            let element_ty = tree.get(*element);
+            visitor.visit_type(tree, *element, element_ty);
+        }
         Type::FunctionPointer { parameters, result } => {
             for parameter_id in parameters {
                 let parameter_ty = tree.get(*parameter_id);

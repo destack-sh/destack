@@ -1,10 +1,8 @@
-//! MIR tree dumper for debugging and visualization.
-
 use crate::{
     AddressSpace, BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
-    GlobalInitializer, Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor,
-    NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator,
-    Value,
+    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryLocationSet,
+    MemorySemantics, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
+    ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator, Value,
 };
 use destack_base::{Color, StringPool};
 
@@ -189,8 +187,64 @@ impl<'a> Dumper<'a> {
                 fields,
                 copyability: _,
             } => format!("struct{{{}}}", fields.len()),
+            Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
+            Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
+            Type::TensorView { shape, .. } => format!("tensor_view<{}>", shape.len()),
             Type::FunctionPointer { parameters, .. } => format!("fn({})", parameters.len()),
         }
+    }
+
+    fn format_memory_semantics(&self, semantics: MemorySemantics) -> String {
+        // collect location names
+        let mut names = self.collect_memory_location_names(semantics.locations);
+
+        // append semantics flags
+        if semantics.is_volatile {
+            names.push("volatile");
+        }
+        if semantics.is_make_available {
+            names.push("make_available");
+        }
+        if semantics.is_make_visible {
+            names.push("make_visible");
+        }
+
+        // render as a single token or list
+        if names.len() == 1 {
+            names[0].to_string()
+        } else {
+            format!("[{}]", names.join(", "))
+        }
+    }
+
+    fn collect_memory_location_names(&self, locations: MemoryLocationSet) -> Vec<&'static str> {
+        // handle named location sets
+        if locations == MemoryLocationSet::NONE {
+            return vec!["none"];
+        }
+        if locations == MemoryLocationSet::ANY {
+            return vec!["any"];
+        }
+
+        // collect ordered locations
+        let ordered = [
+            ("arguments", MemoryLocationSet::ARGUMENTS),
+            ("heap", MemoryLocationSet::HEAP),
+            ("stack", MemoryLocationSet::STACK),
+            ("global", MemoryLocationSet::GLOBAL),
+            ("shared", MemoryLocationSet::SHARED),
+            ("local", MemoryLocationSet::LOCAL),
+            ("constant", MemoryLocationSet::CONSTANT),
+            ("inaccessible", MemoryLocationSet::INACCESSIBLE),
+            ("io", MemoryLocationSet::IO),
+        ];
+        let mut names = Vec::new();
+        for (name, set) in ordered {
+            if locations.contains(set) {
+                names.push(name);
+            }
+        }
+        names
     }
 
     fn format_constant(&self, c: &Constant) -> String {
@@ -570,6 +624,556 @@ impl<'a> Dumper<'a> {
                 self.write(")");
             }
 
+            Instruction::VectorSplat { destination, value } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.splat ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::VectorExtract {
+                destination,
+                vector,
+                index,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.extract ");
+                self.write(&self.format_value(*vector));
+                self.write(", ");
+                self.write(&self.format_value(*index));
+            }
+
+            Instruction::VectorInsert {
+                destination,
+                vector,
+                index,
+                value,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.insert ");
+                self.write(&self.format_value(*vector));
+                self.write(", ");
+                self.write(&self.format_value(*index));
+                self.write(", ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::VectorShuffle {
+                destination,
+                left,
+                right,
+                mask,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.shuffle ");
+                self.write(&self.format_value(*left));
+                self.write(", ");
+                self.write(&self.format_value(*right));
+                self.write(", [");
+                for (i, lane) in mask.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&lane.to_string());
+                }
+                self.write("]");
+            }
+
+            Instruction::VectorReduce {
+                destination,
+                operator,
+                vector,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.reduce ");
+                self.write(operator.to_str());
+                self.write(", ");
+                self.write(&self.format_value(*vector));
+            }
+
+            Instruction::TensorLoad {
+                destination,
+                view,
+                indices,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.load ");
+                self.write(&self.format_value(*view));
+                self.write(", [");
+                let args = self.tree.get_arguments(*indices);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorStore {
+                view,
+                indices,
+                value,
+            } => {
+                self.write("tensor.store ");
+                self.write(&self.format_value(*view));
+                self.write(", [");
+                let args = self.tree.get_arguments(*indices);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::TensorFill { view, value } => {
+                self.write("tensor.fill ");
+                self.write(&self.format_value(*view));
+                self.write(", ");
+                self.write(&self.format_value(*value));
+            }
+
+            Instruction::TensorCopy { target, source } => {
+                self.write("tensor.copy ");
+                self.write(&self.format_value(*target));
+                self.write(", ");
+                self.write(&self.format_value(*source));
+            }
+
+            Instruction::TensorReshape {
+                destination,
+                tensor,
+                shape,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.reshape ");
+                self.write(&self.format_value(*tensor));
+                let args = self.tree.get_arguments(*shape);
+                if !args.is_empty() {
+                    self.write(", [");
+                    for (i, arg) in args.iter().enumerate() {
+                        if i > 0 {
+                            self.write(", ");
+                        }
+                        self.write(&self.format_value(*arg));
+                    }
+                    self.write("]");
+                }
+            }
+
+            Instruction::TensorBroadcast {
+                destination,
+                tensor,
+                dimensions,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.broadcast ");
+                self.write(&self.format_value(*tensor));
+                self.write(", [");
+                for (i, dim) in dimensions.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorTranspose {
+                destination,
+                tensor,
+                permutation,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.transpose ");
+                self.write(&self.format_value(*tensor));
+                self.write(", [");
+                for (i, dim) in permutation.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorSlice {
+                destination,
+                tensor,
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.slice ");
+                self.write(&self.format_value(*tensor));
+                self.write(", offsets=[");
+                let args = self.tree.get_arguments(*arguments);
+                let offsets_end = *offsets_count as usize;
+                let sizes_end = offsets_end + *sizes_count as usize;
+                for (i, arg) in args.iter().take(offsets_end).enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], sizes=[");
+                for (i, arg) in args
+                    .iter()
+                    .skip(offsets_end)
+                    .take(*sizes_count as usize)
+                    .enumerate()
+                {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], strides=[");
+                for (i, arg) in args
+                    .iter()
+                    .skip(sizes_end)
+                    .take(*strides_count as usize)
+                    .enumerate()
+                {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorPad {
+                destination,
+                tensor,
+                arguments,
+                low_count,
+                high_count,
+                interior_count,
+                value,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.pad ");
+                self.write(&self.format_value(*tensor));
+                self.write(", value=");
+                self.write(&self.format_value(*value));
+                let args = self.tree.get_arguments(*arguments);
+                let low_end = *low_count as usize;
+                let high_end = low_end + *high_count as usize;
+                self.write(", low=[");
+                for (i, arg) in args.iter().take(low_end).enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], high=[");
+                for (i, arg) in args
+                    .iter()
+                    .skip(low_end)
+                    .take(*high_count as usize)
+                    .enumerate()
+                {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], interior=[");
+                for (i, arg) in args
+                    .iter()
+                    .skip(high_end)
+                    .take(*interior_count as usize)
+                    .enumerate()
+                {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorConcat {
+                destination,
+                tensors,
+                axis,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.concat [");
+                let args = self.tree.get_arguments(*tensors);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write("], axis=");
+                self.write(&axis.to_string());
+            }
+
+            Instruction::TensorReduce {
+                destination,
+                operator,
+                tensor,
+                initial,
+                axes,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.reduce ");
+                self.write(operator.to_str());
+                self.write(", ");
+                self.write(&self.format_value(*tensor));
+                self.write(", ");
+                self.write(&self.format_value(*initial));
+                self.write(", axes=[");
+                for (i, axis) in axes.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&axis.to_string());
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorDot {
+                destination,
+                left,
+                right,
+                dimensions,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.dot ");
+                self.write(&self.format_value(*left));
+                self.write(", ");
+                self.write(&self.format_value(*right));
+                self.write(", dims(lhs_batch=[");
+                for (i, dim) in dimensions.lhs_batch.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], rhs_batch=[");
+                for (i, dim) in dimensions.rhs_batch.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], lhs_contract=[");
+                for (i, dim) in dimensions.lhs_contracting.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], rhs_contract=[");
+                for (i, dim) in dimensions.rhs_contracting.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("])");
+            }
+
+            Instruction::TensorConvolution {
+                destination,
+                input,
+                kernel,
+                dimensions,
+                window,
+                feature_group_count,
+                batch_group_count,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.convolution ");
+                self.write(&self.format_value(*input));
+                self.write(", ");
+                self.write(&self.format_value(*kernel));
+                self.write(", dims(input_batch=");
+                self.write(&dimensions.input_batch.to_string());
+                self.write(", input_feature=");
+                self.write(&dimensions.input_feature.to_string());
+                self.write(", input_spatial=[");
+                for (i, dim) in dimensions.input_spatial.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], kernel_input_feature=");
+                self.write(&dimensions.kernel_input_feature.to_string());
+                self.write(", kernel_output_feature=");
+                self.write(&dimensions.kernel_output_feature.to_string());
+                self.write(", kernel_spatial=[");
+                for (i, dim) in dimensions.kernel_spatial.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], output_batch=");
+                self.write(&dimensions.output_batch.to_string());
+                self.write(", output_feature=");
+                self.write(&dimensions.output_feature.to_string());
+                self.write(", output_spatial=[");
+                for (i, dim) in dimensions.output_spatial.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("])");
+                self.write(", strides=[");
+                for (i, stride) in window.strides.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&stride.to_string());
+                }
+                self.write("], padding_low=[");
+                for (i, pad) in window.padding_low.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&pad.to_string());
+                }
+                self.write("], padding_high=[");
+                for (i, pad) in window.padding_high.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&pad.to_string());
+                }
+                self.write("], lhs_dilation=[");
+                for (i, dilation) in window.lhs_dilation.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dilation.to_string());
+                }
+                self.write("], rhs_dilation=[");
+                for (i, dilation) in window.rhs_dilation.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dilation.to_string());
+                }
+                self.write("], window_reversal=[");
+                for (i, reverse) in window.window_reversal.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(if *reverse { "true" } else { "false" });
+                }
+                self.write("], feature_group=");
+                self.write(&feature_group_count.to_string());
+                self.write(", batch_group=");
+                self.write(&batch_group_count.to_string());
+            }
+
+            Instruction::TensorGather {
+                destination,
+                operand,
+                indices,
+                dimensions,
+                slice_sizes,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.gather ");
+                self.write(&self.format_value(*operand));
+                self.write(", ");
+                self.write(&self.format_value(*indices));
+                self.write(", dims(offset_dims=[");
+                for (i, dim) in dimensions.offset_dims.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], collapsed_slice_dims=[");
+                for (i, dim) in dimensions.collapsed_slice_dims.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], start_index_map=[");
+                for (i, dim) in dimensions.start_index_map.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], index_vector_dim=");
+                self.write(&dimensions.index_vector_dim.to_string());
+                self.write("), slice_sizes=[");
+                for (i, size) in slice_sizes.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&size.to_string());
+                }
+                self.write("]");
+            }
+
+            Instruction::TensorScatter {
+                destination,
+                operand,
+                indices,
+                updates,
+                dimensions,
+                mode,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.scatter ");
+                self.write(&self.format_value(*operand));
+                self.write(", ");
+                self.write(&self.format_value(*indices));
+                self.write(", ");
+                self.write(&self.format_value(*updates));
+                self.write(", dims(update_window_dims=[");
+                for (i, dim) in dimensions.update_window_dims.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], inserted_window_dims=[");
+                for (i, dim) in dimensions.inserted_window_dims.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], scatter_dims_to_operand_dims=[");
+                for (i, dim) in dimensions.scatter_dims_to_operand_dims.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&dim.to_string());
+                }
+                self.write("], index_vector_dim=");
+                self.write(&dimensions.index_vector_dim.to_string());
+                self.write("), mode=");
+                self.write(mode.to_str());
+            }
+
+            Instruction::TensorConvert {
+                destination,
+                tensor,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.convert ");
+                self.write(&self.format_value(*tensor));
+            }
+
             Instruction::Call {
                 destination,
                 function,
@@ -757,6 +1361,9 @@ impl<'a> Dumper<'a> {
                 intrinsic,
                 arguments,
                 ordering,
+                scope,
+                memory_scope,
+                semantics,
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -775,7 +1382,33 @@ impl<'a> Dumper<'a> {
                     if !args.is_empty() {
                         self.write(", ");
                     }
-                    self.write_colored(ord.to_str(), Color::Yellow);
+                    self.write_colored(&format!("ordering={}", ord.to_str()), Color::Yellow);
+                }
+                if let Some(scope) = scope {
+                    if !args.is_empty() || ordering.is_some() {
+                        self.write(", ");
+                    }
+                    self.write_colored(&format!("scope={}", scope.to_str()), Color::Yellow);
+                }
+                if let Some(memory_scope) = memory_scope {
+                    if !args.is_empty() || ordering.is_some() || scope.is_some() {
+                        self.write(", ");
+                    }
+                    self.write_colored(
+                        &format!("memory_scope={}", memory_scope.to_str()),
+                        Color::Yellow,
+                    );
+                }
+                if let Some(semantics) = semantics {
+                    if !args.is_empty()
+                        || ordering.is_some()
+                        || scope.is_some()
+                        || memory_scope.is_some()
+                    {
+                        self.write(", ");
+                    }
+                    self.write_colored("semantics=", Color::Yellow);
+                    self.write_colored(&self.format_memory_semantics(*semantics), Color::Yellow);
                 }
                 self.write(")");
             }

@@ -32,16 +32,17 @@ Package and program scope analyses use these names to stitch cross module edges.
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL:
+MIR uses SSA with block parameters (instead of phi nodes) like MLIR, Cranelift, and Swift's SIL.
+SSA values are explicitly typed at their definition site in MIR text.
 
 ```mir
 block0:
-    v0 = const.i32 1
-    v1 = const.i32 2
+    v0: i32 = iconst 1
+    v1: i32 = iconst 2
     jump block1(v0)
 
 block1(v2: i32):          // v2 comes from predecessor
-    v3 = iadd v1, v2      // can still use v1 from dominating block
+    v3: i32 = iadd v1, v2 // can still use v1 from dominating block
     return v3
 ```
 
@@ -70,20 +71,20 @@ MIR has two ways to work with aggregates (structs, tuples, arrays):
 
 | Operation | Style | Use Case |
 |-----------|-------|----------|
-| `aggregate`, `field.get`, `field.set`, `element.get`, `element.set` | Value | Local, non-aliased data |
+| `struct`, `tuple`, `array`, `field.get`, `field.set`, `element.get`, `element.set` | Value | Local, non-aliased data |
 | `field.addr`, `element.addr` + `load`/`store` | Memory | Data behind references, address-taking |
 
-**Value operations** treat aggregates as immutable SSA values:
+**Value operations** treat aggregates as immutable SSA values.
 ```mir
-v0 = aggregate (i32, i32) (v1, v2)   ; construct a tuple
-v3 = field.get v0, 0                  ; extract first element (new SSA value)
-v4 = field.set v0, 1, v5              ; "update" creates new tuple value
+v0: (i32, i32) = tuple v1, v2         ; construct a tuple
+v3: i32 = field.get v0, 0             ; extract first element (new SSA value)
+v4: (i32, i32) = field.set v0, 1, v5  ; "update" creates new tuple value
 ```
 
 **Memory operations** compute addresses for load and store:
 ```mir
-v0 = field.addr v1, 0 -> ref<borrowed i32> ; get address of field 0
-v2 = load v0 -> i32                        ; load through pointer
+v0: ref<borrowed i32> = field.addr v1, 0   ; get address of field 0
+v2: i32 = load v0                          ; load through pointer
 store v0, v3                               ; store through pointer
 ```
 
@@ -105,7 +106,7 @@ LLVM and Swift SIL use the same hybrid approach as MIR because:
 ### When to Use Which
 
 **Use value operations when:**
-- Constructing fresh aggregates (`aggregate`)
+- Constructing fresh aggregates (`struct`, `tuple`, `array`)
 - Destructuring local values (`field.get`, `element.get`)
 - Transforming values without aliasing (`field.set`, `element.set`)
 - The aggregate is an SSA value, not behind a reference
@@ -118,9 +119,9 @@ LLVM and Swift SIL use the same hybrid approach as MIR because:
 ### Benefits of the Hybrid Approach
 
 1. **VM execution**: The comptime interpreter can manipulate aggregate values directly without simulating memory.
-2. **Optimization**: Value-semantic operations have no aliasing—`aggregate` creates a fresh value, `field.set` produces a new value. SROA (scalar replacement of aggregates) is straightforward.
-3. **Backend flexibility**: Native codegen can lower large value aggregates to stack slots while keeping small ones in registers. The IR doesn't force a choice.
-4. **Source semantics**: TypeScript++ has both value types (tuples, small structs) and reference types (objects, classes). MIR naturally represents both.
+2. **Optimization**: Value-semantic operations have no aliasing and make SROA (scalar replacement of aggregates) straightforward.
+3. **Backend flexibility**: Native codegen can lower large value aggregates to stack slots while keeping small ones in registers without forcing a choice.
+4. **Source semantics**: TypeScript++ has both value types (tuples, small structs) and reference types (objects, classes), and MIR represents both.
 5. **Clear intent**: `field.get` on an SSA value vs `load` through `field.addr` communicates whether we're extracting a copy or accessing shared mutable state.
 
 ## Instructions
@@ -130,39 +131,41 @@ Each instruction defines at most one `Value`.
 
 | Category | Instructions |
 |----------|--------------|
-| Constants | `const` |
+| Constants | `iconst` |
 | Arithmetic | `binary`, `unary` |
 | Type conversion | `cast` (trunc, extend, bitcast, float↔int, etc.) |
 | Selection | `select` (conditional value without branching) |
 | Local variables | `local.get`, `local.set`, `local.addr` |
 | Globals | `global.addr`, `global.const` |
-| Memory | `load`, `store`, `drop` |
-| Aggregates | `aggregate`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
+| Memory | `load`, `store`, `raw.drop`, `stack.drop` |
+| Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
-| Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
+| Allocation | `managed.alloc`, `managed.alloc_array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
 
 `field.get/set` and `element.get/set` operate on aggregate values.
-To access through pointers, use `field.addr` or `element.addr` and then `load`/`store`.
+To access through pointers, use `field.addr` or `element.addr` and then `load` or `store`.
 `Local`s are stack slots for mutable bindings.
 `local.addr` produces a reference to a local slot.
 SSA values are immutable.
-To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).
+To mutate, allocate a `Local` and use `local.get` or `local.set` (or just use a new value).
 
 `field.addr` and `element.addr` produce a reference to a field or element.
-Pointer producing instructions (`local.addr`, `global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
+Pointer-producing instructions (`local.addr`, `global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) define typed SSA values.
 `global.addr` returns `ref<raw addrspace(global) T>` and `stack.alloc` returns `ref<raw addrspace(stack) T>`.
-`load` carries the loaded type inline with `->`.
-Call instructions carry their signature type inline with `->`.
-These annotations are required for Core MIR and enable precise alias and ownership analysis.
+`load` defines a typed SSA value for the loaded result.
+`cast` includes an explicit target type argument.
+`call` instructions include a signature type argument for dispatch and verification.
+Typed destinations are required for Core MIR and enable precise alias and ownership analysis.
 
-`drop` invokes the type-specific drop glue for owned values.
+`raw.drop` invokes the type-specific drop glue for owned values.
 Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
 
 ## Memory Semantics and Metadata
 
 MIR carries precise memory semantics through explicit fields on `Function`.
 MIR carries callsite and access metadata through inline `CallEffects` on call instructions and the `NodeTree.memory_table`.
+Atomic operations and barriers carry explicit execution scope, memory scope, and memory semantics for GPU and parallel targets.
 Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
 The memory metadata includes:
 - **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
@@ -181,135 +184,12 @@ Per-access metadata live in the memory table.
 Backends and optimizers query the metadata directly.
 Call effects remain optional and refine effects, dispatch, and profiling data.
 
-### Metadata Structures
+### Kernel metadata
 
-This section defines the canonical metadata structures used by MIR.
-These structures are stored either on `Function` or in the `NodeTree` metadata tables.
-
-```ds
-enum MemoryLocation {
-    Arguments,
-    Heap,
-    Stack,
-    Global,
-    Shared,
-    Local,
-    Constant,
-    Inaccessible,
-    Io,
-}
-
-type MemoryLocationSet = MemoryLocation[]
-
-struct MemoryEffect {
-    reads: bool,
-    writes: bool,
-    locations: MemoryLocationSet,
-    addressSpaces: AddressSpaceSet | null,
-    argmemonly: bool,
-    inaccessibleMemOnly: bool,
-    nosync: bool,
-}
-
-struct AllocSize {
-    elementSizeIndex: u32,
-    elementCountIndex: u32 | null,
-}
-
-struct CallBehavior {
-    noreturn: bool,
-    willReturn: bool,
-    convergent: bool,
-    allocates: bool,
-    allocLocations: MemoryLocationSet | null,
-    allocAddressSpaces: AddressSpaceSet | null,
-    frees: bool,
-    freeLocations: MemoryLocationSet | null,
-    freeAddressSpaces: AddressSpaceSet | null,
-}
-
-enum CaptureKind {
-    NoCapture,
-    ReturnOnly,
-    Store,
-    Escape,
-}
-
-struct PointerAttributes {
-    nonnull: bool,
-    noalias: bool,
-    capture: CaptureKind,
-    readonly: bool,
-    writeonly: bool,
-    noundef: bool,
-    dereferenceableBytes: u64 | null,
-    dereferenceableOrNullBytes: u64 | null,
-    alignment: u32 | null,
-    returned: bool,
-}
-
-enum ArgumentAccess {
-    None,
-    Read,
-    Write,
-    ReadWrite,
-}
-
-struct CallArgumentMetadata {
-    attributes: PointerAttributes,
-    access: ArgumentAccess,
-    aliasScopes: AliasScopeId[],
-    noaliasScopes: AliasScopeId[],
-    tbaaTag: TbaaTagId | null,
-}
-
-struct CallEffects {
-    memoryEffects: MemoryEffect | null,
-    behavior: CallBehavior | null,
-    allocSize: AllocSize | null,
-    argumentMetadata: CallArgumentMetadata[],
-    returnAttributes: PointerAttributes,
-}
-
-enum MemoryAccessKind {
-    Read,
-    Write,
-    ReadWrite,
-    ReadModifyWrite,
-    Fence,
-    PrefetchRead,
-    PrefetchWrite,
-}
-
-enum MemoryAccessTarget {
-    Pointer(Value),
-    Local(LocalNodeId<Local>),
-    Global(LocalNodeId<Global>),
-    Unknown,
-}
-
-type AddressSpaceSet = AddressSpace[]
-
-struct MemoryAccessMetadata {
-    kind: MemoryAccessKind,
-    target: MemoryAccessTarget,
-    size: u64 | null,
-    alignment: u32 | null,
-    isVolatile: bool,
-    isInvariant: bool,
-    isNonTemporal: bool,
-    ordering: MemoryOrdering | null,
-    addressSpace: AddressSpace | null,
-    aliasScopes: AliasScopeId[],
-    noaliasScopes: AliasScopeId[],
-    tbaaTag: TbaaTagId | null,
-}
-```
-
-`MemoryOrdering` follows the atomic ordering definitions in the instruction section.
-`AddressSpace` follows the reference type address space definitions.
-`MemoryLocationSet` summarizes effect regions, while `addressSpaces` optionally refines which address spaces may be accessed.
-Per-access address space is recorded in `MemoryAccessMetadata.addressSpace`.
+Functions may carry optional kernel metadata for GPU and accelerator execution.
+The execution model defines the pipeline stage for graphics and compute pipelines.
+Compute kernels may specify a fixed workgroup size as `[x, y, z]`.
+Stages include `compute`, `vertex`, `fragment`, `task`, `mesh`, `raygen`, `any_hit`, `closest_hit`, `miss`, `intersection`, and `callable`.
 
 ### Metadata Invariants
 
@@ -326,6 +206,7 @@ These invariants keep metadata sound for optimization and codegen.
 - Memory effects: `inaccessibleMemOnly` implies `locations` is `INACCESSIBLE` or `NONE`.
 - Memory effects: `nosync` implies the operation does not perform atomic or fence operations.
 - Memory access: `ordering` is only set for atomic accesses.
+- Memory access: `scope`, `memory_scope`, and `semantics` are only set for atomic accesses.
 - Memory access: `isInvariant` is only set for read only accesses.
 - Memory access: `isVolatile` implies the access cannot be eliminated or reordered.
 - Type layout: `fieldOffsets` length matches the field or element count for the type.
@@ -370,6 +251,7 @@ They have no function body: each backend implements them specially.
 | Pointer ops | `transmute`, `addrspace.cast`, `ptr_offset_from`, `raw_eq` |
 | Memory | `memcpy`, `memmove`, `memset`, `volatile.load` |
 | Atomics | `atomic.load`, `atomic.cas`, `atomic.fetch.add`, etc. |
+| Barriers | `atomic.fence`, `barrier` |
 | Float math | `sqrt`, `sin`, `cos`, `pow`, `floor`, etc. |
 | GC barriers | `gc.write_barrier`, `gc.read_barrier` |
 | Control | `unreachable`, `abort`, `breakpoint` |
@@ -377,6 +259,9 @@ They have no function body: each backend implements them specially.
 
 Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
 The VM handles these; native codegen never sees them.
+Atomic and barrier intrinsics require explicit ordering, execution scope, memory scope, and memory semantics.
+Memory semantics describe which memory locations participate in the synchronization.
+Memory semantics may also include `volatile`, `make_available`, and `make_visible` flags.
 
 ### Integer Arithmetic Semantics
 
@@ -392,35 +277,37 @@ Checked arithmetic can be modeled explicitly with `add.overflow` and related int
 
 ## Types
 
-MIR types are concrete and fully resolved (no generics, no inference):
-
-```ds
-newtype Type =
-    | Void
-    | Boolean
-    | Int { width: uint16, signed: bool }
-    | Isize
-    | Usize
-    | Float { width: uint16 }
-    | TypeTag
-    | Reference { kind: ReferenceKind, addressSpace: AddressSpace, mutability: Mutability, pointee: Type, isNullable: bool }
-    | Array { element: Type, length: uint64 }
-    | Tuple { elements: Type[] }
-    | Struct { fields: Field[] }
-    | FunctionPointer { parameters: Type[], result: Type }
-```
-
+MIR types are concrete and fully resolved (no generics, no inference).
 Structs include byte offsets for each field.
 Layout is computed against a target data layout.
-This makes MIR "machine-level" while remaining target flexible.
+This makes MIR machine-level while remaining target flexible.
+
+Copyability encodes whether values are trivial or linear.
+Aggregate types store copyability explicitly to avoid recomputation.
 
 Pointer sized integer types are modeled explicitly.
 `isize` is a signed integer with the target pointer width.
 `usize` is an unsigned integer with the target pointer width.
 Their concrete widths are resolved from the target data layout.
 
-`TypeTag` is an opaque handle that points to a `TypeDescriptor` record.
+`Type` is an opaque handle that points to a runtime type descriptor record.
 It is pointer sized and comparable for equality.
+
+Vector types represent fixed-width SIMD values.
+Use `vector<T, N>` in MIR text to denote an element type `T` and lane count `N`.
+Vectors model SIMD lane registers, while tensors model N-dimensional value semantics for accelerator-friendly optimization.
+
+Tensor types represent fixed-shape value-semantic tensors.
+Use `tensor<T, [d0, d1, ...]>` for a tensor of element type `T` and static shape.
+Tensor layouts default to `row_major` when omitted.
+Use `layout=row_major` for contiguous row-major tensors.
+Use `layout=column_major` for contiguous column-major tensors.
+Use `layout=strided([s0, s1, ...])` for explicit strides.
+
+Tensor view types represent reference-like views into tensor-shaped memory.
+Use `tensor_view<kind addrspace(space) mut T, [d0, d1, ...], layout=...>` in MIR text.
+The `kind` is one of `managed`, `owned`, `borrowed`, or `raw`.
+The `mut` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
 
 References carry a kind _and_ mutability:
 - `managed` for auto-managed references
@@ -464,7 +351,7 @@ ref<raw addrspace(shared) i32>
 ref<raw addrspace(7) mut i32>
 ```
 
-Non generic address spaces are only valid for borrowed and raw references.
+Non generic address spaces are only valid for borrowed and raw references, including tensor views.
 `addrspace(constant)` references are always immutable.
 `addrspace(generic)` is the default and is omitted in canonical MIR formatting.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
@@ -537,29 +424,46 @@ This makes some documentation and tests much more readable.
 
 ## Functions and Globals
 
-Functions contain basic blocks forming a CFG:
+Functions contain basic blocks forming a CFG.
+Imported functions have no body (`entry: None`, empty blocks).
+The `allocation` field lets us mark functions as realtime-safe (no GC) or embedded-safe (stack only).
+The `execution_model`, `execution_stage`, and `workgroup_size` fields mark GPU kernels and their dispatch shape when applicable.
+The execution model identifies the pipeline category: `kernel`, `graphics`, or `ray_tracing`.
+The execution stage identifies the stage within that pipeline, such as `vertex`, `fragment`, `task`, `mesh`, or `raygen`.
+Workgroup size accepts one to three dimensions; omitted dimensions default to `1`.
+The MIR text format accepts Rust-style attributes before items.
 
-```ds
-struct Function {
-    name: StringId,
-    parameters: TypedValue[],
-    returnType: LocalNodeId<Type>,
-    memoryEffects: MemoryEffect | null,
-    callBehavior: CallBehavior | null,
-    allocSize: AllocSize | null,
-    parameterAttributes: PointerAttributes[],
-    returnAttributes: PointerAttributes,
-    linkage: Linkage,
-    allocation: AllocationMode,  // Any, NoManaged, StackOnly
-    coroutine: CoroutineKind | null, // Generator, Async, AsyncGenerator
-    locals: LocalNodeId<Local>[],
-    blocks: LocalNodeId<Block>[],
-    entry: LocalNodeId<Block> | null,
+```mir
+#[execution_model(kernel)]
+#[workgroup_size(8, 1, 1)]
+function @kernel() -> void {
+block0:
+    return
 }
 ```
 
-Imported functions have no body (`entry: None`, empty blocks).
-The `allocation` field lets us mark functions as realtime-safe (no GC) or embedded-safe (stack only).
+## Attributes
+
+Attributes can be attached to functions, globals, type aliases, and struct fields.
+They use Rust-style syntax and support bare, value, and key-value forms.
+Attributes always apply to the next item or field in the text stream.
+The supported forms are `#[name]`, `#[name(value)]`, and `#[name(key=value, ...)]`.
+Attribute values support identifiers, integers, floats, strings, and lists.
+
+```mir
+#[execution_model(graphics)]
+#[execution_stage(vertex)]
+function @vertex_main() -> void {
+block0:
+    return
+}
+
+#[packed]
+type @Point = { #[offset(0)] x: i32, #[offset(4)] y: i32 }
+
+#[section(".rodata")]
+global @Message: ref<managed @String> = "hello" ; const
+```
 
 ### Linkage
 
@@ -598,7 +502,7 @@ MIR just sees the `Yield` terminator and knows the function is a coroutine:
 
 ```mir
 block0:
-    v0 = call @compute_next() -> fn() -> i32
+    v0: i32 = call @compute_next() -> fn() -> i32
     yield v0, block1
 
 block1(v1: i32):    // resumed with value from .next(arg) or resolved promise

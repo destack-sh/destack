@@ -1,5 +1,3 @@
-//! MIR local variables (stack slots).
-
 use serde::{Deserialize, Serialize};
 
 use crate::{LocalNodeId, Mutability, Node, NodeType, Type};

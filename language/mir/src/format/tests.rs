@@ -1,6 +1,6 @@
 use crate::{
-    AddressSpace, Constant, GlobalInitializer, MirFormatOptions, ModuleBuilder, Mutability,
-    ReferenceKind, format_mir,
+    AddressSpace, Constant, ExecutionModel, ExecutionStage, GlobalInitializer, MirFormatOptions,
+    ModuleBuilder, Mutability, ReferenceKind, format_mir,
 };
 
 /// Simple add function with two parameters.
@@ -27,7 +27,7 @@ fn test_format_simple_add() {
     let expected = "\
 function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }";
     assert_eq!(output, expected);
@@ -59,9 +59,9 @@ fn test_format_with_locals() {
 function @with_locals() -> i64 {
     local0: i64 ; owned, mut
 block0:
-    v0 = iconst 42i64
+    v0: i64 = iconst 42i64
     local.set local0, v0
-    v1 = local.get local0
+    v1: i64 = local.get local0
     return v1
 }";
     assert_eq!(output, expected);
@@ -99,7 +99,67 @@ fn test_format_local_addr() {
 function @local_addr() -> void {
     local0: i32 ; owned, mut
 block0:
-    v0 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
+    v0: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// Function with kernel metadata.
+#[test]
+fn test_format_function_metadata() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let void_type = module.type_void();
+
+    // build kernel function
+    let mut builder = module.function("kernel", &[], void_type);
+    builder.set_execution_model(ExecutionModel::Kernel);
+    builder.set_workgroup_size([8, 1, 1]);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+#[execution_model(kernel)]
+#[workgroup_size(8, 1, 1)]
+function @kernel() -> void {
+block0:
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// Function with graphics stage metadata.
+#[test]
+fn test_format_function_stage_metadata() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let void_type = module.type_void();
+
+    // build graphics entry point
+    let mut builder = module.function("vertex_main", &[], void_type);
+    builder.set_execution_model(ExecutionModel::Graphics);
+    builder.set_execution_stage(ExecutionStage::Vertex);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+#[execution_model(graphics)]
+#[execution_stage(vertex)]
+function @vertex_main() -> void {
+block0:
     return
 }";
     assert_eq!(output, expected);
@@ -154,10 +214,10 @@ function @select(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block3
 block3:
     return v1
@@ -218,7 +278,7 @@ fn test_format_ssa_variable() {
     let expected = "\
 function @var_test() -> i32 {
 block0:
-    v0 = iconst 10i32
+    v0: i32 = iconst 10i32
     return v0
 }";
     assert_eq!(output, expected);
@@ -262,10 +322,10 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; mut
 function @increment() -> void {
 block0:
-    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
-    v1 = load v0 -> i32
-    v2 = iconst 1i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v1: i32 = load v0
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v1, v2
     store v0, v3
     return
 }";
@@ -303,7 +363,7 @@ fn test_format_global_constant() {
 global @MAGIC: i64 = 42i64 ; const
 function @get_magic() -> i64 {
 block0:
-    v0 = global.const @MAGIC
+    v0: i64 = global.const @MAGIC
     return v0
 }";
     assert_eq!(output, expected);

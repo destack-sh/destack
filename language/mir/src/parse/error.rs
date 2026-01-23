@@ -1,5 +1,3 @@
-//! MIR parse errors.
-
 use std::fmt;
 
 use super::token::TokenType;

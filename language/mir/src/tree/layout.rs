@@ -1,16 +1,4 @@
-//! Type layout calculation for memory layout.
-//!
-//! This module computes the size, alignment, and field/element offsets for
-//! MIR types. Layout is target-dependent, primarily influenced by pointer size.
-//!
-//! The layout computation follows C-like rules:
-//! - Scalars are naturally aligned (alignment == size)
-//! - Structs are aligned to their most-aligned field
-//! - Struct fields are placed at the next aligned offset
-//! - Arrays are aligned to their element type
-//! - Tuples are laid out like structs
-
-use crate::{Field, LocalNodeId, NodeTree, Type};
+use crate::{Field, LocalNodeId, NodeTree, TensorDimension, TensorLayout, Type};
 
 /// Computed layout information for a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +84,76 @@ pub(crate) fn compute_type_layout(
             fields,
             copyability: _,
         } => compute_struct_layout_from_fields(tree, fields, pointer_bytes),
+
+        Type::Vector {
+            element,
+            lanes,
+            copyability: _,
+        } => {
+            let element_layout = compute_type_layout(tree, *element, pointer_bytes);
+            let size = element_layout.size * (*lanes);
+            TypeLayout::new(size, element_layout.alignment)
+        }
+
+        Type::Tensor {
+            element,
+            shape,
+            layout,
+            copyability: _,
+        } => {
+            let element_layout = compute_type_layout(tree, *element, pointer_bytes);
+            let element_count = compute_tensor_element_count(shape, layout);
+            if let Some(element_count) = element_count {
+                let size = element_layout.size * (element_count as u32);
+                TypeLayout::new(size, element_layout.alignment)
+            } else {
+                TypeLayout::natural(pointer_bytes as u32)
+            }
+        }
+
+        Type::TensorView { .. } => TypeLayout::natural(pointer_bytes as u32),
+    }
+}
+
+/// Compute the number of elements in a tensor.
+fn compute_tensor_element_count(
+    shape: &[TensorDimension],
+    layout: &TensorLayout,
+) -> Option<u64> {
+    if shape.iter().any(|dim| dim.is_dynamic()) {
+        return None;
+    }
+    match layout {
+        TensorLayout::RowMajor | TensorLayout::ColumnMajor => {
+            Some(shape.iter().filter_map(static_dim).product())
+        }
+        TensorLayout::Strided { strides } => {
+            if strides.iter().any(|stride| stride.is_dynamic()) {
+                return None;
+            }
+            let mut max_index = 0u64;
+            for (dim, stride) in shape
+                .iter()
+                .filter_map(static_dim)
+                .zip(strides.iter().filter_map(static_dim))
+            {
+                if dim == 0 {
+                    continue;
+                }
+                let last_index = dim - 1;
+                let offset = last_index.saturating_mul(stride);
+                max_index = max_index.max(offset);
+            }
+            Some(max_index.saturating_add(1))
+        }
+    }
+}
+
+/// Extract the static dimension size from a tensor dimension.
+fn static_dim(dim: &TensorDimension) -> Option<u64> {
+    match dim {
+        TensorDimension::Static(value) => Some(*value),
+        TensorDimension::Dynamic => None,
     }
 }
 

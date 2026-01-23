@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_base::Arena;
@@ -5,8 +6,8 @@ use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentSlice, Block, DebugInfoTable, Field, Function, Global, Instruction, Local, LocalNodeId,
-    MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
+    ArgumentSlice, Attribute, Block, DebugInfoTable, Field, Function, Global, Instruction, Local,
+    LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
 };
 
 /// MIR node tree for a single module.
@@ -22,6 +23,8 @@ pub struct NodeTree {
     pub(crate) local_id_by_node_id: Vec<u32>,
     /// Maps global node id → node type.
     pub(crate) node_type_by_node_id: Vec<NodeType>,
+    /// Maps global node id → attached attributes.
+    pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
 
     // node arenas
     pub(crate) functions: Arena<Function>,
@@ -87,6 +90,7 @@ impl NodeTree {
             next_global_id: 0,
             local_id_by_node_id: Vec::with_capacity(capacity),
             node_type_by_node_id: Vec::with_capacity(capacity),
+            attributes_by_node_id: HashMap::with_capacity(capacity),
 
             functions: Arena::new(),
             blocks: Arena::new(),
@@ -143,6 +147,97 @@ impl NodeTree {
         LocalNodeId::new(global_id)
     }
 
+    /// Insert a type node into the tree and update the type cache.
+    pub fn insert_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+        // determine the cache entry before moving the type
+        let cache_entry = TypeTable::cache_entry_for_type(&ty);
+        let type_id = self.insert(ty);
+
+        // register the type in the cache
+        if let Some(entry) = cache_entry {
+            self.type_table.register_type_entry(type_id, entry);
+        }
+
+        type_id
+    }
+
+    /// Insert a type node into the tree with a source DIR id and update the type cache.
+    pub fn insert_type_from(&mut self, ty: Type, source_dir_id: u32) -> LocalNodeId<Type> {
+        // determine the cache entry before moving the type
+        let cache_entry = TypeTable::cache_entry_for_type(&ty);
+        let type_id = self.insert_from(ty, source_dir_id);
+
+        // register the type in the cache
+        if let Some(entry) = cache_entry {
+            self.type_table.register_type_entry(type_id, entry);
+        }
+
+        type_id
+    }
+
+    /// Return the boolean type id.
+    pub fn boolean_type(&self) -> LocalNodeId<Type> {
+        // require a cached boolean type
+        match self.type_table.boolean_type() {
+            Some(type_id) => type_id,
+            None => panic!("missing boolean type id in MIR type cache"),
+        }
+    }
+
+    /// Return the void type id.
+    pub fn void_type(&self) -> LocalNodeId<Type> {
+        // require a cached void type
+        match self.type_table.void_type() {
+            Some(type_id) => type_id,
+            None => panic!("missing void type id in MIR type cache"),
+        }
+    }
+
+    /// Return the type tag type id.
+    pub fn type_tag_type(&self) -> LocalNodeId<Type> {
+        // require a cached type tag type
+        match self.type_table.type_tag_type() {
+            Some(type_id) => type_id,
+            None => panic!("missing type tag type id in MIR type cache"),
+        }
+    }
+
+    /// Return the isize type id.
+    pub fn isize_type(&self) -> LocalNodeId<Type> {
+        // require a cached isize type
+        match self.type_table.isize_type() {
+            Some(type_id) => type_id,
+            None => panic!("missing isize type id in MIR type cache"),
+        }
+    }
+
+    /// Return the usize type id.
+    pub fn usize_type(&self) -> LocalNodeId<Type> {
+        // require a cached usize type
+        match self.type_table.usize_type() {
+            Some(type_id) => type_id,
+            None => panic!("missing usize type id in MIR type cache"),
+        }
+    }
+
+    /// Return an integer type id for width and signedness.
+    pub fn int_type(&self, width: u16, signed: bool) -> LocalNodeId<Type> {
+        // require a cached integer type
+        match self.type_table.int_type(width, signed) {
+            Some(type_id) => type_id,
+            None => panic!("missing int type id for width {width} signed {signed}"),
+        }
+    }
+
+    /// Return a float type id for width.
+    pub fn float_type(&self, width: u16) -> LocalNodeId<Type> {
+        // require a cached float type
+        match self.type_table.float_type(width) {
+            Some(type_id) => type_id,
+            None => panic!("missing float type id for width {width}"),
+        }
+    }
+
     /// Get a reference to a node by id.
     #[inline]
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
@@ -182,6 +277,43 @@ impl NodeTree {
     #[inline]
     pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
         self.source_id_by_node_id[id as usize] = Some(source_dir_id);
+    }
+
+    /// Get the attributes for a node.
+    #[inline]
+    pub fn attributes<T>(&self, id: LocalNodeId<T>) -> &[Attribute]
+    where
+        T: Node,
+    {
+        self.attributes_by_node_id
+            .get(&id.id)
+            .map(|attrs| attrs.as_slice())
+            .unwrap_or_default()
+    }
+
+    /// Set the attributes for a node.
+    #[inline]
+    pub fn set_attributes<T>(&mut self, id: LocalNodeId<T>, attributes: Vec<Attribute>)
+    where
+        T: Node,
+    {
+        if attributes.is_empty() {
+            self.attributes_by_node_id.remove(&id.id);
+        } else {
+            self.attributes_by_node_id.insert(id.id, attributes);
+        }
+    }
+
+    /// Push a new attribute onto a node.
+    #[inline]
+    pub fn push_attribute<T>(&mut self, id: LocalNodeId<T>, attribute: Attribute)
+    where
+        T: Node,
+    {
+        self.attributes_by_node_id
+            .entry(id.id)
+            .or_default()
+            .push(attribute);
     }
 
     /// Get the span for a node.

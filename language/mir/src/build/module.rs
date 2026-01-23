@@ -4,7 +4,7 @@ use destack_base::{ImmutableStringPool, StringId, StringPool};
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, Copyability, Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability,
-    NodeTree, ReferenceKind, Type, TypedValue, Value,
+    NodeTree, ReferenceKind, TensorDimension, TensorLayout, Type, TypedValue, Value,
 };
 
 use super::FunctionBuilder;
@@ -18,6 +18,7 @@ pub struct ModuleBuilder {
     strings: StringPool,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl ModuleBuilder {
     /// Create a new module builder.
     pub fn new() -> Self {
@@ -51,17 +52,17 @@ impl ModuleBuilder {
 
     /// Create a void type.
     pub fn type_void(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Void)
+        self.tree.insert_type(Type::Void)
     }
 
     /// Create a boolean type.
     pub fn type_bool(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Boolean)
+        self.tree.insert_type(Type::Boolean)
     }
 
     /// Create an integer type.
     pub fn type_int(&mut self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Int {
+        self.tree.insert_type(Type::Int {
             width,
             is_signed: signed,
         })
@@ -69,12 +70,12 @@ impl ModuleBuilder {
 
     /// Create a pointer-sized signed integer type.
     pub fn type_isize(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Isize)
+        self.tree.insert_type(Type::Isize)
     }
 
     /// Create a pointer-sized unsigned integer type.
     pub fn type_usize(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Usize)
+        self.tree.insert_type(Type::Usize)
     }
 
     /// Create a 32-bit signed integer type.
@@ -99,7 +100,7 @@ impl ModuleBuilder {
 
     /// Create a float type.
     pub fn type_float(&mut self, width: u16) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Float { width })
+        self.tree.insert_type(Type::Float { width })
     }
 
     /// Create a 32-bit float type.
@@ -114,7 +115,7 @@ impl ModuleBuilder {
 
     /// Create a type tag handle type.
     pub fn type_type_tag(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Type)
+        self.tree.insert_type(Type::Type)
     }
 
     /// Create a reference type.
@@ -126,7 +127,7 @@ impl ModuleBuilder {
         address_space: AddressSpace,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Reference {
+        self.tree.insert_type(Type::Reference {
             kind,
             address_space,
             mutability,
@@ -201,6 +202,58 @@ impl ModuleBuilder {
         )
     }
 
+    /// Create a vector type.
+    pub fn type_vector(
+        &mut self,
+        element: LocalNodeId<Type>,
+        lanes: u32,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Vector {
+            element,
+            lanes,
+            copyability,
+        })
+    }
+
+    /// Create a tensor type.
+    pub fn type_tensor(
+        &mut self,
+        element: LocalNodeId<Type>,
+        shape: Vec<TensorDimension>,
+        layout: TensorLayout,
+        copyability: Copyability,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Tensor {
+            element,
+            shape,
+            layout,
+            copyability,
+        })
+    }
+
+    /// Create a tensor view type.
+    pub fn type_tensor_view(
+        &mut self,
+        kind: ReferenceKind,
+        element: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+        shape: Vec<TensorDimension>,
+        layout: TensorLayout,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::TensorView {
+            kind,
+            address_space,
+            mutability,
+            element,
+            shape,
+            layout,
+            is_nullable,
+        })
+    }
+
     /// Create an array type with explicit copyability.
     pub fn type_array(
         &mut self,
@@ -208,7 +261,7 @@ impl ModuleBuilder {
         length: u64,
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Array {
+        self.tree.insert_type(Type::Array {
             element,
             length,
             copyability,
@@ -221,7 +274,7 @@ impl ModuleBuilder {
         elements: Vec<LocalNodeId<Type>>,
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Tuple {
+        self.tree.insert_type(Type::Tuple {
             elements,
             copyability,
         })
@@ -233,7 +286,7 @@ impl ModuleBuilder {
         fields: Vec<LocalNodeId<Field>>,
         copyability: Copyability,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Struct {
+        self.tree.insert_type(Type::Struct {
             fields,
             copyability,
         })
@@ -256,7 +309,7 @@ impl ModuleBuilder {
         result: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         self.tree
-            .insert(Type::FunctionPointer { parameters, result })
+            .insert_type(Type::FunctionPointer { parameters, result })
     }
 
     // global building

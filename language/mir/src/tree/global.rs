@@ -1,5 +1,3 @@
-//! MIR global data definitions.
-
 use destack_base::StringId;
 use serde::{Deserialize, Serialize};
 

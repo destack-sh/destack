@@ -1,5 +1,3 @@
-//! MIR token types.
-
 /// Token type for MIR text format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {
@@ -50,6 +48,14 @@ pub enum TokenType {
     Ref,
     /// `ref?`
     RefNullable,
+    /// `vector`
+    Vector,
+    /// `tensor`
+    Tensor,
+    /// `tensor_view`
+    TensorView,
+    /// `tensor_view?`
+    TensorViewNullable,
     /// `addrspace`
     AddrSpace,
     /// `fn`
@@ -60,6 +66,8 @@ pub enum TokenType {
     // symbols
     /// `@`
     At,
+    /// `#`
+    Hash,
     /// `(`
     OpenParen,
     /// `)`

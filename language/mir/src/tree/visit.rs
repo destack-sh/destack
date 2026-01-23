@@ -1,5 +1,3 @@
-//! MIR node visitor trait.
-
 #![allow(unused_variables)]
 
 use crate::{

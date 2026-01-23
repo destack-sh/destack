@@ -1,6 +1,9 @@
 use destack_base::StringId;
 
-use crate::{AddressSpace, Copyability, Field, LocalNodeId, Mutability, ReferenceKind, Type};
+use crate::{
+    AddressSpace, Attribute, Copyability, Field, LocalNodeId, Mutability, ReferenceKind,
+    TensorDimension, TensorLayout, Type,
+};
 
 /// Interning key for struct fields.
 /// Captures the structural identity of a field for deduplication during parsing.
@@ -12,15 +15,18 @@ pub(super) struct FieldKey {
     ty: LocalNodeId<Type>,
     /// Byte offset within the struct.
     offset: u32,
+    /// Attributes attached to the field.
+    attributes: Vec<Attribute>,
 }
 
 impl FieldKey {
     /// Create a key from a field definition.
-    pub(super) fn from_field(field: &Field) -> Self {
+    pub(super) fn from_field(field: &Field, attributes: &[Attribute]) -> Self {
         Self {
             name: field.name,
             ty: field.ty,
             offset: field.offset,
+            attributes: attributes.to_vec(),
         }
     }
 }
@@ -66,6 +72,29 @@ pub(super) enum TypeKey {
     Struct {
         fields: Vec<LocalNodeId<Field>>,
         copyability: Copyability,
+    },
+    /// Fixed-width SIMD vector.
+    Vector {
+        element: LocalNodeId<Type>,
+        lanes: u32,
+        copyability: Copyability,
+    },
+    /// Tensor value type.
+    Tensor {
+        element: LocalNodeId<Type>,
+        shape: Vec<TensorDimension>,
+        layout: TensorLayout,
+        copyability: Copyability,
+    },
+    /// Tensor view type.
+    TensorView {
+        kind: ReferenceKind,
+        address_space: AddressSpace,
+        mutability: Mutability,
+        element: LocalNodeId<Type>,
+        shape: Vec<TensorDimension>,
+        layout: TensorLayout,
+        is_nullable: bool,
     },
     /// Function pointer signature.
     FunctionPointer {
@@ -127,6 +156,43 @@ impl TypeKey {
             } => TypeKey::Struct {
                 fields: fields.clone(),
                 copyability: *copyability,
+            },
+            Type::Vector {
+                element,
+                lanes,
+                copyability,
+            } => TypeKey::Vector {
+                element: *element,
+                lanes: *lanes,
+                copyability: *copyability,
+            },
+            Type::Tensor {
+                element,
+                shape,
+                layout,
+                copyability,
+            } => TypeKey::Tensor {
+                element: *element,
+                shape: shape.clone(),
+                layout: layout.clone(),
+                copyability: *copyability,
+            },
+            Type::TensorView {
+                kind,
+                address_space,
+                mutability,
+                element,
+                shape,
+                layout,
+                is_nullable,
+            } => TypeKey::TensorView {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                element: *element,
+                shape: shape.clone(),
+                layout: layout.clone(),
+                is_nullable: *is_nullable,
             },
 
             Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {

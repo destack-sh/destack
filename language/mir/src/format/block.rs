@@ -1,5 +1,3 @@
-//! Block formatting.
-
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;

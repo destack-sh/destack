@@ -1,5 +1,3 @@
-//! MIR node types and identifiers.
-
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 

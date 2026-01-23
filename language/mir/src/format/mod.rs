@@ -1,5 +1,4 @@
-//! MIR text formatter.
-
+mod attribute;
 mod block;
 mod context;
 mod function;
@@ -11,4 +10,5 @@ mod value;
 #[cfg(test)]
 mod tests;
 
+pub use attribute::*;
 pub use context::*;

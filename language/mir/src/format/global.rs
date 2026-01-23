@@ -1,12 +1,10 @@
-//! Global formatting.
-
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
     Constant, FormatMirNode, Global, GlobalInitializer, Linkage, LocalNodeId, MirFormatter,
-    Mutability,
+    Mutability, format_attribute_lines,
 };
 
 impl<'a> FormatMirNode<'a, Global> for Global {
@@ -15,6 +13,11 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         id: LocalNodeId<Global>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
+        let attributes = f.context().tree.attributes(id);
+        if !attributes.is_empty() {
+            format_attribute_lines(attributes, f)?;
+        }
+
         // resolve the global name before formatting
         let name = f.context().global_name(id).to_string();
 

@@ -67,6 +67,13 @@ pub enum VerifyError {
         /// The anchor for this error.
         anchor: VerifyAnchor,
     },
+    /// A value definition is missing a type entry.
+    MissingValueType {
+        /// The value missing a type.
+        value: Value,
+        /// The anchor for this error.
+        anchor: VerifyAnchor,
+    },
     /// A node reference does not point to the expected node type.
     InvalidNodeReference {
         /// The expected node type.
@@ -207,6 +214,7 @@ impl VerifyError {
             | VerifyError::DuplicateLocalId { anchor, .. }
             | VerifyError::DuplicateInstructionId { anchor, .. }
             | VerifyError::DuplicateValueDefinition { anchor, .. }
+            | VerifyError::MissingValueType { anchor, .. }
             | VerifyError::InvalidNodeReference { anchor, .. }
             | VerifyError::LocalReferenceNotInFunction { anchor, .. }
             | VerifyError::ArgumentSliceOutOfBounds { anchor, .. }
@@ -251,6 +259,9 @@ impl fmt::Display for VerifyError {
             }
             VerifyError::DuplicateValueDefinition { value, .. } => {
                 write!(f, "duplicate value definition v{}", value.id())
+            }
+            VerifyError::MissingValueType { value, .. } => {
+                write!(f, "missing type for value v{}", value.id())
             }
             VerifyError::InvalidNodeReference {
                 expected,
