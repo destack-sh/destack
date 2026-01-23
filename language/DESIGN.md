@@ -459,7 +459,11 @@ const dynamicValue = factorial(getUserInput()); // runtime (in this case, at mod
 ```
 
 Functions are not marked as "comptime" or "runtime" functions, instead, the call site determines when a function runs.
-Static parameters are always "comptime" parameters, while dynamic parameters _may_ be marked `comptime` to require compile-time-known arguments.
+Static parameters support both type parameters and comptime value parameters.
+Value parameters must be marked with `comptime` in the static parameter list.
+The `comptime` modifier on parameters requires static evaluation during Analyze.
+The `comptime` expression keyword evaluates later during Execute.
+Dynamic parameters _may_ be marked `comptime` to require compile-time-known arguments.
 
 Comptime conditions enable branch elimination and, for type relations like `T extends U`, type narrowing:
 
@@ -474,7 +478,7 @@ function process<T, Context: CacheContext<T>>(ctx: Context, key: T) {
 Comptime blocks can also appear as struct/class members for compile-time assertions:
 
 ```
-struct Buffer<size: uint> {
+struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0 && size <= 65536);
     }

@@ -848,24 +848,42 @@ Parameters with defaults are optional at the call site.
 
 ### Static Parameterisation ("Generics")
 
-Static parameters come in two kinds: type parameters and value parameters.
-Type parameters accept type arguments.
-Value parameters accept static expressions and are constrained by value types.
-Value parameters should include a value constraint or a value default so their kind is unambiguous.
-Static arguments are resolved during Analyze, so they must be static expressions and cannot require full comptime execution.
+Static parameters extend TypeScript-style generics with explicit comptime value parameters.
+Type parameters accept type arguments and use TypeScript-style bounds.
+Comptime value parameters accept static expressions and are constrained by value types.
+Value parameters must be explicitly marked with `comptime` in the static parameter list; type annotations alone do not make a parameter a value parameter.
+
+Static arguments are resolved during Analyze.
+They must be static expressions and cannot require full comptime execution.
 Static arguments may reference other static parameters.
-Static value arguments are explicit; they are not inferred from call sites or usage.
-Enum members may be used as static value arguments only when the parameter type is that enum (or a union including it); enum members do not implicitly coerce to their backing types.
-Static value arguments may use any static expression form (including tuple, array, and object expressions) as long as the resulting static value satisfies the declared value type.
-Static value arguments may be inferred from literal argument expressions in the current module when no explicit static argument is provided.
-Inference only uses fully static literal expressions (scalar literals, enum members, tuples, arrays, and objects).
-Non-static expressions, computed values, and cross-module inference do not participate in static value inference.
-Literal array arguments may infer the length when matching fixed-size array types like `T[N]`.
-Tuple literal arguments use Destack's tuple syntax `(a, b)` for inference.
-Static value arguments may reference `const` bindings with static initializers, including imported constants, as long as the resulting value is a static expression.
+Value parameter kinds are explicit and never inferred from usage.
+
+Static value inference is limited and local:
+- Static value arguments may be inferred from literal argument expressions in the current module when no explicit static argument is provided.
+- Inference only uses fully static literal expressions: scalar literals, enum members, tuples, arrays, and objects.
+- Non-static expressions, computed values, and cross-module inference do not participate.
+- Literal array arguments may infer lengths when matching fixed-size array types like `T[N]`.
+- Tuple literal arguments use Destack's tuple syntax `(a, b)` for inference.
+- Enum members may be used only when the parameter type is that enum (or a union including it).
+- Enum members do not implicitly coerce to their backing types.
+
+For example, we can infer the size of an array from a literal argument:
+
+```
+type Buffer<comptime N: number> = uint8[N];
+
+declare function make<comptime N: number>(value: uint8[N]): Buffer<N>;
+
+let value = make([1, 2, 3, 4]);
+value satisfies uint8[4];
+```
+
+Static value arguments may use any static expression form, as long as the resulting static value satisfies the declared value type.
+Static value arguments may reference `const` bindings with static initializers, including imported constants.
 
 Static parameterisation for types works like in TypeScript.
-In Destack, static parameters also work for "compile-time" values and look more like dynamic parameters (though TypeScript syntax with `T extends U` is still supported).
+In Destack, static parameters also work for compile-time values via `comptime` value parameters.
+TypeScript syntax with `T extends U` remains supported for type parameters.
 
 ```
 struct Container<T: any> { // works like T extends any
@@ -880,7 +898,7 @@ function identity<T>(x: T): T {
 Value parameters for compile-time constants:
 
 ```
-function compute<Flag: boolean>(data: uint8[]) {
+function compute<comptime Flag: boolean>(data: uint8[]) {
     if Flag {
         ...
     }
@@ -894,7 +912,7 @@ compute<true>(); // pass the static argument positionally
 Value parameters can drive type construction:
 
 ```
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<4>;
 value satisfies uint8[4];
@@ -1008,7 +1026,7 @@ Comptime blocks inside structs or classes run once per instantiation of the type
 They are useful for compile-time assertions on static parameters:
 
 ```
-struct Buffer<size: uint> {
+struct Buffer<comptime size: uint> {
     comptime {
         assert(size > 0, "buffer size must be positive");
         assert(size <= 65536, "buffer size too large");
@@ -1043,10 +1061,13 @@ const LOOKUP_TABLE: uint8[256] = comptime {
 
 ### Static Parameters
 
-Static parameters ("generics" with support for non-type values) are inherently "comptime":
+Static parameters support both type parameters and comptime value parameters.
+Value parameters must be marked with `comptime` in the static parameter list.
+The `comptime` modifier on parameters requires static evaluation during Analyze.
+The `comptime` expression keyword evaluates later during Execute.
 
 ```
-function repeat<N: int>(value: string): string {
+function repeat<comptime N: int>(value: string): string {
     let result = "";
     for (let i = 0; i < N; i++) { result += value; }
     result

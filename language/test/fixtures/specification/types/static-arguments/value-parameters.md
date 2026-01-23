@@ -1,15 +1,28 @@
 # Static Value Parameters
 
 Tests for static value parameters used in type expressions.
+Static value parameters must be marked with `comptime`.
 
 ## value parameters
+
+### static value parameters require comptime modifiers
+
+> Value parameters must be marked with `comptime`.
+
+```ds
+type Buffer<N: number> = uint8[N];
+
+declare let value: Buffer<4>;
+```
+
+- contains: comptime
 
 ### static value parameters apply to sized arrays
 
 > Value parameters can drive array sizes in type expressions.
 
 ```ds
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<4>;
 
@@ -21,8 +34,8 @@ value satisfies uint8[4];
 > Static value parameters can be passed through type aliases.
 
 ```ds
-type Buffer<N: number> = uint8[N];
-type Outer<M: number> = Buffer<M>;
+type Buffer<comptime N: number> = uint8[N];
+type Outer<comptime M: number> = Buffer<M>;
 
 declare let value: Outer<4>;
 
@@ -34,7 +47,7 @@ value satisfies uint8[4];
 > Default value parameters may reference earlier parameters.
 
 ```ds
-type Buffer<N: number, M: number = N> = uint8[M];
+type Buffer<comptime N: number, comptime M: number = N> = uint8[M];
 
 declare let value: Buffer<4>;
 
@@ -46,7 +59,7 @@ value satisfies uint8[4];
 > Value parameters accept string literal static arguments.
 
 ```ds
-type Tagged<Tag: string> = { tag: Tag };
+type Tagged<comptime Tag: string> = { tag: Tag };
 
 declare let value: Tagged<"alpha">;
 value satisfies Tagged<"alpha">;
@@ -57,7 +70,7 @@ value satisfies Tagged<"alpha">;
 > Value parameters accept boolean literal static arguments.
 
 ```ds
-type Flagged<Enabled: boolean> = { enabled: Enabled };
+type Flagged<comptime Enabled: boolean> = { enabled: Enabled };
 
 declare let value: Flagged<true>;
 value satisfies Flagged<true>;
@@ -68,7 +81,7 @@ value satisfies Flagged<true>;
 > Value parameters accept bigint literal static arguments.
 
 ```ds
-type BigLimit<N: bigint> = { limit: N };
+type BigLimit<comptime N: bigint> = { limit: N };
 
 declare let value: BigLimit<42n>;
 value satisfies BigLimit<42n>;
@@ -79,7 +92,7 @@ value satisfies BigLimit<42n>;
 > Value parameters accept static arithmetic expressions.
 
 ```ds
-type Buffer<N: int32> = uint8[N];
+type Buffer<comptime N: int32> = uint8[N];
 
 declare let value: Buffer<2 + 2>;
 value satisfies uint8[4];
@@ -90,7 +103,7 @@ value satisfies uint8[4];
 > Value parameters accept literal unions of strings.
 
 ```ds
-type Tagged<Tag: "fast" | "slow"> = { tag: Tag };
+type Tagged<comptime Tag: "fast" | "slow"> = { tag: Tag };
 
 declare let value: Tagged<"fast">;
 value satisfies Tagged<"fast">;
@@ -101,7 +114,7 @@ value satisfies Tagged<"fast">;
 > Literal unions reject values outside the union.
 
 ```ds
-type Tagged<Tag: "fast" | "slow"> = { tag: Tag };
+type Tagged<comptime Tag: "fast" | "slow"> = { tag: Tag };
 
 declare let value: Tagged<"medium">;
 ```
@@ -113,7 +126,7 @@ declare let value: Tagged<"medium">;
 > String value parameters reject non string arguments.
 
 ```ds
-type Tagged<Tag: string> = { tag: Tag };
+type Tagged<comptime Tag: string> = { tag: Tag };
 
 declare let value: Tagged<1>;
 ```
@@ -125,7 +138,7 @@ declare let value: Tagged<1>;
 > Boolean value parameters reject non boolean arguments.
 
 ```ds
-type Flagged<Enabled: boolean> = { enabled: Enabled };
+type Flagged<comptime Enabled: boolean> = { enabled: Enabled };
 
 declare let value: Flagged<1>;
 ```
@@ -137,7 +150,7 @@ declare let value: Flagged<1>;
 > Bigint value parameters reject non bigint arguments.
 
 ```ds
-type BigLimit<N: bigint> = { limit: N };
+type BigLimit<comptime N: bigint> = { limit: N };
 
 declare let value: BigLimit<1>;
 ```
@@ -151,7 +164,7 @@ declare let value: BigLimit<1>;
 ```ds
 let size = 4;
 
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<size>;
 ```
@@ -168,7 +181,7 @@ enum Mode {
     Slow = "slow"
 }
 
-type Run<M: Mode> = { mode: M };
+type Run<comptime M: Mode> = { mode: M };
 
 declare let value: Run<Mode.Fast>;
 value satisfies Run<Mode.Fast>;
@@ -188,7 +201,7 @@ export enum Mode {
 ```ds:main.ds
 import { Mode } from "./utils.ds";
 
-type Run<M: Mode> = { mode: M };
+type Run<comptime M: Mode> = { mode: M };
 
 declare let value: Run<Mode.Fast>;
 value satisfies Run<Mode.Fast>;
@@ -204,7 +217,7 @@ enum Mode {
     Slow = 2
 }
 
-type Run<N: int32> = { value: N };
+type Run<comptime N: int32> = { value: N };
 
 declare let value: Run<Mode.Fast>;
 ```
@@ -216,7 +229,7 @@ declare let value: Run<Mode.Fast>;
 > Tuple static expressions may be used as value arguments.
 
 ```ds
-type Sized<Size: (int32, int32)> = { size: Size };
+type Sized<comptime Size: (int32, int32)> = { size: Size };
 
 declare let value: Sized<(4, 8)>;
 value satisfies Sized<(4, 8)>;
@@ -227,7 +240,7 @@ value satisfies Sized<(4, 8)>;
 > Tuple static arguments must match the declared tuple type.
 
 ```ds
-type Sized<Size: (int32, int32)> = { size: Size };
+type Sized<comptime Size: (int32, int32)> = { size: Size };
 
 declare let value: Sized<(4, "no")>;
 ```
@@ -239,7 +252,7 @@ declare let value: Sized<(4, "no")>;
 > Array static expressions may be used as value arguments.
 
 ```ds
-type Listed<Values: int32[]> = { values: Values };
+type Listed<comptime Values: int32[]> = { values: Values };
 
 declare let value: Listed<[1, 2, 3]>;
 value satisfies Listed<[1, 2, 3]>;
@@ -250,7 +263,7 @@ value satisfies Listed<[1, 2, 3]>;
 > Array static arguments must match the declared element type.
 
 ```ds
-type Listed<Values: int32[]> = { values: Values };
+type Listed<comptime Values: int32[]> = { values: Values };
 
 declare let value: Listed<[1, true]>;
 ```
@@ -262,7 +275,7 @@ declare let value: Listed<[1, true]>;
 > Object static expressions may be used as value arguments.
 
 ```ds
-type Tagged<Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
 
 declare let value: Tagged<{ name: "alpha", count: 1 }>;
 value satisfies Tagged<{ name: "alpha", count: 1 }>;
@@ -273,7 +286,7 @@ value satisfies Tagged<{ name: "alpha", count: 1 }>;
 > Object static arguments must match the declared shape.
 
 ```ds
-type Tagged<Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
 
 declare let value: Tagged<{ name: "alpha", count: true }>;
 ```
@@ -285,9 +298,9 @@ declare let value: Tagged<{ name: "alpha", count: true }>;
 > Literal arguments can infer value parameters.
 
 ```ds
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
-declare function make<N: number>(value: uint8[N]): Buffer<N>;
+declare function make<comptime N: number>(value: uint8[N]): Buffer<N>;
 
 let value = make([1, 2, 3, 4]);
 value satisfies uint8[4];
@@ -298,9 +311,9 @@ value satisfies uint8[4];
 > Boolean literal arguments infer boolean value parameters.
 
 ```ds
-type Flagged<Enabled: boolean> = { enabled: Enabled };
+type Flagged<comptime Enabled: boolean> = { enabled: Enabled };
 
-declare function make<Enabled: boolean>(value: Enabled): Flagged<Enabled>;
+declare function make<comptime Enabled: boolean>(value: Enabled): Flagged<Enabled>;
 
 let value = make(true);
 value satisfies Flagged<true>;
@@ -311,9 +324,9 @@ value satisfies Flagged<true>;
 > String literal arguments infer string value parameters.
 
 ```ds
-type Tagged<Tag: string> = { tag: Tag };
+type Tagged<comptime Tag: string> = { tag: Tag };
 
-declare function make<Tag: string>(value: Tag): Tagged<Tag>;
+declare function make<comptime Tag: string>(value: Tag): Tagged<Tag>;
 
 let value = make("alpha");
 value satisfies Tagged<"alpha">;
@@ -324,9 +337,9 @@ value satisfies Tagged<"alpha">;
 > Number literal arguments infer number value parameters.
 
 ```ds
-type Sized<N: number> = { size: N };
+type Sized<comptime N: number> = { size: N };
 
-declare function make<N: number>(value: N): Sized<N>;
+declare function make<comptime N: number>(value: N): Sized<N>;
 
 let value = make(4);
 value satisfies Sized<4>;
@@ -337,9 +350,9 @@ value satisfies Sized<4>;
 > Bigint literal arguments infer bigint value parameters.
 
 ```ds
-type Sized<N: bigint> = { size: N };
+type Sized<comptime N: bigint> = { size: N };
 
-declare function make<N: bigint>(value: N): Sized<N>;
+declare function make<comptime N: bigint>(value: N): Sized<N>;
 
 let value = make(4n);
 value satisfies Sized<4n>;
@@ -350,9 +363,9 @@ value satisfies Sized<4n>;
 > Tuple literals can infer tuple value parameters.
 
 ```ds
-type Sized<Size: (int32, int32)> = { size: Size };
+type Sized<comptime Size: (int32, int32)> = { size: Size };
 
-declare function make<Size: (int32, int32)>(value: Size): Sized<Size>;
+declare function make<comptime Size: (int32, int32)>(value: Size): Sized<Size>;
 
 let value = make((4, 8));
 value satisfies Sized<(4, 8)>;
@@ -363,9 +376,9 @@ value satisfies Sized<(4, 8)>;
 > Object literals can infer object value parameters.
 
 ```ds
-type Tagged<Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
 
-declare function make<Tag: { name: string, count: int32 }>(value: Tag): Tagged<Tag>;
+declare function make<comptime Tag: { name: string, count: int32 }>(value: Tag): Tagged<Tag>;
 
 let value = make({ name: "alpha", count: 1 });
 value satisfies Tagged<{ name: "alpha", count: 1 }>;
@@ -381,9 +394,9 @@ enum Mode {
     Slow = "slow"
 }
 
-type Run<M: Mode> = { mode: M };
+type Run<comptime M: Mode> = { mode: M };
 
-declare function make<M: Mode>(value: M): Run<M>;
+declare function make<comptime M: Mode>(value: M): Run<M>;
 
 let value = make(Mode.Fast);
 value satisfies Run<Mode.Fast>;
@@ -396,7 +409,7 @@ value satisfies Run<Mode.Fast>;
 ```ds
 const SIZE = 4;
 
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<SIZE>;
 value satisfies uint8[4];
@@ -413,7 +426,7 @@ export const SIZE = 4;
 ```ds:main.ds
 import { SIZE } from "./utils.ds";
 
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<SIZE>;
 value satisfies uint8[4];
@@ -424,9 +437,9 @@ value satisfies uint8[4];
 > Non literal arguments do not infer value parameters.
 
 ```ds
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
-declare function make<N: number>(value: uint8[N]): Buffer<N>;
+declare function make<comptime N: number>(value: uint8[N]): Buffer<N>;
 
 let data = [1, 2, 3, 4];
 let value = make(data);
@@ -445,7 +458,7 @@ function size(): int32 {
 
 const SIZE = size();
 
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<SIZE>;
 ```
