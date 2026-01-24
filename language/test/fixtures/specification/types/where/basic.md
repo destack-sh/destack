@@ -14,13 +14,13 @@ function process<T>(value: T): T where T: Copy {
 }
 ```
 
-### multiple constraints are allowed
+### multiple constraints accept satisfying arguments
 
-> Multiple where assertions are accepted.
+> Where constraints allow compatible type arguments.
 
 ```ds
-interface Copy {}
-interface Mergeable {}
+interface Copy { copy(): void; }
+interface Mergeable { merge(): void; }
 
 function merge<T, U>(value: T, other: U): T where (
     T: Copy,
@@ -30,14 +30,18 @@ function merge<T, U>(value: T, other: U): T where (
     other;
     return value;
 }
+
+const value: Copy = { copy() {} };
+const other: Mergeable = { merge() {} };
+merge<Copy, Mergeable>(value, other);
 ```
 
-### _constraint rejects unsatisfied type arguments
+### constraint rejects unsatisfied type arguments
 
 > Type arguments must satisfy where constraints.
 
 ```ds
-interface Copy {}
+interface Copy { copy(): void; }
 interface NotCopy {}
 
 function process<T>(value: T): T where T: Copy {
@@ -48,15 +52,15 @@ const value: NotCopy = {};
 process<NotCopy>(value);
 ```
 
-- contains: constraint
+- contains: not assignable
 
-### _multiple constraints reject unsatisfied arguments
+### multiple constraints reject unsatisfied arguments
 
 > Each where constraint must be satisfied.
 
 ```ds
-interface Copy {}
-interface Mergeable {}
+interface Copy { copy(): void; }
+interface Mergeable { merge(): void; }
 
 function merge<T, U>(value: T, other: U): T where (
     T: Copy,
@@ -67,9 +71,9 @@ function merge<T, U>(value: T, other: U): T where (
     return value;
 }
 
-const value: Copy = {};
-const other: Copy = {};
+const value: Copy = { copy() {} };
+const other: Copy = { copy() {} };
 merge<Copy, Copy>(value, other);
 ```
 
-- contains: constraint
+- contains: not assignable
