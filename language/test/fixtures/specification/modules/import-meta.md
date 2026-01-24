@@ -84,12 +84,3 @@ const prod: boolean = import.meta.env.PROD;
 const test: boolean = import.meta.env.TEST;
 const value: string | undefined = import.meta.env.CUSTOM_KEY;
 ```
-
-### import.meta is invalid in scripts
-
-> `import.meta` is only available in modules.
-
-```js:main.cjs
-import.meta;
-```
-

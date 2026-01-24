@@ -368,6 +368,8 @@ fn apply_dsconfig_for_spec(
         // build a default dsconfig for js output
         let file_id = program.files.next_id();
         let mut options = DsConfigOptions::default();
+        options.compiler.check_ts = true;
+        options.compiler.check_js = true;
         let target = DsConfigTargetOptions {
             output: OutputFormat::Js,
             ..Default::default()

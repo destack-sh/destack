@@ -21,11 +21,28 @@ import { foo } from "./api";
 export const service = { api: foo() };
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { service } from "./module-b";
 
 service.api.do() satisfies string;
 ```
+
+### export inference tracks inferred function returns
+
+> Export inference tracks function return types inferred from bodies.
+
+```ts:factory.ts
+export function make() {
+    return { ok: true };
+}
+```
+
+```ts:main.ts
+import { make } from "./factory";
+
+make().ok satisfies boolean;
+```
+
 
 ### export inference tracks inferred exports
 
@@ -37,7 +54,7 @@ export let counter = 0;
 export const pinned = 0;
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { config } from "./config";
 import { counter } from "./config";
 import { pinned } from "./config";
@@ -47,6 +64,7 @@ config.label satisfies string;
 counter satisfies number;
 pinned satisfies 0;
 ```
+
 
 ## Fluent Builders
 
@@ -80,7 +98,7 @@ export const server = createServer()
     .build();
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { server } from "./server";
 
 server.invoke("/user/get") satisfies { id: number, name: string };
@@ -116,7 +134,7 @@ export const server = createServer()
     .build();
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { server } from "./server";
 
 server.invoke("/missing");
@@ -138,8 +156,30 @@ export const value = { ok: true };
 export { value } from "./a";
 ```
 
-```ts:c.ts
+```ts:main.ts
 import { value } from "./b";
+
+value.ok satisfies boolean;
+```
+
+### export inference preserves multi-hop reexports
+
+> Multi-hop reexports preserve export inference.
+
+```ts:a.ts
+export const value = { ok: true };
+```
+
+```ts:b.ts
+export { value } from "./a";
+```
+
+```ts:c.ts
+export { value } from "./b";
+```
+
+```ts:main.ts
+import { value } from "./c";
 
 value.ok satisfies boolean;
 ```
@@ -156,7 +196,7 @@ export const value = { ok: true };
 export { value as renamed } from "./a";
 ```
 
-```ts:c.ts
+```ts:main.ts
 import { renamed } from "./b";
 
 renamed.ok satisfies boolean;
@@ -174,7 +214,7 @@ export const value = { ok: true };
 export * from "./a";
 ```
 
-```ts:c.ts
+```ts:main.ts
 import { value } from "./b";
 
 value.ok satisfies boolean;
@@ -192,7 +232,7 @@ export const value = { ok: true };
 export * as ns from "./a";
 ```
 
-```ts:c.ts
+```ts:main.ts
 import { ns } from "./b";
 
 ns.value.ok satisfies boolean;
@@ -212,7 +252,7 @@ export default function make() {
 export { default as make } from "./defaults";
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { make } from "./reexport";
 
 make().ok satisfies boolean;
@@ -230,7 +270,7 @@ export default function make() {
 }
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import make from "./defaults";
 
 make().ok satisfies boolean;
@@ -252,7 +292,7 @@ import * as mod from "./exports";
 export const forwarded = mod.value;
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { forwarded } from "./module-b";
 
 forwarded.ok satisfies boolean;
@@ -260,50 +300,91 @@ forwarded.ok satisfies boolean;
 
 ## Declared Imports
 
-### export inference uses declared imports
+### export inference uses declared import signatures
 
 > Export inference can depend on declared imports.
 
-```ts:builder.d.ts
-export declare const createServer: () => {
+```ts:builder.ts
+export declare const createRouter: () => {
     route: (path: string) => number
 };
 ```
 
 ```ts:server.ts
-import { createServer } from "./builder";
+import { createRouter } from "./builder";
 
-export const server = createServer().route("/user");
+export const routeLength = createRouter().route("/user");
 ```
 
-```ts:consumer.ts
-import { server } from "./server";
+```ts:main.ts
+import { routeLength } from "./server";
 
-server satisfies number;
+routeLength satisfies number;
 ```
 
 ## Export Dependencies
 
-### export inference uses exported imports
+### export inference follows inferred exports
 
 > Export inference may depend on other module export inference.
 
-```ts:builder.ts
-export const createServer = () => ({
+```ts:builder.ts libs=es5
+export const createRouter = () => ({
     route: (path: string) => path.length,
 });
 ```
 
 ```ts:server.ts
-import { createServer } from "./builder";
+import { createRouter } from "./builder";
 
-export const server = createServer().route("/user");
+export const routeLength = createRouter().route("/user");
 ```
 
-```ts:consumer.ts
-import { server } from "./server";
+```ts:main.ts
+import { routeLength } from "./server";
 
-server satisfies number;
+routeLength satisfies number;
+```
+
+### export inference forwards imported values
+
+> Export inference preserves shapes from imported values.
+
+```ts:values.ts
+export const config = { nested: { ok: true } };
+```
+
+```ts:module-b.ts
+import { config } from "./values";
+
+export const shared = config;
+```
+
+```ts:main.ts
+import { shared } from "./module-b";
+
+shared.nested.ok satisfies boolean;
+```
+
+### export inference forwards wrapped imports
+
+> Export inference preserves shapes when imported values are wrapped.
+
+```ts:values.ts
+export const config = { nested: { ok: true } };
+```
+
+```ts:module-b.ts
+import { config } from "./values";
+
+export const shared = { config, extra: true };
+```
+
+```ts:main.ts
+import { shared } from "./module-b";
+
+shared.config.nested.ok satisfies boolean;
+shared.extra satisfies boolean;
 ```
 
 ## Type-only Exports
@@ -320,7 +401,7 @@ export type Options = { strict: boolean };
 export { type Options } from "./types";
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import type { Options } from "./module-b";
 
 const options: Options = { strict: true };
@@ -339,10 +420,28 @@ export type Options = { strict: boolean };
 export { type Options } from "./types";
 ```
 
-```ts:consumer.ts
+```ts:main.ts
 import { Options } from "./module-b";
 
-Options;
+const value = Options;
+```
+
+- contains: type only
+
+## Type-only Imports
+
+### export inference rejects type-only value usage
+
+> Type-only imports do not provide runtime values.
+
+```ts:types.ts
+export type Options = { strict: boolean };
+```
+
+```ts:module-b.ts
+import type { Options } from "./types";
+
+export const value = Options;
 ```
 
 - contains: type only
