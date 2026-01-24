@@ -2451,6 +2451,7 @@ impl Compiler {
                     *right,
                     index_ty_id,
                     literal_string,
+                    static_key,
                     types,
                     include_undefined,
                 )

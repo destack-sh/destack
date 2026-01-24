@@ -7,6 +7,7 @@ use destack_dir::{
     SymbolSpace, SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
     TypeTable, walk_block, walk_declaration, walk_expression,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
@@ -274,7 +275,7 @@ impl Compiler {
                         types,
                         false,
                     );
-                } else {
+                } else if module.language_type.is_destack() {
                     let value_ty = Type::Value {
                         value: instance_ty_id,
                     };
@@ -1705,35 +1706,78 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         #[derive(Debug)]
         struct ExportInference {
-            symbol: GlobalSymbolId,
+            export_symbol: GlobalSymbolId,
             declarator_id: LocalNodeId<Declarator>,
             value_id: Option<LocalNodeId<Expression>>,
         }
+        #[derive(Debug)]
+        struct ExportDeclarationInference {
+            declaration_id: LocalNodeId<Declaration>,
+        }
 
+        // surface inference setup for exported values
         let options = self.analyze_context_options_for_module(module.id);
         let mut infer = InferTable::default();
         let base_ctx = InferContext::new(profile, options).for_surface_inference();
         let mut inferred_exports = Vec::new();
         let mut export_inference = Vec::new();
+        let mut export_declarations = Vec::new();
 
         // collect exported symbols that need value types
         for export in exported_symbols.values() {
+            // skip exports that cannot produce local values
             if export.space != SymbolSpace::Value {
                 continue;
             }
-            let Some(target_symbol) = export.target.resolved() else {
+            let Some(export_symbol) = export.target.resolved() else {
                 continue;
             };
-            if target_symbol.module_id != module.id {
+            if export_symbol.module_id != module.id {
                 continue;
             }
-            if types.get_value_type_id(target_symbol).is_some() {
+
+            // follow local aliases to the concrete symbol
+            let value_symbol = self.local_export_target_symbol(symbols, module.id, export_symbol);
+            if value_symbol.module_id != module.id {
                 continue;
             }
 
             // resolve the primary declaration node
-            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-            let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            let symbol_entry = symbols.get_symbol(value_symbol.local_id);
+            let primary_declaration = symbol_entry.primary_declaration;
+
+            // infer unannotated function return types for exported declarations
+            if let Some(primary_declaration) = primary_declaration {
+                let declaration_id = self.primary_declaration_id(tree, primary_declaration);
+                if let Some(declaration_id) = declaration_id
+                    && let Declaration::Function {
+                        signature, body, ..
+                    } = tree.get(declaration_id)
+                    && signature.return_type.is_none()
+                    && body.is_some()
+                {
+                    export_declarations.push(ExportDeclarationInference { declaration_id });
+                    continue;
+                }
+            }
+
+            // reuse a known value type when already available
+            if let Some(value_ty_id) = types.get_value_type_id(value_symbol) {
+                let value_ty = types.get_type(value_ty_id);
+                let is_unknown = matches!(
+                    value_ty,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown
+                    } | Type::InferVar { .. }
+                );
+                if !is_unknown {
+                    types.set_value_type(export_symbol, value_ty_id);
+                    continue;
+                }
+            }
+
+            // skip exports without declarators
+            let Some(primary_declaration) = primary_declaration else {
                 continue;
             };
 
@@ -1748,14 +1792,14 @@ impl Compiler {
                 types.get_declared_type_id(declarator_id.into_global_any(module.id));
             if let Some(declared_type_id) = declared_type_id {
                 self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
-                types.set_value_type(target_symbol, declared_type_id);
+                types.set_value_type(export_symbol, declared_type_id);
                 continue;
             }
 
             // defer to surface inference for initializer only exports
             let declarator = tree.get(declarator_id);
             export_inference.push(ExportInference {
-                symbol: target_symbol,
+                export_symbol,
                 declarator_id,
                 value_id: declarator.value,
             });
@@ -1764,25 +1808,39 @@ impl Compiler {
         // seed inference variables for export symbols
         for export in &export_inference {
             let scope = InferScope {
-                owner: export.symbol,
+                owner: export.export_symbol,
                 function_id: None,
             };
             let origin = InferOrigin::Expression(export.declarator_id.into_global_any(module.id));
             let symbol_ty_id = self.infer_var_type_for_symbol(
                 &mut infer,
                 types,
-                export.symbol,
+                export.export_symbol,
                 export.declarator_id.into_any(),
                 origin,
                 scope,
             );
 
-            types.set_value_type(export.symbol, symbol_ty_id);
+            types.set_value_type(export.export_symbol, symbol_ty_id);
 
             inferred_exports.push((
                 symbol_ty_id,
                 export.declarator_id.into_global_any(module.id),
             ));
+        }
+
+        // infer unannotated exported function declarations
+        for export in &export_declarations {
+            let mut ctx = base_ctx.fork().with_expected_type(None);
+            self.infer_declaration(
+                module,
+                export.declaration_id,
+                tree,
+                symbols,
+                types,
+                &mut infer,
+                &mut ctx,
+            )?;
         }
 
         // infer initializer types and constrain export symbols
@@ -1791,7 +1849,7 @@ impl Compiler {
                 continue;
             };
 
-            let Some(symbol_ty_id) = types.get_value_type_id(export.symbol) else {
+            let Some(symbol_ty_id) = types.get_value_type_id(export.export_symbol) else {
                 continue;
             };
 
@@ -1826,6 +1884,52 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Follow local export aliases to reach the concrete symbol.
+    fn local_export_target_symbol(
+        &self,
+        symbols: &SymbolTable,
+        module_id: ModuleId,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        let mut current = symbol;
+        let mut visited = Vec::new();
+
+        loop {
+            if current.module_id != module_id {
+                return current;
+            }
+            if visited.contains(&current) {
+                return current;
+            }
+            visited.push(current);
+
+            let entry = symbols.get_symbol(current.local_id);
+            let Some(next) = entry.target_symbol else {
+                return current;
+            };
+            current = next;
+        }
+    }
+
+    /// Resolve a declaration id from a primary declaration node.
+    fn primary_declaration_id(
+        &self,
+        tree: &NodeTree,
+        primary_declaration: GlobalNodeIdAny,
+    ) -> Option<LocalNodeId<Declaration>> {
+        match primary_declaration.local_id.ty {
+            NodeType::Declaration => Some(primary_declaration.local_id.into_typed()),
+            NodeType::Expression => {
+                let expression_id = primary_declaration.local_id.into_typed::<Expression>();
+                match tree.get(expression_id) {
+                    Expression::Declaration { declaration } => Some(*declaration),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
     }
 
     /// Find the declarator that defines a symbol.

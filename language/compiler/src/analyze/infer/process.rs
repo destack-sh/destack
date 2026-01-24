@@ -43,6 +43,7 @@ impl Compiler {
         )?;
 
         self.require_analyze_module_declare(module_id, profile)?;
+        self.require_analyze_module_export(module_id, profile)?;
 
         // analyze data modules specially
         if !self.is_code_module(module_id) {

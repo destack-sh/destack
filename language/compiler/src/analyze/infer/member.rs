@@ -958,18 +958,19 @@ impl Compiler {
         }
 
         // resolve arguments and defaults against extension parameters
-        let resolved_arguments = self.resolve_type_reference_static_arguments(
-            module,
-            profile,
-            source_id,
-            extension_symbol,
-            Some(&positional_arguments),
-            true,
-            options,
-            tree,
-            symbols,
-            types,
-        )?;
+        let resolved_arguments: Option<Vec<StaticArgument>> = self
+            .resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                extension_symbol,
+                Some(&positional_arguments),
+                true,
+                options,
+                tree,
+                symbols,
+                types,
+            )?;
         let resolved_arguments = resolved_arguments.unwrap_or_default();
 
         // build substitutions for extension type parameters

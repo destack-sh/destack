@@ -1538,8 +1538,11 @@ impl Compiler {
                 };
 
                 // adjust value imports when the resolved symbol is type-only
-                let resolved_kind = self
-                    .effective_dependency_kind_for_symbol(profile, resolved_kind, target_symbol);
+                let resolved_kind = self.effective_dependency_kind_for_symbol(
+                    profile,
+                    resolved_kind,
+                    target_symbol,
+                );
 
                 DependencyItem::Remote {
                     mode: *mode,

@@ -828,41 +828,31 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<Vec<LocalTypeId>> {
-        // infer arguments with contextual parameter types
-        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let expected_arg_ty_id = parameter_types.get(index).copied();
-            self.infer_argument(
-                module,
-                *argument_id,
-                expected_arg_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-
-            let argument = tree.get(*argument_id);
-            let argument_value_id = argument.value();
-            let argument_ty_id = if let Some(ty_id) =
-                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
-            {
-                ty_id
-            } else {
-                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
-            };
-            argument_ty_ids.push(argument_ty_id);
-        }
+        // infer argument types with contextual parameter expectations
+        let argument_ty_ids = self.infer_invocation_argument_types(
+            module,
+            dynamic_arguments,
+            parameter_types,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
 
         // add constraints between arguments and parameters
-        for (argument_ty_id, param_ty_id) in argument_ty_ids.iter().zip(parameter_types.iter()) {
-            infer.push_constraint(Constraint::Subtype {
-                sub_type: *argument_ty_id,
-                super_type: *param_ty_id,
-                variance: None,
-            });
-        }
+        self.add_invocation_argument_constraints(
+            module,
+            dynamic_arguments,
+            &argument_ty_ids,
+            parameter_types,
+            options,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        );
 
         // capture template literal inference constraints
         self.add_template_literal_inference_constraints(
@@ -879,6 +869,163 @@ impl Compiler {
         );
 
         Ok(argument_ty_ids)
+    }
+
+    /// Infer argument types with contextual parameter expectations.
+    fn infer_invocation_argument_types(
+        &self,
+        module: &Module,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        parameter_types: &[LocalTypeId],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Vec<LocalTypeId>> {
+        // infer arguments with contextual parameter types
+        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            // apply contextual expectation from the parameter type
+            let expected_arg_ty_id = parameter_types.get(index).copied();
+            self.infer_argument(
+                module,
+                *argument_id,
+                expected_arg_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            // resolve the inferred or fallback argument type
+            let argument = tree.get(*argument_id);
+            let argument_value_id = argument.value();
+            let argument_ty_id = if let Some(ty_id) =
+                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+            {
+                ty_id
+            } else {
+                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
+            };
+            argument_ty_ids.push(argument_ty_id);
+        }
+
+        Ok(argument_ty_ids)
+    }
+
+    /// Add argument constraints and static parameter bounds for an invocation.
+    fn add_invocation_argument_constraints(
+        &self,
+        module: &Module,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        argument_ty_ids: &[LocalTypeId],
+        parameter_types: &[LocalTypeId],
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &InferContext,
+    ) {
+        for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
+            .iter()
+            .zip(argument_ty_ids.iter())
+            .zip(parameter_types.iter())
+        {
+            // connect argument types to parameter types
+            infer.push_constraint(Constraint::Subtype {
+                sub_type: *argument_ty_id,
+                super_type: *param_ty_id,
+                variance: None,
+            });
+
+            // enforce static parameter bounds for inferred type parameters
+            let Some(parameter_symbol) =
+                self.parameter_symbol_for_argument_constraint(types, infer, *param_ty_id)
+            else {
+                continue;
+            };
+
+            // skip non-static parameters
+            if !self.symbol_is_static_parameter(
+                module,
+                ctx.profile,
+                parameter_symbol,
+                symbols,
+                types,
+            ) {
+                continue;
+            }
+
+            // resolve the static parameter constraint
+            let argument_value_id = tree.get(*argument_id).value();
+            let argument_node = argument_value_id
+                .into_global_any(module.id)
+                .into_anchored(Some(ctx.profile));
+            let constraint_id = self.static_parameter_constraint_type(
+                module,
+                ctx.profile,
+                parameter_symbol,
+                argument_value_id.into_any(),
+                symbols,
+                types,
+            );
+            let Some(constraint_id) = constraint_id else {
+                continue;
+            };
+            if matches!(
+                types.get_type(constraint_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any
+                }
+            ) {
+                continue;
+            }
+
+            // emit a constraint violation error when needed
+            if self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                constraint_id,
+                *argument_ty_id,
+                types,
+                options,
+            ) == Assignability::NotAssignable
+            {
+                self.error(AnalyzeError::UnassignableType {
+                    node: argument_node,
+                    expected_ty: constraint_id.into_global(module.id),
+                    actual_ty: argument_ty_id.into_global(module.id),
+                });
+            }
+        }
+    }
+
+    /// Resolve the parameter symbol used to constrain an argument type.
+    fn parameter_symbol_for_argument_constraint(
+        &self,
+        types: &TypeTable,
+        infer: &InferTable,
+        param_ty_id: LocalTypeId,
+    ) -> Option<GlobalSymbolId> {
+        // resolve inferred type parameter symbols first
+        match types.get_type(param_ty_id) {
+            Type::InferVar { id } => {
+                infer
+                    .vars
+                    .get(id.0 as usize)
+                    .and_then(|var| match var.origin {
+                        InferOrigin::TypeParameter(symbol) => Some(symbol),
+                        _ => None,
+                    })
+            }
+            // fall back to direct references when available
+            Type::Reference { symbol, .. } => Some(*symbol),
+            _ => None,
+        }
     }
 
     /// Add inference constraints for template literal parameters.

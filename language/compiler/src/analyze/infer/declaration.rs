@@ -7,8 +7,8 @@ use destack_dir::{
     Declarator, DependencyItem, DependencyMode, DynamicKey, Expression, FunctionCardinality,
     FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
     IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, Mutability, NodeTree,
-    Parameter, Pattern, PrimitiveType, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
-    TypeTable, WhereClause,
+    NodeType, Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace, SymbolTable, Type,
+    TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -23,7 +23,7 @@ pub(super) enum DeclaratorConstraint {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer the type of a declaration.
-    pub(super) fn infer_declaration(
+    pub(crate) fn infer_declaration(
         &self,
         module: &Module,
         declaration_id: LocalNodeId<Declaration>,
@@ -1318,17 +1318,141 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
         let clause = tree.get(clause_id);
-        match clause {
-            WhereClause::Assertion { left: _, right } => {
-                // NOTE #Incomplete: lower where clauses into constraints
-                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+        let constraint_ty_id = self.try_evaluate_expression_to_type(
+            module,
+            ctx.profile,
+            clause.right,
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )?;
+        let Some(parameter_symbol) =
+            self.static_parameter_symbol_for_where_clause(module, clause_id, tree, symbols)
+        else {
+            self.error(AnalyzeError::MissingType {
+                node: clause_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return Ok(());
+        };
+
+        // merge the constraint for static argument validation
+        let constraint_ty_id = if let Some(existing_id) =
+            types.get_static_parameter_constraint_type(parameter_symbol)
+        {
+            match types.get_type(existing_id) {
+                Type::Intersection { elements } => {
+                    let mut elements = elements.clone();
+                    elements.push(constraint_ty_id);
+                    let merged = Type::Intersection { elements };
+                    let merged_id = types.insert_type_from_any(merged, clause_id.into());
+                    types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
+                    merged_id
+                }
+                _ => {
+                    let merged = Type::Intersection {
+                        elements: vec![existing_id, constraint_ty_id],
+                    };
+                    let merged_id = types.insert_type_from_any(merged, clause_id.into());
+                    types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
+                    merged_id
+                }
             }
-            WhereClause::Guard { guard } => {
-                // NOTE #Incomplete: apply guard constraints to the flow context
-                self.infer_expression(module, *guard, tree, symbols, types, infer, ctx)?;
+        } else {
+            types.set_static_parameter_constraint_type(parameter_symbol, constraint_ty_id);
+            constraint_ty_id
+        };
+
+        // apply constraint to the parameter when no annotation exists
+        let symbol_entry = symbols.get_symbol(parameter_symbol.local_id);
+        if symbol_entry.is_static_parameter()
+            && let Some(primary) = symbol_entry.primary_declaration
+            && primary.local_id.ty == NodeType::Parameter
+        {
+            let existing_id = types.get_declared_type_id(primary);
+            let should_override = existing_id.is_none()
+                || existing_id.is_some_and(|ty_id| {
+                    matches!(
+                        types.get_type(ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown | TypeLiteral::Any
+                        }
+                    )
+                });
+            if should_override {
+                types.set_declared_type(primary, constraint_ty_id);
             }
         }
+
+        // enforce the constraint during inference
+        let parameter_ty_id = types.insert_type_from(
+            Type::Reference {
+                symbol: parameter_symbol,
+                static_arguments: None,
+            },
+            clause_id,
+        );
+        infer.push_constraint(Constraint::Subtype {
+            sub_type: parameter_ty_id,
+            super_type: constraint_ty_id,
+            variance: None,
+        });
+
         Ok(())
+    }
+
+    /// Resolve a where clause parameter to a static parameter symbol.
+    fn static_parameter_symbol_for_where_clause(
+        &self,
+        module: &Module,
+        clause_id: LocalNodeId<WhereClause>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // capture the parameter name as a static key
+        let clause = tree.get(clause_id);
+        let key = StaticKey::Name(clause.left);
+        let mut scope = symbols.get_scope(clause_id, tree);
+
+        loop {
+            // search the active bindings in the current scope
+            let limit = scope.2.0 as usize;
+            let named_symbols = &scope.1.named_symbols;
+            let limit = limit.min(named_symbols.len());
+            for (candidate_key, symbol_id) in named_symbols[..limit].iter().rev() {
+                if *candidate_key != key {
+                    continue;
+                }
+
+                // skip inactive symbols
+                let symbol = symbols.get_symbol(*symbol_id);
+                if !symbol.is_active() {
+                    continue;
+                }
+
+                // accept static parameters from type-capable spaces
+                let is_type_space =
+                    matches!(symbol.space, SymbolSpace::Type | SymbolSpace::TypeValue);
+                if is_type_space && symbol.is_static_parameter() {
+                    return Some(symbol_id.into_global(module.id));
+                }
+            }
+
+            // walk to the parent scope when present
+            let Some((parent_scope_id, parent_mark)) = scope.1.parent else {
+                break;
+            };
+            scope = (
+                parent_scope_id,
+                symbols.get_scope_by_id(parent_scope_id),
+                parent_mark,
+            );
+        }
+
+        None
     }
 
     /// Infer a pattern, given an optional binding type of the pattern.

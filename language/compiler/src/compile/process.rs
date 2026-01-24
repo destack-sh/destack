@@ -343,8 +343,6 @@ impl Compiler {
                 }
 
                 // yield
-                let event = format!("{}.{}.yield", handle.phase().name(), handle.task.name());
-                tracing::debug!(%event, %description, ?task_id);
                 self.stats.record_yield();
                 self.queue.set_status(
                     task_id,
