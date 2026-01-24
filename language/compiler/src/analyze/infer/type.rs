@@ -3441,6 +3441,19 @@ impl Compiler {
         }
     }
 
+    /// Check whether a type is a literal value.
+    pub(super) fn is_literal_value_type(&self, ty: &Type) -> bool {
+        matches!(
+            ty,
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::ScalarLiteral(_)
+                        | TypeLiteral::Null
+                        | TypeLiteral::Undefined,
+            }
+        )
+    }
+
     /// Extract the return type from a function type.
     pub(super) fn function_return_type(
         &self,

@@ -589,10 +589,8 @@ block3(v6: i32):
     );
 }
 
-// FUGU #Broken: analyze does not allow equality on union types
 /// Lower null literal comparisons to union tag checks.
 #[test]
-#[ignore]
 fn test_lower_union_null_literal_comparison() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
@@ -632,10 +630,8 @@ block0(v0: @isNull#parameter:value#union):
     );
 }
 
-// FUGU #Broken: analyze does not allow equality on union types
 /// Lower undefined literal comparisons to union tag checks.
 #[test]
-#[ignore]
 fn test_lower_union_undefined_literal_comparison() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
@@ -714,8 +710,6 @@ block0(v0: @isOne#parameter:value#union):
 
 /// Lower literal comparisons when unions include non-literal elements.
 #[test]
-#[ignore]
-// FUGU #Broken: analyze rejects equality on mixed literal unions
 fn test_lower_union_literal_comparison_mixed() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
