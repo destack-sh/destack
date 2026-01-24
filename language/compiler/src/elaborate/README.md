@@ -312,6 +312,7 @@ Contextual typing never suppresses representation changing casts.
 #### Insert casts at type boundaries
 
 Implicit casts are inserted at boundaries where a target type is known.
+Null and undefined literals are reified the same way when a nullable or union target type is expected.
 
 | Site | Example | After reify |
 | --- | --- | --- |
@@ -355,6 +356,22 @@ function intoFloat(x: int32): float64 {
 function intoFloat(x: int32): float64 {
     let y = x as float64;
     return y;
+}
+```
+
+```ds
+// source
+function take(node: Node | null): Node | null {
+    let value: Node | null = null;
+    return value;
+}
+```
+
+```ds
+// after reify
+function take(node: Node | null): Node | null {
+    let value = null as Node | null;
+    return value;
 }
 ```
 

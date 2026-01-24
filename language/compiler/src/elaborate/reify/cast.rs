@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, EnumBackingType,
     Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType,
-    Resolution, ResolutionCandidate, SymbolTable, SymbolType, Type, TypeTable,
+    Resolution, ResolutionCandidate, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -718,11 +718,17 @@ impl Compiler {
             })?;
 
         // check casts that change representation despite matching type ids
+        let value_type = types.get_type(value_type_id);
+        let target_type = types.get_type(target_type_id);
         let value_is_concrete = self.is_concrete_resolution(module_id, value_id, types)
             || self.is_concrete_new_expression(tree, value_id)
             || self.is_tagged_expression(tree, value_id);
-        let value_type = types.get_type(value_type_id);
-        let target_type = types.get_type(target_type_id);
+        let value_is_nullish_literal = matches!(
+            value_type,
+            Type::TypeLiteral {
+                value: TypeLiteral::Null | TypeLiteral::Undefined,
+            }
+        );
         let types_match = are_types_semantically_equal(value_type, target_type, types);
         let source_is_interface = self.is_interface_reference_type(types, value_type_id);
         let target_is_interface = self.is_interface_reference_type(types, target_type_id);
@@ -730,8 +736,10 @@ impl Compiler {
         // figure out if we need a representation change cast
         let requires_interface_upcast =
             target_is_interface && (!source_is_interface || value_is_concrete || !types_match);
-        let requires_union_upcast = is_union_type(target_type) && value_is_concrete;
-        let requires_nullable_upcast = is_nullable_union(target_type, types) && value_is_concrete;
+        let requires_union_upcast =
+            is_union_type(target_type) && (value_is_concrete || value_is_nullish_literal);
+        let requires_nullable_upcast = is_nullable_union(target_type, types)
+            && (value_is_concrete || value_is_nullish_literal);
         let requires_representation_cast =
             requires_interface_upcast || requires_union_upcast || requires_nullable_upcast;
         if types_match && !requires_representation_cast {
@@ -1817,6 +1825,156 @@ function intValue(): int32 {
 function test(): int32 | null {
     let value = intValue() as int32 | null;
     return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_nullable_null_literal() {
+        // nullable upcasts are inserted for null literals
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(): int32 | null {
+    let value: int32 | null = null;
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(): int32 | null {
+    let value = null as int32 | null;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_undefined_literal_upcast() {
+        // undefined upcasts are inserted for undefined literals
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(): int32 | undefined {
+    let value: int32 | undefined = undefined;
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(): int32 | undefined {
+    let value = undefined as int32 | undefined;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_nullable_return_literal() {
+        // nullable upcasts are inserted for return literals
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(): int32 | null {
+    return null;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(): int32 | null {
+    return null as int32 | null;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_undefined_upcast() {
+        // undefined upcasts are inserted for undefined unions
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | undefined {
+    let value: int32 | undefined = intValue();
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | undefined {
+    let value = intValue() as int32 | undefined;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_nullable_undefined_call() {
+        // nullable and undefined upcasts are inserted for call arguments
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function accept(value: int32 | null | undefined): int32 | null | undefined {
+    return value;
+}
+
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | null | undefined {
+    return accept(intValue());
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function accept(value): int32 | null | undefined {
+    return value;
+}
+
+function intValue(): int32 {
+    return 1;
+}
+
+function test(): int32 | null | undefined {
+    return accept(intValue() as int32 | null | undefined);
 }
 "#,
         );
