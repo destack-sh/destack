@@ -29,36 +29,21 @@ impl Compiler {
             scope,
             parent_id,
         );
-        match ast_where_clause {
-            ast::WhereClause::Assertion { left, right } => {
-                let left = self.program.strings.intern_from(&ast.strings, *left);
-                let right = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *right,
-                    Some(where_clause_id),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::TypeThenValue,
-                );
-                tree.insert(where_clause_id, WhereClause::Assertion { left, right })
-            }
-            ast::WhereClause::Guard { guard } => {
-                let guard = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *guard,
-                    Some(where_clause_id),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::TypeThenValue,
-                );
-                tree.insert(where_clause_id, WhereClause::Guard { guard })
-            }
-        }
+        let left = self
+            .program
+            .strings
+            .intern_from(&ast.strings, ast_where_clause.left);
+        let right = self.bind_expression(
+            module,
+            ast,
+            scope,
+            ast_where_clause.right,
+            Some(where_clause_id),
+            tree,
+            symbols,
+            types,
+            SymbolSpaceOrder::TypeThenValue,
+        );
+        tree.insert(where_clause_id, WhereClause { left, right })
     }
 }

@@ -6,10 +6,31 @@ use destack_dir::{
     LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
     SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
-use destack_workspace::{Module, ModuleAst};
+use destack_workspace::{Module, ModuleAst, ModuleBindingReference};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Register a module binding declaration in the package registry.
+    fn bind_module_binding(&self, module: &Module, binding: &ModuleBinding) {
+        let mut entry = self
+            .program
+            .index
+            .module_binding_registry
+            .entry(module.package_id)
+            .or_default();
+        let registry = entry.value_mut();
+        registry.module_versions.insert(module.id, module.version);
+        let binding_ref = ModuleBindingReference {
+            module_id: module.id,
+            declaration: binding.declaration,
+        };
+        registry
+            .bindings_by_specifier
+            .entry(binding.specifier)
+            .or_default()
+            .push(binding_ref);
+    }
+
     /// Bind declaration kind to DIR declaration kind.
     pub(super) fn bind_declaration_kind(&self, kind: ast::DeclarationKind) -> DeclarationKind {
         match kind {
@@ -831,6 +852,7 @@ impl Compiler {
                 default_symbol,
                 export_assignment_symbol,
             };
+            self.bind_module_binding(module, &module_binding);
             module
                 .dir_base()
                 .module_bindings
