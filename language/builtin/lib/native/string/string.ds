@@ -16,7 +16,7 @@ enum StringFlag {
 newtype StringFlags = uint32;
 
 /// Native UTF-8 string with cached UTF-16 length for TypeScript compatibility.
-struct String {
+export struct String {
     /// UTF-16 code unit count (for .length compatibility with JS/TS).
     lengthUtf16: uint32,
     /// Byte length of UTF-8 data.

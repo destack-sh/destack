@@ -1,5 +1,6 @@
 // core collections (ambient)
-export { Array, ReadonlyArray, arrayOf, arrayFill } from "./array.ds";
+export { Array, arrayOf, arrayFill } from "./array.ds";
+export { type ReadonlyArray } from "./array.ds";
 export { Slice } from "./slice.ds";
-export { Map, MapEntry, Record } from "./map.ds";
+export { Map, MapEntry, type Record } from "./map.ds";
 export { Set } from "./set.ds";

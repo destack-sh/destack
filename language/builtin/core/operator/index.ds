@@ -1,4 +1,21 @@
-export * from "./arithmetic.ds";
-export * from "./comparison.ds";
-export * from "./subscript.ds";
-export * from "./format.ds";
+export {
+    type Add,
+    type Subtract,
+    type Multiply,
+    type Divide,
+    type Remainder,
+    type Power,
+    type Plus,
+    type Negate,
+    type And,
+    type Or,
+    type Xor,
+    type Not,
+    type ShiftLeft,
+    type ShiftRight,
+    type ShiftRightUnsigned,
+    type Concatenate,
+} from "./arithmetic.ds";
+export { type Equal, type PartialEqual, type Compare, type PartialCompare, Ordering } from "./comparison.ds";
+export { type Index, type IndexSet, type Deref, type DerefSet } from "./subscript.ds";
+export { type Display, type Debug } from "./format.ds";

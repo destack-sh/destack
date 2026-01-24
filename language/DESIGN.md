@@ -1040,6 +1040,8 @@ Advanced TS type constructs (conditional types, mapped types, template literal t
 - Cross-target builds should reuse the same front-end IR and only diverge when profile-specific resolution or codegen requires it
 - The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.)
 - Template literal types follow TypeScript matching and inference rules, with TS++ numeric primitives treated as number-like spans
+- Declaration modules may declare values without providing implementations, mirroring `.d.ts` behavior
+- Nominal declarations introduce both type and value bindings, including in declaration modules
 
 Comptime bridges TS types and Destack semantics:
 - `comptime` can evaluate expressions that depend on `import.meta` profile data.

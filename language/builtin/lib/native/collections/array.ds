@@ -1,5 +1,5 @@
 /// Native dynamic array.
-struct Array<T> {
+export struct Array<T> {
     /// Number of elements in the array.
     length: uint32,
     /// Allocated capacity (in elements).
@@ -9,7 +9,7 @@ struct Array<T> {
 }
 
 /// Readonly view of a dynamic array.
-type ReadonlyArray<T> = readonly T[];
+export type ReadonlyArray<T> = readonly T[];
 
 extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the array.
@@ -206,13 +206,13 @@ extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iter
 }
 
 /// Create an array with the given elements.
-function arrayOf<T>(...elements: T[]): Array<T> {
+export function arrayOf<T>(...elements: T[]): Array<T> {
     // #Incomplete
     []
 }
 
 /// Create an array with the given length, filled with a value.
-function arrayFill<T>(length: uint32, value: T): Array<T> {
+export function arrayFill<T>(length: uint32, value: T): Array<T> {
     // #Incomplete
     []
 }

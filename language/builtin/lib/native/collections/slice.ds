@@ -1,5 +1,5 @@
 /// A borrowed view into contiguous memory.
-struct Slice<T> {
+export struct Slice<T> {
     /// Pointer to the first element.
     data: *T,
     /// Number of elements in the slice.
