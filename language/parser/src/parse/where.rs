@@ -4,15 +4,14 @@ use crate::{ParseResult, Parser};
 use destack_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
 
 impl Parser {
-    /// Eat a where context declaration or assignment maybe.
+    /// Eat a where context declaration maybe.
     ///
     /// Examples:
     /// ```
     /// where T: int32
-    /// where Foo
+    /// where Foo: Bar
     /// where Foo, Bar
-    /// where Foo.Bar
-    /// where !Bar
+    /// where Foo.Bar: Baz
     /// ```
     pub fn eat_where_maybe(&mut self) -> ParseResult<Option<Vec<LocalNodeId<WhereClause>>>> {
         // allow newlines before where
@@ -26,19 +25,17 @@ impl Parser {
         }
     }
 
-    /// Eat a where context declaration or assignment.
+    /// Eat a where context declaration.
     ///
     /// Examples:
     /// ```
     /// where T: int32
-    /// where Foo
-    /// where Foo, Bar
-    /// where Foo.Bar
-    /// where !Bar, Time > Limit, F: Numeric
+    /// where Foo: Bar
+    /// where Foo.Bar: Baz
+    /// where T: Numeric, F: Numeric
     /// where (
-    ///    !Bar,
+    ///    T: Numeric
     ///    F: Numeric // optional comma
-    ///    T > Y
     /// )
     /// ```
     pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
@@ -89,29 +86,16 @@ impl Parser {
         Ok(clauses)
     }
 
-    /// Eat a single where clause. May be a declaration or a assignment.
+    /// Eat a single where clause.
     fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
         let start = self.mark();
 
-        let clause = {
-            // assertion
-            if self.peek_identifier().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
-                let left = self.eat_identifier()?;
-                self.eat_token(TokenType::Colon)?;
-                let right =
-                    self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
-                self.tree.insert(
-                    WhereClause::Assertion { left, right },
-                    self.get_span_from(start),
-                )
-            }
-            // guard
-            else {
-                let guard = self.eat_expression()?;
-                self.tree
-                    .insert(WhereClause::Guard { guard }, self.get_span_from(start))
-            }
-        };
+        let left = self.eat_identifier()?;
+        self.eat_token(TokenType::Colon)?;
+        let right = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
+        let clause = self
+            .tree
+            .insert(WhereClause { left, right }, self.get_span_from(start));
 
         Ok(clause)
     }
@@ -119,11 +103,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{
-        BinaryOperator, Expression, IntType, TypeLiteral, UnaryOperator, WhereClause,
-    };
+    use destack_ast::{Expression, IntType, TypeLiteral, WhereClause};
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_where_type_assertion() {
@@ -133,60 +115,37 @@ mod tests {
 
         // where T: int32
         assert_eq!(clauses.len(), 1);
-        assert_node!(parser.tree, clauses[0], WhereClause::Assertion { left, right } => {
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
             assert_string!(parser, *left, "T");
             assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
         });
     }
 
     #[test]
-    fn test_parse_where_guard_comparison() {
-        let mut test = TestParser::new("where T > Y");
-        let mut parser = test.prepare();
-        let clauses = parser.eat_where().unwrap();
-
-        // where T > Y
-        assert_eq!(clauses.len(), 1);
-        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expression_path!(parser, parser.tree.get(*left), "T");
-                assert_expression_path!(parser, parser.tree.get(*right), "Y");
-            });
-        });
-    }
-
-    #[test]
     fn test_parse_where_multiple_clauses() {
-        let input = "where !Bar, Time > Limit, F: Numeric";
+        let input = "where T: Numeric, U: Copy, V: Comparable";
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
         let clauses = parser.eat_where().unwrap();
 
         assert_eq!(clauses.len(), 3);
 
-        // !Bar
-        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
-                assert_eq!(*operator, UnaryOperator::Not);
-                assert_expression_path!(parser, parser.tree.get(*right), "Bar");
-            });
-        });
-
-        // Time > Limit
-        assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expression_path!(parser, parser.tree.get(*left), "Time");
-                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-            });
-        });
-
-        // F: Numeric
-        assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
-            assert_string!(parser, *left, "F");
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+            assert_string!(parser, *left, "T");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
+            });
+        });
+        assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+            assert_string!(parser, *left, "U");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Copy");
+            });
+        });
+        assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
+            assert_string!(parser, *left, "V");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Comparable");
             });
         });
     }
@@ -194,9 +153,9 @@ mod tests {
     #[test]
     fn test_parse_where_parenthesized_multiline() {
         let input = r##"where (
-  !Bar
-  Time > Limit,
-  F: Numeric
+  T: Numeric
+  U: Copy,
+  V: Comparable
 )"##;
         let mut test = TestParser::new(input);
         let mut parser = test.prepare();
@@ -204,28 +163,22 @@ mod tests {
 
         assert_eq!(clauses.len(), 3);
 
-        // !Bar
-        assert_node!(parser.tree, clauses[0], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Unary { operator, right } => {
-                assert_eq!(*operator, UnaryOperator::Not);
-                assert_expression_path!(parser, parser.tree.get(*right), "Bar");
-            });
-        });
-
-        // Time > Limit
-        assert_node!(parser.tree, clauses[1], WhereClause::Guard { guard } => {
-            assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                assert_eq!(*operator, BinaryOperator::GreaterThan);
-                assert_expression_path!(parser, parser.tree.get(*left), "Time");
-                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-            });
-        });
-
-        // F: Numeric
-        assert_node!(parser.tree, clauses[2], WhereClause::Assertion { left, right } => {
-            assert_string!(parser, *left, "F");
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+            assert_string!(parser, *left, "T");
             assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Numeric");
+            });
+        });
+        assert_node!(parser.tree, clauses[1], WhereClause { left, right } => {
+            assert_string!(parser, *left, "U");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Copy");
+            });
+        });
+        assert_node!(parser.tree, clauses[2], WhereClause { left, right } => {
+            assert_string!(parser, *left, "V");
+            assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
+                assert_path!(parser, *path, "Comparable");
             });
         });
     }

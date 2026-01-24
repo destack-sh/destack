@@ -1103,16 +1103,8 @@ pub fn walk_where_clause<V: NodeVisitor + ?Sized>(
     where_clause: &WhereClause,
 ) {
     visitor.visit_any(tree, NodeType::WhereClause, id.id);
-    match where_clause {
-        WhereClause::Assertion { left: _, right } => {
-            let right_expression = tree.get(*right);
-            visitor.visit_expression(tree, *right, right_expression);
-        }
-        WhereClause::Guard { guard } => {
-            let guard_expression = tree.get(*guard);
-            visitor.visit_expression(tree, *guard, guard_expression);
-        }
-    }
+    let right_expression = tree.get(where_clause.right);
+    visitor.visit_expression(tree, where_clause.right, right_expression);
 }
 
 /// Walk the UseClause.

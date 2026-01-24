@@ -377,7 +377,7 @@ enum Foo where Requirement: Interface {
             // where Requirement: Interface
             let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
-            assert_node!(parser.tree, where_clauses[0], WhereClause::Assertion { left, right } => {
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "Interface");

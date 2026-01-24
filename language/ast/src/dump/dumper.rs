@@ -1359,16 +1359,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
         _id: LocalNodeId<WhereClause>,
         clause: &WhereClause,
     ) {
-        match clause {
-            WhereClause::Assertion { left, .. } => {
-                self.node("WhereClause::Assertion", _id.id)
-                    .field("left", left)
-                    .end();
-            }
-            WhereClause::Guard { .. } => {
-                self.node("WhereClause::Guard", _id.id).end();
-            }
-        }
+        self.node("WhereClause", _id.id)
+            .field("left", &clause.left)
+            .end();
         self.with_depth(|dumper| {
             walk_where_clause(dumper, _tree, _id, clause);
         });
