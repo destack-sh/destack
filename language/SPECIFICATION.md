@@ -166,9 +166,10 @@ export struct User {
 
 #### Public boundaries and surface inference
 
-Exported bindings may omit explicit annotations when their types can be inferred from local syntax.
-Other modules use the declared or locally inferred types of imports without re-inferring them.
-Inference cycles across modules are forbidden: if an exported binding participates in an inference cycle,
+Exported bindings may omit explicit annotations when their types can be inferred from local syntax,
+including inferred return types and locally resolved references.
+Other modules consume the published export types without re-inferring the defining module.
+Inference cycles across modules are forbidden: if an exported binding participates in a cycle,
 it must be explicitly annotated to break the cycle.
 
 Examples:
@@ -921,7 +922,8 @@ value satisfies uint8[4];
 
 ### Where Clauses
 
-Destack adds `where` clauses for type constraints beyond TypeScript's inline syntax:
+Destack adds `where` clauses for type constraints beyond TypeScript's inline syntax.
+Each clause is a type constraint of the form `Name: Type`:
 
 ```
 function process<T>(x: T): T where T: Copy {

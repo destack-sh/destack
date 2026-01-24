@@ -100,8 +100,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Name,
-        WhereClause,
+        Declaration, DeclarationDescriptor, DeclarationKind, Expression, Name, WhereClause,
     };
     use destack_source::LanguageType;
 
@@ -292,7 +291,7 @@ module "foo" {
     fn test_parse_inline_namespace_with_where() {
         let mut test = TestParser::new(
             r###"
-namespace Foo where Guard > Limit {
+namespace Foo where Guard: Limit {
 }
 "###,
         );
@@ -312,13 +311,10 @@ namespace Foo where Guard > Limit {
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
 
-            // where Guard > Limit
-            assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
-                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                    assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-                });
+            // where Guard: Limit
+            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
+                assert_string!(parser, *left, "Guard");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
     }
@@ -342,7 +338,7 @@ namespace Foo where Guard > Limit {
             assert_eq!(where_items.len(), 1);
 
             // where Requirement: Interface
-            assert_node!(parser.tree, where_items[0], WhereClause::Assertion { left, right } => {
+            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
                 assert_string!(parser, *left, "Requirement");
                 assert_node!(parser.tree, *right, Expression::Path { path, .. } => {
                     assert_path!(parser, *path, "Interface");

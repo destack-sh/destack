@@ -643,7 +643,7 @@ impl Default for DsConfigCompilerOptions {
             no_fallthrough_cases_in_switch: false,
             exact_optional_property_types: true,
             no_unchecked_indexed_access: true,
-            no_property_access_from_index_signature: true,
+            no_property_access_from_index_signature: false,
 
             // Destack-specific checking (all off by default, opt-in)
             no_any: strict,
@@ -707,7 +707,6 @@ impl DsConfigCompilerOptions {
         self.no_implicit_override = true;
         self.exact_optional_property_types = true;
         self.no_unchecked_indexed_access = true;
-        self.no_property_access_from_index_signature = true;
 
         // enable strict diagnostics by default
         self.no_unused_locals = true;

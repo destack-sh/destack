@@ -128,9 +128,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
-        Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility,
-        WhereClause,
+        BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Key,
+        Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -283,7 +282,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
     fn test_parse_struct_with_where_clause() {
         let mut test = TestParser::new(
             r###"
-struct Foo where Guard > Limit {
+struct Foo where Guard: Limit {
 }
 "###,
         );
@@ -299,15 +298,12 @@ struct Foo where Guard > Limit {
             assert!(members.is_empty());
             assert!(!generics.is_empty());
 
-            // where Guard > Limit
+            // where Guard: Limit
             let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
-            assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
-                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                    assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-                });
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
+                assert_string!(parser, *left, "Guard");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
         });
     }

@@ -103,8 +103,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BinaryOperator, Declaration, DeclarationDescriptor, DeclarationKind, Expression,
-        IntType, Parameter, TypeLiteral, WhereClause,
+        Argument, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType,
+        Parameter, TypeLiteral, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -360,7 +360,7 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
     fn test_parse_extension_with_path_name_and_where() {
         let mut test = TestParser::new(
             r###"
-extension for Foo where Guard > Limit {
+extension for Foo where Guard: Limit {
 }
 "###,
         );
@@ -375,15 +375,12 @@ extension for Foo where Guard > Limit {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert!(!generics.is_empty());
 
-            // where Guard > Limit
+            // where Guard: Limit
             let where_items = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_items.len(), 1);
-            assert_node!(parser.tree, where_items[0], WhereClause::Guard { guard } => {
-                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                    assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-                });
+            assert_node!(parser.tree, where_items[0], WhereClause { left, right } => {
+                assert_string!(parser, *left, "Guard");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
 
             // Foo target_type

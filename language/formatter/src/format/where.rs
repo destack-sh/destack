@@ -37,14 +37,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
     ) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
 
-        match self {
-            WhereClause::Assertion { left, right } => {
-                write!(f, [*left, token(":"), space(), *right])?;
-            }
-            WhereClause::Guard { guard } => {
-                write!(f, [*guard])?;
-            }
-        }
+        write!(f, [self.left, token(":"), space(), self.right])?;
 
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 

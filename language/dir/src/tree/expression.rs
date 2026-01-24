@@ -704,19 +704,11 @@ pub enum YieldCardinality {
 
 /// A WhereClause is a single clause in a where type declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum WhereClause {
-    /// Where assertion (like `T: int32`).
-    Assertion {
-        /// The target to assert (like `T` in `T: int32`)
-        left: StringId,
-        /// The assertion type (like `int32` in `T: int32`)
-        right: LocalNodeId<Expression>,
-    },
-    /// Where guard (like `T > Y`).
-    Guard {
-        /// The guard (like `T > Y` in `with T > Y`)
-        guard: LocalNodeId<Expression>,
-    },
+pub struct WhereClause {
+    /// The target to constrain (like `T` in `T: int32`).
+    pub left: StringId,
+    /// The constraint type (like `int32` in `T: int32`).
+    pub right: LocalNodeId<Expression>,
 }
 
 impl Node for WhereClause {

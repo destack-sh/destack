@@ -495,7 +495,7 @@ mod tests {
     fn test_parse_function_with_where_clause() {
         let mut test = TestParser::new(
             r###"
-function foo() => int32 where Guard > Limit {
+function foo() => int32 where Guard: Limit {
 }
 "###,
         );
@@ -510,15 +510,12 @@ function foo() => int32 where Guard > Limit {
             // function name
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             let generics = signature.generics.as_ref().expect("expected generics");
-            // where Guard > Limit
+            // where Guard: Limit
             let where_clauses = generics.where_clauses.as_ref().expect("expected where clauses");
             assert_eq!(where_clauses.len(), 1);
-            assert_node!(parser.tree, where_clauses[0], WhereClause::Guard { guard } => {
-                assert_node!(parser.tree, *guard, Expression::Binary { operator, left, right } => {
-                    assert_eq!(*operator, BinaryOperator::GreaterThan);
-                    assert_expression_path!(parser, parser.tree.get(*left), "Guard");
-                    assert_expression_path!(parser, parser.tree.get(*right), "Limit");
-                });
+            assert_node!(parser.tree, where_clauses[0], WhereClause { left, right } => {
+                assert_string!(parser, *left, "Guard");
+                assert_expression_path!(parser, parser.tree.get(*right), "Limit");
             });
             // return type
             let ret = signature.return_type.expect("expected return type");
