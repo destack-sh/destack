@@ -5,7 +5,7 @@
 /// - Slicing: `array[1..5]`
 /// - Pattern matching: `match (x) { 1..10 => ... }`
 
-import { Iterable } from "./iterable.ds";
+import { type Iterable } from "./iterable.ds";
 
 /// A range bound - included, excluded, or unbounded.
 export newtype Bound<T> = { kind: "included", value: T }

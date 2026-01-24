@@ -28,9 +28,9 @@
 /// }
 /// ```
 
-import { Try, TryBranch } from "./try.ds";
-import { Equal } from "../operator/comparison.ds";
-import { Display, Debug } from "../operator/format.ds";
+import { type Try, type TryBranch } from "./try.ds";
+import { type Equal } from "../operator/comparison.ds";
+import { type Display, type Debug } from "../operator/format.ds";
 
 /// FUGU: remove Promise/PromiseConstructor from result.ds once we have a proper Promise type
 

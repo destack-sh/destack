@@ -4,20 +4,20 @@
 // - Error handling: Result, Try
 // - Iteration: Range types
 
-export { Try, TryBranch } from "./try.ds";
-export { Error } from "./error.ds";
+export { type Try, type TryBranch } from "./try.ds";
+export { type Error } from "./error.ds";
 export { Ok, Err, Result, AsyncResult } from "./result.ds";
 export {
-    IteratorYieldResult,
-    IteratorReturnResult,
-    IteratorResult,
-    Iterator,
-    Iterable,
-    IterableIterator,
+    type IteratorYieldResult,
+    type IteratorReturnResult,
+    type IteratorResult,
+    type Iterator,
+    type Iterable,
+    type IterableIterator,
 } from "./iterable.ds";
 export {
     Bound,
-    RangeBounds,
+    type RangeBounds,
     Range,
     RangeInclusive,
     RangeFrom,

@@ -123,6 +123,8 @@ The tree literal syntax is customizable via traits, so your domain types can def
 Destack extends TypeScript's type system with precise primitives.
 It adds explicit reference semantics and types as values.
 It supports static parameterisation of values and other advanced type features.
+Declaration modules can declare values without providing implementations.
+Nominal declarations introduce both type and value bindings, including in declaration modules.
 
 ### Inference
 

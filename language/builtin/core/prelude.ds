@@ -2,23 +2,23 @@
 export { Type, typeOf } from "./reflect/type.ds";
 
 // ownership
-export { Drop, Copy, Clone, Send, Sync } from "./memory/index.ds";
+export { type Drop, type Copy, type Clone, type Send, type Sync } from "./memory/index.ds";
 
 // control flow
-export { Try, TryBranch } from "./control/try.ds";
-export { Error } from "./control/error.ds";
+export { type Try, type TryBranch } from "./control/try.ds";
+export { type Error } from "./control/error.ds";
 export { Ok, Err, Result, AsyncResult } from "./control/result.ds";
 export {
-    IteratorYieldResult,
-    IteratorReturnResult,
-    IteratorResult,
-    Iterator,
-    Iterable,
-    IterableIterator,
+    type IteratorYieldResult,
+    type IteratorReturnResult,
+    type IteratorResult,
+    type Iterator,
+    type Iterable,
+    type IterableIterator,
 } from "./control/iterable.ds";
 export {
     Bound,
-    RangeBounds,
+    type RangeBounds,
     Range,
     RangeInclusive,
     RangeFrom,
@@ -64,29 +64,29 @@ export {
 
 // arithmetic operators
 export {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Remainder,
-    Power,
-    Plus,
-    Negate,
-    And,
-    Or,
-    Xor,
-    Not,
-    ShiftLeft,
-    ShiftRight,
-    ShiftRightUnsigned,
-    Concatenate,
+    type Add,
+    type Subtract,
+    type Multiply,
+    type Divide,
+    type Remainder,
+    type Power,
+    type Plus,
+    type Negate,
+    type And,
+    type Or,
+    type Xor,
+    type Not,
+    type ShiftLeft,
+    type ShiftRight,
+    type ShiftRightUnsigned,
+    type Concatenate,
 } from "./operator/arithmetic.ds";
 
 // comparison operators
-export { Equal, PartialEqual, Compare, PartialCompare, Ordering } from "./operator/comparison.ds";
+export { type Equal, type PartialEqual, type Compare, type PartialCompare, Ordering } from "./operator/comparison.ds";
 
 // formatting operators
-export { Display, Debug } from "./operator/format.ds";
+export { type Display, type Debug } from "./operator/format.ds";
 
 // subscript operators
-export { Index, IndexSet, Deref, DerefSet } from "./operator/subscript.ds";
+export { type Index, type IndexSet, type Deref, type DerefSet } from "./operator/subscript.ds";

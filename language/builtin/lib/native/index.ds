@@ -1,8 +1,9 @@
 // core types (ambient)
 export { String } from "./string/index.ds";
-export { Array, ReadonlyArray, arrayOf, arrayFill } from "./collections/index.ds";
+export { Array, arrayOf, arrayFill } from "./collections/index.ds";
+export { type ReadonlyArray } from "./collections/index.ds";
 export { Slice } from "./collections/index.ds";
-export { Map, Record } from "./collections/index.ds";
+export { Map, type Record } from "./collections/index.ds";
 export { Set } from "./collections/index.ds";
 
 // low-level primitives (not ambient, must be imported explicitly)

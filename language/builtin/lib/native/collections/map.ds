@@ -1,5 +1,5 @@
 /// Native hash map using open addressing with Robin Hood hashing.
-struct Map<K, V> {
+export struct Map<K, V> {
     /// Number of entries in the map.
     length: uint32,
     /// Number of allocated buckets.
@@ -11,14 +11,14 @@ struct Map<K, V> {
 }
 
 /// Internal entry structure.
-struct MapEntry<K, V> {
+export struct MapEntry<K, V> {
     key: K,
     value: V,
 }
 
 /// TypeScript-compatible Record type alias.
 /// In native, Record<K, V> is a Map<K, V>.
-type Record<K, V> = Map<K, V>;
+export type Record<K, V> = Map<K, V>;
 
 extension<K, V> for Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K, V]> {
     /// Get the number of entries.
