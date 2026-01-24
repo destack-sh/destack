@@ -137,6 +137,7 @@ impl ModuleLowerer<'_> {
             // scan interface members
             for member_id in members {
                 self.collect_interface_member_slots(
+                    interface,
                     interface_type,
                     *member_id,
                     slots,
@@ -152,6 +153,7 @@ impl ModuleLowerer<'_> {
     /// Collect slots for a single interface member.
     fn collect_interface_member_slots(
         &mut self,
+        interface_symbol: GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
         member_id: LocalNodeId<Member>,
         slots: &mut Vec<InterfaceSlot>,
@@ -258,6 +260,7 @@ impl ModuleLowerer<'_> {
                 // create interface method stub when needed
                 let method_symbol = symbol.into_global(self.module_id);
                 self.lower_interface_method_stub(
+                    interface_symbol,
                     interface_type,
                     member_id,
                     key.as_ref(),

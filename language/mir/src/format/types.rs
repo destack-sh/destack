@@ -357,7 +357,9 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
             format_attribute_lines(attributes, f)?;
         }
 
+        // resolve the alias name with formatting options
         let name = f.context().strings.get(self.name);
+        let name = f.context().format_alias_name(name);
 
         write!(
             f,
@@ -365,7 +367,7 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
                 token("type"),
                 space(),
                 token("@"),
-                text(name),
+                text(&name),
                 space(),
                 token("="),
                 space()

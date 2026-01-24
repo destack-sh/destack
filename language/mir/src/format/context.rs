@@ -31,6 +31,8 @@ pub struct MirFormatOptions {
     pub use_type_aliases: bool,
     /// Minimum number of uses before a type gets a synthetic alias.
     pub type_alias_min_uses: u8,
+    /// Whether to render metadata names without module prefixes.
+    pub use_local_names: bool,
 }
 
 impl Default for MirFormatOptions {
@@ -42,6 +44,7 @@ impl Default for MirFormatOptions {
             line_width: 100,
             use_type_aliases: false,
             type_alias_min_uses: 2,
+            use_local_names: false,
         }
     }
 }
@@ -66,6 +69,12 @@ impl MirFormatOptions {
     /// Set the minimum number of uses required for a synthetic alias.
     pub fn with_type_alias_min_uses(mut self, value: u8) -> Self {
         self.type_alias_min_uses = value;
+        self
+    }
+
+    /// Enable or disable local name formatting for metadata.
+    pub fn with_local_names(mut self, value: bool) -> Self {
+        self.use_local_names = value;
         self
     }
 }
@@ -137,12 +146,20 @@ impl<'a> MirFormatContext<'a> {
         // collect explicit type aliases
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
-            .map(|(_, alias)| (alias.ty, strings.get(alias.name).to_string()))
+            .map(|(_, alias)| {
+                let name = strings.get(alias.name);
+                let name = if options.use_local_names {
+                    local_name_from_metadata(name)
+                } else {
+                    name.to_string()
+                };
+                (alias.ty, name)
+            })
             .collect();
 
         // assign unique function and global names
-        let function_names = build_unique_function_names(tree, strings);
-        let global_names = build_unique_global_names(tree, strings);
+        let function_names = build_unique_function_names(tree, strings, options.use_local_names);
+        let global_names = build_unique_global_names(tree, strings, options.use_local_names);
 
         // include synthetic aliases when configured
         let (type_alias_by_type, synthetic_aliases) = if options.use_type_aliases {
@@ -152,6 +169,7 @@ impl<'a> MirFormatContext<'a> {
                 strings,
                 type_alias_by_type,
                 options.type_alias_min_uses,
+                options.use_local_names,
             )
         } else {
             // skip synthetic aliases
@@ -173,6 +191,16 @@ impl<'a> MirFormatContext<'a> {
             value_indices: HashMap::new(),
             current_function: None,
         }
+    }
+
+    /// Format a type alias name with the configured naming policy.
+    pub fn format_alias_name(&self, name: &str) -> String {
+        // use local names when configured
+        if self.options.use_local_names {
+            return local_name_from_metadata(name);
+        }
+
+        name.to_string()
     }
 
     /// Get the index of a block in the current function.
@@ -250,6 +278,7 @@ impl<'a> MirFormatContext<'a> {
 fn build_unique_function_names(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
+    use_local_names: bool,
 ) -> HashMap<LocalNodeId<Function>, String> {
     // collect function names
     let names = tree
@@ -257,13 +286,18 @@ fn build_unique_function_names(
         .map(|(id, function)| (id, strings.get(function.name).to_string()));
 
     // build stable unique names
-    build_unique_names(names)
+    if use_local_names {
+        build_unique_names(names.map(|(id, name)| (id, local_name_from_metadata(&name))))
+    } else {
+        build_unique_names(names)
+    }
 }
 
 /// Build unique display names for globals.
 fn build_unique_global_names(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
+    use_local_names: bool,
 ) -> HashMap<LocalNodeId<Global>, String> {
     // collect global names
     let names = tree
@@ -271,7 +305,11 @@ fn build_unique_global_names(
         .map(|(id, global)| (id, strings.get(global.name).to_string()));
 
     // build stable unique names
-    build_unique_names(names)
+    if use_local_names {
+        build_unique_names(names.map(|(id, name)| (id, local_name_from_metadata(&name))))
+    } else {
+        build_unique_names(names)
+    }
 }
 
 /// Build unique display names for nodes.
@@ -323,6 +361,7 @@ fn build_synthetic_aliases(
     strings: &ImmutableStringPool,
     mut type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     min_uses: u8,
+    use_local_names: bool,
 ) -> (
     HashMap<LocalNodeId<Type>, String>,
     Vec<(LocalNodeId<Type>, String)>,
@@ -361,7 +400,7 @@ fn build_synthetic_aliases(
         entry.type_ids.push(type_id);
 
         // track metadata names when available
-        if let Some(name) = metadata_name_for_type(tree, strings, type_id) {
+        if let Some(name) = metadata_name_for_type(tree, strings, type_id, use_local_names) {
             entry.metadata_names.insert(name);
         }
     }
@@ -486,12 +525,33 @@ fn metadata_name_for_type(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
     ty: LocalNodeId<Type>,
+    use_local_names: bool,
 ) -> Option<String> {
     // read the metadata name when available
     tree.type_table
         .type_metadata(ty)
         .and_then(|metadata| metadata.name)
         .map(|name_id| strings.get(name_id).to_string())
+        .map(|name| {
+            if use_local_names {
+                local_name_from_metadata(&name)
+            } else {
+                name
+            }
+        })
+}
+
+/// Strip module prefixes from metadata names.
+fn local_name_from_metadata(name: &str) -> String {
+    let Some((prefix, suffix)) = name.split_once(':') else {
+        return name.to_string();
+    };
+
+    if prefix.contains('/') {
+        return suffix.to_string();
+    }
+
+    name.to_string()
 }
 
 /// Alias candidates grouped by structural key.
@@ -989,15 +1049,25 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
         let type_alias_ids: Vec<_> = tree.iter_nodes::<TypeAlias>().map(|(id, _)| id).collect();
         let global_ids: Vec<_> = tree.iter_nodes::<Global>().map(|(id, _)| id).collect();
         let function_ids: Vec<_> = tree.iter_nodes::<Function>().map(|(id, _)| id).collect();
-        let mut first = true;
+        let mut has_output = false;
 
-        // format synthetic type aliases first
+        // format type aliases as a single block
         let synthetic_aliases = f.context().synthetic_aliases.clone();
-        for (type_id, name) in &synthetic_aliases {
-            if !first {
-                write!(f, [hard_line_break()])?;
+        let has_type_aliases = !synthetic_aliases.is_empty() || !type_alias_ids.is_empty();
+        if has_type_aliases {
+            // add a blank line between top level blocks
+            if has_output {
+                write!(f, [hard_line_break(), hard_line_break()])?;
             }
-            first = false;
+
+            let mut first_alias = true;
+            for (type_id, name) in &synthetic_aliases {
+                // add single line separators within the block
+                if !first_alias {
+                    write!(f, [hard_line_break()])?;
+                }
+                first_alias = false;
+
             write!(
                 f,
                 [
@@ -1012,34 +1082,52 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
             )?;
             let ty = f.context().tree.get(*type_id);
             format_type_expanded(f, *type_id, ty)?;
-            write!(f, [hard_line_break()])?;
+            }
+
+            for type_alias_id in &type_alias_ids {
+                // add single line separators within the block
+                if !first_alias {
+                    write!(f, [hard_line_break()])?;
+                }
+                first_alias = false;
+                write!(f, [type_alias_id])?;
+            }
+
+            has_output = true;
         }
 
-        // format explicit type aliases next
-        for type_alias_id in &type_alias_ids {
-            if !first {
-                write!(f, [hard_line_break()])?;
+        // format globals as a single block
+        if !global_ids.is_empty() {
+            // add a blank line between top level blocks
+            if has_output {
+                write!(f, [hard_line_break(), hard_line_break()])?;
             }
-            first = false;
-            write!(f, [type_alias_id, hard_line_break()])?;
-        }
 
-        // format globals first
-        for global_id in &global_ids {
-            if !first {
-                write!(f, [hard_line_break()])?;
+            for (index, global_id) in global_ids.iter().enumerate() {
+                // add single line separators within the block
+                if index > 0 {
+                    write!(f, [hard_line_break()])?;
+                }
+                write!(f, [global_id])?;
             }
-            first = false;
-            write!(f, [global_id, hard_line_break()])?;
+
+            has_output = true;
         }
 
         // format functions
-        for function_id in &function_ids {
-            if !first {
-                write!(f, [hard_line_break()])?;
+        if !function_ids.is_empty() {
+            // add a blank line between top level blocks
+            if has_output {
+                write!(f, [hard_line_break(), hard_line_break()])?;
             }
-            first = false;
-            write!(f, [function_id])?;
+
+            for (index, function_id) in function_ids.iter().enumerate() {
+                // add blank lines between functions
+                if index > 0 {
+                    write!(f, [hard_line_break(), hard_line_break()])?;
+                }
+                write!(f, [function_id])?;
+            }
         }
         Ok(())
     }

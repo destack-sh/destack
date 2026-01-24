@@ -248,6 +248,10 @@ struct FieldMapBox {
     leftFieldMap: int32;
     rightFieldMap: int32;
 }
+
+function readField(value: FieldMapBox): int32 {
+    return value.leftFieldMap;
+}
 "#,
     );
 
@@ -255,6 +259,21 @@ struct FieldMapBox {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @FieldMapBox = { leftFieldMap: i32, rightFieldMap: i32 }
+
+function @readField(v0: @FieldMapBox) -> i32 {
+block0(v0: @FieldMapBox):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+        "#,
+    );
 
     // inspect the lowered mir metadata
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -305,6 +324,27 @@ function readValue(value: int32): int32 {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Box = { value: i32 }
+
+function @Box.get(v0: @Box) -> i32 {
+block0(v0: @Box):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+
+function @readValue(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: @Box = struct @Box (v0)
+    v2: i32 = call @Box.get(v1) -> fn(@Box) -> i32
+    return v2
+}
+        "#,
+    );
 
     test.assert_mir_function_output(
         module_id,

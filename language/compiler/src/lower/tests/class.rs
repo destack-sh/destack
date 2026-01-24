@@ -64,13 +64,14 @@ function sumBox(value: int32): int32 {
         module_id,
         "native",
         r#"
-type @test/test:Box = { value: i32 }
+type @Box = { value: i32 }
+
 function @sumBox(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: @test/test:Box = struct @test/test:Box (v0)
-    v2: ref<managed @test/test:Box> = managed.alloc @test/test:Box
+    v1: @Box = struct @Box (v0)
+    v2: ref<managed @Box> = managed.alloc @Box
     store v2, v1
-    v3: @test/test:Box = load v2
+    v3: @Box = load v2
     v4: i32 = field.get v3, 0
     v5: i32 = iconst 1i32
     v6: i32 = trunc v5 -> i32
@@ -123,16 +124,18 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-global @test/test:PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
-global @test/test:MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
-function @ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
+global @PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
+global @MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
+
+function @MessageHeader.ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
 block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
     v1: i32 = iconst 1i32
     return v1
 }
+
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: ref<raw [ref?<raw void>; 2]> = global.addr @test/test:PacketHeader#vtable
+    v1: ref<raw [ref?<raw void>; 2]> = global.addr @PacketHeader#vtable
     v2: ref<raw void> = bitcast v1 -> ref<raw void>
     v3: { @vtable: ref<raw void>, packetSize: i32 } = struct { @vtable: ref<raw void>, packetSize: i32 } (v2, v0)
     v4: ref<managed { @vtable: ref<raw void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw void>, packetSize: i32 }
@@ -280,6 +283,37 @@ function useDog(d: Dog): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Animal = { @vtable: ref<raw void>, name: i32 }
+type @Dog = { @vtable: ref<raw void>, name: i32, breed: i32 }
+
+global @Animal#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @Dog#vtable: [ref?<raw void>; 3] = zeroinit ; const
+
+function @Animal.speak(v0: ref<managed @Animal>) -> i32 {
+block0(v0: ref<managed @Animal>):
+    v1: i32 = iconst 1i32
+    return v1
+}
+
+function @Dog.speak(v0: ref<managed @Dog>) -> i32 {
+block0(v0: ref<managed @Dog>):
+    v1: i32 = iconst 2i32
+    return v1
+}
+
+function @useDog(v0: ref<managed @Dog>) -> i32 {
+block0(v0: ref<managed @Dog>):
+    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed @Dog>) -> i32
+    return v1
+}
+        "#,
+    );
+
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // collect the class vtables
         let vtables = test.class_dispatch_tables(tree);
@@ -329,6 +363,42 @@ class Car extends Vehicle {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Struct0 = { @vtable: ref<raw void> }
+
+global @Vehicle#vtable: [ref?<raw void>; 4] = zeroinit ; const
+global @Car#vtable: [ref?<raw void>; 5] = zeroinit ; const
+
+function @Vehicle.start(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1: i32 = iconst 1i32
+    return v1
+}
+
+function @Vehicle.stop(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1: i32 = iconst 2i32
+    return v1
+}
+
+function @Car.start(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1: i32 = iconst 3i32
+    return v1
+}
+
+function @Car.honk(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1: i32 = iconst 4i32
+    return v1
+}
+        "#,
+    );
+
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let base_type = test.type_by_metadata_name(tree, strings, "test/test:Vehicle");
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:Car");
@@ -341,8 +411,11 @@ class Car extends Vehicle {
         let base_methods = test.vtable_method_names(base_table, tree, strings);
         let derived_methods = test.vtable_method_names(derived_table, tree, strings);
 
-        assert_eq!(base_methods, vec!["start", "stop"]);
-        assert_eq!(derived_methods, vec!["start", "stop", "honk"]);
+        assert_eq!(base_methods, vec!["Vehicle.start", "Vehicle.stop"]);
+        assert_eq!(
+            derived_methods,
+            vec!["Car.start", "Vehicle.stop", "Car.honk"]
+        );
     });
 }
 
@@ -380,6 +453,37 @@ function callLogger(base: Logger): int32 {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Logger = { @vtable: ref<raw void>, logLevel: i32 }
+type @FileLogger = { @vtable: ref<raw void>, logLevel: i32, fileMode: i32 }
+
+global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+
+function @Logger.log(v0: ref<managed @Logger>) -> i32 {
+block0(v0: ref<managed @Logger>):
+    v1: i32 = iconst 1i32
+    return v1
+}
+
+function @FileLogger.log(v0: ref<managed @FileLogger>) -> i32 {
+block0(v0: ref<managed @FileLogger>):
+    v1: i32 = iconst 2i32
+    return v1
+}
+
+function @callLogger(v0: ref<managed @Logger>) -> i32 {
+block0(v0: ref<managed @Logger>):
+    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed @Logger>) -> i32
+    return v1
+}
+        "#,
+    );
 
     // inspect call metadata
     test.with_mir_tree(module_id, "native", |tree, strings| {
@@ -425,21 +529,25 @@ function callLogger(base: Logger): int32 {
         "native",
         r#"
 type @Struct0 = { @vtable: ref<raw void> }
-global @test/test:Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
-global @test/test:FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
-function @log(v0: ref<managed @Struct0>) -> i32 {
+
+global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+
+function @Logger.log(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
     v1: i32 = iconst 1i32
     return v1
 }
-function @log#1(v0: ref<managed @Struct0>) -> i32 {
+
+function @FileLogger.log(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
     v1: i32 = iconst 2i32
     return v1
 }
+
 function @callLogger(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
-    v1: i32 = call.virtual v0, @Struct0, 2, @log(v0) -> fn(ref<managed @Struct0>) -> i32
+    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed @Struct0>) -> i32
     return v1
 }
         "#,

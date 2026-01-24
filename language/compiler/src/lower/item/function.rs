@@ -564,7 +564,14 @@ impl ModuleLowerer<'_> {
             // resolve the static method key or dispatch name
             let method_name =
                 self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
-            self.compiler.program.strings.get(method_name).to_string()
+            let method_name = self.compiler.program.strings.get(method_name).to_string();
+
+            // prefix instance methods with the owner type name when available
+            if let Some(owner_name) = self.symbol_path_name(owner_symbol) {
+                format!("{owner_name}.{method_name}")
+            } else {
+                method_name
+            }
         };
 
         // capture this type for constructor initialization

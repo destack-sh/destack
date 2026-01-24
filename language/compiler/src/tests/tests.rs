@@ -1001,11 +1001,17 @@ impl TestProgram {
     /// Format MIR options for test output.
     fn mir_format_options(&self) -> MirFormatOptions {
         // enable type aliases in test output
-        MirFormatOptions::default().with_type_aliases(true)
+        MirFormatOptions::default()
+            .with_type_aliases(true)
+            .with_local_names(true)
     }
 
     /// Normalize expected MIR text for comparison.
-    fn normalize_mir_expected(&self, expected: &str) -> String {
+    fn normalize_mir_expected_with_options(
+        &self,
+        expected: &str,
+        options: MirFormatOptions,
+    ) -> String {
         // trim the expected input
         let expected = expected.trim();
 
@@ -1016,7 +1022,12 @@ impl TestProgram {
             mir::parse::ParseOptions::default(),
         )
         .unwrap_or_else(|error| panic!("expected mir parse failed: {error}"));
-        format_mir(&tree, &strings, self.mir_format_options())
+        format_mir(&tree, &strings, options)
+    }
+
+    /// Normalize expected MIR text for comparison.
+    fn normalize_mir_expected(&self, expected: &str) -> String {
+        self.normalize_mir_expected_with_options(expected, self.mir_format_options())
     }
 
     /// Run a callback with the MIR tree and strings for a lowered target.
