@@ -2,11 +2,11 @@ use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_test_mirbench as program;
 use destack_vm::memory::Value;
-use pprof::flamegraph::Options as FlamegraphOptions;
 use pprof::ProfilerGuard;
+use pprof::flamegraph::Options as FlamegraphOptions;
 use program::Program;
-use std::hint::black_box;
 use std::env;
+use std::hint::black_box;
 use std::path::Path;
 
 /// Pprof profiler for Criterion benches.

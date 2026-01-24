@@ -7,12 +7,12 @@ use destack_source::ModuleId;
 use destack_workspace::TargetId;
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
+use crate::optimize::common::ValueTypeMap;
 use crate::optimize::{
     AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, DiagnosticEmitter,
     FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation, PipelineContext,
     ResolvedLifetime,
 };
-use crate::optimize::common::ValueTypeMap;
 use crate::{OptimizeError, OptimizeWarning};
 
 declare_pass! {
@@ -879,9 +879,7 @@ fn check_instruction(
 
         Instruction::CallVirtual { arguments, .. }
         | Instruction::CallInterface { arguments, .. }
-        | Instruction::CallIndirect {
-            arguments, ..
-        } => {
+        | Instruction::CallIndirect { arguments, .. } => {
             // callee is used, not moved
             let args = checker.tree.get_arguments(*arguments);
             for &arg in args {

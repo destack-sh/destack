@@ -3390,21 +3390,15 @@ mod tests {
     /// Redundant const on borrows is omitted in type formatting.
     #[test]
     fn test_format_type_redundant_const_borrow() {
-        assert_format!(
-            "&const Foo",
-            "&Foo",
-            |p| p.eat_type(p.mark(), DeclarationDescriptor::default())
-        );
+        assert_format!("&const Foo", "&Foo", |p| p
+            .eat_type(p.mark(), DeclarationDescriptor::default()));
     }
 
     /// Redundant const on pointers is omitted in type formatting.
     #[test]
     fn test_format_type_redundant_const_pointer() {
-        assert_format!(
-            "*const Foo",
-            "*Foo",
-            |p| p.eat_type(p.mark(), DeclarationDescriptor::default())
-        );
+        assert_format!("*const Foo", "*Foo", |p| p
+            .eat_type(p.mark(), DeclarationDescriptor::default()));
     }
 
     #[test]

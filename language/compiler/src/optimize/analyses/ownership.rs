@@ -787,11 +787,7 @@ impl OwnershipAnalysis {
     }
 
     /// Build the analysis.
-    fn build(
-        function: &mir::Function,
-        tree: &mir::NodeTree,
-        cfg: &ControlFlowGraph,
-    ) -> Self {
+    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
         if function.entry.is_none() {
             let value_types = ValueTypeMap::new(function, tree);
             return Self {
@@ -916,13 +912,7 @@ impl OwnershipAnalysis {
                 let mut state = new_entry;
                 for &inst_id in &block.instructions {
                     let inst = tree.get(inst_id);
-                    process_instruction(
-                        &mut state,
-                        inst_id,
-                        inst,
-                        tree,
-                        &value_types_clone,
-                    );
+                    process_instruction(&mut state, inst_id, inst, tree, &value_types_clone);
                 }
 
                 process_terminator(
@@ -1009,11 +999,7 @@ fn collect_allocation_kinds(
 }
 
 /// Check if a value has copy semantics.
-fn value_is_copy(
-    value: Value,
-    tree: &mir::NodeTree,
-    value_types: &ValueTypeMap,
-) -> bool {
+fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap) -> bool {
     let type_id = value_types.require_value_type(value);
     let ty = tree.get(type_id);
     match ty {
@@ -1106,13 +1092,7 @@ fn process_instruction(
         Instruction::LocalGet { destination, local } => {
             // the read produces a new owned value
             state.mark_owned(*destination);
-            set_origin_if_move_only(
-                state,
-                *destination,
-                Some(*local),
-                tree,
-                value_types,
-            );
+            set_origin_if_move_only(state, *destination, Some(*local), tree, value_types);
         }
 
         // call moves arguments (if non-copy)
@@ -1138,12 +1118,7 @@ fn process_instruction(
         } => {
             let args = tree.get_arguments(*arguments);
             for &arg in args {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
             if let Some(dest) = destination {
                 state.mark_owned(*dest);
@@ -1183,12 +1158,7 @@ fn process_instruction(
         } => {
             let field_values = tree.get_arguments(*fields);
             for &field in field_values {
-                state.mark_moved_if_not_copy_with_source(
-                    field,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(field, at.clone(), tree, value_types);
             }
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
@@ -1200,12 +1170,7 @@ fn process_instruction(
         } => {
             let elem_values = tree.get_arguments(*elements);
             for &elem in elem_values {
-                state.mark_moved_if_not_copy_with_source(
-                    elem,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(elem, at.clone(), tree, value_types);
             }
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
@@ -1217,12 +1182,7 @@ fn process_instruction(
         } => {
             let elem_values = tree.get_arguments(*elements);
             for &elem in elem_values {
-                state.mark_moved_if_not_copy_with_source(
-                    elem,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(elem, at.clone(), tree, value_types);
             }
             state.mark_owned(*destination);
             set_origin_if_move_only(state, *destination, None, tree, value_types);
@@ -1306,12 +1266,7 @@ fn process_instruction(
             let args = tree.get_arguments(*arguments);
             for &idx in intrinsic.consumed_arguments() {
                 if let Some(&arg) = args.get(idx as usize) {
-                    state.mark_moved_if_not_copy_with_source(
-                        arg,
-                        at.clone(),
-                        tree,
-                        value_types,
-                    );
+                    state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
                 }
             }
             if let Some(dest) = destination {
@@ -1422,12 +1377,7 @@ fn process_terminator(
         }
         mir::Terminator::Jump { arguments, .. } => {
             for &arg in arguments {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
         mir::Terminator::Yield {
@@ -1435,19 +1385,9 @@ fn process_terminator(
             resume_arguments,
             ..
         } => {
-            state.mark_moved_if_not_copy_with_source(
-                *value,
-                at.clone(),
-                tree,
-                value_types,
-            );
+            state.mark_moved_if_not_copy_with_source(*value, at.clone(), tree, value_types);
             for &arg in resume_arguments {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
         mir::Terminator::Branch { .. }
@@ -1456,12 +1396,7 @@ fn process_terminator(
         | mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall { arguments, .. } => {
             for &arg in arguments {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
         mir::Terminator::TailCallVirtual {
@@ -1474,37 +1409,17 @@ fn process_terminator(
             arguments,
             ..
         } => {
-            state.mark_moved_if_not_copy_with_source(
-                *receiver,
-                at.clone(),
-                tree,
-                value_types,
-            );
+            state.mark_moved_if_not_copy_with_source(*receiver, at.clone(), tree, value_types);
             for &arg in arguments {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
         mir::Terminator::TailCallIndirect {
             callee, arguments, ..
         } => {
-            state.mark_moved_if_not_copy_with_source(
-                *callee,
-                at.clone(),
-                tree,
-                value_types,
-            );
+            state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
             for &arg in arguments {
-                state.mark_moved_if_not_copy_with_source(
-                    arg,
-                    at.clone(),
-                    tree,
-                    value_types,
-                );
+                state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }
         }
     }

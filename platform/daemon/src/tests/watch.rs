@@ -143,9 +143,7 @@ fn test_watch_batch_handles_multiple_roots() {
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
     let coordinator = test.watch_coordinator(policy);
 
-    let _ = coordinator
-        .next_batch()
-        .expect("expected startup batch");
+    let _ = coordinator.next_batch().expect("expected startup batch");
 
     let file_a = root_a.join("a.ds");
     let file_b = root_b.join("b.ds");
@@ -157,9 +155,7 @@ fn test_watch_batch_handles_multiple_roots() {
     test.watcher
         .emit(test.watch_event(&file_b, FileWatchEventKind::Modified));
 
-    let batch = coordinator
-        .next_batch()
-        .expect("expected watch batch");
+    let batch = coordinator.next_batch().expect("expected watch batch");
     let batch = TestWatchBatch::new(batch);
     batch.assert_event_suffix("a.ds");
     batch.assert_event_suffix("b.ds");
@@ -177,8 +173,18 @@ fn test_watch_batch_handles_multiple_roots() {
         .expect("missing file id for root b");
 
     // assertion block
-    assert!(result.updates.iter().any(|update| update.file_id == file_a_id));
-    assert!(result.updates.iter().any(|update| update.file_id == file_b_id));
+    assert!(
+        result
+            .updates
+            .iter()
+            .any(|update| update.file_id == file_a_id)
+    );
+    assert!(
+        result
+            .updates
+            .iter()
+            .any(|update| update.file_id == file_b_id)
+    );
 
     coordinator.stop();
 }

@@ -4,13 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA,
-    PostDominatorTree,
+    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, PostDominatorTree,
 };
 use crate::optimize::common::{
-    DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap,
-    build_value_definition_map, collect_non_escaping_stack_allocs, range_relation,
-    stack_alloc_base,
+    DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap, build_value_definition_map,
+    collect_non_escaping_stack_allocs, range_relation, stack_alloc_base,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 

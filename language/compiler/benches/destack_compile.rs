@@ -3,12 +3,11 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, LintTask};
 use destack_source::{FileType, ModuleId, ModuleStamp, ProfileStamp, Uri, glob};
 use destack_workspace::{ProfileId, Session};
-use pprof::flamegraph::Options as FlamegraphOptions;
 use pprof::ProfilerGuard;
+use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;
 use std::hint::black_box;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Source file info for compiler benchmarks.
@@ -79,7 +78,7 @@ impl Profiler for PprofProfiler {
 }
 
 /// Load destack sources for compilation.
-fn load_sources(workspace_root: &PathBuf) -> (Vec<SourceFile>, u64) {
+fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
     // collect file paths
     let workspace_root = workspace_root.to_string_lossy();
     let mut ds_files = glob(&format!("{workspace_root}/**/*.ds"));
@@ -114,10 +113,11 @@ fn load_sources(workspace_root: &PathBuf) -> (Vec<SourceFile>, u64) {
 }
 
 /// Create a compiler and register modules.
-fn build_compiler(workspace_root: &PathBuf, sources: &[SourceFile]) -> (Compiler, Vec<ModuleId>) {
+fn build_compiler(workspace_root: &Path, sources: &[SourceFile]) -> (Compiler, Vec<ModuleId>) {
     // session and program
+    let workspace_root = workspace_root.to_path_buf();
     let session = Arc::new(Session::new(workspace_root.clone()));
-    let program = session.add_root(workspace_root.clone());
+    let program = session.add_root(workspace_root);
 
     // register modules
     let mut modules = Vec::with_capacity(sources.len());

@@ -3,10 +3,11 @@ use std::str::FromStr;
 use crate::{
     ArgumentSlice, AtomicScope, BinaryOperator, CastOperator, CheckConstraint, CheckTarget,
     DispatchTableId, Function, Instruction, Intrinsic, LocalNodeId, MemoryLocationSet,
-    MemoryOrdering, MemoryScope, MemorySemantics, SwitchCase, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorConvertMode, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
-    Terminator, Type, UnaryOperator, Value, VectorConvertMode, VectorReduceOperator,
+    MemoryOrdering, MemoryScope, MemorySemantics, SwitchCase, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, Terminator, Type, UnaryOperator, Value, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 use super::constant::{parse_intrinsic_name, parse_memory_location};
@@ -378,7 +379,10 @@ impl<'a> Parser<'a> {
             }
             "tensor.cast" => {
                 let tensor = self.parse_value()?;
-                Instruction::TensorCast { destination, tensor }
+                Instruction::TensorCast {
+                    destination,
+                    tensor,
+                }
             }
             "tensor.view" => {
                 let view = self.parse_value()?;

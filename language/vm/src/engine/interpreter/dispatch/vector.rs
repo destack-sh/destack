@@ -291,7 +291,7 @@ pub(crate) fn handle_vector_convert(
             return ControlFlow::Error(Error::TypeMismatch {
                 expected: "vector type".to_string(),
                 actual: format!("{source_type:?}"),
-            })
+            });
         }
     };
     let dest_vector = state.interpreter.isolate.tree.get(*dest_type);
@@ -301,7 +301,7 @@ pub(crate) fn handle_vector_convert(
             return ControlFlow::Error(Error::TypeMismatch {
                 expected: "vector type".to_string(),
                 actual: format!("{dest_type:?}"),
-            })
+            });
         }
     };
 

@@ -1598,7 +1598,7 @@ pub(crate) fn handle_tensor_convert(
             return ControlFlow::Error(Error::TypeMismatch {
                 expected: "tensor type".to_string(),
                 actual: format!("{source_type:?}"),
-            })
+            });
         }
     };
     let dest_type_info = state.interpreter.isolate.tree.get(*dest_type);
@@ -1614,7 +1614,7 @@ pub(crate) fn handle_tensor_convert(
             return ControlFlow::Error(Error::TypeMismatch {
                 expected: "tensor type".to_string(),
                 actual: format!("{dest_type:?}"),
-            })
+            });
         }
     };
 

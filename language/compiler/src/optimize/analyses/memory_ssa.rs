@@ -4,10 +4,10 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::optimize::common::{
-    MemoryLocation, TypeKey, address_spaces_may_alias, alias_scopes_may_alias,
+    MemoryLocation, TypeKey, ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
     build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
     location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_pointee_type,
-    tbaa_tags_may_alias, ValueTypeMap,
+    tbaa_tags_may_alias,
 };
 use crate::optimize::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
@@ -680,8 +680,7 @@ impl MemorySSA {
 
 impl Analysis for MemorySSA {
     const ID: AnalysisId = AnalysisId("memory-ssa");
-    const DEPENDENCIES: &'static [AnalysisId] =
-        &[DominatorTree::ID, ControlFlowGraph::ID];
+    const DEPENDENCIES: &'static [AnalysisId] = &[DominatorTree::ID, ControlFlowGraph::ID];
 }
 
 impl FunctionAnalysis for MemorySSA {
@@ -1129,11 +1128,9 @@ impl<'a> MemoryAccessCollector<'a> {
         &mut self,
         pointer: mir::Value,
     ) -> (mir::MemoryLocationSet, Option<mir::AddressSpaceSet>) {
-        let Some(address_space) = resolve_pointer_address_space(
-            pointer,
-            self.tree,
-            &self.value_types,
-        ) else {
+        let Some(address_space) =
+            resolve_pointer_address_space(pointer, self.tree, &self.value_types)
+        else {
             return (mir::MemoryLocationSet::ANY, None);
         };
 
@@ -1844,8 +1841,7 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Resolve the access type for a pointer value.
     fn pointer_access_type(&mut self, pointer: mir::Value) -> Option<TypeKey> {
         // reuse cached type keys
-        let pointee_type =
-            resolve_pointer_pointee_type(pointer, self.tree, &self.value_types)?;
+        let pointee_type = resolve_pointer_pointee_type(pointer, self.tree, &self.value_types)?;
 
         Some(self.type_key(pointee_type))
     }

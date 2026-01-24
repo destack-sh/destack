@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::CallGraphScc;
 use crate::optimize::common::{
-    CallsiteHotness, CallsiteHotnessPolicy, block_execution_counts, block_hotness_from_counts,
-    build_value_definition_map, callsite_hotness, constant_for_value, instruction_map_with_locals,
-    instruction_substitute_uses_in_tree, scaled_profile_count, terminator_remap, ValueTypeMap,
-    terminator_substitute_uses,
+    CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap, block_execution_counts,
+    block_hotness_from_counts, build_value_definition_map, callsite_hotness, constant_for_value,
+    instruction_map_with_locals, instruction_substitute_uses_in_tree, scaled_profile_count,
+    terminator_remap, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
