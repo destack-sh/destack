@@ -278,10 +278,29 @@ impl Compiler {
             );
         }
 
-        let operator_item = operator.language_symbol();
+        // NOTE #Incomplete: full union equality depends on Equal overload dispatch
+        // allow literal comparisons when values are assignable
+        let is_literal_equality = self.should_use_literal_equality(
+            operator,
+            module,
+            ctx.profile,
+            symbols,
+            left_ty_id,
+            right_ty_id,
+            left_id,
+            right_id,
+            &left_ty,
+            &right_ty,
+            tree,
+            types,
+            &options,
+        );
 
         // use builtin rules when appropriate
-        if self.should_use_builtin_binary_operator(operator, &left_ty, &right_ty, types) {
+        let operator_item = operator.language_symbol();
+        if self.should_use_builtin_binary_operator(operator, &left_ty, &right_ty, types)
+            || is_literal_equality
+        {
             let ty = self.infer_binary_operation(operator, &left_ty, &right_ty, types);
             self.record_builtin_resolution(
                 expression_id.into_global_any(module.id),
@@ -2705,6 +2724,110 @@ impl Compiler {
             | BinaryOperator::In
             | BinaryOperator::InstanceOf => true,
         }
+    }
+
+    /// Return a literal type id for a literal value expression.
+    fn literal_type_id_for_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // load the expression node
+        let expression = tree.get(expression_id);
+
+        // materialize scalar literal types on demand
+        if let Expression::ScalarLiteral { value } = expression {
+            let literal_type = self.infer_scalar_literal(value);
+            let ty = Type::TypeLiteral {
+                value: literal_type,
+            };
+
+            return Some(types.insert_type_from(ty, expression_id));
+        }
+
+        // materialize nullish literal types on demand
+        if let Expression::TypeLiteral { value } = expression
+            && matches!(value, TypeLiteral::Null | TypeLiteral::Undefined)
+        {
+            let ty = Type::TypeLiteral {
+                value: value.clone(),
+            };
+
+            return Some(types.insert_type_from(ty, expression_id));
+        }
+
+        None
+    }
+
+    /// Check if equality should use builtin rules for literal comparisons.
+    fn should_use_literal_equality(
+        &self,
+        operator: &BinaryOperator,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        left_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        left_ty: &Type,
+        right_ty: &Type,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        // only allow equality based literal comparisons
+        if !matches!(
+            operator,
+            BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::EqualStrict
+                | BinaryOperator::NotEqualStrict
+        ) {
+            return false;
+        }
+
+        // decide whether either side is a literal value
+        let left_literal_type_id = self
+            .literal_type_id_for_expression(left_id, tree, types)
+            .or_else(|| self.is_literal_value_type(left_ty).then_some(left_ty_id));
+
+        let right_literal_type_id = self
+            .literal_type_id_for_expression(right_id, tree, types)
+            .or_else(|| self.is_literal_value_type(right_ty).then_some(right_ty_id));
+
+        // allow comparisons when the left literal is assignable
+        if let Some(left_literal_type_id) = left_literal_type_id {
+            let assignable = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                right_ty_id,
+                left_literal_type_id,
+                types,
+                options,
+            );
+
+            return assignable.is_assignable();
+        }
+
+        // allow comparisons when the right literal is assignable
+        if let Some(right_literal_type_id) = right_literal_type_id {
+            let assignable = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                left_ty_id,
+                right_literal_type_id,
+                types,
+                options,
+            );
+
+            return assignable.is_assignable();
+        }
+
+        false
     }
 }
 

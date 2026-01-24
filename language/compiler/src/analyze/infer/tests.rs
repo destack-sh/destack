@@ -976,6 +976,50 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
     );
 }
 
+/// Analyze union literal comparisons that include non-literal members.
+#[test]
+fn test_analyze_union_literal_comparison_mixed() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function isReady(value: true | { value: int32 }): boolean {
+    return value == true;
+}
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // locate the equality expression
+    let expression_id = view
+        .tree()
+        .iter_node_ids_of_type::<Expression>()
+        .iter()
+        .find_map(|expression_id| match view.tree().get(*expression_id) {
+            Expression::Binary { operator, .. } if *operator == BinaryOperator::Equal => {
+                Some(*expression_id)
+            }
+            _ => None,
+        })
+        .expect("expected equality expression");
+
+    // read inferred type
+    let ty = view.expect_inferred_type(expression_id);
+
+    assert_eq!(
+        *ty,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean)
+        }
+    );
+}
+
 /// Analyze let expression infer type.
 #[test]
 fn test_analyze_let_expression_infer_type() {

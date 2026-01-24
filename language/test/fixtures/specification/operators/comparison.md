@@ -22,6 +22,19 @@ const x = "a" == "a";
 x satisfies boolean;
 ```
 
+### union literal equals union
+
+> Literal equality allows comparisons when the literal is assignable to the union.
+
+```ds
+function isReady(value: true | { value: int32 }): boolean {
+    return value == true;
+}
+
+const result = isReady(true);
+result satisfies boolean;
+```
+
 ### strict equality
 
 > Strict equality === compares without type coercion.
