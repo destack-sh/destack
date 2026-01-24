@@ -1,13 +1,12 @@
-use std::collections::{HashSet, VecDeque};
-
 use destack_base::StringId;
 use destack_dir::ModuleTarget;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
-    ModuleBindingReference, ModuleBindingTable, ModuleBindingTableKey, ProfileId,
+    ModuleBindingReference, ModuleBindingRegistry, ModuleBindingTable, ModuleBindingTableKey,
+    ProfileId,
 };
 
-use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
+use crate::{Compiler, ResolveResult};
 
 impl Compiler {
     /// Prepare the module binding table for a module and profile.
@@ -16,44 +15,33 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<ModuleBindingTableKey> {
-        // select the root set for this module
-        let (global_key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
-        let mut key = ModuleBindingTableKey {
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let package_id = module.package_id;
+        drop(module);
+
+        // select the module binding cache key
+        let (global_key, _) = self.select_global_symbol_table(module_id, profile_id)?;
+        let key = ModuleBindingTableKey {
             target_id: global_key.target_id,
             profile_id: global_key.profile_id,
             entry_module: global_key.entry_module,
         };
-        let mut roots = roots;
-
-        // ensure the current module participates in binding discovery
-        if !roots.contains(&module_id) {
-            roots.push(module_id);
-            key.entry_module = Some(module_id);
-        }
-
-        // include ambient lib modules when available
-        if let Some(builtins) = self.program.builtins.as_ref()
-            && let Some(ambient_modules) =
-                builtins.ambient_libs(&self.program.profile(profile_id).key)
-        {
-            let mut seen = HashSet::new();
-            for root in roots.iter().copied() {
-                seen.insert(root);
-            }
-            for module_id in ambient_modules {
-                if seen.insert(module_id) {
-                    roots.push(module_id);
-                }
-            }
-        }
 
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
         if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
-            rebuild_cache = self.module_binding_table_is_stale(&cache);
+            rebuild_cache = self.module_binding_table_is_stale(package_id, &cache);
         }
         if rebuild_cache {
-            let cache = self.build_module_binding_table(&roots)?;
+            let Some(registry) = self.program.index.module_binding_registry.get(&package_id) else {
+                self.program
+                    .index
+                    .module_binding_tables
+                    .insert(key.clone(), ModuleBindingTable::new());
+                return Ok(key);
+            };
+            let cache = self.build_module_binding_table_from_registry(&registry);
             self.program
                 .index
                 .module_binding_tables
@@ -94,97 +82,47 @@ impl Compiler {
         Ok(cache.bindings_by_specifier.get(&specifier).cloned())
     }
 
-    /// Build the module binding table for a root module set.
-    fn build_module_binding_table(&self, roots: &[ModuleId]) -> ResolveResult<ModuleBindingTable> {
-        // initialize the traversal state
+    /// Build the module binding table from a package registry.
+    fn build_module_binding_table_from_registry(
+        &self,
+        registry: &ModuleBindingRegistry,
+    ) -> ModuleBindingTable {
         let mut cache = ModuleBindingTable::new();
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.extend(roots.iter().copied());
-
-        // walk the module graph starting from the roots
-        while let Some(module_id) = queue.pop_front() {
-            if !visited.insert(module_id) {
-                continue;
-            }
-
-            // ensure bind validation before reading dir data
-            self.require_import_module_validate(module_id)
-                .map_err(|error| match error {
-                    TaskDependencyError::NotReady { dependency } => {
-                        ResolveError::Yield { dependency }
-                    }
-                    TaskDependencyError::Failed { dependency } => {
-                        ResolveError::UnsatisfiedDependency { dependency }
-                    }
-                })?;
-
-            // load module bindings from the base dir
-            let module = self.program.modules.get(module_id);
-            let module = module.read();
-            let base_dir = module.dir_base();
-            cache.module_versions.insert(module_id, module.version);
-            for binding in base_dir.module_bindings.read().iter() {
-                let binding_ref = ModuleBindingReference {
-                    module_id,
-                    declaration: binding.declaration,
-                };
-                cache
-                    .bindings_by_specifier
-                    .entry(binding.specifier)
-                    .or_default()
-                    .push(binding_ref);
-            }
-
-            // skip dependency traversal, module declarations are indexed from bound modules
+        for (module_id, version) in &registry.module_versions {
+            cache.module_versions.insert(*module_id, *version);
         }
-
-        // include module bindings from any already-bound modules
-        for module in self.program.modules.iter() {
-            let module = module.read();
-            let module_id = module.id;
-            if visited.contains(&module_id) {
-                continue;
-            }
-            if module.dir_base_maybe().is_none() {
-                continue;
-            }
-
-            let base_dir = module.dir_base();
-            cache.module_versions.insert(module_id, module.version);
-            for binding in base_dir.module_bindings.read().iter() {
-                let binding_ref = ModuleBindingReference {
-                    module_id,
-                    declaration: binding.declaration,
-                };
-                cache
-                    .bindings_by_specifier
-                    .entry(binding.specifier)
-                    .or_default()
-                    .push(binding_ref);
-            }
+        for (specifier, bindings) in &registry.bindings_by_specifier {
+            cache
+                .bindings_by_specifier
+                .entry(*specifier)
+                .or_default()
+                .extend(bindings.iter().copied());
         }
-
-        Ok(cache)
+        cache
     }
 
     /// Whether a module binding cache is missing any bound modules.
-    fn module_binding_table_is_stale(&self, cache: &ModuleBindingTable) -> bool {
-        // check every bound module for version mismatches
-        for module in self.program.modules.iter() {
-            let module = module.read();
-            if module.dir_base_maybe().is_none() {
-                continue;
-            }
-
-            let Some(version) = cache.module_versions.get(&module.id) else {
+    fn module_binding_table_is_stale(
+        &self,
+        package_id: PackageId,
+        cache: &ModuleBindingTable,
+    ) -> bool {
+        let Some(registry) = self.program.index.module_binding_registry.get(&package_id) else {
+            return !cache.bindings_by_specifier.is_empty();
+        };
+        for (module_id, cached_version) in &cache.module_versions {
+            let Some(registry_version) = registry.module_versions.get(module_id) else {
                 return true;
             };
-            if *version != module.version {
+            if cached_version != registry_version {
                 return true;
             }
         }
-
+        for module_id in registry.module_versions.keys() {
+            if !cache.module_versions.contains_key(module_id) {
+                return true;
+            }
+        }
         false
     }
 }

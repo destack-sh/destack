@@ -1314,7 +1314,7 @@ impl Compiler {
 mod tests {
     use crate::{TestProgram, assert_node, assert_string};
     use destack_builtin::LanguageSymbol;
-    use destack_dir::{Expression, Pattern, ScalarLiteral};
+    use destack_dir::{Expression, Pattern, ScalarLiteral, SymbolSpace};
 
     /// Resolve labeled break to outer loop.
     #[test]
@@ -1825,6 +1825,37 @@ export let B = A + 1;
         assert_eq!(b_import_symbol.target_symbol, Some(a_symbol_id));
         // b.ds's A should also have canonical_symbol pointing to a.ds's A (canonical symbol)
         assert_eq!(b_import_symbol.canonical_symbol, Some(a_symbol_id));
+    }
+
+    /// Ensure type-only reexports produce type-space imports.
+    #[test]
+    fn test_resolve_type_only_reexport_import_space() {
+        let test = TestProgram::memory_sequential();
+        test.add_file(
+            "types.ts",
+            r#"
+export type Options = { strict: boolean };
+"#,
+        );
+        test.add_file(
+            "module-b.ts",
+            r#"
+export { type Options } from "./types";
+"#,
+        );
+        let consumer_id = test.add_module(
+            "consumer.ts",
+            r#"
+import type { Options } from "./module-b";
+type Alias = Options;
+"#,
+        );
+        test.resolve_module(consumer_id);
+        test.compile_check_clean();
+
+        let options_symbol_id = test.resolve_to_symbol("consumer.ts", "Options").unwrap();
+        let options_symbol = test.symbol_by_id(options_symbol_id);
+        assert_eq!(options_symbol.space, SymbolSpace::Type);
     }
 
     /// Verify canonical_symbol chains through multi-level type aliases.

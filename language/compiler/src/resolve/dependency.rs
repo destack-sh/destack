@@ -110,12 +110,14 @@ impl Compiler {
                 visited,
             )?;
             if let Some(symbol) = symbol {
+                let symbol_space = self.symbol_space_for_global(profile, symbol);
                 // ignore value symbols for type lookups
-                if kind == DependencyKind::Type {
-                    let symbol_space = self.symbol_space_for_global(profile, symbol);
-                    if symbol_space == SymbolSpace::Value {
-                        continue;
-                    }
+                if kind == DependencyKind::Type && symbol_space == SymbolSpace::Value {
+                    continue;
+                }
+                // ignore type symbols for value lookups
+                if kind == DependencyKind::Value && symbol_space == SymbolSpace::Type {
+                    continue;
                 }
                 return Ok(Some(symbol));
             }
@@ -1452,7 +1454,7 @@ impl Compiler {
                 )?;
 
                 // resolve target symbol based on mode
-                let target_symbol = match mode {
+                let (target_symbol, resolved_kind) = match mode {
                     DependencyMode::Item => {
                         // resolve a named import from the target
                         let key = name.map(StaticKey::Name).ok_or(
@@ -1462,7 +1464,7 @@ impl Compiler {
                                     .into_anchored(Some(profile)),
                             },
                         )?;
-                        self.resolve_remote_item_symbol(
+                        let (symbol, resolved_kind) = self.resolve_remote_item_symbol_with_kind(
                             module,
                             item_id.into_global_any(module.id),
                             remote_target,
@@ -1470,13 +1472,14 @@ impl Compiler {
                             *kind,
                             origin_symbol,
                             key,
-                        )?
+                        )?;
+                        (symbol, resolved_kind)
                     }
                     DependencyMode::Default => {
                         // resolve the default export from the target
                         let default_name = self.program.strings.intern("default");
                         let key = StaticKey::Name(default_name);
-                        self.resolve_remote_item_symbol(
+                        let (symbol, resolved_kind) = self.resolve_remote_item_symbol_with_kind(
                             module,
                             item_id.into_global_any(module.id),
                             remote_target,
@@ -1484,7 +1487,8 @@ impl Compiler {
                             *kind,
                             origin_symbol,
                             key,
-                        )?
+                        )?;
+                        (symbol, resolved_kind)
                     }
                     DependencyMode::Namespace => {
                         // prefer export assignment for import equals
@@ -1494,14 +1498,15 @@ impl Compiler {
                                 remote_target,
                                 profile,
                             )? {
-                                symbol
+                                (symbol, *kind)
                             } else {
-                                self.resolve_namespace_symbol(
+                                let symbol = self.resolve_namespace_symbol(
                                     module.id,
                                     item_id.into_global_any(module.id),
                                     remote_target,
                                     profile,
-                                )?
+                                )?;
+                                (symbol, *kind)
                             }
                         } else {
                             // check for namespace exports without alias
@@ -1521,19 +1526,24 @@ impl Compiler {
                                 }
                             }
                             // resolve the namespace symbol
-                            self.resolve_namespace_symbol(
+                            let symbol = self.resolve_namespace_symbol(
                                 module.id,
                                 item_id.into_global_any(module.id),
                                 remote_target,
                                 profile,
-                            )?
+                            )?;
+                            (symbol, *kind)
                         }
                     }
                 };
 
+                // adjust value imports when the resolved symbol is type-only
+                let resolved_kind = self
+                    .effective_dependency_kind_for_symbol(profile, resolved_kind, target_symbol);
+
                 DependencyItem::Remote {
                     mode: *mode,
-                    kind: *kind,
+                    kind: resolved_kind,
                     name: *name,
                     alias: *alias,
                     target: *target,
@@ -1623,6 +1633,85 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
     ) -> ResolveResult<GlobalSymbolId> {
+        // resolve the requested kind first
+        let resolved = self.resolve_remote_item_symbol_for_kind(
+            module,
+            node,
+            remote_target,
+            profile,
+            kind,
+            origin_symbol,
+            key,
+        );
+
+        // fall back to type lookups for declaration modules
+        if kind == DependencyKind::Value
+            && let Err(ResolveError::MissingSymbol { .. }) = resolved
+            && self.target_is_declaration_module(module.id, remote_target, profile)?
+        {
+            return self.resolve_remote_item_symbol_for_kind(
+                module,
+                node,
+                remote_target,
+                profile,
+                DependencyKind::Type,
+                origin_symbol,
+                key,
+            );
+        }
+
+        resolved
+    }
+
+    /// Resolve an item symbol and align the dependency kind with the resolved symbol.
+    fn resolve_remote_item_symbol_with_kind(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_target: ModuleTarget,
+        profile: ProfileId,
+        kind: DependencyKind,
+        origin_symbol: Option<GlobalSymbolId>,
+        key: StaticKey,
+    ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
+        let symbol = self.resolve_remote_item_symbol(
+            module,
+            node,
+            remote_target,
+            profile,
+            kind,
+            origin_symbol,
+            key,
+        )?;
+        let resolved_kind = self.effective_dependency_kind_for_symbol(profile, kind, symbol);
+        Ok((symbol, resolved_kind))
+    }
+
+    /// Adjust a dependency kind based on whether the symbol is value-capable.
+    fn effective_dependency_kind_for_symbol(
+        &self,
+        profile: ProfileId,
+        kind: DependencyKind,
+        symbol: GlobalSymbolId,
+    ) -> DependencyKind {
+        if kind == DependencyKind::Value && !self.symbol_is_value_capable(profile, symbol) {
+            DependencyKind::Type
+        } else {
+            kind
+        }
+    }
+
+    /// Resolve an item symbol for a specific dependency kind.
+    fn resolve_remote_item_symbol_for_kind(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_target: ModuleTarget,
+        profile: ProfileId,
+        kind: DependencyKind,
+        origin_symbol: Option<GlobalSymbolId>,
+        key: StaticKey,
+    ) -> ResolveResult<GlobalSymbolId> {
         let default_name = self.program.strings.intern("default");
 
         // resolve explicit exports and reexport chains first
@@ -1688,6 +1777,48 @@ impl Compiler {
         )?;
 
         Ok(global_symbol)
+    }
+
+    /// Check if a target module represents declaration-only sources.
+    ///
+    /// Resolve needs this to decide whether a value reexport may fall back to the type space.
+    /// Declaration modules often export types without `export type`, so value lookups can fail.
+    /// We only allow the fallback when the *target* is declaration-only to avoid masking errors
+    /// in runtime modules.
+    fn target_is_declaration_module(
+        &self,
+        origin_module_id: ModuleId,
+        target: ModuleTarget,
+        profile: ProfileId,
+    ) -> ResolveResult<bool> {
+        // module targets are declaration-only when the module says so
+        if let ModuleTarget::Module(module_id) = target {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            return Ok(module.language_type.is_declaration());
+        }
+
+        // specifier bindings are declaration-only when all bindings are declaration modules
+        if let ModuleTarget::Binding(specifier) = target {
+            let bindings =
+                self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
+            let Some(bindings) = bindings else {
+                return Ok(false);
+            };
+
+            // if any binding module is not a declaration module, treat it as mixed
+            for binding_ref in bindings {
+                let module = self.program.modules.get(binding_ref.module_id);
+                let module = module.read();
+                if !module.language_type.is_declaration() {
+                    return Ok(false);
+                }
+            }
+
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 
     /// Resolve a symbol through namespace exports of a module.

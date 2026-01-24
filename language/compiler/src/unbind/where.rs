@@ -21,33 +21,17 @@ impl Compiler {
     ) -> ast::LocalNodeId<ast::WhereClause> {
         let clause = tree.get(clause_id);
         let span = self.unbind_span(module, clause_id.into());
-        let ast_clause = match clause {
-            dir::WhereClause::Assertion { left, right } => {
-                let left = ast_strings.intern_from(&self.program.strings, *left);
-                let right = self.unbind_expression(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                ast::WhereClause::Assertion { left, right }
-            }
-            dir::WhereClause::Guard { guard } => {
-                let guard = self.unbind_expression(
-                    module,
-                    *guard,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                ast::WhereClause::Guard { guard }
-            }
-        };
+        let left = ast_strings.intern_from(&self.program.strings, clause.left);
+        let right = self.unbind_expression(
+            module,
+            clause.right,
+            tree,
+            symbols,
+            ast_tree,
+            ast_strings,
+            context,
+        );
+        let ast_clause = ast::WhereClause { left, right };
         let ast_clause_id = ast_tree.insert(ast_clause, span);
         context.map(clause_id.into_any(), ast_clause_id.into_any());
         ast_clause_id

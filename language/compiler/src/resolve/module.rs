@@ -6,7 +6,7 @@ use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
     ModuleBindingExports, ModuleTarget, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable,
+    SymbolTable, SymbolType,
 };
 
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
@@ -378,11 +378,11 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
-        // load module data for read
-        let module = self.program.modules.get(module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
+        // get dependency items
         let item_ids = {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let dir = module.dir(profile);
             let tree = dir.tree.read();
             tree.iter_node_ids_of_type::<DependencyItem>()
         };
@@ -390,12 +390,18 @@ impl Compiler {
         // resolve dependency items
         let mut collector = TaskResultCollector::new();
         for item_id in item_ids {
+            // load module data for resolution
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let dir = module.dir(profile);
+
             // resolve the dependency item (with read locks)
             let resolved_item = {
                 let tree = dir.tree.read();
                 let symbols = dir.symbols.read();
                 self.resolve_dependency_item(&module, dir, profile, item_id, &tree, &symbols)
             };
+            drop(module);
 
             // collect yields and return on non yield errors
             let resolved_item = match resolved_item {
@@ -410,12 +416,36 @@ impl Compiler {
 
             // apply resolved dependency updates (with write locks)
             if let Some(resolved_item) = resolved_item {
+                let module = self.program.modules.get(module_id);
+                let module = module.read();
+                let dir = module.dir(profile);
                 let mut tree = dir.tree.write();
                 let mut symbols = dir.symbols.write();
                 if let Some(symbol_id) = resolved_item.symbol()
                     && let Some(target_symbol) = resolved_item.target_symbol()
                 {
                     symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
+
+                    let dependency_kind = match resolved_item {
+                        DependencyItem::Local { kind, .. }
+                        | DependencyItem::Remote { kind, .. }
+                        | DependencyItem::UnresolvedLocal { kind, .. }
+                        | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
+                        DependencyItem::Value { .. } => None,
+                    };
+
+                    if dependency_kind == Some(DependencyKind::Type) {
+                        symbols.get_symbol_mut(symbol_id).space = SymbolSpace::Type;
+                    } else if dependency_kind == Some(DependencyKind::Value) {
+                        let target_space = if target_symbol.module_id == module_id {
+                            symbols.get_symbol(target_symbol.local_id).space
+                        } else {
+                            self.symbol_space_for_global(profile, target_symbol)
+                        };
+                        if target_space == SymbolSpace::Type {
+                            symbols.get_symbol_mut(symbol_id).space = SymbolSpace::Type;
+                        }
+                    }
                 }
 
                 *tree.get_mut(item_id) = resolved_item;
@@ -1413,7 +1443,7 @@ impl Compiler {
     }
 
     /// Get the symbol space for a global symbol.
-    pub(super) fn symbol_space_for_global(
+    pub(crate) fn symbol_space_for_global(
         &self,
         profile: ProfileId,
         symbol: GlobalSymbolId,
@@ -1422,6 +1452,50 @@ impl Compiler {
         let module = module.read();
         let symbols = module.dir(profile).symbols.read();
         symbols.get_symbol(symbol.local_id).space
+    }
+
+    /// Check whether a symbol can be used as a value.
+    ///
+    /// This centralizes the type/value decision so Resolve can honor declaration-module reexports
+    /// without silently treating nominal value symbols as type-only.
+    pub(crate) fn symbol_is_value_capable(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> bool {
+        // load the symbol entry
+        let module = self.program.modules.get(symbol.module_id);
+        let module = module.read();
+        let symbols = module.dir(profile).symbols.read();
+        let entry = symbols.get_symbol(symbol.local_id);
+
+        // value-space symbols are always value-capable
+        if entry.space == SymbolSpace::Value {
+            return true;
+        }
+
+        // nominal declarations always introduce a value-capable symbol
+        if matches!(
+            entry.ty,
+            SymbolType::Struct
+                | SymbolType::Class
+                | SymbolType::Enum
+                | SymbolType::Newtype
+                | SymbolType::Function
+        ) {
+            return true;
+        }
+
+        // type-value symbols only exclude type-only declarations
+        if entry.space == SymbolSpace::TypeValue {
+            return !matches!(
+                entry.ty,
+                SymbolType::Interface | SymbolType::TypeAlias | SymbolType::Extension
+            );
+        }
+
+        // fall back to not value-capable
+        false
     }
 
     /// Insert exports into the table and report conflicts.
