@@ -30,6 +30,23 @@ struct Circle implements Drawable {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Circle = { color: i32, radius: i32 }
+
+extern function @Drawable.draw({ draw: fn() -> i32, color: i32 }) -> i32
+
+function @Circle.draw(v0: @Circle) -> i32 {
+block0(v0: @Circle):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+        "#,
+    );
+
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // collect interface dispatch tables
         let itab = test.expect_single_interface_table(tree);
@@ -42,8 +59,9 @@ struct Circle implements Drawable {
         assert_eq!(offset, 0);
 
         // assert the interface method slot
-        let target_name = test.expect_interface_method_target_name(itab, tree, strings, "draw");
-        assert_eq!(target_name, "draw");
+        let target_name =
+            test.expect_interface_method_target_name(itab, tree, strings, "Circle.draw");
+        assert_eq!(target_name, "Circle.draw");
     });
 }
 
@@ -73,6 +91,23 @@ struct Circle implements Drawable {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Circle = { color: i32, radius: i32 }
+
+extern function @Drawable.draw({ draw: fn() -> i32, color: i32 }) -> i32
+
+function @Circle.draw(v0: @Circle) -> i32 {
+block0(v0: @Circle):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+        "#,
+    );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // find the interface reference struct type
@@ -129,6 +164,30 @@ struct Widget implements Shape, Paint {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Widget = { width: i32, color: i32 }
+
+extern function @Shape.area({ area: fn() -> i32, width: i32 }) -> i32
+
+extern function @Paint.paint({ paint: fn() -> i32, color: i32 }) -> i32
+function @Widget.area(v0: @Widget) -> i32 {
+block0(v0: @Widget):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+
+function @Widget.paint(v0: @Widget) -> i32 {
+block0(v0: @Widget):
+    v1: i32 = field.get v0, 1
+    return v1
+}
+        "#,
+    );
+
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let shape_table = test.interface_dispatch_table(
             tree,
@@ -156,7 +215,7 @@ struct Widget implements Shape, Paint {
                 interface_method, ..
             } => {
                 let method_name = strings.get(tree.get(*interface_method).name);
-                assert_eq!(method_name, "area");
+                assert_eq!(method_name, "Widget.area");
             }
             _ => panic!("expected interface method slot for area"),
         }
@@ -174,7 +233,7 @@ struct Widget implements Shape, Paint {
                 interface_method, ..
             } => {
                 let method_name = strings.get(tree.get(*interface_method).name);
-                assert_eq!(method_name, "paint");
+                assert_eq!(method_name, "Widget.paint");
             }
             _ => panic!("expected interface method slot for paint"),
         }
@@ -209,6 +268,32 @@ function useDrawable(d: Drawable): int32 {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Drawable = { @object: ref<managed void>, @itab: usize }
+type @Circle = { color: i32, radius: i32 }
+type @Drawable#object = { draw: fn() -> i32, color: i32 }
+
+extern function @Drawable.draw(@Drawable#object) -> i32
+
+function @Circle.draw(v0: @Circle) -> i32 {
+block0(v0: @Circle):
+    v1: i32 = field.get v0, 0
+    return v1
+}
+
+function @useDrawable(v0: @Drawable) -> i32 {
+block0(v0: @Drawable):
+    v1: ref<managed void> = field.get v0, 0
+    v2: i32 = call.interface v0, @Drawable#object, 2, @Drawable.draw(v1) -> fn(@Drawable#object) -> i32
+    return v2
+}
+        "#,
+    );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // locate the interface call metadata
@@ -253,23 +338,26 @@ function castRenderable(value: int32): Renderable {
         module_id,
         "native",
         r#"
-type @test/test:Renderable = { @object: ref<managed void>, @itab: usize }
-type @test/test:Sprite = { value: i32 }
-extern function @draw({ draw: fn() -> i32 }) -> i32
-function @draw#1(v0: @test/test:Sprite) -> i32 {
-block0(v0: @test/test:Sprite):
+type @Renderable = { @object: ref<managed void>, @itab: usize }
+type @Sprite = { value: i32 }
+
+extern function @Renderable.draw({ draw: fn() -> i32 }) -> i32
+
+function @Sprite.draw(v0: @Sprite) -> i32 {
+block0(v0: @Sprite):
     v1: i32 = field.get v0, 0
     return v1
 }
-function @castRenderable(v0: i32) -> @test/test:Renderable {
+
+function @castRenderable(v0: i32) -> @Renderable {
 block0(v0: i32):
-    v1: @test/test:Sprite = struct @test/test:Sprite (v0)
-    v2: ref<managed @test/test:Sprite> = managed.alloc @test/test:Sprite
+    v1: @Sprite = struct @Sprite (v0)
+    v2: ref<managed @Sprite> = managed.alloc @Sprite
     store v2, v1
     v3: ref<managed void> = bitcast v2 -> ref<managed void>
     v4: u64 = iconst 0u64
     v5: usize = bitcast v4 -> usize
-    v6: @test/test:Renderable = struct @test/test:Renderable (v3, v5)
+    v6: @Renderable = struct @Renderable (v3, v5)
     return v6
 }
         "#,

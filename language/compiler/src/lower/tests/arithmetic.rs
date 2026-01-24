@@ -80,6 +80,7 @@ fn test_lower_negates_values() {
 function negate(a: int32): int32 {
     return -a;
 }
+
 function floatNegate(a: number): number {
     return -a;
 }
@@ -116,6 +117,7 @@ fn test_lower_computes_int64_arithmetic() {
 function addInt64(a: int64, b: int64): int64 {
     return a + b;
 }
+
 function mulInt64(a: int64, b: int64): int64 {
     return a * b;
 }

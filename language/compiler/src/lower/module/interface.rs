@@ -9,6 +9,7 @@ impl ModuleLowerer<'_> {
     /// Declare a stub function for an interface method.
     pub(crate) fn lower_interface_method_stub(
         &mut self,
+        interface_symbol: GlobalSymbolId,
         interface_type: mir::LocalNodeId<mir::Type>,
         member_id: LocalNodeId<Member>,
         key: Option<&DynamicKey>,
@@ -20,7 +21,12 @@ impl ModuleLowerer<'_> {
         }
 
         let method_name = self.member_dispatch_name_or_error(key, signature.mode, member_id)?;
-        let name_str = self.compiler.program.strings.get(method_name).to_string();
+        let method_name = self.compiler.program.strings.get(method_name).to_string();
+        let name_str = if let Some(owner_name) = self.symbol_path_name(interface_symbol) {
+            format!("{owner_name}.{method_name}")
+        } else {
+            method_name
+        };
 
         // resolve return type for the interface method
         let return_type =
