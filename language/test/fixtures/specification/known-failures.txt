@@ -4,9 +4,8 @@ destack_test::specification::async/promise.md/await/await-unwraps-promise-value-
 destack_test::specification::dispatch/resolution/calls.md/tests/union-method-call-accepts-union-argument-with-union-overload
 destack_test::specification::dispatch/resolution/calls.md/tests/union-method-call-honors-overload-declaration-order
 destack_test::specification::dispatch/resolution/modules.md/tests/union-method-call-resolves-with-named-extension-imports
+destack_test::specification::modules/exports.md/fluent-builders/export-inference-infers-fluent-builder-chains
 destack_test::specification::modules/exports.md/fluent-builders/export-inference-rejects-unknown-routes
-destack_test::specification::modules/exports.md/type-only-exports/export-inference-rejects-type-only-values
-destack_test::specification::modules/exports.md/export-circularity/export-inference-rejects-inference-cycles
 destack_test::specification::types/generics/conditional-infer.md/infer/infer-from-any-yields-any
 destack_test::specification::types/generics/conditional-infer.md/infer/infer-from-never-honors-constrained-template-spans
 destack_test::specification::types/generics/conditional-infer.md/infer/infer-from-never-yields-never-for-template-patterns
