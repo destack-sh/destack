@@ -7,6 +7,16 @@ use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a binary operator.
+    ///
+    /// ```ds
+    /// function add(a: int32, b: int32): int32 {
+    ///     return a + b;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v2: i32 = binary.add v0, v1
+    /// ```
     pub(crate) fn lower_binary_operator(
         &self,
         expression_id: LocalNodeId<Expression>,
@@ -103,6 +113,16 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a unary operator.
+    ///
+    /// ```ds
+    /// function neg(value: int32): int32 {
+    ///     return -value;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = unary.neg v0
+    /// ```
     pub(crate) fn lower_unary_operator(
         &self,
         expression_id: LocalNodeId<Expression>,
@@ -140,6 +160,20 @@ impl FunctionContext<'_> {
     /// Short-circuit evaluation means:
     /// - `a && b`: if `a` is false, result is false without evaluating `b`
     /// - `a || b`: if `a` is true, result is true without evaluating `b`
+    ///
+    /// ```ds
+    /// function both(a: boolean, b: boolean): boolean {
+    ///     return a && b;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// branch v0, block1, block2
+    /// block1:
+    ///     branch v1, block3, block2
+    /// block2:
+    ///     v2: bool = bconst false
+    /// ```
     pub(crate) fn lower_logical_operator(
         &mut self,
         expression_id: LocalNodeId<Expression>,

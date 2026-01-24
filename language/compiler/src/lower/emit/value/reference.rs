@@ -8,6 +8,16 @@ use crate::lower::item::{LocalStorage, lower_mutability};
 
 impl FunctionContext<'_> {
     /// Lower a borrow expression to a reference value.
+    ///
+    /// ```ds
+    /// function borrow(value: int32): ref<borrowed int32> {
+    ///     return &value;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<borrowed i32> = local.addr v0 -> ref<borrowed i32>
+    /// ```
     pub(crate) fn lower_reference_of_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -181,6 +191,17 @@ impl FunctionContext<'_> {
     }
 
     /// Lower an ownership conversion to an owned reference.
+    ///
+    /// ```ds
+    /// function own(value: int32): ref<owned int32> {
+    ///     return value;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<owned i32> = raw.alloc i32
+    /// store v1, v0
+    /// ```
     pub(crate) fn lower_value_of_expression(
         &mut self,
         _expression_id: LocalNodeId<Expression>,

@@ -29,6 +29,20 @@ function takeShape(value: Circle | Square): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:takeShape#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @takeShape(v0: @test/test:takeShape#parameter:value#union) -> i32 {
+block0(v0: @test/test:takeShape#parameter:value#union):
+    v1: i32 = iconst 0i32
+    return v1
+}
+        "#,
+    );
+
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // build the expected union metadata name
         let union_metadata_name = "test/test:takeShape#parameter:value#union";
@@ -107,6 +121,20 @@ function takeFrame(value: Frame | MegaFrame): int32 {
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:takeFrame#parameter:value#union = { @tag: u8, @payload: ref<managed void> }
+function @takeFrame(v0: @test/test:takeFrame#parameter:value#union) -> i32 {
+block0(v0: @test/test:takeFrame#parameter:value#union):
+    v1: i32 = iconst 0i32
+    return v1
+}
+        "#,
+    );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // build the expected union metadata name
@@ -188,6 +216,208 @@ block0(v0: @test/test:Circle):
     v7: [usize; 1] = load v2
     v8: @test/test:makeShape#return#union = struct @test/test:makeShape#return#union (v1, v7)
     return v8
+}
+        "#,
+    );
+}
+
+/// Lower unions of a single reference type and null into nullable references.
+#[test]
+fn test_lower_union_nullable_reference() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Circle {
+    value: int32 = 0;
+}
+
+function acceptNullable(value: Circle | null): Circle | null {
+    return value;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:Circle = { value: i32 }
+function @acceptNullable(v0: ref?<managed @test/test:Circle>) -> ref?<managed @test/test:Circle> {
+block0(v0: ref?<managed @test/test:Circle>):
+    return v0
+}
+        "#,
+    );
+
+    test.with_mir_tree(module_id, "native", |tree, strings| {
+        // resolve the function signature types
+        let function = test.function_by_name(tree, strings, "acceptNullable");
+        let parameter_type = function.parameters.first().expect("missing parameter").ty;
+        let return_type = function.return_type;
+
+        // assert the parameter is a nullable managed reference
+        let mir::Type::Reference {
+            kind: parameter_kind,
+            is_nullable: parameter_nullable,
+            ..
+        } = tree.get(parameter_type)
+        else {
+            panic!("expected nullable reference parameter type");
+        };
+        assert!(matches!(parameter_kind, mir::ReferenceKind::Managed));
+        assert!(*parameter_nullable);
+
+        // assert the return is a nullable managed reference
+        let mir::Type::Reference {
+            kind: return_kind,
+            is_nullable: return_nullable,
+            ..
+        } = tree.get(return_type)
+        else {
+            panic!("expected nullable reference return type");
+        };
+        assert!(matches!(return_kind, mir::ReferenceKind::Managed));
+        assert!(*return_nullable);
+
+        // assert the nullable union type has no tagged union metadata
+        let parameter_union = "test/test:acceptNullable#parameter:value#union";
+        let return_union = "test/test:acceptNullable#return#union";
+        let parameter_union_type = test.type_by_metadata_name(tree, strings, parameter_union);
+        let return_union_type = test.type_by_metadata_name(tree, strings, return_union);
+        assert!(
+            test.type_metadata(tree, parameter_union_type)
+                .union_layout
+                .is_none()
+        );
+        assert!(
+            test.type_metadata(tree, return_union_type)
+                .union_layout
+                .is_none()
+        );
+    });
+}
+
+/// Lower unions with null and undefined into tagged union layouts.
+#[test]
+fn test_lower_union_null_undefined_tagged() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Circle {
+    value: int32 = 0;
+}
+
+function acceptUnion(value: Circle | null | undefined): Circle | null | undefined {
+    return value;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.with_mir_tree(module_id, "native", |tree, strings| {
+        // resolve the union metadata name for the return type
+        let union_metadata_name = "test/test:acceptUnion#return#union";
+        let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
+
+        // assert union metadata exists for the tagged union
+        let metadata = test.type_metadata(tree, union_type);
+        assert!(metadata.union_layout.is_some());
+    });
+}
+
+/// Lower union upcasts for null literals.
+#[test]
+fn test_lower_union_upcast_null_literal() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Circle {
+    value: int32;
+}
+
+function makeNull(): Circle | null | undefined {
+    return null;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:makeNull#return#union = { @tag: u8, @payload: [usize; 1] }
+function @makeNull() -> @test/test:makeNull#return#union {
+block0:
+    v0: u8 = iconst 1u8
+    v1: u64 = iconst 0u64
+    v2: usize = bitcast v1 -> usize
+    v3: [usize; 1] = array [usize; 1] (v2)
+    v4: @test/test:makeNull#return#union = struct @test/test:makeNull#return#union (v0, v3)
+    return v4
+}
+        "#,
+    );
+}
+
+/// Lower union upcasts for undefined literals.
+#[test]
+fn test_lower_union_upcast_undefined_literal() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Circle {
+    value: int32;
+}
+
+function makeUndefined(): Circle | null | undefined {
+    return undefined;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:makeUndefined#return#union = { @tag: u8, @payload: [usize; 1] }
+function @makeUndefined() -> @test/test:makeUndefined#return#union {
+block0:
+    v0: u8 = iconst 2u8
+    v1: u64 = iconst 0u64
+    v2: usize = bitcast v1 -> usize
+    v3: [usize; 1] = array [usize; 1] (v2)
+    v4: @test/test:makeUndefined#return#union = struct @test/test:makeUndefined#return#union (v0, v3)
+    return v4
 }
         "#,
     );
@@ -331,6 +561,164 @@ block2:
     jump block3(v5)
 block3(v6: i32):
     return v6
+}
+        "#,
+    );
+}
+
+// FUGU #Broken: analyze does not allow equality on union types
+/// Lower null literal comparisons to union tag checks.
+#[test]
+#[ignore]
+fn test_lower_union_null_literal_comparison() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Circle {
+    value: int32;
+}
+
+function isNull(value: Circle | null | undefined): boolean {
+    return value == null;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:isNull#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isNull(v0: @test/test:isNull#parameter:value#union) -> bool {
+block0(v0: @test/test:isNull#parameter:value#union):
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 1u8
+    v3: bool = icmp_eq v1, v2
+    return v3
+}
+        "#,
+    );
+}
+
+// FUGU #Broken: analyze does not allow equality on union types
+/// Lower undefined literal comparisons to union tag checks.
+#[test]
+#[ignore]
+fn test_lower_union_undefined_literal_comparison() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Circle {
+    value: int32;
+}
+
+function isUndefined(value: Circle | null | undefined): boolean {
+    return value == undefined;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:isUndefined#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isUndefined(v0: @test/test:isUndefined#parameter:value#union) -> bool {
+block0(v0: @test/test:isUndefined#parameter:value#union):
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 2u8
+    v3: bool = icmp_eq v1, v2
+    return v3
+}
+        "#,
+    );
+}
+
+/// Lower integer literal comparisons to union tag checks.
+#[test]
+fn test_lower_union_integer_literal_comparison() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function isOne(value: 1 | 2): boolean {
+    return value == 1;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:isOne#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isOne(v0: @test/test:isOne#parameter:value#union) -> bool {
+block0(v0: @test/test:isOne#parameter:value#union):
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 0u8
+    v3: bool = icmp_eq v1, v2
+    return v3
+}
+        "#,
+    );
+}
+
+/// Lower literal comparisons when unions include non-literal elements.
+#[test]
+#[ignore]
+// FUGU #Broken: analyze rejects equality on mixed literal unions
+fn test_lower_union_literal_comparison_mixed() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function isReady(value: true | { value: int32 }): boolean {
+    return value == true;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @test/test:isReady#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isReady(v0: @test/test:isReady#parameter:value#union) -> bool {
+block0(v0: @test/test:isReady#parameter:value#union):
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 0u8
+    v3: bool = icmp_eq v1, v2
+    return v3
 }
         "#,
     );

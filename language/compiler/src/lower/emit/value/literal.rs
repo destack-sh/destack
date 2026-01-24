@@ -7,6 +7,16 @@ use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a scalar literal expression.
+    ///
+    /// ```ds
+    /// function one(): int32 {
+    ///     return 1;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v0: i32 = iconst 1
+    /// ```
     pub(crate) fn lower_scalar_literal(
         &mut self,
         expression_id: LocalNodeId<Expression>,

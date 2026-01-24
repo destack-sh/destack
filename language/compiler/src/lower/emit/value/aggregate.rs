@@ -9,6 +9,18 @@ use crate::lower::emit::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a tuple expression to an aggregate value.
+    ///
+    /// ```ds
+    /// function make(): (int32, boolean) {
+    ///     return (1, true);
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 1
+    /// v2: bool = bconst true
+    /// v3: (i32, bool) = tuple (i32, bool) (v1, v2)
+    /// ```
     pub(crate) fn lower_tuple_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -43,6 +55,18 @@ impl FunctionContext<'_> {
     }
 
     /// Lower an array expression to an array value.
+    ///
+    /// ```ds
+    /// function make(): int32[2] {
+    ///     return [1, 2];
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 1
+    /// v2: i32 = iconst 2
+    /// v3: [i32; 2] = array [i32; 2] (v1, v2)
+    /// ```
     pub(crate) fn lower_array_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -77,6 +101,20 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a tagged object expression (struct literal) to a struct value.
+    ///
+    /// ```ds
+    /// struct Vec2 { x: int32; y: int32; }
+    ///
+    /// function make(): Vec2 {
+    ///     return Vec2 { x: 1, y: 2 };
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 1
+    /// v2: i32 = iconst 2
+    /// v3: @Vec2 = struct @Vec2 (v1, v2)
+    /// ```
     pub(crate) fn lower_tagged_object_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -198,6 +236,22 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a constructor call expression to a struct value.
+    ///
+    /// ```ds
+    /// class User {
+    ///     id: int32;
+    ///     constructor(id: int32) { this.id = id; }
+    /// }
+    ///
+    /// function make(): User {
+    ///     return new User(1);
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<managed @User> = managed.alloc @User
+    /// v2: void = call @User.constructor(v1, v0) -> fn(ref<managed @User>, i32) -> void
+    /// ```
     pub(crate) fn lower_new_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -565,25 +619,38 @@ impl FunctionContext<'_> {
         vtable_value: &mut Option<mir::Value>,
     ) -> LowerResult<mir::Value> {
         // use the vtable pointer for header fields
+        // NOTE #Architecture: it feels a bit wonky to have vtable_header_value in default_field_value?
         if field.kind == FieldLayoutKind::VtableHeader {
-            let class_symbol = class_symbol.ok_or_else(|| LowerError::UnsupportedConstruct {
-                node,
-                message: "vtable field missing class symbol".to_string(),
-            })?;
+            self.vtable_header_value(field, class_symbol, node, vtable_value)
+        }
+        // fall back to type zero values
+        else {
+            self.zero_value_for_type(field.ty, node)
+        }
+    }
 
-            // reuse the cached vtable pointer when available
-            if let Some(value) = vtable_value {
-                return Ok(*value);
-            }
+    /// Build the default value for a vtable header field.
+    fn vtable_header_value(
+        &mut self,
+        field: &FieldLayout,
+        class_symbol: Option<GlobalSymbolId>,
+        node: AnchoredGlobalNodeId,
+        vtable_value: &mut Option<mir::Value>,
+    ) -> LowerResult<mir::Value> {
+        let class_symbol = class_symbol.ok_or_else(|| LowerError::UnsupportedConstruct {
+            node,
+            message: "vtable field missing class symbol".to_string(),
+        })?;
 
-            // compute and cache the vtable pointer
-            let value = self.vtable_pointer_for_class(class_symbol, node, field.ty)?;
-            *vtable_value = Some(value);
-            return Ok(value);
+        // reuse the cached vtable pointer when available
+        if let Some(value) = vtable_value {
+            return Ok(*value);
         }
 
-        // fall back to type zero values
-        self.zero_value_for_type(field.ty, node)
+        // compute and cache the vtable pointer
+        let value = self.vtable_pointer_for_class(class_symbol, node, field.ty)?;
+        *vtable_value = Some(value);
+        Ok(value)
     }
 
     /// Resolve a property key to a field index in the struct using the cached layout.

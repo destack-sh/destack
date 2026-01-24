@@ -52,6 +52,9 @@ impl TypeLowerer {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String),
             } => self.ty_string,
             dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
+            } => Some(self.ty_void),
+            dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
             } => match int_type.simplify() {
                 dir::IntType::Int32 => Some(self.ty_i32),
