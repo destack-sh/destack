@@ -160,7 +160,15 @@ impl TypeLowerer {
         let mut max_payload_size = 0;
         let mut max_payload_alignment = 1;
         for element_id in &ordered_elements {
-            let element_type = self.lower_type(types, *element_id, module_id, node, builder)?;
+            // null and undefined are tag-only variants
+            let element_type = match types.get_type(*element_id) {
+                dir::Type::TypeLiteral {
+                    value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
+                } => self.ty_void,
+                _ => self.lower_type(types, *element_id, module_id, node, builder)?,
+            };
+
+            // combine layout sizing and copyability
             mir_element_types.push(element_type);
             let element = builder.tree().get(element_type);
             copyability = copyability.combine(element.copyability());

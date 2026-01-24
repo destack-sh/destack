@@ -16,6 +16,22 @@ pub(super) struct InterfaceCallReceivers {
 
 impl FunctionContext<'_> {
     /// Lower a call expression to its result value and type.
+    ///
+    /// ```ds
+    /// function add(a: int32, b: int32): int32 {
+    ///     return a + b;
+    /// }
+    ///
+    /// function use(): int32 {
+    ///     return add(1, 2);
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 1
+    /// v2: i32 = iconst 2
+    /// v3: i32 = call @add(v1, v2) -> fn(i32, i32) -> i32
+    /// ```
     pub(crate) fn lower_call_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,

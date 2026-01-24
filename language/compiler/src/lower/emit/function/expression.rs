@@ -6,7 +6,37 @@ use crate::{LowerError, LowerResult};
 use super::{FunctionContext, RUNTIME_CHECK_MESSAGES};
 
 impl FunctionContext<'_> {
+    /// Strip parenthesized expressions and implicit casts.
+    pub(crate) fn unwrap_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> dir::LocalNodeId<dir::Expression> {
+        // walk implicit wrappers to the underlying expression
+        let mut current_id = expression_id;
+        loop {
+            match self.env.dir_tree.get(current_id) {
+                Expression::Parenthesized { expression } => current_id = *expression,
+                Expression::Cast {
+                    value,
+                    source: dir::CastSource::Implicit,
+                    ..
+                } => current_id = *value,
+                _ => return current_id,
+            }
+        }
+    }
+
     /// Lower a binary expression.
+    ///
+    /// ```ds
+    /// function add(a: int32, b: int32): int32 {
+    ///     return a + b;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v2: i32 = binary.add v0, v1
+    /// ```
     pub(super) fn lower_binary_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -22,6 +52,20 @@ impl FunctionContext<'_> {
         // handle union discriminant comparisons
         if let Some(value) =
             self.lower_union_discriminant_comparison(expression_id, left, operator, right)?
+        {
+            return Ok((value, self.env.type_lowerer.ty_bool));
+        }
+
+        // handle union literal comparisons
+        if let Some(value) =
+            self.lower_union_literal_comparison(expression_id, left, operator, right)?
+        {
+            return Ok((value, self.env.type_lowerer.ty_bool));
+        }
+
+        // handle nullable reference comparisons
+        if let Some(value) =
+            self.lower_nullable_reference_comparison(expression_id, left, operator, right)?
         {
             return Ok((value, self.env.type_lowerer.ty_bool));
         }
@@ -103,6 +147,78 @@ impl FunctionContext<'_> {
         };
 
         Ok((value, ty))
+    }
+
+    /// Lower null comparisons against nullable references.
+    fn lower_nullable_reference_comparison(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: dir::BinaryOperator,
+        right: LocalNodeId<Expression>,
+    ) -> LowerResult<Option<mir::Value>> {
+        // only handle equality comparisons
+        if !matches!(
+            operator,
+            dir::BinaryOperator::Equal
+                | dir::BinaryOperator::NotEqual
+                | dir::BinaryOperator::EqualStrict
+                | dir::BinaryOperator::NotEqualStrict
+        ) {
+            return Ok(None);
+        }
+
+        // unwrap implicit casts and parens before matching
+        let left = self.unwrap_expression(left);
+        let right = self.unwrap_expression(right);
+
+        // match nullable comparisons with null literals
+        let (value_id, literal) = match (self.env.dir_tree.get(left), self.env.dir_tree.get(right))
+        {
+            (Expression::TypeLiteral { value }, _) => (right, value),
+            (_, Expression::TypeLiteral { value }) => (left, value),
+            _ => return Ok(None),
+        };
+
+        // only handle null literal comparisons here
+        if !matches!(literal, dir::TypeLiteral::Null) {
+            return Ok(None);
+        }
+
+        // lower the operand and confirm nullable reference type
+        let (value, value_type) = self.lower_value_expression(value_id)?;
+        let is_nullable_reference = matches!(
+            self.state.builder.tree().get(value_type),
+            mir::Type::Reference {
+                is_nullable: true,
+                ..
+            } | mir::Type::TensorReference {
+                is_nullable: true,
+                ..
+            }
+        );
+        if !is_nullable_reference {
+            return Ok(None);
+        }
+
+        // build the null literal
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let null_value = self.zero_value_for_type(value_type, node)?;
+
+        // emit the comparison
+        let op = if matches!(
+            operator,
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
+        ) {
+            mir::BinaryOperator::Equal
+        } else {
+            mir::BinaryOperator::NotEqual
+        };
+        let value = self.state.builder.binary_op(op, value, null_value);
+
+        Ok(Some(value))
     }
 
     /// Lower overflow-checked integer arithmetic.
@@ -338,6 +454,25 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a conditional (ternary) expression.
+    ///
+    /// ```ds
+    /// function pick(flag: boolean): int32 {
+    ///     return flag ? 1 : 2;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// block0(v0: bool):
+    ///     branch v0, block1, block2
+    /// block1:
+    ///     v1: i32 = iconst 1
+    ///     jump block3(v1)
+    /// block2:
+    ///     v2: i32 = iconst 2
+    ///     jump block3(v2)
+    /// block3(v3: i32):
+    ///     return v3
+    /// ```
     pub(crate) fn lower_conditional_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,

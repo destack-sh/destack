@@ -20,6 +20,18 @@ enum StaticMemberKind {
 
 impl FunctionContext<'_> {
     /// Lower a member access expression to a field_get.
+    ///
+    /// ```ds
+    /// struct Vec2 { x: int32; y: int32; }
+    ///
+    /// function read(v: Vec2): int32 {
+    ///     return v.x;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = field.get v0, 0
+    /// ```
     pub(crate) fn lower_member_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -277,6 +289,20 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a getter call for a resolved member access.
+    ///
+    /// ```ds
+    /// class Box {
+    ///     get size(): int32 { return 1; }
+    /// }
+    ///
+    /// function read(value: Box): int32 {
+    ///     return value.size;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = call @Box.size(v0) -> fn(ref<managed @Box>) -> i32
+    /// ```
     pub(crate) fn lower_getter_call(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -382,6 +408,21 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a setter call for a resolved member access.
+    ///
+    /// ```ds
+    /// class Box {
+    ///     set size(value: int32) { }
+    /// }
+    ///
+    /// function write(value: Box): void {
+    ///     value.size = 3;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 3
+    /// call @Box.size(v0, v1) -> fn(ref<managed @Box>, i32) -> void
+    /// ```
     pub(crate) fn lower_setter_call(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -470,6 +511,17 @@ impl FunctionContext<'_> {
     }
 
     /// Lower an index expression to an element_get.
+    ///
+    /// ```ds
+    /// function read(values: int32[3]): int32 {
+    ///     return values[1];
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: i32 = iconst 1
+    /// v2: i32 = element.get v0, v1
+    /// ```
     pub(crate) fn lower_index_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,

@@ -10,6 +10,20 @@ use crate::lower::r#type::{EnumFieldValueDescriptor, enum_field_value_for_symbol
 
 impl FunctionContext<'_> {
     /// Lower enum member access into a constant value when possible.
+    ///
+    /// ```ds
+    /// enum Status: int32 {
+    ///     Active = 1;
+    /// }
+    ///
+    /// function read(): int32 {
+    ///     return Status.Active;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v0: i32 = iconst 1
+    /// ```
     pub(crate) fn lower_enum_field_member(
         &mut self,
         expression_id: LocalNodeId<Expression>,

@@ -93,8 +93,8 @@ Union layout is chosen per union:
 - **Boxed tagged**: tag + pointer to payload
 - **Untagged**: no tag, relies on RTTI or external discriminant
 
-The chosen strategy is stored on the union layout so Emit can generate the
-correct tag checks and field accesses.
+`null` and `undefined` are distinct union elements with distinct tags.
+The only special case is a union of a single reference type plus `null`, which lowers to a nullable reference.
 
 ### Dispatch Layout (VTables/ITabs)
 

@@ -9,6 +9,16 @@ use crate::lower::r#type::UnionPayloadKind;
 #[allow(clippy::too_many_arguments)]
 impl FunctionContext<'_> {
     /// Lower a cast operator into a MIR cast operator.
+    ///
+    /// ```ds
+    /// function widen(value: int32): float64 {
+    ///     return value as float64;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: f64 = cast <op> v0 -> f64
+    /// ```
     pub(crate) fn lower_cast_operator(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -127,6 +137,22 @@ impl FunctionContext<'_> {
     }
 
     /// Lower an instance upcast, including interface upcasts.
+    ///
+    /// ```ds
+    /// function widen(dog: Dog): Animal {
+    ///     return dog;
+    /// }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function widen(dog: Dog): Animal {
+    ///     return dog as Animal;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<managed @Animal> = bitcast v0 -> ref<managed @Animal>
+    /// ```
     pub(crate) fn lower_instance_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -174,6 +200,16 @@ impl FunctionContext<'_> {
     }
 
     /// Lower an instance downcast as an unchecked conversion.
+    ///
+    /// ```ds
+    /// function narrow(animal: Animal): Dog {
+    ///     return animal as Dog;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<managed @Dog> = bitcast v0 -> ref<managed @Dog>
+    /// ```
     pub(crate) fn lower_instance_downcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -247,18 +283,35 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a union upcast into a tagged union value.
+    ///
+    /// ```ds
+    /// function make(value: int32): int32 | boolean {
+    ///     return value;
+    /// }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function make(value: int32): int32 | boolean {
+    ///     return value as int32 | boolean;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: u8 = iconst 0
+    /// v2: [usize; 1] = <payload>
+    /// v3: @Union = struct @Union (v1, v2)
+    /// ```
     pub(crate) fn lower_union_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // lower the source value and target type
-        let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-        let target_mir_type = self.lower_type_for_expression(expression_id)?;
-
         // resolve the source and target dir types
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
+
+        // resolve the target mir type
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve union layout metadata
         let layout = self
@@ -273,6 +326,7 @@ impl FunctionContext<'_> {
 
         // skip when the source is already the target union type
         if dir::are_types_equal(source_type_id, target_type_id, self.env.types) {
+            let (value, _source_mir_type) = self.lower_value_expression(value_id)?;
             return Ok((value, target_mir_type));
         }
 
@@ -308,20 +362,35 @@ impl FunctionContext<'_> {
             .builder
             .iconst(tag_index as i64, tag_width, tag_signed);
 
+        // resolve literals that do not carry payload data
+        let is_nullish_literal = matches!(
+            self.env.types.get_type(source_type_id),
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
+            }
+        );
+
         // build the union payload
         let node = expression_id
             .into_global_any(self.env.module_id)
             .into_anchored(Some(self.env.profile));
-        let payload = match layout.payload_kind {
-            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
-                layout.payload_type,
-                value,
-                source_mir_type,
-                node,
-            )?,
-            UnionPayloadKind::Boxed => {
-                let boxed = self.box_value(value, source_mir_type);
-                self.state.builder.bitcast(boxed, layout.payload_type)
+        let payload = if is_nullish_literal {
+            // zero payload for null or undefined
+            self.union_payload_zero_value(layout, node)?
+        } else {
+            // lower the source value into the payload
+            let (value, source_mir_type) = self.lower_value_expression(value_id)?;
+            match layout.payload_kind {
+                UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+                    layout.payload_type,
+                    value,
+                    source_mir_type,
+                    node,
+                )?,
+                UnionPayloadKind::Boxed => {
+                    let boxed = self.box_value(value, source_mir_type);
+                    self.state.builder.bitcast(boxed, layout.payload_type)
+                }
             }
         };
 
@@ -337,6 +406,17 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a union downcast as an unchecked payload extraction.
+    ///
+    /// ```ds
+    /// function take(value: int32 | boolean): int32 {
+    ///     return value as int32;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: [usize; 1] = <payload>
+    /// v2: i32 = <payload_extract>
+    /// ```
     pub(crate) fn lower_union_downcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -395,6 +475,22 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a nullable upcast into a union or nullable reference.
+    ///
+    /// ```ds
+    /// function take(node: Node): Node | null {
+    ///     return node;
+    /// }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function take(node: Node): Node | null {
+    ///     return node as Node | null;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref?<managed @Node> = bitcast v0 -> ref?<managed @Node>
+    /// ```
     pub(crate) fn lower_nullable_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -405,7 +501,22 @@ impl FunctionContext<'_> {
             return self.lower_union_upcast(expression_id, value_id);
         }
 
-        let (value, _source_type) = self.lower_value_expression(value_id)?;
+        // reject undefined in nullable reference casts
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        if matches!(
+            self.env.types.get_type(source_type_id),
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Undefined
+            }
+        ) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "nullable upcast does not accept undefined".to_string(),
+            });
+        }
+
         let target_mir_type = self.lower_type_for_expression(expression_id)?;
         let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
             return Err(LowerError::UnsupportedConstruct {
@@ -416,15 +527,39 @@ impl FunctionContext<'_> {
             });
         };
 
-        let value = self
-            .state
-            .builder
-            .cast(mir::CastOperator::Bitcast, value, target_mir_type);
+        // handle null literals without lowering a payload value
+        let is_null_literal = matches!(
+            self.env.types.get_type(source_type_id),
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Null,
+            }
+        );
+        let value = if is_null_literal {
+            let node = expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile));
+            self.zero_value_for_type(target_mir_type, node)?
+        } else {
+            let (value, _source_type) = self.lower_value_expression(value_id)?;
+            self.state
+                .builder
+                .cast(mir::CastOperator::Bitcast, value, target_mir_type)
+        };
 
         Ok((value, target_mir_type))
     }
 
     /// Lower a nullable downcast into a union or nullable reference.
+    ///
+    /// ```ds
+    /// function take(value: Node | null): Node {
+    ///     return value as Node;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: ref<managed @Node> = bitcast v0 -> ref<managed @Node>
+    /// ```
     pub(crate) fn lower_nullable_downcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -455,6 +590,26 @@ impl FunctionContext<'_> {
     }
 
     /// Build an interface reference from a concrete value.
+    ///
+    /// ```ds
+    /// interface Drawable {}
+    ///
+    /// class Sprite implements Drawable {}
+    ///
+    /// function asDrawable(value: Sprite): Drawable {
+    ///     return value;
+    /// }
+    /// ```
+    /// ->
+    /// ```ds
+    /// function asDrawable(value: Sprite): Drawable {
+    ///     return value as Drawable;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: @DrawableRef = struct @DrawableRef (v0, <itab>)
+    /// ```
     pub(crate) fn lower_interface_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,

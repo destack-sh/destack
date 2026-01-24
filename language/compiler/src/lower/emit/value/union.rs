@@ -1,5 +1,5 @@
 use destack_base::StringId;
-use destack_dir::{AnchoredGlobalNodeId, CastSource, Expression, LocalNodeId, StaticKey, Type};
+use destack_dir::{AnchoredGlobalNodeId, Expression, LocalNodeId, StaticKey, Type, TypeLiteral};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, ScalarType};
@@ -9,6 +9,26 @@ use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
     UnionPayloadKind,
 };
+
+/// Literal values used for union literal comparisons.
+#[derive(Debug, Clone)]
+enum UnionLiteralValue {
+    /// Scalar literal value.
+    Scalar(dir::ScalarLiteral),
+    /// Null literal value.
+    Null,
+    /// Undefined literal value.
+    Undefined,
+}
+
+/// Discriminant literal values used in comparisons.
+#[derive(Debug, Clone, Copy)]
+enum DiscriminantLiteralValue<'a> {
+    /// Scalar literal comparison.
+    Scalar(&'a dir::ScalarLiteral),
+    /// Type literal comparison.
+    Type(&'a dir::TypeLiteral),
+}
 
 /// Union discriminant comparison data for tag checks.
 #[derive(Debug, Clone, Copy)]
@@ -24,6 +44,21 @@ pub(crate) struct UnionTagComparison {
 }
 
 impl FunctionContext<'_> {
+    /// Build a zero payload for a union variant without data.
+    pub(crate) fn union_payload_zero_value(
+        &mut self,
+        layout: &UnionLayout,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // build the zero value based on the payload strategy
+        match layout.payload_kind {
+            UnionPayloadKind::Inline => {
+                self.inline_union_payload_zero_value(layout.payload_type, node)
+            }
+            UnionPayloadKind::Boxed => self.zero_value_for_type(layout.payload_type, node),
+        }
+    }
+
     /// Build an inline union payload by storing the value into scratch memory.
     pub(crate) fn inline_union_payload_from_value(
         &mut self,
@@ -175,29 +210,27 @@ impl FunctionContext<'_> {
         }
 
         // unwrap implicit casts and parens before matching
-        let unwrap_expression = |mut expr_id: LocalNodeId<Expression>| {
-            loop {
-                match self.env.dir_tree.get(expr_id) {
-                    Expression::Parenthesized { expression } => expr_id = *expression,
-                    Expression::Cast {
-                        value,
-                        source: CastSource::Implicit,
-                        ..
-                    } => expr_id = *value,
-                    _ => return expr_id,
-                }
-            }
-        };
-        let left = unwrap_expression(left);
-        let right = unwrap_expression(right);
+        let left = self.unwrap_expression(left);
+        let right = self.unwrap_expression(right);
 
         // match member access against a scalar literal
-        let (member_id, literal_value) =
-            match (self.env.dir_tree.get(left), self.env.dir_tree.get(right)) {
-                (Expression::Member { .. }, Expression::ScalarLiteral { value }) => (left, value),
-                (Expression::ScalarLiteral { value }, Expression::Member { .. }) => (right, value),
-                _ => return Ok(None),
-            };
+        let literal_value = match (self.env.dir_tree.get(left), self.env.dir_tree.get(right)) {
+            (Expression::ScalarLiteral { value }, Expression::Member { .. }) => {
+                (right, DiscriminantLiteralValue::Scalar(value))
+            }
+            (Expression::Member { .. }, Expression::ScalarLiteral { value }) => {
+                (left, DiscriminantLiteralValue::Scalar(value))
+            }
+            (Expression::TypeLiteral { value }, Expression::Member { .. }) => {
+                (right, DiscriminantLiteralValue::Type(value))
+            }
+            (Expression::Member { .. }, Expression::TypeLiteral { value }) => {
+                (left, DiscriminantLiteralValue::Type(value))
+            }
+            _ => return Ok(None),
+        };
+
+        let (member_id, literal_value) = literal_value;
 
         // extract the member access expression
         let Expression::Member {
@@ -225,12 +258,23 @@ impl FunctionContext<'_> {
         let node = expression_id
             .into_global_any(self.env.module_id)
             .into_anchored(Some(self.env.profile));
-        let key = DiscriminantKey::from_scalar_literal(literal_value, node)?.ok_or_else(|| {
-            LowerError::UnsupportedConstruct {
-                node,
-                message: "unsupported discriminant literal in comparison".to_string(),
+        let key = match literal_value {
+            DiscriminantLiteralValue::Scalar(literal) => {
+                DiscriminantKey::from_scalar_literal(literal, node)?.ok_or_else(|| {
+                    LowerError::UnsupportedConstruct {
+                        node,
+                        message: "unsupported discriminant literal in comparison".to_string(),
+                    }
+                })?
             }
-        })?;
+            DiscriminantLiteralValue::Type(literal) => match literal {
+                TypeLiteral::Null => DiscriminantKey::Null,
+                TypeLiteral::Undefined => DiscriminantKey::Undefined,
+                _ => {
+                    return Ok(None);
+                }
+            },
+        };
 
         let tag_index = field.tag_by_value.get(&key).copied().ok_or_else(|| {
             LowerError::UnsupportedConstruct {
@@ -262,6 +306,18 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a union discriminant comparison when possible.
+    ///
+    /// ```ds
+    /// function isReady(value: { kind: true; } | { kind: false; }): boolean {
+    ///     return value.kind == true;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: u8 = field.get v0, 0
+    /// v2: u8 = iconst 0u8
+    /// v3: bool = icmp_eq v1, v2
+    /// ```
     pub(crate) fn lower_union_discriminant_comparison(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -289,7 +345,178 @@ impl FunctionContext<'_> {
         Ok(Some(value))
     }
 
+    /// Lower a union literal comparison when possible.
+    ///
+    /// ```ds
+    /// function isOne(value: 1 | 2): boolean {
+    ///     return value == 1;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: u8 = field.get v0, 0
+    /// v2: u8 = iconst 0u8
+    /// v3: bool = icmp_eq v1, v2
+    /// ```
+    pub(crate) fn lower_union_literal_comparison(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: dir::BinaryOperator,
+        right: LocalNodeId<Expression>,
+    ) -> LowerResult<Option<mir::Value>> {
+        // only handle equality comparisons
+        if !matches!(
+            operator,
+            dir::BinaryOperator::Equal
+                | dir::BinaryOperator::NotEqual
+                | dir::BinaryOperator::EqualStrict
+                | dir::BinaryOperator::NotEqualStrict
+        ) {
+            return Ok(None);
+        }
+
+        // unwrap implicit casts and parens before matching
+        let left = self.unwrap_expression(left);
+        let right = self.unwrap_expression(right);
+
+        // resolve union operand
+        let left_type_id = self.type_for_expression_or_error(left)?;
+        let right_type_id = self.type_for_expression_or_error(right)?;
+        let (union_expr, literal_expr_id, union_type_id) =
+            if matches!(self.env.types.get_type(left_type_id), Type::Union { .. }) {
+                (left, right, left_type_id)
+            } else if matches!(self.env.types.get_type(right_type_id), Type::Union { .. }) {
+                (right, left, right_type_id)
+            } else {
+                return Ok(None);
+            };
+
+        // resolve literal expression
+        let Some(literal_value) = self.union_literal_value(literal_expr_id) else {
+            return Ok(None);
+        };
+
+        // ensure the union layout is available
+        let union_mir_type = self.lower_type_for_expression(union_expr)?;
+        let layout = match self.env.type_lowerer.union_layout(union_type_id) {
+            Some(layout) => layout,
+            None => {
+                let union_mir_type = self.state.builder.tree().get(union_mir_type);
+                if matches!(
+                    union_mir_type,
+                    mir::Type::Reference { .. } | mir::Type::TensorReference { .. }
+                ) {
+                    return Ok(None);
+                }
+                return Err(self.missing_type_error(expression_id));
+            }
+        };
+
+        // resolve the union tag index for the literal element
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let tag_index = self.union_tag_index_for_literal(layout, &literal_value, node)?;
+
+        // lower the union value
+        let (union_value, _) = self.lower_value_expression(union_expr)?;
+        let tag_value = self
+            .state
+            .builder
+            .field_get(union_value, layout.tag_field_index);
+        let tag_const = self.union_tag_constant(layout, tag_index)?;
+
+        // emit the comparison
+        let op = if matches!(
+            operator,
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
+        ) {
+            mir::BinaryOperator::Equal
+        } else {
+            mir::BinaryOperator::NotEqual
+        };
+        let value = self.state.builder.binary_op(op, tag_value, tag_const);
+
+        Ok(Some(value))
+    }
+
+    /// Resolve a union literal value when possible.
+    fn union_literal_value(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<UnionLiteralValue> {
+        // resolve literal expressions used in union comparisons
+        let expression = self.env.dir_tree.get(expression_id);
+        match expression {
+            Expression::ScalarLiteral { value } => Some(UnionLiteralValue::Scalar(value.clone())),
+            Expression::TypeLiteral {
+                value: TypeLiteral::Null,
+            } => Some(UnionLiteralValue::Null),
+            Expression::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            } => Some(UnionLiteralValue::Undefined),
+            _ => None,
+        }
+    }
+
+    /// Resolve the union tag index for a literal element.
+    fn union_tag_index_for_literal(
+        &self,
+        layout: &UnionLayout,
+        literal: &UnionLiteralValue,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<usize> {
+        let tag_index = layout
+            .element_types
+            .iter()
+            .position(
+                |element| match (self.env.types.get_type(*element), literal) {
+                    (
+                        Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(value),
+                        },
+                        UnionLiteralValue::Scalar(literal),
+                    ) => value == literal,
+                    (
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Null,
+                        },
+                        UnionLiteralValue::Null,
+                    ) => true,
+                    (
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Undefined,
+                        },
+                        UnionLiteralValue::Undefined,
+                    ) => true,
+                    _ => false,
+                },
+            )
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "union literal does not match any element".to_string(),
+            })?;
+
+        Ok(tag_index)
+    }
+
     /// Lower a union tag comparison as a check terminator when possible.
+    ///
+    /// ```ds
+    /// function pick(value: { kind: true; } | { kind: false; }): int32 {
+    ///     if (value.kind == true) {
+    ///         return 1;
+    ///     }
+    ///     return 2;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: u8 = field.get v0, 0
+    /// v2: u8 = iconst 0u8
+    /// check v1 == v2, union(tag=0) ? block1 : block2
+    /// ```
     pub(crate) fn lower_union_tag_check(
         &mut self,
         condition_id: LocalNodeId<Expression>,
@@ -297,20 +524,7 @@ impl FunctionContext<'_> {
         else_block: mir::LocalNodeId<mir::Block>,
     ) -> LowerResult<bool> {
         // unwrap implicit casts and parens before matching
-        let unwrap_expression = |mut expr_id: LocalNodeId<Expression>| {
-            loop {
-                match self.env.dir_tree.get(expr_id) {
-                    Expression::Parenthesized { expression } => expr_id = *expression,
-                    Expression::Cast {
-                        value,
-                        source: CastSource::Implicit,
-                        ..
-                    } => expr_id = *value,
-                    _ => return expr_id,
-                }
-            }
-        };
-        let condition_id = unwrap_expression(condition_id);
+        let condition_id = self.unwrap_expression(condition_id);
 
         // match on binary expressions
         let Expression::Binary {
@@ -385,6 +599,17 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a union discriminant field access into tag selection.
+    ///
+    /// ```ds
+    /// function read(value: { kind: true; } | { kind: false; }): true | false {
+    ///     return value.kind;
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v1: u8 = field.get v0, 0
+    /// v2: bool = <tag_to_literal>
+    /// ```
     pub(crate) fn lower_union_discriminant_member(
         &mut self,
         expression_id: LocalNodeId<Expression>,
