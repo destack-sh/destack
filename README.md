@@ -51,3 +51,6 @@ We welcome feedback, issues, ideas, and small fixes, but please reach out for an
 
 **MIT license**. See [LICENSE.txt](LICENSE.txt) for details.
 The Destack language, toolchain, library and platform core are fully open source.
+
+This project includes vendored components under the Apache-2.0 WITH LLVM-exception
+license. See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for details.
