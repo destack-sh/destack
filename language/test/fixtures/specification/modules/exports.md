@@ -426,7 +426,7 @@ import { Options } from "./module-b";
 const value = Options;
 ```
 
-- contains: type only
+- contains: missing symbol 'Options'
 
 ## Type-only Imports
 
@@ -442,6 +442,12 @@ export type Options = { strict: boolean };
 import type { Options } from "./types";
 
 export const value = Options;
+```
+
+```ts:main.ts
+import { value } from "./module-b";
+
+value satisfies unknown;
 ```
 
 - contains: type only
