@@ -912,6 +912,23 @@ export type { CreateUIMessage, UIMessage }
     }
 
     #[test]
+    fn test_parse_export_type_item_reexport() {
+        let mut test = TestParser::new("export { type Options } from 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: None, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, Some(DependencyKind::Type));
+                assert_string!(parser, *name, "Options");
+            });
+            assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
     fn test_parse_export_with_namespace_alias() {
         let mut test = TestParser::new("export * as foo from 'foo'");
         let mut parser = test.prepare();
