@@ -538,10 +538,7 @@ fn scalar_type_info(
 ) -> Result<ScalarTypeInfo, Error> {
     // resolve scalar types
     match tree.get(ty) {
-        mir::Type::Int {
-            width,
-            is_signed,
-        } => Ok(ScalarTypeInfo::Int {
+        mir::Type::Int { width, is_signed } => Ok(ScalarTypeInfo::Int {
             width: *width,
             is_signed: *is_signed,
         }),
@@ -576,15 +573,23 @@ fn convert_scalar_value(
 
     // convert between numeric kinds
     match (source, dest) {
-        (ScalarTypeInfo::Int { width, is_signed }, ScalarTypeInfo::Int { width: dest_width, is_signed: dest_signed }) => {
-            convert_int_to_int(value, width, is_signed, dest_width, dest_signed, mode)
-        }
+        (
+            ScalarTypeInfo::Int { width, is_signed },
+            ScalarTypeInfo::Int {
+                width: dest_width,
+                is_signed: dest_signed,
+            },
+        ) => convert_int_to_int(value, width, is_signed, dest_width, dest_signed, mode),
         (ScalarTypeInfo::Int { width, is_signed }, ScalarTypeInfo::Float { width: dest_width }) => {
             convert_int_to_float(value, width, is_signed, dest_width, mode)
         }
-        (ScalarTypeInfo::Float { width }, ScalarTypeInfo::Int { width: dest_width, is_signed }) => {
-            convert_float_to_int(value, width, dest_width, is_signed, mode)
-        }
+        (
+            ScalarTypeInfo::Float { width },
+            ScalarTypeInfo::Int {
+                width: dest_width,
+                is_signed,
+            },
+        ) => convert_float_to_int(value, width, dest_width, is_signed, mode),
         (ScalarTypeInfo::Float { width }, ScalarTypeInfo::Float { width: dest_width }) => {
             convert_float_to_float(value, width, dest_width, mode)
         }
@@ -610,10 +615,12 @@ fn convert_int_to_int(
 
     // resolve source value
     let source_value = if source_signed {
-        let (value, width) = value.as_int_with_width().ok_or_else(|| Error::TypeMismatch {
-            expected: "signed integer".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        let (value, width) = value
+            .as_int_with_width()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "signed integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
         if width != source_width_u8 {
             return Err(Error::TypeMismatch {
                 expected: format!("int{source_width_u8}"),
@@ -622,10 +629,12 @@ fn convert_int_to_int(
         }
         IntValue::Signed(value)
     } else {
-        let (value, width) = value.as_uint_with_width().ok_or_else(|| Error::TypeMismatch {
-            expected: "unsigned integer".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        let (value, width) = value
+            .as_uint_with_width()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "unsigned integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
         if width != source_width_u8 {
             return Err(Error::TypeMismatch {
                 expected: format!("uint{source_width_u8}"),
@@ -681,10 +690,12 @@ fn convert_int_to_float(
 
     // resolve integer value
     let int_value = if source_signed {
-        let (value, width) = value.as_int_with_width().ok_or_else(|| Error::TypeMismatch {
-            expected: "signed integer".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        let (value, width) = value
+            .as_int_with_width()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "signed integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
         if width != source_width_u8 {
             return Err(Error::TypeMismatch {
                 expected: format!("int{source_width_u8}"),
@@ -693,10 +704,12 @@ fn convert_int_to_float(
         }
         IntValue::Signed(value)
     } else {
-        let (value, width) = value.as_uint_with_width().ok_or_else(|| Error::TypeMismatch {
-            expected: "unsigned integer".to_string(),
-            actual: format!("{value:?}"),
-        })?;
+        let (value, width) = value
+            .as_uint_with_width()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "unsigned integer".to_string(),
+                actual: format!("{value:?}"),
+            })?;
         if width != source_width_u8 {
             return Err(Error::TypeMismatch {
                 expected: format!("uint{source_width_u8}"),
@@ -786,12 +799,20 @@ fn convert_float_to_int(
     // convert to destination integer
     if dest_signed {
         let (min, max) = signed_bounds(dest_width);
-        let value = if rounded.is_finite() { rounded as i128 } else { 0 };
+        let value = if rounded.is_finite() {
+            rounded as i128
+        } else {
+            0
+        };
         let clamped = clamp_or_error_signed(value, min, max, mode)?;
         Ok(Value::int(clamped, dest_width_u8))
     } else {
         let max = unsigned_max(dest_width);
-        let value = if rounded.is_finite() { rounded as i128 } else { 0 };
+        let value = if rounded.is_finite() {
+            rounded as i128
+        } else {
+            0
+        };
         let clamped = clamp_or_error_unsigned(value, max, mode)?;
         Ok(Value::uint(clamped, dest_width_u8))
     }
@@ -910,11 +931,7 @@ fn clamp_or_error_signed(
 }
 
 /// Apply saturating or exact behavior for unsigned conversions.
-fn clamp_or_error_unsigned(
-    value: i128,
-    max: u64,
-    mode: ScalarConvertMode,
-) -> Result<u64, Error> {
+fn clamp_or_error_unsigned(value: i128, max: u64, mode: ScalarConvertMode) -> Result<u64, Error> {
     // accept values in range
     if value >= 0 && value <= i128::from(max) {
         return Ok(value as u64);

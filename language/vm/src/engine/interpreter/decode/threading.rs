@@ -2333,7 +2333,10 @@ fn thread_instruction(
             }
         }
 
-        mir::Instruction::TensorCast { destination, tensor } => ThreadedInstruction {
+        mir::Instruction::TensorCast {
+            destination,
+            tensor,
+        } => ThreadedInstruction {
             handler: dispatch::handle_tensor_cast,
             data: ThreadedInstructionData::TensorCast {
                 dest: *destination,

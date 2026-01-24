@@ -6,13 +6,12 @@ use destack_mir as mir;
 use crate::optimize::analyses::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
 };
-use crate::optimize::common::ValueTypeMap;
 use crate::optimize::common::{
-    BlockParamForwarding, CallsiteHotness, CallsiteHotnessPolicy, block_execution_counts,
-    block_hotness_from_counts, build_use_def_maps, build_value_definition_map,
-    clone_instruction_metadata, clone_loop_blocks, constant_from_global,
-    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
-    terminator_remap,
+    BlockParamForwarding, CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap,
+    block_execution_counts, block_hotness_from_counts, build_use_def_maps,
+    build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
+    constant_from_global, instruction_is_speculatable, instruction_map,
+    terminator_arguments_for_successor, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -574,7 +573,14 @@ fn run_loop_unroll_and_jam(
         // apply transformation
         function.recompute_next_value_id(tree);
         if !unroll_and_jam_loop(
-            function, tree, ctx, &candidate, plan, &cfg, &domtree, &value_types,
+            function,
+            tree,
+            ctx,
+            &candidate,
+            plan,
+            &cfg,
+            &domtree,
+            &value_types,
         ) {
             break;
         }

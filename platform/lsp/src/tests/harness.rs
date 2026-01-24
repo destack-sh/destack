@@ -246,14 +246,8 @@ impl LspHarness {
         removed: Vec<PathBuf>,
     ) {
         // build workspace folder entries
-        let added = added
-            .into_iter()
-            .map(workspace_folder_for_path)
-            .collect();
-        let removed = removed
-            .into_iter()
-            .map(workspace_folder_for_path)
-            .collect();
+        let added = added.into_iter().map(workspace_folder_for_path).collect();
+        let removed = removed.into_iter().map(workspace_folder_for_path).collect();
         let params = lsp::DidChangeWorkspaceFoldersParams {
             event: lsp::WorkspaceFoldersChangeEvent { added, removed },
         };

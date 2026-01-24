@@ -132,8 +132,7 @@ fn test_format_vector_compare_and_convert() {
         left_vector,
         right_vector,
     );
-    let _converted =
-        builder.vector_convert(vector_f32_type, VectorConvertMode::Exact, left_vector);
+    let _converted = builder.vector_convert(vector_f32_type, VectorConvertMode::Exact, left_vector);
     builder.return_(None);
     builder.seal_block(entry_block);
     builder.finish();
@@ -163,12 +162,24 @@ fn test_format_tensor_compare_and_convert() {
     let bool_type = module.type_bool();
     let f32_type = module.type_f32();
     let shape = vec![TensorDimension::Static(2), TensorDimension::Static(2)];
-    let tensor_i32_type =
-        module.type_tensor(i32_type, shape.clone(), TensorLayout::RowMajor, Copyability::Trivial);
-    let tensor_bool_type =
-        module.type_tensor(bool_type, shape.clone(), TensorLayout::RowMajor, Copyability::Trivial);
-    let tensor_f32_type =
-        module.type_tensor(f32_type, shape, TensorLayout::RowMajor, Copyability::Trivial);
+    let tensor_i32_type = module.type_tensor(
+        i32_type,
+        shape.clone(),
+        TensorLayout::RowMajor,
+        Copyability::Trivial,
+    );
+    let tensor_bool_type = module.type_tensor(
+        bool_type,
+        shape.clone(),
+        TensorLayout::RowMajor,
+        Copyability::Trivial,
+    );
+    let tensor_f32_type = module.type_tensor(
+        f32_type,
+        shape,
+        TensorLayout::RowMajor,
+        Copyability::Trivial,
+    );
 
     // build function
     let void_type = module.type_void();
@@ -183,8 +194,7 @@ fn test_format_tensor_compare_and_convert() {
         left_tensor,
         right_tensor,
     );
-    let _converted =
-        builder.tensor_convert(tensor_f32_type, TensorConvertMode::Exact, left_tensor);
+    let _converted = builder.tensor_convert(tensor_f32_type, TensorConvertMode::Exact, left_tensor);
     builder.return_(None);
     builder.seal_block(entry_block);
     builder.finish();

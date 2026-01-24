@@ -533,12 +533,13 @@ impl<'a> Verifier<'a> {
         label: &'static str,
     ) -> VerifyResult<LocalNodeId<Type>> {
         // look up the value type
-        let value_type = function.value_type(value).ok_or_else(|| {
-            VerifyError::MetadataInvariantViolation {
-                message: format!("missing value type for {label}"),
-                anchor,
-            }
-        })?;
+        let value_type =
+            function
+                .value_type(value)
+                .ok_or_else(|| VerifyError::MetadataInvariantViolation {
+                    message: format!("missing value type for {label}"),
+                    anchor,
+                })?;
 
         Ok(value_type)
     }
@@ -555,14 +556,14 @@ impl<'a> Verifier<'a> {
         }
 
         // allow dynamic to match any dimension
-        left.iter().zip(right).all(|(left_dim, right_dim)| {
-            match (left_dim, right_dim) {
+        left.iter()
+            .zip(right)
+            .all(|(left_dim, right_dim)| match (left_dim, right_dim) {
                 (TensorDimension::Static(left_size), TensorDimension::Static(right_size)) => {
                     left_size == right_size
                 }
                 _ => true,
-            }
-        })
+            })
     }
 
     /// Verify vector and tensor instruction invariants.
@@ -676,12 +677,8 @@ impl<'a> Verifier<'a> {
                 ..
             } => {
                 // resolve operand types
-                let source_type_id = self.value_type_or_error(
-                    function,
-                    *vector,
-                    anchor,
-                    "vector.convert source",
-                )?;
+                let source_type_id =
+                    self.value_type_or_error(function, *vector, anchor, "vector.convert source")?;
                 let destination_type_id = self.value_type_or_error(
                     function,
                     *destination,
@@ -896,12 +893,8 @@ impl<'a> Verifier<'a> {
                 // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *tensor, anchor, "tensor.cast source")?;
-                let destination_type_id = self.value_type_or_error(
-                    function,
-                    *destination,
-                    anchor,
-                    "tensor.cast result",
-                )?;
+                let destination_type_id =
+                    self.value_type_or_error(function, *destination, anchor, "tensor.cast result")?;
 
                 // resolve tensor types
                 let source_type = self.tree.get(source_type_id);
@@ -965,12 +958,8 @@ impl<'a> Verifier<'a> {
                 // resolve operand types
                 let source_type_id =
                     self.value_type_or_error(function, *view, anchor, "tensor.view source")?;
-                let destination_type_id = self.value_type_or_error(
-                    function,
-                    *destination,
-                    anchor,
-                    "tensor.view result",
-                )?;
+                let destination_type_id =
+                    self.value_type_or_error(function, *destination, anchor, "tensor.view result")?;
 
                 // resolve view types
                 let source_type = self.tree.get(source_type_id);
@@ -1063,8 +1052,9 @@ impl<'a> Verifier<'a> {
                     || *strides_count as usize != expected
                 {
                     return Err(VerifyError::MetadataInvariantViolation {
-                        message: "tensor.view requires offsets, sizes, and strides for each dimension"
-                            .to_string(),
+                        message:
+                            "tensor.view requires offsets, sizes, and strides for each dimension"
+                                .to_string(),
                         anchor,
                     });
                 }

@@ -2,12 +2,11 @@ use criterion::profiler::Profiler;
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
-use pprof::flamegraph::Options as FlamegraphOptions;
 use pprof::ProfilerGuard;
-use std::path::PathBuf;
-use std::path::Path;
-use std::sync::Arc;
+use pprof::flamegraph::Options as FlamegraphOptions;
 use std::hint::black_box;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{env, fs};
 
 /// Pprof profiler for Criterion benches.

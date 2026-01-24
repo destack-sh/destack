@@ -128,12 +128,13 @@ fn test_daemon_ipc_restart_resubscribe() {
 
     // connect to the daemon and open the workspace
     let connection = wait_for_daemon(&instance);
-    let response = connection.client.send_request(DaemonRequest::OpenWorkspace(
-        OpenWorkspaceRequest {
-            root: root.root().to_path_buf(),
-            options: WorkspaceOpenOptions::default(),
-        },
-    ));
+    let response =
+        connection
+            .client
+            .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
+                root: root.root().to_path_buf(),
+                options: WorkspaceOpenOptions::default(),
+            }));
     let handle_id = match response {
         Ok(DaemonResponse::WorkspaceOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
@@ -148,12 +149,12 @@ fn test_daemon_ipc_restart_resubscribe() {
         },
         write_to_disk: true,
     };
-    let response = connection.client.send_request(DaemonRequest::ApplyFileUpdate(
-        FileUpdateRequest {
+    let response = connection
+        .client
+        .send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
             handle: handle_id,
             update,
-        },
-    ));
+        }));
     match response {
         Ok(DaemonResponse::FileUpdated(response)) => {
             assert!(!response.updates.is_empty());
@@ -172,12 +173,13 @@ fn test_daemon_ipc_restart_resubscribe() {
 
     // reconnect and open the workspace again
     let connection = wait_for_daemon(&instance);
-    let response = connection.client.send_request(DaemonRequest::OpenWorkspace(
-        OpenWorkspaceRequest {
-            root: root.root().to_path_buf(),
-            options: WorkspaceOpenOptions::default(),
-        },
-    ));
+    let response =
+        connection
+            .client
+            .send_request(DaemonRequest::OpenWorkspace(OpenWorkspaceRequest {
+                root: root.root().to_path_buf(),
+                options: WorkspaceOpenOptions::default(),
+            }));
     let handle_id = match response {
         Ok(DaemonResponse::WorkspaceOpened(response)) => response.handle,
         other => panic!("unexpected response: {other:?}"),
@@ -191,12 +193,12 @@ fn test_daemon_ipc_restart_resubscribe() {
         },
         write_to_disk: true,
     };
-    let response = connection.client.send_request(DaemonRequest::ApplyFileUpdate(
-        FileUpdateRequest {
+    let response = connection
+        .client
+        .send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
             handle: handle_id,
             update,
-        },
-    ));
+        }));
     match response {
         Ok(DaemonResponse::FileUpdated(response)) => {
             assert!(!response.updates.is_empty());

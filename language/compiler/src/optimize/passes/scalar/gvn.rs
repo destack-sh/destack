@@ -667,12 +667,7 @@ fn process_block(
         // check if we've seen this expression in any dominating scope
         if let Some(existing_value) = value_table.get(&key) {
             // found a match: mark for substitution and removal
-            if can_substitute_value(
-                destination,
-                existing_value,
-                value_types,
-                tree,
-            ) {
+            if can_substitute_value(destination, existing_value, value_types, tree) {
                 substitutions.insert(destination, existing_value);
                 to_remove.insert(instruction_id);
             }

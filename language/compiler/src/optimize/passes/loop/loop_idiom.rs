@@ -257,9 +257,9 @@ fn run_loop_idiom(
                     continue;
                 }
 
-            if !array_is_u8(pattern.array, &value_types, tree) {
-                continue;
-            }
+                if !array_is_u8(pattern.array, &value_types, tree) {
+                    continue;
+                }
 
                 let should_guard = should_guard_copy_bounds(
                     start_value,

@@ -6,10 +6,11 @@ use crate::{
     CallEffects, CastOperator, CheckConstraint, CheckTarget, Constant, ExecutionModel,
     ExecutionStage, Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local,
     LocalNodeId, MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Mutability, NodeTree,
-    Ownership, PointerAttributes, ReferenceKind, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorConvertMode, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
-    Terminator, Type, TypedValue, UnaryOperator, Value, VectorConvertMode, VectorReduceOperator,
+    Ownership, PointerAttributes, ReferenceKind, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, Terminator, Type, TypedValue, UnaryOperator, Value, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 use super::Variable;

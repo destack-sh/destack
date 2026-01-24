@@ -3,12 +3,11 @@ use destack_source::{FileId, FileType, LanguageType, glob};
 
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use pprof::flamegraph::Options as FlamegraphOptions;
 use pprof::ProfilerGuard;
+use pprof::flamegraph::Options as FlamegraphOptions;
 
-use std::path::PathBuf;
-use std::path::Path;
 use std::hint::black_box;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 /// Source file info for lexer benchmarks.
