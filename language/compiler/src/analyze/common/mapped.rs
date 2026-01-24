@@ -9,8 +9,8 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::key::KeySet;
-use crate::analyze::common::CanonicalSymbolMode;
 use crate::Compiler;
+use crate::analyze::common::CanonicalSymbolMode;
 
 /// A mapped key produced when expanding mapped types.
 #[derive(Debug, Clone)]

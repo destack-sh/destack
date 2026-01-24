@@ -27,6 +27,13 @@ pub enum AnalyzeTask {
         profile: ProfileStamp,
     },
 
+    /// Infer exported surface types.
+    #[task(code = 5, trace = "module={module} profile={profile}")]
+    AnalyzeModuleExport {
+        module: ModuleStamp,
+        profile: ProfileStamp,
+    },
+
     /// Final validation pass.
     #[task(code = 4, trace = "module={module} profile={profile}")]
     AnalyzeModuleValidate {
@@ -70,6 +77,15 @@ impl Compiler {
                     profile.version,
                 )?;
                 self.analyze_module_infer(module.id, profile.id, module.version, profile.version)?;
+            }
+            AnalyzeTask::AnalyzeModuleExport { module, profile } => {
+                self.ensure_module_profile_matches::<AnalyzeError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.analyze_module_export(module.id, profile.id, module.version, profile.version)?;
             }
             AnalyzeTask::AnalyzeModuleValidate { module, profile } => {
                 self.ensure_module_profile_matches::<AnalyzeError>(

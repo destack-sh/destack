@@ -327,6 +327,7 @@ impl Program {
 
         // drop shared indexes that lack staleness checks
         self.index.global_symbol_tables.clear();
+        self.index.module_binding_registry.clear();
         self.index.module_binding_tables.clear();
 
         // drop cached signatures for this module
@@ -401,6 +402,7 @@ impl Program {
 
         // drop shared indexes that lack staleness checks
         self.index.global_symbol_tables.clear();
+        self.index.module_binding_registry.clear();
         self.index.module_binding_tables.clear();
 
         profile_ids

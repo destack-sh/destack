@@ -132,6 +132,17 @@ pub enum AnalyzeError {
     #[error(code = "EA113", message = "array literal holes are not allowed")]
     ArrayLiteralHole { node: AnchoredGlobalNodeId },
 
+    /// Export inference cycle requires an explicit annotation.
+    #[error(
+        code = "EA116",
+        message = "export requires annotation to break inference cycle"
+    )]
+    ExportInferenceRequiresAnnotation { node: AnchoredGlobalNodeId },
+
+    /// Type only symbols cannot be used as values.
+    #[error(code = "EA117", message = "type only symbol cannot be used as a value")]
+    TypeOnlyValue { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

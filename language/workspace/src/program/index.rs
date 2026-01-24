@@ -10,12 +10,15 @@ use crate::{
     ModuleGraph, ModuleGraphKey, ModuleGraphVersion, ModuleSignature, ModuleSignatureDigest,
     ModuleSignatureKey, ProfileId, TargetId,
 };
+use destack_source::PackageId;
 
 /// Derived indexes and tables for a Program.
 #[derive(Debug, Default)]
 pub struct ProgramIndex {
     /// Global symbol tables indexed by target and profile.
     pub global_symbol_tables: DashMap<GlobalSymbolTableKey, GlobalSymbolTable>,
+    /// Module binding registry indexed by package.
+    pub module_binding_registry: DashMap<PackageId, ModuleBindingRegistry>,
     /// Module binding tables indexed by target and profile.
     pub module_binding_tables: DashMap<ModuleBindingTableKey, ModuleBindingTable>,
     /// Module graphs indexed by profile.
@@ -138,6 +141,31 @@ pub struct ModuleBindingTable {
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// Module bindings by specifier.
     pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
+}
+
+/// Track module bindings declared in a package.
+#[derive(Debug, Clone)]
+pub struct ModuleBindingRegistry {
+    /// Versions for modules that declared bindings.
+    pub module_versions: IndexMap<ModuleId, ModuleVersion>,
+    /// Module bindings by specifier.
+    pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
+}
+
+impl Default for ModuleBindingRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ModuleBindingRegistry {
+    /// Create an empty registry.
+    pub fn new() -> Self {
+        Self {
+            module_versions: IndexMap::new(),
+            bindings_by_specifier: IndexMap::new(),
+        }
+    }
 }
 
 impl Default for ModuleBindingTable {

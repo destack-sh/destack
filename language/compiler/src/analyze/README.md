@@ -32,12 +32,10 @@ Analyze sits between Resolve and Elaborate in the per-profile part of the pipeli
 **Inputs**: Resolved DIR plus explicit type annotations.
 **Outputs**: Fully typed DIR plus Instances and Resolutions.
 
-Analyze runs in two internal stages with a clear contract:
-1. **Declare**: evaluate `Type::Unevaluated` to a local fixpoint, elaborate type-level declarations,
-   register instance/value shapes plus lineages and extensions, and compute export surface types
-   using local-only surface inference, and record signature types for functions and methods
-2. **Infer**: infer value types and function bodies, resolve overloads, solve constraints, and apply
-   flow narrowing without mutating declared shapes or lineages
+Analyze runs in three internal stages with a clear contract:
+1. **Declare**: evaluate `Type::Unevaluated` to a local fixpoint, elaborate type-level declarations, register instance/value shapes plus lineages and extensions, and record signature types for functions and methods
+2. **Export**: compute export surface types using local-only surface inference and declared types
+3. **Infer**: infer value types and function bodies, resolve overloads, solve constraints, and apply flow narrowing without mutating declared shapes or lineages
 
 # Outputs
 
@@ -210,7 +208,7 @@ This keeps TypeScript compatibility while preserving explicit module ownership.
 Analyze keeps a TypeTable per module.
 Inference is local and never requires whole-program analysis.
 
-Exported bindings publish an **ExportSummary** of their declared or locally inferred types.
+Exported bindings publish an **export inference** summary of their declared or locally inferred types.
 Other modules import that summary instead of inferring across module boundaries.
 Inference cycles across modules are forbidden: if an exported surface cannot be inferred without
 depending on another module’s inferred types, it must be explicitly annotated.
