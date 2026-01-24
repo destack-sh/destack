@@ -230,12 +230,8 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     }
 
     // select profile and lib loading
-    let (profile, mut load_libs) = select_profile_for_mdtest(
-        &program,
-        module_id,
-        test,
-        prefer_native,
-    );
+    let (profile, mut load_libs) =
+        select_profile_for_mdtest(&program, module_id, test, prefer_native);
 
     // load libs only when explicitly requested
     if !load_libs && has_explicit_libs(&program, module_id) {

@@ -40,10 +40,20 @@ impl Compiler {
     pub(super) fn well_known_symbol_for_type(
         &self,
         receiver_ty: &Type,
-        _types: &TypeTable,
+        types: &TypeTable,
     ) -> Option<WellKnownSymbol> {
         // map structural and literal receiver types
         match receiver_ty {
+            Type::Reference { symbol, .. } => {
+                types
+                    .get_alias_target_type_id(*symbol)
+                    .and_then(|alias_id| match types.get_type(alias_id) {
+                        Type::TypeLiteral { value } => {
+                            self.well_known_symbol_for_type_literal(value)
+                        }
+                        _ => None,
+                    })
+            }
             Type::Array { is_readonly, .. } | Type::ArraySized { is_readonly, .. } => {
                 if *is_readonly {
                     Some(WellKnownSymbol::ReadonlyArray)

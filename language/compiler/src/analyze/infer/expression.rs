@@ -12,14 +12,15 @@ use crate::{
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint,
-    Declaration, Declarator, DependencySource, DynamicKey, Expression, FlowGraphBuilder,
-    ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector,
-    MatchSource, Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PatternField,
-    PrimitiveType, Property, Resolution, StaticKey, StringId, SymbolDecorators, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
-    WellKnownSymbol,
+    Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey,
+    Expression, FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalNodeIdAny, GlobalSymbolId,
+    IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
+    NormalizationMode, Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey,
+    StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
+    TypeKind, TypeLiteral, TypeTable, WellKnownSymbol,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Object literal field metadata for excess property checks.
@@ -724,12 +725,6 @@ impl Compiler {
 
             // import meta: statically known type
             Expression::ImportMeta => {
-                // report import.meta usage in scripts
-                if module.source_type.is_script() {
-                    self.error(AnalyzeError::InvalidImportMeta {
-                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
-                    });
-                }
                 // resolve the import.meta interface
                 let Some(import_meta_symbol) =
                     self.get_language_symbol(LanguageSymbol::ImportMeta)
@@ -3402,6 +3397,112 @@ impl Compiler {
         remote_symbols.get_symbol(symbol.local_id).name()
     }
 
+    /// Resolve the dependency item that introduced a symbol when possible.
+    fn dependency_item_for_symbol(
+        &self,
+        tree: &NodeTree,
+        primary_declaration: GlobalNodeIdAny,
+        symbol_id: LocalSymbolId,
+    ) -> Option<LocalNodeId<DependencyItem>> {
+        // return dependency items directly
+        if primary_declaration.local_id.ty == NodeType::DependencyItem {
+            return Some(primary_declaration.local_id.into_typed());
+        }
+
+        // scan import/export expressions for matching dependency items
+        if primary_declaration.local_id.ty != NodeType::Expression {
+            return None;
+        }
+        let expression_id = primary_declaration.local_id.into_typed::<Expression>();
+        let items = match tree.get(expression_id) {
+            Expression::Import { items, .. }
+            | Expression::ReExport { items, .. }
+            | Expression::Export { items, .. } => items,
+            _ => return None,
+        };
+
+        for item_id in items {
+            if tree.get(*item_id).symbol() == Some(symbol_id) {
+                return Some(*item_id);
+            }
+        }
+
+        None
+    }
+
+    /// Check whether a remote export is type-only for a specific name.
+    fn is_type_only_export_name(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        export_name: StringId,
+    ) -> bool {
+        let remote_module = self.program.modules.get(module_id);
+        let remote_module = remote_module.read();
+        let remote_exports = remote_module.dir(profile).exported_symbols.read();
+        let key = StaticKey::Name(export_name);
+        let has_value = remote_exports.contains_key(&(SymbolSpace::Value, key));
+        let has_type = remote_exports.contains_key(&(SymbolSpace::Type, key));
+        has_type && !has_value
+    }
+
+    /// Emit a type-only value error and return an error type id.
+    fn type_only_value_error_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        self.error(AnalyzeError::TypeOnlyValue {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        });
+        types.insert_type_from(Type::Error, expression_id)
+    }
+
+    /// Resolve export name and module id for a remote dependency item.
+    fn remote_dependency_export_target(
+        &self,
+        dependency: &DependencyItem,
+    ) -> (Option<StringId>, Option<ModuleId>) {
+        match dependency {
+            DependencyItem::Remote {
+                mode,
+                name,
+                target_module,
+                ..
+            } => {
+                let default_name = self.program.strings.intern("default");
+                let export_name = match mode {
+                    DependencyMode::Item => *name,
+                    DependencyMode::Default => name.or(Some(default_name)),
+                    DependencyMode::Namespace => None,
+                };
+                (export_name, target_module.module_id())
+            }
+            DependencyItem::UnresolvedRemote {
+                mode,
+                name,
+                target_module,
+                ..
+            } => {
+                let default_name = self.program.strings.intern("default");
+                let export_name = match mode {
+                    DependencyMode::Item => *name,
+                    DependencyMode::Default => name.or(Some(default_name)),
+                    DependencyMode::Namespace => None,
+                };
+                (
+                    export_name,
+                    target_module.and_then(|target| target.module_id()),
+                )
+            }
+            _ => (None, None),
+        }
+    }
+
     /// Infer a reference expression (local, module, or global).
     pub(super) fn infer_reference_expression(
         &self,
@@ -3415,6 +3516,98 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // validate local references against type-only exports
+        if target_symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+
+            // reject type-only symbols used as values
+            if !self.symbol_is_value_capable(ctx.profile, target_symbol) {
+                let ty_id =
+                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                return Ok(ty_id);
+            }
+
+            // reject aliases that resolve to type-only symbols
+            if let Some(target) = symbol_entry.target_symbol
+                && !self.symbol_is_value_capable(ctx.profile, target)
+            {
+                let ty_id =
+                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                return Ok(ty_id);
+            }
+
+            // resolve the dependency item that introduced this symbol
+            let dependency_id = symbol_entry
+                .primary_declaration
+                .and_then(|primary_declaration| {
+                    self.dependency_item_for_symbol(
+                        tree,
+                        primary_declaration,
+                        target_symbol.local_id,
+                    )
+                });
+
+            if let Some(dependency_id) = dependency_id {
+                let dependency = tree.get(dependency_id);
+                let dependency_kind = match dependency {
+                    DependencyItem::Local { kind, .. }
+                    | DependencyItem::Remote { kind, .. }
+                    | DependencyItem::UnresolvedLocal { kind, .. }
+                    | DependencyItem::UnresolvedRemote { kind, .. } => Some(*kind),
+                    DependencyItem::Value { .. } => None,
+                };
+
+                // reject type-only dependencies used in value positions
+                let is_type_only_dependency = match dependency_kind {
+                    Some(DependencyKind::Type) => true,
+                    Some(DependencyKind::Value) => dependency
+                        .target_symbol()
+                        .is_some_and(|target| !self.symbol_is_value_capable(ctx.profile, target)),
+                    None => false,
+                };
+                if is_type_only_dependency {
+                    let ty_id =
+                        self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                    return Ok(ty_id);
+                }
+
+                // reject value imports that resolve to type-only exports
+                if dependency_kind == Some(DependencyKind::Value) {
+                    let (export_name, target_module_id) =
+                        self.remote_dependency_export_target(dependency);
+
+                    if let Some(export_name) = export_name
+                        && let Some(target_module_id) = target_module_id
+                        && self.is_type_only_export_name(target_module_id, ctx.profile, export_name)
+                    {
+                        let is_value_capable = dependency.target_symbol().is_some_and(|target| {
+                            self.symbol_is_value_capable(ctx.profile, target)
+                        });
+                        if !is_value_capable {
+                            let ty_id = self.type_only_value_error_type(
+                                module,
+                                ctx.profile,
+                                expression_id,
+                                types,
+                            );
+                            return Ok(ty_id);
+                        }
+                    }
+                }
+            }
+
+            // fall back to export tables when dependency items are missing
+            if dependency_id.is_none()
+                && let Some(target_symbol) = symbol_entry.target_symbol
+                && let Some(StaticKey::Name(name)) = symbol_entry.key
+                && self.is_type_only_export_name(target_symbol.module_id, ctx.profile, name)
+            {
+                let ty_id =
+                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                return Ok(ty_id);
+            }
+        }
+
         // resolve the canonical symbol for imported references
         let canonical_symbol = self.canonical_symbol_id(
             module,
@@ -3423,6 +3616,12 @@ impl Compiler {
             target_symbol,
             CanonicalSymbolMode::FollowAliases,
         );
+
+        // reject type-only symbols in value positions
+        if !self.symbol_is_value_capable(ctx.profile, canonical_symbol) {
+            let ty_id = self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+            return Ok(ty_id);
+        }
 
         // reject globalThis references when configured
         if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {
@@ -3438,17 +3637,12 @@ impl Compiler {
             }
         }
 
-        // pick the base type for the symbol
-        // prefer flow narrowed types when available
+        // pick the base type for the symbol by applying narrowing and inference
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
             narrowed_ty_id
-        }
-        // reuse a known value type for the symbol
-        else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
-        }
-        // infer value types for direct bindings when missing
-        else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
+        } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
             module,
             ctx.profile,
             canonical_symbol,
@@ -3459,9 +3653,7 @@ impl Compiler {
             ctx,
         )? {
             inferred_ty_id
-        }
-        // import remote symbol types as needed
-        else if canonical_symbol.module_id != module.id {
+        } else if canonical_symbol.module_id != module.id {
             self.resolve_remote_symbol_value_type(
                 module,
                 ctx.profile,
@@ -3469,9 +3661,8 @@ impl Compiler {
                 canonical_symbol,
                 types,
             )?
-        }
-        // local symbol without type: use InferVar for forward references
-        else {
+        } else {
+            // local symbol without type: use InferVar for forward references
             let scope = InferScope {
                 owner: canonical_symbol,
                 function_id: ctx.in_function.map(|f| f.into_global(module.id)),

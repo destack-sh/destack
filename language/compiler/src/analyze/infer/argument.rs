@@ -146,7 +146,7 @@ impl Compiler {
         };
 
         // resolve static arguments for the type reference
-        let resolved = self.resolve_type_reference_static_arguments(
+        let resolved: Option<Vec<StaticArgument>> = self.resolve_type_reference_static_arguments(
             module,
             profile,
             receiver_id,

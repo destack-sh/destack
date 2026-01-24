@@ -434,12 +434,10 @@ impl Compiler {
                     construct_signatures,
                     index_signatures,
                 } => {
-                    return Ok(
-                        !fields.is_empty()
-                            || !call_signatures.is_empty()
-                            || !construct_signatures.is_empty()
-                            || !index_signatures.is_empty(),
-                    );
+                    return Ok(!fields.is_empty()
+                        || !call_signatures.is_empty()
+                        || !construct_signatures.is_empty()
+                        || !index_signatures.is_empty());
                 }
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
@@ -510,6 +508,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<StaticParameterKind> {
+        // only treat references as static parameters in Destack modules
+        if !module.language_type.is_destack() {
+            return None;
+        }
+
         // unwrap type unary wrappers to reach the reference
         if let Expression::TypeUnary { right, .. } = tree.get(expression_id) {
             return self

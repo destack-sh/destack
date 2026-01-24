@@ -18,7 +18,8 @@ use destack_dir::{
     TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
     WellKnownSymbol,
 };
-use destack_workspace::{Module, ModuleSource, ProfileId};
+use destack_source::ModuleId;
+use destack_workspace::{Module, ModuleGraphKey, ModuleSource, ProfileId};
 
 /// A TypeGuardTarget describes the target for a typeof or runtime type guard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2361,16 +2362,29 @@ impl Compiler {
     /// and copying the type into the current module's TypeTable.
     pub(crate) fn resolve_remote_symbol_value_type(
         &self,
-        _module: &Module,
+        module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
+        let error_node = node_id.into_global(module.id).into_anchored(Some(profile));
 
-        // ensure the remote module is declared (may yield)
-        self.require_analyze_module_declare(remote_module_id, profile)?;
+        // reject type-only symbols in value resolution
+        if !self.symbol_is_value_capable(profile, target_symbol) {
+            self.error(AnalyzeError::TypeOnlyValue { node: error_node });
+            let ty = Type::Error;
+            return Ok(types.insert_type_from_any(ty, node_id));
+        }
+
+        // ensure the remote module export inference is ready (may yield)
+        if let Err(error) = self.require_analyze_module_export(remote_module_id, profile) {
+            if self.export_inference_cycle_detected(module.id, profile, remote_module_id) {
+                return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
+            }
+            return Err(AnalyzeError::from(error));
+        }
 
         // look up the type in the remote module's TypeTable
         let remote_module = self.program.modules.get(remote_module_id);
@@ -2396,6 +2410,38 @@ impl Compiler {
             };
             Ok(types.insert_type_from_any(ty, node_id))
         }
+    }
+
+    fn export_inference_cycle_detected(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        remote_module_id: ModuleId,
+    ) -> bool {
+        if module_id == remote_module_id {
+            return true;
+        }
+
+        let key = ModuleGraphKey::new(profile);
+        let Some(graph) = self.program.index.module_graphs.get(&key) else {
+            return false;
+        };
+
+        let mut visited = HashSet::new();
+        let mut queue = vec![remote_module_id];
+        while let Some(current) = queue.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+            if current == module_id {
+                return true;
+            }
+            for dependency in graph.dependencies_for(current) {
+                queue.push(dependency);
+            }
+        }
+
+        false
     }
 
     /// Import a type from a remote module into the current module's TypeTable.

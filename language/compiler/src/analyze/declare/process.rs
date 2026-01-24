@@ -166,50 +166,8 @@ impl Compiler {
         );
         drop(symbols);
 
-        // declare exported value types with local-only inference
-        let symbols = dir.symbols.read();
-        let exported_symbols = dir.exported_symbols.read();
-        self.collect(
-            &mut collector,
-            self.declare_exported_value_types(
-                &module,
-                profile,
-                &exported_symbols,
-                &tree,
-                &symbols,
-                &mut types,
-            ),
-        );
-
-        // declare exported value types for module bindings
-        let binding_exports = dir.module_binding_exports.read();
-        for binding in binding_exports.values() {
-            self.collect(
-                &mut collector,
-                self.declare_exported_value_types(
-                    &module,
-                    profile,
-                    &binding.exports,
-                    &tree,
-                    &symbols,
-                    &mut types,
-                ),
-            );
-        }
-
-        // declare the module namespace value type from exports
-        self.collect(
-            &mut collector,
-            self.declare_module_namespace_value_type(
-                &module,
-                profile,
-                &exported_symbols,
-                &tree,
-                &mut types,
-            ),
-        );
-
         // register visible extensions from imported symbols
+        let symbols = dir.symbols.read();
         self.collect(
             &mut collector,
             self.register_visible_extensions(&module, profile, &tree, &symbols, &mut types),

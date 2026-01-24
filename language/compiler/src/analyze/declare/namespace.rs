@@ -181,8 +181,8 @@ impl Compiler {
 
         match target {
             ModuleTarget::Module(module_id) => {
-                // ensure the target module has declared types
-                self.require_analyze_module_declare(module_id, profile)?;
+                // ensure the target module has export inference
+                self.require_analyze_module_export(module_id, profile)?;
 
                 // load the target module exports
                 let target_module = self.program.modules.get(module_id);

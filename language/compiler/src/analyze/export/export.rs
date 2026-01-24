@@ -16,7 +16,7 @@ impl Compiler {
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleExport { module, profile })
     }
 
-    /// Phase 2: Build export inference summaries.
+    /// Phase 2: Build export inference "summaries".
     pub(crate) fn analyze_module_export_inner(
         &self,
         module_id: ModuleId,
