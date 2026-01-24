@@ -114,8 +114,9 @@ impl Compiler {
                 }
 
                 // follow import targets for local alias references
-                let target_symbol =
-                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)?;
+                let target_symbol = symbol_entry
+                    .target_symbol
+                    .or(symbol_entry.canonical_symbol)?;
                 current = target_symbol;
                 continue;
             }
@@ -127,8 +128,9 @@ impl Compiler {
             let symbol_entry = remote_symbols.get_symbol(current.local_id);
             if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                 // follow remote import targets when present
-                let target_symbol =
-                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)?;
+                let target_symbol = symbol_entry
+                    .target_symbol
+                    .or(symbol_entry.canonical_symbol)?;
                 current = target_symbol;
                 continue;
             }
@@ -145,8 +147,7 @@ impl Compiler {
             let mut needs_materialization = false;
             {
                 let remote_types = remote_dir.types.read();
-                if let Some(remote_target_id) =
-                    remote_types.get_alias_target_type_id(typed_symbol)
+                if let Some(remote_target_id) = remote_types.get_alias_target_type_id(typed_symbol)
                 {
                     alias_target_id = Some(remote_target_id);
                     let remote_target_ty = remote_types.get_type(remote_target_id);
