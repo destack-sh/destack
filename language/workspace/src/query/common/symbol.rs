@@ -1,3 +1,4 @@
+use destack_ast as ast;
 use destack_dir::{
     Declaration, EnumField, Expression, GlobalSymbolId, LocalNodeIdAny, Member, NodeType,
     Parameter, Pattern,
@@ -45,10 +46,7 @@ pub fn find_symbol_at_offset(
     // check if we're in a doc/comment first (these should not return symbols)
     for enclosing_span in &enclosing {
         let node_type = ctx.ast.tree.get_node_type(enclosing_span.idx);
-        if matches!(
-            node_type,
-            destack_ast::NodeType::Doc | destack_ast::NodeType::Comment
-        ) {
+        if matches!(node_type, ast::NodeType::Doc | ast::NodeType::Comment) {
             return None;
         }
     }

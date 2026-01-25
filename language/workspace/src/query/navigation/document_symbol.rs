@@ -118,7 +118,7 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
             Declaration::Global { .. } => "global".to_string(),
             _ => descriptor
                 .name
-                .map(|name| ctx.ast.strings.get(name.string()).to_string())
+                .map(|name| session.strings.get(name.string()).to_string())
                 .unwrap_or_else(|| "<anonymous>".to_string()),
         };
 

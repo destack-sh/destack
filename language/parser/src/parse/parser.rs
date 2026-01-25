@@ -477,9 +477,8 @@ impl Parser {
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
     pub fn finish(&mut self) {
         if !self.is_finished {
-            // build position index BEFORE annotation attachment for O(log n) lookups
-            self.tree.build_position_index();
             self.attach_annotations();
+            self.tree.build_position_index();
             self.is_finished = true;
         }
     }
