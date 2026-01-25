@@ -42,7 +42,7 @@ impl Compiler {
     }
 
     /// Resolve the static parameter kind inside a module tree.
-    fn static_parameter_kind_for_symbol_in_module(
+    pub(crate) fn static_parameter_kind_for_symbol_in_module(
         &self,
         symbol: GlobalSymbolId,
         tree: &NodeTree,
@@ -103,7 +103,7 @@ impl Compiler {
     }
 
     /// Collect static parameter symbols for a declaration symbol.
-    pub(super) fn collect_static_parameter_symbols(
+    pub(crate) fn collect_static_parameter_symbols(
         &self,
         module: &Module,
         symbol: GlobalSymbolId,

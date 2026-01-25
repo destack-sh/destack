@@ -26,6 +26,115 @@ impl Compiler {
         self.normalize_type_inner(module, profile, type_id, symbols, types, mode, &mut visited)
     }
 
+    /// Normalize a type for assignability checks.
+    pub(crate) fn normalize_type_for_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // normalize the apparent return type first
+        let normalized = self.normalize_apparent_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        );
+
+        // stop when normalization already expanded the type
+        if normalized != type_id {
+            return normalized;
+        }
+
+        // expand alias targets when the return type stays wrapped
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = types.get_type(type_id).clone()
+        else {
+            return normalized;
+        };
+        let typed_symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+        if typed_symbol.ty() != SymbolType::TypeAlias {
+            return normalized;
+        }
+        let Some(arguments) = static_arguments.as_ref() else {
+            return normalized;
+        };
+
+        // load the alias target for substitution
+        let source_id = types.get_type_source(type_id);
+        let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+            module,
+            profile,
+            typed_symbol,
+            source_id,
+            symbols,
+            types,
+        ) else {
+            return normalized;
+        };
+
+        // resolve static arguments for substitution
+        let tree = module.dir(profile).tree.read();
+        let options = self.analyze_context_options_for_module(module.id);
+        let resolved_arguments = self
+            .resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                typed_symbol,
+                Some(arguments),
+                false,
+                &options,
+                &tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten();
+        let arguments = resolved_arguments.as_deref().unwrap_or(arguments);
+
+        // substitute parameters into the alias target
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            typed_symbol,
+            source_id,
+            arguments,
+            &tree,
+            symbols,
+            types,
+        );
+        if substitutions.is_empty() {
+            return self.normalize_type(
+                module,
+                profile,
+                alias_target_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
+        }
+
+        // apply substitutions and normalize the result
+        let mut cache = HashMap::new();
+        let substituted =
+            self.substitute_static_parameters(alias_target_id, &substitutions, types, &mut cache);
+        self.normalize_type(
+            module,
+            profile,
+            substituted,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        )
+    }
+
     /// Normalize a type id with a recursion guard.
     pub(super) fn normalize_type_inner(
         &self,
@@ -686,7 +795,7 @@ impl Compiler {
     }
 
     /// Normalize type alias references with static arguments.
-    pub(super) fn normalize_type_alias_reference_with_arguments(
+    pub(crate) fn normalize_type_alias_reference_with_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -815,7 +924,6 @@ impl Compiler {
         Some(instance.static_arguments.clone())
     }
 
-    /// Resolve the instance type id for alias normalization.
     /// Resolve the instance type id used for alias normalization.
     fn instance_type_id_for_normalization(
         &self,
@@ -924,15 +1032,8 @@ impl Compiler {
         instance_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        // materialize unevaluated alias targets before normalization
-        let needs_materialization =
-            matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
-                || self.type_contains_unevaluated_static_arguments(
-                    instance_type_id,
-                    types,
-                    &mut HashSet::new(),
-                );
-        if !needs_materialization {
+        // skip materialization when the alias instance is already stable
+        if !self.alias_instance_needs_materialization(module, profile, instance_type_id, types) {
             return instance_type_id;
         }
 
@@ -966,6 +1067,29 @@ impl Compiler {
                 &mut materialize_cache,
             )
         }
+    }
+
+    /// Return true when an alias instance needs value materialization.
+    fn alias_instance_needs_materialization(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        instance_type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        // check for unevaluated targets or static value arguments
+        let tree = module.dir(profile).tree.read();
+        let symbols = module.dir(profile).symbols.read();
+        matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
+            || self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                instance_type_id,
+                &tree,
+                &symbols,
+                types,
+                &mut HashSet::new(),
+            )
     }
 
     /// Normalize a tuple element, lifting readonly modifiers into flags.

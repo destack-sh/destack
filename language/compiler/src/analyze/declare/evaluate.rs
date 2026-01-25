@@ -2656,6 +2656,7 @@ impl Compiler {
                 profile,
                 expression_id.into_any(),
                 target_symbol,
+                false,
                 types,
             )?;
             return Ok(types.get_type(value_ty_id).clone());

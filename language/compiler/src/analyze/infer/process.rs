@@ -9,7 +9,7 @@ use destack_dir::{
     TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleContent, ModuleSource, ModuleType, ProfileId};
+use destack_workspace::{ModuleContent, ModuleGraphKey, ModuleSource, ModuleType, ProfileId};
 
 use super::super::common::json_value_to_type;
 
@@ -44,6 +44,8 @@ impl Compiler {
 
         self.require_analyze_module_declare(module_id, profile)?;
         self.require_analyze_module_export(module_id, profile)?;
+        self.require_export_inference_dependencies(module_id, profile)?;
+        self.require_export_inference_for_ambient_libs(profile)?;
 
         // analyze data modules specially
         if !self.is_code_module(module_id) {
@@ -137,6 +139,55 @@ impl Compiler {
 
         // solve constraints (and commit inferred types)
         self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
+
+        Ok(())
+    }
+
+    /// Ensure export inference tasks are complete for direct module dependencies.
+    pub(crate) fn require_export_inference_dependencies(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        // skip when the module graph is unavailable
+        let key = ModuleGraphKey::new(profile);
+        let Some(graph) = self.program.index.module_graphs.get(&key) else {
+            return Ok(());
+        };
+
+        // require export inference for direct dependencies
+        for dependency in graph.dependencies_for(module_id) {
+            if let Err(error) = self.require_analyze_module_export(dependency, profile) {
+                return Err(AnalyzeError::from(error));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Ensure export inference tasks are complete for ambient lib modules.
+    fn require_export_inference_for_ambient_libs(&self, profile: ProfileId) -> AnalyzeResult<()> {
+        // skip when builtins are not loaded
+        let Some(builtins) = self.builtins() else {
+            return Ok(());
+        };
+
+        // resolve the profile key for ambient lib lookup
+        let profile_entry = self
+            .program
+            .profiles
+            .get(profile)
+            .unwrap_or_else(|| panic!("missing profile data for {profile:?}"));
+
+        // require export inference for ambient lib modules
+        let Some(lib_modules) = builtins.ambient_libs(&profile_entry.key) else {
+            return Ok(());
+        };
+        for module_id in lib_modules {
+            if let Err(error) = self.require_analyze_module_export(module_id, profile) {
+                return Err(AnalyzeError::from(error));
+            }
+        }
 
         Ok(())
     }
