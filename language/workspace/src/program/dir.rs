@@ -25,6 +25,8 @@ pub struct ModuleDir {
     pub symbols: RwLock<dir::SymbolTable>,
     /// The type side table of the Module (includes types, instances, resolutions).
     pub types: RwLock<dir::TypeTable>,
+    /// The capture side table of the Module.
+    pub captures: RwLock<dir::CaptureTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Stable fallback node for diagnostics and synthetic types.
@@ -75,6 +77,8 @@ pub struct ModuleDirData {
     pub symbols: dir::SymbolTable,
     /// The type side table of the Module (includes types, instances, resolutions).
     pub types: dir::TypeTable,
+    /// The capture side table of the Module.
+    pub captures: dir::CaptureTable,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Stable fallback node for diagnostics and synthetic types.
@@ -172,6 +176,7 @@ impl ModuleDir {
             tree: RwLock::new(tree),
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
+            captures: RwLock::new(dir::CaptureTable::new()),
             roots: Vec::new(),
             anchor_node,
             import_meta: None,
@@ -252,6 +257,7 @@ impl ModuleDir {
             tree: RwLock::new(tree),
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
+            captures: RwLock::new(dir::CaptureTable::new()),
             roots: Vec::new(),
             anchor_node,
             import_meta: None,
@@ -281,6 +287,7 @@ impl ModuleDir {
             tree: RwLock::new(base.tree.read().clone()),
             symbols: RwLock::new(base.symbols.read().clone()),
             types: RwLock::new(base.types.read().clone()),
+            captures: RwLock::new(base.captures.read().clone()),
             roots: base.roots.clone(),
             anchor_node: base.anchor_node,
             import_meta: None,
@@ -308,6 +315,7 @@ impl ModuleDir {
             tree: self.tree.read().clone(),
             symbols: self.symbols.read().clone(),
             types: self.types.read().clone(),
+            captures: self.captures.read().clone(),
             roots: self.roots.clone(),
             anchor_node: self.anchor_node,
             import_meta: self.import_meta.clone(),
@@ -335,6 +343,7 @@ impl ModuleDir {
             tree: RwLock::new(data.tree),
             symbols: RwLock::new(data.symbols),
             types: RwLock::new(data.types),
+            captures: RwLock::new(data.captures),
             roots: data.roots,
             anchor_node: data.anchor_node,
             import_meta: data.import_meta,

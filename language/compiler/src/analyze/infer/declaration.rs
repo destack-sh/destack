@@ -635,7 +635,7 @@ impl Compiler {
                     ctx.options.with_symbol_decorators(&symbol.decorators)
                 };
 
-                // assign this type for method bodies when available
+                // assign the implicit this binding type when available
                 if let Some(this_ty_id) = this_ty_id {
                     let this_name = self.program.strings.intern("this");
                     let (_scope_id, scope, _mark) = symbols.get_scope(member_id, tree);

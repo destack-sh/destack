@@ -115,8 +115,35 @@ impl Compiler {
         // refresh scope mark so static parameters are visible to later bindings
         let scope = (scope.0, symbols.get_scope_mark(scope.0));
 
+        // resolve the explicit this parameter when present
+        let (explicit_this_parameter, dynamic_parameters) = {
+            let mut this_parameter = signature.this_parameter;
+            let mut dynamic_parameters = signature.dynamic_parameters.as_slice();
+
+            // treat a leading this parameter as the explicit this parameter
+            if this_parameter.is_none()
+                && let Some(first_id) = dynamic_parameters.first().copied()
+            {
+                let this_name = self.program.strings.intern("this");
+                let ast_parameter = ast.tree.get(first_id);
+                let is_explicit_this = match ast_parameter {
+                    ast::Parameter::Named { name, .. } => {
+                        let name = self.program.strings.intern_from(&ast.strings, *name);
+                        name == this_name
+                    }
+                    _ => false,
+                };
+                if is_explicit_this {
+                    this_parameter = Some(first_id);
+                    dynamic_parameters = &dynamic_parameters[1..];
+                }
+            }
+
+            (this_parameter, dynamic_parameters)
+        };
+
         // bind this and dynamic parameters
-        let this_parameter = signature.this_parameter.map(|this_parameter| {
+        let this_parameter = explicit_this_parameter.map(|this_parameter| {
             self.bind_parameter(
                 module,
                 ast,
@@ -129,8 +156,7 @@ impl Compiler {
                 types,
             )
         });
-        let dynamic_parameters = signature
-            .dynamic_parameters
+        let dynamic_parameters = dynamic_parameters
             .iter()
             .map(|parameter| {
                 self.bind_parameter(

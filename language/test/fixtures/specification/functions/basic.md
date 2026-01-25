@@ -167,6 +167,58 @@ function counter(this: { value: number }) {
 }
 ```
 
+### noImplicitThis allows implicit this in methods
+
+> Member methods have an implicit `this` binding even in strict mode.
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitThis": true } }
+```
+
+```ds
+class Counter {
+    value: number = 0;
+
+    add(value: number): number {
+        return this.value + value;
+    }
+}
+```
+
+### noImplicitThis allows implicit this in method lambdas
+
+> Lambdas inside methods capture the lexical `this`.
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitThis": true } }
+```
+
+```ds
+class Counter {
+    value: number = 0;
+
+    make(): () => number {
+        return () => this.value;
+    }
+}
+```
+
+### noImplicitThis rejects implicit this in non-member lambdas
+
+> Lambdas outside methods require an explicit `this` parameter to use `this`.
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitThis": true } }
+```
+
+```ds
+function make() {
+    return () => this;
+}
+```
+
+- contains: implicit this type
+
 ## Arrow Functions
 
 ### arrow with no parameters

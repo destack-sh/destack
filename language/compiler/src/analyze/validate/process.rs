@@ -85,7 +85,7 @@ impl Compiler {
         }
 
         // ensure analyze dependencies are ready
-        self.require_analyze_module_infer(module_id, profile)?;
+        self.require_analyze_module_capture(module_id, profile)?;
 
         let module = self.program.modules.get(module_id);
         let module = module.read();

@@ -1068,20 +1068,20 @@ impl<'a> Format<MirFormatContext<'a>> for FormatAllItems {
                 }
                 first_alias = false;
 
-            write!(
-                f,
-                [
-                    token("type"),
-                    space(),
-                    token("@"),
-                    text(name),
-                    space(),
-                    token("="),
-                    space()
-                ]
-            )?;
-            let ty = f.context().tree.get(*type_id);
-            format_type_expanded(f, *type_id, ty)?;
+                write!(
+                    f,
+                    [
+                        token("type"),
+                        space(),
+                        token("@"),
+                        text(name),
+                        space(),
+                        token("="),
+                        space()
+                    ]
+                )?;
+                let ty = f.context().tree.get(*type_id);
+                format_type_expanded(f, *type_id, ty)?;
             }
 
             for type_alias_id in &type_alias_ids {

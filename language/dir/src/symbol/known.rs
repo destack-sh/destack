@@ -120,6 +120,8 @@ pub enum WellKnownDecorator {
     NoManaged,
     /// The `@stackOnly` decorator marker.
     StackOnly,
+    /// The `@capture` decorator marker.
+    Capture,
     /// The `@inline` decorator marker.
     Inline,
     /// The `@noinline` decorator marker.
@@ -175,6 +177,7 @@ impl WellKnownDecorator {
             WellKnownDecorator::LanguageItem => "languageItem",
             WellKnownDecorator::NoManaged => "noManaged",
             WellKnownDecorator::StackOnly => "stackOnly",
+            WellKnownDecorator::Capture => "capture",
             WellKnownDecorator::Inline => "inline",
             WellKnownDecorator::Noinline => "noinline",
             WellKnownDecorator::Unroll => "unroll",
@@ -209,6 +212,7 @@ impl WellKnownDecorator {
             WellKnownDecorator::LanguageItem,
             WellKnownDecorator::NoManaged,
             WellKnownDecorator::StackOnly,
+            WellKnownDecorator::Capture,
             WellKnownDecorator::Inline,
             WellKnownDecorator::Noinline,
             WellKnownDecorator::Unroll,

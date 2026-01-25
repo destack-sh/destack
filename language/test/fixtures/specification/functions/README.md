@@ -10,3 +10,4 @@ Coverage areas include:
 - Dynamic parameter passing and defaults.
 - Static parameters on functions.
 - Inference and decorators.
+- Capture decorator validation.

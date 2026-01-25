@@ -65,6 +65,36 @@ impl TestProgram {
         Some((symbol_id, declaration.into_local_typed::<T>()))
     }
 
+    /// Resolve a function symbol by simple name.
+    pub fn function_symbol_by_name(
+        &self,
+        module_uri: &str,
+        name: &str,
+    ) -> Option<GlobalSymbolId> {
+        // load module state
+        let module = self.module(module_uri);
+        let module = module.read();
+        let profile = self.default_profile_id(module.id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+
+        // scan declarations for a matching function name
+        let name_id = self.program.strings.intern(name);
+        for (_, declaration) in tree.iter_nodes_of_type::<destack_dir::Declaration>() {
+            let destack_dir::Declaration::Function { descriptor, .. } = declaration else {
+                continue;
+            };
+            let Some(declaration_name) = descriptor.name else {
+                continue;
+            };
+            if declaration_name.string() == name_id {
+                return Some(descriptor.symbol.into_global(module.id));
+            }
+        }
+
+        None
+    }
+
     /// Resolve an absolute symbol by walking up scopes.
     fn resolve_absolute_symbol(
         &self,

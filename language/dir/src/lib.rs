@@ -2,6 +2,7 @@
 #![feature(if_let_guard)]
 #![feature(str_as_str)]
 
+pub mod capture;
 mod dump;
 mod flow;
 mod formatter;
@@ -9,6 +10,7 @@ mod symbol;
 mod tree;
 mod r#type;
 
+pub use capture::*;
 pub use dump::*;
 pub use flow::*;
 pub use symbol::*;

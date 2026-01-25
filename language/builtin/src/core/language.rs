@@ -331,6 +331,9 @@ define_language_symbols! {
         /// `@stackOnly` marker
         StackOnly => (Newtype, "intrinsic/decorator", "stackOnly"),
 
+        /// `@capture` marker
+        Capture => (Newtype, "intrinsic/decorator", "capture"),
+
         /// `@inline` hint
         Inline => (Newtype, "intrinsic/decorator", "inline"),
 
