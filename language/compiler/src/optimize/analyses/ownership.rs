@@ -437,16 +437,37 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, Some(*local), tree);
             }
+            // function.env reads the closure environment pointer
+            Instruction::FunctionEnv { destination } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
 
             // call moves arguments (if non-copy)
             Instruction::Call { arguments, .. }
             | Instruction::CallVirtual { arguments, .. }
-            | Instruction::CallInterface { arguments, .. }
-            | Instruction::CallIndirect { arguments, .. } => {
+            | Instruction::CallInterface { arguments, .. } => {
                 let args = tree.get_arguments(*arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved_with_source(arg, at.clone());
+                    }
+                }
+                if let Some(dest) = inst.destination() {
+                    state.mark_owned(dest);
+                    self.set_origin_for_destination(state, dest, None, tree);
+                }
+            }
+            Instruction::CallIndirect { arguments, env, .. } => {
+                let args = tree.get_arguments(*arguments);
+                for &arg in args {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved_with_source(arg, at.clone());
+                    }
+                }
+                if let Some(env) = env {
+                    if !self.value_is_copy(*env, tree) {
+                        state.mark_moved_with_source(*env, at.clone());
                     }
                 }
                 if let Some(dest) = inst.destination() {
@@ -773,10 +794,18 @@ impl OwnershipAnalysis {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
+                callee,
+                env,
+                arguments,
+                ..
             } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
+                }
+                if let Some(env) = env {
+                    if !self.value_is_copy(*env, tree) {
+                        state.mark_moved_with_source(*env, at.clone());
+                    }
                 }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
@@ -1087,6 +1116,12 @@ fn process_instruction(
             if let Instruction::LocalSet { local, .. } = inst {
                 state.mark_local_owned(*local);
             }
+        }
+
+        // function.env reads the closure environment pointer
+        Instruction::FunctionEnv { destination } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
 
         // local.get reads the local into an owned value
@@ -1417,9 +1452,15 @@ fn process_terminator(
             }
         }
         mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
+            callee,
+            env,
+            arguments,
+            ..
         } => {
             state.mark_moved_if_not_copy_with_source(*callee, at.clone(), tree, value_types);
+            if let Some(env) = env {
+                state.mark_moved_if_not_copy_with_source(*env, at.clone(), tree, value_types);
+            }
             for &arg in arguments {
                 state.mark_moved_if_not_copy_with_source(arg, at.clone(), tree, value_types);
             }

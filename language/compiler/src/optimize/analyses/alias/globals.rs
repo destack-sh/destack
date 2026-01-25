@@ -89,8 +89,7 @@ impl GlobalsAA {
                     // calls may access any address-taken global
                     mir::Instruction::Call { arguments, .. }
                     | mir::Instruction::CallVirtual { arguments, .. }
-                    | mir::Instruction::CallInterface { arguments, .. }
-                    | mir::Instruction::CallIndirect { arguments, .. } => {
+                    | mir::Instruction::CallInterface { arguments, .. } => {
                         let args = tree.get_arguments(*arguments);
                         for &arg in args {
                             if let Some(global) =
@@ -98,6 +97,21 @@ impl GlobalsAA {
                             {
                                 address_taken.insert(global);
                             }
+                        }
+                    }
+                    mir::Instruction::CallIndirect { arguments, env, .. } => {
+                        let args = tree.get_arguments(*arguments);
+                        for &arg in args {
+                            if let Some(global) =
+                                Self::get_global_base(arg, &info.definitions, tree)
+                            {
+                                address_taken.insert(global);
+                            }
+                        }
+                        if let Some(global) =
+                            env.and_then(|env| Self::get_global_base(env, &info.definitions, tree))
+                        {
+                            address_taken.insert(global);
                         }
                     }
 

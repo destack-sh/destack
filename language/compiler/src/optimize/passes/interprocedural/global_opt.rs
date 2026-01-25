@@ -366,8 +366,7 @@ fn collect_written_globals(
                 // detect calls that may write memory
                 if let mir::Instruction::Call { arguments, .. }
                 | mir::Instruction::CallVirtual { arguments, .. }
-                | mir::Instruction::CallInterface { arguments, .. }
-                | mir::Instruction::CallIndirect { arguments, .. } = instruction
+                | mir::Instruction::CallInterface { arguments, .. } = instruction
                     && call_writes_memory(instruction)
                     && any_argument_global(arguments, &definitions, addr_info, tree)
                 {
@@ -379,11 +378,28 @@ fn collect_written_globals(
                     ));
                     continue;
                 }
+
+                if let mir::Instruction::CallIndirect { arguments, env, .. } = instruction
+                    && call_writes_memory(instruction)
+                {
+                    let mut args = tree.get_arguments(*arguments).to_vec();
+                    if let Some(env) = env {
+                        args.push(*env);
+                    }
+                    if any_argument_global_values(&args, &definitions, addr_info, tree) {
+                        written.extend(globals_from_values(
+                            &args,
+                            &definitions,
+                            addr_info,
+                            tree,
+                        ));
+                        continue;
+                    }
+                }
             }
 
             // detect tail calls that may write memory
-            if let mir::Terminator::TailCall { arguments, .. }
-            | mir::Terminator::TailCallIndirect { arguments, .. } = &block.terminator
+            if let mir::Terminator::TailCall { arguments, .. } = &block.terminator
                 && any_argument_global_values(arguments, &definitions, addr_info, tree)
             {
                 written.extend(globals_from_values(
@@ -392,6 +408,21 @@ fn collect_written_globals(
                     addr_info,
                     tree,
                 ));
+            }
+
+            if let mir::Terminator::TailCallIndirect { arguments, env, .. } = &block.terminator {
+                let mut args = arguments.clone();
+                if let Some(env) = env {
+                    args.push(*env);
+                }
+                if any_argument_global_values(&args, &definitions, addr_info, tree) {
+                    written.extend(globals_from_values(
+                        &args,
+                        &definitions,
+                        addr_info,
+                        tree,
+                    ));
+                }
             }
         }
     }

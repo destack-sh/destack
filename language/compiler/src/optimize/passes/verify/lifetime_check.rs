@@ -580,6 +580,17 @@ fn apply_instruction_effects(
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
 
+        // function.env is an implicit parameter, treat as unknown origin
+        Instruction::FunctionEnv { destination } => {
+            assign_origin_if_borrowed(
+                state,
+                *destination,
+                BorrowOriginSet::from_origin(BorrowOrigin::Unknown),
+                tree,
+                types,
+            );
+        }
+
         // local stores only matter for borrowed values
         Instruction::LocalSet { local, value } => {
             if local_contains_borrowed_refs(*local, tree, types) {
