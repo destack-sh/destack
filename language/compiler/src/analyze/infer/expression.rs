@@ -727,7 +727,7 @@ impl Compiler {
             Expression::ImportMeta => {
                 // resolve the import.meta interface
                 let Some(import_meta_symbol) =
-                    self.get_language_symbol(LanguageSymbol::ImportMeta)
+                    self.get_language_symbol(ctx.profile, LanguageSymbol::ImportMeta)
                 else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Unknown,

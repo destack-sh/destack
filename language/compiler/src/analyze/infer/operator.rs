@@ -1569,7 +1569,7 @@ impl Compiler {
                 );
                 let canonical_symbol =
                     self.typed_symbol_id(module, profile, canonical_symbol, symbols);
-                let try_branch_symbol = self.language_symbol(LanguageSymbol::TryBranch);
+                let try_branch_symbol = self.language_symbol(profile, LanguageSymbol::TryBranch);
                 if canonical_symbol == try_branch_symbol {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let Some(value_argument) = arguments.first() else {
@@ -2292,7 +2292,7 @@ impl Compiler {
         }
 
         // resolve the Error interface reference
-        let error_symbol = self.language_symbol(LanguageSymbol::Error);
+        let error_symbol = self.language_symbol(ctx.profile, LanguageSymbol::Error);
         let error_reference_id = types.insert_type_from_any(
             Type::Reference {
                 symbol: error_symbol,

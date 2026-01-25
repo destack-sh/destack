@@ -84,7 +84,7 @@ impl Compiler {
     ) -> Option<Type> {
         // type-as-value uses the Type<T> descriptor
         if let Type::Value { value } = receiver_ty {
-            let symbol = self.get_language_symbol(LanguageSymbol::Type)?;
+            let symbol = self.get_language_symbol(profile, LanguageSymbol::Type)?;
             let argument = StaticArgument::value(StaticExpression::Type { ty: *value });
             return Some(Type::Reference {
                 symbol,

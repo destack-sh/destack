@@ -41,9 +41,11 @@ impl Compiler {
     /// Resolve a symbol from a module export table.
     pub(super) fn resolve_exported_symbol(
         &self,
-        module_id: ModuleId,
+        module: &Module,
+        profile: ProfileId,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         order: SymbolSpaceOrder,
         key: StaticKey,
     ) -> Option<GlobalSymbolId> {
@@ -54,13 +56,13 @@ impl Compiler {
             };
 
             let symbol = export.target.resolved().or_else(|| match export.kind {
-                ExportKind::Local => export.symbol.map(|symbol| symbol.into_global(module_id)),
+                ExportKind::Local => export.symbol.map(|symbol| symbol.into_global(module.id)),
                 ExportKind::ReExport => export.item.and_then(|item| tree.get(item).target_symbol()),
             });
 
             // return the first matching symbol
             if let Some(symbol) = symbol {
-                return Some(symbol);
+                return Some(self.typed_symbol_id(module, profile, symbol, symbols));
             }
         }
 
