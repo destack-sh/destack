@@ -370,6 +370,9 @@ pub enum ThreadedInstructionData {
     /// Load global constant.
     GlobalConst { dest: mir::Value, global: u32 },
 
+    /// Get a function pointer.
+    FunctionAddr { dest: mir::Value, function: u32 },
+
     /// Fused global address + load.
     GlobalLoad { dest: mir::Value, global: u32 },
 
@@ -915,6 +918,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::LocalSet { .. } => "local_set",
             ThreadedInstructionData::GlobalAddr { .. } => "global_addr",
             ThreadedInstructionData::GlobalConst { .. } => "global_const",
+            ThreadedInstructionData::FunctionAddr { .. } => "function_addr",
             ThreadedInstructionData::GlobalLoad { .. } => "global_load",
             ThreadedInstructionData::GlobalStore { .. } => "global_store",
             ThreadedInstructionData::Load { .. } => "load",

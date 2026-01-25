@@ -107,6 +107,28 @@ fn resolve_interface_dispatch_target(
     Ok(*target)
 }
 
+/// Load a function pointer.
+pub(crate) fn handle_function_addr(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FunctionAddr { dest, function } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // build function pointer value
+    let function_id = mir::LocalNodeId::new(*function);
+    let value = Value::function_pointer(function_id);
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Enter a call with a resolved target function.
 #[allow(clippy::too_many_arguments)]
 fn call_with_target(

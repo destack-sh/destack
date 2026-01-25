@@ -1670,6 +1670,17 @@ fn thread_instruction(
             },
         },
 
+        mir::Instruction::FunctionAddr {
+            destination,
+            function,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_function_addr,
+            data: ThreadedInstructionData::FunctionAddr {
+                dest: *destination,
+                function: function.id,
+            },
+        },
+
         mir::Instruction::Load {
             destination,
             pointer,
@@ -2667,6 +2678,12 @@ fn infer_instruction_kind(
         mir::Instruction::GlobalConst { global, .. } => {
             let global = tree.get(*global);
             Some(kind_from_type(tree, global.ty))
+        }
+        mir::Instruction::FunctionAddr { function, .. } => {
+            let function = tree.get(*function);
+            Some(ValueKind::FunctionPointer {
+                result: function.return_type,
+            })
         }
         mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, *result_type)),
         mir::Instruction::FieldGet {
