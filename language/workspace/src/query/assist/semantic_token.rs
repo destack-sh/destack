@@ -506,6 +506,9 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
         );
     }
 
+    // filter out zero-width spans (synthetic/internal nodes with no visible source text)
+    tokens.retain(|t| t.span.start < t.span.end);
+
     // sort tokens by span start position
     tokens.sort_by_key(|t| t.span.start);
 
