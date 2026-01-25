@@ -7,7 +7,7 @@
 > Well-known symbol keys can be used in object types.
 
 ```json:dsconfig.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compilerOptions": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
 ```
 
 ```ds:package.json
@@ -28,7 +28,7 @@ box[Symbol.iterator] satisfies int32
 > Symbol index signatures accept symbol keys.
 
 ```json:dsconfig.json
-{ "compilerOptions": { "lib": ["es2015"] } }
+{ "compilerOptions": { "lib": ["es2015"], "noUncheckedIndexedAccess": false } }
 ```
 
 ```ds:package.json
