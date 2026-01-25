@@ -13,9 +13,9 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint,
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey,
-    Expression, FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalNodeIdAny, GlobalSymbolId,
-    IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
+    Expression, FlowGraphBuilder, ForEachBinding, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
+    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
     NormalizationMode, Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey,
     StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
     TypeKind, TypeLiteral, TypeTable, WellKnownSymbol,
@@ -227,24 +227,12 @@ impl Compiler {
                 self.infer_declaration(module, *declaration, tree, symbols, types, infer, ctx)?;
                 let declaration = tree.get(*declaration);
 
-                // lambda declarations evaluate to function values
-                if let Declaration::Function {
-                    descriptor,
-                    signature,
-                    ..
-                } = declaration
-                {
-                    if matches!(signature.kind, FunctionKind::Lambda) {
-                        if let Some(value_ty_id) =
-                            types.get_value_type_id(descriptor.symbol.into_global(module.id))
-                        {
-                            value_ty_id
-                        } else {
-                            let ty = Type::TypeLiteral {
-                                value: TypeLiteral::Void,
-                            };
-                            types.insert_type_from(ty, expression_id)
-                        }
+                // function declarations used as expressions evaluate to function values
+                if let Declaration::Function { descriptor, .. } = declaration {
+                    if let Some(value_ty_id) =
+                        types.get_value_type_id(descriptor.symbol.into_global(module.id))
+                    {
+                        value_ty_id
                     } else {
                         let ty = Type::TypeLiteral {
                             value: TypeLiteral::Void,
@@ -749,6 +737,10 @@ impl Compiler {
                     && let Some(ty_id) = types.get_value_type_id(this_symbol)
                 {
                     ty_id
+                } else if let Some(this_ty_id) =
+                    self.contextual_this_type(module, ctx, types)
+                {
+                    this_ty_id
                 } else {
                     // report implicit this in functions and scripts
                     if ctx.options.no_implicit_this
@@ -2420,6 +2412,23 @@ impl Compiler {
                 symbols.get_scope_by_id(parent_scope_id),
                 parent_mark,
             );
+        }
+    }
+
+    /// Resolve contextual `this` from the current function signature.
+    pub(crate) fn contextual_this_type(
+        &self,
+        module: &Module,
+        ctx: &InferContext,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let function_id = ctx.in_function?;
+        let signature_ty_id =
+            types.get_signature_type_for_node(function_id.into_global(module.id))?;
+        let signature_ty = types.get_type(signature_ty_id);
+        match signature_ty {
+            Type::Function { this_parameter, .. } => *this_parameter,
+            _ => None,
         }
     }
 

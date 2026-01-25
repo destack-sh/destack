@@ -1012,8 +1012,9 @@ Advanced TS type constructs (conditional types, mapped types, template literal t
 - This includes tuple element modifiers, call/construct signatures, index signatures, and `this` parameters
 - Type-level constructs should remain available for reflection, documentation, and compile-time evaluation
 - Cross-target builds should reuse the same front-end IR and only diverge when profile-specific resolution or codegen requires it
-- The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.)
-- Member methods have an implicit `this`, while non-member functions must declare an explicit `this` parameter to use `this`
+- The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.).
+- Member methods have an implicit `this` binding derived from the receiver type.
+- Non-member functions must declare an explicit `this` parameter to use `this`.
 - Template literal types follow TypeScript matching and inference rules, with TS++ numeric primitives treated as number-like spans
 - Declaration modules may declare values without providing implementations, mirroring `.d.ts` behavior
 - Nominal declarations introduce both type and value bindings, including in declaration modules

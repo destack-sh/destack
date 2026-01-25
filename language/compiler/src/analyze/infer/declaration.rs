@@ -5,10 +5,10 @@ use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
     Declarator, DependencyItem, DependencyMode, DynamicKey, Expression, FunctionCardinality,
-    FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
-    IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, Mutability, NodeTree,
-    NodeType, Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace, SymbolTable, Type,
-    TypeField, TypeLiteral, TypeTable, WhereClause,
+    FunctionKind, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
+    InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget,
+    Mutability, NodeTree, NodeType, Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace,
+    SymbolTable, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -361,6 +361,10 @@ impl Compiler {
                     infer,
                     &mut signature_ctx,
                 )?;
+
+                // expose the function type as a value for references and lambdas
+                let function_symbol = descriptor.symbol.into_global(module.id);
+                types.set_value_type(function_symbol, fn_ty_id);
 
                 // infer the body when present
                 if let Some(body) = body {
@@ -851,14 +855,19 @@ impl Compiler {
         };
 
         // this parameter
+        let expected_this_ty_id = expected_signature
+            .as_ref()
+            .and_then(|signature| signature.this_parameter);
         let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
             // resolve any declared type for the this parameter
             let declared_ty_id =
                 types.get_declared_type_id(this_parameter_id.into_global_any(module.id));
+            let expected_ty_id = expected_this_ty_id;
 
             // report implicit this when no declared type exists
             if options.no_implicit_this
                 && declared_ty_id.is_none()
+                && expected_ty_id.is_none()
                 && !matches!(module.source, ModuleSource::Builtin(_))
             {
                 self.error(AnalyzeError::ImplicitThis {
@@ -869,7 +878,7 @@ impl Compiler {
             }
 
             let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
-            let param_ty_id = declared_ty_id.unwrap_or_else(|| {
+            let param_ty_id = declared_ty_id.or(expected_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
                     infer,
                     types,
@@ -891,6 +900,34 @@ impl Compiler {
             )?;
             types.set_value_type(param_symbol, param_ty_id);
             Some(param_ty_id)
+        } else if signature.kind == FunctionKind::Lambda {
+            // contextual "this" for lambdas
+            if let Some(expected_this_ty_id) = expected_this_ty_id {
+                let this_name = self.program.strings.intern("this");
+                let (_scope_id, scope, _mark) = match node_id.ty {
+                    // use the lambda declaration scope
+                    NodeType::Declaration => {
+                        symbols.get_scope(node_id.into_typed::<Declaration>(), tree)
+                    }
+                    // use the method scope for member lambdas
+                    NodeType::Member => symbols.get_scope(node_id.into_typed::<Member>(), tree),
+                    // use the expression scope for inline lambdas
+                    NodeType::Expression => {
+                        symbols.get_scope(node_id.into_typed::<Expression>(), tree)
+                    }
+                    // fall back to declaration scopes for internal nodes
+                    _ => symbols.get_scope(LocalNodeId::<Declaration>::new(node_id.id), tree),
+                };
+                if let Some(this_symbol) =
+                    symbols.find_active_symbol(scope, StaticKey::Name(this_name))
+                {
+                    types.set_value_type(this_symbol.into_global(module.id), expected_this_ty_id);
+                }
+
+                Some(expected_this_ty_id)
+            } else {
+                None
+            }
         } else {
             None
         };

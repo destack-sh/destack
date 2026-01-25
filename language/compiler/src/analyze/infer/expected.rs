@@ -11,6 +11,8 @@ use destack_workspace::{Module, ProfileId};
 /// Contextual function signature derived from an expected type.
 #[derive(Debug, Clone)]
 pub(super) struct ExpectedFunctionSignature {
+    /// Expected `this` parameter type.
+    pub(super) this_parameter: Option<LocalTypeId>,
     /// Expected dynamic parameter types.
     pub(super) dynamic_parameters: Vec<LocalTypeId>,
     /// Expected return type.
@@ -28,10 +30,12 @@ impl Compiler {
         let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
         match types.get_type(expected_ty_id) {
             Type::Function {
+                this_parameter,
                 dynamic_parameters,
                 return_type,
                 ..
             } => Some(ExpectedFunctionSignature {
+                this_parameter: *this_parameter,
                 dynamic_parameters: dynamic_parameters.clone(),
                 return_type: *return_type,
             }),

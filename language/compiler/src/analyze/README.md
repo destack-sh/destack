@@ -70,7 +70,8 @@ Validate produces diagnostics only and does not introduce new tables.
 # This Binding
 
 Member methods have an implicit `this` binding derived from the receiver type.
-Non-member functions and lambdas require an explicit `this` parameter to use `this`.
+Non-member functions must declare an explicit `this` parameter to use `this`.
+Lambdas may use contextual `this` from an expected function type.
 Lambdas inside methods capture the lexical `this` unless `@capture` overrides it.
 
 # Type Inference
