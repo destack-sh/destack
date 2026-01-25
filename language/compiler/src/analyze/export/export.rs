@@ -1,8 +1,14 @@
+use std::collections::{HashMap, HashSet};
+
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, TaskDependencyError, TaskResultCollector,
 };
+use destack_dir::{
+    Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type,
+    TypeTable,
+};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{Module, ProfileId};
 
 impl Compiler {
     /// Ensure a module's export inference summary has been computed.
@@ -84,6 +90,33 @@ impl Compiler {
             );
         }
 
+        // materialize alias targets for exported type symbols
+        self.collect(
+            &mut collector,
+            self.materialize_exported_alias_targets(
+                &module,
+                profile,
+                &exported_symbols,
+                &tree,
+                &symbols,
+                &mut types,
+            ),
+        );
+
+        for binding in binding_exports.values() {
+            self.collect(
+                &mut collector,
+                self.materialize_exported_alias_targets(
+                    &module,
+                    profile,
+                    &binding.exports,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                ),
+            );
+        }
+
         // declare the module namespace value type from exports
         self.collect(
             &mut collector,
@@ -99,6 +132,78 @@ impl Compiler {
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });
+        }
+
+        Ok(())
+    }
+
+    /// Ensure exported alias targets are fully materialized in the local TypeTable.
+    fn materialize_exported_alias_targets(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        exports: &indexmap::IndexMap<(SymbolSpace, StaticKey), Export>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        for export in exports.values() {
+            // skip non-type exports
+            if export.space != SymbolSpace::Type {
+                continue;
+            }
+
+            // skip unresolved or remote exports
+            let Some(export_symbol) = export.target.resolved() else {
+                continue;
+            };
+            if export_symbol.module_id != module.id {
+                continue;
+            }
+
+            // require alias symbols that own an alias target
+            let symbol_entry = symbols.get_symbol(export_symbol.local_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                continue;
+            }
+            let typed_symbol =
+                GlobalSymbolId::new(module.id, export_symbol.local_id.with_type(symbol_entry.ty));
+            let Some(alias_target_id) = types.get_alias_target_type_id(typed_symbol) else {
+                continue;
+            };
+
+            // evaluate unevaluated alias targets in place
+            if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
+                self.evaluate_type(module, profile, alias_target_id, tree, symbols, types)?;
+            }
+
+            // materialize value static arguments when needed
+            let needs_materialization = self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                alias_target_id,
+                tree,
+                symbols,
+                types,
+                &mut HashSet::new(),
+            );
+            if !needs_materialization {
+                continue;
+            }
+
+            let mut cache = HashMap::new();
+            let materialized = self.materialize_static_arguments_in_type(
+                module,
+                profile,
+                alias_target_id,
+                tree,
+                symbols,
+                types,
+                &mut cache,
+            );
+            if materialized != alias_target_id {
+                types.set_alias_target_type_id(typed_symbol, materialized);
+            }
         }
 
         Ok(())

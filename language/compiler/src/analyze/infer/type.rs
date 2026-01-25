@@ -10,16 +10,16 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Asynchrony, BinaryOperator, Declaration, EnumBackingType, Expression, Extension, ExtensionKind,
-    FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    Mutability, NodeTree, NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type,
-    TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
-    WellKnownSymbol,
+    Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
+    Extension, ExtensionKind, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
+    NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ModuleGraphKey, ModuleSource, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// A TypeGuardTarget describes the target for a typeof or runtime type guard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2366,10 +2366,20 @@ impl Compiler {
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
+        is_surface_inference: bool,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
         let remote_module_id = target_symbol.module_id;
         let error_node = node_id.into_global(module.id).into_anchored(Some(profile));
+
+        // reject export inference cycles that lack explicit annotations
+        if is_surface_inference
+            && self
+                .export_inference_has_cycle(module.id, profile, remote_module_id)?
+            && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
+        {
+            return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
+        }
 
         // reject type-only symbols in value resolution
         if !self.symbol_is_value_capable(profile, target_symbol) {
@@ -2379,9 +2389,19 @@ impl Compiler {
         }
 
         // ensure the remote module export inference is ready (may yield)
+        // require remote export inference before reading value types
         if let Err(error) = self.require_analyze_module_export(remote_module_id, profile) {
-            if self.export_inference_cycle_detected(module.id, profile, remote_module_id) {
-                return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
+            // only reject when we have an explicit export inference cycle
+            if is_surface_inference
+                && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
+            {
+                let has_cycle =
+                    self.export_inference_has_cycle(module.id, profile, remote_module_id)?;
+                if has_cycle {
+                    return Err(AnalyzeError::ExportInferenceRequiresAnnotation {
+                        node: error_node,
+                    });
+                }
             }
             return Err(AnalyzeError::from(error));
         }
@@ -2412,36 +2432,138 @@ impl Compiler {
         }
     }
 
-    fn export_inference_cycle_detected(
+    /// Check whether a remote symbol has an explicit value type annotation.
+    pub(crate) fn remote_symbol_has_declared_value_type(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> bool {
+        // load the remote module tables
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let dir = remote_module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let types = dir.types.read();
+
+        // check for explicit declarator annotations
+        if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(&remote_module, symbol, &tree, &symbols)
+        {
+            let node_id = declarator_id.into_global_any(remote_module.id);
+            if types.get_declared_type_id(node_id).is_some() {
+                return true;
+            }
+        }
+
+        // check for annotated function declarations
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return false;
+        };
+        if primary_declaration.module_id != remote_module.id {
+            return false;
+        }
+        let Some(declaration_id) =
+            self.declaration_id_from_primary(&tree, primary_declaration.local_id)
+        else {
+            return false;
+        };
+        let Declaration::Function { signature, .. } = tree.get(declaration_id) else {
+            return false;
+        };
+
+        signature.return_type.is_some()
+    }
+
+    /// Resolve a declaration id from a primary declaration node.
+    fn declaration_id_from_primary(
+        &self,
+        tree: &NodeTree,
+        primary_declaration: LocalNodeIdAny,
+    ) -> Option<LocalNodeId<Declaration>> {
+        // lift declaration nodes out of primary declaration wrappers
+        match primary_declaration.ty {
+            NodeType::Declaration => Some(primary_declaration.into_typed()),
+            NodeType::Expression => {
+                let expression_id = primary_declaration.into_typed::<Expression>();
+                match tree.get(expression_id) {
+                    Expression::Declaration { declaration } => Some(*declaration),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// Check if an export inference cycle is detected between two modules.
+    pub(crate) fn export_inference_has_cycle(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
         remote_module_id: ModuleId,
-    ) -> bool {
+    ) -> AnalyzeResult<bool> {
+        // short circuit direct self references
         if module_id == remote_module_id {
-            return true;
+            return Ok(true);
         }
 
-        let key = ModuleGraphKey::new(profile);
-        let Some(graph) = self.program.index.module_graphs.get(&key) else {
-            return false;
-        };
-
+        // walk resolved dependency edges for the remote module
         let mut visited = HashSet::new();
         let mut queue = vec![remote_module_id];
         while let Some(current) = queue.pop() {
+            // skip modules we have already visited
             if !visited.insert(current) {
                 continue;
             }
+
+            // stop when we reach the source module
             if current == module_id {
-                return true;
+                return Ok(true);
             }
-            for dependency in graph.dependencies_for(current) {
+
+            // ensure imports are resolved before inspecting module dependencies
+            self.require_resolve_module_direct(current, profile)?;
+
+            // collect direct module dependencies for cycle checks
+            let dependencies = self.module_dependency_ids_for_cycle_detection(current, profile)?;
+            for dependency in dependencies {
                 queue.push(dependency);
             }
         }
 
-        false
+        Ok(false)
+    }
+
+    /// Collect module dependency ids for export inference cycle detection.
+    fn module_dependency_ids_for_cycle_detection(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<Vec<ModuleId>> {
+        // load the module dir for dependency discovery
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+
+        // stop when the module has no dir for this profile
+        let Some(dir) = module.dir_maybe(profile) else {
+            return Ok(Vec::new());
+        };
+
+        // collect remote dependency targets from resolved dependency items
+        let tree = dir.tree.read();
+        let mut dependencies = Vec::new();
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            let DependencyItem::Remote { target_module, .. } = tree.get(item_id) else {
+                continue;
+            };
+
+            if let ModuleTarget::Module(target_id) = target_module {
+                dependencies.push(*target_id);
+            }
+        }
+
+        Ok(dependencies)
     }
 
     /// Import a type from a remote module into the current module's TypeTable.
@@ -4594,5 +4716,83 @@ impl Compiler {
                 value: TypeLiteral::Null | TypeLiteral::Undefined,
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TestProgram;
+    use destack_dir::{Expression, StaticKey, SymbolSpace};
+
+    /// Detect export inference cycles from module dependencies.
+    #[test]
+    fn test_export_inference_cycle_detected_from_imports() {
+        let test = TestProgram::memory_sequential();
+        let a_module_id = test.add_module(
+            "a.ts",
+            r#"
+import { y } from "./b";
+
+export const x = y;
+"#,
+        );
+        let b_module_id = test.add_module(
+            "b.ts",
+            r#"
+import { x } from "./a";
+
+export const y = x;
+"#,
+        );
+
+        test.resolve_module(a_module_id);
+        test.resolve_module(b_module_id);
+        test.compile();
+
+        let profile = test.default_profile_id(a_module_id);
+        let module = test.program.modules.get(a_module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let exported_symbols = dir.exported_symbols.read();
+
+        let x_name = test.program.strings.intern("x");
+        let x_key = StaticKey::Name(x_name);
+        assert!(
+            exported_symbols.contains_key(&(SymbolSpace::Value, x_key)),
+            "expected export table to include x as a value export"
+        );
+
+        let declarator_id = crate::expect_let_declarator_by_name(&dir.roots, &tree, x_name);
+        let declarator = tree.get(declarator_id);
+        let value_id = declarator.value.expect("expected initializer for export x");
+        let Expression::ModuleReference { target_symbol, .. } = tree.get(value_id) else {
+            panic!("expected module reference for export initializer");
+        };
+        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        assert!(
+            symbol_entry.target_symbol.is_some(),
+            "expected import binding to resolve to a target symbol"
+        );
+
+        let y_symbol = test
+            .resolve_to_symbol("b.ts", "y")
+            .expect("expected y symbol in b.ts");
+        let has_declared_type = test
+            .compiler
+            .remote_symbol_has_declared_value_type(profile, y_symbol);
+        assert!(
+            !has_declared_type,
+            "expected unannotated export y to have no declared value type"
+        );
+
+        let has_cycle = test
+            .compiler
+            .export_inference_has_cycle(a_module_id, profile, b_module_id)
+            .expect("cycle detection should not error");
+
+        assert!(has_cycle, "expected export inference cycle for a.ts <-> b.ts");
+
     }
 }

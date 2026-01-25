@@ -1,13 +1,14 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression,
+    StaticParameterKind, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeResult, Compiler};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when a type is wrapped in explicit ownership modifiers.
     pub(crate) fn type_is_explicit_ownership_wrapper(
@@ -124,7 +125,9 @@ impl Compiler {
             // import the alias target when the symbol is remote
             let remote_module = self.program.modules.get(current.module_id);
             let remote_module = remote_module.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
+            let remote_dir = remote_module.dir(profile);
+            let remote_tree = remote_dir.tree.read();
+            let remote_symbols = remote_dir.symbols.read();
             let symbol_entry = remote_symbols.get_symbol(current.local_id);
             if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
                 // follow remote import targets when present
@@ -140,122 +143,49 @@ impl Compiler {
                 current.local_id.with_type(symbol_entry.ty),
             );
 
-            // collect remote alias target metadata without mutating remote types
-            let remote_dir = remote_module.dir(profile);
-            let mut alias_target_id = None;
-            let mut alias_expression_id = None;
-            let mut needs_materialization = false;
+            // import remote alias targets from the export summary
+            let mut remote_types = remote_dir.types.write();
+            let remote_target_id = remote_types.get_alias_target_type_id(typed_symbol)?;
+
+            // evaluate remote alias targets before importing
+            if matches!(remote_types.get_type(remote_target_id), Type::Unevaluated(_))
+                && let Err(error) = self.evaluate_type(
+                    &remote_module,
+                    profile,
+                    remote_target_id,
+                    &remote_tree,
+                    &remote_symbols,
+                    &mut remote_types,
+                )
             {
-                let remote_types = remote_dir.types.read();
-                if let Some(remote_target_id) = remote_types.get_alias_target_type_id(typed_symbol)
-                {
-                    alias_target_id = Some(remote_target_id);
-                    let remote_target_ty = remote_types.get_type(remote_target_id);
-                    // keep unevaluated alias targets for local evaluation
-                    if let Type::Unevaluated(expression_id) = remote_target_ty {
-                        alias_expression_id = Some(*expression_id);
-                    } else {
-                        // detect unevaluated static arguments that must be materialized locally
-                        needs_materialization = self.type_contains_unevaluated_static_arguments(
-                            remote_target_id,
-                            &remote_types,
-                            &mut HashSet::new(),
-                        );
-                        // reuse fully materialized targets directly
-                        if !needs_materialization {
-                            let imported_id = self.import_type_from_remote_for_node(
-                                source_id,
-                                remote_target_ty,
-                                &remote_types,
-                                typed_symbol,
-                                types,
-                            );
-                            types.set_alias_target_type_id(typed_symbol, imported_id);
-                            return Some(imported_id);
-                        }
-                    }
-                }
+                self.error(error);
+                return None;
             }
 
-            // fall back to the declaration expression when no alias target is cached
-            if alias_target_id.is_none() {
-                let primary_declaration = symbol_entry.primary_declaration?;
-                let declaration_id = primary_declaration
-                    .try_into_local_typed::<Declaration>()
-                    .ok()?;
-                let declaration = remote_dir.tree.read().get(declaration_id).clone();
-                let Declaration::Type { value, .. } = declaration else {
-                    return None;
-                };
-                alias_expression_id = Some(value);
+            // skip alias targets that still need value materialization
+            let needs_materialization = self.type_contains_unevaluated_value_static_arguments(
+                &remote_module,
+                profile,
+                remote_target_id,
+                &remote_tree,
+                &remote_symbols,
+                &remote_types,
+                &mut HashSet::new(),
+            );
+            if needs_materialization {
+                return None;
             }
 
-            // evaluate alias targets in a scratch table to keep node ids remote
-            // FUGU #Broken: cloning the entire type table is heavy, revisit in Phase 3
-            let mut scratch_types = {
-                let remote_types = remote_dir.types.read();
-                remote_types.clone()
-            };
-
-            // evaluate unevaluated alias targets in the scratch table
-            if let Some(expression_id) = alias_expression_id {
-                let evaluated = self
-                    .try_evaluate_expression_to_type_value(
-                        &remote_module,
-                        profile,
-                        expression_id,
-                        &remote_dir.tree.read(),
-                        &remote_dir.symbols.read(),
-                        &mut scratch_types,
-                        false,
-                        true,
-                        false,
-                        true,
-                    )
-                    .ok()?;
-                let scratch_alias_target_id =
-                    scratch_types.insert_type_from_any(evaluated, expression_id.into_any());
-                alias_target_id = Some(scratch_alias_target_id);
-                needs_materialization = true;
-            }
-
-            // import the scratch alias target into the local type table
-            if let Some(scratch_alias_target_id) = alias_target_id {
-                // materialize static arguments using the remote module context
-                if needs_materialization
-                    && self.type_contains_unevaluated_static_arguments(
-                        scratch_alias_target_id,
-                        &scratch_types,
-                        &mut HashSet::new(),
-                    )
-                {
-                    let tree = remote_dir.tree.read();
-                    let symbols = remote_dir.symbols.read();
-                    let mut cache = HashMap::new();
-                    let materialized = self.materialize_static_arguments_in_type(
-                        &remote_module,
-                        profile,
-                        scratch_alias_target_id,
-                        &tree,
-                        &symbols,
-                        &mut scratch_types,
-                        &mut cache,
-                    );
-                    alias_target_id = Some(materialized);
-                }
-
-                let scratch_alias_target_id = alias_target_id?;
-                let scratch_target_ty = scratch_types.get_type(scratch_alias_target_id);
-                let local_alias_target_id = self.import_type_from_remote_for_node(
-                    source_id,
-                    scratch_target_ty,
-                    &scratch_types,
-                    typed_symbol,
-                    types,
-                );
-                types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
-                return Some(local_alias_target_id);
-            }
+            let remote_target_ty = remote_types.get_type(remote_target_id);
+            let local_alias_target_id = self.import_type_from_remote_for_node(
+                source_id,
+                remote_target_ty,
+                &remote_types,
+                typed_symbol,
+                types,
+            );
+            types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
+            return Some(local_alias_target_id);
         }
     }
 
@@ -718,6 +648,400 @@ impl Compiler {
 
         visited.remove(&ty_id);
         contains_unevaluated
+    }
+
+    pub(crate) fn type_contains_unevaluated_value_static_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // avoid infinite recursion on self referential types
+        if !visited.insert(ty_id) {
+            return false;
+        }
+
+        // check for unevaluated value static arguments in this type
+        let has_unevaluated = match types.get_type(ty_id).clone() {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => self.reference_contains_unevaluated_value_arguments(
+                module,
+                profile,
+                symbol,
+                static_arguments.as_deref(),
+                tree,
+                symbols,
+                types,
+                visited,
+            ),
+            Type::Import { static_arguments, .. } => {
+                static_arguments.as_ref().is_some_and(|arguments| {
+                    arguments.iter().any(|argument| match argument {
+                        StaticArgument::Unevaluated { .. } => true,
+                        StaticArgument::Evaluated { value, .. } => self
+                            .static_expression_contains_unevaluated_static_arguments(
+                                value, types, visited,
+                            ),
+                    })
+                })
+            }
+            Type::Value { value } => self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                value,
+                tree,
+                symbols,
+                types,
+                visited,
+            ),
+            Type::Unary { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. }
+            | Type::Infer {
+                constraint: Some(right),
+                ..
+            } => self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                right,
+                tree,
+                symbols,
+                types,
+                visited,
+            ),
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+                ..
+            } => {
+                self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                ) || self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                ) || self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    then_type,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                ) || self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    else_type,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Type::Binary { left, right, .. } => {
+                self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                ) || self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Type::Mapped { value, .. } => self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                value,
+                tree,
+                symbols,
+                types,
+                visited,
+            ),
+            Type::Index { left, index } => {
+                self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                ) || self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    index,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Type::TemplateLiteral { spans, .. } => spans.iter().any(|span| {
+                self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    *span,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }),
+            Type::ArraySized { element, .. }
+            | Type::Array {
+                element: Some(element),
+                ..
+            } => self.type_contains_unevaluated_value_static_arguments(
+                module,
+                profile,
+                element,
+                tree,
+                symbols,
+                types,
+                visited,
+            ),
+            Type::Tuple { elements, .. } => elements.iter().any(|element| {
+                self.type_contains_unevaluated_value_static_arguments(
+                    module,
+                    profile,
+                    element.ty,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }),
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                fields.iter().any(|field| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        field.ty,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || call_signatures.iter().any(|signature| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        *signature,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || construct_signatures.iter().any(|signature| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        *signature,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || index_signatures.iter().any(|signature| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        signature.key_type,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    ) || self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        signature.value_type,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                })
+            }
+            Type::Function {
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                static_parameters.iter().any(|parameter| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        *parameter,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || this_parameter.is_some_and(|parameter| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        parameter,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || dynamic_parameters.iter().any(|parameter| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        *parameter,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || return_type.is_some_and(|return_type| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        return_type,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                })
+            }
+            Type::Union { elements } | Type::Intersection { elements } => elements.iter().any(
+                |element| {
+                    self.type_contains_unevaluated_value_static_arguments(
+                        module,
+                        profile,
+                        *element,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                },
+            ),
+            Type::Array { element: None, .. }
+            | Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::Unevaluated(_)
+            | Type::Infer {
+                constraint: None, ..
+            }
+            | Type::Predicate { .. }
+            | Type::This
+            | Type::Error => false,
+        };
+
+        visited.remove(&ty_id);
+        has_unevaluated
+    }
+
+    fn reference_contains_unevaluated_value_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        arguments: Option<&[StaticArgument]>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let Some(arguments) = arguments else {
+            return false;
+        };
+
+        // no arguments means no value materialization is needed
+        if arguments.is_empty() {
+            return false;
+        }
+
+        // resolve parameter kinds for the referenced declaration
+        let Some(parameter_symbols) =
+            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols)
+        else {
+            return false;
+        };
+
+        for (index, argument) in arguments.iter().enumerate() {
+            let kind = parameter_symbols
+                .get(index)
+                .map(|parameter_symbol| {
+                    if parameter_symbol.module_id == module.id {
+                        self.static_parameter_kind_for_symbol_in_module(
+                            *parameter_symbol,
+                            tree,
+                            symbols,
+                        )
+                    } else {
+                        let remote_module = self.program.modules.get(parameter_symbol.module_id);
+                        let remote_module = remote_module.read();
+                        let remote_tree = remote_module.dir(profile).tree.read();
+                        let remote_symbols = remote_module.dir(profile).symbols.read();
+                        self.static_parameter_kind_for_symbol_in_module(
+                            *parameter_symbol,
+                            &remote_tree,
+                            &remote_symbols,
+                        )
+                    }
+                })
+                .unwrap_or(StaticParameterKind::Type);
+
+            // only value parameters require unevaluated materialization
+            if kind != StaticParameterKind::Value {
+                continue;
+            }
+
+            let has_unevaluated = match argument {
+                StaticArgument::Unevaluated { .. } => true,
+                StaticArgument::Evaluated { value, .. } => self
+                    .static_expression_contains_unevaluated_static_arguments(
+                        value, types, visited,
+                    ),
+            };
+            if has_unevaluated {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Check whether a static expression contains unevaluated static arguments.

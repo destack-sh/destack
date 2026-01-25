@@ -2038,6 +2038,7 @@ impl Compiler {
                 context.profile,
                 guard_id.into_any(),
                 symbol,
+                false,
                 types,
             )?
         };

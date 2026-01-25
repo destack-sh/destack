@@ -7,6 +7,7 @@ use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,
     InferContext, OperatorLanguageSymbolExt,
 };
+use crate::analyze::common::CanonicalSymbolMode;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,
@@ -1559,8 +1560,17 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
+                let canonical_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let canonical_symbol =
+                    self.typed_symbol_id(module, profile, canonical_symbol, symbols);
                 let try_branch_symbol = self.language_symbol(LanguageSymbol::TryBranch);
-                if symbol == try_branch_symbol {
+                if canonical_symbol == try_branch_symbol {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let Some(value_argument) = arguments.first() else {
                         return Ok(None);
@@ -1582,11 +1592,18 @@ impl Compiler {
                     return Ok(Some((value_ty_id, error_ty_id)));
                 }
 
-                if symbol.ty() != SymbolType::TypeAlias {
+                if canonical_symbol.ty() != SymbolType::TypeAlias {
                     return Ok(None);
                 }
 
-                let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
+                let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+                    module,
+                    profile,
+                    canonical_symbol,
+                    expression_id.into_any(),
+                    symbols,
+                    types,
+                ) else {
                     return Ok(None);
                 };
 
@@ -1595,7 +1612,7 @@ impl Compiler {
                     module,
                     profile,
                     expression_id.into_any(),
-                    symbol,
+                    canonical_symbol,
                     static_arguments.as_deref(),
                     true,
                     &options,
@@ -1614,7 +1631,7 @@ impl Compiler {
                     let substitutions = self.build_type_parameter_substitutions_for_symbol(
                         module,
                         profile,
-                        symbol,
+                        canonical_symbol,
                         expression_id.into_any(),
                         arguments,
                         tree,

@@ -145,6 +145,7 @@ impl Compiler {
                     profile,
                     source_id,
                     target_symbol,
+                    false,
                     types,
                 )?
             } else {

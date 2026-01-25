@@ -300,12 +300,15 @@ It adds nominal types and readable constraints.
 
 ### Inference
 
-Destack requires explicit types at public boundaries.
-This keeps inference local, fast, and predictable.
+Destack prefers explicit types at public boundaries.
+Exported bindings may use local surface inference when their types are determined from local syntax.
+Other modules consume exported types without re-inferring the defining module.
+Inference cycles across modules are forbidden unless explicit annotations break the cycle.
 There is no whole program inference or Hindley-Milner style generalization.
 
-Most non local constructs should be explicitly typed:
-- Exported functions, methods, and constructors annotate dynamic parameters and return types.
+Most non local constructs _should_ be explicitly typed:
+- Exported functions, methods, and constructors annotate dynamic parameters.
+- Exported return types may be inferred when local surface inference applies.
 - Public fields and properties declare types.
 - Function types in type declarations annotate parameters and return types.
 
@@ -692,17 +695,11 @@ Dynamic resolution only applies when every union variant exposes the member.
 Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
 Extension methods participate in member resolution, too.
 
-### Dispatch Tables
-
-Dispatch chooses between direct calls, class virtual dispatch, interface dispatch, and union reification.
-The design goal is to keep class overhead minimal while preserving TypeScript structural semantics.
-Layout and slot details live in the specification and the Lower documentation.
-
 ## Ownership
 
 TypeScript does not encode ownership in its type system.
 Reference types are implicitly GC managed, and value types are copied by default.
-Destack adds opt in explicit control, enabling a spectrum from TypeScript simplicity to Rust level control.
+Destack adds opt in explicit ownership, enabling a spectrum from TypeScript simplicity to Rust level control.
 
 ### Ownership Modifiers
 
@@ -934,29 +931,6 @@ function processFrame(entities: &Entity[]) {
     // compiler error if any managed value is used or allocated here
 }
 ```
-
-<sub>See [test/fixtures/specification/ownership/](test/fixtures/specification/ownership/) for specification tests.</sub>
-
-## Performance Strategy
-
-Destack targets Go-level performance by default and Rust-level performance in explicit ownership modes.
-The compiler uses proven optimizations and a small set of explicit controls.
-
-Key levers:
-- Escape analysis and stack promotion
-- Copy elision and move elimination
-- Bounds check elimination
-- Devirtualization and inlining
-- Monomorphization and specialization control
-- Strict `&mut` borrows for `noalias`
-- Explicit SIMD with scalar fallback
-- LTO and PGO for package and program scope optimization
-
-Optimization defaults to module scope for fast builds.
-Target ltoMode selects the optimization scope.
-Thin LTO runs at package scope and Full LTO runs at program scope.
-Auto selects Thin LTO at O4 and disables LTO at lower levels.
-Compilation unit refers to the selected optimization scope when LTO is enabled.
 
 ## Module Imports
 

@@ -2502,6 +2502,7 @@ impl Compiler {
                 ctx.profile,
                 property_id.into_any(),
                 canonical_symbol,
+                ctx.is_surface_inference,
                 types,
             )?
         } else {
@@ -3571,6 +3572,34 @@ impl Compiler {
                     return Ok(ty_id);
                 }
 
+                // reject export inference cycles without explicit annotations
+                if ctx.is_surface_inference
+                    && dependency_kind == Some(DependencyKind::Value)
+                    && let Some(target_symbol) = dependency.target_symbol()
+                {
+                    let has_cycle = self.export_inference_has_cycle(
+                        module.id,
+                        ctx.profile,
+                        target_symbol.module_id,
+                    )?;
+                    if has_cycle
+                        && !self.remote_symbol_has_declared_value_type(
+                            ctx.profile,
+                            target_symbol,
+                        )
+                    {
+                        let error_node = expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile));
+                        self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
+                            node: error_node,
+                        });
+                        let ty_id =
+                            types.insert_type_from_any(Type::Error, expression_id.into_any());
+                        return Ok(ty_id);
+                    }
+                }
+
                 // reject value imports that resolve to type-only exports
                 if dependency_kind == Some(DependencyKind::Value) {
                     let (export_name, target_module_id) =
@@ -3593,6 +3622,31 @@ impl Compiler {
                             return Ok(ty_id);
                         }
                     }
+                }
+            }
+
+            // reject export inference cycles when dependency items are unavailable
+            if dependency_id.is_none()
+                && ctx.is_surface_inference
+                && let Some(target_symbol) = symbol_entry.target_symbol
+            {
+                let has_cycle = self.export_inference_has_cycle(
+                    module.id,
+                    ctx.profile,
+                    target_symbol.module_id,
+                )?;
+                if has_cycle
+                    && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)
+                {
+                    let error_node = expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile));
+                    self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
+                        node: error_node,
+                    });
+                    let ty_id =
+                        types.insert_type_from_any(Type::Error, expression_id.into_any());
+                    return Ok(ty_id);
                 }
             }
 
@@ -3659,6 +3713,7 @@ impl Compiler {
                 ctx.profile,
                 expression_id.into_any(),
                 canonical_symbol,
+                ctx.is_surface_inference,
                 types,
             )?
         } else {

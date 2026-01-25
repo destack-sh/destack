@@ -346,7 +346,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
+        Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
         WhereClause,
     };
@@ -595,6 +595,32 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
 
                     // boolean
                     assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_return_type_with_static_arguments() {
+        let mut test = TestParser::new("function read<T, E>() => AliasBranch<T, E> {}");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        assert_node!(parser.tree, function_id, Declaration::Function { signature, .. } => {
+            let return_type = signature.return_type.expect("expected return type");
+            assert_node!(parser.tree, return_type, Expression::Path { path, static_arguments } => {
+                assert_path!(parser, *path, "AliasBranch");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 2);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "T");
+                });
+                assert_node!(parser.tree, static_arguments[1], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "E");
                 });
             });
         });

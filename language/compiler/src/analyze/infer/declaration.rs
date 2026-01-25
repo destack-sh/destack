@@ -388,13 +388,21 @@ impl Compiler {
                             variance: None,
                         });
 
+                        let normalized_return_ty_id = self.normalize_type_for_assignability(
+                            module,
+                            ctx.profile,
+                            return_ty_id,
+                            symbols,
+                            types,
+                        );
+
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
                             && self.is_type_assignable(
                                 module,
                                 ctx.profile,
                                 symbols,
-                                return_ty_id,
+                                normalized_return_ty_id,
                                 body_ty_id,
                                 types,
                                 &function_options,
@@ -720,13 +728,21 @@ impl Compiler {
                             variance: None,
                         });
 
+                        let normalized_return_ty_id = self.normalize_type_for_assignability(
+                            module,
+                            ctx.profile,
+                            return_ty_id,
+                            symbols,
+                            types,
+                        );
+
                         if !self.is_infer_var_type(return_ty_id, types)
                             && !self.is_infer_var_type(body_ty_id, types)
                             && self.is_type_assignable(
                                 module,
                                 ctx.profile,
                                 symbols,
-                                return_ty_id,
+                                normalized_return_ty_id,
                                 body_ty_id,
                                 types,
                                 &method_options,

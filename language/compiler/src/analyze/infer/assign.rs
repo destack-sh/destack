@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
     SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
@@ -118,9 +117,71 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
+        // expand alias targets before further assignability checks
+        let target_type = types.get_type(target_id).clone();
+        if let Type::Reference {
+            symbol,
+            static_arguments,
+        } = target_type
+        {
+            let typed_symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+            if typed_symbol.ty() == SymbolType::TypeAlias
+                && let Some(arguments) = static_arguments.as_deref()
+            {
+                let type_source_id = types.get_type_source(target_id);
+                let mut visited = Vec::new();
+                if let Some(expanded) = self.normalize_type_alias_reference_with_arguments(
+                    module,
+                    profile,
+                    type_source_id,
+                    typed_symbol,
+                    arguments,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut visited,
+                ) {
+                    return self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        expanded,
+                        source_id,
+                        types,
+                        options,
+                    );
+                }
+            }
+        }
+
         // follow alias references and static constraints before assignability
         let target_id = self.prepare_assignability_type(module, profile, target_id, symbols, types);
         let source_id = self.prepare_assignability_type(module, profile, source_id, symbols, types);
+
+        // re-expand alias targets when normalization preserves references
+        if let Type::Reference { symbol, .. } = types.get_type(target_id)
+            && symbol.ty() == SymbolType::TypeAlias
+        {
+            let normalized_target = self.normalize_type(
+                module,
+                profile,
+                target_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
+            if normalized_target != target_id {
+                return self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    normalized_target,
+                    source_id,
+                    types,
+                    options,
+                );
+            }
+        }
 
         // recheck equality after alias expansion
         if target_id == source_id {
@@ -1899,18 +1960,22 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let Type::Reference {
-            symbol,
-            static_arguments,
-        } = types.get_type(type_id)
-        else {
-            return type_id;
+        // extract the alias reference and static arguments
+        let (symbol, static_arguments) = match types.get_type(type_id) {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => (*symbol, static_arguments.clone()),
+            _ => return type_id,
         };
 
+        // require a typed alias symbol
+        let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
         if symbol.ty() != SymbolType::TypeAlias {
             return type_id;
         }
 
+        // require static arguments to expand the alias
         let Some(arguments) = static_arguments.as_ref() else {
             return type_id;
         };
@@ -1918,10 +1983,110 @@ impl Compiler {
             return type_id;
         }
 
-        self.normalize_type(
+        // prefer canonical normalization when it expands the alias
+        let normalized = self.normalize_type(
             module,
             profile,
             type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        );
+        if normalized != type_id {
+            return normalized;
+        }
+
+        // fall back to direct alias target substitution when normalization preserved the reference
+        let source_id = types.get_type_source(type_id);
+        let Some(alias_target_id) =
+            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        else {
+            return type_id;
+        };
+
+        // ensure the alias target is evaluated before substitution
+        if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
+            // evaluate the alias target in the owning module
+            if symbol.module_id == module.id {
+                let tree = module.dir(profile).tree.read();
+                let local_symbols = module.dir(profile).symbols.read();
+                let _ = self.evaluate_type(
+                    module,
+                    profile,
+                    alias_target_id,
+                    &tree,
+                    &local_symbols,
+                    types,
+                );
+            } else {
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.read();
+                let tree = remote_module.dir(profile).tree.read();
+                let remote_symbols = remote_module.dir(profile).symbols.read();
+                let _ = self.evaluate_type(
+                    &remote_module,
+                    profile,
+                    alias_target_id,
+                    &tree,
+                    &remote_symbols,
+                    types,
+                );
+            }
+        }
+
+        // resolve static arguments for substitution
+        let tree = module.dir(profile).tree.read();
+        let options = self.analyze_context_options_for_module(module.id);
+        let resolved_arguments = self
+            .resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                symbol,
+                Some(arguments),
+                false,
+                &options,
+                &tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten();
+        let arguments = resolved_arguments.as_deref().unwrap_or(arguments);
+        if arguments.is_empty() {
+            return alias_target_id;
+        }
+
+        // substitute parameters into the alias target
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            symbol,
+            source_id,
+            arguments,
+            &tree,
+            symbols,
+            types,
+        );
+        if substitutions.is_empty() {
+            return self.normalize_type(
+                module,
+                profile,
+                alias_target_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
+        }
+
+        // apply substitutions and normalize the result
+        let mut cache = HashMap::new();
+        let substituted =
+            self.substitute_static_parameters(alias_target_id, &substitutions, types, &mut cache);
+        self.normalize_type(
+            module,
+            profile,
+            substituted,
             symbols,
             types,
             NormalizationMode::Assign,
