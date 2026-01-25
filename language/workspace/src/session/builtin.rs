@@ -16,7 +16,7 @@ use destack_source::{
 use indexmap::IndexMap;
 
 use crate::{
-    Loader, Module, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry,
+    Loader, Module, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry, ProfileId,
     ProfileKey, SourceType,
 };
 
@@ -240,9 +240,8 @@ pub struct Builtins {
     /// Well-known symbols per profile key.
     pub well_known_by_profile: DashMap<ProfileKey, WellKnownSymbols>,
 
-    /// Resolved language items cache (LanguageSymbol -> GlobalSymbolId).
-    /// (Populated lazily when items are first resolved after module compilation.)
-    pub items: DashMap<LanguageSymbol, GlobalSymbolId>,
+    /// Resolved language items cache (ProfileId, LanguageSymbol -> GlobalSymbolId).
+    pub items: DashMap<(ProfileId, LanguageSymbol), GlobalSymbolId>,
 }
 
 impl Builtins {

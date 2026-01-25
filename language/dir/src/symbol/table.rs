@@ -52,9 +52,14 @@ impl SymbolTable {
 
     /// Iterate active symbol ids.
     pub fn active_symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
-        (0..self.symbol_count())
-            .map(LocalSymbolId::new)
-            .filter(|symbol_id| self.get_symbol(*symbol_id).is_active)
+        (0..self.symbol_count()).filter_map(|symbol_id| {
+            let local_id = LocalSymbolId::new(symbol_id);
+            let symbol = self.get_symbol(local_id);
+            if !symbol.is_active {
+                return None;
+            }
+            Some(LocalSymbolId::new_typed(symbol_id, symbol.ty))
+        })
     }
 
     /// Get the number of symbols.

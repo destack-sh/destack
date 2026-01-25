@@ -209,13 +209,16 @@ impl Compiler {
                 let dir = module.dir(profile_id);
                 let exports = dir.exported_symbols.read();
                 let tree = dir.tree.read();
+                let symbols = dir.symbols.read();
 
                 // resolve type-space symbol if not yet found
                 if group.ty.is_none()
                     && let Some(symbol_id) = self.resolve_exported_symbol(
-                        module_id,
+                        &module,
+                        profile_id,
                         &exports,
                         &tree,
+                        &symbols,
                         SymbolSpaceOrder::TypeOnly,
                         key,
                     )
@@ -226,9 +229,11 @@ impl Compiler {
                 // resolve value-space symbol if not yet found
                 if group.value.is_none()
                     && let Some(symbol_id) = self.resolve_exported_symbol(
-                        module_id,
+                        &module,
+                        profile_id,
                         &exports,
                         &tree,
+                        &symbols,
                         SymbolSpaceOrder::ValueOnly,
                         key,
                     )
@@ -480,7 +485,7 @@ impl Compiler {
         };
 
         // check cache
-        if let Some(cached) = builtins.items.get(&item) {
+        if let Some(cached) = builtins.items.get(&(profile, item)) {
             return Ok(*cached);
         }
 
@@ -498,27 +503,38 @@ impl Compiler {
         let key = StaticKey::Name(name_id);
         let exports = dir.exported_symbols.read();
         let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
         let export_spaces = SymbolSpaceOrder::ValueThenType;
-        let Some(symbol_id) =
-            self.resolve_exported_symbol(module_id, &exports, &tree, export_spaces, key)
-        else {
+        let Some(symbol_id) = self.resolve_exported_symbol(
+            &module,
+            profile,
+            &exports,
+            &tree,
+            &symbols,
+            export_spaces,
+            key,
+        ) else {
             return Err(ResolveError::MissingLanguageSymbol { item });
         };
 
         // result
-        builtins.items.insert(item, symbol_id);
+        builtins.items.insert((profile, item), symbol_id);
         Ok(symbol_id)
     }
 
     /// Get a language item from the cache, returning None if not found.
-    pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<GlobalSymbolId> {
+    pub fn get_language_symbol(
+        &self,
+        profile: ProfileId,
+        item: LanguageSymbol,
+    ) -> Option<GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.items.get(&item).map(|r| *r)
+        builtins.items.get(&(profile, item)).map(|r| *r)
     }
 
     /// Get a language item from the cache, panicking if not found.
-    pub fn language_symbol(&self, item: LanguageSymbol) -> GlobalSymbolId {
-        self.get_language_symbol(item)
+    pub fn language_symbol(&self, profile: ProfileId, item: LanguageSymbol) -> GlobalSymbolId {
+        self.get_language_symbol(profile, item)
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 
@@ -877,7 +893,8 @@ mod tests {
         test.resolve_builtins();
         test.compile();
 
-        let symbol_id = test.compiler.language_symbol(LanguageSymbol::Add);
+        let profile = test.default_profile_id_for_root();
+        let symbol_id = test.compiler.language_symbol(profile, LanguageSymbol::Add);
         let module = test.program.modules.get(symbol_id.module_id);
         let module = module.read();
         let profile = test.default_profile_id(symbol_id.module_id);

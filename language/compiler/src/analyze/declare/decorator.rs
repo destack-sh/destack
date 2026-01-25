@@ -10,8 +10,8 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
+use crate::analyze::common::CanonicalSymbolMode;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -71,125 +71,125 @@ impl Compiler {
     /// Collect decorator marker symbols for the active profile.
     pub(crate) fn collect_well_known_decorators(
         &self,
-        _profile: ProfileId,
+        profile: ProfileId,
     ) -> HashMap<GlobalSymbolId, WellKnownDecorator> {
         // map language symbols to well known decorators
         let mut decorators = HashMap::new();
 
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Extern),
+            self.language_symbol(profile, LanguageSymbol::Extern),
             WellKnownDecorator::Extern,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Intrinsic),
+            self.language_symbol(profile, LanguageSymbol::Intrinsic),
             WellKnownDecorator::Intrinsic,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Deprecated),
+            self.language_symbol(profile, LanguageSymbol::Deprecated),
             WellKnownDecorator::Deprecated,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::LanguageItem),
+            self.language_symbol(profile, LanguageSymbol::LanguageItem),
             WellKnownDecorator::LanguageItem,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Inline),
+            self.language_symbol(profile, LanguageSymbol::Inline),
             WellKnownDecorator::Inline,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Noinline),
+            self.language_symbol(profile, LanguageSymbol::Noinline),
             WellKnownDecorator::Noinline,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Experimental),
+            self.language_symbol(profile, LanguageSymbol::Experimental),
             WellKnownDecorator::Experimental,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Allow),
+            self.language_symbol(profile, LanguageSymbol::Allow),
             WellKnownDecorator::Allow,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Warn),
+            self.language_symbol(profile, LanguageSymbol::Warn),
             WellKnownDecorator::Warn,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Deny),
+            self.language_symbol(profile, LanguageSymbol::Deny),
             WellKnownDecorator::Deny,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Forbid),
+            self.language_symbol(profile, LanguageSymbol::Forbid),
             WellKnownDecorator::Forbid,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Expect),
+            self.language_symbol(profile, LanguageSymbol::Expect),
             WellKnownDecorator::Expect,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Unroll),
+            self.language_symbol(profile, LanguageSymbol::Unroll),
             WellKnownDecorator::Unroll,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Hot),
+            self.language_symbol(profile, LanguageSymbol::Hot),
             WellKnownDecorator::Hot,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Cold),
+            self.language_symbol(profile, LanguageSymbol::Cold),
             WellKnownDecorator::Cold,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Likely),
+            self.language_symbol(profile, LanguageSymbol::Likely),
             WellKnownDecorator::Likely,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Unlikely),
+            self.language_symbol(profile, LanguageSymbol::Unlikely),
             WellKnownDecorator::Unlikely,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::MustUse),
+            self.language_symbol(profile, LanguageSymbol::MustUse),
             WellKnownDecorator::MustUse,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Pure),
+            self.language_symbol(profile, LanguageSymbol::Pure),
             WellKnownDecorator::Pure,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Tailcall),
+            self.language_symbol(profile, LanguageSymbol::Tailcall),
             WellKnownDecorator::Tailcall,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Unsafe),
+            self.language_symbol(profile, LanguageSymbol::Unsafe),
             WellKnownDecorator::Unsafe,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Transmute),
+            self.language_symbol(profile, LanguageSymbol::Transmute),
             WellKnownDecorator::Transmute,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::NoManaged),
+            self.language_symbol(profile, LanguageSymbol::NoManaged),
             WellKnownDecorator::NoManaged,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::StackOnly),
+            self.language_symbol(profile, LanguageSymbol::StackOnly),
             WellKnownDecorator::StackOnly,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Capture),
+            self.language_symbol(profile, LanguageSymbol::Capture),
             WellKnownDecorator::Capture,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Taint),
+            self.language_symbol(profile, LanguageSymbol::Taint),
             WellKnownDecorator::Taint,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Tag),
+            self.language_symbol(profile, LanguageSymbol::Tag),
             WellKnownDecorator::Tag,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Lifetime),
+            self.language_symbol(profile, LanguageSymbol::Lifetime),
             WellKnownDecorator::Lifetime,
         );
         decorators.insert(
-            self.language_symbol(LanguageSymbol::Addrspace),
+            self.language_symbol(profile, LanguageSymbol::Addrspace),
             WellKnownDecorator::Addrspace,
         );
 
@@ -287,13 +287,17 @@ impl Compiler {
             let Some(target_symbol) = target_symbol else {
                 continue;
             };
-            let target_symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
-                target_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
+            // compare well-known markers using canonical symbol ids
+            let target_symbol = {
+                let canonical = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                self.typed_symbol_id(module, profile, canonical, symbols)
+            };
             let mut marker = decorator_map.get(&target_symbol).copied();
             if marker.is_none() {
                 // look for a well known decorator in the merge group

@@ -162,7 +162,10 @@ impl<'a> LintModuleDirContext<'a> {
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.items.get(&item).map(|value| *value)
+        builtins
+            .items
+            .get(&(self.profile_id, item))
+            .map(|value| *value)
     }
 
     /// Get a language item from the cache, panicking if not found.

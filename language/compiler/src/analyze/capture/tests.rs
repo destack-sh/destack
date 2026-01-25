@@ -1,5 +1,6 @@
 use crate::TestProgram;
-use destack_dir::{CaptureKind, Declaration, FunctionKind};
+use destack_builtin::LanguageSymbol;
+use destack_dir::{Annotation, CaptureKind, Declaration, Expression, FunctionKind};
 
 fn first_lambda_symbol(
     module_id: destack_source::ModuleId,
@@ -90,6 +91,104 @@ function make() {
         .collect::<Vec<_>>();
 
     assert_eq!(reference_local_names, vec!["b".to_string()]);
+}
+
+#[test]
+fn test_capture_decorator_resolves_marker_symbol() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+@capture("byValue")
+function inner() {
+  return 1;
+}
+"#,
+    );
+
+    test.analyze_module_and_check_clean(module_id);
+
+    let profile = test.default_profile_id(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let dir = module.dir(profile);
+    let tree = dir.tree.read();
+    let symbols = dir.symbols.read();
+
+    let inner_symbol = test
+        .function_symbol_by_name("test.ds", "inner")
+        .unwrap_or_else(|| panic!("expected inner symbol"));
+    let inner_entry = symbols.get_symbol(inner_symbol.into_local());
+    let Some(declaration) = inner_entry.primary_declaration else {
+        panic!("expected declaration for inner");
+    };
+    let mut annotations = tree.get_annotations(declaration.local_id.id);
+    if annotations.is_empty() {
+        let wrapper_id = tree
+            .iter_nodes_of_type::<Expression>()
+            .find_map(|(expression_id, expression)| match expression {
+                Expression::Declaration { declaration: inner } if inner.id == declaration.local_id.id => {
+                    Some(expression_id)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("expected declaration wrapper for inner"));
+        annotations = tree.get_annotations(wrapper_id.id);
+    }
+    let decorator_id = annotations
+        .iter()
+        .find(|annotation_id| matches!(tree.get(**annotation_id), Annotation::Decorator { .. }))
+        .copied()
+        .unwrap_or_else(|| panic!("expected decorator annotation"));
+    let Annotation::Decorator { left, arguments, .. } = tree.get(decorator_id) else {
+        panic!("expected decorator annotation");
+    };
+    let Some(arguments) = arguments else {
+        panic!("expected decorator arguments");
+    };
+    let argument_id = arguments
+        .first()
+        .unwrap_or_else(|| panic!("expected decorator argument"));
+    let argument = tree.get(*argument_id);
+    let value_id = match argument {
+        destack_dir::Argument::Positional { value, .. }
+        | destack_dir::Argument::Named { value, .. }
+        | destack_dir::Argument::Labeled { value, .. } => *value,
+        destack_dir::Argument::Spread { .. } => {
+            panic!("unexpected spread decorator argument");
+        }
+    };
+    let value_expr = tree.get(value_id);
+    assert!(
+        matches!(
+            value_expr,
+            Expression::ScalarLiteral {
+                value: destack_dir::ScalarLiteral::String(_)
+            }
+        ),
+        "expected string literal decorator argument, got {value_expr:?}"
+    );
+    let target_symbol = match tree.get(*left) {
+        Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+        other => panic!("expected resolved decorator reference, got {other:?}"),
+    };
+
+    let capture_symbol = test.compiler.language_symbol(profile, LanguageSymbol::Capture);
+    assert_eq!(target_symbol, capture_symbol);
+
+    let decorator_map = test.compiler.collect_well_known_decorators(profile);
+    let resolved_symbol = test.compiler.typed_symbol_id(
+        &module,
+        profile,
+        target_symbol,
+        &symbols,
+    );
+    assert!(
+        decorator_map.contains_key(&resolved_symbol),
+        "expected capture symbol in well known decorator map"
+    );
 }
 
 #[test]

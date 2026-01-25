@@ -61,6 +61,7 @@ impl Compiler {
     }
 
     /// Align a symbol id with the stored symbol type.
+    /// FUGU #Architecture #Cleanup: do we still need typed_symbol_id?
     pub(crate) fn typed_symbol_id(
         &self,
         module: &Module,

@@ -349,9 +349,16 @@ impl Compiler {
         let export_spaces = SymbolSpaceOrder::ValueThenType;
         let exports = prelude_dir.exported_symbols.read();
         let tree = prelude_dir.tree.read();
-        let Some(symbol_id) =
-            self.resolve_exported_symbol(prelude_module_id, &exports, &tree, export_spaces, key)
-        else {
+        let symbols = prelude_dir.symbols.read();
+        let Some(symbol_id) = self.resolve_exported_symbol(
+            &prelude_module,
+            profile,
+            &exports,
+            &tree,
+            &symbols,
+            export_spaces,
+            key,
+        ) else {
             return Ok(None);
         };
 
@@ -2557,7 +2564,8 @@ function printType(t: Type) {
         test.compile();
         test.check_clean();
         for item in LanguageSymbol::all() {
-            let _ = test.compiler.language_symbol(item);
+            let profile = test.default_profile_id_for_root();
+            let _ = test.compiler.language_symbol(profile, item);
         }
     }
 }

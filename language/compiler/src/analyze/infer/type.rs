@@ -3458,7 +3458,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
-        let interface_symbol = self.language_symbol(interface_item);
+        let interface_symbol = self.language_symbol(profile, interface_item);
         match ty {
             Type::Value { value } => {
                 let inner_ty = types.get_type(*value);

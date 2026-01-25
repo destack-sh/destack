@@ -318,6 +318,9 @@ impl Compiler {
         for signature in index_signatures {
             if let Some(kind) = self.mapped_index_kind_for_type(signature.key_type, types) {
                 keys.insert_index_kind(kind);
+                if kind == MappedIndexKind::String {
+                    keys.insert_index_kind(MappedIndexKind::Number);
+                }
             }
         }
 

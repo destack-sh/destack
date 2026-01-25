@@ -646,7 +646,7 @@ enum Status {
 }
 
 /// Enum field values cannot reference non-enum values.
-// FUGU #Broken: phase 9 enum field reference validation
+// FUGU #Broken: phase 10 enum field reference validation
 #[ignore]
 #[test]
 fn test_analyze_enum_field_values_require_enum_reference() {
@@ -2918,7 +2918,7 @@ fn test_analyze_type_mapped_parameter_scope() {
 }
 
 /// Bind infer variables for use in conditional true branch.
-// FUGU #Broken: phase 7 conditional infer scope
+// FUGU #Broken: phase 8 conditional infer scope
 #[ignore]
 #[test]
 fn test_analyze_type_infer_scope() {
