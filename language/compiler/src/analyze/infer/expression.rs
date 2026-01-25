@@ -3557,10 +3557,7 @@ impl Compiler {
                         target_symbol.module_id,
                     )?;
                     if has_cycle
-                        && !self.remote_symbol_has_declared_value_type(
-                            ctx.profile,
-                            target_symbol,
-                        )
+                        && !self.remote_symbol_has_declared_value_type(ctx.profile, target_symbol)
                     {
                         let error_node = expression_id
                             .into_global_any(module.id)
@@ -3618,8 +3615,7 @@ impl Compiler {
                     self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
                         node: error_node,
                     });
-                    let ty_id =
-                        types.insert_type_from_any(Type::Error, expression_id.into_any());
+                    let ty_id = types.insert_type_from_any(Type::Error, expression_id.into_any());
                     return Ok(ty_id);
                 }
             }

@@ -198,8 +198,10 @@ impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
         if let Some(target_symbol) = expression.target_symbol() {
             if target_symbol.module_id != self.module.id {
                 self.references.push(target_symbol);
-            } else if let Some(imported_symbol) =
-                self.symbols.get_symbol(target_symbol.local_id).target_symbol
+            } else if let Some(imported_symbol) = self
+                .symbols
+                .get_symbol(target_symbol.local_id)
+                .target_symbol
             {
                 self.references.push(imported_symbol);
             }
@@ -1893,13 +1895,9 @@ impl Compiler {
             };
 
             // reject export inference cycles that lack explicit annotations
-            if self.export_inference_requires_annotation(
-                module,
-                profile,
-                tree,
-                symbols,
-                value_id,
-            )? {
+            if self
+                .export_inference_requires_annotation(module, profile, tree, symbols, value_id)?
+            {
                 self.error(AnalyzeError::ExportInferenceRequiresAnnotation {
                     node: value_id
                         .into_global_any(module.id)
@@ -2026,8 +2024,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // read the declared type when present
-        let declared_type_id =
-            types.get_declared_type_id(declarator_id.into_global_any(module.id));
+        let declared_type_id = types.get_declared_type_id(declarator_id.into_global_any(module.id));
         let Some(declared_type_id) = declared_type_id else {
             return Ok(None);
         };
@@ -2120,5 +2117,4 @@ impl Compiler {
             _ => None,
         }
     }
-
 }

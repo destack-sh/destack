@@ -12,10 +12,10 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
     Extension, ExtensionKind, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
-    NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
-    StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType, NormalizationMode,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty,
+    StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
     UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_source::ModuleId;
@@ -2374,8 +2374,7 @@ impl Compiler {
 
         // reject export inference cycles that lack explicit annotations
         if is_surface_inference
-            && self
-                .export_inference_has_cycle(module.id, profile, remote_module_id)?
+            && self.export_inference_has_cycle(module.id, profile, remote_module_id)?
             && !self.remote_symbol_has_declared_value_type(profile, target_symbol)
         {
             return Err(AnalyzeError::ExportInferenceRequiresAnnotation { node: error_node });
@@ -4789,7 +4788,9 @@ export const y = x;
             .export_inference_has_cycle(a_module_id, profile, b_module_id)
             .expect("cycle detection should not error");
 
-        assert!(has_cycle, "expected export inference cycle for a.ts <-> b.ts");
-
+        assert!(
+            has_cycle,
+            "expected export inference cycle for a.ts <-> b.ts"
+        );
     }
 }

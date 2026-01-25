@@ -3,11 +3,11 @@ use super::member::{MemberLookupMode, MemberResolution};
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,
     InferContext, OperatorLanguageSymbolExt,
 };
-use crate::analyze::common::CanonicalSymbolMode;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,

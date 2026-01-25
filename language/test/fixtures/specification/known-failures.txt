@@ -10,13 +10,6 @@ destack_test::specification::types/generics/conditional-infer.md/infer/infer-fro
 destack_test::specification::types/generics/conditional-infer.md/infer/infer-from-never-honors-constrained-template-spans
 destack_test::specification::types/generics/conditional-infer.md/infer/infer-from-never-yields-never-for-template-patterns
 destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-add-readonly-modifiers
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-can-remap-keys
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-can-remove-optional-modifiers
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-reject-incompatible-optional-fields
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-reject-incompatible-remapped-values
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-remove-optional-modifiers
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-remove-readonly-modifiers
-destack_test::specification::types/generics/mapped-types.md/tests/mapped-types-support-optional-modifiers
 destack_test::specification::types/generics/utility-types.md/tests/omit-rejects-unknown-keys
 destack_test::specification::types/generics/utility-types.md/tests/pick-rejects-unknown-keys
 destack_test::specification::types/generics/utility-types.md/tests/readonly-rejects-mutable-assignment

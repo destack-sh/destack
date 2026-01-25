@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
     SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashMap;
 
 use super::super::common::NormalizationMode;
 use super::{
@@ -142,13 +142,7 @@ impl Compiler {
                     &mut visited,
                 ) {
                     return self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
-                        expanded,
-                        source_id,
-                        types,
-                        options,
+                        module, profile, symbols, expanded, source_id, types, options,
                     );
                 }
             }
@@ -1998,8 +1992,8 @@ impl Compiler {
 
         // fall back to direct alias target substitution when normalization preserved the reference
         let source_id = types.get_type_source(type_id);
-        let Some(alias_target_id) =
-            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        let Some(alias_target_id) = self
+            .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
         else {
             return type_id;
         };
@@ -2059,14 +2053,7 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
-            symbol,
-            source_id,
-            arguments,
-            &tree,
-            symbols,
-            types,
+            module, profile, symbol, source_id, arguments, &tree, symbols, types,
         );
         if substitutions.is_empty() {
             return self.normalize_type(
