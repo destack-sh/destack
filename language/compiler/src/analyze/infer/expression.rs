@@ -744,7 +744,7 @@ impl Compiler {
 
             // this: reference to the current instance item
             Expression::This => {
-                let this_symbol = self.find_this_symbol(module, expression_id, tree, symbols);
+                let this_symbol = self.resolve_this_symbol(module, expression_id, tree, symbols);
                 if let Some(this_symbol) = this_symbol
                     && let Some(ty_id) = types.get_value_type_id(this_symbol)
                 {
@@ -2383,32 +2383,6 @@ impl Compiler {
         }
 
         Ok(ty_id)
-    }
-
-    /// Find the nearest `this` symbol visible to the expression.
-    /// #Architecture: should 'find_this_symbol' be resolved during Bind? (instead of Analyze/infer)?
-    fn find_this_symbol(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> Option<GlobalSymbolId> {
-        let this_name = self.program.strings.intern("this");
-        let mut scope = symbols.get_scope(expression_id, tree);
-        loop {
-            if let Some(symbol_id) =
-                symbols.find_active_symbol_up_to(scope.1, StaticKey::Name(this_name), scope.2)
-            {
-                return Some(symbol_id.into_global(module.id));
-            }
-            let (parent_scope_id, parent_mark) = scope.1.parent?;
-            scope = (
-                parent_scope_id,
-                symbols.get_scope_by_id(parent_scope_id),
-                parent_mark,
-            );
-        }
     }
 
     /// Find the nearest value symbol for a name in scope.

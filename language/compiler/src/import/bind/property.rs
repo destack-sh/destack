@@ -119,6 +119,8 @@ impl Compiler {
                         types,
                     )
                 });
+
+                // bind the implicit this local for method bodies
                 let this_name = self.program.strings.intern("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
@@ -129,6 +131,7 @@ impl Compiler {
                     method_scope,
                     symbols,
                 );
+
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 let signature = self.bind_function_signature(
                     module,
@@ -378,6 +381,8 @@ impl Compiler {
                         types,
                     )
                 });
+
+                // bind the implicit this local for method bodies
                 let this_name = self.program.strings.intern("this");
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 self.bind_named_local(
@@ -388,6 +393,7 @@ impl Compiler {
                     method_scope,
                     symbols,
                 );
+
                 let method_scope = (method_scope_id, symbols.get_scope_mark(method_scope_id));
                 let signature = self.bind_function_signature(
                     module,

@@ -32,10 +32,12 @@ Analyze sits between Resolve and Elaborate in the per-profile part of the pipeli
 **Inputs**: Resolved DIR plus explicit type annotations.
 **Outputs**: Fully typed DIR plus Instances and Resolutions.
 
-Analyze runs in three internal stages with a clear contract:
+Analyze runs in five internal stages with a clear contract:
 1. **Declare**: evaluate `Type::Unevaluated` to a local fixpoint, elaborate type-level declarations, register instance/value shapes plus lineages and extensions, and record signature types for functions and methods
 2. **Export**: compute export surface types using local-only surface inference and declared types
 3. **Infer**: infer value types and function bodies, resolve overloads, solve constraints, and apply flow narrowing without mutating declared shapes or lineages
+4. **Capture**: resolve closure capture sets after inference
+5. **Validate**: run semantic validation checks across declarations, parameters, and members
 
 # Outputs
 
@@ -62,11 +64,21 @@ type queries. Inferred types are computed for *all* reachable expressions (and s
 Surface inference uses the regular inference engine with caching disabled and no flow narrowing.
 It only consults declared types and the local module syntax.
 
+Capture results are recorded in the **CaptureTable** and consumed by Lower.
+Validate produces diagnostics only and does not introduce new tables.
+
+# This Binding
+
+Member methods have an implicit `this` binding derived from the receiver type.
+Non-member functions and lambdas require an explicit `this` parameter to use `this`.
+Lambdas inside methods capture the lexical `this` unless `@capture` overrides it.
+
 # Type Inference
 
 Analyze uses bidirectional typing.
 Inferred types flow *out* of expressions; expected types flow *in* from context.
 This is what enables contextual typing of lambdas, object literals, and patterns.
+(It's also moderately annoying to implement correctly and performantly, but alas, ergonomics.)
 
 **Sources of expected types:**
 - Variable and field annotations

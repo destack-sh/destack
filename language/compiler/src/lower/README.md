@@ -1703,6 +1703,7 @@ The closure value pairs the function pointer with the environment:
 **Capture semantics:**
 - `const` bindings are captured by value (copied into closure struct)
 - `let` bindings are captured by reference (pointer to original location)
+- `@capture("byMove")` captures bindings by move into the environment
 - This matches JavaScript's closure semantics
 
 **Environment layout:**

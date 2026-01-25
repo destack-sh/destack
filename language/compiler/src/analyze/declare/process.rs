@@ -160,11 +160,19 @@ impl Compiler {
 
         // attach well known decorator metadata to symbols
         let mut symbols = dir.symbols.write();
+        let mut captures = dir.captures.write();
         self.collect(
             &mut collector,
-            self.register_symbol_decorators(&module, profile, &tree, &mut symbols),
+            self.register_symbol_decorators(
+                &module,
+                profile,
+                &tree,
+                &mut symbols,
+                &mut captures,
+            ),
         );
         drop(symbols);
+        drop(captures);
 
         // register visible extensions from imported symbols
         let symbols = dir.symbols.read();

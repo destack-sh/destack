@@ -3568,10 +3568,7 @@ impl Compiler {
         matches!(
             ty,
             Type::TypeLiteral {
-                value:
-                    TypeLiteral::ScalarLiteral(_)
-                        | TypeLiteral::Null
-                        | TypeLiteral::Undefined,
+                value: TypeLiteral::ScalarLiteral(_) | TypeLiteral::Null | TypeLiteral::Undefined,
             }
         )
     }
