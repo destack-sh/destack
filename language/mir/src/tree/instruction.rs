@@ -179,6 +179,11 @@ pub enum Instruction {
         /// The function to take the address of.
         function: LocalNodeId<Function>,
     },
+    /// Load the closure environment for the current function (function.env).
+    FunctionEnv {
+        /// The SSA value to define with the closure environment pointer.
+        destination: Value,
+    },
 
     // memory (pointers)
     /// Load from a pointer (dereference).
@@ -647,6 +652,8 @@ pub enum Instruction {
         destination: Option<Value>,
         /// The function pointer to call.
         callee: Value,
+        /// Optional closure environment to pass to the callee.
+        env: Option<Value>,
         /// The arguments to pass (stored in NodeTree's argument buffer).
         arguments: ArgumentSlice,
         /// The signature type for the callee.
@@ -773,6 +780,7 @@ impl Instruction {
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::GlobalConst { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
+            Instruction::FunctionEnv { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -848,6 +856,7 @@ impl Instruction {
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::GlobalConst { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
+            Instruction::FunctionEnv { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
@@ -914,7 +923,14 @@ impl Instruction {
             Instruction::Call { .. } => smallvec![],
             Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
-            Instruction::CallIndirect { callee, .. } => smallvec![*callee],
+            Instruction::CallIndirect { callee, env, .. } => {
+                let mut values = SmallVec::new();
+                values.push(*callee);
+                if let Some(env) = env {
+                    values.push(*env);
+                }
+                values
+            }
             Instruction::ManagedAlloc { .. } => smallvec![],
             Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],

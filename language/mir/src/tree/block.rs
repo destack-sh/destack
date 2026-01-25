@@ -262,6 +262,8 @@ pub enum Terminator {
     TailCallIndirect {
         /// The function pointer to tail call.
         callee: Value,
+        /// Optional closure environment to pass to the callee.
+        env: Option<Value>,
         /// The arguments to pass.
         arguments: Vec<Value>,
         /// The signature type for the callee.
@@ -387,9 +389,15 @@ impl Terminator {
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
             Terminator::TailCallIndirect {
-                callee, arguments, ..
+                callee,
+                env,
+                arguments,
+                ..
             } => {
                 let mut uses = smallvec![*callee];
+                if let Some(env) = env {
+                    uses.push(*env);
+                }
                 uses.extend(arguments.iter().copied());
                 uses
             }
