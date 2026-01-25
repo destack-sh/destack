@@ -223,11 +223,12 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
 
         Terminator::TailCallIndirect {
             callee,
+            env,
             arguments,
             signature,
         } => {
             write!(f, [token("tailcall.indirect"), space(), callee])?;
-            format_value_list(arguments, f)?;
+            format_value_list_with_env(arguments, *env, f)?;
             write!(f, [space(), token("->"), space(), signature])
         }
 
@@ -440,6 +441,33 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
         }
         write!(f, [val])?;
     }
+    write!(f, [token(")")])
+}
+
+/// Format a parenthesized list of values with an optional env argument.
+fn format_value_list_with_env<'a>(
+    values: &[Value],
+    env: Option<Value>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [token("(")])?;
+
+    let mut needs_comma = false;
+    for value in values {
+        if needs_comma {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [value])?;
+        needs_comma = true;
+    }
+
+    if let Some(env) = env {
+        if needs_comma {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [token("env"), token("="), env])?;
+    }
+
     write!(f, [token(")")])
 }
 

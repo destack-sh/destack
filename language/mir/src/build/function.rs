@@ -554,6 +554,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::GlobalAddr { .. }
                 | Instruction::GlobalConst { .. }
                 | Instruction::FunctionAddr { .. }
+                | Instruction::FunctionEnv { .. }
                 | Instruction::ManagedAlloc { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
@@ -590,13 +591,16 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::TensorConvert {
                     tensor: argument, ..
                 }
-                | Instruction::CallIndirect {
-                    callee: argument, ..
-                }
                 | Instruction::RawFree { pointer: argument }
                 | Instruction::RawDrop { value: argument }
                 | Instruction::StackDrop { value: argument } => {
                     Self::replace_value_in_slot(argument, from, to);
+                }
+                Instruction::CallIndirect { callee, env, .. } => {
+                    Self::replace_value_in_slot(callee, from, to);
+                    if let Some(env) = env {
+                        Self::replace_value_in_slot(env, from, to);
+                    }
                 }
                 Instruction::VectorExtract { vector, index, .. } => {
                     Self::replace_value_in_slot(vector, from, to);
@@ -812,9 +816,15 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(arguments, from, to);
             }
             Terminator::TailCallIndirect {
-                callee, arguments, ..
+                callee,
+                env,
+                arguments,
+                ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
+                if let Some(env) = env {
+                    Self::replace_value_in_slot(env, from, to);
+                }
                 Self::replace_values_in_slice(arguments, from, to);
             }
             Terminator::TailCallVirtual {
@@ -2271,10 +2281,19 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Load the closure environment pointer for the current function.
+    pub fn function_env(&mut self, env_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FunctionEnv { destination });
+        self.define_value(destination, env_type);
+        destination
+    }
+
     /// Call through a function pointer with an explicit signature type.
     pub fn call_indirect(
         &mut self,
         callee: Value,
+        env: Option<Value>,
         signature: LocalNodeId<Type>,
         args: Vec<Value>,
     ) -> Value {
@@ -2284,6 +2303,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
+            env,
             arguments,
             signature,
             effects: None,
@@ -2296,6 +2316,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call_indirect_void(
         &mut self,
         callee: Value,
+        env: Option<Value>,
         signature: LocalNodeId<Type>,
         args: Vec<Value>,
     ) {
@@ -2303,6 +2324,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
+            env,
             arguments,
             signature,
             effects: None,
@@ -2594,6 +2616,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tail_call_indirect(
         &mut self,
         callee: Value,
+        env: Option<Value>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
@@ -2601,6 +2624,7 @@ impl<'a> FunctionBuilder<'a> {
         let block = self.tree.get_mut(block);
         block.terminator = Terminator::TailCallIndirect {
             callee,
+            env,
             arguments: argument_values,
             signature,
         };

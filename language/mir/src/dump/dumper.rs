@@ -461,6 +461,10 @@ impl<'a> Dumper<'a> {
                 self.write(" = function.addr ");
                 self.write(&self.format_function_id(*function));
             }
+            Instruction::FunctionEnv { destination } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = function.env");
+            }
 
             Instruction::Load {
                 destination,
@@ -1373,6 +1377,7 @@ impl<'a> Dumper<'a> {
             Instruction::CallIndirect {
                 destination,
                 callee,
+                env,
                 arguments,
                 signature,
                 ..
@@ -1390,6 +1395,13 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
+                }
+                if let Some(env) = env {
+                    if !args.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write("env=");
+                    self.write(&self.format_value(*env));
                 }
                 self.write(")");
                 self.write(" -> ");
@@ -1803,6 +1815,7 @@ impl<'a> Dumper<'a> {
 
             Terminator::TailCallIndirect {
                 callee,
+                env,
                 arguments,
                 signature,
             } => {
@@ -1815,6 +1828,13 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&self.format_value(*arg));
+                }
+                if let Some(env) = env {
+                    if !arguments.is_empty() {
+                        self.write(", ");
+                    }
+                    self.write("env=");
+                    self.write(&self.format_value(*env));
                 }
                 self.write(")");
                 self.write(" -> ");

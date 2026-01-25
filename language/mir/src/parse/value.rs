@@ -94,6 +94,50 @@ impl<'a> Parser<'a> {
         Ok(args)
     }
 
+    /// Parse call arguments with an optional environment: (v0, v1, env=v2).
+    pub(super) fn parse_call_arguments_with_env(
+        &mut self,
+    ) -> ParseResult<(Vec<Value>, Option<Value>)> {
+        self.eat_token(TokenType::OpenParen)?;
+
+        // parse empty arguments
+        if self.peek_token(TokenType::CloseParen) {
+            self.bump();
+            return Ok((Vec::new(), None));
+        }
+
+        // parse values with optional env=... at the end
+        let mut values = Vec::new();
+        let mut env = None;
+        loop {
+            if self.peek_env_argument() {
+                if env.is_some() {
+                    let position = self.pos();
+                    return Err(ParseError::invalid("duplicate env argument", position));
+                }
+
+                self.bump();
+                self.eat_token(TokenType::Equals)?;
+                env = Some(self.parse_value()?);
+
+                if self.eat_token_maybe(TokenType::Comma) {
+                    let position = self.pos();
+                    return Err(ParseError::invalid("env must be the last argument", position));
+                }
+
+                break;
+            }
+
+            values.push(self.parse_value()?);
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        Ok((values, env))
+    }
+
     /// Parse a comma-separated list of values.
     pub(super) fn parse_value_list(&mut self) -> ParseResult<Vec<Value>> {
         let mut values = Vec::new();
@@ -104,6 +148,20 @@ impl<'a> Parser<'a> {
             }
         }
         Ok(values)
+    }
+
+    /// Check if the next argument is an env assignment.
+    fn peek_env_argument(&self) -> bool {
+        let Some(current) = self.peek_nth_token(0) else {
+            return false;
+        };
+        if current.ty != TokenType::Identifier || current.text != "env" {
+            return false;
+        }
+        let Some(next) = self.peek_nth_token(1) else {
+            return false;
+        };
+        next.ty == TokenType::Equals
     }
 
     /// Parse a comma-separated list of typed values.

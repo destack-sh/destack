@@ -492,6 +492,7 @@ impl<'a> Verifier<'a> {
                     destination,
                     signature,
                     effects,
+                    env,
                     ..
                 } => {
                     self.verify_call_signature(
@@ -500,6 +501,21 @@ impl<'a> Verifier<'a> {
                         arguments.len(),
                         *signature,
                     )?;
+                    if let Some(env) = env {
+                        let env_type_id = self.value_type_or_error(
+                            function,
+                            *env,
+                            VerifyAnchor::node(instruction_id),
+                            "call.indirect env",
+                        )?;
+                        let env_type = self.tree.get(env_type_id);
+                        if !matches!(env_type, Type::Reference { .. }) {
+                            return Err(VerifyError::MetadataInvariantViolation {
+                                message: "call.indirect env must be a reference type".to_string(),
+                                anchor: VerifyAnchor::node(instruction_id),
+                            });
+                        }
+                    }
                     self.verify_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
                 }
                 _ => {}
@@ -1215,6 +1231,7 @@ impl<'a> Verifier<'a> {
             Terminator::TailCallIndirect {
                 arguments,
                 signature,
+                env,
                 ..
             } => {
                 let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
@@ -1223,6 +1240,22 @@ impl<'a> Verifier<'a> {
                         anchor: VerifyAnchor::node(block_id),
                     });
                 };
+
+                if let Some(env) = env {
+                    let env_type_id = self.value_type_or_error(
+                        function,
+                        *env,
+                        VerifyAnchor::node(block_id),
+                        "tailcall.indirect env",
+                    )?;
+                    let env_type = self.tree.get(env_type_id);
+                    if !matches!(env_type, Type::Reference { .. }) {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: "tailcall.indirect env must be a reference type".to_string(),
+                            anchor: VerifyAnchor::node(block_id),
+                        });
+                    }
+                }
 
                 // reject mismatched argument counts
                 if arguments.len() != parameters.len() {
@@ -1802,6 +1835,21 @@ impl<'a> Verifier<'a> {
                 if target_function.return_type != *result {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "function.addr result return type mismatch".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::FunctionEnv { destination } => {
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "function.env result",
+                )?;
+                let destination_type = self.tree.get(destination_type_id);
+                if !matches!(destination_type, Type::Reference { .. }) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "function.env result must be a reference type".to_string(),
                         anchor,
                     });
                 }

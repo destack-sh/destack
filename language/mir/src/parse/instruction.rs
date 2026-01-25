@@ -149,6 +149,7 @@ impl<'a> Parser<'a> {
                     function,
                 }
             }
+            "function.env" => Instruction::FunctionEnv { destination },
 
             // memory operations
             "load" => {
@@ -649,13 +650,14 @@ impl<'a> Parser<'a> {
             }
             "call.indirect" => {
                 let callee = self.parse_value()?;
-                let args = self.parse_call_arguments()?;
+                let (args, env) = self.parse_call_arguments_with_env()?;
                 let arguments = self.tree.add_arguments(&args);
                 self.eat_token(TokenType::Arrow)?;
                 let signature = self.parse_type()?;
                 Instruction::CallIndirect {
                     destination: Some(destination),
                     callee,
+                    env,
                     arguments,
                     signature,
                     effects: None,
@@ -869,13 +871,14 @@ impl<'a> Parser<'a> {
             }
             "call.indirect" => {
                 let callee = self.parse_value()?;
-                let args = self.parse_call_arguments()?;
+                let (args, env) = self.parse_call_arguments_with_env()?;
                 let arguments = self.tree.add_arguments(&args);
                 self.eat_token(TokenType::Arrow)?;
                 let signature = self.parse_type()?;
                 Instruction::CallIndirect {
                     destination: None,
                     callee,
+                    env,
                     arguments,
                     signature,
                     effects: None,
@@ -1646,11 +1649,12 @@ impl<'a> Parser<'a> {
                 self.bump();
                 // tailcall.indirect callee(args...) -> signature
                 let callee = self.parse_value()?;
-                let arguments = self.parse_call_arguments()?;
+                let (arguments, env) = self.parse_call_arguments_with_env()?;
                 self.eat_token(TokenType::Arrow)?;
                 let signature = self.parse_type()?;
                 Ok(Terminator::TailCallIndirect {
                     callee,
+                    env,
                     arguments,
                     signature,
                 })
