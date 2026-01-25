@@ -148,16 +148,17 @@ impl Compiler {
             let remote_target_id = remote_types.get_alias_target_type_id(typed_symbol)?;
 
             // evaluate remote alias targets before importing
-            if matches!(remote_types.get_type(remote_target_id), Type::Unevaluated(_))
-                && let Err(error) = self.evaluate_type(
-                    &remote_module,
-                    profile,
-                    remote_target_id,
-                    &remote_tree,
-                    &remote_symbols,
-                    &mut remote_types,
-                )
-            {
+            if matches!(
+                remote_types.get_type(remote_target_id),
+                Type::Unevaluated(_)
+            ) && let Err(error) = self.evaluate_type(
+                &remote_module,
+                profile,
+                remote_target_id,
+                &remote_tree,
+                &remote_symbols,
+                &mut remote_types,
+            ) {
                 self.error(error);
                 return None;
             }
@@ -680,25 +681,19 @@ impl Compiler {
                 types,
                 visited,
             ),
-            Type::Import { static_arguments, .. } => {
-                static_arguments.as_ref().is_some_and(|arguments| {
-                    arguments.iter().any(|argument| match argument {
-                        StaticArgument::Unevaluated { .. } => true,
-                        StaticArgument::Evaluated { value, .. } => self
-                            .static_expression_contains_unevaluated_static_arguments(
-                                value, types, visited,
-                            ),
-                    })
+            Type::Import {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| match argument {
+                    StaticArgument::Unevaluated { .. } => true,
+                    StaticArgument::Evaluated { value, .. } => self
+                        .static_expression_contains_unevaluated_static_arguments(
+                            value, types, visited,
+                        ),
                 })
-            }
+            }),
             Type::Value { value } => self.type_contains_unevaluated_value_static_arguments(
-                module,
-                profile,
-                value,
-                tree,
-                symbols,
-                types,
-                visited,
+                module, profile, value, tree, symbols, types, visited,
             ),
             Type::Unary { right, .. }
             | Type::ValueOf { right, .. }
@@ -708,13 +703,7 @@ impl Compiler {
                 constraint: Some(right),
                 ..
             } => self.type_contains_unevaluated_value_static_arguments(
-                module,
-                profile,
-                right,
-                tree,
-                symbols,
-                types,
-                visited,
+                module, profile, right, tree, symbols, types, visited,
             ),
             Type::Conditional {
                 left,
@@ -724,95 +713,35 @@ impl Compiler {
                 ..
             } => {
                 self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    left,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, left, tree, symbols, types, visited,
                 ) || self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, right, tree, symbols, types, visited,
                 ) || self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    then_type,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, then_type, tree, symbols, types, visited,
                 ) || self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    else_type,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, else_type, tree, symbols, types, visited,
                 )
             }
             Type::Binary { left, right, .. } => {
                 self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    left,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, left, tree, symbols, types, visited,
                 ) || self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, right, tree, symbols, types, visited,
                 )
             }
             Type::Mapped { value, .. } => self.type_contains_unevaluated_value_static_arguments(
-                module,
-                profile,
-                value,
-                tree,
-                symbols,
-                types,
-                visited,
+                module, profile, value, tree, symbols, types, visited,
             ),
             Type::Index { left, index } => {
                 self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    left,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, left, tree, symbols, types, visited,
                 ) || self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    index,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, index, tree, symbols, types, visited,
                 )
             }
             Type::TemplateLiteral { spans, .. } => spans.iter().any(|span| {
                 self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    *span,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, *span, tree, symbols, types, visited,
                 )
             }),
             Type::ArraySized { element, .. }
@@ -820,23 +749,11 @@ impl Compiler {
                 element: Some(element),
                 ..
             } => self.type_contains_unevaluated_value_static_arguments(
-                module,
-                profile,
-                element,
-                tree,
-                symbols,
-                types,
-                visited,
+                module, profile, element, tree, symbols, types, visited,
             ),
             Type::Tuple { elements, .. } => elements.iter().any(|element| {
                 self.type_contains_unevaluated_value_static_arguments(
-                    module,
-                    profile,
-                    element.ty,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
+                    module, profile, element.ty, tree, symbols, types, visited,
                 )
             }),
             Type::Object {
@@ -847,33 +764,15 @@ impl Compiler {
             } => {
                 fields.iter().any(|field| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        field.ty,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, field.ty, tree, symbols, types, visited,
                     )
                 }) || call_signatures.iter().any(|signature| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        *signature,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, *signature, tree, symbols, types, visited,
                     )
                 }) || construct_signatures.iter().any(|signature| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        *signature,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, *signature, tree, symbols, types, visited,
                     )
                 }) || index_signatures.iter().any(|signature| {
                     self.type_contains_unevaluated_value_static_arguments(
@@ -904,33 +803,15 @@ impl Compiler {
             } => {
                 static_parameters.iter().any(|parameter| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        *parameter,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, *parameter, tree, symbols, types, visited,
                     )
                 }) || this_parameter.is_some_and(|parameter| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        parameter,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, parameter, tree, symbols, types, visited,
                     )
                 }) || dynamic_parameters.iter().any(|parameter| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        *parameter,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, *parameter, tree, symbols, types, visited,
                     )
                 }) || return_type.is_some_and(|return_type| {
                     self.type_contains_unevaluated_value_static_arguments(
@@ -944,19 +825,13 @@ impl Compiler {
                     )
                 })
             }
-            Type::Union { elements } | Type::Intersection { elements } => elements.iter().any(
-                |element| {
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|element| {
                     self.type_contains_unevaluated_value_static_arguments(
-                        module,
-                        profile,
-                        *element,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
+                        module, profile, *element, tree, symbols, types, visited,
                     )
-                },
-            ),
+                })
+            }
             Type::Array { element: None, .. }
             | Type::TypeLiteral { .. }
             | Type::InferVar { .. }
@@ -1032,9 +907,7 @@ impl Compiler {
             let has_unevaluated = match argument {
                 StaticArgument::Unevaluated { .. } => true,
                 StaticArgument::Evaluated { value, .. } => self
-                    .static_expression_contains_unevaluated_static_arguments(
-                        value, types, visited,
-                    ),
+                    .static_expression_contains_unevaluated_static_arguments(value, types, visited),
             };
             if has_unevaluated {
                 return true;

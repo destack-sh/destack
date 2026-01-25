@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument, SymbolTable,
-    SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
-    TypeUnaryOperator,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument,
+    StaticParameterKind, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1032,37 +1032,57 @@ impl Compiler {
         instance_type_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        // skip materialization when the alias instance is already stable
-        if !self.alias_instance_needs_materialization(module, profile, instance_type_id, types) {
-            return instance_type_id;
-        }
-
-        // materialize static arguments using the alias module context
         if symbol.module_id == module.id {
-            let argument_tree = module.dir(profile).tree.read();
-            let argument_symbols = module.dir(profile).symbols.read();
+            let tree = module.dir(profile).tree.read();
+            let symbols = module.dir(profile).symbols.read();
+
+            // skip materialization when the alias instance is already stable
+            if !self.alias_instance_needs_materialization(
+                module,
+                profile,
+                symbol,
+                instance_type_id,
+                types,
+            ) {
+                return instance_type_id;
+            }
+
+            // materialize static arguments using the alias module context
             let mut materialize_cache = HashMap::new();
             self.materialize_static_arguments_in_type(
                 module,
                 profile,
                 instance_type_id,
-                &argument_tree,
-                &argument_symbols,
+                &tree,
+                &symbols,
                 types,
                 &mut materialize_cache,
             )
         } else {
             let remote_module = self.program.modules.get(symbol.module_id);
             let remote_module = remote_module.read();
-            let argument_tree = remote_module.dir(profile).tree.read();
-            let argument_symbols = remote_module.dir(profile).symbols.read();
+            let tree = remote_module.dir(profile).tree.read();
+            let symbols = remote_module.dir(profile).symbols.read();
+
+            // skip materialization when the alias instance is already stable
+            if !self.alias_instance_needs_materialization(
+                &remote_module,
+                profile,
+                symbol,
+                instance_type_id,
+                types,
+            ) {
+                return instance_type_id;
+            }
+
+            // materialize static arguments using the alias module context
             let mut materialize_cache = HashMap::new();
             self.materialize_static_arguments_in_type(
                 &remote_module,
                 profile,
                 instance_type_id,
-                &argument_tree,
-                &argument_symbols,
+                &tree,
+                &symbols,
                 types,
                 &mut materialize_cache,
             )
@@ -1074,22 +1094,40 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        symbol: GlobalSymbolId,
         instance_type_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
         // check for unevaluated targets or static value arguments
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
-        matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
-            || self.type_contains_unevaluated_value_static_arguments(
-                module,
-                profile,
-                instance_type_id,
-                &tree,
-                &symbols,
-                types,
-                &mut HashSet::new(),
-            )
+        if matches!(types.get_type(instance_type_id), Type::Unevaluated(_)) {
+            return true;
+        }
+
+        // skip value materialization when the alias has no value parameters
+        let Some(parameters) =
+            self.collect_static_parameter_symbols(module, symbol, profile, &tree, &symbols)
+        else {
+            return false;
+        };
+        let has_value_parameters = parameters.iter().any(|parameter_symbol| {
+            self.static_parameter_kind_for_symbol_in_module(*parameter_symbol, &tree, &symbols)
+                == StaticParameterKind::Value
+        });
+        if !has_value_parameters {
+            return false;
+        }
+
+        self.type_contains_unevaluated_value_static_arguments(
+            module,
+            profile,
+            instance_type_id,
+            &tree,
+            &symbols,
+            types,
+            &mut HashSet::new(),
+        )
     }
 
     /// Normalize a tuple element, lifting readonly modifiers into flags.

@@ -428,6 +428,12 @@ impl Compiler {
                 Type::Tuple { .. } | Type::Array { .. } | Type::ArraySized { .. } => {
                     return Ok(true);
                 }
+                Type::TypeLiteral {
+                    value: TypeLiteral::Any | TypeLiteral::Unknown,
+                } => {
+                    // allow type indexing for unknown and any to avoid array-size misclassification
+                    return Ok(true);
+                }
                 Type::Object {
                     fields,
                     call_signatures,

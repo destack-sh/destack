@@ -1250,6 +1250,7 @@ impl Compiler {
         // expand each mapped key into fields or index signatures
         let mut fields: Vec<TypeField> = Vec::new();
         let mut index_values: HashMap<MappedIndexKind, Vec<LocalTypeId>> = HashMap::new();
+        let mut index_readonly: HashMap<MappedIndexKind, bool> = HashMap::new();
 
         // precompute normalized value and remap when the parameter is unused
         let normalized_value_without_param = if parameter_symbol.is_none() {
@@ -1280,6 +1281,24 @@ impl Compiler {
             let key_type_id = match &key {
                 MappedKey::Field { key_type, .. } => *key_type,
                 MappedKey::Index { key_type, .. } => *key_type,
+            };
+
+            // resolve base modifiers from the original key
+            let (base_optional, base_readonly, index_base_readonly) = match &key {
+                MappedKey::Field { key, .. } => {
+                    let (optional, readonly) = source_type_id
+                        .and_then(|source| self.field_modifiers_for_key(source, key, types))
+                        .unwrap_or((false, false));
+                    (optional, readonly, readonly)
+                }
+                MappedKey::Index { kind, .. } => {
+                    let readonly = source_type_id
+                        .and_then(|source| {
+                            self.resolve_index_signature_readonly_for_kind(source, *kind, types)
+                        })
+                        .unwrap_or(false);
+                    (false, readonly, readonly)
+                }
             };
 
             // substitute the mapped parameter with the key type
@@ -1342,9 +1361,6 @@ impl Compiler {
             for remapped_key in remapped_keys {
                 match remapped_key {
                     MappedKey::Field { key, .. } => {
-                        let (base_optional, base_readonly) = source_type_id
-                            .and_then(|source| self.field_modifiers_for_key(source, &key, types))
-                            .unwrap_or((false, false));
                         let (is_optional, is_readonly) =
                             self.apply_mapped_modifiers(modifiers, base_optional, base_readonly);
 
@@ -1373,6 +1389,13 @@ impl Compiler {
                     }
                     MappedKey::Index { kind, .. } => {
                         index_values.entry(kind).or_default().push(normalized_value);
+                        let (_, is_readonly) =
+                            self.apply_mapped_modifiers(modifiers, false, index_base_readonly);
+                        if let Some(existing) = index_readonly.get_mut(&kind) {
+                            *existing = *existing && is_readonly;
+                        } else {
+                            index_readonly.insert(kind, is_readonly);
+                        }
                     }
                 }
             }
@@ -1383,12 +1406,7 @@ impl Compiler {
         for (kind, values) in index_values {
             let value_type_id = self.union_type_ids_from_list(values, source_id, types);
             let key_type_id = self.key_type_id_for_index_kind(kind, source_id, types);
-            let base_readonly = source_type_id
-                .and_then(|source| {
-                    self.resolve_index_signature_readonly_for_kind(source, kind, types)
-                })
-                .unwrap_or(false);
-            let (_, is_readonly) = self.apply_mapped_modifiers(modifiers, false, base_readonly);
+            let is_readonly = index_readonly.get(&kind).copied().unwrap_or(false);
             index_signatures.push(TypeIndexSignature {
                 name,
                 key_type: key_type_id,
