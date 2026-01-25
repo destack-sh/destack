@@ -688,6 +688,7 @@ impl OwnershipAnalysis {
             | Instruction::GlobalAddr { destination, .. }
             | Instruction::LocalAddr { destination, .. }
             | Instruction::GlobalConst { destination, .. }
+            | Instruction::FunctionAddr { destination, .. }
             | Instruction::ManagedAlloc { destination, .. }
             | Instruction::RawAlloc { destination, .. }
             | Instruction::StackAlloc { destination, .. }
@@ -1349,6 +1350,7 @@ fn process_instruction(
         | Instruction::GlobalAddr { destination, .. }
         | Instruction::LocalAddr { destination, .. }
         | Instruction::GlobalConst { destination, .. }
+        | Instruction::FunctionAddr { destination, .. }
         | Instruction::ManagedAlloc { destination, .. }
         | Instruction::RawAlloc { destination, .. }
         | Instruction::StackAlloc { destination, .. }

@@ -60,6 +60,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         // immutable global references
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
+        | Instruction::FunctionAddr { .. }
         | Instruction::LocalAddr { .. } => true,
 
         // tensor loads read memory
@@ -170,6 +171,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::ElementAddr { .. }
         | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
+        | Instruction::FunctionAddr { .. }
         | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
 
@@ -852,6 +854,7 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Const { .. }
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Struct { .. }
@@ -1782,6 +1785,13 @@ pub fn instruction_map(
             global: *global,
             result_type: *result_type,
         },
+        mir::Instruction::FunctionAddr {
+            destination,
+            function,
+        } => mir::Instruction::FunctionAddr {
+            destination: remap(*destination),
+            function: *function,
+        },
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -2327,6 +2337,13 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             global: *global,
             result_type: *result_type,
+        },
+        mir::Instruction::FunctionAddr {
+            destination,
+            function,
+        } => mir::Instruction::FunctionAddr {
+            destination: remap(*destination),
+            function: *function,
         },
         mir::Instruction::LocalAddr {
             destination,

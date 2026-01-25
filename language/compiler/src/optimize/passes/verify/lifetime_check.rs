@@ -597,6 +597,7 @@ fn apply_instruction_effects(
 
         // globals are static borrows
         Instruction::GlobalAddr { destination, .. }
+        | Instruction::FunctionAddr { destination, .. }
         | Instruction::GlobalConst { destination, .. } => {
             assign_origin_if_borrowed(
                 state,

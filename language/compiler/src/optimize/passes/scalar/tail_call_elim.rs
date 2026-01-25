@@ -377,7 +377,7 @@ fn clone_function_as_impl(
     // create impl function
     let impl_entry = block_map[&original.entry.unwrap()];
     let impl_blocks: Vec<_> = original.blocks.iter().map(|id| block_map[id]).collect();
-    let mut impl_function = mir::Function::new(
+    let mut impl_function = mir::Function::local(
         impl_name,
         original.parameters.clone(),
         original.return_type,
