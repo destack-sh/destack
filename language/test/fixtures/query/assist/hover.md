@@ -83,16 +83,16 @@ class Person {
 }
 ```
 
-Hovering over `name` should show field info.
+Hovering over `name` should show field info with container type.
 
 ```query hover def:name
-field name
+(property) Person.name
 ```
 
-Hovering over `age` should show field info.
+Hovering over `age` should show field info with container type.
 
 ```query hover def:age
-field age
+(property) Person.age
 ```
 
 ## Struct Fields
@@ -110,10 +110,10 @@ struct Vector2 {
 }
 ```
 
-Hovering over `x` should show field info.
+Hovering over `x` should show field info with container type.
 
 ```query hover def:x
-field x
+(property) Vector2.x
 ```
 
 ## Methods
@@ -131,10 +131,10 @@ class Calculator {
 }
 ```
 
-Hovering over `add` should show method info.
+Hovering over `add` should show method info with full signature.
 
 ```query hover def:add
-method add
+(method) Calculator.add(a: int32, b: int32): int32
 ```
 
 ## Enums
@@ -153,10 +153,10 @@ enum Color {
 }
 ```
 
-Hovering over `Red` should show enum field info.
+Hovering over `Red` should show enum member info with container type.
 
 ```query hover def:Red
-enum field Red
+(enum member) Color.Red
 ```
 
 ## Parameters
@@ -173,10 +173,10 @@ function multiply(x: int32, y: int32): int32 {
 }
 ```
 
-Hovering over `x` parameter should show parameter info.
+Hovering over `x` parameter should show parameter info with type.
 
 ```query hover def:x_param
-parameter x
+(parameter) x: int32
 ```
 
 ## Declaration Modifiers
@@ -372,6 +372,30 @@ export namespace ExportedNS {
 
 ```query hover hover:export_ns
 namespace ExportedNS
+```
+
+## Local Variables
+
+### Hover over local variable
+
+Hovering over a local variable should show its type.
+
+```ds
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+function main() {
+    const p: Point = Point { x: 1, y: 2 };
+//        ^ hover:local_p
+}
+```
+
+Hovering over `p` should show the variable with its type.
+
+```query hover hover:local_p
+let p: Point
 ```
 
 ## Documentation Comments

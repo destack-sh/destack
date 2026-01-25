@@ -43,3 +43,31 @@ For `calc.add($0)`, a method call on a Calculator instance, signature help shoul
 ```query signature_help $0
 add
 ```
+
+## Parameter Documentation
+
+### Show @param documentation
+
+Functions with @param documentation should show the parameter docs in signature help.
+
+```ds
+/**
+ * Formats a greeting message.
+ * @param name The name of the person to greet
+ * @param formal Whether to use a formal greeting
+ */
+function greet(name: string, formal: bool): string {
+    if formal {
+        return "Hello, " + name;
+    }
+    return "Hi, " + name;
+}
+
+const message = greet($0);
+```
+
+Signature help should include the function name.
+
+```query signature_help $0
+greet
+```
