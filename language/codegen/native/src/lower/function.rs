@@ -75,9 +75,9 @@ impl<'a> FunctionLowerer<'a> {
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
-        // phase 0.5: pre-declare all called functions in the current function
+        // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
-        self.declare_called_functions(target)?;
+        self.declare_referenced_functions(target)?;
 
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(target, &mut builder_context);
@@ -110,9 +110,9 @@ impl<'a> FunctionLowerer<'a> {
         Ok(())
     }
 
-    /// Pre-declare all functions that this function calls.
+    /// Pre-declare all functions that this function references.
     /// Populates `self.function_ref_map` with the mapping.
-    fn declare_called_functions(
+    fn declare_referenced_functions(
         &mut self,
         target: &mut cir::Function,
     ) -> CodegenCraneliftResult<()> {
@@ -120,10 +120,17 @@ impl<'a> FunctionLowerer<'a> {
         for &block_id in &self.function.blocks {
             let block = self.tree.get(block_id);
 
-            // check instructions for Call
+            // check instructions for Call and FunctionAddr
             for &inst_id in &block.instructions {
                 let inst = self.tree.get(inst_id);
+                // direct call declarations
                 if let mir::Instruction::Call { function, .. } = inst
+                    && !self.function_ref_map.contains_key(function)
+                {
+                    self.declare_function_ref(*function, target)?;
+                }
+                // function address declarations
+                if let mir::Instruction::FunctionAddr { function, .. } = inst
                     && !self.function_ref_map.contains_key(function)
                 {
                     self.declare_function_ref(*function, target)?;
@@ -404,6 +411,22 @@ impl<'a> FunctionLowerer<'a> {
                     .ins()
                     .load(result_type, cir::MemFlags::trusted(), ptr, 0);
                 value_map.insert(*destination, result);
+            }
+
+            // function_addr: get a function pointer for indirect calls
+            mir::Instruction::FunctionAddr {
+                destination,
+                function,
+            } => {
+                let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
+                    CodegenCraneliftError::Internal {
+                        message: format!("function {function:?} not declared"),
+                    }
+                })?;
+                let address = builder
+                    .ins()
+                    .func_addr(self.pointer_type(), *function_ref);
+                value_map.insert(*destination, address);
             }
 
             // load: memory read through pointer
