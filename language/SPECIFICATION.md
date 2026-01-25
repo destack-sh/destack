@@ -2097,7 +2097,8 @@ Methods can declare an explicit `this` parameter to constrain the receiver type.
 The explicit `this` parameter must be first and does not count toward call arity.
 Explicit `this` parameters can use reference types (like `&mut`) to require mutable receivers.
 Member methods have an implicit `this` binding derived from the receiver type.
-Non-member functions and lambdas must declare an explicit `this` parameter to use `this`.
+Non-member functions must declare an explicit `this` parameter to use `this`.
+Lambdas may use contextual `this` from an expected function type.
 Lambdas inside methods capture the lexical `this` unless `@capture` overrides it.
 
 Methods can also be added to any type via extensions, including primitives and foreign types.
