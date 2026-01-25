@@ -172,6 +172,13 @@ pub enum Instruction {
         /// The global constant to load.
         global: LocalNodeId<Global>,
     },
+    /// Get a function pointer for a function (function.addr).
+    FunctionAddr {
+        /// The SSA value to define with the function pointer.
+        destination: Value,
+        /// The function to take the address of.
+        function: LocalNodeId<Function>,
+    },
 
     // memory (pointers)
     /// Load from a pointer (dereference).
@@ -765,6 +772,7 @@ impl Instruction {
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::GlobalConst { destination, .. } => Some(*destination),
+            Instruction::FunctionAddr { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -839,6 +847,7 @@ impl Instruction {
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::GlobalConst { .. } => smallvec![],
+            Instruction::FunctionAddr { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],

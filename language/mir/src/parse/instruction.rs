@@ -142,6 +142,13 @@ impl<'a> Parser<'a> {
                     global,
                 }
             }
+            "function.addr" => {
+                let function = self.parse_function_reference()?;
+                Instruction::FunctionAddr {
+                    destination,
+                    function,
+                }
+            }
 
             // memory operations
             "load" => {

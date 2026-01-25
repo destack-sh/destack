@@ -38,7 +38,7 @@ fn test_verify_rejects_local_not_in_function() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::new(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), ty, block_id);
     function.set_value_type(Value::new(0), local_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -231,7 +231,7 @@ fn test_reject_duplicate_instruction_id() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::new(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), ty, block_id);
     function.set_value_type(value, value_ty);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -269,7 +269,7 @@ fn test_reject_duplicate_local_id() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::new(name, Vec::new(), ty, block_id);
+    let mut function = Function::local(name, Vec::new(), ty, block_id);
     function.locals = vec![local, local];
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
@@ -312,7 +312,7 @@ fn test_reject_argument_slice_out_of_bounds() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::new(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
@@ -360,7 +360,7 @@ fn test_reject_call_effect_argument_count_mismatch() {
     };
     let block_id = tree.insert(block);
 
-    let mut function = Function::new(name, Vec::new(), void_ty, block_id);
+    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
     let function_id = tree.insert(function);

@@ -248,8 +248,45 @@ impl Node for Function {
 }
 
 impl Function {
+    /// Create a local function declaration without a body.
+    pub fn declare(
+        name: StringId,
+        parameters: Vec<TypedValue>,
+        return_type: LocalNodeId<Type>,
+    ) -> Self {
+        // seed parameter attributes
+        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_names = vec![None; parameters.len()];
+        let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
+        let value_types = Self::seed_value_types(&parameters, next_value_id);
+
+        Self {
+            name,
+            parameters,
+            parameter_names,
+            value_types,
+            return_type,
+            return_lifetime: Lifetime::Inferred,
+            memory_effects: None,
+            call_behavior: None,
+            alloc_size: None,
+            parameter_attributes,
+            return_attributes: PointerAttributes::default(),
+            linkage: Linkage::Local,
+            allocation: AllocationMode::Any,
+            coroutine: None,
+            execution_model: None,
+            execution_stage: None,
+            workgroup_size: None,
+            locals: Vec::new(),
+            blocks: Vec::new(),
+            entry: None,
+            next_value_id,
+        }
+    }
+
     /// Create a new local (private) function with the given signature.
-    pub fn new(
+    pub fn local(
         name: StringId,
         parameters: Vec<TypedValue>,
         return_type: LocalNodeId<Type>,

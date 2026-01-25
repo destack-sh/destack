@@ -519,7 +519,7 @@ impl<'a> Verifier<'a> {
         self.verify_vector_tensor_ops(function, instruction, instruction_id)?;
 
         // validate inline types
-        self.verify_instruction_inline_types(instruction, instruction_id)?;
+        self.verify_instruction_inline_types(function, instruction, instruction_id)?;
 
         Ok(())
     }
@@ -1538,6 +1538,10 @@ impl<'a> Verifier<'a> {
                 // ensure global ids resolve
                 self.ensure_node_type(NodeType::Global, global.id, anchor)?;
             }
+            Instruction::FunctionAddr { function, .. } => {
+                // ensure function ids resolve
+                self.ensure_node_type(NodeType::Function, function.id, anchor)?;
+            }
             Instruction::Call { function, .. } => {
                 // ensure function ids resolve
                 self.ensure_node_type(NodeType::Function, function.id, anchor)?;
@@ -1732,6 +1736,7 @@ impl<'a> Verifier<'a> {
     /// Verify inline result and signature types.
     fn verify_instruction_inline_types(
         &self,
+        function: &Function,
         instruction: &Instruction,
         instruction_id: LocalNodeId<Instruction>,
     ) -> VerifyResult<()> {
@@ -1754,6 +1759,52 @@ impl<'a> Verifier<'a> {
                     Some(global_decl.mutability),
                     anchor,
                 )?;
+            }
+            Instruction::FunctionAddr {
+                destination,
+                function: target,
+            } => {
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "function.addr result",
+                )?;
+                let destination_type = self.tree.get(destination_type_id);
+                let Type::FunctionPointer { parameters, result } = destination_type else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "function.addr result must be a function pointer".to_string(),
+                        anchor,
+                    });
+                };
+
+                let target_function = self.tree.get(*target);
+                if target_function.parameters.len() != parameters.len() {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "function.addr result parameter count mismatch".to_string(),
+                        anchor,
+                    });
+                }
+
+                for (parameter, signature_type) in target_function
+                    .parameters
+                    .iter()
+                    .zip(parameters.iter())
+                {
+                    if parameter.ty != *signature_type {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: "function.addr result parameter types mismatch".to_string(),
+                            anchor,
+                        });
+                    }
+                }
+
+                if target_function.return_type != *result {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "function.addr result return type mismatch".to_string(),
+                        anchor,
+                    });
+                }
             }
             Instruction::ManagedAlloc {
                 layout,
