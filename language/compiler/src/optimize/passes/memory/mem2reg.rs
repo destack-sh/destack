@@ -828,10 +828,12 @@ fn update_terminator_arguments(
         },
         Terminator::TailCallIndirect {
             callee,
+            env,
             arguments,
             signature,
         } => Terminator::TailCallIndirect {
             callee: resolve_value(*callee, substitutions),
+            env: env.map(|env| resolve_value(env, substitutions)),
             arguments: arguments
                 .iter()
                 .map(|v| resolve_value(*v, substitutions))

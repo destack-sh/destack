@@ -1231,6 +1231,7 @@ fn transform_sibling_tail_call(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             signature,
             ..
@@ -1248,6 +1249,7 @@ fn transform_sibling_tail_call(
 
             // extract call info before mutating
             let callee_value = *callee;
+            let env_value = *env;
             let call_args: Vec<mir::Value> = tree.get_arguments(*arguments).to_vec();
 
             // rewrite the block: remove call, replace return with TailCallIndirect
@@ -1257,6 +1259,7 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCallIndirect {
                 callee: callee_value,
+                env: env_value,
                 arguments: call_args,
                 signature: *signature,
             };

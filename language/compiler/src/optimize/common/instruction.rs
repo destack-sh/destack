@@ -61,6 +61,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
+        | Instruction::FunctionEnv { .. }
         | Instruction::LocalAddr { .. } => true,
 
         // tensor loads read memory
@@ -172,6 +173,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
+        | Instruction::FunctionEnv { .. }
         | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
 
@@ -826,12 +828,14 @@ pub fn instruction_substitute_uses(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(callee),
+            env: env.map(|value| substitute(&value)),
             arguments: *arguments,
             signature: *signature,
             effects: effects.clone(),
@@ -861,6 +865,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
+        | mir::Instruction::FunctionEnv { .. }
         | mir::Instruction::ManagedAlloc { .. }
         | mir::Instruction::RawAlloc { .. }
         | mir::Instruction::StackAlloc { .. }
@@ -1257,12 +1262,14 @@ pub fn instruction_substitute_uses_in_tree(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(*callee),
+            env: env.map(substitute),
             arguments: substitute_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -1792,6 +1799,9 @@ pub fn instruction_map(
             destination: remap(*destination),
             function: *function,
         },
+        mir::Instruction::FunctionEnv { destination } => mir::Instruction::FunctionEnv {
+            destination: remap(*destination),
+        },
         mir::Instruction::LocalAddr {
             destination,
             local,
@@ -2158,12 +2168,14 @@ pub fn instruction_map(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
+            env: env.map(remap),
             arguments: remap_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -2344,6 +2356,9 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::FunctionAddr {
             destination: remap(*destination),
             function: *function,
+        },
+        mir::Instruction::FunctionEnv { destination } => mir::Instruction::FunctionEnv {
+            destination: remap(*destination),
         },
         mir::Instruction::LocalAddr {
             destination,
@@ -2820,12 +2835,14 @@ pub fn instruction_map_with_locals(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             signature,
             effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
+            env: env.map(remap),
             arguments: remap_arguments(*arguments),
             signature: *signature,
             effects: effects.clone(),
@@ -3000,9 +3017,15 @@ pub fn terminator_remap(
             remap_args(arguments);
         }
         mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
+            callee,
+            env,
+            arguments,
+            ..
         } => {
             remap_value(callee);
+            if let Some(env) = env {
+                remap_value(env);
+            }
             remap_args(arguments);
         }
     }

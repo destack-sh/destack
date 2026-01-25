@@ -62,8 +62,15 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             ..
         } => *receiver == value || arguments.contains(&value),
         mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
-        } => *callee == value || arguments.contains(&value),
+            callee,
+            env,
+            arguments,
+            ..
+        } => {
+            *callee == value
+                || env.as_ref().is_some_and(|env| *env == value)
+                || arguments.contains(&value)
+        }
     }
 }
 
@@ -137,9 +144,15 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values
         }
         mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
+            callee,
+            env,
+            arguments,
+            ..
         } => {
             let mut values = vec![*callee];
+            if let Some(env) = env {
+                values.push(*env);
+            }
             values.extend(arguments.iter().copied());
             values
         }
@@ -1665,10 +1678,12 @@ pub fn terminator_substitute_uses(
         },
         mir::Terminator::TailCallIndirect {
             callee,
+            env,
             arguments,
             signature,
         } => mir::Terminator::TailCallIndirect {
             callee: substitute(callee),
+            env: env.map(|value| substitute(&value)),
             arguments: arguments.iter().map(&substitute).collect(),
             signature: *signature,
         },

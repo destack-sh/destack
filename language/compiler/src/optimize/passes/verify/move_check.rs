@@ -320,9 +320,15 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
+                callee,
+                env,
+                arguments,
+                ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
+                if let Some(env) = env {
+                    self.check_use(state, *env, None, block_id, context);
+                }
                 for &arg in arguments {
                     self.check_use(state, arg, None, block_id, context);
                 }

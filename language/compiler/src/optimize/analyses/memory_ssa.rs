@@ -839,6 +839,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::GlobalConst { .. }
             | mir::Instruction::FunctionAddr { .. }
+            | mir::Instruction::FunctionEnv { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldAddr { .. }
@@ -967,9 +968,11 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::Call { arguments, .. }
             | mir::Instruction::CallVirtual { arguments, .. }
-            | mir::Instruction::CallInterface { arguments, .. }
-            | mir::Instruction::CallIndirect { arguments, .. } => {
-                self.call_effects(instruction, *arguments)
+            | mir::Instruction::CallInterface { arguments, .. } => {
+                self.call_effects(instruction, *arguments, None)
+            }
+            mir::Instruction::CallIndirect { arguments, env, .. } => {
+                self.call_effects(instruction, *arguments, *env)
             }
             mir::Instruction::RawFree { pointer } => {
                 let access_type = self.pointer_access_type(*pointer);
@@ -1212,6 +1215,7 @@ impl<'a> MemoryAccessCollector<'a> {
         &mut self,
         instruction: &mir::Instruction,
         arguments: mir::ArgumentSlice,
+        env: Option<mir::Value>,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // read callsite effects when present
         let call_effects = instruction.call_effects();
@@ -1242,16 +1246,25 @@ impl<'a> MemoryAccessCollector<'a> {
         // handle argmemonly calls by modeling argument accesses directly
         if effects.argmemonly {
             // load call arguments
-            let args = self.tree.get_arguments(arguments);
+            let mut args = self.tree.get_arguments(arguments).to_vec();
+            if let Some(env) = env {
+                args.push(env);
+            }
             if args.is_empty() {
                 return SmallVec::new();
             }
 
             // resolve argument types
             let arg_types = self.call_argument_types(instruction);
-            let Some(arg_types) = arg_types else {
+            let mut arg_types = if let Some(arg_types) = arg_types {
+                arg_types
+            } else {
                 return Self::single_effect(self.effect_from_call_effect(&effects));
             };
+            if let Some(env) = env {
+                let env_type = self.value_types.value_type(env);
+                arg_types.push(env_type);
+            }
 
             // collect access effects per argument
             let mut arg_effects = SmallVec::new();

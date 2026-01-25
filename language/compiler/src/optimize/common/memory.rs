@@ -199,9 +199,15 @@ pub fn collect_non_escaping_stack_allocs(
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
+                callee,
+                env,
+                arguments,
+                ..
             } => {
                 record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
+                if let Some(env) = env {
+                    record_stack_escape(*env, definitions, tree, &stack_allocs, &mut escaping);
+                }
                 for &arg in arguments {
                     record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
