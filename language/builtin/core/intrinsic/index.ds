@@ -23,5 +23,3 @@ export * from "./math.ds";
 export * from "./memory.ds";
 export * from "./atomic.ds";
 export * from "./control.ds";
-// TODO #Incomplete: export when vec<N, T> type is available
-// export * from "./simd.ds";

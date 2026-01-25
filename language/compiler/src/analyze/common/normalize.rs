@@ -1,14 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument,
-    StaticParameterKind, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticParameterKind, SymbolTable, SymbolType, Type, TypeBinaryOperator,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
 use super::CanonicalSymbolMode;
 use crate::Compiler;
+use crate::analyze::infer::Assignability;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -681,6 +682,22 @@ impl Compiler {
                     mode,
                     visited,
                 );
+
+                // reduce decidable type operators to boolean literals
+                if let Some(normalized_id) = self.normalize_decidable_type_operator(
+                    module,
+                    profile,
+                    source_id,
+                    operator,
+                    left,
+                    right,
+                    symbols,
+                    types,
+                    mode,
+                ) {
+                    return normalized_id;
+                }
+
                 if left == original_left && right == original_right {
                     type_id
                 } else {
@@ -792,6 +809,107 @@ impl Compiler {
         // cache the normalized result for reuse
         types.set_normalized_type(mode, type_id, normalized_id);
         normalized_id
+    }
+
+    /// Normalize decidable type operators into boolean literal types.
+    fn normalize_decidable_type_operator(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        operator: TypeBinaryOperator,
+        left: LocalTypeId,
+        right: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+    ) -> Option<LocalTypeId> {
+        if !matches!(
+            operator,
+            TypeBinaryOperator::In
+                | TypeBinaryOperator::Is
+                | TypeBinaryOperator::InstanceOf
+                | TypeBinaryOperator::Extends
+                | TypeBinaryOperator::Implements
+        ) {
+            return None;
+        }
+
+        // unwrap type values before assignability checks
+        let unwrap_value = |ty_id: LocalTypeId, types: &TypeTable| match types.get_type(ty_id) {
+            Type::Value { value } => *value,
+            _ => ty_id,
+        };
+        let left = unwrap_value(left, types);
+        let right = unwrap_value(right, types);
+
+        // treat static-dependent checks as undecidable
+        let mut static_visited = HashSet::new();
+        let left_contains_static = self.type_contains_static_parameters(
+            module,
+            profile,
+            left,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        let mut static_visited = HashSet::new();
+        let right_contains_static = self.type_contains_static_parameters(
+            module,
+            profile,
+            right,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        let is_decidable = !(left_contains_static || right_contains_static);
+        let options = self.analyze_context_options_for_module(module.id);
+
+        // compute assignability for operator semantics
+        let assignability = if operator == TypeBinaryOperator::In {
+            let mut key_visited = Vec::new();
+            let key_type_id = self.normalize_keyof_type(
+                module,
+                profile,
+                source_id,
+                right,
+                symbols,
+                types,
+                mode,
+                &mut key_visited,
+            );
+            self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                key_type_id,
+                left,
+                types,
+                &options,
+            )
+        } else {
+            self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                right,
+                left,
+                types,
+                &options,
+            )
+        };
+
+        let ty = if !is_decidable {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            }
+        } else {
+            let value = matches!(assignability, Assignability::Assignable);
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(value)),
+            }
+        };
+        Some(types.insert_type_from_any(ty, source_id))
     }
 
     /// Normalize type alias references with static arguments.
