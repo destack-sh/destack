@@ -453,6 +453,15 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_global_id(*global));
             }
 
+            Instruction::FunctionAddr {
+                destination,
+                function,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = function.addr ");
+                self.write(&self.format_function_id(*function));
+            }
+
             Instruction::Load {
                 destination,
                 pointer,

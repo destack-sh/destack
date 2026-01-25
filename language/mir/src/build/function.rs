@@ -74,7 +74,6 @@ pub struct FunctionBuilder<'a> {
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Create a new function builder.
-    /// NOTE: the entry block is NOT created automatically (call `create_block()` first).
     pub fn new(
         tree: &'a mut NodeTree,
         name: StringId,
@@ -118,6 +117,35 @@ impl<'a> FunctionBuilder<'a> {
             next_value_id,
         };
         let function_id = tree.insert(function);
+
+        Self {
+            tree,
+            function_id,
+            current_block: None,
+            next_value_id,
+            next_variable_id: 0,
+            variable_definitions: IndexMap::new(),
+            sealed_blocks: IndexSet::new(),
+            predecessors: IndexMap::new(),
+            incomplete_phis: IndexMap::new(),
+            variable_types: IndexMap::new(),
+            blocks: Vec::new(),
+        }
+    }
+
+    /// Create a function builder for an existing declared function.
+    /// (Must not have a body yet).
+    pub fn from_declared(tree: &'a mut NodeTree, function_id: LocalNodeId<Function>) -> Self {
+        // validate the declared function is still empty
+        let next_value_id = {
+            let function = tree.get(function_id);
+            assert!(
+                function.entry.is_none() && function.blocks.is_empty(),
+                "function already has a body"
+            );
+
+            function.next_value_id
+        };
 
         Self {
             tree,
@@ -525,6 +553,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
                 | Instruction::GlobalConst { .. }
+                | Instruction::FunctionAddr { .. }
                 | Instruction::ManagedAlloc { .. }
                 | Instruction::RawAlloc { .. }
                 | Instruction::StackAlloc { .. } => {}
@@ -2225,6 +2254,21 @@ impl<'a> FunctionBuilder<'a> {
             signature,
             effects: Some(effects),
         });
+    }
+
+    /// Load a function pointer value for a function.
+    pub fn function_addr(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FunctionAddr {
+            destination,
+            function,
+        });
+        self.define_value(destination, signature);
+        destination
     }
 
     /// Call through a function pointer with an explicit signature type.

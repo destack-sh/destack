@@ -364,8 +364,6 @@ impl ModuleBuilder {
     // function building
 
     /// Start building a new function.
-    ///
-    /// Returns a `FunctionBuilder` that can be used to construct the function body.
     pub fn function(
         &mut self,
         name: &str,
@@ -374,6 +372,34 @@ impl ModuleBuilder {
     ) -> FunctionBuilder<'_> {
         let name_id = self.strings.intern(name);
         FunctionBuilder::new(&mut self.tree, name_id, parameter_types, return_type)
+    }
+
+    /// Start building a body for an existing declared function.
+    pub fn function_body(
+        &mut self,
+        function_id: LocalNodeId<Function>,
+    ) -> FunctionBuilder<'_> {
+        FunctionBuilder::from_declared(&mut self.tree, function_id)
+    }
+
+    /// Declare a local function without a body.
+    pub fn declare_function(
+        &mut self,
+        name: &str,
+        parameter_types: &[LocalNodeId<Type>],
+        return_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Function> {
+        let name_id = self.strings.intern(name);
+        let parameters: Vec<TypedValue> = parameter_types
+            .iter()
+            .enumerate()
+            .map(|(i, &ty)| TypedValue {
+                value: Value::new(i as u32),
+                ty,
+            })
+            .collect();
+        self.tree
+            .insert(Function::declare(name_id, parameters, return_type))
     }
 
     /// Declare an external function (defined elsewhere).

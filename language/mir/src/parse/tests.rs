@@ -180,6 +180,23 @@ block0:
     );
 }
 
+// FUGU: streamline MIR text syntax
+//  (array from [T; N] to T[N], call.indirect should be vx(..) : with colon, see related -> usage)
+
+#[test]
+fn test_roundtrip_function_addr() {
+    roundtrip(
+        r#"extern function @callee(i32) -> i32
+function @caller() -> i32 {
+block0:
+    v0: fn(i32) -> i32 = function.addr @callee
+    v1: i32 = iconst 1i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+    return v2
+}"#,
+    );
+}
+
 #[test]
 fn test_roundtrip_switch() {
     roundtrip(
