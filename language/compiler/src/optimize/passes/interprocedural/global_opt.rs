@@ -387,12 +387,7 @@ fn collect_written_globals(
                         args.push(*env);
                     }
                     if any_argument_global_values(&args, &definitions, addr_info, tree) {
-                        written.extend(globals_from_values(
-                            &args,
-                            &definitions,
-                            addr_info,
-                            tree,
-                        ));
+                        written.extend(globals_from_values(&args, &definitions, addr_info, tree));
                         continue;
                     }
                 }
@@ -416,12 +411,7 @@ fn collect_written_globals(
                     args.push(*env);
                 }
                 if any_argument_global_values(&args, &definitions, addr_info, tree) {
-                    written.extend(globals_from_values(
-                        &args,
-                        &definitions,
-                        addr_info,
-                        tree,
-                    ));
+                    written.extend(globals_from_values(&args, &definitions, addr_info, tree));
                 }
             }
         }

@@ -375,10 +375,7 @@ impl ModuleBuilder {
     }
 
     /// Start building a body for an existing declared function.
-    pub fn function_body(
-        &mut self,
-        function_id: LocalNodeId<Function>,
-    ) -> FunctionBuilder<'_> {
+    pub fn function_body(&mut self, function_id: LocalNodeId<Function>) -> FunctionBuilder<'_> {
         FunctionBuilder::from_declared(&mut self.tree, function_id)
     }
 

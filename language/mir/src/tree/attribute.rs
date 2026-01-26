@@ -1,6 +1,8 @@
 use destack_base::StringId;
 use serde::{Deserialize, Serialize};
 
+use crate::{LocalNodeId, Type};
+
 /// A metadata attribute attached to a MIR node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Attribute {
@@ -58,6 +60,8 @@ impl FloatValue {
 pub enum AttributeValue {
     /// An identifier value.
     Identifier(StringId),
+    /// A type value.
+    Type(LocalNodeId<Type>),
     /// An integer literal.
     Integer(i64),
     /// A floating point literal.

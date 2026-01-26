@@ -14,7 +14,7 @@ fn test_build_empty_function() {
 
     // build empty function
     let mut builder = module.function("empty", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
     builder.seal_block(entry_block);
@@ -40,7 +40,7 @@ fn test_build_function_with_parameters() {
 
     // build add function
     let mut builder = module.function("add", &[i32_type, i32_type], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
     let right_value = builder.function_parameter(1);
@@ -70,11 +70,11 @@ fn test_build_function_with_locals() {
 
     // build function with local
     let mut builder = module.function("with_local", &[], i64_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // create local, store, then load
-    let local = builder.create_local(i64_type, Mutability::Mutable);
+    let local = builder.local(i64_type, Mutability::Mutable);
     let constant_value = builder.iconst_i64(42);
     builder.local_set(local, constant_value);
     let loaded_value = builder.local_get(local);
@@ -109,10 +109,10 @@ fn test_build_function_with_branch() {
     let mut builder = module.function("select", &[bool_type], i32_type);
 
     // create blocks
-    let entry_block = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+    let entry_block = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge_block = builder.block();
 
     // entry block: branch on condition
     builder.switch_to_block(entry_block);
@@ -167,11 +167,11 @@ fn test_ssa_define_use_single_block() {
 
     // build function
     let mut builder = module.function("var_test", &[], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // define variable and use it
-    let variable = builder.create_variable(i32_type);
+    let variable = builder.variable(i32_type);
     let constant_value = builder.iconst_i32(10);
     builder.define_variable(variable, constant_value);
     let used_value = builder.use_variable(variable);
@@ -204,11 +204,11 @@ fn test_ssa_redefine_variable() {
 
     // build function
     let mut builder = module.function("redefine", &[], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // define variable twice
-    let variable = builder.create_variable(i32_type);
+    let variable = builder.variable(i32_type);
     let first_value = builder.iconst_i32(1);
     builder.define_variable(variable, first_value);
     let second_value = builder.iconst_i32(2);
@@ -247,13 +247,13 @@ fn test_ssa_branch_with_phi() {
     let mut builder = module.function("phi_test", &[bool_type], i32_type);
 
     // create blocks
-    let entry_block = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+    let entry_block = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge_block = builder.block();
 
     // create variable for the result
-    let result_variable = builder.create_variable(i32_type);
+    let result_variable = builder.variable(i32_type);
 
     // entry block: branch on condition
     builder.switch_to_block(entry_block);
@@ -313,13 +313,13 @@ fn test_ssa_trivial_phi_removal() {
     let mut builder = module.function("trivial_phi", &[bool_type], i32_type);
 
     // create blocks
-    let entry_block = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+    let entry_block = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge_block = builder.block();
 
     // create variable
-    let result_variable = builder.create_variable(i32_type);
+    let result_variable = builder.variable(i32_type);
 
     // entry block: define variable, then branch
     builder.switch_to_block(entry_block);
@@ -376,13 +376,13 @@ fn test_ssa_trivial_phi_unsealed() {
     let mut builder = module.function("trivial_phi_unsealed", &[bool_type], i32_type);
 
     // create blocks
-    let entry_block = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+    let entry_block = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge_block = builder.block();
 
     // create variable
-    let result_variable = builder.create_variable(i32_type);
+    let result_variable = builder.variable(i32_type);
 
     // entry block: define variable, then branch
     builder.switch_to_block(entry_block);
@@ -435,7 +435,7 @@ fn test_build_arithmetic_operations() {
 
     // build function
     let mut builder = module.function("arithmetic", &[i32_type, i32_type], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // chain of arithmetic operations
@@ -475,7 +475,7 @@ fn test_build_comparison_operations() {
 
     // build function
     let mut builder = module.function("compare", &[i32_type, i32_type], bool_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // comparison operations
@@ -570,9 +570,9 @@ fn test_seal_all_blocks() {
 
     // build multi-block function
     let mut builder = module.function("multi_block", &[], void_type);
-    let block0 = builder.create_block();
-    let block1 = builder.create_block();
-    let block2 = builder.create_block();
+    let block0 = builder.block();
+    let block1 = builder.block();
+    let block2 = builder.block();
 
     // populate blocks
     builder.switch_to_block(block0);
@@ -644,7 +644,7 @@ fn test_build_managed_alloc() {
 
     // build function with managed.alloc
     let mut builder = module.function("alloc_test", &[], ref_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.managed_alloc(i32_type, ref_type);
     builder.return_(Some(allocated_value));
@@ -674,7 +674,7 @@ fn test_build_managed_alloc_array() {
 
     // build function with managed.alloc_array
     let mut builder = module.function("alloc_array_test", &[i64_type], array_ref_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
     let allocated_value = builder.managed_alloc_array(i32_type, length_value, array_ref_type);
@@ -705,7 +705,7 @@ fn test_build_raw_alloc_and_free() {
 
     // build function with raw.alloc and raw.free
     let mut builder = module.function("raw_alloc_test", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.raw_alloc(i32_type, raw_ref_type);
     // use the allocation
@@ -748,7 +748,7 @@ fn test_build_stack_alloc() {
 
     // build function with stack.alloc
     let mut builder = module.function("stack_alloc_test", &[], raw_ref_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let allocated_value = builder.stack_alloc(i32_type, raw_ref_type);
     builder.return_(Some(allocated_value));
@@ -778,7 +778,7 @@ fn test_build_intrinsics() {
 
     // build function with intrinsics
     let mut builder = module.function("intrinsic_test", &[f64_type, f64_type], f64_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // chain of intrinsic operations
@@ -816,7 +816,7 @@ fn test_build_void_intrinsic() {
 
     // build function with void intrinsic
     let mut builder = module.function("fence_test", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.atomic_intrinsic_void(
         Intrinsic::AtomicFence,
@@ -857,7 +857,7 @@ fn test_build_struct() {
 
     // build function that constructs a struct
     let mut builder = module.function("make_point", &[i32_type, f64_type], struct_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let x = builder.function_parameter(0);
@@ -890,7 +890,7 @@ fn test_build_tuple() {
 
     // build function that constructs a tuple
     let mut builder = module.function("make_pair", &[i32_type, bool_type], tuple_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let a = builder.function_parameter(0);
@@ -922,7 +922,7 @@ fn test_build_array() {
 
     // build function that constructs an array
     let mut builder = module.function("make_array", &[], array_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let v0 = builder.iconst_i32(1);
@@ -961,7 +961,7 @@ fn test_build_field_get_struct() {
 
     // build function that extracts the second field
     let mut builder = module.function("get_y", &[struct_type], f64_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let point = builder.function_parameter(0);
@@ -993,7 +993,7 @@ fn test_build_field_get_tuple() {
 
     // build function that extracts the first element
     let mut builder = module.function("get_first", &[tuple_type], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let pair = builder.function_parameter(0);
@@ -1025,7 +1025,7 @@ fn test_build_element_get_array() {
 
     // build function that extracts an element at a given index
     let mut builder = module.function("get_element", &[array_type, i64_type], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     let arr = builder.function_parameter(0);
@@ -1068,14 +1068,14 @@ fn test_ssa_passthrough_intermediate_block() {
     let mut builder = module.function("passthrough", &[bool_type], i32_type);
 
     // create blocks
-    let block0 = builder.create_block(); // init
-    let block1 = builder.create_block(); // loop header
-    let block2 = builder.create_block(); // body (updates x)
-    let block3 = builder.create_block(); // intermediate (pass-through)
-    let block4 = builder.create_block(); // exit
+    let block0 = builder.block(); // init
+    let block1 = builder.block(); // loop header
+    let block2 = builder.block(); // body (updates x)
+    let block3 = builder.block(); // intermediate (pass-through)
+    let block4 = builder.block(); // exit
 
     // create variable
-    let x_var = builder.create_variable(i32_type);
+    let x_var = builder.variable(i32_type);
 
     // block0: define x = 1, jump to header
     builder.switch_to_block(block0);
@@ -1158,14 +1158,14 @@ fn test_ssa_multiple_phis_at_merge() {
     let mut builder = module.function("multi_phi", &[bool_type], i32_type);
 
     // create blocks: diamond CFG
-    let entry = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge = builder.create_block();
+    let entry = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge = builder.block();
 
     // create two variables
-    let x_var = builder.create_variable(i32_type);
-    let y_var = builder.create_variable(i32_type);
+    let x_var = builder.variable(i32_type);
+    let y_var = builder.variable(i32_type);
 
     // entry: branch
     builder.switch_to_block(entry);

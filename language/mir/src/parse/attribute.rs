@@ -1,6 +1,6 @@
 use crate::{
     Attribute, AttributeArgs, AttributeKeyValue, AttributeValue, ExecutionModel, ExecutionStage,
-    FloatValue,
+    FloatValue, LocalNodeId, Type,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -104,6 +104,11 @@ impl<'a> Parser<'a> {
         let token_start = token.start;
 
         // parse value
+        if self.peek_type(token_ty) {
+            let ty = self.parse_type()?;
+            return Ok(AttributeValue::Type(ty));
+        }
+
         match token_ty {
             TokenType::Identifier => {
                 self.bump();
@@ -204,11 +209,13 @@ impl<'a> Parser<'a> {
         Option<ExecutionModel>,
         Option<ExecutionStage>,
         Option<[u32; 3]>,
+        Option<LocalNodeId<Type>>,
     )> {
         // metadata outputs
         let mut execution_model = None;
         let mut execution_stage = None;
         let mut workgroup_size = None;
+        let mut closure_env_type = None;
 
         // inspect attributes
         for attribute in attributes {
@@ -281,11 +288,34 @@ impl<'a> Parser<'a> {
                     let size = self.parse_workgroup_size(&attribute.args)?;
                     workgroup_size = Some(size);
                 }
+                "closure_env" => {
+                    if closure_env_type.is_some() {
+                        return Err(ParseError::new(
+                            "duplicate closure_env attribute",
+                            self.pos(),
+                        ));
+                    }
+                    let env_type = match &attribute.args {
+                        AttributeArgs::Value(AttributeValue::Type(value)) => *value,
+                        _ => {
+                            return Err(ParseError::new(
+                                "closure_env expects a type value",
+                                self.pos(),
+                            ));
+                        }
+                    };
+                    closure_env_type = Some(env_type);
+                }
                 _ => {}
             }
         }
 
-        Ok((execution_model, execution_stage, workgroup_size))
+        Ok((
+            execution_model,
+            execution_stage,
+            workgroup_size,
+            closure_env_type,
+        ))
     }
 
     /// Parse a workgroup_size attribute.

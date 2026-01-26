@@ -2,6 +2,8 @@ use crate::TestProgram;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{Annotation, CaptureKind, Declaration, Expression, FunctionKind};
 
+// FUGU #Cleanup: capture tests are _ugly_
+
 fn first_lambda_symbol(
     module_id: destack_source::ModuleId,
     tree: &destack_dir::NodeTree,
@@ -44,7 +46,6 @@ function make() {
     let tree = dir.tree.read();
     let symbols = dir.symbols.read();
     let captures = dir.captures.read();
-
 
     // resolve capture set for the lambda
     let lambda_symbol = first_lambda_symbol(module_id, &tree);
@@ -449,7 +450,10 @@ function make() {
         .unwrap_or_else(|| panic!("expected capture set for inner"));
 
     // verify capture directive
-    assert_eq!(capture_set.directive.policy, destack_dir::CapturePolicy::ByValue);
+    assert_eq!(
+        capture_set.directive.policy,
+        destack_dir::CapturePolicy::ByValue
+    );
 
     // verify policy overrides to by value
     let capture_names = capture_set
@@ -511,7 +515,10 @@ function make() {
         .unwrap_or_else(|| panic!("expected capture set for inner"));
 
     // verify capture directive
-    assert_eq!(capture_set.directive.policy, destack_dir::CapturePolicy::ByMove);
+    assert_eq!(
+        capture_set.directive.policy,
+        destack_dir::CapturePolicy::ByMove
+    );
 
     // verify policy overrides to by move
     let capture_names = capture_set

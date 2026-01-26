@@ -37,6 +37,10 @@ pub(crate) struct FunctionLowerer<'a> {
     global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
+    /// Closure environment type when function.env is used.
+    env_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cranelift value for the closure environment parameter.
+    env_param: Option<cir::Value>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -63,6 +67,8 @@ impl<'a> FunctionLowerer<'a> {
             function_ref_map: HashMap::new(),
             global_map: HashMap::new(),
             pointer_bytes,
+            env_type: None,
+            env_param: None,
         }
     }
 
@@ -74,6 +80,9 @@ impl<'a> FunctionLowerer<'a> {
         let mut value_map: HashMap<mir::Value, cir::Value> = HashMap::new();
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
+
+        // capture closure env type before lowering
+        self.env_type = self.function.closure_env_type;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -195,7 +204,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Also sets up block parameters: function parameters go on the entry block,
     /// and MIR block parameters (for phi nodes) go on their respective blocks.
     fn create_blocks(
-        &self,
+        &mut self,
         builder: &mut FunctionBuilder<'_>,
         value_map: &mut HashMap<mir::Value, cir::Value>,
         block_map: &mut HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
@@ -220,6 +229,13 @@ impl<'a> FunctionLowerer<'a> {
             let ty = lower_type(self.tree, param.ty, self.pointer_bytes)?;
             let value = builder.append_block_param(entry_block, ty);
             value_map.insert(param.value, value);
+        }
+
+        // append closure environment parameter when present
+        if let Some(env_type) = self.env_type {
+            let ty = lower_type(self.tree, env_type, self.pointer_bytes)?;
+            let env_param = builder.append_block_param(entry_block, ty);
+            self.env_param = Some(env_param);
         }
 
         // now add MIR block parameters for non-entry blocks
@@ -423,10 +439,18 @@ impl<'a> FunctionLowerer<'a> {
                         message: format!("function {function:?} not declared"),
                     }
                 })?;
-                let address = builder
-                    .ins()
-                    .func_addr(self.pointer_type(), *function_ref);
+                let address = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 value_map.insert(*destination, address);
+            }
+
+            // function_env: load closure environment parameter
+            mir::Instruction::FunctionEnv { destination } => {
+                let env_param = self
+                    .env_param
+                    .ok_or_else(|| CodegenCraneliftError::Internal {
+                        message: "function.env used without env parameter".to_string(),
+                    })?;
+                value_map.insert(*destination, env_param);
             }
 
             // load: memory read through pointer
@@ -762,6 +786,7 @@ impl<'a> FunctionLowerer<'a> {
                 arguments,
                 ..
             } => {
+                let callee = self.tree.get(*function);
                 let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -770,7 +795,14 @@ impl<'a> FunctionLowerer<'a> {
 
                 // gather argument values
                 let args = self.tree.get_arguments(*arguments);
-                let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
+                let mut argument_values: Vec<cir::Value> =
+                    args.iter().map(|v| value_map[v]).collect();
+
+                // append a null env when the callee expects a closure environment
+                if let Some(env_type) = callee.closure_env_type {
+                    let env_value = self.null_env_value(env_type, builder)?;
+                    argument_values.push(env_value);
+                }
 
                 // make the call
                 let call_instruction = builder.ins().call(*function_ref, &argument_values);
@@ -788,15 +820,25 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::CallIndirect {
                 destination,
                 callee,
+                env,
                 arguments,
                 signature,
                 ..
             } => {
-                let sig_ref =
-                    self.build_indirect_call_signature(*signature, builder, "indirect call")?;
+                let env_type = env.map(|value| self.function.require_value_type(value));
+                let sig_ref = self.build_indirect_call_signature(
+                    *signature,
+                    env_type,
+                    builder,
+                    "indirect call",
+                )?;
                 let callee_value = value_map[callee];
                 let args = self.tree.get_arguments(*arguments);
-                let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
+                let mut argument_values: Vec<cir::Value> =
+                    args.iter().map(|v| value_map[v]).collect();
+                if let Some(env) = env {
+                    argument_values.push(value_map[env]);
+                }
 
                 // make the call
                 let call_inst =
@@ -1165,6 +1207,7 @@ impl<'a> FunctionLowerer<'a> {
                 function,
                 arguments,
             } => {
+                let callee = self.tree.get(*function);
                 let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -1172,8 +1215,14 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
 
                 // gather argument values
-                let argument_values: Vec<cir::Value> =
+                let mut argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
+
+                // append a null env when the callee expects a closure environment
+                if let Some(env_type) = callee.closure_env_type {
+                    let env_value = self.null_env_value(env_type, builder)?;
+                    argument_values.push(env_value);
+                }
 
                 // emit return_call
                 builder.ins().return_call(*function_ref, &argument_values);
@@ -1182,14 +1231,19 @@ impl<'a> FunctionLowerer<'a> {
             // tail call indirect: return_call_indirect (indirect tail call)
             mir::Terminator::TailCallIndirect {
                 callee,
+                env,
                 arguments,
                 signature,
             } => {
+                let env_type = env.map(|value| self.function.require_value_type(value));
                 let sig_ref =
-                    self.build_indirect_call_signature(*signature, builder, "tail call")?;
+                    self.build_indirect_call_signature(*signature, env_type, builder, "tail call")?;
                 let callee_value = value_map[callee];
-                let argument_values: Vec<cir::Value> =
+                let mut argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
+                if let Some(env) = env {
+                    argument_values.push(value_map[env]);
+                }
                 builder
                     .ins()
                     .return_call_indirect(sig_ref, callee_value, &argument_values);
@@ -1313,10 +1367,22 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
+    /// Build a null environment value for direct calls into closures.
+    fn null_env_value(
+        &self,
+        env_type: mir::LocalNodeId<mir::Type>,
+        builder: &mut FunctionBuilder<'_>,
+    ) -> CodegenCraneliftResult<cir::Value> {
+        let env_clif_type = lower_type(self.tree, env_type, self.pointer_bytes)?;
+        let null_value = builder.ins().iconst(env_clif_type, 0);
+        Ok(null_value)
+    }
+
     /// Build a Cranelift signature for an indirect call from a function type.
     fn build_indirect_call_signature(
         &self,
         signature: mir::LocalNodeId<mir::Type>,
+        env_type: Option<mir::LocalNodeId<mir::Type>>,
         builder: &mut FunctionBuilder<'_>,
         error_context: &str,
     ) -> CodegenCraneliftResult<cir::SigRef> {
@@ -1332,6 +1398,10 @@ impl<'a> FunctionLowerer<'a> {
         let mut signature = cir::Signature::new(call_conv);
         for param_ty in parameters {
             let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
+            signature.params.push(cir::AbiParam::new(ty));
+        }
+        if let Some(env_type) = env_type {
+            let ty = lower_type(self.tree, env_type, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
         let result_type = self.tree.get(*result);

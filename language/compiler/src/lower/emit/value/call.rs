@@ -72,6 +72,38 @@ impl FunctionContext<'_> {
         let resolution_receiver = *resolution_receiver;
         let target_symbol = candidate.target_symbol;
 
+        // lower closure calls when the resolution target is not a function symbol
+        if !self.env.functions_by_symbol.contains_key(&target_symbol)
+            && let Some(type_id) = self.type_for_expression(*left)
+            && matches!(self.env.types.get_type(type_id), dir::Type::Function { .. })
+        {
+            let (closure_value, closure_type) = self.lower_value_expression(*left)?;
+            return self.lower_closure_call_from_value(
+                expression_id,
+                closure_value,
+                closure_type,
+                dynamic_arguments,
+            );
+        }
+
+        // lower calls to captured functions via closure values
+        let has_captures = self
+            .env
+            .captures
+            .capture_set(target_symbol)
+            .is_some_and(|set| !set.captures.is_empty());
+        if self.env.symbols.get_symbol(target_symbol.local_id).ty == dir::SymbolType::Function
+            && has_captures
+        {
+            let (closure_value, closure_type) = self.lower_value_expression(*left)?;
+            return self.lower_closure_call_from_value(
+                expression_id,
+                closure_value,
+                closure_type,
+                dynamic_arguments,
+            );
+        }
+
         // resolve target function and receiver
         let is_static = self.is_static_method_symbol(target_symbol);
         let (function_id, receiver_value, receiver_type_id) = {
@@ -222,6 +254,60 @@ impl FunctionContext<'_> {
                 message: "call returned no value".to_string(),
             })?
         };
+
+        Ok((value, result_type))
+    }
+
+    /// Lower a call through a closure value.
+    fn lower_closure_call_from_value(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        closure_value: mir::Value,
+        closure_type: mir::LocalNodeId<mir::Type>,
+        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let anchor = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let layout = self
+            .env
+            .type_lowerer
+            .layout_for_type_or_error(closure_type, anchor)?;
+        let fn_index = layout
+            .field_index_by_source(0)
+            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
+        let env_index = layout
+            .field_index_by_source(1)
+            .ok_or_else(|| self.error(expression_id, "missing closure env field"))?;
+        let fn_field = layout
+            .field(fn_index)
+            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
+
+        let fn_ptr = self.state.builder.field_get(closure_value, fn_index);
+        let env_ptr = self.state.builder.field_get(closure_value, env_index);
+
+        // build arguments for the indirect call
+        let mut arguments = Vec::with_capacity(dynamic_arguments.len());
+        for argument_id in dynamic_arguments {
+            let argument = self.env.dir_tree.get(*argument_id);
+            if !matches!(argument, dir::Argument::Positional { .. }) {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "unsupported non-positional argument".to_string(),
+                })?;
+            }
+            let (value, _) = self.lower_value_expression(argument.value())?;
+            arguments.push(value);
+        }
+
+        // call indirect
+        let result_type = self.lower_type_for_expression(expression_id)?;
+        let value = self
+            .state
+            .builder
+            .call_indirect(fn_ptr, Some(env_ptr), fn_field.ty, arguments);
 
         Ok((value, result_type))
     }

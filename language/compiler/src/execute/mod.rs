@@ -1,7 +1,7 @@
+mod comptime;
 mod dependency;
 mod error;
 mod execute;
-mod lower;
 mod patch;
 mod process;
 mod r#static;

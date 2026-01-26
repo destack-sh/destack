@@ -232,6 +232,8 @@ pub struct Function {
     pub execution_stage: Option<ExecutionStage>,
     /// The workgroup size for compute kernels.
     pub workgroup_size: Option<[u32; 3]>,
+    /// The closure environment parameter type for this function.
+    pub closure_env_type: Option<LocalNodeId<Type>>,
     /// Local variables (stack-allocated slots for mutable bindings).
     pub locals: Vec<LocalNodeId<Local>>,
     /// All basic blocks in this function.
@@ -278,6 +280,7 @@ impl Function {
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
+            closure_env_type: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -319,6 +322,7 @@ impl Function {
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
+            closure_env_type: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: Some(entry),
@@ -357,6 +361,7 @@ impl Function {
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
+            closure_env_type: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,

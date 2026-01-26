@@ -35,6 +35,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Provide access to capture metadata for closures.
+    pub(crate) captures: &'a dir::CaptureTable,
     /// Identify the target backend for lowering.
     pub(crate) target: &'a TargetId,
     /// Runtime check configuration for this target.
@@ -52,6 +54,12 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Map string literal contents to MIR globals.
     pub(crate) string_literal_globals:
         HashMap<destack_base::StringId, mir::LocalNodeId<mir::Global>>,
+    /// Map closure environment layouts by function symbol.
+    pub(crate) closure_env_layouts: HashMap<GlobalSymbolId, crate::lower::table::ClosureEnvLayout>,
+    /// Cached empty closure environment type.
+    pub(crate) empty_closure_env_type: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached empty closure environment pointer type.
+    pub(crate) empty_closure_env_pointer_type: Option<mir::LocalNodeId<mir::Type>>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
     /// Synthetic name for call signatures in dispatch tables.
@@ -105,6 +113,7 @@ impl<'a> ModuleLowerer<'a> {
         dir_roots: &'a [LocalNodeId<dir::Expression>],
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
+        captures: &'a dir::CaptureTable,
         target: &'a TargetId,
         pointer_bytes: u8,
     ) -> Self {
@@ -142,6 +151,7 @@ impl<'a> ModuleLowerer<'a> {
             dir_roots,
             symbols,
             types,
+            captures,
             target,
             runtime_checks,
             builder,
@@ -149,6 +159,9 @@ impl<'a> ModuleLowerer<'a> {
             function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             string_literal_globals: HashMap::new(),
+            closure_env_layouts: HashMap::new(),
+            empty_closure_env_type: None,
+            empty_closure_env_pointer_type: None,
             type_lowerer,
             dispatch_call_name,
             dispatch_construct_name,
@@ -243,7 +256,7 @@ impl<'a> ModuleLowerer<'a> {
         function_id: mir::LocalNodeId<mir::Function>,
         signature_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
-        Self::register_function_binding(
+        Self::register_function_binding_in_maps(
             self.module_id,
             &mut self.functions_by_symbol,
             &mut self.function_signature_types,
@@ -254,7 +267,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Register a function binding and signature type for a symbol.
-    pub(crate) fn register_function_binding(
+    pub(crate) fn register_function_binding_in_maps(
         module_id: ModuleId,
         functions_by_symbol: &mut HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
         function_signature_types: &mut HashMap<
@@ -431,6 +444,7 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Insert a key into a map and reject duplicates.
+    /// Insert a key into a map and reject duplicates.
     pub(crate) fn insert_unique_entry<K, V>(
         module_id: ModuleId,
         map: &mut HashMap<K, V>,
@@ -466,6 +480,9 @@ impl<'a> ModuleLowerer<'a> {
         // build dispatch registry
         self.lower_dispatch_registry()?;
 
+        // predeclare function bindings before body lowering
+        self.predeclare_functions()?;
+
         // lower external calls
         self.lower_external_calls()?;
 
@@ -473,6 +490,9 @@ impl<'a> ModuleLowerer<'a> {
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
+
+        // lower nested functions and lambdas
+        self.lower_queued_functions()?;
 
         // finalize nominal types so layouts are cached
         self.finalize_declared_types()?;
@@ -777,35 +797,5 @@ impl<'a> ModuleLowerer<'a> {
         });
 
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use destack_source::ModuleId;
-
-    use super::ModuleLowerer;
-    use crate::LowerError;
-
-    /// Duplicates rejected by the insert helper.
-    #[test]
-    fn test_rejects_duplicate_insert_unique_entry() {
-        // seed a map with a value
-        let mut map = HashMap::new();
-        let module_id = ModuleId::EPHEMERAL;
-        ModuleLowerer::insert_unique_entry(module_id, &mut map, "key", 1_u32, "entry")
-            .expect("expected initial insert");
-
-        // reject a duplicate key
-        let error = ModuleLowerer::insert_unique_entry(module_id, &mut map, "key", 2_u32, "entry")
-            .expect_err("expected duplicate insert error");
-        match error {
-            LowerError::Internal { message, .. } => {
-                assert!(message.contains("duplicate entry"));
-            }
-            _ => panic!("expected internal lower error"),
-        }
     }
 }

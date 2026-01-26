@@ -43,10 +43,30 @@ impl FunctionContext<'_> {
                 self.lower_reference_of_expression(expression_id, mutability, *expression)
             }
             Expression::LocalReference { target_symbol, .. } => {
+                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
+                    return self.borrow_captured_binding(expression_id, &field, mutability);
+                }
+
                 let binding = self.local_binding_for_symbol(right, *target_symbol)?;
                 match binding.storage {
                     LocalStorage::Local(local) => {
                         let value = self.state.builder.local_addr(local, result_type);
+                        Ok((value, result_type))
+                    }
+                    LocalStorage::IndirectBinding {
+                        variable,
+                        reference_type,
+                    } => {
+                        let reference_value = self.state.builder.use_variable(variable);
+                        let value = if reference_type == result_type {
+                            reference_value
+                        } else {
+                            self.state.builder.cast(
+                                mir::CastOperator::Bitcast,
+                                reference_value,
+                                result_type,
+                            )
+                        };
                         Ok((value, result_type))
                     }
                     LocalStorage::Variable(_) => Err(LowerError::Internal {
@@ -56,24 +76,53 @@ impl FunctionContext<'_> {
                 }
             }
             Expression::This => {
-                let binding = self.state.bindings.this_binding.ok_or_else(|| {
-                    LowerError::UnsupportedConstruct {
-                        node: expression_id
-                            .into_global_any(self.env.module_id)
-                            .into_anchored(Some(self.env.profile)),
-                        message: "this reference outside of method context".to_string(),
-                    }
-                })?;
-                match binding.storage {
-                    LocalStorage::Local(local) => {
-                        let value = self.state.builder.local_addr(local, result_type);
-                        Ok((value, result_type))
-                    }
-                    LocalStorage::Variable(_) => Err(LowerError::Internal {
-                        module: self.env.module_id,
-                        message: "this borrow requires addressable storage".to_string(),
-                    }),
+                if let Some(binding) = self.state.bindings.this_binding {
+                    return match binding.storage {
+                        LocalStorage::Local(local) => {
+                            let value = self.state.builder.local_addr(local, result_type);
+                            Ok((value, result_type))
+                        }
+                        LocalStorage::IndirectBinding {
+                            variable,
+                            reference_type,
+                        } => {
+                            let reference_value = self.state.builder.use_variable(variable);
+                            let value = if reference_type == result_type {
+                                reference_value
+                            } else {
+                                self.state.builder.cast(
+                                    mir::CastOperator::Bitcast,
+                                    reference_value,
+                                    result_type,
+                                )
+                            };
+                            Ok((value, result_type))
+                        }
+                        LocalStorage::Variable(_) => Err(LowerError::Internal {
+                            module: self.env.module_id,
+                            message: "this borrow requires addressable storage".to_string(),
+                        }),
+                    };
                 }
+
+                if let Some(layout) = self.closure_env_layout() {
+                    let captured_field = layout.fields.iter().find_map(|field| {
+                        let symbol_data = self.env.symbols.get_symbol(field.symbol.local_id);
+                        let name = symbol_data.name()?;
+                        let name = self.env.strings.get(name);
+                        if name == "this" { Some(*field) } else { None }
+                    });
+                    if let Some(field) = captured_field {
+                        return self.borrow_captured_binding(expression_id, &field, mutability);
+                    }
+                }
+
+                Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "this reference outside of method context".to_string(),
+                })
             }
             Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
@@ -87,6 +136,22 @@ impl FunctionContext<'_> {
                     match binding.storage {
                         LocalStorage::Local(local) => {
                             let value = self.state.builder.local_addr(local, result_type);
+                            return Ok((value, result_type));
+                        }
+                        LocalStorage::IndirectBinding {
+                            variable,
+                            reference_type,
+                        } => {
+                            let reference_value = self.state.builder.use_variable(variable);
+                            let value = if reference_type == result_type {
+                                reference_value
+                            } else {
+                                self.state.builder.cast(
+                                    mir::CastOperator::Bitcast,
+                                    reference_value,
+                                    result_type,
+                                )
+                            };
                             return Ok((value, result_type));
                         }
                         LocalStorage::Variable(_) => {
@@ -182,7 +247,7 @@ impl FunctionContext<'_> {
             _ => {
                 // lower rvalue borrows by spilling into a temporary
                 let (value, value_type) = self.lower_value_expression(right)?;
-                let local = self.state.builder.create_local(value_type, mir_mutability);
+                let local = self.state.builder.local(value_type, mir_mutability);
                 self.state.builder.local_set(local, value);
                 let value = self.state.builder.local_addr(local, result_type);
                 Ok((value, result_type))

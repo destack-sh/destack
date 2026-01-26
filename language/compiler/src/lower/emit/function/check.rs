@@ -43,7 +43,7 @@ impl FunctionContext<'_> {
         let failure_block = self.check_failure_block(message)?;
 
         // create the success block for fallthrough
-        let success_block = self.state.builder.create_block();
+        let success_block = self.state.builder.block();
 
         // insert the check terminator
         self.state
@@ -229,7 +229,7 @@ impl FunctionContext<'_> {
         let current_block = self.state.builder.current_block();
 
         // create a dedicated failure block
-        let failure_block = self.state.builder.create_block();
+        let failure_block = self.state.builder.block();
         self.state.builder.switch_to_block(failure_block);
 
         // emit the configured failure behavior

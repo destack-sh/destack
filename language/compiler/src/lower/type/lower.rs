@@ -7,9 +7,13 @@ use destack_source::ModuleId;
 use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
-use super::{StructLayout, TypeLayoutPolicy};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::item::lower_mutability;
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
+
+// synthetic field names for function value layouts
+const FUNCTION_PTR_FIELD: &str = "@function_ptr";
+const ENV_FIELD: &str = "@env";
 
 /// Cached entry for lowered types.
 #[derive(Debug, Clone, Copy)]
@@ -53,10 +57,14 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached MIR closure environment pointer type.
+    pub(crate) closure_env_pointer_type: mir::LocalNodeId<mir::Type>,
     /// Cached union layout metadata by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached interface reference layouts by DIR type id.
     pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, InterfaceRefLayout>,
+    /// Cached function pointer signature types by DIR function type id.
+    pub(crate) function_signature_types: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Policy values for layout decisions.
     pub(crate) layout_policy: TypeLayoutPolicy,
 }
@@ -71,6 +79,14 @@ impl TypeLowerer {
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
         let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
+        let ty_void = builder.type_void();
+        let closure_env_pointer_type = builder.type_reference(
+            mir::ReferenceKind::Managed,
+            ty_void,
+            mir::Mutability::Mutable,
+            mir::AddressSpace::Generic,
+            true,
+        );
 
         Self {
             modules,
@@ -78,7 +94,7 @@ impl TypeLowerer {
             type_cache: HashMap::new(),
             layout_cache: HashMap::new(),
             pointer_width_bits,
-            ty_void: builder.type_void(),
+            ty_void,
             ty_bool: builder.type_bool(),
             ty_i32: builder.type_i32(),
             ty_i64: builder.type_i64(),
@@ -88,8 +104,10 @@ impl TypeLowerer {
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
             ty_string: None,
+            closure_env_pointer_type,
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
+            function_signature_types: HashMap::new(),
             layout_policy,
         }
     }
@@ -127,6 +145,11 @@ impl TypeLowerer {
     /// Return the pointer width in bits for this lowering session.
     pub(crate) fn pointer_width_bits(&self) -> u16 {
         self.pointer_width_bits
+    }
+
+    /// Return the canonical closure environment pointer type.
+    pub(crate) fn closure_env_pointer_type(&self) -> mir::LocalNodeId<mir::Type> {
+        self.closure_env_pointer_type
     }
 
     /// Resolve a field name to its index for a given aggregate type.
@@ -225,6 +248,52 @@ impl TypeLowerer {
 
         // return the struct type
         builder.type_struct(mir_fields, copyability)
+    }
+
+    /// Build the function pointer signature type for a function type.
+    fn lower_function_signature_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        if let Some(signature) = self.function_signature_types.get(&type_id) {
+            return Ok(*signature);
+        }
+
+        let dir::Type::Function {
+            dynamic_parameters,
+            return_type,
+            ..
+        } = types.get_type(type_id)
+        else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "function signature expects a function type".to_string(),
+            });
+        };
+
+        // lower the declared parameters
+        let mut parameters = Vec::with_capacity(dynamic_parameters.len());
+        for parameter in dynamic_parameters {
+            let parameter_type = self.lower_type(types, *parameter, module_id, node, builder)?;
+            parameters.push(parameter_type);
+        }
+
+        // lower the return type
+        let result = match return_type {
+            Some(return_type) => self.lower_type(types, *return_type, module_id, node, builder)?,
+            None => self.ty_void,
+        };
+
+        // cache the signature type
+        let signature = builder.type_function_pointer(parameters, result);
+        self.function_signature_types.insert(type_id, signature);
+
+        Ok(signature)
     }
 
     /// Lower a DIR type to a MIR type.
@@ -362,26 +431,47 @@ impl TypeLowerer {
                 self.lower_array_sized_type(types, *element, *count, module_id, node, builder)?
             }
             dir::Type::Function {
-                dynamic_parameters,
-                return_type,
+                dynamic_parameters: _,
+                return_type: _,
                 ..
             } => {
-                // lower parameter and return types for function pointers
-                let mut parameters = Vec::with_capacity(dynamic_parameters.len());
-                for parameter in dynamic_parameters {
-                    let parameter_type =
-                        self.lower_type(types, *parameter, module_id, node, builder)?;
-                    parameters.push(parameter_type);
-                }
+                // lower the function pointer signature
+                let signature =
+                    self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
 
-                let result = match return_type {
-                    Some(return_type) => {
-                        self.lower_type(types, *return_type, module_id, node, builder)?
-                    }
-                    None => self.ty_void,
-                };
+                // build the closure pair layout
+                let env_pointer_type = self.closure_env_pointer_type();
+                let signature_type = builder.tree().get(signature);
+                let env_type = builder.tree().get(env_pointer_type);
+                let (signature_size, signature_align) =
+                    self.size_and_align_of_type(signature_type, builder.tree());
+                let (env_size, env_align) = self.size_and_align_of_type(env_type, builder.tree());
 
-                builder.type_function_pointer(parameters, result)
+                let fn_name = builder.intern(FUNCTION_PTR_FIELD);
+                let env_name = builder.intern(ENV_FIELD);
+                let fields = vec![
+                    FieldInput {
+                        name: fn_name,
+                        ty: signature,
+                        size: signature_size,
+                        alignment: signature_align,
+                        source_index: Some(0),
+                        kind: FieldLayoutKind::Synthetic,
+                    },
+                    FieldInput {
+                        name: env_name,
+                        ty: env_pointer_type,
+                        size: env_size,
+                        alignment: env_align,
+                        source_index: Some(1),
+                        kind: FieldLayoutKind::Synthetic,
+                    },
+                ];
+
+                let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
+                let mir_type = self.create_struct_type(&layout, builder);
+                self.set_layout(mir_type, layout);
+                mir_type
             }
             dir::Type::Union { elements } => {
                 self.lower_union_type(types, type_id, elements, module_id, node, builder)?

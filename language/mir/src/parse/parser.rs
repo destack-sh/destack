@@ -379,6 +379,7 @@ impl<'a> Parser<'a> {
                                 execution_model: None,
                                 execution_stage: None,
                                 workgroup_size: None,
+                                closure_env_type: None,
                                 locals: Vec::new(),
                                 blocks: Vec::new(),
                                 entry: None,

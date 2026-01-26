@@ -59,13 +59,13 @@ impl FunctionContext<'_> {
             let local = self
                 .state
                 .builder
-                .create_local(instance_type, mir::Mutability::Immutable);
+                .local(instance_type, mir::Mutability::Immutable);
             self.state.builder.local_set(local, this_value);
-            LocalBinding::from_local(local, instance_type)
+            LocalBinding::local(local, instance_type)
         } else {
-            let variable = self.state.builder.create_variable(instance_type);
+            let variable = self.state.builder.variable(instance_type);
             self.state.builder.define_variable(variable, this_value);
-            LocalBinding::from_variable(variable, instance_type)
+            LocalBinding::variable(variable, instance_type)
         };
         self.state.bindings.this_binding = Some(this_binding);
 

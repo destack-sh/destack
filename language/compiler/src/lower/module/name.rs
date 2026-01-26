@@ -205,6 +205,7 @@ impl ModuleLowerer<'_> {
         let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
             self.anonymous_metadata_name(type_id, suffix)
                 .or_else(|| self.fallback_reference_metadata_name(dir_type))
+                .or_else(|| self.function_type_metadata_name(type_id))
         } else {
             self.reference_metadata_name(dir_type)
                 .or_else(|| self.alias_metadata_name(type_id))
@@ -233,6 +234,49 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(name_id)
+    }
+
+    /// Build a metadata name for a function type when no context is available.
+    fn function_type_metadata_name(&self, type_id: dir::LocalTypeId) -> Option<String> {
+        let dir::Type::Function {
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+            ..
+        } = self.types.get_type(type_id)
+        else {
+            return None;
+        };
+
+        // start with the function prefix
+        let mut name = String::from("fn");
+
+        // record the implicit this parameter when present
+        if let Some(this_parameter) = this_parameter {
+            let this_name = self
+                .metadata_base_name_for_type(*this_parameter)
+                .unwrap_or_else(|| "unknown".to_string());
+            name.push_str("#this.");
+            name.push_str(&this_name);
+        }
+
+        // record dynamic parameter names
+        for parameter in dynamic_parameters {
+            let param_name = self
+                .metadata_base_name_for_type(*parameter)
+                .unwrap_or_else(|| "unknown".to_string());
+            name.push_str("#param.");
+            name.push_str(&param_name);
+        }
+
+        // record the return type
+        let return_name = return_type
+            .and_then(|return_type| self.metadata_base_name_for_type(return_type))
+            .unwrap_or_else(|| "void".to_string());
+        name.push_str("#return.");
+        name.push_str(&return_name);
+
+        Some(name)
     }
 
     /// Return metadata names for a nominal symbol.
@@ -696,6 +740,25 @@ impl ModuleLowerer<'_> {
         while let Some(node_id) = current {
             // match parent node kinds
             match node_id.ty {
+                // handle declaration expressions
+                dir::NodeType::Expression => {
+                    let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+                    let expression = self.dir_tree.get(expression_id);
+                    if let dir::Expression::Declaration { declaration } = expression {
+                        let declaration = self.dir_tree.get(*declaration);
+                        if context.declaration_symbol.is_none() {
+                            context.declaration_symbol =
+                                Some(declaration.symbol().into_global(self.module_id));
+                        }
+
+                        // apply declaration naming context
+                        self.apply_declaration_context(
+                            declaration,
+                            Some(expression_id),
+                            &mut context,
+                        );
+                    }
+                }
                 // handle parameter nodes
                 dir::NodeType::Parameter => {
                     // fill parameter context when missing

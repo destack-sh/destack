@@ -1684,9 +1684,7 @@ fn thread_instruction(
         },
         mir::Instruction::FunctionEnv { destination } => ThreadedInstruction {
             handler: dispatch::handle_function_env,
-            data: ThreadedInstructionData::FunctionEnv {
-                dest: *destination,
-            },
+            data: ThreadedInstructionData::FunctionEnv { dest: *destination },
         },
 
         mir::Instruction::Load {

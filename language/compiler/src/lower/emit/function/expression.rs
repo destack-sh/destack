@@ -492,12 +492,12 @@ impl FunctionContext<'_> {
         let result_type = self.lower_type_for_expression(expression_id)?;
 
         // create blocks for each branch
-        let then_block = self.state.builder.create_block();
-        let else_block = self.state.builder.create_block();
-        let merge_block = self.state.builder.create_block();
+        let then_block = self.state.builder.block();
+        let else_block = self.state.builder.block();
+        let merge_block = self.state.builder.block();
 
         // create a variable to hold the result
-        let result_variable = self.state.builder.create_variable(result_type);
+        let result_variable = self.state.builder.variable(result_type);
 
         // branch based on condition (with union tag checks when possible)
         let did_check = self.lower_union_tag_check(condition_id, then_block, else_block)?;

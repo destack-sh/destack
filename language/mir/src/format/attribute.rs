@@ -93,6 +93,7 @@ pub fn format_attribute_value<'a>(
             let text_value = f.context().strings.get(*name);
             write!(f, [text(text_value)])
         }
+        AttributeValue::Type(ty) => write!(f, [*ty]),
         AttributeValue::Integer(value) => write!(f, [text(&value.to_string())]),
         AttributeValue::Float(value) => format_float_literal(*value, f),
         AttributeValue::Boolean(value) => {

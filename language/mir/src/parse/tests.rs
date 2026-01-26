@@ -201,6 +201,7 @@ block0:
 fn test_roundtrip_function_env() {
     roundtrip(
         r#"extern function @callee(i32) -> i32
+#[closure_env(ref<managed mut void>)]
 function @caller() -> i32 {
 block0:
     v0: ref<managed mut void> = function.env

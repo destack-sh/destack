@@ -161,6 +161,7 @@ impl Compiler {
             let dir_tree = dir.tree.read();
             let symbols = dir.symbols.read();
             let types = dir.types.read();
+            let captures = dir.captures.read();
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, &target)?;
 
             let mut lowerer = ModuleLowerer::new(
@@ -171,6 +172,7 @@ impl Compiler {
                 &dir.roots,
                 &symbols,
                 &types,
+                &captures,
                 &target_id,
                 pointer_bytes,
             );
