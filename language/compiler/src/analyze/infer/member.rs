@@ -1543,7 +1543,8 @@ impl Compiler {
 
         let resolved = match receiver_ty {
             Type::Value { .. } => {
-                let Some(type_symbol) = self.get_language_symbol(profile, LanguageSymbol::Type) else {
+                let Some(type_symbol) = self.get_language_symbol(profile, LanguageSymbol::Type)
+                else {
                     return Ok(None);
                 };
                 self.resolve_member_symbol_for_symbol(

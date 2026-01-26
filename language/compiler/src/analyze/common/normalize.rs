@@ -685,15 +685,7 @@ impl Compiler {
 
                 // reduce decidable type operators to boolean literals
                 if let Some(normalized_id) = self.normalize_decidable_type_operator(
-                    module,
-                    profile,
-                    source_id,
-                    operator,
-                    left,
-                    right,
-                    symbols,
-                    types,
-                    mode,
+                    module, profile, source_id, operator, left, right, symbols, types, mode,
                 ) {
                     return normalized_id;
                 }
@@ -878,25 +870,9 @@ impl Compiler {
                 mode,
                 &mut key_visited,
             );
-            self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                key_type_id,
-                left,
-                types,
-                &options,
-            )
+            self.is_type_assignable(module, profile, symbols, key_type_id, left, types, &options)
         } else {
-            self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                right,
-                left,
-                types,
-                &options,
-            )
+            self.is_type_assignable(module, profile, symbols, right, left, types, &options)
         };
 
         let ty = if !is_decidable {

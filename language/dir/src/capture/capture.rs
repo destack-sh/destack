@@ -89,6 +89,8 @@ pub struct CapturedBinding {
 pub struct CaptureSet {
     /// The resolved captures in discovery order.
     pub captures: Vec<CapturedBinding>,
+    /// The symbol bound to `this` when captured.
+    pub this_symbol: Option<GlobalSymbolId>,
     /// The capture directive applied to this function.
     pub directive: CaptureDirective,
 }

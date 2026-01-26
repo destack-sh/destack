@@ -1871,7 +1871,7 @@ add(1, 2)
     let view = test.view(module_id);
 
     // locate the function type
-    let fn_symbol = test.expect_first_function_symbol(module_id);
+    let fn_symbol = test.expect_nth_function_symbol(module_id, 0);
     let fn_ty_id = view
         .types()
         .get_value_type_id(fn_symbol)
@@ -1921,7 +1921,7 @@ function greet(name = "hi") {
     let view = test.view(module_id);
 
     // locate the function type
-    let fn_symbol = test.expect_first_function_symbol(module_id);
+    let fn_symbol = test.expect_nth_function_symbol(module_id, 0);
     let fn_ty_id = view
         .types()
         .get_value_type_id(fn_symbol)
@@ -2097,7 +2097,7 @@ let value: Box<number> = makeBox();
     let view = test.view(module_id);
 
     // locate the type annotation
-    let declarator_id = test.expect_first_let_declarator(module_id);
+    let declarator_id = test.expect_nth_let_declarator(module_id, 0);
     let declarator = view.tree().get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
@@ -2156,7 +2156,7 @@ let buffer: Buffer<string> = makeBuffer();
     let view = test.view(module_id);
 
     // locate the type annotation
-    let declarator_id = test.expect_first_let_declarator(module_id);
+    let declarator_id = test.expect_nth_let_declarator(module_id, 0);
     let declarator = view.tree().get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
@@ -2526,7 +2526,7 @@ let result = getContainer().map<string>(1);
     let view = test.view(module_id);
 
     // locate the initializer expression
-    let declarator_id = test.expect_first_let_declarator(module_id);
+    let declarator_id = test.expect_nth_let_declarator(module_id, 0);
     let declarator = view.tree().get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 
@@ -2607,7 +2607,7 @@ mapper(1);
     let view = test.view(module_id);
 
     // locate the member expression initializer
-    let declarator_id = test.expect_first_let_declarator(module_id);
+    let declarator_id = test.expect_nth_let_declarator(module_id, 0);
     let declarator = view.tree().get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 

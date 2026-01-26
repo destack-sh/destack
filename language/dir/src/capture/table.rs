@@ -30,6 +30,7 @@ impl CaptureTable {
             .and_modify(|info| info.directive = directive.clone())
             .or_insert_with(|| CaptureSet {
                 captures: Vec::new(),
+                this_symbol: None,
                 directive,
             });
     }

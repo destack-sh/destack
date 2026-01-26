@@ -25,6 +25,8 @@ pub(super) struct CaptureCollector<'a> {
     pub module: &'a Module,
     /// The captured symbols in discovery order.
     pub captured_symbols: IndexMap<GlobalSymbolId, ()>,
+    /// The captured symbol bound to `this`.
+    pub this_symbol: Option<GlobalSymbolId>,
 }
 
 impl<'a> CaptureCollector<'a> {
@@ -46,6 +48,7 @@ impl<'a> CaptureCollector<'a> {
             compiler,
             module,
             captured_symbols: IndexMap::new(),
+            this_symbol: None,
         }
     }
 
@@ -75,8 +78,9 @@ impl<'a> CaptureCollector<'a> {
                     expression_id,
                     self.tree,
                     self.symbols,
-                ) {
-                    self.capture_symbol(symbol);
+                ) && self.capture_symbol(symbol)
+                {
+                    self.this_symbol = Some(symbol);
                 }
             }
             _ => {}
@@ -87,7 +91,7 @@ impl<'a> CaptureCollector<'a> {
     }
 
     /// Record a captured symbol if it should be captured.
-    fn capture_symbol(&mut self, symbol: GlobalSymbolId) {
+    fn capture_symbol(&mut self, symbol: GlobalSymbolId) -> bool {
         // skip symbols that do not require capture
         if !self.compiler.should_capture_symbol(
             self.module_id,
@@ -95,11 +99,12 @@ impl<'a> CaptureCollector<'a> {
             self.closure_scope,
             symbol,
         ) {
-            return;
+            return false;
         }
 
         // preserve capture ordering
         self.captured_symbols.entry(symbol).or_insert(());
+        true
     }
 }
 

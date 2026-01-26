@@ -10,8 +10,8 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use crate::analyze::common::CanonicalSymbolMode;
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
