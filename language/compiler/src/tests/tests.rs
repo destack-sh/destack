@@ -184,6 +184,25 @@ pub fn expect_let_declarator_by_name(
     panic!("expected let declarator");
 }
 
+/// A reusable MIR interpreter for repeated calls in tests.
+#[derive(Debug)]
+pub struct TestIsolate {
+    /// The underlying MIR interpreter.
+    isolate: Isolate,
+}
+
+impl TestIsolate {
+    /// Run a MIR function by name and return its output value.
+    pub fn run_function_by_name(&mut self, function: &str, arguments: &[Value]) -> Value {
+        let output = self
+            .isolate
+            .run_function_by_name(function, arguments)
+            .expect("execution failed");
+
+        output.value
+    }
+}
+
 impl TestProgram {
     /// Create a new TestProgram with the given options.
     fn new(fs: TestFileSystem, workers: u16, inject_prelude: bool, load_libs: bool) -> Self {
@@ -1075,6 +1094,13 @@ impl TestProgram {
             .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
     }
 
+    /// Create a reusable MIR interpreter for repeated calls.
+    pub fn mir_isolate_runner(&self, module_id: ModuleId, target: &str) -> TestIsolate {
+        let isolate = self.mir_isolate(module_id, target);
+
+        TestIsolate { isolate }
+    }
+
     /// Run a MIR function by name and return its output value.
     pub fn run_mir_function(
         &self,
@@ -1083,11 +1109,8 @@ impl TestProgram {
         function: &str,
         arguments: &[Value],
     ) -> Value {
-        let mut interpreter = self.mir_isolate(module_id, target);
-        let output = interpreter
-            .run_function_by_name(function, arguments)
-            .expect("execution failed");
-        output.value
+        let mut interpreter = self.mir_isolate_runner(module_id, target);
+        interpreter.run_function_by_name(function, arguments)
     }
 
     /// Assert a MIR function's output matches the expected value.

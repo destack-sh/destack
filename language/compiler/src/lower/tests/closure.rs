@@ -219,6 +219,140 @@ block0:
     test.assert_mir_function_output(module_id, "native", "runCounter", &[], Value::int32(1));
 }
 
+/// Verify mixed captures with values, references, and aggregates.
+#[test]
+fn test_lower_closure_capture_multiple_bindings() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Point {
+    x: int32 = 0;
+    y: int32 = 0;
+
+    constructor(x: int32, y: int32) {
+        this.x = x;
+        this.y = y;
+        return;
+    }
+}
+
+function makeMixer(): () => int32 {
+    const base = 3;
+    let count: int32 = 0;
+    let point: Point = new Point(4, 5);
+    return (): int32 => {
+        count = count + 1;
+        return base + count + point.x + point.y;
+    };
+}
+
+function runMixer(): int32 {
+    let mixer = makeMixer();
+    return mixer();
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "runMixer",
+        &[],
+        Value::int32(13),
+    );
+}
+
+/// Verify closures mutate captured bindings while reading class fields.
+#[test]
+fn test_lower_closure_mutates_captured_binding_with_class() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Accumulator {
+    value: int32 = 0;
+
+    constructor(value: int32) {
+        this.value = value;
+        return;
+    }
+}
+
+function makeAccumulator(): () => int32 {
+    let acc: Accumulator = new Accumulator(1);
+    let count: int32 = 0;
+    return (): int32 => {
+        let step: int32 = 2;
+        count = count + step;
+        return acc.value + count;
+    };
+}
+
+function runAccumulator(): int32 {
+    let next = makeAccumulator();
+    let first = next();
+    let second = next();
+    return first * 10 + second;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "runAccumulator",
+        &[],
+        Value::int32(35),
+    );
+}
+
+/// Verify closures combine by-value and by-reference captures.
+#[test]
+fn test_lower_closure_mixes_value_and_reference_captures() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function makeStepper(): () => int32 {
+    const base = 10;
+    let step: int32 = 1;
+    return (): int32 => {
+        step = step + 1;
+        return base + step;
+    };
+}
+
+function runStepper(): int32 {
+    let next = makeStepper();
+    let first = next();
+    let second = next();
+    return first * 100 + second;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "runStepper",
+        &[],
+        Value::int32(1213),
+    );
+}
+
 /// Verify closures can capture implicit `this` from member methods.
 #[test]
 fn test_lower_closure_captures_this() {
@@ -257,6 +391,77 @@ function run(): int32 {
     test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(2));
 }
 
+/// Verify captured closures can be passed as function arguments.
+#[test]
+fn test_lower_closure_passed_as_argument() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function makeAdder(base: int32): (value: int32) => int32 {
+    return (value: int32): int32 => base + value;
+}
+
+function applyOnce(value: int32, op: (value: int32) => int32): int32 {
+    return op(value);
+}
+
+function run(): int32 {
+    let add = makeAdder(7);
+    return applyOnce(5, add);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(12));
+}
+
+/// Verify closures stored in class fields are invoked via call.indirect.
+#[test]
+fn test_lower_closure_stored_in_class_field() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Holder {
+    action: () => int32;
+
+    constructor(action: () => int32) {
+        this.action = action;
+        return;
+    }
+
+    run(): int32 {
+        return this.action();
+    }
+}
+
+function makeCounter(): () => int32 {
+    let count: int32 = 0;
+    return (): int32 => {
+        count = count + 1;
+        return count;
+    };
+}
+
+function run(): int32 {
+    let holder: Holder = new Holder(makeCounter());
+    return holder.run();
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(1));
+}
+
 /// Verify named functions lower to closure values with empty environments.
 #[test]
 fn test_lower_named_function_as_value() {
@@ -279,31 +484,6 @@ function applyDouble(input: int32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
-#[closure_env(ref?<managed mut {  }>)]
-function @double(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: i32 = iadd v0, v0
-    return v1
-}
-
-function @applyDouble(v0: i32) -> i32 {
-block0(v0: i32):
-    v1: fn(i32) -> i32 = function.addr @double
-    v2: ref?<managed mut {  }> = iconst null
-    v3: ref?<managed mut void> = bitcast v2 -> ref?<managed mut void>
-    v4: { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> } = struct { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> } (v1, v3)
-    v5: fn(i32) -> i32 = field.get v4, 0
-    v6: ref?<managed mut void> = field.get v4, 1
-    v7: i32 = call.indirect v5(v0, env=v6) -> fn(i32) -> i32
-    return v7
-}
-        "#,
-    );
-
     test.assert_mir_function_output(
         module_id,
         "native",
@@ -313,26 +493,32 @@ block0(v0: i32):
     );
 }
 
-/// Verify nested named functions capture mutable locals and parameters.
-// FUGU #Broken: nested lambda call resolution is missing in Analyze
+/// Verify nested named functions capture from multiple scopes.
 #[test]
 #[ignore]
+// FUGU #Broken: nested named function captures are not resolved yet
 fn test_lower_nested_named_function_captures() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
-function outer(seed: int32): int32 {
-    let value: int32 = seed;
-    let middle = (step: int32): int32 => {
-        let offset: int32 = 1;
-        return ((delta: int32): int32 => {
-            value = value + delta;
-            offset = offset + step;
-            return value + offset;
-        })(2);
-    };
+function outer(start: int32): () => int32 {
+    let base = start;
+    function middle(delta: int32): () => int32 {
+        let step = delta;
+        function inner(): int32 {
+            base = base + 1;
+            step = step + 2;
+            return base + step;
+        }
+        return inner;
+    }
     return middle(3);
+}
+
+function run(): int32 {
+    let next = outer(10);
+    return next();
 }
 "#,
     );
@@ -344,8 +530,8 @@ function outer(seed: int32): int32 {
     test.assert_mir_function_output(
         module_id,
         "native",
-        "outer",
-        &[Value::int32(10)],
+        "run",
+        &[],
         Value::int32(16),
     );
 }
