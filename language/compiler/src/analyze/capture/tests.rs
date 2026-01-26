@@ -66,16 +66,10 @@ function inner() {
     assert_eq!(decorator.target_symbol, capture_symbol);
 
     let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
-    let symbols = dir.symbols.read();
+    let target_symbol = decorator.target_symbol;
     let decorator_map = test.compiler.collect_well_known_decorators(profile);
-    let resolved_symbol =
-        test.compiler
-            .typed_symbol_id(&module, profile, decorator.target_symbol, &symbols);
     assert!(
-        decorator_map.contains_key(&resolved_symbol),
+        decorator_map.contains_key(&target_symbol),
         "expected capture symbol in well known decorator map"
     );
 }

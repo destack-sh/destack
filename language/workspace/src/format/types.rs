@@ -346,18 +346,26 @@ pub fn format_type(
             )
         }
         dir::Type::Union { elements } => {
-            let elements: Vec<_> = elements
-                .iter()
-                .map(|e| format_local_type(*e, types, modules, strings))
-                .collect();
-            elements.join(" | ")
+            let mut seen = HashSet::new();
+            let mut formatted = Vec::new();
+            for element_id in elements {
+                if !seen.insert(*element_id) {
+                    continue;
+                }
+                formatted.push(format_local_type(*element_id, types, modules, strings));
+            }
+            formatted.join(" | ")
         }
         dir::Type::Intersection { elements } => {
-            let elements: Vec<_> = elements
-                .iter()
-                .map(|e| format_local_type(*e, types, modules, strings))
-                .collect();
-            elements.join(" & ")
+            let mut seen = HashSet::new();
+            let mut formatted = Vec::new();
+            for element_id in elements {
+                if !seen.insert(*element_id) {
+                    continue;
+                }
+                formatted.push(format_local_type(*element_id, types, modules, strings));
+            }
+            formatted.join(" & ")
         }
         dir::Type::Error => "<error>".to_string(),
     }

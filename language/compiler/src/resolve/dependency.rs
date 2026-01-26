@@ -45,7 +45,6 @@ impl Compiler {
         profile: ProfileId,
         exports: &IndexMap<(SymbolSpace, StaticKey), Export>,
         tree: &NodeTree,
-        symbols: &SymbolTable,
         order: SymbolSpaceOrder,
         key: StaticKey,
     ) -> Option<GlobalSymbolId> {
@@ -62,7 +61,11 @@ impl Compiler {
 
             // return the first matching symbol
             if let Some(symbol) = symbol {
-                return Some(self.typed_symbol_id(module, profile, symbol, symbols));
+                let symbol_type = self.symbol_type_for_global(profile, symbol);
+                return Some(GlobalSymbolId::new(
+                    symbol.module_id,
+                    symbol.local_id.with_type(symbol_type),
+                ));
             }
         }
 

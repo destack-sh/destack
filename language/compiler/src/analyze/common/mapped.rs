@@ -163,8 +163,6 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                // align the symbol id with the stored symbol type
-                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
                 let symbol = self.canonical_symbol_id(
                     module,
                     symbols,
@@ -172,7 +170,6 @@ impl Compiler {
                     symbol,
                     CanonicalSymbolMode::PreserveAliases,
                 );
-                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
 
                 // expand alias references with arguments when available
                 if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
@@ -1511,9 +1508,6 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                // align the symbol id with the stored symbol type
-                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-
                 // follow constraint bounds for static parameter references
                 if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
                     && let Some(constraint_id) = self.static_parameter_constraint_type(

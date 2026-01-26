@@ -157,6 +157,130 @@ impl Compiler {
         Ok(())
     }
 
+    /// Update the symbol id stored in a dependency item.
+    fn retype_dependency_item_symbol(
+        &self,
+        item: DependencyItem,
+        symbol_id: LocalSymbolId,
+    ) -> DependencyItem {
+        // rewrite the stored symbol id when present
+        match item {
+            DependencyItem::UnresolvedRemote {
+                source,
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol: _,
+            } => DependencyItem::UnresolvedRemote {
+                source,
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol: Some(symbol_id),
+            },
+            DependencyItem::UnresolvedLocal {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol: _,
+            } => DependencyItem::UnresolvedLocal {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol: Some(symbol_id),
+            },
+            DependencyItem::Local {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol: _,
+                target_symbol,
+            } => DependencyItem::Local {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol: Some(symbol_id),
+                target_symbol,
+            },
+            DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol: _,
+                target_symbol,
+            } => DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol: Some(symbol_id),
+                target_symbol,
+            },
+            item => item,
+        }
+    }
+
+    /// Update the target symbol stored in a dependency item.
+    fn retype_dependency_item_target(
+        &self,
+        item: DependencyItem,
+        target_symbol: GlobalSymbolId,
+    ) -> DependencyItem {
+        // rewrite the stored target symbol when present
+        match item {
+            DependencyItem::Local {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol,
+                target_symbol: _,
+            } => DependencyItem::Local {
+                mode,
+                kind,
+                name,
+                alias,
+                symbol,
+                target_symbol,
+            },
+            DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol,
+                target_symbol: _,
+            } => DependencyItem::Remote {
+                mode,
+                kind,
+                name,
+                alias,
+                target,
+                target_module,
+                symbol,
+                target_symbol,
+            },
+            item => item,
+        }
+    }
+
     /// Prepare profile DIR for data/text/binary modules.
     fn resolve_data_module_prepare(
         &self,
@@ -414,6 +538,20 @@ impl Compiler {
                 }
             };
 
+            // collect target symbol info before taking write locks
+            let target_info = resolved_item
+                .as_ref()
+                .and_then(|resolved_item| resolved_item.target_symbol())
+                .map(|target_symbol| {
+                    let target_type = self.symbol_type_for_global(profile, target_symbol);
+                    let typed_target_symbol = GlobalSymbolId::new(
+                        target_symbol.module_id,
+                        target_symbol.local_id.with_type(target_type),
+                    );
+                    let target_space = self.symbol_space_for_global(profile, typed_target_symbol);
+                    (typed_target_symbol, target_type, target_space)
+                });
+
             // apply resolved dependency updates (with write locks)
             if let Some(resolved_item) = resolved_item {
                 let module = self.program.modules.get(module_id);
@@ -421,29 +559,36 @@ impl Compiler {
                 let dir = module.dir(profile);
                 let mut tree = dir.tree.write();
                 let mut symbols = dir.symbols.write();
-                if let Some(symbol_id) = resolved_item.symbol()
-                    && let Some(target_symbol) = resolved_item.target_symbol()
-                {
-                    symbols.get_symbol_mut(symbol_id).resolve_to(target_symbol);
+                let mut resolved_item = resolved_item;
 
-                    let dependency_kind = match resolved_item {
-                        DependencyItem::Local { kind, .. }
-                        | DependencyItem::Remote { kind, .. }
-                        | DependencyItem::UnresolvedLocal { kind, .. }
-                        | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
-                        DependencyItem::Value { .. } => None,
-                    };
+                // align resolved target symbols with their declared types
+                if let Some((typed_target_symbol, target_type, target_space)) = target_info {
+                    resolved_item =
+                        self.retype_dependency_item_target(resolved_item, typed_target_symbol);
 
-                    if dependency_kind == Some(DependencyKind::Type) {
-                        symbols.get_symbol_mut(symbol_id).space = SymbolSpace::Type;
-                    } else if dependency_kind == Some(DependencyKind::Value) {
-                        let target_space = if target_symbol.module_id == module_id {
-                            symbols.get_symbol(target_symbol.local_id).space
-                        } else {
-                            self.symbol_space_for_global(profile, target_symbol)
+                    // align local bindings with resolved target types
+                    if let Some(symbol_id) = resolved_item.symbol() {
+                        let typed_symbol = symbols.retype_symbol_id(symbol_id, target_type);
+                        resolved_item =
+                            self.retype_dependency_item_symbol(resolved_item, typed_symbol);
+                        symbols
+                            .get_symbol_mut(typed_symbol)
+                            .resolve_to(typed_target_symbol);
+
+                        // adjust dependency kind and space for the resolved binding
+                        let dependency_kind = match resolved_item {
+                            DependencyItem::Local { kind, .. }
+                            | DependencyItem::Remote { kind, .. }
+                            | DependencyItem::UnresolvedLocal { kind, .. }
+                            | DependencyItem::UnresolvedRemote { kind, .. } => Some(kind),
+                            DependencyItem::Value { .. } => None,
                         };
-                        if target_space == SymbolSpace::Type {
-                            symbols.get_symbol_mut(symbol_id).space = SymbolSpace::Type;
+
+                        if dependency_kind == Some(DependencyKind::Type)
+                            || (dependency_kind == Some(DependencyKind::Value)
+                                && target_space == SymbolSpace::Type)
+                        {
+                            symbols.get_symbol_mut(typed_symbol).space = SymbolSpace::Type;
                         }
                     }
                 }
@@ -1452,6 +1597,18 @@ impl Compiler {
         let module = module.read();
         let symbols = module.dir(profile).symbols.read();
         symbols.get_symbol(symbol.local_id).space
+    }
+
+    /// Get the symbol type for a global symbol.
+    pub(crate) fn symbol_type_for_global(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> SymbolType {
+        let module = self.program.modules.get(symbol.module_id);
+        let module = module.read();
+        let symbols = module.dir(profile).symbols.read();
+        symbols.get_symbol(symbol.local_id).ty
     }
 
     /// Check whether a symbol can be used as a value.

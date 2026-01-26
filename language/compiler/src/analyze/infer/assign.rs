@@ -123,28 +123,25 @@ impl Compiler {
             symbol,
             static_arguments,
         } = target_type
+            && symbol.ty() == SymbolType::TypeAlias
+            && let Some(arguments) = static_arguments.as_deref()
         {
-            let typed_symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-            if typed_symbol.ty() == SymbolType::TypeAlias
-                && let Some(arguments) = static_arguments.as_deref()
-            {
-                let type_source_id = types.get_type_source(target_id);
-                let mut visited = Vec::new();
-                if let Some(expanded) = self.normalize_type_alias_reference_with_arguments(
-                    module,
-                    profile,
-                    type_source_id,
-                    typed_symbol,
-                    arguments,
-                    symbols,
-                    types,
-                    NormalizationMode::Assign,
-                    &mut visited,
-                ) {
-                    return self.is_type_assignable(
-                        module, profile, symbols, expanded, source_id, types, options,
-                    );
-                }
+            let type_source_id = types.get_type_source(target_id);
+            let mut visited = Vec::new();
+            if let Some(expanded) = self.normalize_type_alias_reference_with_arguments(
+                module,
+                profile,
+                type_source_id,
+                symbol,
+                arguments,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                &mut visited,
+            ) {
+                return self.is_type_assignable(
+                    module, profile, symbols, expanded, source_id, types, options,
+                );
             }
         }
 
@@ -1963,8 +1960,7 @@ impl Compiler {
             _ => return type_id,
         };
 
-        // require a typed alias symbol
-        let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+        // require an alias symbol
         if symbol.ty() != SymbolType::TypeAlias {
             return type_id;
         }

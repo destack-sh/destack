@@ -349,13 +349,11 @@ impl Compiler {
         let export_spaces = SymbolSpaceOrder::ValueThenType;
         let exports = prelude_dir.exported_symbols.read();
         let tree = prelude_dir.tree.read();
-        let symbols = prelude_dir.symbols.read();
         let Some(symbol_id) = self.resolve_exported_symbol(
             &prelude_module,
             profile,
             &exports,
             &tree,
-            &symbols,
             export_spaces,
             key,
         ) else {

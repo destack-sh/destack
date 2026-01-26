@@ -16,17 +16,3 @@ destack_test::specification::types/generics/utility-types.md/tests/readonly-reje
 destack_test::specification::types/generics/utility-types.md/tests/record-rejects-invalid-key-types
 destack_test::specification::types/operators/conditional.md/tests/conditional-types-with-any-yield-union-branches
 destack_test::specification::types/structs/embedding.md/embedded-fields/struct-embedding-chains-through-nested-structs
-destack_test::specification::types/template-literals/assignability.md/assignability/template-literal-numeric-spans-assign-to-string-spans
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infer-falls-back-for-mismatched-repeated-spans
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infer-from-any-yields-union
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infer-rejects-mismatched-repeated-spans
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-from-template-literal-arguments
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-from-template-literal-arguments-rejects-narrowed-result
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-from-template-literal-parameters
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-from-template-literal-parameters-rejects-narrowed-result
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-non-canonical-bigint-rejects-literal-assignment
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-infers-non-canonical-number-span-rejects-literal-assignment
-destack_test::specification::types/template-literals/inference.md/inference/template-literal-rejects-invalid-bigint-string
-destack_test::specification::types/template-literals/matching.md/matching/template-literal-type-rejects-unknown-spans
-destack_test::specification::types/template-literals/numeric-spans.md/numeric-spans/template-literal-type-accepts-number-string-forms
-destack_test::specification::types/template-literals/numeric-spans.md/numeric-spans/template-literal-type-rejects-invalid-number-strings

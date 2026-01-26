@@ -59,8 +59,7 @@ impl Compiler {
         else {
             return normalized;
         };
-        let typed_symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-        if typed_symbol.ty() != SymbolType::TypeAlias {
+        if symbol.ty() != SymbolType::TypeAlias {
             return normalized;
         }
         let Some(arguments) = static_arguments.as_ref() else {
@@ -72,7 +71,7 @@ impl Compiler {
         let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
             module,
             profile,
-            typed_symbol,
+            symbol,
             source_id,
             symbols,
             types,
@@ -88,7 +87,7 @@ impl Compiler {
                 module,
                 profile,
                 source_id,
-                typed_symbol,
+                symbol,
                 Some(arguments),
                 false,
                 &options,
@@ -104,7 +103,7 @@ impl Compiler {
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
             module,
             profile,
-            typed_symbol,
+            symbol,
             source_id,
             arguments,
             &tree,
@@ -180,23 +179,9 @@ impl Compiler {
                     module,
                     symbols,
                     profile,
-                    self.typed_symbol_id(module, profile, symbol, symbols),
+                    symbol,
                     CanonicalSymbolMode::PreserveAliases,
                 );
-                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-
-                // choose a typed alias symbol when references are untyped imports
-                let mut alias_symbol = symbol;
-                if alias_symbol.ty() == SymbolType::Void {
-                    alias_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
-                        alias_symbol,
-                        CanonicalSymbolMode::FollowAliases,
-                    );
-                    alias_symbol = self.typed_symbol_id(module, profile, alias_symbol, symbols);
-                }
 
                 // rewrite well known references to canonical shapes
                 if let Some(normalized) = self.normalize_well_known_type_reference(
@@ -220,13 +205,13 @@ impl Compiler {
                     )
                 }
                 // expand type aliases with static arguments
-                else if alias_symbol.ty() == SymbolType::TypeAlias {
+                else if symbol.ty() == SymbolType::TypeAlias {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let expanded = self.normalize_type_alias_reference_with_arguments(
                         module,
                         profile,
                         source_id,
-                        alias_symbol,
+                        symbol,
                         arguments,
                         symbols,
                         types,
@@ -1653,6 +1638,11 @@ impl Compiler {
             let source_id = types.get_type_source(apparent_id);
             if let Some(constraint_id) = self.static_parameter_constraint_type(
                 module, profile, *symbol, source_id, symbols, types,
+            ) && !matches!(
+                types.get_type(constraint_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
             ) && constraint_id != apparent_id
             {
                 apparent_id = constraint_id;

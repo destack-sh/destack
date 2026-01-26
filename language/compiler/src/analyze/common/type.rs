@@ -60,30 +60,6 @@ impl Compiler {
         None
     }
 
-    /// Align a symbol id with the stored symbol type.
-    /// FUGU #Architecture #Cleanup: do we still need typed_symbol_id?
-    pub(crate) fn typed_symbol_id(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-    ) -> GlobalSymbolId {
-        if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            return GlobalSymbolId::new(
-                symbol.module_id,
-                symbol.local_id.with_type(symbol_entry.ty),
-            );
-        }
-
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-        GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty))
-    }
-
     /// Import the alias target type for a symbol when available.
     pub(crate) fn alias_target_type_id_for_symbol(
         &self,

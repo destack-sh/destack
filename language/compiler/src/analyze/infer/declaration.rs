@@ -991,6 +991,17 @@ impl Compiler {
 
         // return type
         let return_type_node_id = signature.return_type;
+        let declared_return_type = declared_signature_ty_id
+            .and_then(|signature_id| self.function_return_type(signature_id, types));
+        let has_concrete_declared_return = declared_return_type.is_some_and(|ty_id| {
+            !self.is_infer_var_type(ty_id, types)
+                && !matches!(
+                    types.get_type(ty_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown
+                    }
+                )
+        });
         let return_type = if let Some(return_type_node_id) = return_type_node_id {
             Some(self.try_evaluate_expression_to_type(
                 module,
@@ -1006,6 +1017,8 @@ impl Compiler {
             expected_signature.and_then(|signature| signature.return_type)
         {
             Some(return_type)
+        } else if has_concrete_declared_return {
+            declared_return_type
         } else {
             Some(self.infer_var_type_for_node(
                 infer,
@@ -1396,24 +1409,13 @@ impl Compiler {
         let constraint_ty_id = if let Some(existing_id) =
             types.get_static_parameter_constraint_type(parameter_symbol)
         {
-            match types.get_type(existing_id) {
-                Type::Intersection { elements } => {
-                    let mut elements = elements.clone();
-                    elements.push(constraint_ty_id);
-                    let merged = Type::Intersection { elements };
-                    let merged_id = types.insert_type_from_any(merged, clause_id.into());
-                    types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
-                    merged_id
-                }
-                _ => {
-                    let merged = Type::Intersection {
-                        elements: vec![existing_id, constraint_ty_id],
-                    };
-                    let merged_id = types.insert_type_from_any(merged, clause_id.into());
-                    types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
-                    merged_id
-                }
-            }
+            let merged_id = self.intersection_type_from_list(
+                vec![existing_id, constraint_ty_id],
+                existing_id,
+                types,
+            );
+            types.set_static_parameter_constraint_type(parameter_symbol, merged_id);
+            merged_id
         } else {
             types.set_static_parameter_constraint_type(parameter_symbol, constraint_ty_id);
             constraint_ty_id
@@ -1624,6 +1626,36 @@ impl Compiler {
             let skip_assignability = self.type_contains_error(declared, types, &mut visited)
                 || self.type_contains_error(inferred, types, &mut visited);
 
+            // resolve inference variables before assignability checks
+            let resolved_declared = if self.is_infer_var_type(declared, types) {
+                self.resolve_infer_type_for_check(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    declared,
+                    infer,
+                    types,
+                    &options,
+                )
+                .unwrap_or(declared)
+            } else {
+                declared
+            };
+            let resolved_inferred = if self.is_infer_var_type(inferred, types) {
+                self.resolve_infer_type_for_check(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    inferred,
+                    infer,
+                    types,
+                    &options,
+                )
+                .unwrap_or(inferred)
+            } else {
+                inferred
+            };
+
             // apply inference constraints when required
             if !skip_assignability && matches!(constraint, DeclaratorConstraint::Assignable) {
                 infer.push_constraint(Constraint::Subtype {
@@ -1634,14 +1666,14 @@ impl Compiler {
             }
 
             if !skip_assignability
-                && !self.is_infer_var_type(declared, types)
-                && !self.is_infer_var_type(inferred, types)
+                && !self.is_infer_var_type(resolved_declared, types)
+                && !self.is_infer_var_type(resolved_inferred, types)
                 && self.is_type_assignable(
                     module,
                     ctx.profile,
                     symbols,
-                    declared,
-                    inferred,
+                    resolved_declared,
+                    resolved_inferred,
                     types,
                     &options,
                 ) == Assignability::NotAssignable
@@ -1649,13 +1681,13 @@ impl Compiler {
                 let error = match constraint {
                     DeclaratorConstraint::Assignable => AnalyzeError::UnassignableType {
                         node: declarator_id.into_global(module.id).into(),
-                        expected_ty: declared.into_global(module.id),
-                        actual_ty: inferred.into_global(module.id),
+                        expected_ty: resolved_declared.into_global(module.id),
+                        actual_ty: resolved_inferred.into_global(module.id),
                     },
                     DeclaratorConstraint::Satisfies => AnalyzeError::UnsatisfiedType {
                         node: declarator_id.into_global(module.id).into(),
-                        expected_ty: declared.into_global(module.id),
-                        actual_ty: inferred.into_global(module.id),
+                        expected_ty: resolved_declared.into_global(module.id),
+                        actual_ty: resolved_inferred.into_global(module.id),
                     },
                 };
                 return Err(error);

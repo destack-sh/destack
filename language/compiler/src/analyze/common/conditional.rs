@@ -1747,9 +1747,13 @@ impl Compiler {
             return None;
         }
 
-        // reject template literal patterns for `any`
-        if matches!(types.get_type(right), Type::TemplateLiteral { .. }) {
-            return None;
+        // infer template literal spans as string-compatible for `any`
+        if let Type::TemplateLiteral { spans, .. } = types.get_type(right) {
+            let spans = spans.clone();
+            let substitutions = self.infer_template_literal_substitutions_for_never(
+                module, profile, &spans, source_id, symbols, types,
+            );
+            return Some(substitutions);
         }
 
         // collect infer names from the pattern
@@ -2160,28 +2164,38 @@ impl Compiler {
             let span_ty = types.get_type(*span_ty_id).clone();
             match span_ty {
                 Type::Infer { name, constraint } => {
+                    // enforce span constraints for constrained inference
+                    if let Some(constraint_id) = constraint
+                        && !self.template_span_matches_string(
+                            module,
+                            profile,
+                            constraint_id,
+                            span_value,
+                            symbols,
+                            types,
+                            &mut visited,
+                        )
+                    {
+                        return None;
+                    }
+
                     // infer literal type for the span
                     let inferred_ty =
                         self.template_infer_literal_type(constraint, span_value, source_id, types)?;
-                    if let Some(existing) = substitutions.by_name.get(&name).copied() {
-                        if !self.inferred_type_ids_equivalent(
+                    if let Some(existing) = substitutions.by_name.get(&name).copied()
+                        && !self.inferred_type_ids_equivalent(
                             module,
                             profile,
                             existing,
                             inferred_ty,
                             symbols,
                             types,
-                        ) {
-                            let union_id = self.union_type_from_list(
-                                vec![existing, inferred_ty],
-                                existing,
-                                types,
-                            );
-                            substitutions.by_name.insert(name, union_id);
-                        }
-                    } else {
-                        substitutions.by_name.insert(name, inferred_ty);
+                        )
+                    {
+                        return None;
                     }
+
+                    substitutions.by_name.insert(name, inferred_ty);
                 }
                 _ => {
                     // enforce non infer span constraints
@@ -2290,20 +2304,20 @@ impl Compiler {
             match right_ty {
                 Type::Infer { name, .. } => {
                     // map inferred spans directly
-                    if let Some(existing) = substitutions.by_name.get(&name).copied() {
-                        if !self.inferred_type_ids_equivalent(
-                            module, profile, existing, *left_span, symbols, types,
-                        ) {
-                            let union_id = self.union_type_from_list(
-                                vec![existing, *left_span],
-                                existing,
-                                types,
-                            );
-                            substitutions.by_name.insert(name, union_id);
-                        }
-                    } else {
-                        substitutions.by_name.insert(name, *left_span);
+                    if let Some(existing) = substitutions.by_name.get(&name).copied()
+                        && !self.inferred_type_ids_equivalent(
+                            module,
+                            profile,
+                            existing,
+                            *left_span,
+                            symbols,
+                            types,
+                        )
+                    {
+                        return None;
                     }
+
+                    substitutions.by_name.insert(name, *left_span);
                 }
                 _ => {
                     // recursively infer nested substitutions

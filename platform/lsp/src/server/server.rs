@@ -1710,12 +1710,12 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CallHierarchyIncomingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyIncomingCall>>> {
         // extract symbol_id from item data
-        let Some(symbol_id) = call_hierarchy_item_symbol_id(&params.item) else {
+        let session = self.session();
+        let Some(symbol_id) = call_hierarchy_item_symbol_id(session, &params.item) else {
             return Ok(Some(vec![]));
         };
 
         // reconstruct call hierarchy item
-        let session = self.session();
         let Some(item) = query::call_hierarchy_item_from_symbol(session, symbol_id) else {
             return Ok(Some(vec![]));
         };
@@ -1737,12 +1737,12 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::CallHierarchyOutgoingCallsParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::CallHierarchyOutgoingCall>>> {
         // extract symbol_id from item data
-        let Some(symbol_id) = call_hierarchy_item_symbol_id(&params.item) else {
+        let session = self.session();
+        let Some(symbol_id) = call_hierarchy_item_symbol_id(session, &params.item) else {
             return Ok(Some(vec![]));
         };
 
         // reconstruct call hierarchy item
-        let session = self.session();
         let Some(item) = query::call_hierarchy_item_from_symbol(session, symbol_id) else {
             return Ok(Some(vec![]));
         };
@@ -1798,12 +1798,12 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::TypeHierarchySupertypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract symbol_id from item data
-        let Some(symbol_id) = type_hierarchy_item_symbol_id(&params.item) else {
+        let session = self.session();
+        let Some(symbol_id) = type_hierarchy_item_symbol_id(session, &params.item) else {
             return Ok(Some(vec![]));
         };
 
         // reconstruct type hierarchy item
-        let session = self.session();
         let Some(item) = query::type_hierarchy_item_from_symbol(session, symbol_id) else {
             return Ok(Some(vec![]));
         };
@@ -1825,12 +1825,12 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::TypeHierarchySubtypesParams,
     ) -> jsonrpc::Result<Option<Vec<lsp::TypeHierarchyItem>>> {
         // extract symbol_id from item data
-        let Some(symbol_id) = type_hierarchy_item_symbol_id(&params.item) else {
+        let session = self.session();
+        let Some(symbol_id) = type_hierarchy_item_symbol_id(session, &params.item) else {
             return Ok(Some(vec![]));
         };
 
         // reconstruct type hierarchy item
-        let session = self.session();
         let Some(item) = query::type_hierarchy_item_from_symbol(session, symbol_id) else {
             return Ok(Some(vec![]));
         };

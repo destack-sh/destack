@@ -6,10 +6,10 @@ use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
     Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticParameterKind, StaticProperty, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
-    UnaryOperator, walk_expression,
+    Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticParameterKind, StaticProperty, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -226,7 +226,23 @@ impl Compiler {
             && let Some(existing) = types.get_declared_type_id(global_node_id)
             && !matches!(types.get_type(existing), Type::Unevaluated(_))
         {
-            return Ok(types.get_type(existing).clone());
+            // allow cached unknown references to resolve to their referenced symbols
+            let is_unknown = matches!(
+                types.get_type(existing),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
+            );
+            let is_reference = matches!(
+                tree.get(expression_id),
+                Expression::LocalReference { .. }
+                    | Expression::ModuleReference { .. }
+                    | Expression::GlobalReference { .. }
+            );
+
+            if !(is_unknown && is_reference) {
+                return Ok(types.get_type(existing).clone());
+            }
         }
 
         // avoid recursive evaluation loops
@@ -632,7 +648,21 @@ impl Compiler {
         // reuse cached expression types when available
         let global_node_id = expression_id.into_global_any(module.id);
         if let Some(existing) = types.get_declared_type_id(global_node_id) {
-            return Ok(existing);
+            let is_unknown = matches!(
+                types.get_type(existing),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
+            );
+            let is_reference = matches!(
+                tree.get(expression_id),
+                Expression::LocalReference { .. }
+                    | Expression::ModuleReference { .. }
+                    | Expression::GlobalReference { .. }
+            );
+            if !(is_unknown && is_reference) {
+                return Ok(existing);
+            }
         }
 
         // evaluate to a concrete type when possible
@@ -761,6 +791,247 @@ impl Compiler {
         }
 
         Ok(Some(evaluated_arguments))
+    }
+
+    /// Evaluate a template literal span expression into a type id.
+    fn evaluate_template_literal_span_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve direct references to avoid caching template spans as unknown
+        match tree.get(span_id) {
+            Expression::LocalReference {
+                target_symbol,
+                static_arguments,
+                ..
+            }
+            | Expression::ModuleReference {
+                target_symbol,
+                static_arguments,
+                ..
+            }
+            | Expression::GlobalReference {
+                target_symbol,
+                static_arguments,
+                ..
+            } => {
+                let ty = self.evaluate_template_literal_span_reference(
+                    module,
+                    profile,
+                    span_id,
+                    *target_symbol,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
+                return Ok(ty);
+            }
+            Expression::UnresolvedPath {
+                path,
+                static_arguments,
+                space_order,
+            } => {
+                let resolved_symbol = self.resolve_template_literal_span_path(
+                    module,
+                    span_id,
+                    path,
+                    *space_order,
+                    tree,
+                    symbols,
+                );
+                if let Some(resolved_symbol) = resolved_symbol {
+                    let ty = self.evaluate_template_literal_span_reference(
+                        module,
+                        profile,
+                        span_id,
+                        resolved_symbol,
+                        static_arguments.as_deref(),
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                    )?;
+                    return Ok(ty);
+                }
+            }
+            _ => {}
+        }
+
+        // bypass declared caches to avoid collapsing span references to unknown
+        let ty = self.try_evaluate_expression_to_type_value(
+            module,
+            profile,
+            span_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+            true,
+            false,
+        )?;
+
+        Ok(types.insert_type_from(ty, span_id))
+    }
+
+    /// Resolve a template literal span to a reference type.
+    fn evaluate_template_literal_span_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // follow dependency items for local imports before canonicalization
+        let mut target_symbol = target_symbol;
+        if target_symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+            if let Some(primary_declaration) = symbol_entry.primary_declaration
+                && primary_declaration.local_id.ty == NodeType::DependencyItem
+            {
+                let item_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+                if let DependencyItem::Local {
+                    target_symbol: dependency_target,
+                    ..
+                }
+                | DependencyItem::Remote {
+                    target_symbol: dependency_target,
+                    ..
+                } = tree.get(item_id)
+                {
+                    target_symbol = *dependency_target;
+                }
+            }
+        }
+
+        // preserve alias identity while resolving the reference
+        let target_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            target_symbol,
+            CanonicalSymbolMode::PreserveAliases,
+        );
+        let target_symbol = self.merged_type_symbol_id(module, symbols, profile, target_symbol);
+
+        // reject value static parameters in template spans
+        if self.symbol_is_static_parameter(module, profile, target_symbol, symbols, types) {
+            let kind = self.static_parameter_kind_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                tree,
+                symbols,
+                types,
+            );
+            if kind == StaticParameterKind::Value {
+                self.error(AnalyzeError::StaticParameterRequiresComptime {
+                    node: span_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, span_id));
+            }
+        }
+
+        // resolve static arguments for the referenced span
+        let options = self.analyze_context_options_for_module(module.id);
+        let static_arguments = self.evaluate_static_arguments(
+            module,
+            profile,
+            static_arguments,
+            tree,
+            symbols,
+            types,
+        )?;
+        let resolved_arguments = self.resolve_type_reference_static_arguments(
+            module,
+            profile,
+            span_id.into_any(),
+            target_symbol,
+            static_arguments.as_deref(),
+            validate_static_argument_bounds,
+            &options,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        let ty = Type::Reference {
+            symbol: target_symbol,
+            static_arguments: resolved_arguments,
+        };
+        Ok(types.insert_type_from(ty, span_id))
+    }
+
+    /// Resolve a template literal span path to a symbol id.
+    fn resolve_template_literal_span_path(
+        &self,
+        module: &Module,
+        span_id: LocalNodeId<Expression>,
+        path: &Path,
+        space_order: SymbolSpaceOrder,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // only handle single segment identifiers
+        if path.segments.len() != 1 {
+            return None;
+        }
+
+        let key = StaticKey::Name(path.segments[0]);
+        let (scope_id, scope, _mark) = symbols.get_scope(span_id, tree);
+        let mut scope_cursor = Some((scope_id, scope));
+        let mut fallback = None;
+        let preferred_spaces = space_order.spaces();
+
+        // walk scopes from inner to outer
+        while let Some((_scope_id, scope)) = scope_cursor {
+            for (candidate_key, candidate_symbol_id) in scope.named_symbols.iter().rev() {
+                if *candidate_key != key {
+                    continue;
+                }
+                let candidate = symbols.get_symbol(*candidate_symbol_id);
+                if !candidate.is_active {
+                    continue;
+                }
+
+                let candidate_space = candidate.space;
+                if candidate_space == SymbolSpace::TypeValue
+                    || preferred_spaces.contains(&candidate_space)
+                {
+                    return Some(candidate_symbol_id.into_global(module.id));
+                }
+
+                if fallback.is_none() {
+                    fallback = Some(candidate_symbol_id.into_global(module.id));
+                }
+            }
+
+            scope_cursor =
+                scope.parent
+                    .map(|(parent_id, _parent_mark)| (parent_id, symbols.get_scope_by_id(parent_id)));
+        }
+
+        fallback
     }
 
     /// Collect element types for a binary union or intersection expression.
@@ -1998,7 +2269,7 @@ impl Compiler {
                 let spans = spans
                     .iter()
                     .map(|span| {
-                        self.try_evaluate_expression_to_type(
+                        self.evaluate_template_literal_span_type(
                             module,
                             profile,
                             *span,
@@ -2161,9 +2432,6 @@ impl Compiler {
                     }
                 }
 
-                // align the reference to the stored symbol type before canonicalization
-                let target_symbol = self.typed_symbol_id(module, profile, target_symbol, symbols);
-
                 // resolve import targets without collapsing type aliases
                 let target_symbol = self.canonical_symbol_id(
                     module,
@@ -2176,20 +2444,6 @@ impl Compiler {
                 // prefer merged type symbols for namespaces
                 let target_symbol =
                     self.merged_type_symbol_id(module, symbols, profile, target_symbol);
-                let mut target_symbol =
-                    self.typed_symbol_id(module, profile, target_symbol, symbols);
-
-                // follow alias targets when imports are untyped
-                if target_symbol.ty() == SymbolType::Void {
-                    target_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
-                        target_symbol,
-                        CanonicalSymbolMode::FollowAliases,
-                    );
-                    target_symbol = self.typed_symbol_id(module, profile, target_symbol, symbols);
-                }
                 let static_arguments = self.evaluate_static_arguments(
                     module,
                     profile,
