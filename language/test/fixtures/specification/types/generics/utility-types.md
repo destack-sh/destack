@@ -294,9 +294,9 @@ const bad: WithoutAll = { name: "Ada" };
 
 - contains: excess property 'name'
 
-### omit rejects unknown keys
+### omit ignores unknown keys
 
-> Omit keys must be part of the source type.
+> Omit does not require keys to exist and ignores missing keys.
 
 ```ds libs=es5
 interface Person {
@@ -305,9 +305,10 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "missing">;
-```
 
-- contains: not assignable
+const ok: WithoutAge = { name: "Ada", age: 42 };
+ok satisfies Person;
+```
 
 ### record builds required properties
 
