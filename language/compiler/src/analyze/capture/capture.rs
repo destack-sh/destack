@@ -2,8 +2,9 @@ use indexmap::IndexMap;
 
 use destack_dir::{
     CaptureDirective, CaptureKind, CapturePolicy, CaptureSet, CaptureTable, CapturedBinding,
-    Declaration, Expression, FunctionKind, GlobalSymbolId, LocalNodeId, LocalScopeId, Member,
-    Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolSpace, SymbolTable,
+    Declaration, Expression, FunctionKind, FunctionSignature, GlobalSymbolId, LocalNodeId,
+    LocalScopeId, Member, Mutability, NodeTree, NodeType, Scope, StaticKey, SymbolSpace,
+    SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::Module;
@@ -24,46 +25,20 @@ impl Compiler {
         let this_name = self.program.strings.intern("this");
 
         // resolve an explicit this parameter in a signature
-        let resolve_signature_this = |signature: &destack_dir::FunctionSignature| {
+        let resolve_signature_this = |signature: &FunctionSignature| {
             if let Some(this_parameter_id) = signature.this_parameter {
                 let symbol = tree.get(this_parameter_id).symbol();
                 return Some(symbol.into_global(module.id));
             }
-
-            // treat a leading this parameter as explicit when signature metadata is missing
-            if let Some(first_parameter_id) = signature.dynamic_parameters.first().copied() {
-                let parameter = tree.get(first_parameter_id);
-                let is_explicit_this = match parameter {
-                    Parameter::Named { name, .. } => *name == this_name,
-                    _ => false,
-                };
-                if is_explicit_this {
-                    let symbol = tree.get(first_parameter_id).symbol();
-                    return Some(symbol.into_global(module.id));
-                }
-            }
-
             None
         };
 
         // determine whether a signature declares an explicit this parameter
-        let signature_has_explicit_this = |signature: &destack_dir::FunctionSignature| {
-            if signature.this_parameter.is_some() {
-                return true;
-            }
-            if let Some(first_parameter_id) = signature.dynamic_parameters.first().copied() {
-                let parameter = tree.get(first_parameter_id);
-                match parameter {
-                    Parameter::Named { name, .. } => *name == this_name,
-                    _ => false,
-                }
-            } else {
-                false
-            }
-        };
+        let signature_has_explicit_this =
+            |signature: &FunctionSignature| signature.this_parameter.is_some();
 
         // resolve an explicit this parameter bound into the scope
-        let resolve_scope_this = |scope: &destack_dir::Scope| {
+        let resolve_scope_this = |scope: &Scope| {
             let symbol_id = symbols.find_active_symbol(scope, StaticKey::Name(this_name))?;
             Some(symbol_id.into_global(module.id))
         };
@@ -111,19 +86,18 @@ impl Compiler {
                         let has_explicit_this = signature_has_explicit_this(signature);
                         let is_member = owner_id.ty == NodeType::Member;
 
-                        // prefer implicit this for member methods
-                        if is_member && let Some(symbol_id) = resolve_scope_this(scope.1) {
-                            return Some(symbol_id);
-                        }
-
                         // prefer explicit this parameters when present
                         if has_explicit_this && let Some(symbol_id) = resolve_scope_this(scope.1) {
                             return Some(symbol_id);
                         }
-
                         if has_explicit_this
                             && let Some(symbol_id) = resolve_signature_this(signature)
                         {
+                            return Some(symbol_id);
+                        }
+
+                        // prefer implicit this for member methods
+                        if is_member && let Some(symbol_id) = resolve_scope_this(scope.1) {
                             return Some(symbol_id);
                         }
 
@@ -227,6 +201,7 @@ impl Compiler {
                 function_symbol,
                 CaptureSet {
                     captures: captured_bindings,
+                    this_symbol: collector.this_symbol,
                     directive,
                 },
             );
@@ -288,7 +263,6 @@ impl Compiler {
             if current == ancestor {
                 return true;
             }
-
             let scope = symbols.get_scope_by_id(current);
             let Some((parent_id, _)) = scope.parent else {
                 return false;
