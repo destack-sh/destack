@@ -205,6 +205,8 @@ pub enum ControlFlow {
         destination: mir::Value,
         /// Arguments to pass.
         arguments: ArgumentRange,
+        /// Optional closure environment to pass.
+        env: Option<Value>,
         /// Copy plan for callee parameters.
         copies: Option<CopyRange>,
         /// PC to resume at after call returns.
@@ -218,6 +220,8 @@ pub enum ControlFlow {
         callee_index: u32,
         /// Arguments to pass.
         arguments: ArgumentRange,
+        /// Optional closure environment to pass.
+        env: Option<Value>,
         /// Copy plan for callee parameters.
         copies: Option<CopyRange>,
     },
@@ -342,6 +346,7 @@ pub enum ThreadedInstructionData {
     CallIndirect {
         dest: mir::Value,
         callee: mir::Value,
+        env: Option<mir::Value>,
         arguments: ArgumentRange,
         cached_function: Cell<Option<u32>>,
         cached_index: Cell<Option<u32>>,
@@ -372,6 +377,8 @@ pub enum ThreadedInstructionData {
 
     /// Get a function pointer.
     FunctionAddr { dest: mir::Value, function: u32 },
+    /// Load the closure environment pointer.
+    FunctionEnv { dest: mir::Value },
 
     /// Fused global address + load.
     GlobalLoad { dest: mir::Value, global: u32 },
@@ -888,6 +895,7 @@ pub enum ThreadedInstructionData {
     /// Indirect tail call (call + return).
     TailCallIndirect {
         callee: mir::Value,
+        env: Option<mir::Value>,
         arguments: ArgumentRange,
         cached_function: Cell<Option<u32>>,
         cached_ptr: Cell<Option<NonNull<ThreadedFunction>>>,
@@ -919,6 +927,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::GlobalAddr { .. } => "global_addr",
             ThreadedInstructionData::GlobalConst { .. } => "global_const",
             ThreadedInstructionData::FunctionAddr { .. } => "function_addr",
+            ThreadedInstructionData::FunctionEnv { .. } => "function_env",
             ThreadedInstructionData::GlobalLoad { .. } => "global_load",
             ThreadedInstructionData::GlobalStore { .. } => "global_store",
             ThreadedInstructionData::Load { .. } => "load",

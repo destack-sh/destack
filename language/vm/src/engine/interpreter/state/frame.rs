@@ -33,6 +33,8 @@ pub struct Frame {
     pub local_count: usize,
     /// Stack-allocated cells (freed when frame pops).
     pub stack_cells: Vec<HeapCell>,
+    /// Closure environment pointer for this frame.
+    pub closure_env: Value,
     /// Return destination for the caller or INVALID_VALUE_ID for none.
     pub return_destination: mir::Value,
 }
@@ -50,6 +52,7 @@ impl Frame {
         value_count: usize,
         local_base: usize,
         local_count: usize,
+        closure_env: Value,
     ) -> Self {
         // assemble frame state
         Self {
@@ -65,6 +68,7 @@ impl Frame {
             local_base,
             local_count,
             stack_cells: Vec::new(),
+            closure_env,
             return_destination: mir::Value(INVALID_VALUE_ID),
         }
     }
@@ -282,6 +286,7 @@ impl Frame {
             local_base: self.local_base,
             local_count: self.local_count,
             stack_cells,
+            closure_env: self.closure_env,
             return_destination: self.return_destination,
         }
     }

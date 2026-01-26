@@ -129,6 +129,30 @@ pub(crate) fn handle_function_addr(
     next!(state, block, pc)
 }
 
+/// Load the closure environment pointer for the current frame.
+pub(crate) fn handle_function_env(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::FunctionEnv { dest } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load current frame closure env
+    let env = state.current_frame_mut().closure_env;
+    if env == Value::VOID {
+        return ControlFlow::Error(Error::InvalidInstruction);
+    }
+
+    // store result
+    state.set(*dest, env);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Enter a call with a resolved target function.
 #[allow(clippy::too_many_arguments)]
 fn call_with_target(
@@ -137,6 +161,7 @@ fn call_with_target(
     function_id: mir::LocalNodeId<mir::Function>,
     callee_index: u32,
     arguments: ArgumentRange,
+    env: Option<Value>,
     copy_plan: Option<CopyRange>,
     resume_pc: usize,
     allow_direct: bool,
@@ -209,6 +234,7 @@ fn call_with_target(
                 callee.value_count,
                 local_base,
                 callee.local_count,
+                env.unwrap_or(Value::VOID),
             );
 
             // bind parameters from caller values
@@ -253,6 +279,7 @@ fn call_with_target(
         callee_index,
         destination: dest,
         arguments,
+        env,
         copies: copy_plan,
         resume_pc,
     }
@@ -298,6 +325,7 @@ pub(crate) fn handle_call(
         function_id,
         *callee_index,
         *arguments,
+        None,
         copy_plan,
         pc + 1,
         allow_direct,
@@ -347,6 +375,7 @@ pub(crate) fn handle_call_virtual(
         INVALID_FUNCTION_INDEX,
         *arguments,
         None,
+        None,
         pc + 1,
         allow_direct,
     )
@@ -395,6 +424,7 @@ pub(crate) fn handle_call_interface(
         INVALID_FUNCTION_INDEX,
         *arguments,
         None,
+        None,
         pc + 1,
         allow_direct,
     )
@@ -412,6 +442,7 @@ pub(crate) fn handle_call_indirect(
     let ThreadedInstructionData::CallIndirect {
         dest,
         callee,
+        env,
         arguments,
         cached_function,
         cached_index,
@@ -442,6 +473,7 @@ pub(crate) fn handle_call_indirect(
             callee_index: cached_index,
             destination: *dest,
             arguments: *arguments,
+            env: env.map(|value| state.get(value)),
             copies: None,
             resume_pc: pc + 1,
         };
@@ -464,16 +496,19 @@ pub(crate) fn handle_call_indirect(
         callee_index: resolved_index,
         destination: *dest,
         arguments: *arguments,
+        env: env.map(|value| state.get(value)),
         copies: None,
         resume_pc: pc + 1,
     }
 }
+
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
     state: &mut ThreadedState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee: &ThreadedFunction,
     argument_values: &[Value],
+    env: Option<Value>,
 ) {
     // resolve frame bounds
     let (value_base, local_base) = {
@@ -511,6 +546,7 @@ fn enter_tail_call(
         frame.resume_pc = 0;
         frame.value_count = callee.value_count;
         frame.local_count = callee.local_count;
+        frame.closure_env = env.unwrap_or(Value::VOID);
     }
 
     // refresh cached pointers for the new threaded function
@@ -577,6 +613,7 @@ pub(crate) fn handle_tail_call(
             function: *function,
             callee_index: *callee_index,
             arguments: ArgumentRange::empty(),
+            env: None,
             copies: Some(*copies),
         };
     };
@@ -590,6 +627,7 @@ pub(crate) fn handle_tail_call(
             function: *function,
             callee_index: *callee_index,
             arguments: ArgumentRange::empty(),
+            env: None,
             copies: Some(*copies),
         };
     };
@@ -616,7 +654,7 @@ pub(crate) fn handle_tail_call(
     };
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee, &argument_values);
+    enter_tail_call(state, function_id, callee, &argument_values, None);
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;
@@ -729,6 +767,7 @@ pub(crate) fn handle_tail_call_virtual(
         function: function_id.id,
         callee_index: INVALID_FUNCTION_INDEX,
         arguments: *arguments,
+        env: None,
         copies: None,
     }
 }
@@ -762,6 +801,7 @@ pub(crate) fn handle_tail_call_interface(
         function: function_id.id,
         callee_index: INVALID_FUNCTION_INDEX,
         arguments: *arguments,
+        env: None,
         copies: None,
     }
 }
@@ -777,6 +817,7 @@ pub(crate) fn handle_tail_call_indirect(
     // decode instruction data
     let ThreadedInstructionData::TailCallIndirect {
         callee,
+        env,
         arguments,
         cached_function,
         cached_ptr,
@@ -807,7 +848,13 @@ pub(crate) fn handle_tail_call_indirect(
         if let Some(callee_ptr) = cached_ptr.get() {
             let callee = unsafe { callee_ptr.as_ref() };
             let argument_values = collect_values(state, *arguments);
-            enter_tail_call(state, function_id, callee, &argument_values);
+            enter_tail_call(
+                state,
+                function_id,
+                callee,
+                &argument_values,
+                env.map(|value| state.get(value)),
+            );
             let entry_block_ptr = state.current_frame_mut().block_ptr;
             let entry_block = unsafe { entry_block_ptr.as_ref() };
             let entry_instructions = entry_block.instructions.as_slice();
@@ -818,6 +865,7 @@ pub(crate) fn handle_tail_call_indirect(
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
+            env: env.map(|value| state.get(value)),
             copies: None,
         };
     }
@@ -837,6 +885,7 @@ pub(crate) fn handle_tail_call_indirect(
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
+            env: env.map(|value| state.get(value)),
             copies: None,
         };
     };
@@ -852,6 +901,7 @@ pub(crate) fn handle_tail_call_indirect(
             function,
             callee_index: INVALID_FUNCTION_INDEX,
             arguments: *arguments,
+            env: env.map(|value| state.get(value)),
             copies: None,
         };
     };
@@ -863,7 +913,13 @@ pub(crate) fn handle_tail_call_indirect(
     let argument_values = collect_values(state, *arguments);
 
     // enter tail call fast path
-    enter_tail_call(state, function_id, callee, &argument_values);
+    enter_tail_call(
+        state,
+        function_id,
+        callee,
+        &argument_values,
+        env.map(|value| state.get(value)),
+    );
 
     // continue at entry block
     let entry_block_ptr = state.current_frame_mut().block_ptr;

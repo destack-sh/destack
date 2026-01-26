@@ -662,6 +662,7 @@ impl<'a> InterpreterContext<'a> {
             threaded.value_count,
             local_base,
             threaded.local_count,
+            Value::VOID,
         );
 
         // bind function parameters to SSA values
@@ -801,6 +802,7 @@ impl<'a> InterpreterContext<'a> {
                     callee_index,
                     destination,
                     arguments,
+                    env,
                     copies,
                     resume_pc,
                 } => {
@@ -920,6 +922,7 @@ impl<'a> InterpreterContext<'a> {
                         callee.value_count,
                         local_base,
                         callee.local_count,
+                        env.unwrap_or(Value::VOID),
                     );
 
                     // bind callee's parameters
@@ -970,6 +973,7 @@ impl<'a> InterpreterContext<'a> {
                     function,
                     callee_index,
                     arguments,
+                    env,
                     copies,
                 } => {
                     // resolve target function id
@@ -1091,6 +1095,7 @@ impl<'a> InterpreterContext<'a> {
                     frame.resume_pc = 0;
                     frame.value_count = callee.value_count;
                     frame.local_count = callee.local_count;
+                    frame.closure_env = env.unwrap_or(Value::VOID);
 
                     // bind callee parameters
                     bind_parameters_from_values(
