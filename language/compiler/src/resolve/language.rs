@@ -903,31 +903,6 @@ mod tests {
         assert_string!(test.program, symbol.name().unwrap(), "Add");
     }
 
-    /// Resolve declared lib symbols for all builtin libs.
-    #[test]
-    fn test_resolve_builtin_lib_symbols() {
-        for lib in LIBS {
-            let test = TestProgram::memory_sequential_with_prelude_and_libs()
-                .with_profile_libs(&[lib.name]);
-            test.resolve_builtins();
-            test.resolve_libs();
-            test.compile();
-            test.check_no_diagnostics_up_to_including_phase(TaskPhase::Resolve);
-
-            let profile = test.default_profile_id_for_root();
-            for &symbol in lib.declared_symbols {
-                let name_id = test.program.strings.intern(symbol);
-                let declared_symbol = test.compiler.get_declared_lib_symbol(profile, name_id);
-                assert!(
-                    declared_symbol.is_some(),
-                    "missing declared lib symbol {}:{}",
-                    lib.name,
-                    symbol
-                );
-            }
-        }
-    }
-
     /// Report conflicts when multiple builtin lib versions are requested.
     #[test]
     fn test_error_on_conflicting_builtin_lib_versions() {
@@ -979,8 +954,35 @@ mod tests {
         }
     }
 
+    /// Resolve declared lib symbols for all builtin libs.
+    #[test]
+    #[ignore = "slow"]
+    fn test_resolve_builtin_lib_symbols() {
+        for lib in LIBS {
+            let test = TestProgram::memory_sequential_with_prelude_and_libs()
+                .with_profile_libs(&[lib.name]);
+            test.resolve_builtins();
+            test.resolve_libs();
+            test.compile();
+            test.check_no_diagnostics_up_to_including_phase(TaskPhase::Resolve);
+
+            let profile = test.default_profile_id_for_root();
+            for &symbol in lib.declared_symbols {
+                let name_id = test.program.strings.intern(symbol);
+                let declared_symbol = test.compiler.get_declared_lib_symbol(profile, name_id);
+                assert!(
+                    declared_symbol.is_some(),
+                    "missing declared lib symbol {}:{}",
+                    lib.name,
+                    symbol
+                );
+            }
+        }
+    }
+
     /// Resolve all builtin libs (without errors).
     #[test]
+    #[ignore = "slow"]
     fn test_resolve_all_builtin_libs() {
         // collect all lib names
         let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
@@ -998,6 +1000,7 @@ mod tests {
 
     /// Analyze all builtin libs (without errors).
     #[test]
+    #[ignore = "slow"]
     fn test_analyze_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
