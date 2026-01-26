@@ -317,8 +317,14 @@ impl<'a> FunctionLowerer<'a> {
         match instruction {
             // const: iconst or fconst (type-specific immediate load)
             mir::Instruction::Const { destination, value } => {
-                let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
-                value_map.insert(*destination, result);
+                // turn null into null pointer
+                if matches!(value, mir::Constant::Null) {
+                    let null_ptr = builder.ins().iconst(self.pointer_type(), 0);
+                    value_map.insert(*destination, null_ptr);
+                } else {
+                    let result = self.lower_constant(instruction_id.into_any(), value, builder)?;
+                    value_map.insert(*destination, result);
+                }
             }
 
             // binary: iadd/isub/imul/etc (arithmetic) or icmp (comparison)
@@ -1442,6 +1448,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
     ) -> Result<cir::Value, CodegenCraneliftError> {
         match constant {
+            mir::Constant::Null => Ok(builder.ins().iconst(self.pointer_type(), 0)),
             mir::Constant::Boolean { value } => {
                 let int_value = if *value { 1i64 } else { 0i64 };
                 Ok(builder.ins().iconst(cir::types::I8, int_value))

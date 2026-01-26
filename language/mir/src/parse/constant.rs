@@ -17,6 +17,10 @@ impl<'a> Parser<'a> {
 
         // parse the literal
         match token_ty {
+            TokenType::Identifier if token_text == "null" => {
+                self.bump();
+                Ok(Constant::Null)
+            }
             TokenType::BoolLiteral => {
                 let value = token_text == "true";
                 self.bump();
@@ -61,6 +65,16 @@ impl<'a> Parser<'a> {
 
         // validate the literal against the expected type
         match token_ty {
+            TokenType::Identifier if token_text == "null" => {
+                let Type::Reference { is_nullable, .. } = expected else {
+                    return Err(ParseError::invalid("null constant type", token_start));
+                };
+                if !is_nullable {
+                    return Err(ParseError::invalid("null constant type", token_start));
+                }
+                self.bump();
+                Ok(Constant::Null)
+            }
             TokenType::BoolLiteral => {
                 if !matches!(expected, Type::Boolean) {
                     return Err(ParseError::invalid("bool constant type", token_start));

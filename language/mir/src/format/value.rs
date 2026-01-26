@@ -14,6 +14,7 @@ impl<'a> Format<MirFormatContext<'a>> for Value {
 impl<'a> Format<MirFormatContext<'a>> for Constant {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         match self {
+            Constant::Null => write!(f, [text("null")]),
             Constant::Boolean { value } => {
                 write!(f, [text(if *value { "true" } else { "false" })])
             }

@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ArgumentSlice, Block, CallEffects, Function, Instruction, Local, LocalNodeId, MemoryAccessKind,
-    MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree, NodeType, ReferenceKind, SwitchCase,
-    TensorDimension, Terminator, Type, Value,
+    AddressSpace, ArgumentSlice, Block, CallEffects, Constant, Function, Instruction, Local,
+    LocalNodeId, MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree,
+    NodeType, ReferenceKind, SwitchCase, TensorDimension, Terminator, Type, Value,
 };
 
 use super::{VerifyAnchor, VerifyError, VerifyResult};
@@ -1778,6 +1778,58 @@ impl<'a> Verifier<'a> {
 
         // validate pointer-producing result types
         match instruction {
+            Instruction::Const { destination, value } => {
+                let Constant::Null = value else {
+                    return Ok(());
+                };
+
+                let destination_type_id =
+                    self.value_type_or_error(function, *destination, anchor, "null constant")?;
+                let destination_type = self.tree.get(destination_type_id);
+                let (kind, address_space, is_nullable) = match destination_type {
+                    Type::Reference {
+                        kind,
+                        address_space,
+                        is_nullable,
+                        ..
+                    } => (*kind, *address_space, *is_nullable),
+                    _ => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: "null constant requires a reference type".to_string(),
+                            anchor,
+                        });
+                    }
+                };
+
+                if !is_nullable {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "null constant requires a nullable reference type".to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(address_space, AddressSpace::Generic | AddressSpace::Heap) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "null constant requires a generic or heap address space"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(
+                    kind,
+                    ReferenceKind::Managed
+                        | ReferenceKind::Owned
+                        | ReferenceKind::Borrowed
+                        | ReferenceKind::Raw
+                ) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "null constant requires a managed or raw reference kind"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
             Instruction::GlobalAddr {
                 global,
                 result_type,

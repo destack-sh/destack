@@ -379,6 +379,7 @@ pub enum ThreadedInstructionData {
     FunctionAddr { dest: mir::Value, function: u32 },
     /// Load the closure environment pointer.
     FunctionEnv { dest: mir::Value },
+    /// Create a null reference value.
 
     /// Fused global address + load.
     GlobalLoad { dest: mir::Value, global: u32 },

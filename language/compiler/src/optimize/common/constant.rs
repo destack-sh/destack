@@ -11,6 +11,8 @@ use super::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
 /// Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstantType {
+    /// Null reference constant type.
+    Null,
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
@@ -37,6 +39,7 @@ impl ConstantLookup for HashMap<mir::Value, mir::Constant> {
 /// Return the constant type for a MIR constant.
 pub fn constant_type_of(constant: &Constant) -> ConstantType {
     match constant {
+        Constant::Null => ConstantType::Null,
         Constant::Boolean { .. } => ConstantType::Boolean,
         Constant::Int {
             width, is_signed, ..
@@ -61,6 +64,7 @@ pub fn constant_matches_type(
     tree: &NodeTree,
 ) -> bool {
     match (constant_type, tree.get(destination_type)) {
+        (ConstantType::Null, Type::Reference { is_nullable, .. }) => *is_nullable,
         (ConstantType::Boolean, Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)

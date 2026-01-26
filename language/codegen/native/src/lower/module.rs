@@ -214,6 +214,8 @@ impl<'a> ModuleLowerer<'a> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CodegenCraneliftResult<Vec<u8>> {
         match constant {
+            // null reference -> pointer-sized zero
+            mir::Constant::Null => Ok(vec![0u8; usize::from(self.isa.pointer_bytes())]),
             // boolean -> 1 or 0
             mir::Constant::Boolean { value } => Ok(vec![if *value { 1 } else { 0 }]),
 

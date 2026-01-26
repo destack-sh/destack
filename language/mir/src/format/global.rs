@@ -149,6 +149,7 @@ fn format_byte_literal<'a>(bytes: &[u8], f: &mut MirFormatter<'a, '_>) -> Format
 /// Format a constant value.
 fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     match constant {
+        Constant::Null => write!(f, [text("null")]),
         Constant::Boolean { value } => {
             write!(f, [text(if *value { "true" } else { "false" })])
         }

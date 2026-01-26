@@ -184,7 +184,6 @@ pub enum Instruction {
         /// The SSA value to define with the closure environment pointer.
         destination: Value,
     },
-
     // memory (pointers)
     /// Load from a pointer (dereference).
     ///
