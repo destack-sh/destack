@@ -2,7 +2,13 @@
 RUST_BACKTRACE = { value = "full", force = true }
 
 [build]
-rustflags = ["-C", "force-frame-pointers=yes"]
+rustflags = ["-C", "force-frame-pointers=yes", "-Z", "threads=8"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "force-frame-pointers=yes", "-Z", "threads=8", "-C", "link-arg=-ld_new"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "force-frame-pointers=yes", "-Z", "threads=8", "-C", "link-arg=-ld_new"]
 
 [target.x86_64-unknown-linux-gnu]
 linker = "x86_64-linux-gnu-gcc"
@@ -12,11 +18,11 @@ linker = "aarch64-linux-gnu-gcc"
 
 [target.x86_64-unknown-linux-musl]
 linker = "musl-gcc"
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = ["-C", "force-frame-pointers=yes", "-Z", "threads=8", "-C", "target-feature=+crt-static"]
 
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = ["-C", "force-frame-pointers=yes", "-Z", "threads=8", "-C", "target-feature=+crt-static"]
 
 [target.wasm32-wasi]
 runner = "wasmtime run --dir=. --"

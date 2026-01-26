@@ -219,7 +219,7 @@ debug = true
 
 [profile.release]
 opt-level = 2
-codegen-units = 1
+codegen-units = 16
 lto = "off"
 debug-assertions = false
 overflow-checks = false

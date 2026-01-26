@@ -147,12 +147,11 @@ Logic:
 - Tests go in a trailing `mod tests` or in standalone test modules/crates (contextual)
 - Inline variables in format macros if possible: `format!("name is {name}")`
 - Prefer multiline raw strings for longer strings
-- Prefer using `--release` for build, test, check, etc. (it's faster)
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 
 Lints and warnings:
-- Fix all the lints from `cargo check --release -p <crate>` and `cargo clippy --release -p <crate>`
+- Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
 - Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
 - In general, ignore too many arguments and type complexity warnings
 
