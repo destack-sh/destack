@@ -1585,6 +1585,7 @@ fn thread_instruction(
         mir::Instruction::CallIndirect {
             destination,
             callee,
+            env,
             arguments,
             ..
         } => {
@@ -1594,6 +1595,7 @@ fn thread_instruction(
                 data: ThreadedInstructionData::CallIndirect {
                     dest: pack_optional_value(*destination),
                     callee: *callee,
+                    env: *env,
                     arguments: args,
                     cached_function: Cell::new(None),
                     cached_index: Cell::new(None),
@@ -1678,6 +1680,12 @@ fn thread_instruction(
             data: ThreadedInstructionData::FunctionAddr {
                 dest: *destination,
                 function: function.id,
+            },
+        },
+        mir::Instruction::FunctionEnv { destination } => ThreadedInstruction {
+            handler: dispatch::handle_function_env,
+            data: ThreadedInstructionData::FunctionEnv {
+                dest: *destination,
             },
         },
 
@@ -2685,6 +2693,7 @@ fn infer_instruction_kind(
                 result: function.return_type,
             })
         }
+        mir::Instruction::FunctionEnv { destination } => value_kinds.get(*destination),
         mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, *result_type)),
         mir::Instruction::FieldGet {
             aggregate, index, ..
@@ -3642,13 +3651,17 @@ fn thread_terminator(
         }
 
         mir::Terminator::TailCallIndirect {
-            callee, arguments, ..
+            callee,
+            env,
+            arguments,
+            ..
         } => {
             let args = push_argument_range(argument_pool, arguments);
             ThreadedInstruction {
                 handler: dispatch::handle_tail_call_indirect,
                 data: ThreadedInstructionData::TailCallIndirect {
                     callee: *callee,
+                    env: *env,
                     arguments: args,
                     cached_function: Cell::new(None),
                     cached_ptr: Cell::new(None),

@@ -2103,6 +2103,19 @@ Lambdas inside methods capture the lexical `this` unless `@capture` overrides it
 
 Methods can also be added to any type via extensions, including primitives and foreign types.
 
+#### Closures
+
+Function values capture lexical bindings from their defining scope.
+Captures default to by-value for `const` bindings and by-reference for mutable bindings.
+Use `@capture` to override capture mode for specific bindings.
+Closure calls implicitly carry their captured environment and do not require explicit arguments.
+
+```
+const x = 10;
+const add = (y: int32) => x + y;
+add(5);
+```
+
 #### Getters and Setters
 
 Getters and setters work like TypeScript:
