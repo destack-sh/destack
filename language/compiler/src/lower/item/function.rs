@@ -11,7 +11,6 @@ use crate::{
     Terminates,
 };
 
-use crate::lower::item::LocalBinding;
 use crate::lower::module::ModuleLowerer;
 
 /// Visitor that collects expression ids from a subtree.
@@ -496,12 +495,15 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
-        // collect address taken locals before borrowing the builder
+        // collect address taken locals
         let address_taken = body
             .map(|body_id| self.collect_address_taken_bindings(body_id))
             .unwrap_or_else(AddressTakenBindings::empty);
 
-        // resolve allocation mode before borrowing the builder
+        // resolve the implicit this symbol
+        let this_symbol = self.resolve_this_symbol_for_function(symbol_id, signature);
+
+        // resolve allocation mode
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
 
         // declare or reuse the function id
@@ -524,7 +526,6 @@ impl ModuleLowerer<'_> {
         };
 
         // resolve shared closure environment metadata
-        let empty_closure_env_type = self.empty_closure_env_type();
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
 
         // build the function body
@@ -561,17 +562,12 @@ impl ModuleLowerer<'_> {
             type_lowerer: &self.type_lowerer,
             symbol: symbol_id,
             closure_env_layouts: &self.closure_env_layouts,
-            empty_closure_env_type,
             empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
-        // capture the implicit this symbol when present
-        let this_symbol = signature.this_parameter.map(|parameter_id| {
-            let parameter = self.dir_tree.get(parameter_id);
-            parameter.symbol().into_global(self.module_id)
-        });
+        // capture explicit or captured this symbols when present
         function_ctx.state.bindings.this_symbol = this_symbol;
 
         // track locals captured by reference
@@ -599,7 +595,10 @@ impl ModuleLowerer<'_> {
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
             let ty = parameter_types[index];
-            let value = function_ctx.state.builder.function_parameter(index);
+            let value = function_ctx
+                .state
+                .builder
+                .function_parameter(index);
             let mutability = parameter
                 .modifiers()
                 .and_then(|modifier| modifier.mutability);
@@ -663,6 +662,38 @@ impl ModuleLowerer<'_> {
         };
 
         Ok(name)
+    }
+
+    /// Resolve a `this` symbol for explicit parameters or captured bindings.
+    fn resolve_this_symbol_for_function(
+        &self,
+        symbol_id: GlobalSymbolId,
+        signature: &dir::FunctionSignature,
+    ) -> Option<GlobalSymbolId> {
+        // prefer explicit this parameters
+        if let Some(parameter_id) = signature.this_parameter {
+            let parameter = self.dir_tree.get(parameter_id);
+            return Some(parameter.symbol().into_global(self.module_id));
+        }
+
+        // resolve implicit this for member methods
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let is_member = symbol_data
+            .primary_declaration
+            .is_some_and(|primary| primary.local_id.ty == dir::NodeType::Member);
+        if is_member {
+            let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
+            let this_name = self.compiler.program.strings.intern("this");
+            if let Some(symbol) = self.symbols.find_active_symbol(scope, dir::StaticKey::Name(this_name))
+            {
+                return Some(symbol.into_global(self.module_id));
+            }
+        }
+
+        // fall back to captured this bindings
+        self.captures
+            .capture_set(symbol_id)
+            .and_then(|set| set.this_symbol)
     }
 
     /// Resolve the module-local owner path for an anonymous lambda.
@@ -856,13 +887,15 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
-        // collect address taken locals before borrowing the builder
+        // collect address taken locals
         let address_taken = body
             .map(|body_id| self.collect_address_taken_bindings(body_id))
             .unwrap_or_else(AddressTakenBindings::empty);
 
+        // resolve the implicit this symbol
+        let this_symbol = self.resolve_this_symbol_for_function(method_symbol, signature);
+
         // resolve shared closure environment metadata
-        let empty_closure_env_type = self.empty_closure_env_type();
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
 
         // build the function and register bindings
@@ -935,17 +968,12 @@ impl ModuleLowerer<'_> {
             type_lowerer: &self.type_lowerer,
             symbol: method_symbol,
             closure_env_layouts: &self.closure_env_layouts,
-            empty_closure_env_type,
             empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
-        // capture the implicit this symbol when present
-        let this_symbol = signature.this_parameter.map(|parameter_id| {
-            let parameter = self.dir_tree.get(parameter_id);
-            parameter.symbol().into_global(self.module_id)
-        });
+        // capture explicit or captured this symbols when present
         function_ctx.state.bindings.this_symbol = this_symbol;
 
         // track locals captured by reference
@@ -991,28 +1019,7 @@ impl ModuleLowerer<'_> {
         if let Some(this_ty) = method_this_type
             && !is_constructor
         {
-            // bind the this value as a local or variable
-            let this_value = function_ctx.state.builder.function_parameter(param_index);
-            let this_binding = if function_ctx.this_needs_addressable_local() {
-                let local = function_ctx
-                    .state
-                    .builder
-                    .local(this_ty, mir::Mutability::Immutable);
-                function_ctx.state.builder.local_set(local, this_value);
-                LocalBinding::local(local, this_ty)
-            } else {
-                let variable = function_ctx.state.builder.variable(this_ty);
-                function_ctx
-                    .state
-                    .builder
-                    .define_variable(variable, this_value);
-                LocalBinding::variable(variable, this_ty)
-            };
-
-            // set 'this' binding for Expression::This lookup
-            function_ctx.state.bindings.this_binding = Some(this_binding);
-
-            // advance the parameter index
+            function_ctx.bind_this_parameter(member_id.into_any(), this_symbol, this_ty)?;
             param_index += 1;
         }
 

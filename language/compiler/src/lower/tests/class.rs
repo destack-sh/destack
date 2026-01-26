@@ -127,12 +127,6 @@ function readPacketSize(value: int32): int32 {
 global @PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
 global @MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
 
-function @MessageHeader.ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
-block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
-    v1: i32 = iconst 1i32
-    return v1
-}
-
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
     v1: ref<raw [ref?<raw void>; 2]> = global.addr @PacketHeader#vtable
@@ -143,6 +137,12 @@ block0(v0: i32):
     v5: { @vtable: ref<raw void>, packetSize: i32 } = load v4
     v6: i32 = field.get v5, 1
     return v6
+}
+
+function @MessageHeader.ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
+block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
+    v1: i32 = iconst 1i32
+    return v1
 }
         "#,
     );
@@ -294,6 +294,12 @@ type @Dog = { @vtable: ref<raw void>, name: i32, breed: i32 }
 global @Animal#vtable: [ref?<raw void>; 3] = zeroinit ; const
 global @Dog#vtable: [ref?<raw void>; 3] = zeroinit ; const
 
+function @useDog(v0: ref<managed @Dog>) -> i32 {
+block0(v0: ref<managed @Dog>):
+    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed @Dog>) -> i32
+    return v1
+}
+
 function @Animal.speak(v0: ref<managed @Animal>) -> i32 {
 block0(v0: ref<managed @Animal>):
     v1: i32 = iconst 1i32
@@ -303,12 +309,6 @@ block0(v0: ref<managed @Animal>):
 function @Dog.speak(v0: ref<managed @Dog>) -> i32 {
 block0(v0: ref<managed @Dog>):
     v1: i32 = iconst 2i32
-    return v1
-}
-
-function @useDog(v0: ref<managed @Dog>) -> i32 {
-block0(v0: ref<managed @Dog>):
-    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed @Dog>) -> i32
     return v1
 }
         "#,
@@ -465,6 +465,12 @@ type @FileLogger = { @vtable: ref<raw void>, logLevel: i32, fileMode: i32 }
 global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 
+function @callLogger(v0: ref<managed @Logger>) -> i32 {
+block0(v0: ref<managed @Logger>):
+    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed @Logger>) -> i32
+    return v1
+}
+
 function @Logger.log(v0: ref<managed @Logger>) -> i32 {
 block0(v0: ref<managed @Logger>):
     v1: i32 = iconst 1i32
@@ -474,12 +480,6 @@ block0(v0: ref<managed @Logger>):
 function @FileLogger.log(v0: ref<managed @FileLogger>) -> i32 {
 block0(v0: ref<managed @FileLogger>):
     v1: i32 = iconst 2i32
-    return v1
-}
-
-function @callLogger(v0: ref<managed @Logger>) -> i32 {
-block0(v0: ref<managed @Logger>):
-    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed @Logger>) -> i32
     return v1
 }
         "#,
@@ -533,6 +533,12 @@ type @Struct0 = { @vtable: ref<raw void> }
 global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 
+function @callLogger(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed @Struct0>) -> i32
+    return v1
+}
+
 function @Logger.log(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
     v1: i32 = iconst 1i32
@@ -542,12 +548,6 @@ block0(v0: ref<managed @Struct0>):
 function @FileLogger.log(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
     v1: i32 = iconst 2i32
-    return v1
-}
-
-function @callLogger(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
-    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed @Struct0>) -> i32
     return v1
 }
         "#,

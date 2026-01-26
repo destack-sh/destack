@@ -602,10 +602,7 @@ impl FunctionContext<'_> {
 
         // create blocks
         let exit_block = self.state.builder.block();
-        let case_blocks: Vec<_> = cases
-            .iter()
-            .map(|_| self.state.builder.block())
-            .collect();
+        let case_blocks: Vec<_> = cases.iter().map(|_| self.state.builder.block()).collect();
         if kind == MatchKind::Switch {
             self.state.control.break_stack.push(BreakContext {
                 break_block: exit_block,

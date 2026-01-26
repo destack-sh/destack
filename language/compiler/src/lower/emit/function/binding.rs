@@ -1,7 +1,7 @@
 use destack_dir::{Expression, GlobalSymbolId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::LowerResult;
+use crate::{LowerError, LowerResult};
 
 use crate::lower::emit::FunctionContext;
 use crate::lower::item::{LocalBinding, LocalStorage};
@@ -52,6 +52,47 @@ impl FunctionContext<'_> {
             .state
             .builder
             .cast(mir::CastOperator::Bitcast, addr, result_type))
+    }
+
+    /// Bind the implicit `this` parameter to a local binding.
+    pub(crate) fn bind_this_parameter(
+        &mut self,
+        node_id: dir::LocalNodeIdAny,
+        symbol: Option<GlobalSymbolId>,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // reject duplicate bindings when a symbol is provided
+        if let Some(symbol) = symbol {
+            if self.state.bindings.locals_by_symbol.contains_key(&symbol) {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: node_id.into_anchored(self.env.module_id, Some(self.env.profile)),
+                    message: "duplicate this binding".to_string(),
+                });
+            }
+        }
+
+        // create a binding from the implicit parameter value
+        let value = self.state.builder.function_parameter(0);
+        let binding = if self.this_needs_addressable_local() {
+            let local = self
+                .state
+                .builder
+                .local(ty, mir::Mutability::Immutable);
+            self.state.builder.local_set(local, value);
+            LocalBinding::local(local, ty)
+        } else {
+            let variable = self.state.builder.variable(ty);
+            self.state.builder.define_variable(variable, value);
+            LocalBinding::variable(variable, ty)
+        };
+
+        // record the binding for `this`
+        self.state.bindings.this_binding = Some(binding);
+        if let Some(symbol) = symbol {
+            self.state.bindings.locals_by_symbol.insert(symbol, binding);
+        }
+
+        Ok(())
     }
 
     /// Resolve a reference value for a local binding, upgrading storage when needed.

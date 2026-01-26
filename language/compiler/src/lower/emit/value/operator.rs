@@ -200,10 +200,7 @@ impl FunctionContext<'_> {
         let merge_block = self.state.builder.block();
 
         // create a variable to hold the result (SSA construction will merge)
-        let result_variable = self
-            .state
-            .builder
-            .variable(self.env.type_lowerer.ty_bool);
+        let result_variable = self.state.builder.variable(self.env.type_lowerer.ty_bool);
 
         // branch based on operator semantics
         match operator {

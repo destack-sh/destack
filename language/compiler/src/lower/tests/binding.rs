@@ -378,7 +378,7 @@ function borrowGreeter(greeter: Greeter): &Greeter {
         r#"
 type @Greeter = { @object: ref<managed void>, @itab: usize }
 
-extern function @Greeter.greet({ greet: fn() -> i32 }) -> i32
+extern function @Greeter.greet({ greet: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> } }) -> i32
 
 function @borrowGreeter(v0: @Greeter) -> ref<borrowed @Greeter> {
     local0: @Greeter ; owned

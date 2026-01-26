@@ -171,7 +171,7 @@ impl ModuleLowerer<'_> {
             env_type,
             mir::Mutability::Mutable,
             mir::AddressSpace::Generic,
-            false,
+            true,
         );
         self.empty_closure_env_type = Some(env_type);
         self.empty_closure_env_pointer_type = Some(env_pointer_type);
@@ -190,7 +190,7 @@ impl ModuleLowerer<'_> {
             env_type,
             mir::Mutability::Mutable,
             mir::AddressSpace::Generic,
-            false,
+            true,
         );
         self.empty_closure_env_pointer_type = Some(env_pointer_type);
         env_pointer_type

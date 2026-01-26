@@ -131,18 +131,18 @@ function checkStatic(): boolean {
         module_id,
         "native",
         r#"
-function @Status.isActive(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_eq v0, v1
-    return v2
-}
-
 function @checkStatic() -> bool {
 block0:
     v0: i32 = iconst 1i32
     v1: bool = call @Status.isActive(v0) -> fn(i32) -> bool
     return v1
+}
+
+function @Status.isActive(v0: i32) -> bool {
+block0(v0: i32):
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_eq v0, v1
+    return v2
 }
         "#,
     );
@@ -180,18 +180,18 @@ function checkInstance(): boolean {
         module_id,
         "native",
         r#"
-function @Status.isActive(v0: i32) -> bool {
-block0(v0: i32):
-    v1: i32 = iconst 1i32
-    v2: bool = icmp_eq v0, v1
-    return v2
-}
-
 function @checkInstance() -> bool {
 block0:
     v0: i32 = iconst 1i32
     v1: bool = call @Status.isActive(v0) -> fn(i32) -> bool
     return v1
+}
+
+function @Status.isActive(v0: i32) -> bool {
+block0(v0: i32):
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_eq v0, v1
+    return v2
 }
         "#,
     );

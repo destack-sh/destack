@@ -354,8 +354,27 @@ impl Compiler {
         symbols: &SymbolTable,
         symbol: GlobalSymbolId,
     ) -> Option<GlobalSymbolId> {
-        // start from the primary declaration
+        // resolve the owning scope for local symbols when possible
         let symbol_data = symbols.get_symbol(symbol.into_local());
+        if symbol_data.module_id != module_id {
+            return None;
+        }
+        let mut scope_id = symbol_data.scope.0;
+        loop {
+            let scope = symbols.get_scope_by_id(scope_id);
+            if let Some(owner_id) = scope.owner_id {
+                let owner_symbol = symbols.get_symbol(owner_id);
+                if self.symbol_is_function(tree, owner_symbol) {
+                    return Some(owner_id.into_global(module_id));
+                }
+            }
+            let Some((parent_id, _)) = scope.parent else {
+                break;
+            };
+            scope_id = parent_id;
+        }
+
+        // fall back to walking up from the primary declaration
         let primary_declaration = symbol_data.primary_declaration?;
         if primary_declaration.module_id != module_id {
             return None;
@@ -364,15 +383,59 @@ impl Compiler {
         // walk up the syntax tree to find the owning function declaration
         let mut current = primary_declaration.local_id;
         loop {
-            if current.ty == NodeType::Declaration {
-                let declaration_id = LocalNodeId::<Declaration>::new(current.id);
-                if let Declaration::Function { descriptor, .. } = tree.get(declaration_id) {
-                    return Some(descriptor.symbol.into_global(module_id));
+            match current.ty {
+                NodeType::Declaration => {
+                    let declaration_id = LocalNodeId::<Declaration>::new(current.id);
+                    if let Declaration::Function { descriptor, .. } = tree.get(declaration_id) {
+                        return Some(descriptor.symbol.into_global(module_id));
+                    }
                 }
+                NodeType::Member => {
+                    let member_id = LocalNodeId::<Member>::new(current.id);
+                    if let Member::Method { symbol, .. } = tree.get(member_id) {
+                        return Some(symbol.into_global(module_id));
+                    }
+                }
+                NodeType::Expression => {
+                    let expression_id = LocalNodeId::<Expression>::new(current.id);
+                    if let Expression::Declaration { declaration } = tree.get(expression_id)
+                        && let Declaration::Function { descriptor, .. } = tree.get(*declaration)
+                    {
+                        return Some(descriptor.symbol.into_global(module_id));
+                    }
+                }
+                _ => {}
             }
 
             let parent_id = tree.get_parent(current.id)?;
             current = parent_id;
+        }
+    }
+
+    /// Check whether a symbol represents a function declaration or method.
+    fn symbol_is_function(&self, tree: &NodeTree, symbol: &destack_dir::Symbol) -> bool {
+        let Some(primary) = symbol.primary_declaration else {
+            return false;
+        };
+        let owner_id = primary.local_id;
+        match owner_id.ty {
+            NodeType::Declaration => {
+                let declaration_id = LocalNodeId::<Declaration>::new(owner_id.id);
+                matches!(tree.get(declaration_id), Declaration::Function { .. })
+            }
+            NodeType::Member => {
+                let member_id = LocalNodeId::<Member>::new(owner_id.id);
+                matches!(tree.get(member_id), Member::Method { .. })
+            }
+            NodeType::Expression => {
+                let expression_id = LocalNodeId::<Expression>::new(owner_id.id);
+                if let Expression::Declaration { declaration } = tree.get(expression_id) {
+                    matches!(tree.get(*declaration), Declaration::Function { .. })
+                } else {
+                    false
+                }
+            }
+            _ => false,
         }
     }
 }

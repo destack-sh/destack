@@ -67,8 +67,6 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) dispatch_construct_name: destack_base::StringId,
     /// Resolve closure environment layouts by function symbol.
     pub(crate) closure_env_layouts: &'a HashMap<GlobalSymbolId, ClosureEnvLayout>,
-    /// Fallback environment type for non-capturing closures.
-    pub(crate) empty_closure_env_type: mir::LocalNodeId<mir::Type>,
     /// Fallback environment pointer type for non-capturing closures.
     pub(crate) empty_closure_env_pointer_type: mir::LocalNodeId<mir::Type>,
 }
@@ -536,49 +534,8 @@ impl<'a> FunctionContext<'a> {
             .function_addr(*target_function, fn_field.ty);
 
         // materialize the closure environment
-        let (env_value, env_value_type) = if let Some(env_layout) =
-            self.env.closure_env_layouts.get(&target_symbol)
-        {
-            let env_ref_type = env_layout.env_pointer_type;
-            let env_value = self
-                .state
-                .builder
-                .managed_alloc(env_layout.env_type, env_ref_type);
-            for field in &env_layout.fields {
-                let field_addr_type = self.state.builder.type_reference(
-                    mir::ReferenceKind::Managed,
-                    field.ty,
-                    mir::Mutability::Mutable,
-                    mir::AddressSpace::Generic,
-                    false,
-                );
-                let field_addr =
-                    self.state
-                        .builder
-                        .field_addr(env_value, field.index, field_addr_type);
-                match field.kind {
-                    dir::CaptureKind::ByValue | dir::CaptureKind::ByMove => {
-                        let (value, _) =
-                            self.lower_reference_expression(expression_id, field.symbol)?;
-                        self.state.builder.store(field_addr, value);
-                    }
-                    dir::CaptureKind::ByReference => {
-                        let reference_value =
-                            self.reference_value_for_symbol(expression_id, field.symbol, field.ty)?;
-                        self.state.builder.store(field_addr, reference_value);
-                    }
-                }
-            }
-            (env_value, env_ref_type)
-        } else {
-            let empty_env_type = self.env.empty_closure_env_type;
-            let env_ref_type = self.env.empty_closure_env_pointer_type;
-            let env_value = self
-                .state
-                .builder
-                .managed_alloc(empty_env_type, env_ref_type);
-            (env_value, env_ref_type)
-        };
+        let (env_value, env_value_type) =
+            self.build_closure_env_for_symbol(expression_id, target_symbol)?;
 
         // register the closure env type on the callee
         self.set_closure_env_type(expression_id, *target_function, env_value_type)?;
@@ -826,7 +783,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Lower a `this` expression.
-    fn lower_this_expression(
+    pub(crate) fn lower_this_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
@@ -837,16 +794,10 @@ impl<'a> FunctionContext<'a> {
         }
 
         // fall back to captured this bindings
-        if let Some(layout) = self.closure_env_layout() {
-            let captured_field = layout.fields.iter().find_map(|field| {
-                let symbol_data = self.env.symbols.get_symbol(field.symbol.local_id);
-                let name = symbol_data.name()?;
-                let name = self.env.strings.get(name);
-                if name == "this" { Some(*field) } else { None }
-            });
-            if let Some(field) = captured_field {
-                return self.captured_binding_value(expression_id, &field);
-            }
+        if let Some(this_symbol) = self.state.bindings.this_symbol
+            && let Some(field) = self.capture_field_for_symbol(this_symbol)
+        {
+            return self.captured_binding_value(expression_id, &field);
         }
 
         Err(LowerError::UnsupportedConstruct {
