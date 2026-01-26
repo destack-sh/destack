@@ -28,19 +28,18 @@ function applyIdentity(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @Struct0 = {  }
 type @fn#param.int32#return.int32 = { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> }
 
 function @makeIdentity() -> @fn#param.int32#return.int32 {
 block0:
     v0: fn(i32) -> i32 = function.addr @makeIdentity.lambda#7
-    v1: ref<managed mut @Struct0> = managed.alloc @Struct0
+    v1: ref?<managed mut {  }> = iconst null
     v2: ref?<managed mut void> = bitcast v1 -> ref?<managed mut void>
     v3: @fn#param.int32#return.int32 = struct @fn#param.int32#return.int32 (v0, v2)
     return v3
 }
 
-#[closure_env(ref<managed mut @Struct0>)]
+#[closure_env(ref?<managed mut {  }>)]
 function @makeIdentity.lambda#7(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -220,6 +219,44 @@ block0:
     test.assert_mir_function_output(module_id, "native", "runCounter", &[], Value::int32(1));
 }
 
+/// Verify closures can capture implicit `this` from member methods.
+#[test]
+fn test_lower_closure_captures_this() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Counter {
+    value: int32 = 0;
+
+    constructor() {
+        this.value = 0;
+        return;
+    }
+
+    make(step: int32): () => int32 {
+        const current = this;
+        return (): int32 => {
+            return current.value + step;
+        };
+    }
+}
+
+function run(): int32 {
+    let counter: Counter = new Counter();
+    let next = counter.make(2);
+    return next();
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(2));
+}
+
 /// Verify named functions lower to closure values with empty environments.
 #[test]
 fn test_lower_named_function_as_value() {
@@ -246,9 +283,7 @@ function applyDouble(input: int32): int32 {
         module_id,
         "native",
         r#"
-type @Struct0 = {  }
-
-#[closure_env(ref<managed mut @Struct0>)]
+#[closure_env(ref?<managed mut {  }>)]
 function @double(v0: i32) -> i32 {
 block0(v0: i32):
     v1: i32 = iadd v0, v0
@@ -258,7 +293,7 @@ block0(v0: i32):
 function @applyDouble(v0: i32) -> i32 {
 block0(v0: i32):
     v1: fn(i32) -> i32 = function.addr @double
-    v2: ref<managed mut @Struct0> = managed.alloc @Struct0
+    v2: ref?<managed mut {  }> = iconst null
     v3: ref?<managed mut void> = bitcast v2 -> ref?<managed mut void>
     v4: { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> } = struct { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> } (v1, v3)
     v5: fn(i32) -> i32 = field.get v4, 0

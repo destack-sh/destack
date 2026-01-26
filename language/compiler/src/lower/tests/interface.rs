@@ -37,7 +37,7 @@ struct Circle implements Drawable {
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: fn() -> i32, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -68,7 +68,6 @@ block0(v0: @Circle):
 /// Lower interface reference layouts into fat pointer structs.
 #[test]
 fn test_lower_interface_reference_layout() {
-    // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -87,19 +86,17 @@ struct Circle implements Drawable {
 "#,
     );
 
-    // lower the module
     test.add_target(module_id, "native");
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    // assert the lowered mir
     test.assert_mir(
         module_id,
         "native",
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: fn() -> i32, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -110,16 +107,13 @@ block0(v0: @Circle):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        // find the interface reference struct type
         let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable");
 
-        // resolve the object and itab field types
         let object_type =
             test.expect_struct_field_type_by_name(tree, strings, interface_type, "@object");
         let itab_type =
             test.expect_struct_field_type_by_name(tree, strings, interface_type, "@itab");
 
-        // assert the object pointer field type
         let object_type = tree.get(object_type);
         let mir::Type::Reference { kind, pointee, .. } = object_type else {
             panic!("expected managed reference for interface object field");
@@ -127,10 +121,126 @@ block0(v0: @Circle):
         assert!(matches!(kind, mir::ReferenceKind::Managed));
         assert!(matches!(tree.get(*pointee), mir::Type::Void));
 
-        // assert the itab field type
         let itab_type = tree.get(itab_type);
         assert!(matches!(itab_type, mir::Type::Usize));
     });
+}
+
+/// Lower structural interface parameters for anonymous object types.
+#[test]
+#[ignore]
+fn test_lower_structural_interface_parameter() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Drawable {
+    draw(): int32;
+}
+
+struct Circle implements Drawable {
+    value: int32;
+
+    draw(): int32 { return this.value; }
+}
+
+function render(drawable: Drawable): int32 {
+    return drawable.draw();
+}
+
+function run(): int32 {
+    let circle = Circle { value: 11 };
+    return render(circle);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(11));
+}
+
+/// Lower structural interface parameters with field-only shapes.
+#[test]
+#[ignore] // FUGU #Incomplete: structural interfaces (see other structural interface tests here!)
+fn test_lower_structural_interface_fields() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Rectangle {
+    x: int32;
+    y: int32;
+    width: int32;
+    height: int32;
+}
+
+struct Rect implements Rectangle {
+    x: int32;
+    y: int32;
+    width: int32;
+    height: int32;
+}
+
+function area(rect: Rectangle): int32 {
+    return rect.width * rect.height;
+}
+
+function run(): int32 {
+    let rect = Rect { x: 0, y: 0, width: 4, height: 5 };
+    return area(rect);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(20));
+}
+
+/// Lower structural interface parameters with mixed fields and methods.
+#[test]
+#[ignore]
+fn test_lower_structural_interface_mixed() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Rectangle {
+    width: int32;
+    height: int32;
+    area(): int32;
+}
+
+struct Rect implements Rectangle {
+    width: int32;
+    height: int32;
+
+    area(): int32 { 
+        return this.width * this.height;
+    }
+}
+
+function render(rect: Rectangle): int32 {
+    return rect.area();
+}
+
+function run(): int32 {
+    let rect = Rect { width: 6, height: 7 };
+    return render(rect);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(42));
 }
 
 /// Lower interface itab slots in declaration order for mixed members.
@@ -154,8 +264,13 @@ struct Widget implements Shape, Paint {
     width: int32;
     color: int32;
 
-    area(): int32 { return this.width; }
-    paint(): int32 { return this.color; }
+    area(): int32 { 
+        return this.width;
+    }
+
+    paint(): int32 { 
+        return this.color; 
+    }
 }
 "#,
     );
@@ -171,9 +286,9 @@ struct Widget implements Shape, Paint {
         r#"
 type @Widget = { width: i32, color: i32 }
 
-extern function @Shape.area({ area: fn() -> i32, width: i32 }) -> i32
+extern function @Shape.area({ area: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, width: i32 }) -> i32
 
-extern function @Paint.paint({ paint: fn() -> i32, color: i32 }) -> i32
+extern function @Paint.paint({ paint: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
 function @Widget.area(v0: @Widget) -> i32 {
 block0(v0: @Widget):
     v1: i32 = field.get v0, 0
@@ -274,23 +389,24 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
+type @Drawable#method:draw#function = { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }
 type @Drawable = { @object: ref<managed void>, @itab: usize }
 type @Circle = { color: i32, radius: i32 }
-type @Drawable#object = { draw: fn() -> i32, color: i32 }
+type @Drawable#object = { draw: @Drawable#method:draw#function, color: i32 }
 
 extern function @Drawable.draw(@Drawable#object) -> i32
-
-function @Circle.draw(v0: @Circle) -> i32 {
-block0(v0: @Circle):
-    v1: i32 = field.get v0, 0
-    return v1
-}
 
 function @useDrawable(v0: @Drawable) -> i32 {
 block0(v0: @Drawable):
     v1: ref<managed void> = field.get v0, 0
     v2: i32 = call.interface v0, @Drawable#object, 2, @Drawable.draw(v1) -> fn(@Drawable#object) -> i32
     return v2
+}
+
+function @Circle.draw(v0: @Circle) -> i32 {
+block0(v0: @Circle):
+    v1: i32 = field.get v0, 0
+    return v1
 }
         "#,
     );
@@ -341,13 +457,7 @@ function castRenderable(value: int32): Renderable {
 type @Renderable = { @object: ref<managed void>, @itab: usize }
 type @Sprite = { value: i32 }
 
-extern function @Renderable.draw({ draw: fn() -> i32 }) -> i32
-
-function @Sprite.draw(v0: @Sprite) -> i32 {
-block0(v0: @Sprite):
-    v1: i32 = field.get v0, 0
-    return v1
-}
+extern function @Renderable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> } }) -> i32
 
 function @castRenderable(v0: i32) -> @Renderable {
 block0(v0: i32):
@@ -359,6 +469,12 @@ block0(v0: i32):
     v5: usize = bitcast v4 -> usize
     v6: @Renderable = struct @Renderable (v3, v5)
     return v6
+}
+
+function @Sprite.draw(v0: @Sprite) -> i32 {
+block0(v0: @Sprite):
+    v1: i32 = field.get v0, 0
+    return v1
 }
         "#,
     );

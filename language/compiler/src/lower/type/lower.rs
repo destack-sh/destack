@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use destack_ast::{StringId, StringPool};
@@ -332,56 +332,7 @@ impl TypeLowerer {
 
         let mir_type = match dir_type {
             dir::Type::Reference { symbol, .. } => {
-                if symbol.ty() == dir::SymbolType::Interface {
-                    self.lower_interface_reference_type(types, type_id, module_id, node, builder)?
-                } else if symbol.ty() == dir::SymbolType::Enum {
-                    self.lower_enum_backing_type(types, *symbol, node, builder)?
-                } else {
-                    // follow the reference to its instance type
-                    let instance_type_id =
-                        types.get_instance_type_id(*symbol).ok_or_else(|| {
-                            LowerError::UnsupportedType {
-                                node,
-                                ty: type_id.into_global(module_id),
-                                message: "type reference has no instance type".to_string(),
-                            }
-                        })?;
-
-                    // unwrap nominal aliases that point at themselves
-                    let instance_type = if instance_type_id == type_id {
-                        // check if the type is an invalid / self-referential alias
-                        if !matches!(
-                            symbol.ty(),
-                            dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
-                        ) {
-                            return Err(LowerError::UnsupportedType {
-                                node,
-                                ty: type_id.into_global(module_id),
-                                message: "non-alias type is self-referential".to_string(),
-                            });
-                        }
-                        let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) else {
-                            return Err(LowerError::UnsupportedType {
-                                node,
-                                ty: type_id.into_global(module_id),
-                                message: "type alias has no target type".to_string(),
-                            });
-                        };
-
-                        // lower the alias target type for layout
-                        self.lower_type(types, alias_target_id, module_id, node, builder)?
-                    } else {
-                        // recursively lower the instance type
-                        self.lower_type(types, instance_type_id, module_id, node, builder)?
-                    };
-
-                    // wrap class instance types in a managed reference
-                    if symbol.ty() == dir::SymbolType::Class {
-                        builder.type_managed_reference(instance_type)
-                    } else {
-                        instance_type
-                    }
-                }
+                self.lower_reference_type(types, type_id, *symbol, module_id, node, builder)?
             }
             dir::Type::ValueOf {
                 mutability, right, ..
@@ -435,51 +386,13 @@ impl TypeLowerer {
                 return_type: _,
                 ..
             } => {
-                // lower the function pointer signature
-                let signature =
-                    self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
-
-                // build the closure pair layout
-                let env_pointer_type = self.closure_env_pointer_type();
-                let signature_type = builder.tree().get(signature);
-                let env_type = builder.tree().get(env_pointer_type);
-                let (signature_size, signature_align) =
-                    self.size_and_align_of_type(signature_type, builder.tree());
-                let (env_size, env_align) = self.size_and_align_of_type(env_type, builder.tree());
-
-                let fn_name = builder.intern(FUNCTION_PTR_FIELD);
-                let env_name = builder.intern(ENV_FIELD);
-                let fields = vec![
-                    FieldInput {
-                        name: fn_name,
-                        ty: signature,
-                        size: signature_size,
-                        alignment: signature_align,
-                        source_index: Some(0),
-                        kind: FieldLayoutKind::Synthetic,
-                    },
-                    FieldInput {
-                        name: env_name,
-                        ty: env_pointer_type,
-                        size: env_size,
-                        alignment: env_align,
-                        source_index: Some(1),
-                        kind: FieldLayoutKind::Synthetic,
-                    },
-                ];
-
-                let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
-                let mir_type = self.create_struct_type(&layout, builder);
-                self.set_layout(mir_type, layout);
-                mir_type
+                self.lower_function_type(types, type_id, module_id, node, builder)?
             }
             dir::Type::Union { elements } => {
                 self.lower_union_type(types, type_id, elements, module_id, node, builder)?
             }
             dir::Type::Intersection { elements } => {
-                let primary =
-                    self.select_intersection_primary_type(types, elements, module_id, node)?;
-                self.lower_type(types, primary, module_id, node, builder)?
+                self.lower_intersection_type(types, elements, module_id, node, builder)?
             }
             _ => self
                 .try_lower_type(dir_type, builder)
@@ -492,6 +405,328 @@ impl TypeLowerer {
         self.type_cache
             .insert(type_id, TypeCacheEntry::Ready(mir_type));
         Ok(mir_type)
+    }
+
+    /// Lower a DIR type while predeclaring nominal layouts.
+    pub(crate) fn lower_type_with_nominal(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+        mut predeclare_nominal_layout: impl FnMut(dir::GlobalSymbolId) -> LowerResult<()>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // predeclare nominal layouts for nested references
+        let mut visited = HashSet::new();
+        self.ensure_nominal_layouts_for_type(
+            types,
+            type_id,
+            &mut visited,
+            &mut predeclare_nominal_layout,
+        )?;
+
+        self.lower_type(types, type_id, module_id, node, builder)
+    }
+
+    /// Predeclare nominal layouts used by nested type references.
+    fn ensure_nominal_layouts_for_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        visited: &mut HashSet<dir::LocalTypeId>,
+        predeclare_nominal_layout: &mut impl FnMut(dir::GlobalSymbolId) -> LowerResult<()>,
+    ) -> LowerResult<()> {
+        // avoid infinite recursion on cyclic types
+        if !visited.insert(type_id) {
+            return Ok(());
+        }
+
+        // predeclare nominal instance layouts
+        if let Some(symbol) = types.symbol_for_instance_type(type_id)
+            && matches!(
+                symbol.ty(),
+                dir::SymbolType::Struct | dir::SymbolType::Class
+            )
+        {
+            predeclare_nominal_layout(symbol)?;
+        }
+
+        // walk nested type references
+        match types.get_type(type_id) {
+            dir::Type::Reference { symbol, .. } => {
+                if matches!(
+                    symbol.ty(),
+                    dir::SymbolType::Struct | dir::SymbolType::Class
+                ) {
+                    predeclare_nominal_layout(*symbol)?;
+                }
+            }
+            dir::Type::Value { value } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *value,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+                ..
+            } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *left,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *right,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *then_type,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *else_type,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                // modifiers do not affect nominal layout
+                let _ = modifiers;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    parameter.constraint,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                if let Some(key_remap) = parameter.key_remap {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        key_remap,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *value,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::Index { left, index } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *left,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *index,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::TemplateLiteral { spans, .. } => {
+                for span in spans {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *span,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Import { .. } => {}
+            dir::Type::Infer { constraint, .. } => {
+                if let Some(constraint) = constraint {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *constraint,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Predicate { target, .. } => {
+                if let Some(target) = target {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *target,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Unary { right, .. }
+            | dir::Type::ValueOf { right, .. }
+            | dir::Type::ReferenceOf { right, .. }
+            | dir::Type::PointerOf { right, .. } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *right,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::Binary { left, right, .. } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *left,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *right,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::ArraySized { element, .. } => {
+                self.ensure_nominal_layouts_for_type(
+                    types,
+                    *element,
+                    visited,
+                    predeclare_nominal_layout,
+                )?;
+            }
+            dir::Type::Array { element, .. } => {
+                if let Some(element) = element {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *element,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Tuple { elements, .. } => {
+                for element in elements {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        element.ty,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                for field in fields {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        field.ty,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                for signature in call_signatures {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *signature,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                for signature in construct_signatures {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *signature,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                for signature in index_signatures {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        signature.key_type,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        signature.value_type,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Function {
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                for parameter in static_parameters {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *parameter,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                if let Some(this_parameter) = this_parameter {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *this_parameter,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                for parameter in dynamic_parameters {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *parameter,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+                if let Some(return_type) = return_type {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *return_type,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
+                for element in elements {
+                    self.ensure_nominal_layouts_for_type(
+                        types,
+                        *element,
+                        visited,
+                        predeclare_nominal_layout,
+                    )?;
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
     }
 
     /// Lower an enum symbol to its backing MIR type.
@@ -523,6 +758,117 @@ impl TypeLowerer {
                     })
             }
         }
+    }
+
+    /// Lower a nominal reference type to its MIR representation.
+    fn lower_reference_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        symbol: dir::GlobalSymbolId,
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        if symbol.ty() == dir::SymbolType::Interface {
+            return self.lower_interface_reference_type(types, type_id, module_id, node, builder);
+        }
+        if symbol.ty() == dir::SymbolType::Enum {
+            return self.lower_enum_backing_type(types, symbol, node, builder);
+        }
+
+        let instance_type_id = types.get_instance_type_id(symbol).ok_or_else(|| {
+            LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "type reference has no instance type".to_string(),
+            }
+        })?;
+
+        let instance_type = if instance_type_id == type_id {
+            if !matches!(symbol.ty(), dir::SymbolType::TypeAlias | dir::SymbolType::Newtype) {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "non-alias type is self-referential".to_string(),
+                });
+            }
+            let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "type alias has no target type".to_string(),
+                });
+            };
+            self.lower_type(types, alias_target_id, module_id, node, builder)?
+        } else {
+            self.lower_type(types, instance_type_id, module_id, node, builder)?
+        };
+
+        if symbol.ty() == dir::SymbolType::Class {
+            Ok(builder.type_managed_reference(instance_type))
+        } else {
+            Ok(instance_type)
+        }
+    }
+
+    /// Lower a function type into its closure-pair representation.
+    fn lower_function_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let signature =
+            self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
+
+        let env_pointer_type = self.closure_env_pointer_type();
+        let signature_type = builder.tree().get(signature);
+        let env_type = builder.tree().get(env_pointer_type);
+        let (signature_size, signature_align) =
+            self.size_and_align_of_type(signature_type, builder.tree());
+        let (env_size, env_align) = self.size_and_align_of_type(env_type, builder.tree());
+
+        let fn_name = builder.intern(FUNCTION_PTR_FIELD);
+        let env_name = builder.intern(ENV_FIELD);
+        let fields = vec![
+            FieldInput {
+                name: fn_name,
+                ty: signature,
+                size: signature_size,
+                alignment: signature_align,
+                source_index: Some(0),
+                kind: FieldLayoutKind::Synthetic,
+            },
+            FieldInput {
+                name: env_name,
+                ty: env_pointer_type,
+                size: env_size,
+                alignment: env_align,
+                source_index: Some(1),
+                kind: FieldLayoutKind::Synthetic,
+            },
+        ];
+
+        let layout = self.compute_struct_layout(fields, LayoutPolicy::Optimized);
+        let mir_type = self.create_struct_type(&layout, builder);
+        self.set_layout(mir_type, layout);
+        Ok(mir_type)
+    }
+
+    /// Lower an intersection type by selecting its primary element.
+    fn lower_intersection_type(
+        &mut self,
+        types: &dir::TypeTable,
+        elements: &[dir::LocalTypeId],
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let primary = self.select_intersection_primary_type(types, elements, module_id, node)?;
+        self.lower_type(types, primary, module_id, node, builder)
     }
 
     /// Lower a DIR int type into a MIR type.

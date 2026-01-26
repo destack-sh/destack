@@ -331,17 +331,17 @@ function readValue(value: int32): int32 {
         r#"
 type @Box = { value: i32 }
 
-function @Box.get(v0: @Box) -> i32 {
-block0(v0: @Box):
-    v1: i32 = field.get v0, 0
-    return v1
-}
-
 function @readValue(v0: i32) -> i32 {
 block0(v0: i32):
     v1: @Box = struct @Box (v0)
     v2: i32 = call @Box.get(v1) -> fn(@Box) -> i32
     return v2
+}
+
+function @Box.get(v0: @Box) -> i32 {
+block0(v0: @Box):
+    v1: i32 = field.get v0, 0
+    return v1
 }
         "#,
     );
@@ -362,7 +362,11 @@ fn test_lower_multiple_struct_field_access() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Data { a: number, b: number, c: number }
+struct Data { 
+    a: number;
+    b: number;
+    c: number;
+}
 
 function accessAll(x: number, y: number, z: number): number {
     let d: Data = Data { a: x, b: y, c: z };

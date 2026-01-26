@@ -38,6 +38,63 @@ impl FunctionContext<'_> {
             })
     }
 
+    /// Build a closure environment value for a target function symbol.
+    pub(crate) fn build_closure_env_for_symbol(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: GlobalSymbolId,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // allocate and populate the environment when captures exist
+        if let Some(env_layout) = self.env.closure_env_layouts.get(&target_symbol) {
+            let env_ref_type = env_layout.env_pointer_type;
+            let env_value = self
+                .state
+                .builder
+                .managed_alloc(env_layout.env_type, env_ref_type);
+            for field in &env_layout.fields {
+                let field_addr_type = self.state.builder.type_reference(
+                    mir::ReferenceKind::Managed,
+                    field.ty,
+                    mir::Mutability::Mutable,
+                    mir::AddressSpace::Generic,
+                    false,
+                );
+                let field_addr =
+                    self.state
+                        .builder
+                        .field_addr(env_value, field.index, field_addr_type);
+                match field.kind {
+                    dir::CaptureKind::ByValue | dir::CaptureKind::ByMove => {
+                        if self
+                            .state
+                            .bindings
+                            .this_symbol
+                            .is_some_and(|this_symbol| this_symbol == field.symbol)
+                        {
+                            let (value, _) = self.lower_this_expression(expression_id)?;
+                            self.state.builder.store(field_addr, value);
+                        } else {
+                            let (value, _) =
+                                self.lower_reference_expression(expression_id, field.symbol)?;
+                            self.state.builder.store(field_addr, value);
+                        }
+                    }
+                    dir::CaptureKind::ByReference => {
+                        let reference_value =
+                            self.reference_value_for_symbol(expression_id, field.symbol, field.ty)?;
+                        self.state.builder.store(field_addr, reference_value);
+                    }
+                }
+            }
+            return Ok((env_value, env_ref_type));
+        }
+
+        // otherwise use the canonical empty env pointer
+        let env_ref_type = self.env.empty_closure_env_pointer_type;
+        let env_value = self.state.builder.null(env_ref_type);
+        Ok((env_value, env_ref_type))
+    }
+
     /// Resolve the address of a captured field inside the closure environment.
     pub(crate) fn capture_field_addr(
         &mut self,

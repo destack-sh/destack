@@ -236,7 +236,6 @@ impl<'a> ComptimeLowerer<'a> {
         let closure_env_layouts = HashMap::new();
 
         // build the empty closure env type
-        let empty_closure_env_type = self.empty_closure_env_type();
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
 
         // build a synthetic function to evaluate the expression
@@ -275,7 +274,6 @@ impl<'a> ComptimeLowerer<'a> {
             type_lowerer: &self.type_lowerer,
             symbol: function_symbol,
             closure_env_layouts: &closure_env_layouts,
-            empty_closure_env_type,
             empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(function_builder, AddressTakenBindings::empty());

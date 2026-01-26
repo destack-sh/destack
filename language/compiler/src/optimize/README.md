@@ -192,6 +192,7 @@ Pass categories:
 - **Loop**: loop-specific transforms
 - **Type**: optimizations requiring high-level type information
 
+
 ### Verify (V)
 
 Verification passes ensure semantic correctness and insert required operations.
