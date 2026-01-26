@@ -283,17 +283,21 @@ impl<'a> Parser<'a> {
                     }
                 }
                 self.eat_token(TokenType::CloseBrace)?;
-                Type::Struct {
+                let struct_type = Type::Struct {
                     fields,
                     copyability: Copyability::default(),
-                }
+                };
+                let type_id = self.intern_type(struct_type);
+                self.record_layout_for_type(type_id)?;
+                return Ok(type_id);
             }
             _ => {
                 return Err(ParseError::unexpected("type", token_ty, token_start));
             }
         };
-
-        Ok(self.intern_type(ty))
+        let type_id = self.intern_type(ty);
+        self.record_layout_for_type(type_id)?;
+        Ok(type_id)
     }
 
     /// Parse the reference header for ref and tensor_ref types.

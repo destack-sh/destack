@@ -408,19 +408,23 @@ impl TestProgram {
             return None;
         };
 
-        // locate the requested field index
-        let field_index = fields.iter().position(|field_id| {
+        // locate the requested field name
+        let expected_name = fields.iter().find_map(|field_id| {
             let field = tree.get(*field_id);
             field
                 .name
-                .map(|name| strings.get(name) == field_name)
-                .unwrap_or(false)
+                .and_then(|name| (strings.get(name) == field_name).then_some(name))
         })?;
 
         // resolve the layout metadata for offsets
         let metadata = tree.type_table.type_metadata_by_id.get(&struct_type)?;
-        let layout = metadata.layout.as_ref()?;
-        layout.field_offsets.get(field_index).copied()
+        let layout_id = metadata.layout_id?;
+        let layout = tree.type_table.layout_table.layout(layout_id);
+        layout
+            .fields
+            .iter()
+            .find(|field| field.name == expected_name)
+            .map(|field| field.offset)
     }
 
     /// Resolve the byte offset for a struct field name or panic.

@@ -93,13 +93,13 @@ function applyAdder(input: int32): int32 {
         "native",
         r#"
 type @fn#param.int32#return.int32 = { @function_ptr: fn(i32) -> i32, @env: ref?<managed mut void> }
-type @Struct0 = { base: i32 }
+type @closure_env#9 = { base: i32 }
 
 function @makeAdder() -> @fn#param.int32#return.int32 {
 block0:
     v0: i32 = iconst 5i32
     v1: fn(i32) -> i32 = function.addr @makeAdder.lambda#9
-    v2: ref<managed mut @Struct0> = managed.alloc @Struct0
+    v2: ref<managed mut @closure_env#9> = managed.alloc @closure_env#9
     v3: ref<managed mut i32> = field.addr v2, 0
     store v3, v0
     v4: ref?<managed mut void> = bitcast v2 -> ref?<managed mut void>
@@ -107,10 +107,10 @@ block0:
     return v5
 }
 
-#[closure_env(ref<managed mut @Struct0>)]
+#[closure_env(ref<managed mut @closure_env#9>)]
 function @makeAdder.lambda#9(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: ref<managed mut @Struct0> = function.env
+    v1: ref<managed mut @closure_env#9> = function.env
     v2: ref<managed mut i32> = field.addr v1, 0
     v3: i32 = load v2
     v4: i32 = trunc v3 -> i32
@@ -169,7 +169,7 @@ function runCounter(): int32 {
         "native",
         r#"
 type @fn#return.int32 = { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }
-type @Struct0 = { count: ref<managed mut i32> }
+type @closure_env#8 = { count: ref<managed mut i32> }
 
 function @makeCounter() -> @fn#return.int32 {
 block0:
@@ -177,7 +177,7 @@ block0:
     v1: ref<managed mut i32> = managed.alloc i32
     store v1, v0
     v2: fn() -> i32 = function.addr @makeCounter.lambda#8
-    v3: ref<managed mut @Struct0> = managed.alloc @Struct0
+    v3: ref<managed mut @closure_env#8> = managed.alloc @closure_env#8
     v4: ref<managed mut ref<managed mut i32>> = field.addr v3, 0
     v5: ref<managed mut i32> = bitcast v1 -> ref<managed mut i32>
     store v4, v5
@@ -186,10 +186,10 @@ block0:
     return v7
 }
 
-#[closure_env(ref<managed mut @Struct0>)]
+#[closure_env(ref<managed mut @closure_env#8>)]
 function @makeCounter.lambda#8() -> i32 {
 block0:
-    v0: ref<managed mut @Struct0> = function.env
+    v0: ref<managed mut @closure_env#8> = function.env
     v1: ref<managed mut ref<managed mut i32>> = field.addr v0, 0
     v2: ref<managed mut i32> = load v1
     v3: i32 = load v2

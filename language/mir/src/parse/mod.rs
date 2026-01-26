@@ -4,6 +4,7 @@ mod error;
 mod function;
 mod instruction;
 mod key;
+mod layout;
 mod lexer;
 mod module;
 mod parser;

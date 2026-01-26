@@ -12,7 +12,7 @@
 
 use destack_mir as mir;
 
-use crate::CodegenCraneliftResult;
+use crate::{CodegenCraneliftError, CodegenCraneliftResult};
 
 /// Computed layout information for a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,7 +59,21 @@ pub(crate) fn compute_type_layout(
     type_id: mir::LocalNodeId<mir::Type>,
     pointer_bytes: u8,
 ) -> CodegenCraneliftResult<TypeLayout> {
+    // use explicit layout metadata when available
+    if let Some(layout) = tree.type_table.type_layout(type_id) {
+        return Ok(TypeLayout::new(layout.size, layout.alignment));
+    }
+
     let mir_type = tree.get(type_id);
+    if matches!(
+        mir_type,
+        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
+    ) {
+        return Err(CodegenCraneliftError::unsupported_type(
+            "missing layout metadata",
+            type_id.into(),
+        ));
+    }
     match mir_type {
         // void has zero size
         mir::Type::Void => Ok(TypeLayout::new(0, 1)),
@@ -105,11 +119,19 @@ pub(crate) fn compute_type_layout(
             copyability: _,
         } => compute_tuple_layout(tree, elements, pointer_bytes),
 
-        // structs: fields have explicit offsets, but we still need to compute size/alignment
+        // structs: read canonical layout metadata
         mir::Type::Struct {
-            fields,
+            fields: _,
             copyability: _,
-        } => compute_struct_layout(tree, fields, pointer_bytes),
+        } => {
+            let Some(layout) = tree.type_table.type_layout(type_id) else {
+                return Err(CodegenCraneliftError::unsupported_type(
+                    "missing layout metadata",
+                    type_id.into(),
+                ));
+            };
+            Ok(TypeLayout::new(layout.size, layout.alignment))
+        }
 
         // vectors: treat as packed elements for now
         mir::Type::Vector {
@@ -222,41 +244,6 @@ fn compute_tuple_layout(
     Ok(TypeLayout::new(final_size, max_alignment))
 }
 
-/// Compute the layout of a struct type.
-fn compute_struct_layout(
-    tree: &mir::NodeTree,
-    fields: &[mir::LocalNodeId<mir::Field>],
-    pointer_bytes: u8,
-) -> CodegenCraneliftResult<TypeLayout> {
-    if fields.is_empty() {
-        return Ok(TypeLayout::new(0, 1));
-    }
-
-    // compute layout
-    let mut max_end = 0u32;
-    let mut max_alignment = 1u32;
-    for field_id in fields {
-        let field = tree.get(*field_id);
-        let field_layout = compute_type_layout(tree, field.ty, pointer_bytes)?;
-
-        // end of this field
-        let field_end = field.offset + field_layout.size;
-        max_end = max_end.max(field_end);
-
-        // track max alignment
-        max_alignment = max_alignment.max(field_layout.alignment);
-    }
-
-    // final size is padded to alignment
-    let final_size = if max_alignment > 0 {
-        let padded = TypeLayout::new(0, max_alignment).align_offset(max_end);
-        padded.max(max_end)
-    } else {
-        max_end
-    };
-
-    Ok(TypeLayout::new(final_size, max_alignment))
-}
 
 /// Compute the offset of a tuple element by index.
 ///

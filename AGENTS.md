@@ -149,6 +149,7 @@ Logic:
 - Prefer multiline raw strings for longer strings
 - Prefer re-defining variables if we're just transforming them about
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
+- Avoid nesting items inside of functions (like other functions, lambdas, types, etc.)
 
 Lints and warnings:
 - Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
