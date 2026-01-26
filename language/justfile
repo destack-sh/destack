@@ -51,7 +51,7 @@ format:
     cargo fmt {{ packages }}
 
 # alias for format
-fmt := "format"
+alias fmt := format
 
 # generate docs
 doc:
