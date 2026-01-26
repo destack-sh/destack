@@ -46,7 +46,7 @@ format:
     just platform/format
 
 # alias for format
-fmt := "format"
+alias fmt := format
 
 # clean all build artifacts
 clean:

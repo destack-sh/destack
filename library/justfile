@@ -24,7 +24,7 @@ format:
     bun run biome format --write .
 
 # alias for format
-fmt := "format"
+alias fmt := format
 
 # clean
 clean:
