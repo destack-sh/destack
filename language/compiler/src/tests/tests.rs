@@ -9,8 +9,9 @@ use std::time::Duration;
 use destack_ast::NodeParentIndex;
 use destack_base::ImmutableStringPool;
 use destack_dir::{
-    Declaration, Declarator, DumperOptions, DynamicKey, Expression, GlobalSymbolId, LocalNodeId,
-    NodeTree, Pattern, StringId, Symbol, SymbolTable, TypeTable,
+    Annotation, Argument, CaptureKind, CaptureSet, Declaration, Declarator, DumperOptions,
+    DynamicKey, Expression, FunctionKind, GlobalSymbolId, LocalNodeId, NodeTree, Pattern,
+    ScalarLiteral, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_mir as mir;
@@ -91,6 +92,15 @@ impl TestFileSystem {
             Self::Physical { .. } => Arc::new(DiskCacheStore::new()),
         }
     }
+}
+
+/// Resolved decorator info for a function symbol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DecoratorInfo {
+    /// The resolved decorator target symbol.
+    pub target_symbol: GlobalSymbolId,
+    /// Whether the first decorator argument is a string literal.
+    pub first_argument_is_string_literal: bool,
 }
 
 /// A test wrapper for a Program.
@@ -1179,8 +1189,8 @@ impl TestProgram {
         }
     }
 
-    /// Get the first function symbol declared in a module.
-    pub fn expect_first_function_symbol(&self, module_id: ModuleId) -> GlobalSymbolId {
+    /// Get the nth function symbol declared in a module.
+    pub fn expect_nth_function_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
@@ -1190,6 +1200,7 @@ impl TestProgram {
         let roots = &dir.roots;
 
         // scan for the first function declaration
+        let mut current_index = 0;
         for root_id in roots {
             let expression = tree.get(*root_id);
 
@@ -1207,16 +1218,23 @@ impl TestProgram {
             if let Some(declaration_id) = declaration_id {
                 let declaration = tree.get(declaration_id);
                 if let Declaration::Function { descriptor, .. } = declaration {
-                    return descriptor.symbol.into_global(module_id);
+                    if current_index == index {
+                        return descriptor.symbol.into_global(module_id);
+                    }
+                    current_index += 1;
                 }
             }
         }
 
-        panic!("expected function declaration");
+        panic!("expected function declaration at index {index}");
     }
 
-    /// Get the first let declarator declared in a module.
-    pub fn expect_first_let_declarator(&self, module_id: ModuleId) -> LocalNodeId<Declarator> {
+    /// Get the nth let declarator declared in a module.
+    pub fn expect_nth_let_declarator(
+        &self,
+        module_id: ModuleId,
+        index: usize,
+    ) -> LocalNodeId<Declarator> {
         // load the module tree and roots
         let profile = self.default_profile_id(module_id);
         let module = self.program.modules.get(module_id);
@@ -1226,6 +1244,7 @@ impl TestProgram {
         let roots = &dir.roots;
 
         // scan for the first let expression
+        let mut current_index = 0;
         for root_id in roots {
             let expression = tree.get(*root_id);
 
@@ -1251,11 +1270,14 @@ impl TestProgram {
 
             // return the first declarator
             if let Some(declarator_id) = declarator_id {
-                return declarator_id;
+                if current_index == index {
+                    return declarator_id;
+                }
+                current_index += 1;
             }
         }
 
-        panic!("expected let expression");
+        panic!("expected let expression at index {index}");
     }
 
     /// Get the symbol for a named interface member in a module.
@@ -1300,5 +1322,232 @@ impl TestProgram {
         }
 
         panic!("expected member symbol");
+    }
+
+    /// Get the nth lambda function symbol declared in a module.
+    pub fn expect_nth_lambda_symbol(&self, module_id: ModuleId, index: usize) -> GlobalSymbolId {
+        // load the module tree
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+
+        // scan for the requested lambda declaration
+        let mut current_index = 0;
+        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let Declaration::Function {
+                descriptor,
+                signature,
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            if signature.kind == FunctionKind::Lambda {
+                if current_index == index {
+                    return descriptor.symbol.into_global(module_id);
+                }
+                current_index += 1;
+            }
+        }
+
+        panic!("expected lambda declaration at index {index}");
+    }
+
+    /// Get a capture set for a named function in a module.
+    pub fn capture_set_for_function_name(&self, module_uri: &str, name: &str) -> CaptureSet {
+        let symbol = self
+            .function_symbol_by_name(module_uri, name)
+            .unwrap_or_else(|| panic!("expected {name} symbol"));
+        let module = self.module(module_uri);
+        let module = module.read();
+        self.capture_set_for_symbol(module.id, symbol)
+    }
+
+    /// Get a capture set for a function symbol in a module.
+    pub fn capture_set_for_symbol(
+        &self,
+        module_id: ModuleId,
+        symbol: GlobalSymbolId,
+    ) -> CaptureSet {
+        // load capture data for the module
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let captures = dir.captures.read();
+
+        // resolve the capture set
+        captures
+            .capture_set(symbol)
+            .cloned()
+            .unwrap_or_else(|| panic!("expected capture set for {symbol:?}"))
+    }
+
+    /// Get capture names and kinds for a capture set.
+    pub fn capture_names_and_kinds(
+        &self,
+        module_id: ModuleId,
+        capture_set: &CaptureSet,
+    ) -> Vec<(String, CaptureKind)> {
+        // load the module symbol table
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+
+        // resolve capture names
+        capture_set
+            .captures
+            .iter()
+            .map(|binding| {
+                let name = symbols
+                    .get_symbol(binding.symbol.into_local())
+                    .name()
+                    .unwrap_or_else(|| panic!("expected named capture"));
+                let name = self.program.strings.get(name);
+                (name.to_string(), binding.kind)
+            })
+            .collect()
+    }
+
+    /// Get capture names for a capture set.
+    pub fn capture_names(&self, module_id: ModuleId, capture_set: &CaptureSet) -> Vec<String> {
+        // load the module symbol table
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+
+        // resolve capture names
+        capture_set
+            .captures
+            .iter()
+            .map(|binding| {
+                let name = symbols
+                    .get_symbol(binding.symbol.into_local())
+                    .name()
+                    .unwrap_or_else(|| panic!("expected named capture"));
+                self.program.strings.get(name).to_string()
+            })
+            .collect()
+    }
+
+    /// Get names for by-reference locals captured by a function.
+    pub fn reference_local_names(
+        &self,
+        module_id: ModuleId,
+        owner_symbol: GlobalSymbolId,
+    ) -> Vec<String> {
+        // load the module symbol table
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let symbols = dir.symbols.read();
+        let captures = dir.captures.read();
+
+        // resolve captured local names
+        let reference_locals = captures.reference_locals(owner_symbol).unwrap_or(&[]);
+        reference_locals
+            .iter()
+            .map(|symbol| {
+                let name = symbols
+                    .get_symbol(symbol.into_local())
+                    .name()
+                    .unwrap_or_else(|| panic!("expected named symbol"));
+                self.program.strings.get(name).to_string()
+            })
+            .collect()
+    }
+
+    /// Resolve the first decorator for a named declaration.
+    pub fn decorator_info_for_declaration(&self, module_uri: &str, name: &str) -> DecoratorInfo {
+        // resolve the declaration symbol
+        let declaration_symbol = self
+            .declaration_symbol_by_name(module_uri, name)
+            .unwrap_or_else(|| panic!("expected {name} symbol"));
+
+        // load the module tree and symbols
+        let module = self.module(module_uri);
+        let module = module.read();
+        let profile = self.default_profile_id(module.id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+
+        // resolve the declaration
+        let declaration_entry = symbols.get_symbol(declaration_symbol.into_local());
+        let Some(declaration) = declaration_entry.primary_declaration else {
+            panic!("expected declaration for {name}");
+        };
+
+        // locate the decorator annotation
+        let mut annotations = tree.get_annotations(declaration.local_id.id);
+        if annotations.is_empty() {
+            let wrapper_id = tree
+                .iter_nodes_of_type::<Expression>()
+                .find_map(|(expression_id, expression)| match expression {
+                    Expression::Declaration { declaration: inner }
+                        if inner.id == declaration.local_id.id =>
+                    {
+                        Some(expression_id)
+                    }
+                    _ => None,
+                })
+                .unwrap_or_else(|| panic!("expected declaration wrapper for {name}"));
+            annotations = tree.get_annotations(wrapper_id.id);
+        }
+        let decorator_id = annotations
+            .iter()
+            .find(|annotation_id| matches!(tree.get(**annotation_id), Annotation::Decorator { .. }))
+            .copied()
+            .unwrap_or_else(|| panic!("expected decorator annotation for {name}"));
+
+        // resolve decorator metadata
+        let Annotation::Decorator {
+            left, arguments, ..
+        } = tree.get(decorator_id)
+        else {
+            panic!("expected decorator annotation for {name}");
+        };
+
+        // resolve the decorator target symbol
+        let target_symbol = match tree.get(*left) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            other => panic!("expected resolved decorator reference, got {other:?}"),
+        };
+
+        // resolve the first argument kind
+        let first_argument_is_string_literal = arguments
+            .as_ref()
+            .and_then(|arguments| arguments.first().copied())
+            .map(|argument_id| match tree.get(argument_id) {
+                Argument::Positional { value, .. }
+                | Argument::Named { value, .. }
+                | Argument::Labeled { value, .. } => *value,
+                Argument::Spread { .. } => {
+                    panic!("unexpected spread decorator argument for {name}");
+                }
+            })
+            .is_some_and(|value_id| {
+                matches!(
+                    tree.get(value_id),
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::String(_)
+                    }
+                )
+            });
+
+        DecoratorInfo {
+            target_symbol,
+            first_argument_is_string_literal,
+        }
     }
 }
