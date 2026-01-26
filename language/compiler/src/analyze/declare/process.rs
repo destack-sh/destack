@@ -163,13 +163,7 @@ impl Compiler {
         let mut captures = dir.captures.write();
         self.collect(
             &mut collector,
-            self.register_symbol_decorators(
-                &module,
-                profile,
-                &tree,
-                &mut symbols,
-                &mut captures,
-            ),
+            self.register_symbol_decorators(&module, profile, &tree, &mut symbols, &mut captures),
         );
         drop(symbols);
         drop(captures);

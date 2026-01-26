@@ -167,7 +167,7 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a labelled statement with an explicit break target.
-    /// NOTE #Architecture: should we elaborate labelled statements away..?
+    /// TODO #Architecture: should we elaborate labelled statements away..?
     fn lower_labelled_statement(
         &mut self,
         _expression_id: LocalNodeId<Expression>,
@@ -201,7 +201,7 @@ impl FunctionContext<'_> {
                 Some(label_symbol),
             ),
             _ => {
-                let break_block = self.state.builder.create_block();
+                let break_block = self.state.builder.block();
                 let label_context = BreakContext { break_block };
                 self.state
                     .control
@@ -227,9 +227,9 @@ impl FunctionContext<'_> {
         then_id: LocalNodeId<Expression>,
         else_id: Option<LocalNodeId<Expression>>,
     ) -> LowerResult<Terminates> {
-        let then_block = self.state.builder.create_block();
-        let else_block = self.state.builder.create_block();
-        let join_block = self.state.builder.create_block();
+        let then_block = self.state.builder.block();
+        let else_block = self.state.builder.block();
+        let join_block = self.state.builder.block();
 
         // branch on the condition (with union tag checks when possible)
         let did_check = self.lower_union_tag_check(condition_id, then_block, else_block)?;
@@ -279,9 +279,9 @@ impl FunctionContext<'_> {
         loop_symbol_id: dir::LocalSymbolId,
         label_symbol: Option<GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
-        let header_block = self.state.builder.create_block();
-        let body_block = self.state.builder.create_block();
-        let exit_block = self.state.builder.create_block();
+        let header_block = self.state.builder.block();
+        let body_block = self.state.builder.block();
+        let exit_block = self.state.builder.block();
 
         // register loop context for break/continue
         let global_loop_symbol_id = loop_symbol_id.into_global(self.env.module_id);
@@ -420,10 +420,10 @@ impl FunctionContext<'_> {
             self.lower_statement_expression(init_id)?;
         }
 
-        let header_block = self.state.builder.create_block();
-        let body_block = self.state.builder.create_block();
-        let increment_block = self.state.builder.create_block();
-        let exit_block = self.state.builder.create_block();
+        let header_block = self.state.builder.block();
+        let body_block = self.state.builder.block();
+        let increment_block = self.state.builder.block();
+        let exit_block = self.state.builder.block();
 
         // register loop context: continue goes to increment block, break goes to exit
         let global_loop_symbol_id = loop_symbol_id.into_global(self.env.module_id);
@@ -601,10 +601,10 @@ impl FunctionContext<'_> {
         let (match_value, match_type) = self.lower_value_expression(value_id)?;
 
         // create blocks
-        let exit_block = self.state.builder.create_block();
+        let exit_block = self.state.builder.block();
         let case_blocks: Vec<_> = cases
             .iter()
-            .map(|_| self.state.builder.create_block())
+            .map(|_| self.state.builder.block())
             .collect();
         if kind == MatchKind::Switch {
             self.state.control.break_stack.push(BreakContext {
@@ -662,7 +662,7 @@ impl FunctionContext<'_> {
             let next_check = if is_last_pattern {
                 no_match_block
             } else {
-                self.state.builder.create_block()
+                self.state.builder.block()
             };
 
             let pattern = self.env.dir_tree.get(*pattern);
@@ -819,6 +819,7 @@ impl FunctionContext<'_> {
         let global_symbol_id = symbol_id.into_global(self.env.module_id);
 
         // reject duplicate bindings
+        // (this is different from re-declared _names_ since those have different symbol ids)
         if self
             .state
             .bindings
@@ -831,22 +832,50 @@ impl FunctionContext<'_> {
             });
         }
 
-        // prefer a stack slot for address taken locals
-        if self.symbol_needs_addressable_local(global_symbol_id) {
-            let mutability = mutability
+        // use boxed capture cell for by-reference locals
+        if self.symbol_needs_reference_cell(global_symbol_id) {
+            // wrap value in reference type
+            let mir_mutability = mutability
                 .map(lower_mutability)
                 .unwrap_or(mir::Mutability::Immutable);
-            let local = self.state.builder.create_local(value_type, mutability);
-            self.state.builder.local_set(local, value);
+            let reference_type = self.state.builder.type_reference(
+                mir::ReferenceKind::Managed,
+                value_type,
+                mir_mutability,
+                mir::AddressSpace::Generic,
+                false,
+            );
+            let reference_value = self.state.builder.managed_alloc(value_type, reference_type);
+            self.state.builder.store(reference_value, value);
+
+            // allocate indirect binding
+            let variable = self.state.builder.variable(reference_type);
+            self.state
+                .builder
+                .define_variable(variable, reference_value);
             self.state.bindings.locals_by_symbol.insert(
                 global_symbol_id,
-                LocalBinding::from_local(local, value_type),
+                LocalBinding::indirect_binding(variable, reference_type, value_type),
             );
             return Ok(());
         }
 
+        // use stack slot for address taken locals
+        if self.symbol_needs_addressable_local(global_symbol_id) {
+            let mutability = mutability
+                .map(lower_mutability)
+                .unwrap_or(mir::Mutability::Immutable);
+            let local = self.state.builder.local(value_type, mutability);
+            self.state.builder.local_set(local, value);
+            self.state
+                .bindings
+                .locals_by_symbol
+                .insert(global_symbol_id, LocalBinding::local(local, value_type));
+            return Ok(());
+        }
+
         // allocate the mir variable
-        let variable = self.state.builder.create_variable(value_type);
+        let variable = self.state.builder.variable(value_type);
 
         // define the initial value
         self.state.builder.define_variable(variable, value);
@@ -854,7 +883,7 @@ impl FunctionContext<'_> {
         // record the binding for later references
         self.state.bindings.locals_by_symbol.insert(
             global_symbol_id,
-            LocalBinding::from_variable(variable, value_type),
+            LocalBinding::variable(variable, value_type),
         );
 
         Ok(())

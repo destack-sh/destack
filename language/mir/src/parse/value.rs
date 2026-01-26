@@ -122,7 +122,10 @@ impl<'a> Parser<'a> {
 
                 if self.eat_token_maybe(TokenType::Comma) {
                     let position = self.pos();
-                    return Err(ParseError::invalid("env must be the last argument", position));
+                    return Err(ParseError::invalid(
+                        "env must be the last argument",
+                        position,
+                    ));
                 }
 
                 break;

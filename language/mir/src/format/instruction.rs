@@ -205,7 +205,13 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("function.addr"), space()]
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("function.addr"),
+                        space()
+                    ]
                 )?;
                 format_function_reference(*function, f)
             }

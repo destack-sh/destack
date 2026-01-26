@@ -195,15 +195,15 @@ impl FunctionContext<'_> {
         }
 
         // create blocks for short-circuit evaluation
-        let shortcircuit_block = self.state.builder.create_block();
-        let rhs_block = self.state.builder.create_block();
-        let merge_block = self.state.builder.create_block();
+        let shortcircuit_block = self.state.builder.block();
+        let rhs_block = self.state.builder.block();
+        let merge_block = self.state.builder.block();
 
         // create a variable to hold the result (SSA construction will merge)
         let result_variable = self
             .state
             .builder
-            .create_variable(self.env.type_lowerer.ty_bool);
+            .variable(self.env.type_lowerer.ty_bool);
 
         // branch based on operator semantics
         match operator {

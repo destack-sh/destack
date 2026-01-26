@@ -1819,10 +1819,8 @@ impl<'a> Verifier<'a> {
                     });
                 }
 
-                for (parameter, signature_type) in target_function
-                    .parameters
-                    .iter()
-                    .zip(parameters.iter())
+                for (parameter, signature_type) in
+                    target_function.parameters.iter().zip(parameters.iter())
                 {
                     if parameter.ty != *signature_type {
                         return Err(VerifyError::MetadataInvariantViolation {
@@ -1850,6 +1848,19 @@ impl<'a> Verifier<'a> {
                 if !matches!(destination_type, Type::Reference { .. }) {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "function.env result must be a reference type".to_string(),
+                        anchor,
+                    });
+                }
+
+                let env_type = function.closure_env_type.ok_or_else(|| {
+                    VerifyError::MetadataInvariantViolation {
+                        message: "function.env requires a closure_env type".to_string(),
+                        anchor,
+                    }
+                })?;
+                if env_type != destination_type_id {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "function.env type mismatch".to_string(),
                         anchor,
                     });
                 }
@@ -2084,6 +2095,17 @@ impl<'a> Verifier<'a> {
                 attributes,
                 VerifyAnchor::node(function_id),
             )?;
+        }
+
+        // validate closure env type when present
+        if let Some(env_type) = function.closure_env_type {
+            let env_type = self.tree.get(env_type);
+            if !matches!(env_type, Type::Reference { .. }) {
+                return Err(VerifyError::MetadataInvariantViolation {
+                    message: "closure_env type must be a reference".to_string(),
+                    anchor: VerifyAnchor::node(function_id),
+                });
+            }
         }
 
         Ok(())

@@ -13,7 +13,7 @@ fn test_format_simple_add() {
 
     // build function
     let mut builder = module.function("add", &[i32_type, i32_type], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
     let right_value = builder.function_parameter(1);
@@ -43,9 +43,9 @@ fn test_format_with_locals() {
 
     // build function with local
     let mut builder = module.function("with_locals", &[], i64_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let local = builder.create_local(i64_type, Mutability::Mutable);
+    let local = builder.local(i64_type, Mutability::Mutable);
     let constant_value = builder.iconst_i64(42);
     builder.local_set(local, constant_value);
     let loaded_value = builder.local_get(local);
@@ -78,9 +78,9 @@ fn test_format_local_addr() {
 
     // build function with local address
     let mut builder = module.function("local_addr", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let local = builder.create_local(i32_type, Mutability::Mutable);
+    let local = builder.local(i32_type, Mutability::Mutable);
     let ref_type = builder.type_reference(
         ReferenceKind::Borrowed,
         i32_type,
@@ -121,7 +121,7 @@ fn test_format_vector_compare_and_convert() {
     // build function
     let void_type = module.type_void();
     let mut builder = module.function("vector_ops", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let scalar_value = builder.iconst_i32(1);
     let left_vector = builder.vector_splat(vector_i32_type, scalar_value);
@@ -184,7 +184,7 @@ fn test_format_tensor_compare_and_convert() {
     // build function
     let void_type = module.type_void();
     let mut builder = module.function("tensor_ops", &[tensor_i32_type, tensor_i32_type], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let left_tensor = builder.function_parameter(0);
     let right_tensor = builder.function_parameter(1);
@@ -223,7 +223,7 @@ fn test_format_function_metadata() {
     let mut builder = module.function("kernel", &[], void_type);
     builder.set_execution_model(ExecutionModel::Kernel);
     builder.set_workgroup_size([8, 1, 1]);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
     builder.seal_block(entry_block);
@@ -253,7 +253,7 @@ fn test_format_function_stage_metadata() {
     let mut builder = module.function("vertex_main", &[], void_type);
     builder.set_execution_model(ExecutionModel::Graphics);
     builder.set_execution_stage(ExecutionStage::Vertex);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
     builder.seal_block(entry_block);
@@ -284,10 +284,10 @@ fn test_format_branch() {
     let mut builder = module.function("select", &[bool_type], i32_type);
 
     // create blocks
-    let entry_block = builder.create_block();
-    let then_block = builder.create_block();
-    let else_block = builder.create_block();
-    let merge_block = builder.create_block();
+    let entry_block = builder.block();
+    let then_block = builder.block();
+    let else_block = builder.block();
+    let merge_block = builder.block();
 
     // entry block: branch on condition
     builder.switch_to_block(entry_block);
@@ -341,7 +341,7 @@ fn test_format_void_return() {
 
     // build empty function
     let mut builder = module.function("noop", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     builder.return_(None);
     builder.seal_block(entry_block);
@@ -367,11 +367,11 @@ fn test_format_ssa_variable() {
 
     // build function using SSA variable
     let mut builder = module.function("var_test", &[], i32_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
 
     // define and use variable
-    let variable = builder.create_variable(i32_type);
+    let variable = builder.variable(i32_type);
     let constant_value = builder.iconst_i32(10);
     builder.define_variable(variable, constant_value);
     let used_value = builder.use_variable(variable);
@@ -404,7 +404,7 @@ fn test_format_global_variable() {
 
     // build function that increments the global via pointer
     let mut builder = module.function("increment", &[], void_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let ptr_type = builder.type_reference(
         ReferenceKind::Raw,
@@ -456,7 +456,7 @@ fn test_format_global_constant() {
 
     // build function that reads the constant
     let mut builder = module.function("get_magic", &[], i64_type);
-    let entry_block = builder.create_block();
+    let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let value = builder.global_const(magic);
     builder.return_(Some(value));

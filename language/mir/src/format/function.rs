@@ -255,5 +255,25 @@ fn format_function_attributes<'a>(
         )?;
     }
 
+    let has_closure_env = attributes.iter().any(|attr| {
+        let name = f.context().strings.get(attr.name);
+        name == "closure_env"
+    });
+    if !has_closure_env && let Some(env_type) = function.closure_env_type {
+        write!(
+            f,
+            [
+                token("#"),
+                token("["),
+                token("closure_env"),
+                token("("),
+                env_type,
+                token(")"),
+                token("]"),
+                hard_line_break()
+            ]
+        )?;
+    }
+
     Ok(())
 }

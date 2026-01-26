@@ -10,6 +10,29 @@ use super::parser::Parser;
 use super::token::TokenType;
 
 impl<'a> Parser<'a> {
+    /// Check if a token can start a type in a value position.
+    pub(super) fn peek_type(&self, token_ty: TokenType) -> bool {
+        matches!(
+            token_ty,
+            TokenType::Void
+                | TokenType::Bool
+                | TokenType::Type
+                | TokenType::TypeName
+                | TokenType::At
+                | TokenType::Value
+                | TokenType::Ref
+                | TokenType::RefNullable
+                | TokenType::TensorReference
+                | TokenType::TensorReferenceNullable
+                | TokenType::Tensor
+                | TokenType::Vector
+                | TokenType::OpenBracket
+                | TokenType::OpenParen
+                | TokenType::OpenBrace
+                | TokenType::Fn
+        )
+    }
+
     /// Parse a type expression.
     pub(super) fn parse_type(&mut self) -> ParseResult<LocalNodeId<Type>> {
         let (token_ty, token_start, token_text) = {

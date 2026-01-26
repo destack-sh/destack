@@ -642,20 +642,20 @@ impl FunctionContext<'_> {
             })?;
 
         // allocate a result variable for tag based selection
-        let result_variable = self.state.builder.create_variable(result_type);
-        let merge_block = self.state.builder.create_block();
+        let result_variable = self.state.builder.variable(result_type);
+        let merge_block = self.state.builder.block();
 
         for (index, literal) in field.values.iter().enumerate() {
             let is_last = index + 1 == field.values.len();
             let next_block = if is_last {
                 None
             } else {
-                Some(self.state.builder.create_block())
+                Some(self.state.builder.block())
             };
             let match_block = if is_last {
                 None
             } else {
-                Some(self.state.builder.create_block())
+                Some(self.state.builder.block())
             };
 
             // compare the tag against the expected value

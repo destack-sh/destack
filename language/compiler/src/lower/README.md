@@ -80,7 +80,7 @@ Layout categories are Lower metadata, not MIR:
 | Struct | named fields | packed/offset fields | nominal, value semantics |
 | Class | instance fields | pointer + optional vtable | reference semantics |
 | Array/Slice | element + length | header + data | policy: inline vs heap |
-| Function | signature | pointer or fat pointer | closure captures add env ptr |
+| Function | signature | pointer or fat pointer | closure values pair fn pointer with env pointer |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
 | Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
@@ -293,35 +293,7 @@ function render(obj: Mesh | Light) {
 }
 ```
 
-Elaborate transforms to a type guard chain (conceptually `instanceof`/`T.is`), Lower then emits:
-```mir
-type @RenderContext = struct { ... }
-type @ObjectWithVTable = struct { ref<raw void> }
-
-function @render(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>) -> void {
-block0(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>):
-    v1 = field.get v0, 0       ; vtable pointer
-    v2 = field.get v1, 0       ; type tag from vtable slot 0
-    v3 = global.const @Mesh_TypeTag
-    v4 = icmp_eq v2, v3
-    branch v4, block1, block2
-block1:
-    call @Mesh.draw(v0, ctx)
-    jump block4
-block2:
-    v5 = global.const @Light_TypeTag
-    v6 = icmp_eq v2, v5
-    branch v6, block3, block5
-block3:
-    call @Light.draw(v0, ctx)
-    jump block4
-block5:
-    unreachable              ; exhaustive match
-block4:
-    return
-}
-```
-
+Elaborate transforms to a type guard chain (conceptually `instanceof`/`T.is`), so Lower never has to deal with non-itab/vtable based dynamic dispatch directly.
 In the `Mesh | Light` case we could also have used a `Drawable` interface or `Object3D` base type, and then this would be solved with vtable dispatch instead of dynamic resolution.
 
 ## Type Representation
@@ -851,109 +823,6 @@ Lowers to a MIR struct with:
 
 The `tag` field is the discriminant.
 Pattern matching becomes a switch on tag.
-
-#### Discriminant Tag Interning
-
-TypeScript-style discriminated unions typically use string literals as tags:
-```ds
-type LoadState<T> =
-    | { kind: "loading" }
-    | { kind: "success", data: T }
-    | { kind: "error", msg: string }
-```
-
-This is a very common pattern in TypeScript.
-We optimize it for native targets by interning discriminant literals to integer tags at compile time.
-
-Supported literal kinds:
-- string
-- number
-- bigint
-- boolean
-- null
-- undefined
-- unique symbol
-
-NaN is not a valid discriminant literal.
--0 and 0 are treated as the same discriminant literal.
-Tags are assigned in a canonical order that does not depend on source order.
-Tags are assigned per union and deterministic within a module.
-Tag integers use the smallest unsigned width that can represent the tag count.
-
-Canonical ordering:
-- null
-- undefined
-- false
-- true
-- numbers ascending
-- bigints ascending
-- strings lexicographic by UTF-8
-- unique symbols by fully qualified symbol id
-
-Each discriminated union emits a tag value table with literal values in tag order.
-Reading `x.kind` loads the literal value from that table.
-
-Unique symbol ordering uses a fully qualified symbol path.
-The format is `@package/module/path:Namespace.Symbol#unique`.
-The module path is the package relative path without extension.
-If a module has no path, use its URI string instead.
-
-Conceptually, string-only tags look like this:
-
-```ds
-// tag mapping (compile time)
-const TAG_LOADING: uint8 = 0   // "loading"
-const TAG_SUCCESS: uint8 = 1   // "success"
-const TAG_ERROR: uint8 = 2     // "error"
-
-// reverse mapping: runtime string access
-const TAG_STRINGS: string[] = ["loading", "success", "error"]
-
-// runtime representation
-struct LoadingState { tag: uint8 }
-struct SuccessState<T> { tag: uint8, data: T }
-struct ErrorState { tag: uint8, msg: string }
-```
-
-**Operations:**
-- `x.kind === "success"` → `x.tag == TAG_SUCCESS` (fast integer compare)
-- `console.log(x.kind)` → `TAG_STRINGS[x.tag]` (string lookup only when needed)
-
-This preserves TS semantics while enabling efficient native dispatch.
-
-**Tag assignment determinism:**
-- Tag integers are assigned deterministically within a compilation unit.
-- The same union type always gets the same tag assignments in the same compilation.
-- Duplicate discriminant values are a type error.
-- Tag values are not stable across different compilations or compiler versions.
-- Code should never serialize or persist tag integers.
-- Use the literal values for serialization.
-
-#### TypeId Interning
-
-We use the same interning mechanism for type identifiers (`TypeId`).
-At the source level, `TypeId` is a string like `"@destack-sh/ui/components/button:Button"`.
-At runtime, it's an interned integer for fast comparison:
-
-```ds
-// source level API
-newtype TypeId = string   // "myapp/models:User"
-
-// interning (compile time)
-const TYPEID_USER: uint32 = 42         // interned id for "myapp/models:User"
-const TYPEID_ORDER: uint32 = 43        // interned id for "myapp/models:Order"
-
-// reverse mapping: reflection
-const TYPEID_STRINGS: string[] = [..., "myapp/models:User", ...]
-```
-
-This unifies discriminated union tags and type identifiers under a single
-string interning mechanism, reducing complexity and code duplication.
-
-TypeId is a stable string identity for reflection and JS interop.
-TypeId is distinct from TypeTag: TypeId is a string identity, while TypeTag is an opaque handle to a TypeDescriptor record.
-Native dynamic dispatch does not use TypeId for equality checks.
-TypeTag values are pointers to TypeDescriptor values.
 
 ### Union Representation
 
@@ -1692,7 +1561,7 @@ const x = 10
 const f = (y: int) => x + y  // captures x
 ```
 
-Lowers to a closure struct plus a lifted function.
+Lowers to a closure struct plus a function pointer to the original function.
 The closure struct (MIR-level) captures the environment:
 - `x: int64`
 
@@ -1708,10 +1577,12 @@ The closure value pairs the function pointer with the environment:
 
 **Environment layout:**
 Captured variables are stored in the closure struct in declaration order (order of first capture).
-The struct is alignment-packed to minimize size. Interior pointers are used for reference captures.
+The struct is alignment-packed to minimize size.
+Interior pointers are used for reference captures.
 
-The closure body receives `env` as an implicit first parameter.
-Closure calls: load `fnPtr` and `env`, call with env prepended to arguments.
+The closure body reads its environment via `function.env`.
+Closure calls load `fnPtr` and `env`, then call with `call.indirect` and `env=`.
+Direct calls to the original function do not carry an environment.
 
 ### Copy Elision and Move Semantics
 
@@ -1928,107 +1799,6 @@ Semantics:
 Captured values are passed as resume arguments, with the resolved value appended after them in the
 resume block parameter list.
 
-Full MIR for the async function:
-
-```mir
-type @fetchUser_SM = struct {
-    u8,                    ; state
-    ref<string>,           ; id
-    ref<Response | null>,  ; response
-    ref<JsonValue | null>, ; data
-    ref<Promise<User>>     ; promise
-}
-
-; entry function: creates state machine and promise
-function @fetchUser(id: ref<string>) -> ref<Promise<User>> {
-block0(id: ref<string>):
-    v0 = managed.alloc @Promise<User>
-    call @Promise.init(v0)
-    v1 = managed.alloc @fetchUser_SM
-    field.set v1, 0, 0              ; state = 0
-    field.set v1, 1, id             ; id
-    field.set v1, 2, null           ; response
-    field.set v1, 3, null           ; data
-    field.set v1, 4, v0             ; promise
-    call @fetchUser_poll(v1)        ; start execution
-    return v0                        ; return promise immediately
-}
-
-; poll function: state machine
-function @fetchUser_poll(sm: ref<@fetchUser_SM>) -> void {
-block_dispatch(sm: ref<@fetchUser_SM>):
-    v0 = field.get sm, 0            ; load state
-    switch v0, [block_state0, block_state1, block_state2]
-
-block_state0:
-    v1 = field.get sm, 1            ; load id
-    v2 = call @fetch(v1)            ; returns Promise<Response>
-    yield v2, block_resume0(sm)
-
-block_resume0(sm: ref<@fetchUser_SM>, response: ref<Response>):
-    field.set sm, 2, response       ; store response
-    field.set sm, 0, 1              ; state = 1
-    jump block_dispatch             ; continue to next state
-
-block_state1:
-    v3 = field.get sm, 2            ; load response
-    v4 = call @Response.json(v3)    ; returns Promise<JsonValue>
-    yield v4, block_resume1(sm)
-
-block_resume1(sm: ref<@fetchUser_SM>, data: ref<JsonValue>):
-    field.set sm, 3, data           ; store data
-    field.set sm, 0, 2              ; state = 2
-    jump block_dispatch             ; continue to next state
-
-block_state2:
-    v5 = field.get sm, 3            ; load data
-    v6 = call @User.from(v5)
-    v7 = field.get sm, 4            ; load promise
-    call @Promise.resolve(v7, v6)   ; resolve outer promise
-    return
-}
-```
-
-#### Async Cancellation
-
-**There is no implicit cancellation.**
-This matches JS semantics: once an async function starts, its state machine runs to completion (or rejection).
-
-The state machine remains alive as long as any continuation holds a reference to it.
-When you `await` a Promise, the runtime registers a continuation closure that captures the state machine.
-The state machine is eligible for GC only when:
-- It completes (resolves or rejects)
-- All continuations are unreachable (Promise is abandoned)
-
-For explicit cancellation, use `AbortController` (same as modern JS/TS):
-
-```ds
-const controller = new AbortController();
-const signal = controller.signal;
-
-// pass signal to async operation
-const data = await fetchData({ signal });
-
-// elsewhere: cancel the operation
-controller.abort();
-```
-
-Inside async functions, check `signal.aborted` at suspension points:
-
-```ds
-async function fetchWithCancel(url: string, signal: AbortSignal): Promise<Data> {
-    const response = await fetch(url, { signal });
-    if (signal.aborted) {
-        return Result.err(AbortError.new());
-    }
-    const data = await response.json();
-    return Result.ok(data);
-}
-```
-
-The `AbortController`/`AbortSignal` pattern is a library concern, not a Lower concern.
-Lower simply emits state machines; the library implements cancellation semantics via signal checking.
-
 #### Generators
 
 Generators use the same state machine approach but yield values to caller instead of awaiting:
@@ -2044,27 +1814,6 @@ function* range(start: int, end: int): Generator<int> {
 The state machine implements `Iterator<T>`:
 - `next()` advances to next yield, returns `{ value: T, done: boolean }`
 - State persists across `next()` calls
-
-```mir
-function @range_next(sm: ref<@range_SM>) -> @IteratorResult<int> {
-block0(sm: ref<@range_SM>):
-    v0 = field.get sm, 0            ; state
-    v1 = field.get sm, 1            ; i
-    v2 = field.get sm, 2            ; end
-    v3 = icmp_lt v1, v2
-    branch v3, block_yield, block_done
-
-block_yield:
-    v4 = iadd v1, 1
-    field.set sm, 1, v4             ; i++
-    v5 = aggregate @IteratorResult<int> { value: v1, done: false }
-    return v5
-
-block_done:
-    v6 = aggregate @IteratorResult<int> { value: undefined, done: true }
-    return v6
-}
-```
 
 #### Async Generators
 
@@ -2083,40 +1832,6 @@ async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
 - Caller awaits the returned Promise
 - State machine may suspend multiple times per `next()` call (on awaits)
 - Eventually yields a value or completes
-
-### Iterator Protocol
-
-`for...of` uses the JavaScript iterator protocol.
-
-**Interfaces:**
-```ds
-interface Iterator<T> {
-    next(): { value: T, done: boolean }
-}
-
-interface Iterable<T> {
-    [Symbol.iterator](): Iterator<T>
-}
-```
-
-**Lowering:**
-```mir
-; for (const x of iterable) { body }
-v0 = call iterable[Symbol.iterator]()
-block_loop:
-    v1 = call v0.next()
-    v2 = field.get v1, "done"
-    branch v2, block_exit, block_body
-block_body:
-    v3 = field.get v1, "value"
-    ; ... body with x = v3 ...
-    jump block_loop
-block_exit:
-```
-
-**Range Iteration:**
-Elaborate transforms `0..10` to `RangeExclusive { start: 0, end: 10 }`.
-Range types implement `Iterable<int>`.
 
 ## Concurrency
 

@@ -1,5 +1,5 @@
-use crate::memory::Value;
 use crate::diagnostic::Error;
+use crate::memory::Value;
 use crate::tests::{run_mir, run_mir_expect};
 
 /// function.addr produces a callable pointer for call.indirect.
@@ -25,6 +25,7 @@ block0(v0: i32):
 #[test]
 fn test_call_indirect_env() {
     let mir = r#"
+#[closure_env(ref<raw addrspace(stack) i32>)]
 function @read_env() -> i32 {
 block0:
     v0: ref<raw addrspace(stack) i32> = function.env
@@ -48,6 +49,7 @@ block0:
 #[test]
 fn test_function_env_requires_env() {
     let mir = r#"
+#[closure_env(ref<raw addrspace(stack) i32>)]
 function @read_env() -> i32 {
 block0:
     v0: ref<raw addrspace(stack) i32> = function.env
@@ -70,6 +72,7 @@ block0:
 #[test]
 fn test_tailcall_indirect_env() {
     let mir = r#"
+#[closure_env(ref<managed mut i32>)]
 function @read_env() -> i32 {
 block0:
     v0: ref<managed mut i32> = function.env
@@ -94,6 +97,7 @@ fn test_closure_env_managed_reference_cell() {
     let mir = r#"
 type @Env = { cell: ref<managed mut i32> }
 
+#[closure_env(ref<managed mut @Env>)]
 function @increment() -> i32 {
 block0:
     v0: ref<managed mut @Env> = function.env
@@ -129,6 +133,7 @@ fn test_closure_env_by_value_field() {
     let mir = r#"
 type @Env = { value: i32 }
 
+#[closure_env(ref<managed mut @Env>)]
 function @read_env() -> i32 {
 block0:
     v0: ref<managed mut @Env> = function.env
@@ -159,6 +164,7 @@ fn test_closure_env_selects_callsite_env() {
     let mir = r#"
 type @Env = { value: i32 }
 
+#[closure_env(ref<managed mut @Env>)]
 function @read_env() -> i32 {
 block0:
     v0: ref<managed mut @Env> = function.env

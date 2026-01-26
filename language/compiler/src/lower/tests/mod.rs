@@ -3,6 +3,7 @@ mod binding;
 mod bitwise;
 mod check;
 mod class;
+mod closure;
 mod comparison;
 mod control;
 mod r#enum;

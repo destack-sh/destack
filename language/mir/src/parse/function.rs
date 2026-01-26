@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
         self.current_function = Some(function_id);
 
         // function attributes
-        let (execution_model, execution_stage, workgroup_size) =
+        let (execution_model, execution_stage, workgroup_size, closure_env_type) =
             self.resolve_function_attributes(&attributes)?;
 
         // parameters
@@ -72,6 +72,7 @@ impl<'a> Parser<'a> {
                 execution_model,
                 execution_stage,
                 workgroup_size,
+                closure_env_type,
                 locals: Vec::new(),
                 blocks: Vec::new(),
                 entry: None,
@@ -112,6 +113,7 @@ impl<'a> Parser<'a> {
         function.execution_model = execution_model;
         function.execution_stage = execution_stage;
         function.workgroup_size = workgroup_size;
+        function.closure_env_type = closure_env_type;
 
         // body
         self.eat_token(TokenType::OpenBrace)?;

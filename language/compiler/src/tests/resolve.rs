@@ -66,11 +66,7 @@ impl TestProgram {
     }
 
     /// Resolve a function symbol by simple name.
-    pub fn function_symbol_by_name(
-        &self,
-        module_uri: &str,
-        name: &str,
-    ) -> Option<GlobalSymbolId> {
+    pub fn function_symbol_by_name(&self, module_uri: &str, name: &str) -> Option<GlobalSymbolId> {
         // load module state
         let module = self.module(module_uri);
         let module = module.read();

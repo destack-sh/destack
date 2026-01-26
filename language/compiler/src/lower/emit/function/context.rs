@@ -11,13 +11,15 @@ use crate::{LowerError, LowerResult};
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
 use crate::lower::emit::{BreakContext, LoopContext, Terminates};
-use crate::lower::item::{GlobalBinding, LocalBinding, LocalStorage};
+use crate::lower::item::{GlobalBinding, LocalBinding};
 use crate::lower::table::interface::InterfaceSlot;
-use crate::lower::table::{VirtualMethodKey, VtableGlobal};
+use crate::lower::table::{ClosureEnvLayout, VirtualMethodKey, VtableGlobal};
 use crate::lower::r#type::TypeLowerer;
 
 /// Shared, immutable inputs for lowering a single function body.
 pub(crate) struct FunctionEnv<'a> {
+    /// Identify the function symbol currently being lowered.
+    pub(crate) symbol: GlobalSymbolId,
     /// Identify the module being lowered.
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
@@ -30,6 +32,8 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) symbols: &'a dir::SymbolTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
+    /// Provide access to capture metadata for closures.
+    pub(crate) captures: &'a dir::CaptureTable,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
     /// Runtime check configuration for this target.
@@ -61,18 +65,30 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
+    /// Resolve closure environment layouts by function symbol.
+    pub(crate) closure_env_layouts: &'a HashMap<GlobalSymbolId, ClosureEnvLayout>,
+    /// Fallback environment type for non-capturing closures.
+    pub(crate) empty_closure_env_type: mir::LocalNodeId<mir::Type>,
+    /// Fallback environment pointer type for non-capturing closures.
+    pub(crate) empty_closure_env_pointer_type: mir::LocalNodeId<mir::Type>,
 }
 
 /// Mutable bindings state while lowering a single function.
 pub(crate) struct FunctionBindings {
     /// Track locals by symbol for variable resolution.
     pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
+    /// Symbol id for the implicit `this` binding.
+    pub(crate) this_symbol: Option<GlobalSymbolId>,
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
+    /// Symbols that require boxed capture storage.
+    pub(crate) reference_locals: HashSet<GlobalSymbolId>,
     /// Symbols that require addressable locals.
     pub(crate) address_taken_locals: HashSet<GlobalSymbolId>,
     /// Whether `this` is address taken in the function.
     pub(crate) takes_this_address: bool,
+    /// Closure environment value for captured bindings.
+    pub(crate) closure_env: Option<mir::Value>,
 }
 
 /// Address taken bindings for a function body.
@@ -127,9 +143,12 @@ impl<'a> FunctionState<'a> {
             builder,
             bindings: FunctionBindings {
                 locals_by_symbol: HashMap::new(),
+                this_symbol: None,
                 this_binding: None,
+                reference_locals: HashSet::new(),
                 address_taken_locals: address_taken.locals,
                 takes_this_address: address_taken.takes_this,
+                closure_env: None,
             },
             control: FunctionControlFlow {
                 loops_by_symbol: HashMap::new(),
@@ -166,24 +185,6 @@ impl<'a> FunctionContext<'a> {
         body_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Terminates> {
         self.lower_statement_expression(body_id)
-    }
-
-    /// Check whether a receiver expression resolves to a namespace symbol.
-    pub(crate) fn receiver_is_namespace_reference(
-        &self,
-        receiver_id: dir::LocalNodeId<dir::Expression>,
-    ) -> bool {
-        let symbol = match self.env.dir_tree.get(receiver_id) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
-            _ => return false,
-        };
-
-        let module = self.env.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let symbols = module.dir(self.env.profile).symbols.read();
-        symbols.get_symbol(symbol.local_id).kind == dir::SymbolKind::Namespace
     }
 
     /// Create an UnsupportedConstruct error for the given expression.
@@ -258,36 +259,6 @@ impl<'a> FunctionContext<'a> {
         })?;
 
         Ok((value, ty))
-    }
-
-    /// Check whether a symbol requires an addressable local.
-    pub(crate) fn symbol_needs_addressable_local(&self, symbol: GlobalSymbolId) -> bool {
-        self.state.bindings.address_taken_locals.contains(&symbol)
-    }
-
-    /// Check whether `this` requires an addressable local.
-    pub(crate) fn this_needs_addressable_local(&self) -> bool {
-        self.state.bindings.takes_this_address
-    }
-
-    /// Load a local binding value.
-    pub(crate) fn binding_value(&mut self, binding: LocalBinding) -> mir::Value {
-        match binding.storage {
-            LocalStorage::Variable(variable) => self.state.builder.use_variable(variable),
-            LocalStorage::Local(local) => self.state.builder.local_get(local),
-        }
-    }
-
-    /// Store a value into a local binding.
-    pub(crate) fn set_binding_value(&mut self, binding: LocalBinding, value: mir::Value) {
-        match binding.storage {
-            LocalStorage::Variable(variable) => {
-                self.state.builder.define_variable(variable, value);
-            }
-            LocalStorage::Local(local) => {
-                self.state.builder.local_set(local, value);
-            }
-        }
     }
 
     /// Load the vtable pointer for a class symbol as a raw reference.
@@ -449,6 +420,22 @@ impl<'a> FunctionContext<'a> {
                 self.lower_tagged_object_expression(expression_id, *ty, properties)
             }
 
+            Expression::Declaration { declaration } => {
+                // lower function declarations used as values
+                let declaration = self.env.dir_tree.get(*declaration);
+                let dir::Declaration::Function { descriptor, .. } = declaration else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "unsupported declaration value".to_string(),
+                    });
+                };
+
+                let symbol = descriptor.symbol.into_global(self.env.module_id);
+                self.lower_reference_expression(expression_id, symbol)
+            }
+
             Expression::This => self.lower_this_expression(expression_id),
 
             _ => Err(LowerError::UnsupportedConstruct {
@@ -466,6 +453,16 @@ impl<'a> FunctionContext<'a> {
         expression_id: LocalNodeId<Expression>,
         target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let symbol_data = self.env.symbols.get_symbol(target_symbol.local_id);
+        if symbol_data.ty == dir::SymbolType::Function {
+            return self.lower_function_value_for_symbol(expression_id, target_symbol);
+        }
+
+        // handle captured bindings first
+        if let Some(field) = self.capture_field_for_symbol(target_symbol) {
+            return self.captured_binding_value(expression_id, &field);
+        }
+
         // first check locals
         if let Some(binding) = self
             .state
@@ -498,6 +495,119 @@ impl<'a> FunctionContext<'a> {
             let value = self.state.builder.global_const(global_binding.global);
             Ok((value, global_binding.ty))
         }
+    }
+
+    /// Lower a function symbol reference to a closure value.
+    fn lower_function_value_for_symbol(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: dir::GlobalSymbolId,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // resolve the closure value type
+        let closure_type = self.lower_type_for_expression(expression_id)?;
+        let layout = self.env.type_lowerer.layout_for_type_or_error(
+            closure_type,
+            expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile)),
+        )?;
+        let fn_index = layout
+            .field_index_by_source(0)
+            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
+        let env_index = layout
+            .field_index_by_source(1)
+            .ok_or_else(|| self.error(expression_id, "missing closure env field"))?;
+        let fn_field = layout
+            .field(fn_index)
+            .ok_or_else(|| self.error(expression_id, "missing closure function field"))?;
+        let env_field = layout
+            .field(env_index)
+            .ok_or_else(|| self.error(expression_id, "missing closure env field"))?;
+
+        // materialize the function pointer value
+        let target_function = self
+            .env
+            .functions_by_symbol
+            .get(&target_symbol)
+            .ok_or_else(|| self.error(expression_id, "missing function binding"))?;
+        let fn_ptr = self
+            .state
+            .builder
+            .function_addr(*target_function, fn_field.ty);
+
+        // materialize the closure environment
+        let (env_value, env_value_type) = if let Some(env_layout) =
+            self.env.closure_env_layouts.get(&target_symbol)
+        {
+            let env_ref_type = env_layout.env_pointer_type;
+            let env_value = self
+                .state
+                .builder
+                .managed_alloc(env_layout.env_type, env_ref_type);
+            for field in &env_layout.fields {
+                let field_addr_type = self.state.builder.type_reference(
+                    mir::ReferenceKind::Managed,
+                    field.ty,
+                    mir::Mutability::Mutable,
+                    mir::AddressSpace::Generic,
+                    false,
+                );
+                let field_addr =
+                    self.state
+                        .builder
+                        .field_addr(env_value, field.index, field_addr_type);
+                match field.kind {
+                    dir::CaptureKind::ByValue | dir::CaptureKind::ByMove => {
+                        let (value, _) =
+                            self.lower_reference_expression(expression_id, field.symbol)?;
+                        self.state.builder.store(field_addr, value);
+                    }
+                    dir::CaptureKind::ByReference => {
+                        let reference_value =
+                            self.reference_value_for_symbol(expression_id, field.symbol, field.ty)?;
+                        self.state.builder.store(field_addr, reference_value);
+                    }
+                }
+            }
+            (env_value, env_ref_type)
+        } else {
+            let empty_env_type = self.env.empty_closure_env_type;
+            let env_ref_type = self.env.empty_closure_env_pointer_type;
+            let env_value = self
+                .state
+                .builder
+                .managed_alloc(empty_env_type, env_ref_type);
+            (env_value, env_ref_type)
+        };
+
+        // register the closure env type on the callee
+        self.set_closure_env_type(expression_id, *target_function, env_value_type)?;
+        let env_value = if env_value_type == env_field.ty {
+            env_value
+        } else {
+            self.state
+                .builder
+                .cast(mir::CastOperator::Bitcast, env_value, env_field.ty)
+        };
+
+        // build the closure struct in layout order
+        let mut field_by_source = [None, None];
+        field_by_source[0] = Some(fn_ptr);
+        field_by_source[1] = Some(env_value);
+        let mut field_values = Vec::with_capacity(layout.fields.len());
+        for field in &layout.fields {
+            let source = field
+                .source_index
+                .ok_or_else(|| self.error(expression_id, "missing closure field source index"))?;
+            let value = field_by_source
+                .get(source as usize)
+                .and_then(|entry| *entry)
+                .ok_or_else(|| self.error(expression_id, "missing closure field value"))?;
+            field_values.push(value);
+        }
+        let closure_value = self.state.builder.struct_(closure_type, field_values);
+
+        Ok((closure_value, closure_type))
     }
 
     /// Lower a cast expression.
@@ -571,6 +681,11 @@ impl<'a> FunctionContext<'a> {
         // update the assignment target
         match self.env.dir_tree.get(left) {
             Expression::LocalReference { target_symbol, .. } => {
+                if let Some(field) = self.capture_field_for_symbol(*target_symbol) {
+                    self.store_captured_binding(expression_id, &field, value)?;
+                    return Ok((value, value_type));
+                }
+
                 // resolve the target binding
                 let binding = self.local_binding_for_symbol(left, *target_symbol)?;
 
@@ -715,19 +830,30 @@ impl<'a> FunctionContext<'a> {
         &mut self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // get this binding set by lower_method
-        let binding =
-            self.state
-                .bindings
-                .this_binding
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                    message: "this reference outside of method context".to_string(),
-                })?;
+        // prefer the method-local binding when present
+        if let Some(binding) = self.state.bindings.this_binding {
+            let value = self.binding_value(binding);
+            return Ok((value, binding.ty));
+        }
 
-        let value = self.binding_value(binding);
-        Ok((value, binding.ty))
+        // fall back to captured this bindings
+        if let Some(layout) = self.closure_env_layout() {
+            let captured_field = layout.fields.iter().find_map(|field| {
+                let symbol_data = self.env.symbols.get_symbol(field.symbol.local_id);
+                let name = symbol_data.name()?;
+                let name = self.env.strings.get(name);
+                if name == "this" { Some(*field) } else { None }
+            });
+            if let Some(field) = captured_field {
+                return self.captured_binding_value(expression_id, &field);
+            }
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            node: expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile)),
+            message: "this reference outside of method context".to_string(),
+        })
     }
 }

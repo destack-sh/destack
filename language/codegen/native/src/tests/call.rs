@@ -199,3 +199,74 @@ block2:
     .trim();
     assert_eq!(clif, expected);
 }
+
+/// function.env adds a hidden environment parameter to the signature.
+#[test]
+fn test_function_env_signature_param() {
+    let mir = r#"
+#[closure_env(ref<raw addrspace(stack) i32>)]
+function @read_env() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = function.env
+    v1: i32 = load v0
+    return v1
+}"#;
+    let clif = compile_mir_to_normalized_clif(mir);
+
+    let expected = r#"
+function u0:0(i64) -> i32 native {
+block0(v0: i64):
+    v1 = load.i32 v0
+    return v1
+}"#
+    .trim();
+    assert_eq!(clif, expected);
+}
+
+/// call.indirect appends the environment argument to the callee signature.
+#[test]
+fn test_call_indirect_with_env_param() {
+    let mir = r#"
+#[closure_env(ref<raw addrspace(stack) i32>)]
+function @read_env() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = function.env
+    v1: i32 = load v0
+    return v1
+}
+
+function @caller() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    store v0, v1
+    v2: fn() -> i32 = function.addr @read_env
+    v3: i32 = call.indirect v2(env=v0) -> fn() -> i32
+    return v3
+}"#;
+    let clif = compile_mir_to_normalized_clif(mir);
+
+    let expected = r#"
+function u0:0(i64) -> i32 native {
+block0(v0: i64):
+    v1 = load.i32 v0
+    return v1
+}
+
+function u0:1() -> i32 native {
+    ss0 = explicit_slot 4
+    sig0 = (i64) -> i32 native
+    sig1 = (i64) -> i32 native
+    fn0 = colocated u0:0 sig0
+
+block0:
+    v0 = stack_addr.i64 ss0
+    v1 = iconst.i32 7
+    store v1, v0
+    v2 = func_addr.i64 fn0
+    v3 = call_indirect sig1, v2(v0)
+    return v3
+}"#
+    .trim();
+    assert_eq!(clif, expected);
+}

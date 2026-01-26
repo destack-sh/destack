@@ -1,13 +1,3 @@
-//! Module-level lowering from MIR to Cranelift IR.
-//!
-//! Module lowering works in two phases:
-//!
-//! 1. **Declaration phase**: Declare all functions with their signatures.
-//!    This allows functions to call each other regardless of definition order.
-//!
-//! 2. **Definition phase**: Lower each function body using `FunctionLowerer`.
-//!    The function id map from phase 1 is used to resolve call targets.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -328,6 +318,12 @@ impl<'a> ModuleLowerer<'a> {
         // parameters
         for param in &function.parameters {
             let ty = lower_type(tree, param.ty, pointer_bytes)?;
+            signature.params.push(cir::AbiParam::new(ty));
+        }
+
+        // closure environment parameter (when used)
+        if let Some(env_type) = function.closure_env_type {
+            let ty = lower_type(tree, env_type, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 

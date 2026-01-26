@@ -23,7 +23,7 @@ use super::Variable;
 ///
 /// # Usage
 ///
-/// 1. Create blocks with `create_block()`.
+/// 1. Create blocks with `block()`.
 /// 2. Switch to a block with `switch_to_block()`.
 /// 3. Add instructions (which return SSA values).
 /// 4. Use `define_variable()` / `use_variable()` for mutable bindings.
@@ -111,6 +111,7 @@ impl<'a> FunctionBuilder<'a> {
             execution_model: None,
             execution_stage: None,
             workgroup_size: None,
+            closure_env_type: None,
             locals: Vec::new(),
             blocks: Vec::new(),
             entry: None,
@@ -306,7 +307,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Variables represent mutable bindings from the source language. During SSA
     /// construction, they are mapped to SSA values, with block parameters inserted
     /// at join points as needed.
-    pub fn create_variable(&mut self, ty: LocalNodeId<Type>) -> Variable {
+    pub fn variable(&mut self, ty: LocalNodeId<Type>) -> Variable {
         let variable = Variable::new(self.next_variable_id);
         self.next_variable_id += 1;
         self.variable_types.insert(variable, ty);
@@ -316,7 +317,7 @@ impl<'a> FunctionBuilder<'a> {
     // block management
 
     /// Create a new basic block.
-    pub fn create_block(&mut self) -> LocalNodeId<Block> {
+    pub fn block(&mut self) -> LocalNodeId<Block> {
         let block = self.tree.insert(Block::new());
         self.blocks.push(block);
         self.predecessors.insert(block, Vec::new());
@@ -1228,7 +1229,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: memory
 
     /// Create a local variable (stack slot).
-    pub fn create_local(
+    pub fn local(
         &mut self,
         ty: LocalNodeId<Type>,
         mutability: Mutability,
@@ -2283,6 +2284,20 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Load the closure environment pointer for the current function.
     pub fn function_env(&mut self, env_type: LocalNodeId<Type>) -> Value {
+        // record the closure env type on the function metadata
+        {
+            let function = self.tree.get_mut(self.function_id);
+            match function.closure_env_type {
+                Some(existing) if existing != env_type => {
+                    panic!("mismatched closure env types for function.env");
+                }
+                Some(_) => {}
+                None => {
+                    function.closure_env_type = Some(env_type);
+                }
+            }
+        }
+
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionEnv { destination });
         self.define_value(destination, env_type);

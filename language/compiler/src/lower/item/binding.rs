@@ -18,6 +18,13 @@ pub(crate) enum LocalStorage {
     Variable(mir::Variable),
     /// A stack slot binding.
     Local(mir::LocalNodeId<mir::Local>),
+    /// A boxed binding stored behind a reference.
+    IndirectBinding {
+        /// The SSA variable holding the reference.
+        variable: mir::Variable,
+        /// The MIR type of the reference value.
+        reference_type: mir::LocalNodeId<mir::Type>,
+    },
 }
 
 /// Track a lowered local binding for value expressions.
@@ -31,7 +38,7 @@ pub(crate) struct LocalBinding {
 
 impl LocalBinding {
     /// Create a local binding backed by an SSA variable.
-    pub(crate) fn from_variable(variable: mir::Variable, ty: mir::LocalNodeId<mir::Type>) -> Self {
+    pub(crate) fn variable(variable: mir::Variable, ty: mir::LocalNodeId<mir::Type>) -> Self {
         Self {
             storage: LocalStorage::Variable(variable),
             ty,
@@ -39,12 +46,27 @@ impl LocalBinding {
     }
 
     /// Create a local binding backed by a stack slot.
-    pub(crate) fn from_local(
+    pub(crate) fn local(
         local: mir::LocalNodeId<mir::Local>,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Self {
         Self {
             storage: LocalStorage::Local(local),
+            ty,
+        }
+    }
+
+    /// Create a local binding backed by a boxed reference.
+    pub(crate) fn indirect_binding(
+        variable: mir::Variable,
+        reference_type: mir::LocalNodeId<mir::Type>,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> Self {
+        Self {
+            storage: LocalStorage::IndirectBinding {
+                variable,
+                reference_type,
+            },
             ty,
         }
     }

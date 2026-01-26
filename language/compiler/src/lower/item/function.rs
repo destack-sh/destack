@@ -183,6 +183,166 @@ impl NodeVisitor for AddressTakenCollector<'_> {
 }
 
 impl ModuleLowerer<'_> {
+    /// Predeclare all function declarations in the module.
+    pub(crate) fn predeclare_functions(&mut self) -> LowerResult<()> {
+        // scan function declarations
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        {
+            // skip non function declarations
+            let Declaration::Function {
+                descriptor,
+                signature,
+                body,
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            // skip type-only lambda signatures
+            if body.is_none() && signature.kind == dir::FunctionKind::Lambda {
+                continue;
+            }
+
+            // predeclare the function binding
+            self.predeclare_function(declaration_id, declaration)?;
+
+            // resolve capture layouts early for closure values
+            if body.is_some() {
+                let symbol_id = descriptor.symbol.into_global(self.module_id);
+                self.closure_env_layout_for_symbol(symbol_id)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Lower any queued function declarations that do not yet have bodies.
+    pub(crate) fn lower_queued_functions(&mut self) -> LowerResult<()> {
+        // scan function declarations
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        {
+            // skip non function declarations
+            let Declaration::Function {
+                descriptor, body, ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            // skip declaration-only functions
+            if body.is_none() {
+                continue;
+            }
+
+            // skip functions without bindings
+            let symbol_id = descriptor.symbol.into_global(self.module_id);
+            let Some(function_id) = self.functions_by_symbol.get(&symbol_id).copied() else {
+                continue;
+            };
+
+            // skip functions already lowered
+            let function = self.builder.tree().get(function_id);
+            if function.entry.is_some() {
+                continue;
+            }
+
+            // lower function bodies once
+            self.lower_function(declaration_id, declaration)?;
+        }
+
+        Ok(())
+    }
+
+    /// Predeclare a function declaration and register it for call resolution.
+    pub(crate) fn predeclare_function(
+        &mut self,
+        declaration_id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &Declaration,
+    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
+        // require a function declaration
+        let Declaration::Function {
+            descriptor,
+            signature,
+            ..
+        } = declaration
+        else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: format!(
+                    "unsupported non-function declaration '{}'",
+                    declaration.kind_name()
+                ),
+            })?;
+        };
+
+        // resolve function name and symbol
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let name = self.function_name_for_descriptor(descriptor)?;
+
+        // skip when the function is already registered
+        if let Some(function_id) = self.functions_by_symbol.get(&symbol_id).copied() {
+            return Ok(function_id);
+        }
+
+        // resolve return type
+        let return_type = self.resolve_function_return_type(declaration_id)?;
+
+        // resolve parameter types
+        let mut parameter_types = Vec::new();
+        let mut parameter_names = Vec::new();
+        for parameter_id in &signature.dynamic_parameters {
+            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_ty = self
+                .types
+                .get_declared_or_inferred_type_id(parameter_node)
+                .ok_or(LowerError::MissingType {
+                    node: parameter_node.into_anchored(Some(self.profile)),
+                })?;
+            let parameter_ty = self.lower_type(
+                parameter_ty,
+                parameter_node.into_anchored(Some(self.profile)),
+            )?;
+            parameter_types.push(parameter_ty);
+
+            // track parameter names for diagnostics
+            let parameter = self.dir_tree.get(*parameter_id);
+            let name = match parameter {
+                dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+                    Some(*name)
+                }
+                dir::Parameter::Pattern { .. } => None,
+            };
+            parameter_names.push(name);
+        }
+
+        // extract return lifetime from @lifetime decorator
+        let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
+
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
+
+        // declare the function and register bindings
+        let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
+        let function_id = self
+            .builder
+            .declare_function(&name, &parameter_types, return_type);
+        {
+            let function = self.builder.tree_mut().get_mut(function_id);
+            function.parameter_names = parameter_names.clone();
+            function.return_lifetime = return_lifetime;
+            function.allocation = allocation_mode;
+        }
+
+        self.register_function_binding_for_symbol(symbol_id, function_id, signature_type)?;
+
+        Ok(function_id)
+    }
+
     /// Prelower types required by a function body expression.
     fn prelower_expression_types(
         &mut self,
@@ -286,18 +446,11 @@ impl ModuleLowerer<'_> {
         };
 
         // resolve function name and symbol
-        let name_id =
-            descriptor
-                .name
-                .map(|name| name.string())
-                .ok_or(LowerError::UnsupportedConstruct {
-                    node: declaration_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                    message: "missing name".to_string(),
-                })?;
-        let name = self.compiler.program.strings.get(name_id).to_string();
         let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let name = self.function_name_for_descriptor(descriptor)?;
+
+        // resolve capture layout
+        let capture_layout = self.closure_env_layout_for_symbol(symbol_id)?;
 
         // resolve return type
         let return_type = self.resolve_function_return_type(declaration_id)?;
@@ -351,37 +504,38 @@ impl ModuleLowerer<'_> {
         // resolve allocation mode before borrowing the builder
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
 
-        // build the function and register bindings
-        let module_id = self.module_id;
-        let (function_id, builder) = {
-            let functions_by_symbol = &mut self.functions_by_symbol;
-            let function_signature_types = &mut self.function_signature_types;
-            let mut builder = self.builder.function(&name, &parameter_types, return_type);
-            for (index, name) in parameter_names.iter().enumerate() {
-                if let Some(name_id) = name {
-                    builder.set_parameter_name(index, *name_id);
-                }
+        // declare or reuse the function id
+        let function_id = if let Some(function_id) = self.functions_by_symbol.get(&symbol_id) {
+            *function_id
+        } else {
+            let function_id = self
+                .builder
+                .declare_function(&name, &parameter_types, return_type);
+            {
+                let function = self.builder.tree_mut().get_mut(function_id);
+                function.parameter_names = parameter_names.clone();
+                function.return_lifetime = return_lifetime.clone();
+                function.allocation = allocation_mode;
             }
-            let function_id = builder.function_id();
 
-            // register function bindings
-            ModuleLowerer::register_function_binding(
-                module_id,
-                functions_by_symbol,
-                function_signature_types,
-                symbol_id,
-                function_id,
-                signature_type,
-            )?;
+            self.register_function_binding_for_symbol(symbol_id, function_id, signature_type)?;
 
-            // set return lifetime
-            builder.set_return_lifetime(return_lifetime);
-
-            // set allocation mode
-            builder.set_allocation_mode(allocation_mode);
-
-            (function_id, builder)
+            function_id
         };
+
+        // resolve shared closure environment metadata
+        let empty_closure_env_type = self.empty_closure_env_type();
+        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+
+        // build the function body
+        let mut builder = self.builder.function_body(function_id);
+        for (index, name) in parameter_names.iter().enumerate() {
+            if let Some(name_id) = name {
+                builder.set_parameter_name(index, *name_id);
+            }
+        }
+        builder.set_return_lifetime(return_lifetime);
+        builder.set_allocation_mode(allocation_mode);
 
         // build function env
         let env = FunctionEnv {
@@ -391,6 +545,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            captures: self.captures,
             strings: &self.compiler.program.strings,
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
@@ -404,13 +559,41 @@ impl ModuleLowerer<'_> {
             dispatch_construct_name: self.dispatch_construct_name,
             checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
+            symbol: symbol_id,
+            closure_env_layouts: &self.closure_env_layouts,
+            empty_closure_env_type,
+            empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
+        // capture the implicit this symbol when present
+        let this_symbol = signature.this_parameter.map(|parameter_id| {
+            let parameter = self.dir_tree.get(parameter_id);
+            parameter.symbol().into_global(self.module_id)
+        });
+        function_ctx.state.bindings.this_symbol = this_symbol;
+
+        // track locals captured by reference
+        let reference_locals = self
+            .captures
+            .reference_locals(symbol_id)
+            .unwrap_or(&[])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        function_ctx.state.bindings.reference_locals = reference_locals;
+
         // create entry block
-        let entry_block = function_ctx.state.builder.create_block();
+        let entry_block = function_ctx.state.builder.block();
         function_ctx.state.builder.switch_to_block(entry_block);
+
+        // seed closure environment when captured
+        if let Some(layout) = capture_layout {
+            let env_ref_type = layout.env_pointer_type;
+            let env_value = function_ctx.state.builder.function_env(env_ref_type);
+            function_ctx.state.bindings.closure_env = Some(env_value);
+        }
 
         // add parameter locals
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
@@ -451,6 +634,58 @@ impl ModuleLowerer<'_> {
         // finish the function builder
         function_ctx.state.builder.finish();
         Ok(function_id)
+    }
+
+    /// Resolve the name used for MIR functions, including anonymous lambdas.
+    fn function_name_for_descriptor(
+        &self,
+        descriptor: &dir::DeclarationDescriptor,
+    ) -> LowerResult<String> {
+        // prefer explicit declaration names
+        let symbol_id = descriptor.symbol.into_global(self.module_id);
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let name_id = descriptor
+            .name
+            .map(|name| name.string())
+            .or_else(|| symbol_data.name());
+        if let Some(name_id) = name_id {
+            let name = self.compiler.program.strings.get(name_id).to_string();
+            return Ok(name);
+        }
+
+        // synthesize a deterministic name for anonymous lambdas
+        let owner_name = self.lambda_owner_name(symbol_id);
+        let suffix = symbol_id.local_id.id;
+        let name = if let Some(owner_name) = owner_name {
+            format!("{owner_name}.lambda#{suffix}")
+        } else {
+            format!("lambda#{suffix}")
+        };
+
+        Ok(name)
+    }
+
+    /// Resolve the module-local owner path for an anonymous lambda.
+    fn lambda_owner_name(&self, symbol_id: GlobalSymbolId) -> Option<String> {
+        let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
+        let mut scope_id = symbol_data.scope.0;
+        let mut seen_scopes = HashSet::new();
+        loop {
+            if !seen_scopes.insert(scope_id) {
+                return None;
+            }
+
+            let scope = self.symbols.get_scope_by_id(scope_id);
+            if let Some(owner_id) = scope.owner_id {
+                let owner_symbol = owner_id.into_global(self.module_id);
+                if let Some(owner_path) = self.symbol_path_name(owner_symbol) {
+                    return Some(owner_path);
+                }
+            }
+
+            let (parent_id, _) = scope.parent?;
+            scope_id = parent_id;
+        }
     }
 
     /// Resolve a function return type for lowering.
@@ -626,8 +861,11 @@ impl ModuleLowerer<'_> {
             .map(|body_id| self.collect_address_taken_bindings(body_id))
             .unwrap_or_else(AddressTakenBindings::empty);
 
+        // resolve shared closure environment metadata
+        let empty_closure_env_type = self.empty_closure_env_type();
+        let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
+
         // build the function and register bindings
-        let module_id = self.module_id;
         let builder = {
             let functions_by_symbol = &mut self.functions_by_symbol;
             let function_signature_types = &mut self.function_signature_types;
@@ -661,8 +899,8 @@ impl ModuleLowerer<'_> {
             let function_id = builder.function_id();
 
             // register function bindings
-            ModuleLowerer::register_function_binding(
-                module_id,
+            Self::register_function_binding_in_maps(
+                self.module_id,
                 functions_by_symbol,
                 function_signature_types,
                 method_symbol,
@@ -681,6 +919,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            captures: self.captures,
             strings: &self.compiler.program.strings,
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
@@ -694,12 +933,33 @@ impl ModuleLowerer<'_> {
             dispatch_construct_name: self.dispatch_construct_name,
             checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
+            symbol: method_symbol,
+            closure_env_layouts: &self.closure_env_layouts,
+            empty_closure_env_type,
+            empty_closure_env_pointer_type,
         };
         let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
+        // capture the implicit this symbol when present
+        let this_symbol = signature.this_parameter.map(|parameter_id| {
+            let parameter = self.dir_tree.get(parameter_id);
+            parameter.symbol().into_global(self.module_id)
+        });
+        function_ctx.state.bindings.this_symbol = this_symbol;
+
+        // track locals captured by reference
+        let reference_locals = self
+            .captures
+            .reference_locals(method_symbol)
+            .unwrap_or(&[])
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>();
+        function_ctx.state.bindings.reference_locals = reference_locals;
+
         // create entry block
-        let entry_block = function_ctx.state.builder.create_block();
+        let entry_block = function_ctx.state.builder.block();
         function_ctx.state.builder.switch_to_block(entry_block);
 
         // initialize constructor state before parameter locals
@@ -737,16 +997,16 @@ impl ModuleLowerer<'_> {
                 let local = function_ctx
                     .state
                     .builder
-                    .create_local(this_ty, mir::Mutability::Immutable);
+                    .local(this_ty, mir::Mutability::Immutable);
                 function_ctx.state.builder.local_set(local, this_value);
-                LocalBinding::from_local(local, this_ty)
+                LocalBinding::local(local, this_ty)
             } else {
-                let variable = function_ctx.state.builder.create_variable(this_ty);
+                let variable = function_ctx.state.builder.variable(this_ty);
                 function_ctx
                     .state
                     .builder
                     .define_variable(variable, this_value);
-                LocalBinding::from_variable(variable, this_ty)
+                LocalBinding::variable(variable, this_ty)
             };
 
             // set 'this' binding for Expression::This lookup
