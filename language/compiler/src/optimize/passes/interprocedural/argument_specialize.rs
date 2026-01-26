@@ -131,6 +131,8 @@ struct SpecializationKey {
 /// Hashable representation of a constant value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ConstantKey {
+    /// Null reference constant.
+    Null,
     /// Boolean constant.
     Boolean(bool),
     /// Signed integer constant.
@@ -360,6 +362,7 @@ fn specialization_key(
 /// Convert a MIR constant into a hashable key.
 fn constant_key(constant: &mir::Constant) -> ConstantKey {
     match constant {
+        mir::Constant::Null => ConstantKey::Null,
         mir::Constant::Boolean { value } => ConstantKey::Boolean(*value),
         mir::Constant::Int {
             value,

@@ -169,6 +169,10 @@ impl<'a> Parser<'a> {
                 Ok(GlobalInitializer::String(value))
             }
             // scalar constant
+            TokenType::Identifier if token.text == "null" => {
+                let constant = self.parse_constant()?;
+                Ok(GlobalInitializer::Scalar(constant))
+            }
             TokenType::BoolLiteral
             | TokenType::IntLiteral
             | TokenType::FloatLiteral

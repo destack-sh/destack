@@ -42,6 +42,8 @@ impl TypedValue {
 /// A compile-time constant value in MIR.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Constant {
+    /// Null reference constant.
+    Null,
     /// Boolean constant (true or false).
     Boolean {
         /// The boolean value.
@@ -78,6 +80,11 @@ pub enum Constant {
 }
 
 impl Constant {
+    /// Create a null constant.
+    pub fn null() -> Self {
+        Self::Null
+    }
+
     /// Create a new integer constant.
     pub fn int8(value: i8) -> Self {
         Self::Int {

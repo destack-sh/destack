@@ -1020,6 +1020,17 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: constants
 
+    /// Insert a null reference constant.
+    pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::Null,
+        });
+        self.define_value(destination, reference_type);
+        destination
+    }
+
     /// Insert an integer constant.
     pub fn iconst(&mut self, value: i64, width: u8, signed: bool) -> Value {
         let destination = self.allocate_value();
@@ -1229,11 +1240,7 @@ impl<'a> FunctionBuilder<'a> {
     // instruction builders: memory
 
     /// Create a local variable (stack slot).
-    pub fn local(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        mutability: Mutability,
-    ) -> LocalNodeId<Local> {
+    pub fn local(&mut self, ty: LocalNodeId<Type>, mutability: Mutability) -> LocalNodeId<Local> {
         let local = self
             .tree
             .insert(Local::new(ty, mutability, Ownership::Owned));

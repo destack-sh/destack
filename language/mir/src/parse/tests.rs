@@ -214,6 +214,17 @@ block0:
 }
 
 #[test]
+fn test_roundtrip_null_constant() {
+    roundtrip(
+        r#"function @caller() -> ref?<managed mut void> {
+block0:
+    v0: ref?<managed mut void> = iconst null
+    return v0
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_switch() {
     roundtrip(
         r#"function @dispatch(v0: i32) -> i32 {

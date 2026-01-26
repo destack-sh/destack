@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::ThreadedHandler;
-use crate::memory::{ReferenceMeta, Value};
+use crate::memory::{HeapHandle, RawPointer, ReferenceMeta, Value};
 
 use super::super::dispatch;
 use super::threaded::{
@@ -1431,13 +1431,30 @@ fn thread_instruction(
 ) -> ThreadedInstruction {
     // map instruction opcode to threaded form
     match inst {
-        mir::Instruction::Const { destination, value } => ThreadedInstruction {
-            handler: dispatch::handle_const,
-            data: ThreadedInstructionData::Const {
-                dest: *destination,
-                value: ConstValue::Value(Value::from(value)),
-            },
-        },
+        mir::Instruction::Const { destination, value } => {
+            let const_value = if matches!(value, mir::Constant::Null) {
+                let reference = reference_meta_for_type(
+                    tree,
+                    value_type_for_value(*destination, value_types),
+                );
+                let value = match reference.kind() {
+                    Some(mir::ReferenceKind::Managed) => {
+                        Value::managed_reference_with_meta(HeapHandle::NULL, reference)
+                    }
+                    _ => Value::raw_pointer_with_meta(RawPointer::NULL, reference),
+                };
+                ConstValue::Value(value)
+            } else {
+                ConstValue::Value(Value::from(value))
+            };
+            ThreadedInstruction {
+                handler: dispatch::handle_const,
+                data: ThreadedInstructionData::Const {
+                    dest: *destination,
+                    value: const_value,
+                },
+            }
+        }
 
         mir::Instruction::Binary {
             destination,
@@ -1686,7 +1703,6 @@ fn thread_instruction(
             handler: dispatch::handle_function_env,
             data: ThreadedInstructionData::FunctionEnv { dest: *destination },
         },
-
         mir::Instruction::Load {
             destination,
             pointer,
@@ -2523,7 +2539,9 @@ fn build_value_kinds(
                 if value_kinds.get(dest).is_some() {
                     continue;
                 }
-                let Some(kind) = infer_instruction_kind(tree, inst, &value_kinds) else {
+                let Some(kind) =
+                    infer_instruction_kind(tree, inst, &value_kinds, &func.value_types)
+                else {
                     continue;
                 };
                 value_kinds.set(dest, kind);
@@ -2583,15 +2601,33 @@ fn reference_meta_for_value(value_kinds: &ValueKinds, value: mir::Value) -> Refe
     }
 }
 
+/// Get reference metadata for a type when available.
+fn reference_meta_for_type(
+    tree: &mir::NodeTree,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> ReferenceMeta {
+    match kind_from_type(tree, ty) {
+        ValueKind::Pointer { reference, .. } => reference,
+        _ => ReferenceMeta::NONE,
+    }
+}
+
 /// Infer the value kind for a MIR instruction.
 fn infer_instruction_kind(
     tree: &mir::NodeTree,
     inst: &mir::Instruction,
     value_kinds: &ValueKinds,
+    value_types: &[mir::LocalNodeId<mir::Type>],
 ) -> Option<ValueKind> {
     // resolve instruction kind
     match inst {
-        mir::Instruction::Const { value, .. } => Some(kind_from_constant(value)),
+        mir::Instruction::Const { destination, value } => {
+            if matches!(value, mir::Constant::Null) {
+                let ty = value_type_for_value(*destination, value_types);
+                return Some(kind_from_type(tree, ty));
+            }
+            Some(kind_from_constant(value))
+        }
         mir::Instruction::Binary {
             operator,
             left,
@@ -2890,6 +2926,7 @@ fn pointer_storage_from_reference(
 fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
     // map constant to value kind
     match constant {
+        mir::Constant::Null => ValueKind::Unknown,
         mir::Constant::Boolean { .. } => ValueKind::Bool,
         mir::Constant::Int {
             width, is_signed, ..

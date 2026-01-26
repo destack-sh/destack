@@ -249,6 +249,7 @@ impl<'a> Dumper<'a> {
 
     fn format_constant(&self, c: &Constant) -> String {
         match c {
+            Constant::Null => "null".to_string(),
             Constant::Boolean { value } => format!("{value}"),
             Constant::Int {
                 value,

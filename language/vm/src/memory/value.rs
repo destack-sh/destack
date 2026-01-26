@@ -341,6 +341,7 @@ impl std::fmt::Debug for Value {
 impl From<&mir::Constant> for Value {
     fn from(constant: &mir::Constant) -> Self {
         match constant {
+            mir::Constant::Null => Value::raw_pointer(RawPointer::NULL),
             mir::Constant::Boolean { value } => Value::bool(*value),
             mir::Constant::Int {
                 value,
