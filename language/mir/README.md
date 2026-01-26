@@ -187,6 +187,13 @@ Per-access metadata live in the memory table.
 Backends and optimizers query the metadata directly.
 Call effects remain optional and refine effects, dispatch, and profiling data.
 
+### Layout metadata
+
+Layout tables live in MIR metadata, not in the MIR text format.
+The layout table stores concrete size, alignment, and field offsets for aggregate types.
+The layout table is the single source of truth for physical layout across optimizer, VM, and codegen.
+Union metadata describes logical union semantics, while the layout table describes physical offsets.
+
 ### Kernel metadata
 
 Functions may carry optional kernel metadata for GPU and accelerator execution.

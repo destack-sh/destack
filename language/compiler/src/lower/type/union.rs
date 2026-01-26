@@ -264,8 +264,8 @@ impl TypeLowerer {
                 UnionPayloadKind::Boxed => mir::UnionPayloadKind::Boxed,
             },
             element_types: mir_element_types,
-            tag_field_index,
-            payload_field_index,
+            tag_field_name: tag_name,
+            payload_field_name: payload_name,
             discriminant: discriminant_metadata,
         };
         let type_table = &mut builder.tree_mut().type_table;

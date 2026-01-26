@@ -4,35 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use destack_base::StringId;
 
-use crate::{Field, Function, Global, LocalNodeId, Type};
-
-/// Layout policy for composite types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LayoutPolicy {
-    /// Default layout policy for the target.
-    Default,
-    /// C ABI layout policy.
-    C,
-    /// Preserve source declaration order.
-    Source,
-    /// Packed layout with minimal padding.
-    Packed,
-}
-
-/// Concrete layout details for a MIR type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct TypeLayout {
-    /// The total size of the type in bytes.
-    pub size: u64,
-    /// The required alignment of the type in bytes.
-    pub alignment: u32,
-    /// The stride between elements when used in arrays.
-    pub stride: u64,
-    /// The layout policy used for this type.
-    pub policy: LayoutPolicy,
-    /// Field offsets for structs or tuples in declaration order.
-    pub field_offsets: Vec<u32>,
-}
+use crate::{
+    Field, Function, Global, Layout, LayoutId, LayoutTable, LocalNodeId, Type, UnionLayout,
+};
 
 /// Lineage metadata for nominal types.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,70 +92,6 @@ pub enum DispatchSlot {
     },
 }
 
-/// Payload storage strategy for a union layout.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UnionPayloadKind {
-    /// Store the payload inline inside the union struct.
-    Inline,
-    /// Store the payload as a managed box.
-    Boxed,
-}
-
-/// Canonical discriminant values for tagged unions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum UnionDiscriminantValue {
-    /// Null literal value.
-    Null,
-    /// Undefined literal value.
-    Undefined,
-    /// Boolean literal value.
-    Boolean(bool),
-    /// Number literal value stored as f64 bits.
-    Number { bits: u64 },
-    /// Bigint literal value.
-    Bigint(i64),
-    /// String literal value.
-    String(StringId),
-    /// Unique symbol literal value.
-    UniqueSymbol,
-}
-
-/// Discriminant values for a field in tag order.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionDiscriminantField {
-    /// The field name shared by all union variants.
-    pub field_name: StringId,
-    /// Literal values ordered by tag value.
-    pub values: Vec<UnionDiscriminantValue>,
-}
-
-/// Discriminant metadata for a tagged union.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionDiscriminant {
-    /// The primary discriminant field used for tag ordering.
-    pub primary_field: StringId,
-    /// Discriminant fields indexed by field name.
-    pub fields: Vec<UnionDiscriminantField>,
-}
-
-/// Layout metadata for a lowered union type.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct UnionLayout {
-    /// The tag field type.
-    pub tag_type: LocalNodeId<Type>,
-    /// The payload field type.
-    pub payload_type: LocalNodeId<Type>,
-    /// The payload storage strategy.
-    pub payload_kind: UnionPayloadKind,
-    /// The union element type ids in tag order.
-    pub element_types: Vec<LocalNodeId<Type>>,
-    /// The tag field index in layout order.
-    pub tag_field_index: u32,
-    /// The payload field index in layout order.
-    pub payload_field_index: u32,
-    /// Discriminant field metadata when present.
-    pub discriminant: Option<UnionDiscriminant>,
-}
 
 /// Metadata for a dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -239,8 +149,8 @@ impl DispatchRegistry {
 pub struct TypeMetadata {
     /// The display name of the type for diagnostics and debugging only.
     pub name: Option<StringId>,
-    /// Layout metadata for the type.
-    pub layout: Option<TypeLayout>,
+    /// Layout identifier for the type when materialized.
+    pub layout_id: Option<LayoutId>,
     /// Lineage metadata for the type.
     pub lineage: Option<TypeLineage>,
     /// Dispatch table for class virtual dispatch.
@@ -301,6 +211,8 @@ pub struct TypeTable {
     pub drop_function_by_type_id: HashMap<LocalNodeId<Type>, LocalNodeId<Function>>,
     /// Cached primitive type ids.
     pub type_cache: TypeCache,
+    /// Layout metadata table for aggregate types.
+    pub layout_table: LayoutTable,
     /// Type metadata keyed by type id.
     pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
     /// Dispatch tables for virtual and interface calls.
@@ -401,6 +313,13 @@ impl TypeTable {
     /// Return type metadata for a type id.
     pub fn type_metadata(&self, ty: LocalNodeId<Type>) -> Option<&TypeMetadata> {
         self.type_metadata_by_id.get(&ty)
+    }
+
+    /// Return the layout entry for a type id when available.
+    pub fn type_layout(&self, ty: LocalNodeId<Type>) -> Option<&Layout> {
+        let metadata = self.type_metadata_by_id.get(&ty)?;
+        let layout_id = metadata.layout_id?;
+        self.layout_table.layouts.get(layout_id.0 as usize)
     }
 
     /// Return mutable type metadata for a type id.

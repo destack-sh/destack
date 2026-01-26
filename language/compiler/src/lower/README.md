@@ -70,8 +70,6 @@ We model layout in two layers:
 This keeps unions, intersections, and interfaces manageable.
 Their shape often exists without a single concrete placement.
 
-Layout categories are Lower metadata, not MIR:
-
 | Category | Shape | Placement | Notes |
 | --- | --- | --- | --- |
 | Scalar/Immediate | scalar value | fixed width | includes tagged pointer immediates |

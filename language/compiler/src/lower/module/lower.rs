@@ -712,7 +712,7 @@ impl<'a> ModuleLowerer<'a> {
         for (type_id, mir_type) in cached_types {
             let anchor = self.type_anchor(type_id);
             self.metadata_name_for_type(type_id, mir_type, anchor)?;
-            self.layout_metadata_for_type(mir_type)?;
+            self.layout_metadata_for_type(type_id, mir_type, anchor)?;
             self.field_map_metadata_for_type(type_id, mir_type, anchor)?;
             if let Some(symbol) = self.types.symbol_for_instance_type(type_id) {
                 self.lineage_metadata_for_symbol(symbol, mir_type, anchor)?;
