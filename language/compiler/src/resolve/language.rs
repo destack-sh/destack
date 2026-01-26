@@ -209,7 +209,6 @@ impl Compiler {
                 let dir = module.dir(profile_id);
                 let exports = dir.exported_symbols.read();
                 let tree = dir.tree.read();
-                let symbols = dir.symbols.read();
 
                 // resolve type-space symbol if not yet found
                 if group.ty.is_none()
@@ -218,7 +217,6 @@ impl Compiler {
                         profile_id,
                         &exports,
                         &tree,
-                        &symbols,
                         SymbolSpaceOrder::TypeOnly,
                         key,
                     )
@@ -233,7 +231,6 @@ impl Compiler {
                         profile_id,
                         &exports,
                         &tree,
-                        &symbols,
                         SymbolSpaceOrder::ValueOnly,
                         key,
                     )
@@ -503,14 +500,12 @@ impl Compiler {
         let key = StaticKey::Name(name_id);
         let exports = dir.exported_symbols.read();
         let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
         let export_spaces = SymbolSpaceOrder::ValueThenType;
         let Some(symbol_id) = self.resolve_exported_symbol(
             &module,
             profile,
             &exports,
             &tree,
-            &symbols,
             export_spaces,
             key,
         ) else {

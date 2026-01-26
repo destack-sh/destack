@@ -6,6 +6,25 @@ use serde_json::json;
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};
 
+/// Resolve a typed symbol id from LSP item data.
+fn symbol_id_from_lsp_data(session: &Session, data: &serde_json::Value) -> Option<GlobalSymbolId> {
+    let package = data.get("package")?.as_u64()?;
+    let module = data.get("module")?.as_u64()? as u32;
+    let symbol = data.get("symbol")?.as_u64()? as u32;
+
+    let module_id = ModuleId::new(PackageId(package), module);
+    let module = session.modules.get(module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+    let symbols = ctx.symbols();
+    let symbol_entry = symbols.get_symbol_by_id(symbol);
+
+    Some(GlobalSymbolId {
+        module_id,
+        local_id: destack_dir::LocalSymbolId::new_typed(symbol, symbol_entry.ty),
+    })
+}
+
 /// Convert a definition result to an LSP location.
 ///
 /// Returns the first location if multiple exist.
@@ -150,16 +169,12 @@ pub fn call_hierarchy_item_to_lsp(
 }
 
 /// Extract symbol_id from LSP call hierarchy item data.
-pub fn call_hierarchy_item_symbol_id(item: &lsp::CallHierarchyItem) -> Option<GlobalSymbolId> {
+pub fn call_hierarchy_item_symbol_id(
+    session: &Session,
+    item: &lsp::CallHierarchyItem,
+) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
-    let package = data.get("package")?.as_u64()?;
-    let module = data.get("module")?.as_u64()? as u32;
-    let symbol = data.get("symbol")?.as_u64()? as u32;
-
-    Some(GlobalSymbolId {
-        module_id: ModuleId::new(PackageId(package), module),
-        local_id: destack_dir::LocalSymbolId::new(symbol),
-    })
+    symbol_id_from_lsp_data(session, data)
 }
 
 /// Convert an incoming call to LSP format.
@@ -236,16 +251,12 @@ pub fn type_hierarchy_item_to_lsp(
 }
 
 /// Extract symbol_id from LSP type hierarchy item data.
-pub fn type_hierarchy_item_symbol_id(item: &lsp::TypeHierarchyItem) -> Option<GlobalSymbolId> {
+pub fn type_hierarchy_item_symbol_id(
+    session: &Session,
+    item: &lsp::TypeHierarchyItem,
+) -> Option<GlobalSymbolId> {
     let data = item.data.as_ref()?;
-    let package = data.get("package")?.as_u64()?;
-    let module = data.get("module")?.as_u64()? as u32;
-    let symbol = data.get("symbol")?.as_u64()? as u32;
-
-    Some(GlobalSymbolId {
-        module_id: ModuleId::new(PackageId(package), module),
-        local_id: destack_dir::LocalSymbolId::new(symbol),
-    })
+    symbol_id_from_lsp_data(session, data)
 }
 
 /// Convert a workspace symbol to an LSP workspace symbol.

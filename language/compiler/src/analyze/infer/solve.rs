@@ -108,6 +108,46 @@ impl Compiler {
         solution
     }
 
+    /// Resolve an inference variable type for use in assignability checks.
+    pub(crate) fn resolve_infer_type_for_check(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        ty_id: LocalTypeId,
+        infer: &InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Option<LocalTypeId> {
+        // return early when the type is not an inference variable
+        let Type::InferVar { id } = types.get_type(ty_id) else {
+            return Some(ty_id);
+        };
+
+        // collect bounds for the current inference table
+        let mut bounds: Vec<_> = infer.vars.iter().map(Bounds::from_var).collect();
+        for constraint in &infer.constraints {
+            Self::apply_constraint(constraint, types, &mut bounds);
+        }
+
+        // resolve the specific inference variable against the collected bounds
+        let bound = bounds.get(id.0 as usize)?;
+        let fallback_source_type_id = infer.type_for_var(*id);
+        let solution = InferSolution {
+            resolved: vec![None; infer.vars.len()],
+        };
+        self.resolve_bounds(
+            module,
+            profile,
+            symbols,
+            bound,
+            fallback_source_type_id,
+            &solution,
+            types,
+            options,
+        )
+    }
+
     /// Apply a single constraint to the current bounds.
     fn apply_constraint(constraint: &Constraint, types: &TypeTable, bounds: &mut [Bounds]) {
         match constraint {

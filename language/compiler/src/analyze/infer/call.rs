@@ -6,8 +6,8 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
     InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    ResolutionCandidate, ResolvedSignature, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
+    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -929,6 +929,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &InferContext,
     ) {
+        // scan argument pairs for template literal inference
         for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
             .iter()
             .zip(argument_ty_ids.iter())
@@ -1026,207 +1027,6 @@ impl Compiler {
             Type::Reference { symbol, .. } => Some(*symbol),
             _ => None,
         }
-    }
-
-    /// Add inference constraints for template literal parameters.
-    fn add_template_literal_inference_constraints(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        argument_ty_ids: &[LocalTypeId],
-        parameter_types: &[LocalTypeId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        options: &AnalyzeOptions,
-    ) {
-        for ((argument_id, argument_ty_id), param_ty_id) in dynamic_arguments
-            .iter()
-            .zip(argument_ty_ids.iter())
-            .zip(parameter_types.iter())
-        {
-            let (strings, spans) = match types.get_type(*param_ty_id) {
-                Type::TemplateLiteral { strings, spans } => (strings.clone(), spans.clone()),
-                _ => continue,
-            };
-
-            let argument_value_id = tree.get(*argument_id).value();
-            let source_node = argument_value_id.into_any();
-            let argument_ty = types.get_type(*argument_ty_id).clone();
-
-            match argument_ty {
-                Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
-                } => {
-                    let value = self.program.strings.get(string_id).to_string();
-                    let Some(span_values) = self.match_template_literal_to_string(&strings, &value)
-                    else {
-                        continue;
-                    };
-
-                    if span_values.len() != spans.len() {
-                        continue;
-                    }
-
-                    let mut visited = HashSet::new();
-                    for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
-                        let span_ty = types.get_type(*span_ty_id).clone();
-                        match span_ty {
-                            Type::InferVar { id } => {
-                                // resolve constraints for the infer var
-                                let constraint = self.infer_var_constraint_type(
-                                    module,
-                                    profile,
-                                    id,
-                                    source_node,
-                                    symbols,
-                                    types,
-                                    infer,
-                                );
-
-                                // reject spans that violate the constraint
-                                if let Some(constraint_id) = constraint
-                                    && !self.template_span_matches_string(
-                                        module,
-                                        profile,
-                                        constraint_id,
-                                        span_value,
-                                        symbols,
-                                        types,
-                                        &mut visited,
-                                    )
-                                {
-                                    self.error(AnalyzeError::UnassignableType {
-                                        node: argument_id
-                                            .into_global_any(module.id)
-                                            .into_anchored(Some(profile)),
-                                        expected_ty: param_ty_id.into_global(module.id),
-                                        actual_ty: argument_ty_id.into_global(module.id),
-                                    });
-                                    break;
-                                }
-
-                                // infer a literal type when possible
-                                let inferred_ty = self.template_infer_literal_type(
-                                    constraint,
-                                    span_value,
-                                    source_node,
-                                    types,
-                                );
-                                if let Some(inferred_ty) = inferred_ty {
-                                    infer.push_constraint(Constraint::Equal {
-                                        left: *span_ty_id,
-                                        right: inferred_ty,
-                                    });
-                                }
-                            }
-                            _ => {
-                                if !self.template_span_matches_string(
-                                    module,
-                                    profile,
-                                    *span_ty_id,
-                                    span_value,
-                                    symbols,
-                                    types,
-                                    &mut visited,
-                                ) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                Type::TemplateLiteral {
-                    strings: argument_strings,
-                    spans: argument_spans,
-                } => {
-                    if strings.len() != argument_strings.len()
-                        || spans.len() != argument_spans.len()
-                    {
-                        continue;
-                    }
-
-                    let mut strings_match = true;
-                    for (left, right) in strings.iter().zip(argument_strings.iter()) {
-                        if left != right {
-                            strings_match = false;
-                            break;
-                        }
-                    }
-
-                    if !strings_match {
-                        continue;
-                    }
-
-                    for (span_ty_id, argument_span) in spans.iter().zip(argument_spans.iter()) {
-                        if let Type::InferVar { id } = types.get_type(*span_ty_id) {
-                            // resolve constraints for the infer var
-                            let constraint = self.infer_var_constraint_type(
-                                module,
-                                profile,
-                                *id,
-                                source_node,
-                                symbols,
-                                types,
-                                infer,
-                            );
-
-                            // validate argument spans against constraints
-                            if let Some(constraint_id) = constraint
-                                && self.is_type_assignable(
-                                    module,
-                                    profile,
-                                    symbols,
-                                    constraint_id,
-                                    *argument_span,
-                                    types,
-                                    options,
-                                ) == Assignability::NotAssignable
-                            {
-                                self.error(AnalyzeError::UnassignableType {
-                                    node: argument_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                    expected_ty: param_ty_id.into_global(module.id),
-                                    actual_ty: argument_ty_id.into_global(module.id),
-                                });
-                                continue;
-                            }
-
-                            // record inference bindings for the span
-                            infer.push_constraint(Constraint::Equal {
-                                left: *span_ty_id,
-                                right: *argument_span,
-                            });
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    /// Resolve the constraint type for an inference variable when possible.
-    fn infer_var_constraint_type(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        id: destack_dir::InferVarId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &InferTable,
-    ) -> Option<LocalTypeId> {
-        let var = infer.vars.get(id.0 as usize)?;
-        if let InferOrigin::TypeParameter(symbol) = var.origin {
-            return self.static_parameter_constraint_type(
-                module, profile, symbol, source_id, symbols, types,
-            );
-        }
-
-        None
     }
 
     /// Validate argument assignability for a resolved signature.

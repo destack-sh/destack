@@ -4,7 +4,7 @@ use destack_dir::{
     FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope,
     InferTable, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member,
     Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticKey,
-    SymbolSpace, SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
+    SymbolSpace, SymbolTable, Timing, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
     TypeTable, walk_block, walk_declaration, walk_expression,
 };
 use destack_source::ModuleId;
@@ -297,10 +297,19 @@ impl Compiler {
                 }
 
                 // avoid eager evaluation for generic aliases
-                let declared_ty_id = if static_parameters
-                    .as_ref()
-                    .is_some_and(|parameters| !parameters.is_empty())
-                {
+                // detect value static parameters that require deferred evaluation
+                let has_comptime_parameters =
+                    static_parameters.as_ref().is_some_and(|parameters| {
+                        parameters.iter().any(|param_id| {
+                            let parameter = tree.get(*param_id);
+                            parameter
+                                .modifiers()
+                                .is_some_and(|modifiers| modifiers.timing == Some(Timing::Comptime))
+                        })
+                    });
+
+                // resolve the declared type eagerly for type-only parameters
+                let declared_ty_id = if has_comptime_parameters {
                     types.insert_type_from(Type::Unevaluated(*value), *value)
                 } else {
                     self.try_evaluate_expression_to_type(
@@ -1042,15 +1051,15 @@ impl Compiler {
         Ok(())
     }
 
-    /// Override a constructor return type with a nominal reference when provided.
-    fn override_constructor_return_type(
+    /// Replace the return type of a function signature.
+    fn replace_signature_return_type(
         &self,
         ty_id: LocalTypeId,
-        constructor_return: Option<LocalTypeId>,
+        return_type: Option<LocalTypeId>,
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let Some(constructor_return) = constructor_return else {
+        let Some(return_type) = return_type else {
             return ty_id;
         };
 
@@ -1072,7 +1081,7 @@ impl Compiler {
             static_parameters,
             this_parameter,
             dynamic_parameters,
-            return_type: Some(constructor_return),
+            return_type: Some(return_type),
         };
         types.insert_type_from_any(rebuilt, source_id)
     }
@@ -1256,36 +1265,50 @@ impl Compiler {
                             symbols,
                             types,
                         )?;
-                        let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
+                        let signature_ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
 
                         // override constructor returns when needed
-                        let ty_id = if signature.mode == Some(FunctionMode::Constructor) {
-                            self.override_constructor_return_type(
-                                ty_id,
+                        let construct_signature_id = if signature.mode == Some(FunctionMode::Constructor) {
+                            self.replace_signature_return_type(
+                                signature_ty_id,
                                 constructor_return,
                                 (*member_id).into_any(),
                                 types,
                             )
                         } else {
-                            ty_id
+                            signature_ty_id
                         };
 
                         // record the declared signature for inference
+                        let declared_signature_id = if signature.mode == Some(FunctionMode::Constructor) {
+                            let void_ty = Type::TypeLiteral {
+                                value: TypeLiteral::Void,
+                            };
+                            let void_ty_id = types.insert_type_from_any(void_ty, (*member_id).into_any());
+                            self.replace_signature_return_type(
+                                signature_ty_id,
+                                Some(void_ty_id),
+                                (*member_id).into_any(),
+                                types,
+                            )
+                        } else {
+                            signature_ty_id
+                        };
                         types.set_signature_type_for_node(
                             (*member_id).into_global_any(module.id),
-                            ty_id,
+                            declared_signature_id,
                         );
 
                         // route the signature to the correct shape
                         match signature.mode {
                             Some(FunctionMode::Constructor) => {
-                                shapes.value.construct_signatures.push(ty_id);
+                                shapes.value.construct_signatures.push(construct_signature_id);
                             }
                             Some(FunctionMode::New) => {
-                                target_shape.construct_signatures.push(ty_id);
+                                target_shape.construct_signatures.push(signature_ty_id);
                             }
                             _ => {
-                                target_shape.call_signatures.push(ty_id);
+                                target_shape.call_signatures.push(signature_ty_id);
                             }
                         }
                         continue;

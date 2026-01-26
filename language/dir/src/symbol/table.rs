@@ -50,11 +50,66 @@ impl SymbolTable {
         self.symbols.iter()
     }
 
+    /// Get a symbol by its raw id.
+    #[inline]
+    pub fn get_symbol_by_id(&self, symbol_id: u32) -> &Symbol {
+        self.symbols.get(symbol_id)
+    }
+
+    /// Retype a symbol id and update stored references.
+    pub fn retype_symbol_id(
+        &mut self,
+        symbol_id: LocalSymbolId,
+        symbol_type: SymbolType,
+    ) -> LocalSymbolId {
+        let typed_id = LocalSymbolId::new_typed(symbol_id.id, symbol_type);
+
+        // update the symbol entry type
+        let (scope_id, merge_group) = {
+            let symbol_entry = self.symbols.get_mut(symbol_id.id);
+            symbol_entry.ty = symbol_type;
+            (symbol_entry.scope.0, symbol_entry.merge_group)
+        };
+
+        // update named symbol ids in the scope
+        let scope = self.scopes.get_mut(scope_id.0);
+        for (_, scope_symbol_id) in scope.named_symbols.iter_mut() {
+            if scope_symbol_id.id == symbol_id.id {
+                *scope_symbol_id = typed_id;
+            }
+        }
+
+        // update anonymous symbol ids in the scope
+        for scope_symbol_id in scope.anonymous_symbols.iter_mut() {
+            if scope_symbol_id.id == symbol_id.id {
+                *scope_symbol_id = typed_id;
+            }
+        }
+
+        // update scope ownership when it matches
+        if let Some(owner_id) = scope.owner_id
+            && owner_id.id == symbol_id.id
+        {
+            scope.owner_id = Some(typed_id);
+        }
+
+        // update merge group entries
+        if let Some(group_id) = merge_group {
+            let group = self.merge_groups.get_mut(group_id.0);
+            for merge_symbol_id in group.iter_mut() {
+                if merge_symbol_id.id == symbol_id.id {
+                    *merge_symbol_id = typed_id;
+                }
+            }
+        }
+
+        typed_id
+    }
+
     /// Iterate active symbol ids.
     pub fn active_symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
         (0..self.symbol_count()).filter_map(|symbol_id| {
-            let local_id = LocalSymbolId::new(symbol_id);
-            let symbol = self.get_symbol(local_id);
+            let symbol = self.get_symbol_by_id(symbol_id);
             if !symbol.is_active {
                 return None;
             }

@@ -1567,8 +1567,6 @@ impl Compiler {
                     symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                let canonical_symbol =
-                    self.typed_symbol_id(module, profile, canonical_symbol, symbols);
                 let try_branch_symbol = self.language_symbol(profile, LanguageSymbol::TryBranch);
                 if canonical_symbol == try_branch_symbol {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);

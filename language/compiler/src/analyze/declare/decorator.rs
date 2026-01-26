@@ -288,16 +288,13 @@ impl Compiler {
                 continue;
             };
             // compare well-known markers using canonical symbol ids
-            let target_symbol = {
-                let canonical = self.canonical_symbol_id(
-                    module,
-                    symbols,
-                    profile,
-                    target_symbol,
-                    CanonicalSymbolMode::FollowAliases,
-                );
-                self.typed_symbol_id(module, profile, canonical, symbols)
-            };
+            let target_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
             let mut marker = decorator_map.get(&target_symbol).copied();
             if marker.is_none() {
                 // look for a well known decorator in the merge group

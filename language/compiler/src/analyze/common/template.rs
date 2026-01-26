@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    IntType, LocalTypeId, PrimitiveType, ScalarLiteral, StringId, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    IntType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StringId, SymbolTable,
+    Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -37,6 +37,15 @@ impl TemplateSpanSegment {
         // concatenate literal fragments
         Some(self.literals.join(""))
     }
+}
+
+/// The resolved span type used for template matching.
+#[derive(Debug, Clone, Copy)]
+enum TemplateSpanMatch {
+    /// The span can match any string content.
+    Any,
+    /// The span must match a concrete type.
+    Type(LocalTypeId),
 }
 
 /// Parsed numeric string parts.
@@ -120,11 +129,15 @@ impl Compiler {
 
             // handle empty literal boundary
             if next_literal.is_empty() {
-                let mut chars = remaining.chars();
-                let first = chars.next()?;
-                let first_len = first.len_utf8();
-                spans.push(remaining[..first_len].to_string());
-                index += first_len;
+                if remaining.is_empty() {
+                    spans.push(String::new());
+                } else {
+                    let mut chars = remaining.chars();
+                    let first = chars.next()?;
+                    let first_len = first.len_utf8();
+                    spans.push(remaining[..first_len].to_string());
+                    index += first_len;
+                }
                 continue;
             }
 
@@ -301,6 +314,30 @@ impl Compiler {
             let next_literal = target_parts[target_index + 1].as_str();
             let mut segment = TemplateSpanSegment::new();
 
+            // capture the remaining source when the next literal is empty
+            if next_literal.is_empty() {
+                let source_literal = source_parts.get(source_index)?;
+                let remainder = &source_literal[source_offset..];
+                if !remainder.is_empty() {
+                    segment.literals.push(remainder.to_string());
+                }
+
+                if source_index < source_spans.len() {
+                    segment.spans.extend_from_slice(&source_spans[source_index..]);
+                }
+
+                for literal in source_parts.iter().skip(source_index + 1) {
+                    if !literal.is_empty() {
+                        segment.literals.push(literal.to_string());
+                    }
+                }
+
+                source_index = source_parts.len() - 1;
+                source_offset = source_parts.last().map(|value| value.len()).unwrap_or(0);
+                segments.push(segment);
+                continue;
+            }
+
             // advance through source literals until the next boundary
             loop {
                 let source_literal = source_parts.get(source_index)?;
@@ -382,6 +419,17 @@ impl Compiler {
 
         // allow a single span segment when assignable
         if segment.literals.is_empty() && segment.spans.len() == 1 {
+            // allow string spans to accept any stringifiable template span
+            if self.span_is_string_compatible_for_template(
+                module,
+                profile,
+                span_ty_id,
+                symbols,
+                types,
+            ) {
+                return true;
+            }
+
             return self.is_type_assignable(
                 module,
                 profile,
@@ -404,6 +452,156 @@ impl Compiler {
         )
     }
 
+    /// Check whether a span type can accept any string and a stringifiable template span.
+    fn span_is_string_compatible_for_template(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let mut visited = HashSet::new();
+
+        self.span_is_string_supertype(module, profile, span_ty_id, symbols, types, &mut visited)
+            && self.span_is_template_stringifiable(
+                module,
+                profile,
+                span_ty_id,
+                symbols,
+                types,
+                &mut visited,
+            )
+    }
+
+    /// Resolve the span type used for template matching.
+    fn resolve_template_span_match_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_ty_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> TemplateSpanMatch {
+        // resolve static parameter constraints when available
+        if let Type::Reference { symbol, .. } = types.get_type(span_ty_id)
+            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        {
+            let constraint_id = self.static_parameter_constraint_type(
+                module,
+                profile,
+                *symbol,
+                source_id,
+                symbols,
+                types,
+            );
+            let Some(constraint_id) = constraint_id else {
+                return TemplateSpanMatch::Any;
+            };
+            if matches!(
+                types.get_type(constraint_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
+                }
+            ) {
+                return TemplateSpanMatch::Any;
+            }
+
+            return TemplateSpanMatch::Type(constraint_id);
+        }
+
+        TemplateSpanMatch::Type(span_ty_id)
+    }
+
+    /// Check whether a span type can appear inside a template literal.
+    fn span_is_template_stringifiable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // resolve the span type for matching
+        let source_id = types.get_type_source(span_ty_id);
+        let span_match = self.resolve_template_span_match_type(
+            module,
+            profile,
+            span_ty_id,
+            source_id,
+            symbols,
+            types,
+        );
+
+        let span_ty_id = match span_match {
+            TemplateSpanMatch::Any => return true,
+            TemplateSpanMatch::Type(span_ty_id) => span_ty_id,
+        };
+
+        // break recursion cycles
+        if !visited.insert(span_ty_id) {
+            return false;
+        }
+
+        // normalize the span type
+        let normalized_id = self.normalize_type(
+            module,
+            profile,
+            span_ty_id,
+            symbols,
+            types,
+            crate::analyze::common::NormalizationMode::Flow,
+        );
+        let span_ty = types.get_type(normalized_id).clone();
+
+        // check template string compatibility
+        let stringifiable = match span_ty {
+            Type::TypeLiteral { value } => match value {
+                TypeLiteral::Any => true,
+                TypeLiteral::Primitive(PrimitiveType::String) => true,
+                TypeLiteral::Primitive(PrimitiveType::Number) => true,
+                TypeLiteral::Primitive(PrimitiveType::Bigint) => true,
+                TypeLiteral::Primitive(PrimitiveType::Boolean) => true,
+                TypeLiteral::Primitive(PrimitiveType::Int(_)) => true,
+                TypeLiteral::Primitive(PrimitiveType::Float(_)) => true,
+                TypeLiteral::Null => true,
+                TypeLiteral::Undefined => true,
+                TypeLiteral::ScalarLiteral(ScalarLiteral::RegexString { .. }) => false,
+                TypeLiteral::ScalarLiteral(_) => true,
+                _ => false,
+            },
+            Type::TemplateLiteral { .. } => true,
+            Type::Union { elements } => elements.iter().all(|element_id| {
+                self.span_is_template_stringifiable(
+                    module,
+                    profile,
+                    *element_id,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }),
+            Type::Intersection { elements } => elements.iter().all(|element_id| {
+                self.span_is_template_stringifiable(
+                    module,
+                    profile,
+                    *element_id,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }),
+            Type::InferVar { .. } | Type::Infer { .. } => true,
+            _ => false,
+        };
+
+        // release the recursion guard
+        visited.remove(&span_ty_id);
+        stringifiable
+    }
+
     /// Check whether a span type can match a string literal.
     pub(crate) fn template_span_matches_string(
         &self,
@@ -415,6 +613,22 @@ impl Compiler {
         types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
+        // resolve the span type for matching
+        let source_id = types.get_type_source(span_ty_id);
+        let span_match = self.resolve_template_span_match_type(
+            module,
+            profile,
+            span_ty_id,
+            source_id,
+            symbols,
+            types,
+        );
+
+        let span_ty_id = match span_match {
+            TemplateSpanMatch::Any => return true,
+            TemplateSpanMatch::Type(span_ty_id) => span_ty_id,
+        };
+
         // break recursion cycles
         if !visited.insert(span_ty_id) {
             return false;
@@ -639,7 +853,7 @@ impl Compiler {
 
         // match primitive and keyword literals
         match literal {
-            TypeLiteral::Any | TypeLiteral::Unknown => true,
+            TypeLiteral::Any => true,
             TypeLiteral::Primitive(PrimitiveType::String) => true,
             TypeLiteral::Primitive(PrimitiveType::Number) => self.string_is_number_literal(value),
             TypeLiteral::Primitive(PrimitiveType::Bigint) => self.string_is_bigint_literal(value),
@@ -903,6 +1117,16 @@ impl Compiler {
         // parse literal parts
         let parts = self.parse_numeric_string_parts(value)?;
 
+        // reject whitespace
+        if parts.has_whitespace {
+            return None;
+        }
+
+        // reject NaN and Infinity text
+        if matches!(parts.trimmed, "NaN" | "Infinity" | "-Infinity") {
+            return None;
+        }
+
         // handle non decimal radix
         if let Some(radix) = parts.radix {
             // reject explicit sign for radix literals
@@ -916,10 +1140,17 @@ impl Compiler {
         // parse decimal form
         let parsed = parts.trimmed.parse::<f64>().ok()?;
         if parsed.is_finite() {
-            Some(parsed)
-        } else {
-            None
+            return Some(parsed);
         }
+
+        // allow exponent overflow numeric forms (matching JS literal grammar)
+        if parsed.is_infinite()
+            && (parts.trimmed.contains('e') || parts.trimmed.contains('E'))
+        {
+            return Some(parsed);
+        }
+
+        None
     }
 
     /// Parse a numeric string into an integer if it satisfies the given int type.
@@ -1085,6 +1316,22 @@ impl Compiler {
         types: &mut TypeTable,
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
+        // resolve the span type for matching
+        let source_id = types.get_type_source(span_ty_id);
+        let span_match = self.resolve_template_span_match_type(
+            module,
+            profile,
+            span_ty_id,
+            source_id,
+            symbols,
+            types,
+        );
+
+        let span_ty_id = match span_match {
+            TemplateSpanMatch::Any => return true,
+            TemplateSpanMatch::Type(span_ty_id) => span_ty_id,
+        };
+
         // break recursion cycles
         if !visited.insert(span_ty_id) {
             return false;
@@ -1108,9 +1355,6 @@ impl Compiler {
             }
             | Type::TypeLiteral {
                 value: TypeLiteral::Any,
-            }
-            | Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
             } => true,
             Type::TemplateLiteral { strings, spans } => self.template_literal_is_string_supertype(
                 module, profile, &strings, &spans, symbols, types,

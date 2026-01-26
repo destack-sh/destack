@@ -1379,9 +1379,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        // align the symbol id with the stored symbol type
-        let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-
         // canonicalize import targets while preserving alias identity
         let symbol = self.canonical_symbol_id(
             module,
@@ -1391,19 +1388,6 @@ impl Compiler {
             CanonicalSymbolMode::PreserveAliases,
         );
         let symbol = self.merged_type_symbol_id(module, symbols, profile, symbol);
-        let mut symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-
-        // follow alias targets when import bindings are untyped
-        if symbol.ty() == SymbolType::Void {
-            symbol = self.canonical_symbol_id(
-                module,
-                symbols,
-                profile,
-                symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
-            symbol = self.typed_symbol_id(module, profile, symbol, symbols);
-        }
 
         // ensure remote declarations are available before resolving arguments
         if symbol.module_id != module.id {
@@ -2073,30 +2057,20 @@ impl Compiler {
     ) -> AnalyzeResult<StaticArgument> {
         match static_parameter.kind {
             StaticParameterKind::Type => {
-                let inferred_ty_id = if let Some(owner_symbol) = owner_symbol {
-                    let scope = InferScope {
-                        owner: owner_symbol,
-                        function_id: Some(node_id.into_global(module.id)),
-                    };
-
-                    let infer_var_id =
-                        infer.new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
-                    let infer_ty_id =
-                        types.insert_type_from_any(Type::InferVar { id: infer_var_id }, node_id);
-                    infer.bind_type(infer_var_id, infer_ty_id);
-
-                    infer_ty_id
-                } else {
-                    self.error(AnalyzeError::MissingType {
-                        node: node_id.into_global(module.id).into_anchored(Some(profile)),
-                    });
-                    types.insert_type_from_any(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Unknown,
-                        },
-                        node_id,
-                    )
+                // build an inference variable tied to the static parameter symbol
+                let scope_owner = owner_symbol.unwrap_or(static_parameter.symbol);
+                let scope = InferScope {
+                    owner: scope_owner,
+                    function_id: Some(node_id.into_global(module.id)),
                 };
+                let inferred_ty_id = self.infer_var_type_for_symbol(
+                    infer,
+                    types,
+                    static_parameter.symbol,
+                    node_id,
+                    InferOrigin::TypeParameter(static_parameter.symbol),
+                    scope,
+                );
 
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,

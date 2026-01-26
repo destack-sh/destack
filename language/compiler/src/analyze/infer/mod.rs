@@ -18,6 +18,7 @@ mod parameter;
 mod process;
 mod resolution;
 mod solve;
+mod template;
 mod r#type;
 
 use key::*;
