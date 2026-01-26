@@ -1,6 +1,6 @@
 use destack_dir::{
-    GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node, Scope,
-    StaticKey, SymbolSpace, SymbolTable,
+    Declaration, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeMark, LocalSymbolId, Node,
+    Scope, StaticKey, SymbolSpace, SymbolTable,
 };
 
 use crate::TestProgram;
@@ -76,10 +76,38 @@ impl TestProgram {
 
         // scan declarations for a matching function name
         let name_id = self.program.strings.intern(name);
-        for (_, declaration) in tree.iter_nodes_of_type::<destack_dir::Declaration>() {
-            let destack_dir::Declaration::Function { descriptor, .. } = declaration else {
+        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let Declaration::Function { descriptor, .. } = declaration else {
                 continue;
             };
+            let Some(declaration_name) = descriptor.name else {
+                continue;
+            };
+            if declaration_name.string() == name_id {
+                return Some(descriptor.symbol.into_global(module.id));
+            }
+        }
+
+        None
+    }
+
+    /// Resolve a declaration symbol by simple name.
+    pub fn declaration_symbol_by_name(
+        &self,
+        module_uri: &str,
+        name: &str,
+    ) -> Option<GlobalSymbolId> {
+        // load module state
+        let module = self.module(module_uri);
+        let module = module.read();
+        let profile = self.default_profile_id(module.id);
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+
+        // scan declarations for a matching name
+        let name_id = self.program.strings.intern(name);
+        for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let descriptor = declaration.descriptor();
             let Some(declaration_name) = descriptor.name else {
                 continue;
             };

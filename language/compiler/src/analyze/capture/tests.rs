@@ -203,7 +203,7 @@ class Widget {
         .collect::<Vec<_>>();
     assert_eq!(
         capture_symbols,
-        vec![(this_symbol, CaptureKind::ByReference)]
+        vec![(this_symbol, CaptureKind::ByValue)]
     );
 }
 

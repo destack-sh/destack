@@ -174,8 +174,15 @@ impl Compiler {
             let mut address_taken = IndexMap::<GlobalSymbolId, IndexMap<GlobalSymbolId, ()>>::new();
 
             for symbol in collector.captured_symbols.into_keys() {
-                // resolve capture kind for each symbol
-                let kind = self.capture_kind_for_symbol(tree, symbols, symbol, &directive);
+                // force `this` to capture by value
+                let kind = if collector
+                    .this_symbol
+                    .is_some_and(|this_symbol| this_symbol == symbol)
+                {
+                    CaptureKind::ByValue
+                } else {
+                    self.capture_kind_for_symbol(tree, symbols, symbol, &directive)
+                };
 
                 // record the capture in order
                 captured_bindings.push(CapturedBinding { symbol, kind });
