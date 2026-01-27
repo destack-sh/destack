@@ -486,39 +486,61 @@ impl Compiler {
             });
         }
 
-        // reject writes to readonly members when the key is known
+        // reject assignments through immutable references
         if let Expression::Member {
             left: receiver_id,
             name,
             static_arguments,
         } = tree.get(left_id)
-            && static_arguments.is_none()
         {
             let receiver_ty_id =
                 self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
-            let member_key = self.static_key_from_dynamic_key(
-                ctx.profile,
-                DynamicKey::Name(*name),
-                tree,
-                symbols,
-                types,
-            );
-            if let Some(member_key) = member_key
-                && let Some((_, is_readonly)) = self.field_modifiers_for_key(
-                    module,
-                    ctx.profile,
-                    receiver_ty_id,
-                    &member_key,
-                    symbols,
-                    types,
-                )
-                && is_readonly
-            {
-                self.error(AnalyzeError::ReadonlyProperty {
-                    node: left_id
+            if self.type_is_immutable_reference(receiver_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: receiver_id
                         .into_global_any(module.id)
                         .into_anchored(Some(ctx.profile)),
-                    member_key,
+                });
+            }
+
+            // reject writes to readonly members when the key is known
+            if static_arguments.is_none() {
+                let member_key = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    DynamicKey::Name(*name),
+                    tree,
+                    symbols,
+                    types,
+                );
+                if let Some(member_key) = member_key
+                    && let Some((_, is_readonly)) = self.field_modifiers_for_key(
+                        module,
+                        ctx.profile,
+                        receiver_ty_id,
+                        &member_key,
+                        symbols,
+                        types,
+                    )
+                    && is_readonly
+                {
+                    self.error(AnalyzeError::ReadonlyProperty {
+                        node: left_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        member_key,
+                    });
+                }
+            }
+        } else if let Expression::Unary { operator, right } = tree.get(left_id)
+            && matches!(operator, UnaryOperator::Dereference)
+        {
+            let right_ty_id =
+                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+            if self.type_is_immutable_reference(right_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: right
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
                 });
             }
         }
@@ -634,7 +656,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Option<Mutability> {
         if symbol.module_id != module.id {
-            return None;
+            return Some(Mutability::Immutable);
         }
 
         let symbol_entry = symbols.get_symbol(symbol.local_id);
@@ -684,6 +706,17 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Check whether a type is an immutable reference or pointer.
+    fn type_is_immutable_reference(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+        match types.get_type(ty_id) {
+            Type::ReferenceOf { mutability, .. } | Type::PointerOf { mutability, .. } => {
+                *mutability != Some(Mutability::Mutable)
+            }
+            Type::Value { value } => self.type_is_immutable_reference(*value, types),
+            _ => false,
+        }
     }
 
     /// Infer a coalesce expression.
@@ -1092,6 +1125,15 @@ impl Compiler {
         let receiver_ty_id =
             self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
+
+        // reject assignments through immutable references
+        if self.type_is_immutable_reference(receiver_ty_id, types) {
+            self.error(AnalyzeError::ImmutableReferenceAssignment {
+                node: receiver_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
 
         // resolve index expression and literal string when possible
         let (index_ty_id, literal_string, static_key) = if let Some(index_id) = index_id {

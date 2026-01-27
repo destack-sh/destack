@@ -174,7 +174,7 @@ Other modules consume the published export types without re-inferring the defini
 Inference cycles across modules are forbidden: if an exported binding participates in a cycle,
 it must be explicitly annotated to break the cycle.
 
-Examples:
+Binding examples:
 
 ```
 export const version = "v1";        // ok, inferred from local literal
@@ -232,6 +232,24 @@ Widening and freshness follow TypeScript terminology and behavior.
 - Const contexts and const assertions suppress widening and produce readonly object and tuple shapes.
 - Contextual typing can prevent widening by constraining the expression before widening occurs.
 - Apparent types must not be computed by substituting constraint types into unrelated references.
+
+#### Binding mutability
+
+`const` bindings are immutable and cannot be reassigned.
+Imports are immutable in the importing module.
+Immutable bindings do not implicitly freeze object or array members.
+
+Examples:
+
+```ds
+const value = 1;
+value = 2;
+```
+
+```ds
+const state = { count: 0 };
+state.count = 1;
+```
 
 Examples:
 
@@ -561,6 +579,7 @@ Raw pointers are separate from ownership modifiers:
 
 **Borrow semantics:**
 - `&T` and `&mut T` are safe borrows verified by the borrow check pass.
+- Assigning through `&T` is invalid, mutation requires `&mut T`.
 - Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 - `&expr` takes the address of an addressable place.
 - When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.

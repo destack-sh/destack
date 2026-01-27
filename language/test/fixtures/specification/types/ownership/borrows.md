@@ -46,6 +46,34 @@ let mutableRef: &mut Point = shared;
 
 - contains: not assignable
 
+### shared reference rejects member assignment
+
+> Shared references cannot be used to mutate through members.
+
+```ds
+struct Point {
+    x: int32,
+}
+
+let point = Point { x: 1 };
+let shared = &point;
+shared.x = 2;
+```
+
+- contains: immutable reference
+
+### shared reference rejects index assignment
+
+> Shared references cannot be used to mutate through index assignment.
+
+```ds
+let values: int32[] = [1, 2, 3];
+let shared: &int32[] = &values;
+shared[0] = 4;
+```
+
+- contains: immutable reference
+
 ## mutable references
 
 ### mutable reference expression yields mutable reference type
@@ -59,6 +87,21 @@ struct Point {
 
 let point = Point { x: 1 };
 let mutableRef: &mut Point = &mut point;
+```
+
+### mutable reference allows member assignment
+
+> Mutable references allow member mutation.
+
+```ds
+struct Point {
+    x: int32,
+}
+
+let point = Point { x: 1 };
+let mutableRef: &mut Point = &mut point;
+mutableRef.x = 2;
+mutableRef.x satisfies int32;
 ```
 
 ### mutable reference is not assignable to shared reference

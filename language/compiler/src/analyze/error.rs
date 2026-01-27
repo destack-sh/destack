@@ -157,6 +157,10 @@ pub enum AnalyzeError {
     #[error(code = "EA119", message = "cannot assign to immutable binding")]
     ImmutableBindingAssignment { node: AnchoredGlobalNodeId },
 
+    /// Cannot assign through an immutable reference.
+    #[error(code = "EA120", message = "cannot assign through immutable reference")]
+    ImmutableReferenceAssignment { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------
