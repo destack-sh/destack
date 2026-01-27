@@ -207,28 +207,15 @@ impl Compiler {
                     }
                 }
 
-                // use instance shapes when possible
-                if let Some(instance_id) = types.get_instance_type_id(symbol) {
-                    return self.key_set_for_type(
-                        module,
-                        profile,
-                        instance_id,
-                        symbols,
-                        types,
-                        mode,
-                        visited,
-                        visited_keys,
-                    );
-                }
-
-                // fall back to declared type shapes when instance types are unavailable
-                if let Some(declared_id) =
-                    self.declared_type_for_symbol(module, profile, type_id, symbol, symbols, types)
+                // resolve the apparent instance type for shape queries
+                let source_id = types.get_type_source(type_id);
+                if let Some(apparent_id) =
+                    self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
                 {
                     return self.key_set_for_type(
                         module,
                         profile,
-                        declared_id,
+                        apparent_id,
                         symbols,
                         types,
                         mode,
@@ -300,80 +287,6 @@ impl Compiler {
             }
             _ => KeySet::default(),
         }
-    }
-
-    /// Resolve a declared type id for a symbol into the current type table.
-    fn declared_type_for_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        source_type_id: LocalTypeId,
-        symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
-        // read declared types locally when the type table matches the module
-        if symbol.module_id == module.id && types.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            let primary = symbol_entry.primary_declaration?;
-            let declared_id = types.get_declared_type_id(primary)?;
-            if matches!(types.get_type(declared_id), Type::Unevaluated(_)) {
-                let tree = module.dir(profile).tree.read();
-                if self
-                    .evaluate_type(module, profile, declared_id, &tree, symbols, types)
-                    .is_err()
-                {
-                    return None;
-                }
-            }
-            if matches!(types.get_type(declared_id), Type::Unevaluated(_)) {
-                return None;
-            }
-            return Some(declared_id);
-        }
-
-        // import declared types from remote modules when needed
-        if symbol.module_id != module.id
-            && self
-                .require_analyze_module_declare(symbol.module_id, profile)
-                .is_err()
-        {
-            return None;
-        }
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-        let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-        let primary = symbol_entry.primary_declaration?;
-        let mut remote_types = remote_dir.types.write();
-        let remote_declared_id = remote_types.get_declared_type_id(primary)?;
-        if matches!(
-            remote_types.get_type(remote_declared_id),
-            Type::Unevaluated(_)
-        ) {
-            let _ = self.evaluate_type(
-                &remote_module,
-                profile,
-                remote_declared_id,
-                &remote_tree,
-                &remote_symbols,
-                &mut remote_types,
-            );
-        }
-        let remote_declared_ty = remote_types.get_type(remote_declared_id);
-        if matches!(remote_declared_ty, Type::Unevaluated(_)) {
-            return None;
-        }
-        let source_id = types.get_type_source(source_type_id);
-        Some(self.import_type_from_remote_for_node(
-            source_id,
-            remote_declared_ty,
-            &remote_types,
-            symbol,
-            types,
-        ))
     }
 
     /// Build a key set for a single index kind.
@@ -985,14 +898,17 @@ impl Compiler {
                 let mut value_types = Vec::new();
 
                 // add field type when present
-                if let Some(field_type) = self.field_type_for_key(type_id, &key, types) {
+                if let Some(field_type) =
+                    self.field_type_for_key(module, profile, type_id, &key, symbols, types)
+                {
                     value_types.push(field_type);
                 }
 
                 // add index signature fallbacks when compatible
                 if let Some(kind) = self.mapped_index_kind_for_static_key(&key) {
-                    let index_values =
-                        self.index_signature_value_types_for_kind(type_id, kind, types);
+                    let index_values = self.index_signature_value_types_for_kind(
+                        module, profile, type_id, kind, symbols, types,
+                    );
                     value_types.extend(index_values);
                 }
 
@@ -1123,11 +1039,14 @@ impl Compiler {
                 let mut value_types = Vec::new();
 
                 // add field types compatible with this kind
-                let field_values = self.field_types_for_index_kind(type_id, kind, types);
+                let field_values =
+                    self.field_types_for_index_kind(module, profile, type_id, kind, symbols, types);
                 value_types.extend(field_values);
 
                 // add index signature types
-                let index_values = self.index_signature_value_types_for_kind(type_id, kind, types);
+                let index_values = self.index_signature_value_types_for_kind(
+                    module, profile, type_id, kind, symbols, types,
+                );
                 value_types.extend(index_values);
 
                 if value_types.is_empty() {
@@ -1178,8 +1097,11 @@ impl Compiler {
     /// Resolve the field type for a specific key.
     fn field_type_for_key(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: &StaticKey,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         // unwrap alias references before walking fields
@@ -1194,7 +1116,8 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            match types.get_type(current_id) {
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
                         if field.key.matches(key) {
@@ -1217,14 +1140,45 @@ impl Compiler {
                         field_types.push(rest.ty);
                     }
                 }
-                Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => {
+                    let source_id = types.get_type_source(current_id);
+
+                    // expand alias references with static arguments before apparent lookup
+                    if static_arguments.is_some()
+                        && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    {
+                        let mut visited_alias = Vec::new();
+                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        if let Some(expanded_id) = self
+                            .normalize_type_alias_reference_with_arguments(
+                                module,
+                                profile,
+                                source_id,
+                                symbol,
+                                arguments,
+                                symbols,
+                                types,
+                                NormalizationMode::Assign,
+                                &mut visited_alias,
+                            )
+                        {
+                            pending.push(expanded_id);
+                            continue;
+                        }
+                    }
+
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
                         pending.push(instance_id);
                     }
                 }
                 Type::Intersection { elements } => {
                     for element_id in elements {
-                        pending.push(*element_id);
+                        pending.push(element_id);
                     }
                 }
                 _ => {}
@@ -1246,8 +1200,11 @@ impl Compiler {
     /// Collect field types compatible with an index kind.
     fn field_types_for_index_kind(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<LocalTypeId> {
         // unwrap alias references before collecting
@@ -1262,7 +1219,8 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            match types.get_type(current_id) {
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
                         if self.static_key_matches_index_kind(&field.key, kind) {
@@ -1278,14 +1236,45 @@ impl Compiler {
                         }
                     }
                 }
-                Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => {
+                    let source_id = types.get_type_source(current_id);
+
+                    // expand alias references with static arguments before apparent lookup
+                    if static_arguments.is_some()
+                        && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    {
+                        let mut visited_alias = Vec::new();
+                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        if let Some(expanded_id) = self
+                            .normalize_type_alias_reference_with_arguments(
+                                module,
+                                profile,
+                                source_id,
+                                symbol,
+                                arguments,
+                                symbols,
+                                types,
+                                NormalizationMode::Assign,
+                                &mut visited_alias,
+                            )
+                        {
+                            pending.push(expanded_id);
+                            continue;
+                        }
+                    }
+
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
                         pending.push(instance_id);
                     }
                 }
                 Type::Intersection { elements } => {
                     for element_id in elements {
-                        pending.push(*element_id);
+                        pending.push(element_id);
                     }
                 }
                 _ => {}
@@ -1298,8 +1287,11 @@ impl Compiler {
     /// Collect index signature value types compatible with an index kind.
     fn index_signature_value_types_for_kind(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<LocalTypeId> {
         // unwrap alias references before collecting
@@ -1314,7 +1306,8 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            match types.get_type(current_id) {
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
                 Type::Object {
                     index_signatures, ..
                 } => {
@@ -1329,13 +1322,16 @@ impl Compiler {
                     }
                 }
                 Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    let source_id = types.get_type_source(current_id);
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
                         pending.push(instance_id);
                     }
                 }
                 Type::Intersection { elements } => {
                     for element_id in elements {
-                        pending.push(*element_id);
+                        pending.push(element_id);
                     }
                 }
                 _ => {}
@@ -1449,12 +1445,15 @@ impl Compiler {
         // use the mapped parameter symbol for substitution
         let parameter_symbol = Some(symbol);
 
-        // keep mapped types unresolved when the key depends on inference or static parameters
+        // keep mapped types unresolved when they depend on free static parameters or inference
+        let mut bound_static_parameters = HashSet::new();
+        bound_static_parameters.insert(symbol);
         let mut static_visited = HashSet::new();
-        let constraint_contains_static = self.type_contains_static_parameters(
+        let constraint_contains_static = self.type_contains_free_static_parameters(
             module,
             profile,
             constraint,
+            &bound_static_parameters,
             symbols,
             types,
             &mut static_visited,
@@ -1463,10 +1462,11 @@ impl Compiler {
         let constraint_contains_infer =
             self.type_contains_infer_vars(constraint, types, &mut infer_visited);
         let remap_contains_static = key_remap.is_some_and(|key_remap| {
-            self.type_contains_static_parameters(
+            self.type_contains_free_static_parameters(
                 module,
                 profile,
                 key_remap,
+                &bound_static_parameters,
                 symbols,
                 types,
                 &mut HashSet::new(),
@@ -1569,14 +1569,20 @@ impl Compiler {
             let (base_optional, base_readonly, index_base_readonly) = match &key {
                 MappedKey::Field { key, .. } => {
                     let (optional, readonly) = source_type_id
-                        .and_then(|source| self.field_modifiers_for_key(source, key, types))
+                        .and_then(|source| {
+                            self.field_modifiers_for_key(
+                                module, profile, source, key, symbols, types,
+                            )
+                        })
                         .unwrap_or((false, false));
                     (optional, readonly, readonly)
                 }
                 MappedKey::Index { kind, .. } => {
                     let readonly = source_type_id
                         .and_then(|source| {
-                            self.resolve_index_signature_readonly_for_kind(source, *kind, types)
+                            self.resolve_index_signature_readonly_for_kind(
+                                module, profile, source, *kind, symbols, types,
+                            )
                         })
                         .unwrap_or(false);
                     (false, readonly, readonly)
@@ -1806,7 +1812,8 @@ impl Compiler {
                         visited,
                     );
                 } else if static_arguments.is_none()
-                    && let Some(instance_id) = types.get_instance_type_id(symbol)
+                    && let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
                 {
                     // prefer instance shapes for type parameter and alias references
                     self.collect_mapped_keys_for_type_inner(
@@ -1993,10 +2000,13 @@ impl Compiler {
     }
 
     /// Resolve base modifiers for a field key on a type.
-    fn field_modifiers_for_key(
+    pub(crate) fn field_modifiers_for_key(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: &StaticKey,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<(bool, bool)> {
         // unwrap alias references before walking
@@ -2013,7 +2023,8 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            match types.get_type(current_id) {
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
                 Type::Object { fields, .. } => {
                     for field in fields {
                         if field.key.matches(key) {
@@ -2023,14 +2034,45 @@ impl Compiler {
                         }
                     }
                 }
-                Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => {
+                    let source_id = types.get_type_source(current_id);
+
+                    // expand alias references with static arguments before apparent lookup
+                    if static_arguments.is_some()
+                        && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    {
+                        let mut visited_alias = Vec::new();
+                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        if let Some(expanded_id) = self
+                            .normalize_type_alias_reference_with_arguments(
+                                module,
+                                profile,
+                                source_id,
+                                symbol,
+                                arguments,
+                                symbols,
+                                types,
+                                NormalizationMode::Assign,
+                                &mut visited_alias,
+                            )
+                        {
+                            pending.push(expanded_id);
+                            continue;
+                        }
+                    }
+
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
                         pending.push(instance_id);
                     }
                 }
                 Type::Intersection { elements } => {
                     for element_id in elements {
-                        pending.push(*element_id);
+                        pending.push(element_id);
                     }
                 }
                 _ => {}
@@ -2043,8 +2085,11 @@ impl Compiler {
     /// Resolve readonly modifiers for index signatures of a given kind.
     fn resolve_index_signature_readonly_for_kind(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<bool> {
         // unwrap alias references before walking
@@ -2060,7 +2105,8 @@ impl Compiler {
                 continue;
             }
             visited.push(current_id);
-            match types.get_type(current_id) {
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
                 Type::Object {
                     index_signatures, ..
                 } => {
@@ -2075,14 +2121,45 @@ impl Compiler {
                         }
                     }
                 }
-                Type::Reference { symbol, .. } => {
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => {
+                    let source_id = types.get_type_source(current_id);
+
+                    // expand alias references with static arguments before apparent lookup
+                    if static_arguments.is_some()
+                        && matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    {
+                        let mut visited_alias = Vec::new();
+                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        if let Some(expanded_id) = self
+                            .normalize_type_alias_reference_with_arguments(
+                                module,
+                                profile,
+                                source_id,
+                                symbol,
+                                arguments,
+                                symbols,
+                                types,
+                                NormalizationMode::Assign,
+                                &mut visited_alias,
+                            )
+                        {
+                            pending.push(expanded_id);
+                            continue;
+                        }
+                    }
+
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
                         pending.push(instance_id);
                     }
                 }
                 Type::Intersection { elements } => {
                     for element_id in elements {
-                        pending.push(*element_id);
+                        pending.push(element_id);
                     }
                 }
                 _ => {}

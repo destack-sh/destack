@@ -14,6 +14,7 @@ impl Compiler {
                 | SymbolType::Struct
                 | SymbolType::Interface
                 | SymbolType::Enum
+                | SymbolType::Extension
                 | SymbolType::TypeAlias
                 | SymbolType::Newtype
         )

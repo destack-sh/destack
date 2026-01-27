@@ -6,6 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use super::CanonicalSymbolMode;
 use crate::{AnalyzeResult, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -100,6 +101,9 @@ impl Compiler {
             }
 
             // import the alias target when the symbol is remote
+            if current.module_id != module.id {
+                let _ = self.require_analyze_module_declare(current.module_id, profile);
+            }
             let remote_module = self.program.modules.get(current.module_id);
             let remote_module = remote_module.read();
             let remote_dir = remote_module.dir(profile);
@@ -165,6 +169,78 @@ impl Compiler {
             types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
             return Some(local_alias_target_id);
         }
+    }
+
+    /// Require an instance type for a symbol into the local type table.
+    pub(crate) fn require_instance_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // resolve through canonical import targets while preserving aliases
+        let symbol = if symbol.ty() == SymbolType::Extension {
+            symbol
+        } else {
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::PreserveAliases,
+            )
+        };
+
+        // reuse local instance types when already available
+        if let Some(instance_id) = types.get_instance_type_id(symbol) {
+            return Some(instance_id);
+        }
+
+        // load or import the instance type through the existing resolver
+        match self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types) {
+            Ok(instance_id) => instance_id,
+            Err(error) => {
+                self.error(error);
+                None
+            }
+        }
+    }
+
+    /// Resolve the apparent instance type for shape queries like `keyof`.
+    pub(crate) fn apparent_instance_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // resolve through canonical import targets while preserving aliases
+        let symbol = if symbol.ty() == SymbolType::Extension {
+            symbol
+        } else {
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::PreserveAliases,
+            )
+        };
+
+        // prefer alias targets as the apparent type when available
+        if let Some(alias_target_id) =
+            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        {
+            return Some(alias_target_id);
+        }
+
+        // otherwise fall back to the instance type
+        self.require_instance_type(module, profile, source_id, symbol, symbols, types)
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.

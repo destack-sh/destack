@@ -1112,7 +1112,8 @@ impl Compiler {
         )?;
 
         // compute narrowed types for each branch
-        let (true_type_id, false_type_id) = self.property_guard_types(base_type_id, &key, types);
+        let (true_type_id, false_type_id) =
+            self.property_guard_types(module, context.profile, base_type_id, &key, symbols, types);
 
         // apply the narrowings for each branch
         let mut true_environment = environment.clone();
@@ -1409,12 +1410,12 @@ impl Compiler {
             ),
             TypeGuardTarget::ObjectLike => {
                 self.predicate_guard_types(base_type_id, types, |type_id, types| {
-                    self.type_is_object_like(type_id, types)
+                    self.type_is_object_like(module, profile, type_id, symbols, types)
                 })
             }
             TypeGuardTarget::FunctionLike => {
                 self.predicate_guard_types(base_type_id, types, |type_id, types| {
-                    self.type_is_function_like(type_id, types)
+                    self.type_is_function_like(module, profile, type_id, symbols, types)
                 })
             }
         }
@@ -1573,7 +1574,7 @@ impl Compiler {
         predicate: F,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>)
     where
-        F: Fn(LocalTypeId, &TypeTable) -> bool,
+        F: Fn(LocalTypeId, &mut TypeTable) -> bool,
     {
         // avoid narrowing any or unknown types
         if self.type_is_any_or_unknown(base_type_id, types) {
@@ -1581,7 +1582,8 @@ impl Compiler {
         }
 
         // split union and non union targets
-        match types.get_type(base_type_id) {
+        let base_ty = types.get_type(base_type_id).clone();
+        match base_ty {
             Type::Union { elements } => {
                 // avoid narrowing unions with any or unknown members
                 if elements
@@ -1596,10 +1598,10 @@ impl Compiler {
 
                 // collect union members by predicate
                 for element_id in elements {
-                    if predicate(*element_id, types) {
-                        matching_elements.push(*element_id);
+                    if predicate(element_id, types) {
+                        matching_elements.push(element_id);
                     } else {
-                        remaining_elements.push(*element_id);
+                        remaining_elements.push(element_id);
                     }
                 }
 
@@ -1640,22 +1642,26 @@ impl Compiler {
     /// Derive guard types for an `in` property check.
     fn property_guard_types(
         &self,
+        module: &Module,
+        profile: ProfileId,
         base_type_id: LocalTypeId,
         key: &StaticKey,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> (Option<LocalTypeId>, Option<LocalTypeId>) {
         // split union and non union targets
-        match types.get_type(base_type_id) {
+        let base_ty = types.get_type(base_type_id).clone();
+        match base_ty {
             Type::Union { elements } => {
                 let mut matching_elements = Vec::new();
                 let mut remaining_elements = Vec::new();
 
                 // collect union members with and without the key
                 for element_id in elements {
-                    if self.type_has_property(*element_id, key, types) {
-                        matching_elements.push(*element_id);
+                    if self.type_has_property(module, profile, element_id, key, symbols, types) {
+                        matching_elements.push(element_id);
                     } else {
-                        remaining_elements.push(*element_id);
+                        remaining_elements.push(element_id);
                     }
                 }
 
@@ -1684,7 +1690,7 @@ impl Compiler {
             }
             _ => {
                 // return the base type on the branch that matches
-                if self.type_has_property(base_type_id, key, types) {
+                if self.type_has_property(module, profile, base_type_id, key, symbols, types) {
                     (Some(base_type_id), None)
                 } else {
                     (None, Some(base_type_id))

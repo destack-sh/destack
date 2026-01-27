@@ -10,9 +10,10 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, NormalizationMode, PrimitiveType, ResolvedSignature,
-    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
+    BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, IfCondition, InferTable,
+    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType,
+    NormalizationMode, PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable,
+    SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::HashMap;
@@ -94,6 +95,7 @@ impl Compiler {
             module,
             expression_id,
             right_id,
+            Some(right_ty_id),
             &right_ty,
             &operator_key,
             ctx.profile,
@@ -217,8 +219,10 @@ impl Compiler {
                     | BinaryOperator::NotEqualStrict
             )
         {
-            let left_is_object = self.type_is_object_like(left_ty_id, types);
-            let right_is_object = self.type_is_object_like(right_ty_id, types);
+            let left_is_object =
+                self.type_is_object_like(module, ctx.profile, left_ty_id, symbols, types);
+            let right_is_object =
+                self.type_is_object_like(module, ctx.profile, right_ty_id, symbols, types);
             if left_is_object || right_is_object {
                 referential_equality_violation = true;
                 self.error(AnalyzeError::ReferentialEqualityDisabled {
@@ -343,6 +347,7 @@ impl Compiler {
             module,
             expression_id,
             left_id,
+            Some(left_ty_id),
             &left_ty,
             &operator_key,
             ctx.profile,
@@ -465,6 +470,59 @@ impl Compiler {
             );
         }
 
+        // reject assignments to immutable bindings
+        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
+        if let Some(target_symbol) =
+            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
+            && matches!(
+                self.binding_mutability_for_symbol(module, target_symbol, tree, symbols),
+                Some(Mutability::Immutable)
+            )
+        {
+            self.error(AnalyzeError::ImmutableBindingAssignment {
+                node: target_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
+
+        // reject writes to readonly members when the key is known
+        if let Expression::Member {
+            left: receiver_id,
+            name,
+            static_arguments,
+        } = tree.get(left_id)
+            && static_arguments.is_none()
+        {
+            let receiver_ty_id =
+                self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
+            let member_key = self.static_key_from_dynamic_key(
+                ctx.profile,
+                DynamicKey::Name(*name),
+                tree,
+                symbols,
+                types,
+            );
+            if let Some(member_key) = member_key
+                && let Some((_, is_readonly)) = self.field_modifiers_for_key(
+                    module,
+                    ctx.profile,
+                    receiver_ty_id,
+                    &member_key,
+                    symbols,
+                    types,
+                )
+                && is_readonly
+            {
+                self.error(AnalyzeError::ReadonlyProperty {
+                    node: left_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    member_key,
+                });
+            }
+        }
+
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
 
@@ -540,6 +598,22 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // reject assignments to immutable bindings
+        let target_id = self.unwrap_parenthesized_expression(left_id, tree);
+        if let Some(target_symbol) =
+            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
+            && matches!(
+                self.binding_mutability_for_symbol(module, target_symbol, tree, symbols),
+                Some(Mutability::Immutable)
+            )
+        {
+            self.error(AnalyzeError::ImmutableBindingAssignment {
+                node: target_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
+
         let _left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let _right_ty_id =
@@ -549,6 +623,67 @@ impl Compiler {
             value: TypeLiteral::Void,
         };
         Ok(types.insert_type_from(ty, expression_id))
+    }
+
+    /// Resolve mutability for a binding symbol when it can be derived locally.
+    fn binding_mutability_for_symbol(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<Mutability> {
+        if symbol.module_id != module.id {
+            return None;
+        }
+
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let mut declaration_ids = Vec::new();
+        if let Some(primary) = symbol_entry.primary_declaration {
+            declaration_ids.push(primary);
+        }
+        if let Some(secondaries) = symbol_entry.secondary_declarations.as_deref() {
+            declaration_ids.extend(secondaries.iter().copied());
+        }
+
+        for declaration_id in declaration_ids {
+            if declaration_id.module_id != module.id {
+                continue;
+            }
+
+            let mut current = declaration_id.local_id;
+            let mut declarator_id = None;
+            loop {
+                if current.ty == NodeType::Declarator {
+                    declarator_id = Some(current.into_typed());
+                }
+
+                if current.ty == NodeType::Expression {
+                    let expression_id = current.into_typed::<Expression>();
+                    match tree.get(expression_id) {
+                        Expression::Let { mutability, .. } => return Some(*mutability),
+                        Expression::If { condition, .. } => {
+                            if let IfCondition::Let {
+                                mutability,
+                                declarator,
+                            } = condition
+                                && declarator_id == Some(*declarator)
+                            {
+                                return Some(*mutability);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                let Some(parent) = tree.get_parent(current.id) else {
+                    break;
+                };
+                current = parent;
+            }
+        }
+
+        None
     }
 
     /// Infer a coalesce expression.
@@ -643,6 +778,7 @@ impl Compiler {
                     module,
                     expression_id,
                     left_id.into_any(),
+                    non_nullish_ty_id,
                     &non_nullish_ty,
                     &branch.resolved,
                     ctx.profile,
@@ -829,6 +965,7 @@ impl Compiler {
             module,
             expression_id,
             receiver_id,
+            Some(receiver_ty_id),
             &receiver_ty,
             &member_key,
             ctx.profile,
@@ -1098,6 +1235,7 @@ impl Compiler {
             module,
             expression_id,
             *receiver_id,
+            Some(receiver_ty_id),
             &receiver_ty,
             &member_key,
             ctx.profile,
@@ -1306,6 +1444,7 @@ impl Compiler {
                     module,
                     expression_id,
                     left_id.into_any(),
+                    *element_id,
                     &element_ty,
                     &branch.resolved,
                     ctx.profile,
@@ -1419,6 +1558,7 @@ impl Compiler {
             module,
             expression_id,
             left_id.into_any(),
+            left_ty_id,
             &left_ty,
             &branch.resolved,
             ctx.profile,
@@ -1479,6 +1619,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         receiver_id: LocalNodeIdAny,
+        receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -1490,6 +1631,7 @@ impl Compiler {
             module,
             profile,
             receiver_id,
+            Some(receiver_ty_id),
             receiver_ty,
             options,
             tree,
@@ -1569,7 +1711,23 @@ impl Compiler {
                 );
                 let try_branch_symbol = self.language_symbol(profile, LanguageSymbol::TryBranch);
                 if canonical_symbol == try_branch_symbol {
-                    let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                    let options = self.analyze_context_options_for_module(module.id);
+                    let resolved_arguments = self.resolve_type_reference_static_arguments(
+                        module,
+                        profile,
+                        expression_id.into_any(),
+                        canonical_symbol,
+                        static_arguments.as_deref(),
+                        true,
+                        &options,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let arguments = resolved_arguments
+                        .as_deref()
+                        .or(static_arguments.as_deref())
+                        .unwrap_or(&[]);
                     let Some(value_argument) = arguments.first() else {
                         return Ok(None);
                     };
@@ -1735,6 +1893,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         receiver_id: LocalNodeIdAny,
+        receiver_ty_id: LocalTypeId,
         receiver_ty: &Type,
         branch: &ResolvedMemberFunction,
         profile: ProfileId,
@@ -1748,6 +1907,7 @@ impl Compiler {
             module,
             profile,
             receiver_id,
+            receiver_ty_id,
             receiver_ty,
             options,
             tree,
@@ -1864,6 +2024,7 @@ impl Compiler {
             module,
             expression_id,
             receiver_expression_id,
+            Some(receiver_ty_id),
             receiver_ty,
             &member_key,
             profile,
@@ -1975,11 +2136,33 @@ impl Compiler {
             types,
         )?
         else {
-            return Ok(false);
+            let is_try_branch = matches!(types.get_type(return_ty_id), Type::Reference { symbol, .. } if {
+                let canonical = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    *symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                canonical == self.language_symbol(profile, LanguageSymbol::TryBranch)
+            });
+            return Ok(is_try_branch);
         };
 
         // compare payloads to the expected Try arguments when they are concrete
+        let branch_value_is_parameter = matches!(
+            types.get_type(branch_value_ty_id),
+            Type::Reference { symbol, .. }
+                if self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        );
+        let branch_error_is_parameter = matches!(
+            types.get_type(branch_error_ty_id),
+            Type::Reference { symbol, .. }
+                if self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        );
+
         if self.should_check_try_payload_assignability(value_ty_id, types)
+            && !branch_value_is_parameter
             && self.is_type_assignable(
                 module,
                 profile,
@@ -1994,6 +2177,7 @@ impl Compiler {
         }
 
         if self.should_check_try_payload_assignability(error_ty_id, types)
+            && !branch_error_is_parameter
             && self.is_type_assignable(
                 module,
                 profile,
@@ -2149,6 +2333,7 @@ impl Compiler {
             module,
             ctx.profile,
             expression_id.into_any(),
+            return_ty_id,
             &return_ty,
             &ctx.options,
             tree,
@@ -2421,6 +2606,7 @@ impl Compiler {
                 module,
                 expression_id,
                 receiver_expression_id.into_any(),
+                *element_id,
                 &element_ty,
                 &branch.resolved,
                 profile,

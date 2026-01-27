@@ -281,6 +281,13 @@ impl Compiler {
                     return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
                 }
             } else {
+                // require remote declare before reading declared types
+                if self
+                    .require_analyze_module_declare(symbol.module_id, profile)
+                    .is_err()
+                {
+                    return None;
+                }
                 let remote_module = self.program.modules.get(symbol.module_id);
                 let remote_module = remote_module.read();
                 let remote_dir = remote_module.dir(profile);

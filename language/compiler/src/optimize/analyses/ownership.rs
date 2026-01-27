@@ -465,10 +465,10 @@ impl OwnershipAnalysis {
                         state.mark_moved_with_source(arg, at.clone());
                     }
                 }
-                if let Some(env) = env {
-                    if !self.value_is_copy(*env, tree) {
-                        state.mark_moved_with_source(*env, at.clone());
-                    }
+                if let Some(env) = env
+                    && !self.value_is_copy(*env, tree)
+                {
+                    state.mark_moved_with_source(*env, at.clone());
                 }
                 if let Some(dest) = inst.destination() {
                     state.mark_owned(dest);
@@ -802,10 +802,10 @@ impl OwnershipAnalysis {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved_with_source(*callee, at.clone());
                 }
-                if let Some(env) = env {
-                    if !self.value_is_copy(*env, tree) {
-                        state.mark_moved_with_source(*env, at.clone());
-                    }
+                if let Some(env) = env
+                    && !self.value_is_copy(*env, tree)
+                {
+                    state.mark_moved_with_source(*env, at.clone());
                 }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {

@@ -85,7 +85,6 @@ impl Runner {
 
         let summary = TestSummary::new();
         let start = Instant::now();
-
         // decide whether to skip a known failure without running it
         let skip_known_failures = !context.options.update_known_failures;
 

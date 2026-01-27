@@ -139,11 +139,6 @@ impl Compiler {
             return Ok(type_id);
         }
 
-        // reuse cached instance types when available
-        if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
-            return Ok(instance_type_id);
-        }
-
         // skip remote aliases during local flow computation
         if symbol.module_id != module.id {
             return Ok(type_id);
@@ -173,6 +168,14 @@ impl Compiler {
             .is_some_and(|parameters| !parameters.is_empty())
         {
             return Ok(type_id);
+        }
+
+        // reuse any apparent instance type before evaluating the alias body
+        let source_id = types.get_type_source(type_id);
+        if let Some(instance_type_id) =
+            self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+        {
+            return Ok(instance_type_id);
         }
 
         // evaluate the alias value into an instance type
@@ -1661,6 +1664,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
         receiver_ty: &Type,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
@@ -1685,6 +1689,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
@@ -1702,6 +1707,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
@@ -1710,35 +1716,71 @@ impl Compiler {
                 )
             }
 
-            // reference to a nominal type: choose instance or value members based on lookup mode
-            Type::Reference { symbol, .. } => match lookup_mode {
-                MemberLookupMode::Instance | MemberLookupMode::Any => self.infer_member_of_symbol(
-                    module,
-                    profile,
-                    node_id,
-                    *symbol,
-                    member_key,
-                    lookup_mode,
-                    types,
-                    visited,
-                ),
-                MemberLookupMode::Value => {
-                    let Some(value_ty_id) = types.get_value_type_id(*symbol) else {
-                        return Ok(None);
-                    };
-                    let value_ty = types.get_type(value_ty_id).clone();
-                    self.infer_member_of_type(
+            // reference to a nominal type: expand alias arguments before member lookup
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                if static_arguments.is_some() && matches!(symbol.ty(), SymbolType::TypeAlias) {
+                    let mut normalize_visited = Vec::new();
+                    if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
                         module,
                         profile,
                         node_id,
-                        &value_ty,
-                        member_key,
-                        lookup_mode,
+                        *symbol,
+                        static_arguments.as_deref().unwrap_or(&[]),
+                        symbols,
                         types,
-                        visited,
-                    )
+                        NormalizationMode::Assign,
+                        &mut normalize_visited,
+                    ) {
+                        let expanded_ty = types.get_type(expanded_id).clone();
+                        return self.infer_member_of_type(
+                            module,
+                            profile,
+                            node_id,
+                            symbols,
+                            &expanded_ty,
+                            member_key,
+                            lookup_mode,
+                            types,
+                            visited,
+                        );
+                    }
                 }
-            },
+
+                match lookup_mode {
+                    MemberLookupMode::Instance | MemberLookupMode::Any => self
+                        .infer_member_of_symbol(
+                            module,
+                            profile,
+                            node_id,
+                            symbols,
+                            *symbol,
+                            member_key,
+                            lookup_mode,
+                            types,
+                            visited,
+                        ),
+                    MemberLookupMode::Value => {
+                        let Some(value_ty_id) = types.get_value_type_id(*symbol) else {
+                            return Ok(None);
+                        };
+                        let value_ty = types.get_type(value_ty_id).clone();
+                        self.infer_member_of_type(
+                            module,
+                            profile,
+                            node_id,
+                            symbols,
+                            &value_ty,
+                            member_key,
+                            lookup_mode,
+                            types,
+                            visited,
+                        )
+                    }
+                }
+            }
 
             // array like types: fall back to well known Array members
             Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
@@ -1749,6 +1791,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
@@ -1767,6 +1810,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &inner_ty,
                     member_key,
                     lookup_mode,
@@ -1785,6 +1829,7 @@ impl Compiler {
                         module,
                         profile,
                         node_id,
+                        symbols,
                         &element_ty,
                         member_key,
                         lookup_mode,
@@ -1827,6 +1872,7 @@ impl Compiler {
                         module,
                         profile,
                         node_id,
+                        symbols,
                         &element_ty,
                         member_key,
                         lookup_mode,
@@ -1861,6 +1907,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
@@ -1877,6 +1924,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     &reference_ty,
                     member_key,
                     lookup_mode,
@@ -2045,6 +2093,8 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
         receiver_ty: &Type,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -2057,11 +2107,11 @@ impl Compiler {
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
                 self.infer_index_signature_value_type_for_key(
-                    module, profile, &value_ty, member_key, types, visited,
+                    module, profile, node_id, symbols, &value_ty, member_key, types, visited,
                 )
             }
             Type::Reference { symbol, .. } => self.infer_index_signature_value_type_for_symbol(
-                module, profile, *symbol, member_key, types, visited,
+                module, profile, node_id, symbols, *symbol, member_key, types, visited,
             ),
             Type::Unary { right, .. }
             | Type::ValueOf { right, .. }
@@ -2069,7 +2119,7 @@ impl Compiler {
             | Type::PointerOf { right, .. } => {
                 let inner_ty = types.get_type(*right).clone();
                 self.infer_index_signature_value_type_for_key(
-                    module, profile, &inner_ty, member_key, types, visited,
+                    module, profile, node_id, symbols, &inner_ty, member_key, types, visited,
                 )
             }
             Type::Union { elements } => {
@@ -2079,6 +2129,8 @@ impl Compiler {
                     if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
                         module,
                         profile,
+                        node_id,
+                        symbols,
                         &element_ty,
                         member_key,
                         types,
@@ -2104,6 +2156,8 @@ impl Compiler {
                     if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
                         module,
                         profile,
+                        node_id,
+                        symbols,
                         &element_ty,
                         member_key,
                         types,
@@ -2124,6 +2178,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         lookup_mode: MemberLookupMode,
@@ -2137,16 +2192,19 @@ impl Compiler {
         }
         visited.push(symbol);
 
-        // ensure instance types are resolved for this symbol
+        // resolve instance types before walking members and extensions
         self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+        if let Some(ty_id) =
+            self.apparent_instance_type(module, profile, node_id, symbol, symbols, types)
+        {
             let ty = types.get_type(ty_id).clone();
             if let Some(member_ty) = self.infer_member_of_type(
                 module,
                 profile,
                 node_id,
+                symbols,
                 &ty,
                 member_key,
                 lookup_mode,
@@ -2166,6 +2224,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     extends,
                     member_key,
                     lookup_mode,
@@ -2182,6 +2241,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     *implements,
                     member_key,
                     lookup_mode,
@@ -2198,6 +2258,7 @@ impl Compiler {
                     module,
                     profile,
                     node_id,
+                    symbols,
                     *embedded,
                     member_key,
                     lookup_mode,
@@ -2210,16 +2271,13 @@ impl Compiler {
         }
 
         // resolve the canonical symbol for extension lookup
-        let canonical_symbol = {
-            let symbols = module.dir(profile).symbols.read();
-            self.canonical_symbol_id(
-                module,
-                &symbols,
-                profile,
-                symbol,
-                CanonicalSymbolMode::FollowAliases,
-            )
-        };
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // step 3: check visible extensions
         let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) else {
@@ -2233,16 +2291,14 @@ impl Compiler {
             }
 
             // ensure the extension instance type is available
-            let extension_instance_id =
-                if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
-                    Some(ty_id)
-                } else if extension.symbol.module_id == module.id {
-                    None
-                } else {
-                    self.import_instance_type_for_symbol(profile, node_id, extension.symbol, types)?
-                };
-
-            if let Some(ty_id) = extension_instance_id {
+            if let Some(ty_id) = self.apparent_instance_type(
+                module,
+                profile,
+                node_id,
+                extension.symbol,
+                symbols,
+                types,
+            ) {
                 let ty = types.get_type(ty_id).clone();
                 if let Type::Object { fields, .. } = ty
                     && let Some(field_ty) =
@@ -2261,6 +2317,8 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -2272,10 +2330,12 @@ impl Compiler {
         visited.push(symbol);
 
         // step 1: look up in the type's own instance type
-        if let Some(ty_id) = types.get_instance_type_id(symbol) {
+        if let Some(ty_id) =
+            self.apparent_instance_type(module, profile, node_id, symbol, symbols, types)
+        {
             let ty = types.get_type(ty_id).clone();
             if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
-                module, profile, &ty, member_key, types, visited,
+                module, profile, node_id, symbols, &ty, member_key, types, visited,
             ) {
                 return Some(value_ty);
             }
@@ -2285,7 +2345,7 @@ impl Compiler {
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
                 && let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
-                    module, profile, extends, member_key, types, visited,
+                    module, profile, node_id, symbols, extends, member_key, types, visited,
                 )
             {
                 return Some(value_ty);
@@ -2295,6 +2355,8 @@ impl Compiler {
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
                     module,
                     profile,
+                    node_id,
+                    symbols,
                     *implements,
                     member_key,
                     types,
@@ -2306,7 +2368,7 @@ impl Compiler {
 
             for embedded in &lineage.embedded {
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
-                    module, profile, *embedded, member_key, types, visited,
+                    module, profile, node_id, symbols, *embedded, member_key, types, visited,
                 ) {
                     return Some(value_ty);
                 }
@@ -2314,16 +2376,13 @@ impl Compiler {
         }
 
         // resolve the canonical symbol for extension lookup
-        let canonical_symbol = {
-            let symbols = module.dir(profile).symbols.read();
-            self.canonical_symbol_id(
-                module,
-                &symbols,
-                profile,
-                symbol,
-                CanonicalSymbolMode::FollowAliases,
-            )
-        };
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // step 3: check visible extensions
         let extension_ids = types.get_extensions_for_target(canonical_symbol)?.clone();
@@ -2332,10 +2391,17 @@ impl Compiler {
             if !self.is_extension_visible(module, extension) {
                 continue;
             }
-            if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
+            if let Some(ty_id) = self.apparent_instance_type(
+                module,
+                profile,
+                node_id,
+                extension.symbol,
+                symbols,
+                types,
+            ) {
                 let ty = types.get_type(ty_id).clone();
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
-                    module, profile, &ty, member_key, types, visited,
+                    module, profile, node_id, symbols, &ty, member_key, types, visited,
                 ) {
                     return Some(value_ty);
                 }
@@ -4367,25 +4433,32 @@ impl Compiler {
     /// Check whether a type has the given property key.
     pub(super) fn type_has_property(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: &StaticKey,
-        types: &TypeTable,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> bool {
+        // anchor apparent type resolution to the current type source
+        let source_id = types.get_type_source(type_id);
+
         // walk through shapes that can carry fields
-        match types.get_type(type_id) {
+        let ty = types.get_type(type_id).clone();
+        match ty {
             Type::Object { fields, .. } => fields.iter().any(|field| field.key.matches(key)),
             Type::Reference { symbol, .. } => {
-                // follow instance types for declared references
-                types
-                    .get_instance_type_id(*symbol)
-                    .map(|instance_id| self.type_has_property(instance_id, key, types))
-                    .unwrap_or(false)
+                // follow apparent instance types for nominal references
+                self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    .is_some_and(|instance_id| {
+                        self.type_has_property(module, profile, instance_id, key, symbols, types)
+                    })
             }
             Type::Intersection { elements } => {
                 // accept any intersection member that matches
-                elements
-                    .iter()
-                    .any(|element_id| self.type_has_property(*element_id, key, types))
+                elements.iter().any(|element_id| {
+                    self.type_has_property(module, profile, *element_id, key, symbols, types)
+                })
             }
             _ => false,
         }
@@ -4427,8 +4500,11 @@ impl Compiler {
                     }
                 }
                 Type::Reference { symbol, .. } => {
-                    // prefer instance types when available
-                    if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    // prefer apparent instance types for nominal references
+                    let source_id = types.get_type_source(current_type_id);
+                    if let Some(instance_id) = self
+                        .apparent_instance_type(module, profile, source_id, *symbol, symbols, types)
+                    {
                         pending_type_ids.push(instance_id);
                     }
                 }
@@ -4616,9 +4692,20 @@ impl Compiler {
     }
 
     /// Check whether a type is object like for typeof guards.
-    pub(super) fn type_is_object_like(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+    pub(super) fn type_is_object_like(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        // anchor apparent type resolution to the current type source
+        let source_id = types.get_type_source(type_id);
+
         // match shapes that would produce typeof object
-        match types.get_type(type_id) {
+        let ty = types.get_type(type_id).clone();
+        match ty {
             Type::TypeLiteral {
                 value: TypeLiteral::Null,
             } => true,
@@ -4628,9 +4715,11 @@ impl Compiler {
             | Type::Tuple { .. }
             | Type::Value { .. } => true,
             Type::Reference { symbol, .. } => {
-                // prefer instance types when available
-                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
-                    return self.type_is_object_like(instance_id, types);
+                // prefer apparent instance types when available
+                if let Some(instance_id) =
+                    self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                {
+                    return self.type_is_object_like(module, profile, instance_id, symbols, types);
                 }
 
                 matches!(
@@ -4642,17 +4731,28 @@ impl Compiler {
                         | SymbolType::Enum
                 )
             }
-            Type::Intersection { elements } => elements
-                .iter()
-                .any(|element_id| self.type_is_object_like(*element_id, types)),
+            Type::Intersection { elements } => elements.iter().any(|element_id| {
+                self.type_is_object_like(module, profile, *element_id, symbols, types)
+            }),
             _ => false,
         }
     }
 
     /// Check whether a type is function like for typeof guards.
-    pub(super) fn type_is_function_like(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+    pub(super) fn type_is_function_like(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        // anchor apparent type resolution to the current type source
+        let source_id = types.get_type_source(type_id);
+
         // match callable shapes for typeof function
-        match types.get_type(type_id) {
+        let ty = types.get_type(type_id).clone();
+        match ty {
             Type::Function { .. } => true,
             Type::Object {
                 call_signatures,
@@ -4660,16 +4760,24 @@ impl Compiler {
                 ..
             } => !call_signatures.is_empty() || !construct_signatures.is_empty(),
             Type::Reference { symbol, .. } => {
-                // prefer instance types when available
-                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
-                    return self.type_is_function_like(instance_id, types);
+                // prefer apparent instance types when available
+                if let Some(instance_id) =
+                    self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                {
+                    return self.type_is_function_like(
+                        module,
+                        profile,
+                        instance_id,
+                        symbols,
+                        types,
+                    );
                 }
 
                 symbol.local_id.ty == SymbolType::Function
             }
-            Type::Intersection { elements } => elements
-                .iter()
-                .any(|element_id| self.type_is_function_like(*element_id, types)),
+            Type::Intersection { elements } => elements.iter().any(|element_id| {
+                self.type_is_function_like(module, profile, *element_id, symbols, types)
+            }),
             _ => false,
         }
     }

@@ -151,6 +151,10 @@ impl Compiler {
         let target_id = self.prepare_assignability_type(module, profile, target_id, symbols, types);
         let source_id = self.prepare_assignability_type(module, profile, source_id, symbols, types);
 
+        // capture type sources for instance type resolution
+        let target_source_id = types.get_type_source(target_id);
+        let source_source_id = types.get_type_source(source_id);
+
         // re-expand alias targets when normalization preserves references
         if let Type::Reference { symbol, .. } = types.get_type(target_id)
             && symbol.ty() == SymbolType::TypeAlias
@@ -998,7 +1002,14 @@ impl Compiler {
                 },
             ) => {
                 if target_symbol.ty().is_interface()
-                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
+                    && let Some(target_instance_id) = self.require_instance_type(
+                        module,
+                        profile,
+                        target_source_id,
+                        target_symbol,
+                        symbols,
+                        types,
+                    )
                 {
                     let target_instance = types.get_type(target_instance_id).clone();
                     if let Type::Object {
@@ -1043,7 +1054,14 @@ impl Compiler {
                 },
             ) => {
                 if source_symbol.ty().is_interface()
-                    && let Some(source_instance_id) = types.get_instance_type_id(source_symbol)
+                    && let Some(source_instance_id) = self.require_instance_type(
+                        module,
+                        profile,
+                        source_source_id,
+                        source_symbol,
+                        symbols,
+                        types,
+                    )
                 {
                     let source_instance = types.get_type(source_instance_id).clone();
                     if let Type::Object {
@@ -1088,7 +1106,14 @@ impl Compiler {
                 },
             ) => {
                 if target_symbol.ty().is_interface()
-                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
+                    && let Some(target_instance_id) = self.require_instance_type(
+                        module,
+                        profile,
+                        target_source_id,
+                        target_symbol,
+                        symbols,
+                        types,
+                    )
                 {
                     let target_instance = types.get_type(target_instance_id).clone();
                     if let Type::Object {
@@ -1132,7 +1157,14 @@ impl Compiler {
                 },
             ) => {
                 if source_symbol.ty().is_interface()
-                    && let Some(source_instance_id) = types.get_instance_type_id(source_symbol)
+                    && let Some(source_instance_id) = self.require_instance_type(
+                        module,
+                        profile,
+                        source_source_id,
+                        source_symbol,
+                        symbols,
+                        types,
+                    )
                 {
                     let source_instance = types.get_type(source_instance_id).clone();
                     if let Type::Object {
@@ -1257,8 +1289,22 @@ impl Compiler {
                 // structural check: only for interfaces
                 if target_symbol.ty().is_interface()
                     && let (Some(target_instance_id), Some(source_instance_id)) = (
-                        types.get_instance_type_id(target_symbol),
-                        types.get_instance_type_id(source_symbol),
+                        self.require_instance_type(
+                            module,
+                            profile,
+                            target_source_id,
+                            target_symbol,
+                            symbols,
+                            types,
+                        ),
+                        self.require_instance_type(
+                            module,
+                            profile,
+                            source_source_id,
+                            source_symbol,
+                            symbols,
+                            types,
+                        ),
                     )
                 {
                     let target_instance = types.get_type(target_instance_id).clone();
