@@ -12,7 +12,7 @@ Tests for parameter and return type inference.
 function greet(name = "hi") {
     return name
 }
-greet satisfies (name: "hi") => "hi";
+greet satisfies (name: string) => string;
 ```
 
 ## contextual typing

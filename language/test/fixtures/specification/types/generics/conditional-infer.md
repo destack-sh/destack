@@ -433,6 +433,24 @@ let okNumber: number = value;
 { "compilerOptions": { "noAny": false } }
 ```
 
+### conditional types with any yield union branches
+
+> Conditional types over `any` should include both branches rather than collapsing to `any`.
+
+```ds
+type Branch<T> = T extends string ? 1 : 2;
+
+type Result = Branch<any>;
+
+const bad: Result = 3;
+```
+
+- contains: not assignable
+
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ### infer from unknown falls back
 
 > `unknown` does not match structural infer patterns.
@@ -537,3 +555,16 @@ let bad: Dist<never> = "no";
 ```
 
 - contains: type "no" is not assignable to type dist<<type>>
+
+### non distributive conditionals treat never as a normal type
+
+> Non distributive conditionals should treat `never` like any other type.
+
+```ds
+type NonDist<T> = [T] extends [string] ? 1 : 2;
+
+type Result = NonDist<never>;
+
+const ok: Result = 1;
+ok satisfies 1;
+```

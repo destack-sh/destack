@@ -2020,6 +2020,16 @@ parse(42)     // calls second
 
 Overloads are resolved using **declaration order**: the first matching overload wins.
 This matches TypeScript's overload resolution semantics.
+Overload resolution first filters candidates by applicability, then selects the first applicable candidate.
+Applicability includes static parameter inference and validation, including `comptime` value parameters.
+Static parameter failures make a candidate inapplicable rather than changing ranking.
+Earlier inapplicable candidates do not block later candidates.
+Overload order is defined at the declaring module and is forwarded unchanged across exports, reexports, and namespace imports.
+
+The process has two phases:
+
+- Applicability: a candidate is applicable only when its static and dynamic parameters can be satisfied at the call site
+- Selection: among applicable candidates, the first candidate in declaration order wins
 
 ```
 // Good: specific overloads before general ones
