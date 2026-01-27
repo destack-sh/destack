@@ -151,13 +151,12 @@ fn validate_lens_invariants(session: &QueryTestSession, lenses: &[CodeLens]) -> 
         if let Some(prev) = &previous {
             if key < *prev {
                 errors.push(format!(
-                    "code_lens results are not sorted: {:?} before {:?}",
-                    prev, key
+                    "code_lens results are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == *prev {
-                errors.push(format!("duplicate code_lens entry {:?}", key));
+                errors.push(format!("duplicate code_lens entry {key:?}"));
             }
         }
 

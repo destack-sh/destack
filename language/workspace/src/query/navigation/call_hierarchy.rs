@@ -1,18 +1,20 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    self as dir, Expression, GlobalSymbolId, LocalNodeId, NodeTree, NodeVisitor,
-    NodeVisitorOptions, SymbolType, walk_expression,
+    self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree, NodeVisitor,
+    NodeVisitorOptions, Resolution, SymbolType, walk_expression,
 };
-use destack_source::{FileId, Span};
+use destack_source::{FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{
-    find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_symbol_definition_span,
+    find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_symbol_declaration_span,
+    get_symbol_definition_span, sort_and_dedup_spans,
 };
 
 /// An item in the call hierarchy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyItem {
     /// The name of the item (function/method name).
     pub name: String,
@@ -31,7 +33,7 @@ pub struct CallHierarchyItem {
 }
 
 /// Kind of call hierarchy item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CallHierarchyKind {
     Function,
     Method,
@@ -39,7 +41,7 @@ pub enum CallHierarchyKind {
 }
 
 /// An incoming call (who calls this function).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyIncomingCall {
     /// The item that contains the call sites.
     pub from: CallHierarchyItem,
@@ -48,7 +50,7 @@ pub struct CallHierarchyIncomingCall {
 }
 
 /// An outgoing call (what does this function call).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallHierarchyOutgoingCall {
     /// The item being called.
     pub to: CallHierarchyItem,
@@ -56,7 +58,49 @@ pub struct CallHierarchyOutgoingCall {
     pub from_ranges: Vec<Span>,
 }
 
-// NOTE #Incomplete: call hierarchy query should also check Resolutions
+/// Request prepare call hierarchy at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareCallHierarchyRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for prepare call hierarchy queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareCallHierarchyResponse {
+    /// Call hierarchy item, if available.
+    pub item: Option<CallHierarchyItem>,
+}
+
+/// Request incoming call hierarchy edges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CallHierarchyIncomingRequest {
+    /// The call hierarchy item to expand.
+    pub item: CallHierarchyItem,
+}
+
+/// Response payload for call hierarchy incoming queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CallHierarchyIncomingResponse {
+    /// Incoming calls.
+    pub calls: Vec<CallHierarchyIncomingCall>,
+}
+
+/// Request outgoing call hierarchy edges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CallHierarchyOutgoingRequest {
+    /// The call hierarchy item to expand.
+    pub item: CallHierarchyItem,
+}
+
+/// Response payload for call hierarchy outgoing queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CallHierarchyOutgoingResponse {
+    /// Outgoing calls.
+    pub calls: Vec<CallHierarchyOutgoingCall>,
+}
 
 /// Prepare a call hierarchy item at the given position.
 ///
@@ -88,12 +132,11 @@ pub fn prepare_call_hierarchy(
     drop(symbols);
     drop(module);
 
-    // get the definition span
+    // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
 
-    // for the full range, we'd ideally get the function's body range too
-    // for now, use selection_range as both
-    let range = selection_range;
+    // resolve the full declaration range, fall back to the selection range
+    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
 
     Some(CallHierarchyItem {
         name,
@@ -124,9 +167,12 @@ pub fn incoming_calls(
         };
         let module_id = ctx.module_id;
         let dir_tree = ctx.tree();
+        let types = ctx.types();
 
         // collect call sites and their containing functions
         let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
+
+        // check expressions with direct target_symbol references
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             // check if this is a reference to our target function
             let Some(target) = expr.target_symbol() else {
@@ -153,6 +199,50 @@ pub fn incoming_calls(
             }
         }
 
+        // check resolutions for method calls and dispatch
+        for (expr_id, _) in dir_tree.iter_nodes_of_type::<Expression>() {
+            let node_id = GlobalNodeIdAny {
+                module_id,
+                local_id: expr_id.into(),
+            };
+
+            // check if this node has a resolution
+            let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+                continue;
+            };
+            let resolution = types.get_resolution(resolution_id);
+
+            // check if any resolution candidate targets our function
+            let candidates = match resolution {
+                Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
+                Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
+                _ => continue,
+            };
+
+            for candidate in candidates {
+                let target_canonical = get_canonical_symbol(session, candidate.target_symbol);
+                if target_canonical != canonical_id {
+                    continue;
+                }
+
+                // get the span of this call site
+                let Some(call_span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) else {
+                    continue;
+                };
+
+                // find the containing function for this call site
+                if let Some(containing_fn) =
+                    find_containing_function(&dir_tree, module_id, expr_id.into())
+                {
+                    call_sites_by_function
+                        .entry(containing_fn)
+                        .or_default()
+                        .push(call_span);
+                }
+            }
+        }
+
+        drop(types);
         drop(dir_tree);
         drop(module);
 
@@ -166,6 +256,13 @@ pub fn incoming_calls(
             }
         }
     }
+
+    // sort call ranges and incoming callers for stable protocol output
+    for call in &mut incoming {
+        sort_and_dedup_spans(&mut call.from_ranges);
+    }
+
+    incoming.sort_by(|left, right| call_item_key(&left.from).cmp(&call_item_key(&right.from)));
 
     incoming
 }
@@ -251,7 +348,36 @@ pub fn outgoing_calls(
         }
     }
 
+    // sort call ranges and outgoing callees for stable protocol output
+    for call in &mut outgoing {
+        sort_and_dedup_spans(&mut call.from_ranges);
+    }
+
+    outgoing.sort_by(|left, right| call_item_key(&left.to).cmp(&call_item_key(&right.to)));
+
     outgoing
+}
+
+/// Build a stable ordering key for a call hierarchy item.
+fn call_item_key(item: &CallHierarchyItem) -> (u32, u32, u32, u32, u32, u8, &str) {
+    (
+        item.file.0,
+        item.range.start,
+        item.range.end,
+        item.selection_range.start,
+        item.selection_range.end,
+        call_kind_rank(item.kind),
+        item.name.as_str(),
+    )
+}
+
+/// Rank call hierarchy kinds for stable ordering.
+fn call_kind_rank(kind: CallHierarchyKind) -> u8 {
+    match kind {
+        CallHierarchyKind::Function => 0,
+        CallHierarchyKind::Method => 1,
+        CallHierarchyKind::Constructor => 2,
+    }
 }
 
 /// Visitor that collects Call expressions and their targets.
@@ -346,14 +472,18 @@ pub fn call_hierarchy_item_from_symbol(
     drop(symbols);
     drop(module);
 
+    // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, symbol_id)?;
+
+    // resolve the full declaration range, fall back to the selection range
+    let range = get_symbol_declaration_span(session, symbol_id).unwrap_or(selection_range);
 
     Some(CallHierarchyItem {
         name,
         kind: CallHierarchyKind::Function,
         detail: None,
         file: selection_range.file,
-        range: selection_range,
+        range,
         selection_range,
         symbol_id,
     })

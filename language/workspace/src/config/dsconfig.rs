@@ -728,6 +728,7 @@ impl DsConfigCompilerOptions {
         self.no_unsafe_type_assertions = true;
         self.no_implicit_managed = true;
         self.no_managed = true;
+        self.no_property_access_from_index_signature = true;
         self.borrow_mode = BorrowMode::Strict;
 
         // disable runtime features that native backends cannot support

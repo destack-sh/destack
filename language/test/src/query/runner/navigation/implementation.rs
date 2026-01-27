@@ -151,13 +151,12 @@ fn validate_implementation_invariants(
         if let Some(prev) = previous {
             if key < prev {
                 errors.push(format!(
-                    "implementation locations are not sorted: {:?} before {:?}",
-                    prev, key
+                    "implementation locations are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == prev {
-                errors.push(format!("duplicate implementation location {:?}", key));
+                errors.push(format!("duplicate implementation location {key:?}"));
             }
         }
         previous = Some(key);

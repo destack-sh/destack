@@ -131,13 +131,12 @@ fn validate_folding_invariants(
         if let Some(prev) = previous {
             if key < prev {
                 errors.push(format!(
-                    "folding ranges are not sorted: {:?} before {:?}",
-                    prev, key
+                    "folding ranges are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == prev {
-                errors.push(format!("duplicate folding range {:?}", key));
+                errors.push(format!("duplicate folding range {key:?}"));
             }
         }
         previous = Some(key);

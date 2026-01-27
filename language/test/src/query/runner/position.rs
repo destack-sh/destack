@@ -18,7 +18,7 @@ pub fn resolve_query_position(
 
     // resolve marker targets like def:foo
     let Some(marker) = session.markers.range(target) else {
-        return Err(format!("marker '{}' not found", target));
+        return Err(format!("marker '{target}' not found"));
     };
 
     Ok((marker.span.file, marker.span.start))

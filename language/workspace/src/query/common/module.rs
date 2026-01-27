@@ -10,12 +10,28 @@ pub struct ExportedSymbol {
     pub name: String,
     /// The kind of symbol.
     pub kind: SymbolType,
+    /// The symbol space.
+    pub space: destack_dir::SymbolSpace,
     /// The module that exports this symbol.
     pub module_id: ModuleId,
     /// The local symbol id within the module.
     pub local_id: destack_dir::LocalSymbolId,
     /// The module path (for import statement generation).
     pub module_path: Option<String>,
+}
+
+fn module_path_for_import(module: &crate::Module) -> Option<String> {
+    if let Some(path) = module.path.as_ref() {
+        return Some(path.to_string_lossy().to_string());
+    }
+
+    let uri = module.uri.as_ref();
+    let path = uri.strip_prefix("file://").unwrap_or(uri);
+    if path.is_empty() {
+        return None;
+    }
+
+    Some(path.to_string())
 }
 
 /// Get all exported symbols from a module.
@@ -26,10 +42,7 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
     let Some(ctx) = session.query_context(&module) else {
         return Vec::new();
     };
-    let module_path = module
-        .path
-        .as_ref()
-        .map(|p| p.to_string_lossy().to_string());
+    let module_path = module_path_for_import(&module);
     let symbols = ctx.symbols();
 
     let mut exports = Vec::new();
@@ -43,12 +56,13 @@ pub fn get_module_exports(session: &Session, module_id: ModuleId) -> Vec<Exporte
             continue;
         };
 
-        let name = ctx.ast.strings.get(string_id).to_string();
+        let name = session.strings.get(string_id).to_string();
         let local_id = destack_dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
 
         exports.push(ExportedSymbol {
             name,
             kind: symbol.ty,
+            space: symbol.space,
             module_id,
             local_id,
             module_path: module_path.clone(),
@@ -81,10 +95,7 @@ pub fn search_importable_symbols(
             continue;
         };
 
-        let module_path = module
-            .path
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string());
+        let module_path = module_path_for_import(&module);
         let symbols = ctx.symbols();
 
         for (idx, symbol) in symbols.symbols().enumerate() {
@@ -96,7 +107,7 @@ pub fn search_importable_symbols(
                 continue;
             };
 
-            let name = ctx.ast.strings.get(string_id).to_string();
+            let name = session.strings.get(string_id).to_string();
 
             if !query.is_empty() && !name.to_lowercase().starts_with(&query_lower) {
                 continue;
@@ -107,6 +118,7 @@ pub fn search_importable_symbols(
             results.push(ExportedSymbol {
                 name,
                 kind: symbol.ty,
+                space: symbol.space,
                 module_id,
                 local_id,
                 module_path: module_path.clone(),

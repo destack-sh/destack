@@ -1,11 +1,12 @@
 use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
-use destack_source::{FileId, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{get_canonical_symbol, get_module_by_file_id};
 
 /// A code lens (inline annotation with optional command).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodeLens {
     /// The range this lens applies to.
     pub range: Span,
@@ -14,7 +15,7 @@ pub struct CodeLens {
 }
 
 /// The data/command for a code lens.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CodeLensData {
     /// Show reference count: "N references"
     References {
@@ -45,6 +46,34 @@ pub enum CodeLensData {
         /// Command arguments (JSON-serializable).
         arguments: Vec<String>,
     },
+}
+
+/// Request code lenses for a document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CodeLensesRequest {
+    /// The document URI.
+    pub uri: Uri,
+}
+
+/// Request to resolve a code lens.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResolveCodeLensRequest {
+    /// The code lens to resolve.
+    pub lens: CodeLens,
+}
+
+/// Response payload for code lenses queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CodeLensesResponse {
+    /// Code lenses.
+    pub lenses: Vec<CodeLens>,
+}
+
+/// Response payload for code lens resolve queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ResolveCodeLensResponse {
+    /// The resolved code lens.
+    pub lens: CodeLens,
 }
 
 impl CodeLens {
@@ -187,9 +216,35 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         }
     }
 
-    // sort lenses by position
-    lenses.sort_by_key(|l| l.range.start);
+    // sort lenses deterministically by range, kind, and title
+    lenses.sort_by_cached_key(code_lens_key);
+
+    // drop identical lenses after sorting
+    lenses.dedup_by(|left, right| code_lens_key(left) == code_lens_key(right));
+
     lenses
+}
+
+/// Build a stable ordering key for a code lens.
+fn code_lens_key(lens: &CodeLens) -> (u32, u32, u8, String) {
+    let title = lens.title();
+    (
+        lens.range.start,
+        lens.range.end,
+        code_lens_kind_rank(&lens.data),
+        title,
+    )
+}
+
+/// Rank code lens kinds for stable ordering.
+fn code_lens_kind_rank(data: &CodeLensData) -> u8 {
+    match data {
+        CodeLensData::References { .. } => 0,
+        CodeLensData::Implementations { .. } => 1,
+        CodeLensData::RunTest { .. } => 2,
+        CodeLensData::DebugTest { .. } => 3,
+        CodeLensData::Custom { .. } => 4,
+    }
 }
 
 /// Count references to a symbol across all modules.
@@ -270,7 +325,6 @@ fn is_test_function(name: &str) -> bool {
 ///
 /// Some lenses defer computation until the user hovers/clicks.
 pub fn resolve_code_lens(_session: &Session, lens: &CodeLens) -> CodeLens {
-    // For now, lenses are fully resolved on creation
-    // This hook exists for expensive computations that should be deferred
+    // lenses are resolved eagerly for now, keep this hook for deferred work
     lens.clone()
 }

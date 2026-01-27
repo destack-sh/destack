@@ -1,9 +1,10 @@
-use destack_source::{Applicability, BatchEdit, Edit, FileEdit, FileId, Span};
+use destack_source::{Applicability, BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
 
 /// Kind of code action.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CodeActionKind {
     /// Quick fix for a diagnostic.
     QuickFix,
@@ -24,7 +25,7 @@ pub enum CodeActionKind {
 }
 
 /// A code action (quick fix or refactoring).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodeAction {
     /// The title shown in the UI.
     pub title: String,
@@ -85,12 +86,32 @@ impl CodeAction {
 }
 
 /// Context for code action requests.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct CodeActionContext {
     /// Requested action kinds (empty = all).
     pub only: Vec<CodeActionKind>,
     /// Whether to include disabled actions.
     pub include_disabled: bool,
+}
+
+/// Request code actions for a range in a document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CodeActionsRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The start byte offset in the document.
+    pub start: u32,
+    /// The end byte offset in the document.
+    pub end: u32,
+    /// The code action context.
+    pub context: CodeActionContext,
+}
+
+/// Response payload for code actions queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CodeActionsResponse {
+    /// Code actions.
+    pub actions: Vec<CodeAction>,
 }
 
 /// Get code actions for a range in a file.
@@ -104,18 +125,27 @@ pub fn code_actions(
 ) -> Vec<CodeAction> {
     let mut actions = Vec::new();
 
-    // 1. collect quick fixes from diagnostics
+    // collect quick fixes from diagnostics
     collect_diagnostic_fixes(session, file, range, &mut actions);
 
-    // 2. filter by context.only if specified
+    // NOTE #Incomplete: auto import actions need structured diagnostic data
+    // message parsing is not robust enough for a gold standard experience
+
+    // filter by context.only if specified
     if !context.only.is_empty() {
         actions.retain(|a| context.only.contains(&a.kind));
     }
 
-    // 3. filter out disabled unless requested
+    // filter out disabled unless requested
     if !context.include_disabled {
         actions.retain(|a| a.disabled_reason.is_none());
     }
+
+    // sort deterministically by kind, preference, title, and edit shape
+    actions.sort_by_cached_key(code_action_key);
+
+    // deduplicate identical actions after sorting
+    actions.dedup_by(|left, right| code_action_key(left) == code_action_key(right));
 
     actions
 }
@@ -178,4 +208,85 @@ fn collect_diagnostic_fixes(
             }
         }
     }
+}
+
+/// Build a stable ordering key for a code action.
+fn code_action_key(action: &CodeAction) -> (u8, u8, String, String, String) {
+    // rank kinds so quick fixes come before refactors and source actions
+    let kind_rank = code_action_kind_rank(action.kind);
+
+    // prefer preferred actions within the same kind
+    let preferred_rank = if action.is_preferred { 0 } else { 1 };
+
+    // include the diagnostic code when present to keep related fixes grouped
+    let diagnostic_code = action.diagnostic_code.clone().unwrap_or_default();
+
+    // fold the edit shape into the key to make ordering and deduplication stable
+    let edit_key = batch_edit_key(&action.edits);
+
+    (
+        kind_rank,
+        preferred_rank,
+        action.title.clone(),
+        diagnostic_code,
+        edit_key,
+    )
+}
+
+/// Rank code action kinds for stable ordering.
+fn code_action_kind_rank(kind: CodeActionKind) -> u8 {
+    match kind {
+        CodeActionKind::QuickFix => 0,
+        CodeActionKind::Refactor => 1,
+        CodeActionKind::RefactorExtract => 2,
+        CodeActionKind::RefactorInline => 3,
+        CodeActionKind::RefactorRewrite => 4,
+        CodeActionKind::Source => 5,
+        CodeActionKind::SourceOrganizeImports => 6,
+        CodeActionKind::SourceFixAll => 7,
+    }
+}
+
+/// Build a stable key for a batch edit.
+fn batch_edit_key(edit: &BatchEdit) -> String {
+    // clone and sort file edits by file id
+    let mut files = edit.files.clone();
+    files.sort_by_key(|file_edit| file_edit.file.0);
+
+    // serialize edits in a deterministic order
+    let mut parts = Vec::new();
+    for file_edit in files {
+        let file_key = file_edit_key(&file_edit);
+        parts.push(file_key);
+    }
+
+    parts.join("|")
+}
+
+/// Build a stable key for a file edit.
+fn file_edit_key(file_edit: &FileEdit) -> String {
+    // clone and sort edits by span and text
+    let mut edits = file_edit.edits.clone();
+    edits.sort_by_key(edit_key);
+
+    // serialize all edits for this file
+    let mut parts = Vec::new();
+    parts.push(format!("file={}", file_edit.file.0));
+    for edit in edits {
+        let (start, end, span_file, text) = edit_key(&edit);
+        parts.push(format!("{span_file}:{start}-{end}=>{text}"));
+    }
+
+    parts.join(",")
+}
+
+/// Build a stable key for a single edit.
+fn edit_key(edit: &Edit) -> (u32, u32, u32, String) {
+    // extract span coordinates and replacement text
+    let span_file = edit.span.file.0;
+    let start = edit.span.start;
+    let end = edit.span.end;
+    let text = edit.new_text.clone();
+
+    (start, end, span_file, text)
 }

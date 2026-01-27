@@ -5,6 +5,13 @@ use destack_dir as dir;
 
 use crate::{Module, ModuleRegistry, Package, PackageRegistry, ProfileId};
 
+const DEFAULT_INT_DISPLAY: &str = "int32";
+const DEFAULT_FLOAT_DISPLAY: &str = "float64";
+const DEFAULT_BOOLEAN_DISPLAY: &str = "boolean";
+const DEFAULT_STRING_DISPLAY: &str = "string";
+const DEFAULT_BIGINT_DISPLAY: &str = "bigint";
+const DEFAULT_CHARACTER_DISPLAY: &str = "character";
+
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(
     ty_id: dir::GlobalTypeId,
@@ -432,6 +439,40 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
                 format!("/{content_str}/")
             }
         }
+    }
+}
+
+/// Format a type for inlay hints.
+pub fn format_type_for_inlay_hint(
+    ty: &dir::Type,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    // widen scalar literal types to their default primitive display types
+    if let dir::Type::TypeLiteral {
+        value: dir::TypeLiteral::ScalarLiteral(value),
+    } = ty
+    {
+        let widened = widened_scalar_literal_name(value);
+        return widened.to_string();
+    }
+
+    // otherwise, format the type as usual
+    format_type(ty, types, modules, strings)
+}
+
+/// Map a scalar literal type to its default primitive display name.
+pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
+    match value {
+        dir::ScalarLiteral::Boolean(_) => DEFAULT_BOOLEAN_DISPLAY,
+        dir::ScalarLiteral::String(_) | dir::ScalarLiteral::RegexString { .. } => {
+            DEFAULT_STRING_DISPLAY
+        }
+        dir::ScalarLiteral::Integer(_) => DEFAULT_INT_DISPLAY,
+        dir::ScalarLiteral::Float(_) => DEFAULT_FLOAT_DISPLAY,
+        dir::ScalarLiteral::Bigint(_) => DEFAULT_BIGINT_DISPLAY,
+        dir::ScalarLiteral::Character(_) => DEFAULT_CHARACTER_DISPLAY,
     }
 }
 

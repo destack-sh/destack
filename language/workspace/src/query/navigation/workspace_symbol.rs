@@ -1,13 +1,15 @@
 use std::panic;
 
+use destack_base::StringPool;
+use destack_dir as dir;
 use destack_source::{FileId, Span};
-use {destack_ast as ast, destack_dir as dir};
+use serde::{Deserialize, Serialize};
 
 use super::document_symbol::SymbolKind;
 use crate::Session;
 
 /// A symbol in the workspace (flat list for workspace symbol search).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkspaceSymbol {
     /// The symbol's name.
     pub name: String,
@@ -21,6 +23,22 @@ pub struct WorkspaceSymbol {
     pub container: Option<String>,
 }
 
+/// Request workspace symbols for a query string.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorkspaceSymbolsRequest {
+    /// The search query string.
+    pub query: String,
+    /// The maximum number of results.
+    pub max_results: u32,
+}
+
+/// Response payload for workspace symbols queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WorkspaceSymbolsResponse {
+    /// Workspace symbols.
+    pub symbols: Vec<WorkspaceSymbol>,
+}
+
 /// Search for symbols across the workspace.
 ///
 /// Returns symbols whose names contain the query string (case-insensitive).
@@ -29,11 +47,11 @@ pub fn workspace_symbols(
     query: &str,
     max_results: usize,
 ) -> Vec<WorkspaceSymbol> {
-    let mut symbols = Vec::new();
+    let mut scored_symbols: Vec<(u8, WorkspaceSymbol)> = Vec::new();
     let query_lower = query.to_lowercase();
 
     // search all modules
-    'outer: for module in session.modules.iter() {
+    for module in session.modules.iter() {
         let module = module.read();
         let Some(ctx) = session.query_context(&module) else {
             continue;
@@ -49,12 +67,13 @@ pub fn workspace_symbols(
                 continue;
             };
 
-            let name = ctx.ast.strings.get(name.string()).to_string();
+            let name = session.strings.get(name.string()).to_string();
+            let name_lower = name.to_lowercase();
 
-            // check if name matches query (case-insensitive substring match)
-            if !query.is_empty() && !name.to_lowercase().contains(&query_lower) {
+            // check whether the symbol matches the query and compute a score
+            let Some(score) = match_score(&name_lower, &query_lower) else {
                 continue;
-            }
+            };
 
             // get the kind based on declaration type
             let kind = match declaration {
@@ -70,7 +89,7 @@ pub fn workspace_symbols(
             };
 
             // find container by walking up parent tree
-            let container = find_container_name(&dir_tree, &ctx.ast.strings, declaration_id.id);
+            let container = find_container_name(&dir_tree, &session.strings, declaration_id.id);
 
             // get span (safely, skipping if out of bounds)
             let ast_node_id = dir_tree.get_source(declaration_id.id);
@@ -82,29 +101,86 @@ pub fn workspace_symbols(
                 continue;
             };
 
-            symbols.push(WorkspaceSymbol {
-                name,
-                kind,
-                file: ctx.file_id,
-                range: full_span,
-                container,
-            });
-
-            if symbols.len() >= max_results {
-                // NOTE #Performance: revisit workspace_symbols limits
-                break 'outer;
-            }
+            scored_symbols.push((
+                score,
+                WorkspaceSymbol {
+                    name,
+                    kind,
+                    file: ctx.file_id,
+                    range: full_span,
+                    container,
+                },
+            ));
         }
     }
 
+    // sort by score, then name, then location for deterministic results
+    scored_symbols.sort_by(|left, right| {
+        let left_key = (
+            left.0,
+            left.1.name.to_lowercase(),
+            left.1.file.0,
+            left.1.range.start,
+            left.1.range.end,
+        );
+        let right_key = (
+            right.0,
+            right.1.name.to_lowercase(),
+            right.1.file.0,
+            right.1.range.start,
+            right.1.range.end,
+        );
+        left_key.cmp(&right_key)
+    });
+
+    // drop duplicate symbol locations
+    let mut symbols = Vec::new();
+    for (_, symbol) in scored_symbols {
+        let is_duplicate = symbols.iter().any(|existing: &WorkspaceSymbol| {
+            existing.name == symbol.name
+                && existing.kind == symbol.kind
+                && existing.file == symbol.file
+                && existing.range.start == symbol.range.start
+                && existing.range.end == symbol.range.end
+        });
+        if !is_duplicate {
+            symbols.push(symbol);
+        }
+    }
+
+    if symbols.len() > max_results {
+        symbols.truncate(max_results);
+    }
+
     symbols
+}
+
+/// Score how well a symbol name matches the query.
+fn match_score(name_lower: &str, query_lower: &str) -> Option<u8> {
+    if query_lower.is_empty() {
+        return Some(2);
+    }
+
+    if name_lower == query_lower {
+        return Some(0);
+    }
+
+    if name_lower.starts_with(query_lower) {
+        return Some(1);
+    }
+
+    if name_lower.contains(query_lower) {
+        return Some(2);
+    }
+
+    None
 }
 
 /// Find the container name for a node by walking up the parent tree.
 /// NOTE #Performance: find workspace symbol containers more efficiently?
 fn find_container_name(
     dir_tree: &dir::NodeTree,
-    strings: &ast::StringPool,
+    strings: &StringPool,
     node_id: u32,
 ) -> Option<String> {
     let mut current_id = node_id;

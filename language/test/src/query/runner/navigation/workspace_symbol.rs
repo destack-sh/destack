@@ -149,7 +149,7 @@ fn validate_workspace_symbol_invariants(
                 && left.range.start == right.range.start
                 && left.range.end == right.range.end
             {
-                errors.push(format!("duplicate workspace symbol {:?}", left));
+                errors.push(format!("duplicate workspace symbol {left:?}"));
             }
         }
     }
@@ -170,8 +170,7 @@ fn validate_workspace_symbol_invariants(
             && key < *prev
         {
             errors.push(format!(
-                "workspace symbols are not sorted: {:?} before {:?}",
-                prev, key
+                "workspace symbols are not sorted: {prev:?} before {key:?}"
             ));
         }
         previous_key = Some(key);

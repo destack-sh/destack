@@ -879,17 +879,19 @@ mod tests {
     #[test]
     fn test_native_target_forces_strict_mode() {
         // set non-strict options to false to verify enforcement
-        let mut compiler_options = DsConfigCompilerOptions::default();
-        compiler_options.strict = false;
-        compiler_options.always_strict = false;
-        compiler_options.no_implicit_any = false;
-        compiler_options.no_implicit_this = false;
-        compiler_options.strict_null_checks = false;
-        compiler_options.strict_function_types = false;
-        compiler_options.strict_bind_call_apply = false;
-        compiler_options.strict_builtin_iterator_return = false;
-        compiler_options.strict_property_initialization = false;
-        compiler_options.use_unknown_in_catch_variables = false;
+        let compiler_options = DsConfigCompilerOptions {
+            strict: false,
+            always_strict: false,
+            no_implicit_any: false,
+            no_implicit_this: false,
+            strict_null_checks: false,
+            strict_function_types: false,
+            strict_bind_call_apply: false,
+            strict_builtin_iterator_return: false,
+            strict_property_initialization: false,
+            use_unknown_in_catch_variables: false,
+            ..DsConfigCompilerOptions::default()
+        };
 
         // enforce soundness defaults for native output
         let target = Target {

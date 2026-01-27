@@ -455,6 +455,13 @@ fn run_rename_expected_files(
         let actual = actual.trim_end();
         let expected_content = expected.content.trim_end();
         if actual != expected_content {
+            // print debug output when explicitly requested
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("rename debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
             return TestResult::Failed {
                 message: format!("rename output mismatch for '{}'", expected.path),
             };

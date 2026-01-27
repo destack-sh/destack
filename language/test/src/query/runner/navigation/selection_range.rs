@@ -164,8 +164,7 @@ fn validate_selection_invariants(
         let contains = parent.start <= child.start && parent.end >= child.end;
         if !contains {
             errors.push(format!(
-                "parent {:?} does not contain child {:?}",
-                parent, child
+                "parent {parent:?} does not contain child {child:?}"
             ));
         }
     }

@@ -213,13 +213,12 @@ fn validate_inlay_hint_invariants(
         if let Some(prev) = previous {
             if key < prev {
                 errors.push(format!(
-                    "inlay hints are not sorted: {:?} before {:?}",
-                    prev, key
+                    "inlay hints are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == prev {
-                errors.push(format!("duplicate inlay hint {:?}", key));
+                errors.push(format!("duplicate inlay hint {key:?}"));
             }
         }
         previous = Some(key);

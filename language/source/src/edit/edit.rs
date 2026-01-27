@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{FileId, Span};
 
 /// A single edit: replace a span with new text.
 ///
 /// This is the atomic unit of source modification.
 /// An empty `new_text` represents deletion; an empty span represents insertion.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Edit {
     /// The span to replace.
     pub span: Span,
@@ -60,7 +62,7 @@ impl Edit {
 ///
 /// Groups multiple edits together for efficient application.
 /// Edits should be non-overlapping and are typically sorted by position.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileEdit {
     /// The file to edit.
     pub file: FileId,
@@ -124,7 +126,7 @@ impl FileEdit {
 /// Edits across multiple files.
 ///
 /// Used for refactoring operations that touch multiple files (like rename).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct BatchEdit {
     /// Per-file edits.
     pub files: Vec<FileEdit>,

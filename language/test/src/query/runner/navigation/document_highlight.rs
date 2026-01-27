@@ -258,10 +258,10 @@ fn validate_highlight_range(
 
     // require ordered ranges within file bounds
     if range.start > range.end {
-        errors.push(format!("highlight start > end: {:?}", range));
+        errors.push(format!("highlight start > end: {range:?}"));
     }
     if range.start == range.end {
-        errors.push(format!("highlight range is empty: {:?}", range));
+        errors.push(format!("highlight range is empty: {range:?}"));
     }
     if range.end > source_len {
         errors.push(format!(
