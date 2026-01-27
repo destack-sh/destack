@@ -321,9 +321,9 @@ impl Compiler {
 
         // prefer instance types for nominal references
         let embed_ty_id = match types.get_type(embed_ty_id) {
-            Type::Reference { symbol, .. } => {
-                types.get_instance_type_id(*symbol).unwrap_or(embed_ty_id)
-            }
+            Type::Reference { symbol, .. } => self
+                .apparent_instance_type(module, profile, value.into_any(), *symbol, symbols, types)
+                .unwrap_or(embed_ty_id),
             Type::Value { value } => *value,
             _ => embed_ty_id,
         };

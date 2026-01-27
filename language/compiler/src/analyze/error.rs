@@ -143,6 +143,20 @@ pub enum AnalyzeError {
     #[error(code = "EA117", message = "type only symbol cannot be used as a value")]
     TypeOnlyValue { node: AnchoredGlobalNodeId },
 
+    /// Cannot assign to a readonly property.
+    #[error(
+        code = "EA118",
+        message = "cannot assign to readonly property {member_key}"
+    )]
+    ReadonlyProperty {
+        node: AnchoredGlobalNodeId,
+        member_key: StaticKey,
+    },
+
+    /// Cannot assign to an immutable binding.
+    #[error(code = "EA119", message = "cannot assign to immutable binding")]
+    ImmutableBindingAssignment { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

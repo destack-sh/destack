@@ -11,7 +11,7 @@ impl RelationMode {
     /// Relation mode for assignability style relations.
     pub(crate) const ASSIGN: Self = Self {
         use_apparent_type: true,
-        substitute_constraints_in_apparent_type: true,
+        substitute_constraints_in_apparent_type: false,
     };
 
     /// Relation mode for type operations that query keys and shapes.

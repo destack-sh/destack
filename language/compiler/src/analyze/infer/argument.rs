@@ -177,6 +177,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         receiver_id: LocalNodeIdAny,
+        receiver_ty_id: Option<LocalTypeId>,
         receiver_ty: &Type,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -203,11 +204,24 @@ impl Compiler {
             });
         };
 
+        // prefer static argument nodes or type sources to avoid node instance collisions
+        let argument_node = static_arguments.as_ref().and_then(|arguments| {
+            arguments.iter().find_map(|argument| match argument {
+                StaticArgument::Unevaluated { node } if node.module_id == module.id => {
+                    Some(node.local_id)
+                }
+                _ => None,
+            })
+        });
+        let resolution_node_id = argument_node
+            .or_else(|| receiver_ty_id.map(|ty_id| types.get_type_source(ty_id)))
+            .unwrap_or(receiver_id);
+
         // resolve static arguments for the type reference
         let resolved: Option<Vec<StaticArgument>> = self.resolve_type_reference_static_arguments(
             module,
             profile,
-            receiver_id,
+            resolution_node_id,
             symbol,
             static_arguments.as_deref(),
             true,
@@ -237,7 +251,7 @@ impl Compiler {
                         module,
                         profile,
                         symbol,
-                        receiver_id,
+                        resolution_node_id,
                         static_arguments,
                         tree,
                         symbols,
@@ -252,7 +266,7 @@ impl Compiler {
                         &reference_module,
                         profile,
                         symbol,
-                        receiver_id,
+                        resolution_node_id,
                         static_arguments,
                         &reference_tree,
                         &reference_symbols,
@@ -300,7 +314,7 @@ impl Compiler {
             module,
             profile,
             symbol,
-            receiver_id,
+            resolution_node_id,
             &resolved_arguments,
             tree,
             symbols,
@@ -1617,8 +1631,11 @@ impl Compiler {
         }
 
         // reuse resolved arguments when an instance is already registered for this node
+        let has_explicit_arguments = static_arguments.is_some_and(|args| !args.is_empty());
         let node_global_id = node_id.into_global(module.id);
-        if let Some(instance_id) = types.get_instance_for_node(node_global_id) {
+        if !has_explicit_arguments
+            && let Some(instance_id) = types.get_instance_for_node(node_global_id)
+        {
             let instance = types.get_instance(instance_id);
             if instance.symbol_id == symbol {
                 if instance.static_arguments.is_empty() {

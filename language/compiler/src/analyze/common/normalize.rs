@@ -1002,35 +1002,8 @@ impl Compiler {
             return Some(alias_target_id);
         }
 
-        // fall back to instance types when alias targets are unavailable
-        if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
-            return Some(instance_type_id);
-        }
-        if let Ok(Some(instance_type_id)) =
-            self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)
-        {
-            return Some(instance_type_id);
-        }
-
-        // import remote instance types when needed
-        if symbol.module_id != module.id {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_types = remote_module.dir(profile).types.read();
-            let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
-            let remote_instance_ty = remote_types.get_type(remote_instance_id);
-            let local_instance_id = self.import_type_from_remote_for_node(
-                source_id,
-                remote_instance_ty,
-                &remote_types,
-                symbol,
-                types,
-            );
-            types.set_instance_type(symbol, local_instance_id);
-            return Some(local_instance_id);
-        }
-
-        None
+        // resolve the apparent instance type through the normal require gate
+        self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
     }
 
     /// Resolve the static arguments used for alias normalization.
@@ -1606,10 +1579,10 @@ impl Compiler {
     /// Resolve the apparent type for type operations.
     pub(crate) fn apparent_type(
         &self,
-        _module: &Module,
-        _profile: ProfileId,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
-        _symbols: &SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
@@ -1618,8 +1591,45 @@ impl Compiler {
             return type_id;
         }
 
-        // unwrap cached alias instances
-        self.unwrap_normalization_alias_reference(type_id, types)
+        // unwrap cached alias instances first
+        let type_id = self.unwrap_normalization_alias_reference(type_id, types);
+
+        // expand alias references with static arguments before apparent resolution
+        let ty = types.get_type(type_id).clone();
+        if let Type::Reference {
+            symbol,
+            static_arguments: Some(static_arguments),
+        } = ty
+            && matches!(symbol.ty(), SymbolType::TypeAlias)
+        {
+            let source_id = types.get_type_source(type_id);
+            let mut visited = Vec::new();
+            if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
+                module,
+                profile,
+                source_id,
+                symbol,
+                &static_arguments,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                &mut visited,
+            ) {
+                return expanded_id;
+            }
+        }
+
+        // prefer apparent instance types for references and type as value wrappers
+        if let Some(symbol) = self.unwrap_type_value_symbol(types, type_id) {
+            let source_id = types.get_type_source(type_id);
+            if let Some(apparent_id) =
+                self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+            {
+                return apparent_id;
+            }
+        }
+
+        type_id
     }
 
     /// Resolve the apparent type for assignability checks.
@@ -1636,20 +1646,20 @@ impl Compiler {
         let mut apparent_id = type_id;
 
         // substitute static parameter constraints when the relation mode allows it
-        if relation_mode.substitute_constraints_in_apparent_type {
-            if let Type::Reference { symbol, .. } = types.get_type(apparent_id) {
-                let source_id = types.get_type_source(apparent_id);
-                if let Some(constraint_id) = self.static_parameter_constraint_type(
-                    module, profile, *symbol, source_id, symbols, types,
-                ) && !matches!(
-                    types.get_type(constraint_id),
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Unknown
-                    }
-                ) && constraint_id != apparent_id
-                {
-                    apparent_id = constraint_id;
+        if relation_mode.substitute_constraints_in_apparent_type
+            && let Type::Reference { symbol, .. } = types.get_type(apparent_id)
+        {
+            let source_id = types.get_type_source(apparent_id);
+            if let Some(constraint_id) = self.static_parameter_constraint_type(
+                module, profile, *symbol, source_id, symbols, types,
+            ) && !matches!(
+                types.get_type(constraint_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown
                 }
+            ) && constraint_id != apparent_id
+            {
+                apparent_id = constraint_id;
             }
         }
 

@@ -1,7 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
-use std::thread;
 use std::time::{Duration, Instant};
+use std::{env, thread};
 
 use crate::{
     AnalyzeError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError, GenerateError,
@@ -12,6 +12,18 @@ use crate::{
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
 const MAX_TOTAL_YIELD_COUNT: u32 = 100;
+
+const COMPILER_STACK_BYTES_DEFAULT: usize = 64 * 1024 * 1024;
+
+fn compiler_stack_bytes() -> usize {
+    // prefer explicit compiler stack size, then fall back to rust min stack
+    let explicit = env::var("DESTACK_COMPILER_STACK_BYTES").ok();
+    let fallback = env::var("RUST_MIN_STACK").ok();
+    explicit
+        .or(fallback)
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(COMPILER_STACK_BYTES_DEFAULT)
+}
 
 thread_local! {
     /// Flag to detect if we're inside a worker loop (to prevent nested run_task calls).
@@ -63,9 +75,11 @@ impl Compiler {
 
         // spawn worker threads
         thread::scope(|scope| {
+            let stack_bytes = compiler_stack_bytes();
             for i in 0..self.options.workers {
                 thread::Builder::new()
                     .name(format!("compiler-worker-{i}"))
+                    .stack_size(stack_bytes)
                     .spawn_scoped(scope, || self.run_loop())
                     .expect("failed to spawn compiler worker thread");
             }

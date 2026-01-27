@@ -303,6 +303,233 @@ impl Compiler {
         }
     }
 
+    /// Check whether a type contains free static parameter references.
+    pub(crate) fn type_contains_free_static_parameters(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        bound: &HashSet<GlobalSymbolId>,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // avoid recursion cycles
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        let ty = types.get_type(type_id);
+        match ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                // only treat unbound static parameters as free
+                if static_arguments.is_none()
+                    && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+                    && !bound.contains(symbol)
+                {
+                    return true;
+                }
+
+                static_arguments.as_ref().is_some_and(|arguments| {
+                    arguments.iter().any(|argument| {
+                        self.static_argument_contains_free_static_parameters(
+                            module, profile, argument, bound, symbols, types, visited,
+                        )
+                    })
+                })
+            }
+            Type::Import {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_free_static_parameters(
+                        module, profile, argument, bound, symbols, types, visited,
+                    )
+                })
+            }),
+            Type::Conditional {
+                distributive_symbol: _,
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.type_contains_free_static_parameters(
+                    module, profile, *left, bound, symbols, types, visited,
+                ) || self.type_contains_free_static_parameters(
+                    module, profile, *right, bound, symbols, types, visited,
+                ) || self.type_contains_free_static_parameters(
+                    module, profile, *then_type, bound, symbols, types, visited,
+                ) || self.type_contains_free_static_parameters(
+                    module, profile, *else_type, bound, symbols, types, visited,
+                )
+            }
+            Type::Mapped {
+                parameter,
+                modifiers: _,
+                value,
+            } => {
+                // treat mapped parameters as bound within their body
+                let mut bound_with_param = bound.clone();
+                bound_with_param.insert(parameter.symbol);
+
+                self.type_contains_free_static_parameters(
+                    module,
+                    profile,
+                    parameter.constraint,
+                    &bound_with_param,
+                    symbols,
+                    types,
+                    visited,
+                ) || parameter.key_remap.is_some_and(|key_remap| {
+                    self.type_contains_free_static_parameters(
+                        module,
+                        profile,
+                        key_remap,
+                        &bound_with_param,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                }) || self.type_contains_free_static_parameters(
+                    module,
+                    profile,
+                    *value,
+                    &bound_with_param,
+                    symbols,
+                    types,
+                    visited,
+                )
+            }
+            Type::Index { left, index } => {
+                self.type_contains_free_static_parameters(
+                    module, profile, *left, bound, symbols, types, visited,
+                ) || self.type_contains_free_static_parameters(
+                    module, profile, *index, bound, symbols, types, visited,
+                )
+            }
+            Type::TemplateLiteral { spans, .. } => spans.iter().any(|span| {
+                self.type_contains_free_static_parameters(
+                    module, profile, *span, bound, symbols, types, visited,
+                )
+            }),
+            Type::Array { element, .. } => element.is_some_and(|element| {
+                self.type_contains_free_static_parameters(
+                    module, profile, element, bound, symbols, types, visited,
+                )
+            }),
+            Type::ArraySized { element, .. } => self.type_contains_free_static_parameters(
+                module, profile, *element, bound, symbols, types, visited,
+            ),
+            Type::Tuple { elements, .. } => elements.iter().any(|element| {
+                self.type_contains_free_static_parameters(
+                    module, profile, element.ty, bound, symbols, types, visited,
+                )
+            }),
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                fields.iter().any(|field| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, field.ty, bound, symbols, types, visited,
+                    )
+                }) || call_signatures.iter().any(|signature| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, *signature, bound, symbols, types, visited,
+                    )
+                }) || construct_signatures.iter().any(|signature| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, *signature, bound, symbols, types, visited,
+                    )
+                }) || index_signatures.iter().any(|signature| {
+                    self.type_contains_free_static_parameters(
+                        module,
+                        profile,
+                        signature.key_type,
+                        bound,
+                        symbols,
+                        types,
+                        visited,
+                    ) || self.type_contains_free_static_parameters(
+                        module,
+                        profile,
+                        signature.value_type,
+                        bound,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                })
+            }
+            Type::Function {
+                static_parameters,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                static_parameters.iter().any(|parameter| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, *parameter, bound, symbols, types, visited,
+                    )
+                }) || dynamic_parameters.iter().any(|parameter| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, *parameter, bound, symbols, types, visited,
+                    )
+                }) || return_type.is_some_and(|return_type| {
+                    self.type_contains_free_static_parameters(
+                        module,
+                        profile,
+                        return_type,
+                        bound,
+                        symbols,
+                        types,
+                        visited,
+                    )
+                })
+            }
+            Type::Predicate { target, .. } => target.is_some_and(|target| {
+                self.type_contains_free_static_parameters(
+                    module, profile, target, bound, symbols, types, visited,
+                )
+            }),
+            Type::Unary { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => self.type_contains_free_static_parameters(
+                module, profile, *right, bound, symbols, types, visited,
+            ),
+            Type::Binary { left, right, .. } => {
+                self.type_contains_free_static_parameters(
+                    module, profile, *left, bound, symbols, types, visited,
+                ) || self.type_contains_free_static_parameters(
+                    module, profile, *right, bound, symbols, types, visited,
+                )
+            }
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|element| {
+                    self.type_contains_free_static_parameters(
+                        module, profile, *element, bound, symbols, types, visited,
+                    )
+                })
+            }
+            Type::Value { value } => self.type_contains_free_static_parameters(
+                module, profile, *value, bound, symbols, types, visited,
+            ),
+            Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::Unevaluated(_)
+            | Type::Infer { .. }
+            | Type::This
+            | Type::Error => false,
+        }
+    }
+
     /// Check whether a type contains an infer binding.
     pub(crate) fn type_contains_infer(
         &self,
@@ -578,6 +805,27 @@ impl Compiler {
         }
     }
 
+    /// Check whether a static argument contains free static parameters.
+    fn static_argument_contains_free_static_parameters(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        argument: &StaticArgument,
+        bound: &HashSet<GlobalSymbolId>,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        match argument {
+            // treat unresolved arguments as static parameter dependent
+            StaticArgument::Unevaluated { .. } => true,
+            StaticArgument::Evaluated { value, .. } => self
+                .static_expression_contains_free_static_parameters(
+                    module, profile, value, bound, symbols, types, visited,
+                ),
+        }
+    }
+
     /// Check whether a static expression contains a static parameter.
     fn static_expression_contains_static_parameters(
         &self,
@@ -630,6 +878,67 @@ impl Compiler {
                     module, profile, start, symbols, types, visited,
                 ) || self.static_expression_contains_static_parameters(
                     module, profile, end, symbols, types, visited,
+                )
+            }
+            StaticExpression::Unevaluated { .. }
+            | StaticExpression::ScalarLiteral { .. }
+            | StaticExpression::TypeLiteral { .. } => false,
+        }
+    }
+
+    /// Check whether a static expression contains free static parameters.
+    fn static_expression_contains_free_static_parameters(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value: &StaticExpression,
+        bound: &HashSet<GlobalSymbolId>,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        match value {
+            StaticExpression::Type { ty } => self.type_contains_free_static_parameters(
+                module, profile, *ty, bound, symbols, types, visited,
+            ),
+            StaticExpression::Declaration {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_free_static_parameters(
+                        module, profile, argument, bound, symbols, types, visited,
+                    )
+                })
+            }),
+            StaticExpression::ArrayExpression { elements }
+            | StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
+                self.static_expression_contains_free_static_parameters(
+                    module, profile, element, bound, symbols, types, visited,
+                )
+            }),
+            StaticExpression::ObjectExpression { properties } => {
+                properties.iter().any(|property| match property {
+                    StaticProperty::Unevaluated { .. } => false,
+                    StaticProperty::Field { value, default, .. } => {
+                        self.static_expression_contains_free_static_parameters(
+                            module, profile, value, bound, symbols, types, visited,
+                        ) || default.as_ref().is_some_and(|default| {
+                            self.static_expression_contains_free_static_parameters(
+                                module, profile, default, bound, symbols, types, visited,
+                            )
+                        })
+                    }
+                    StaticProperty::Method { body, .. } => self
+                        .static_expression_contains_free_static_parameters(
+                            module, profile, body, bound, symbols, types, visited,
+                        ),
+                })
+            }
+            StaticExpression::RangeExpression { start, end, .. } => {
+                self.static_expression_contains_free_static_parameters(
+                    module, profile, start, bound, symbols, types, visited,
+                ) || self.static_expression_contains_free_static_parameters(
+                    module, profile, end, bound, symbols, types, visited,
                 )
             }
             StaticExpression::Unevaluated { .. }
@@ -987,7 +1296,8 @@ impl Compiler {
             && right_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
-            && let Some(left_instance_id) = types.get_instance_type_id(*symbol)
+            && let Some(left_instance_id) =
+                self.apparent_instance_type(module, profile, source_id, *symbol, symbols, types)
         {
             return self.infer_conditional_type_substitutions_inner(
                 module,
@@ -1013,7 +1323,8 @@ impl Compiler {
             && static_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
-            && let Some(left_instance_id) = types.get_instance_type_id(*symbol)
+            && let Some(left_instance_id) =
+                self.apparent_instance_type(module, profile, source_id, *symbol, symbols, types)
         {
             return self.infer_conditional_type_substitutions_inner(
                 module,
@@ -1039,7 +1350,8 @@ impl Compiler {
             && static_arguments
                 .as_ref()
                 .is_none_or(|arguments| arguments.is_empty())
-            && let Some(right_instance_id) = types.get_instance_type_id(*symbol)
+            && let Some(right_instance_id) =
+                self.apparent_instance_type(module, profile, source_id, *symbol, symbols, types)
         {
             return self.infer_conditional_type_substitutions_inner(
                 module,

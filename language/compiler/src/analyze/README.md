@@ -17,18 +17,6 @@ that must be known during Analyze.
 ## Pipeline
 
 Analyze sits between Resolve and Elaborate in the per-profile part of the pipeline.
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ANALYZE PIPELINE                               │
-│                                                                             │
-│  Stages:  Resolve ───► Analyze ───► Elaborate                               │
-│  Output:  symbols      types       canonical DIR                            │
-│                                                                             │
-│                    (all per-profile)                                        │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
 **Inputs**: Resolved DIR plus explicit type annotations.
 **Outputs**: Fully typed DIR plus Instances and Resolutions.
 

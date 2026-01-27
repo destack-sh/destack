@@ -509,7 +509,7 @@ impl Compiler {
             let mut remote_types = remote_dir.types.write();
             let remote_declared_type_id = remote_types.get_declared_type_id(primary_declaration);
 
-            let declared_type_id = if let Some(remote_declared_type_id) = remote_declared_type_id {
+            if let Some(remote_declared_type_id) = remote_declared_type_id {
                 if matches!(
                     remote_types.get_type(remote_declared_type_id),
                     Type::Unevaluated(_)
@@ -537,9 +537,7 @@ impl Compiler {
                     value: TypeLiteral::Unknown,
                 };
                 types.insert_type_from_any(ty, fallback_source_id)
-            };
-
-            declared_type_id
+            }
         };
 
         // resolve the static parameter kind from the parameter modifiers

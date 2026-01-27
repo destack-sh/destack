@@ -2942,9 +2942,17 @@ impl Compiler {
                 )?;
             }
             Pattern::Object { fields } => {
-                // reject bare object patterns against struct values (#Architecture should we?)
+                // reject bare object patterns against nominal object values
                 if let Some(binding_ty_id) = binding_ty_id
-                    && self.is_definitely_struct_type(types.get_type(binding_ty_id))
+                    && self.is_nominal_object_pattern_target(
+                        module,
+                        ctx.profile,
+                        pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                    )?
                 {
                     let object_ty_id = types.insert_type_from_any(
                         Type::TypeLiteral {
@@ -3007,6 +3015,52 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Check whether a binding type is a nominal object for untagged patterns.
+    fn is_nominal_object_pattern_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        pattern_id: LocalNodeId<Pattern>,
+        binding_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<bool> {
+        let binding_ty = types.get_type(binding_ty_id);
+        if self.is_definitely_struct_type(binding_ty) {
+            return Ok(true);
+        }
+
+        let Type::Reference { symbol, .. } = binding_ty else {
+            return Ok(false);
+        };
+        if symbol.ty() != SymbolType::Newtype {
+            return Ok(false);
+        }
+
+        // resolve the underlying newtype target to determine object shape
+        let Some(target_ty_id) = self.alias_target_type_id_for_symbol(
+            module,
+            profile,
+            *symbol,
+            pattern_id.into_any(),
+            symbols,
+            types,
+        ) else {
+            return Ok(false);
+        };
+        let target_ty_id =
+            self.evaluate_unevaluated_type(module, profile, target_ty_id, tree, symbols, types)?;
+
+        let target_ty = types.get_type(target_ty_id);
+        let is_object = matches!(target_ty, Type::Object { .. });
+        let is_struct_ref = matches!(
+            target_ty,
+            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Struct
+        );
+        Ok(is_object || is_struct_ref)
     }
 
     /// Infer a sequence of pattern fields (with spread syntax support).
@@ -3248,11 +3302,13 @@ impl Compiler {
 
         // resolve field types when the binding type is an object or reference
         let receiver_ty = types.get_type(binding_ty_id).clone();
+        let symbols = module.dir(ctx.profile).symbols.read();
         let mut visited = Vec::new();
         let field_ty_id = self.infer_member_of_type(
             module,
             ctx.profile,
             field_id.into_any(),
+            &symbols,
             &receiver_ty,
             &field_key,
             MemberLookupMode::Any,
