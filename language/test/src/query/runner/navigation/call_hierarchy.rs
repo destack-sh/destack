@@ -67,8 +67,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         "outgoing" => run_outgoing_expectation(session, &item, expected, &exp.target),
         _ => TestResult::Failed {
             message: format!(
-                "call_hierarchy direction '{}' is invalid, expected incoming or outgoing",
-                direction
+                "call_hierarchy direction '{direction}' is invalid, expected incoming or outgoing"
             ),
         },
     }
@@ -440,13 +439,12 @@ fn validate_call_ranges(
         if let Some(prev) = previous {
             if key < prev {
                 errors.push(format!(
-                    "{name}: call site spans are not sorted: {:?} before {:?}",
-                    prev, key
+                    "{name}: call site spans are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == prev {
-                errors.push(format!("{name}: duplicate call site span {:?}", key));
+                errors.push(format!("{name}: duplicate call site span {key:?}"));
             }
         }
 
@@ -469,13 +467,12 @@ fn validate_call_ordering<'a>(
         if let Some(prev) = &previous {
             if key < *prev {
                 errors.push(format!(
-                    "call_hierarchy items are not sorted: {:?} before {:?}",
-                    prev, key
+                    "call_hierarchy items are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == *prev {
-                errors.push(format!("duplicate call_hierarchy item {:?}", key));
+                errors.push(format!("duplicate call_hierarchy item {key:?}"));
             }
         }
 

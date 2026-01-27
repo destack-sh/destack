@@ -2,7 +2,10 @@ use std::collections::VecDeque;
 
 use dashmap::DashMap;
 use destack_base::StringId;
-use destack_dir::{Declaration, GlobalSymbolId, LocalNodeId, StaticKey, SymbolSpace};
+use destack_dir::{
+    Declaration, ExtensionKind, GlobalSymbolId, LocalExtensionId, LocalNodeId, LocalSymbolId,
+    StaticKey, SymbolSpace, SymbolType,
+};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 
@@ -29,6 +32,10 @@ pub struct ProgramIndex {
     pub module_signatures: DashMap<ModuleSignatureKey, ModuleSignature>,
     /// Module signature digests indexed by module and profile.
     pub module_signature_digests: DashMap<ModuleSignatureKey, ModuleSignatureDigest>,
+    /// Extension index for O(1) extension lookups.
+    pub extensions: ExtensionIndex,
+    /// Exported symbol index for O(1) auto-import lookups.
+    pub exports: ExportedSymbolIndex,
 }
 
 impl ProgramIndex {
@@ -181,5 +188,167 @@ impl ModuleBindingTable {
             module_versions: IndexMap::new(),
             bindings_by_specifier: IndexMap::new(),
         }
+    }
+}
+
+/// Index for O(1) extension lookups by target symbol.
+#[derive(Debug, Default)]
+pub struct ExtensionIndex {
+    /// Extensions indexed by target symbol.
+    entries: DashMap<GlobalSymbolId, Vec<ExtensionEntry>>,
+    /// Module versions for cache invalidation.
+    versions: DashMap<ModuleId, ModuleVersion>,
+}
+
+/// An entry in the extension index.
+#[derive(Debug, Clone)]
+pub struct ExtensionEntry {
+    /// The module containing the extension.
+    pub module_id: ModuleId,
+    /// The extension id within the module.
+    pub extension_id: LocalExtensionId,
+    /// The kind of extension (inherent, local, nominal).
+    pub kind: ExtensionKind,
+    /// Member names for fast filtering.
+    pub members: Vec<StringId>,
+}
+
+impl ExtensionIndex {
+    /// Create a new empty extension index.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get extensions for a target symbol.
+    pub fn get_extensions(&self, target: GlobalSymbolId) -> Vec<ExtensionEntry> {
+        self.entries
+            .get(&target)
+            .map(|v| v.clone())
+            .unwrap_or_default()
+    }
+
+    /// Check if an entry for a module is stale.
+    pub fn is_stale(&self, module_id: ModuleId, current_version: ModuleVersion) -> bool {
+        self.versions
+            .get(&module_id)
+            .map(|v| *v != current_version)
+            .unwrap_or(true)
+    }
+
+    /// Clear entries for a module.
+    pub fn clear_module(&self, module_id: ModuleId) {
+        // remove all entries from this module
+        self.entries.retain(|_, entries| {
+            entries.retain(|e| e.module_id != module_id);
+            !entries.is_empty()
+        });
+        self.versions.remove(&module_id);
+    }
+
+    /// Add an extension entry.
+    pub fn add_extension(&self, target: GlobalSymbolId, entry: ExtensionEntry) {
+        self.entries.entry(target).or_default().push(entry);
+    }
+
+    /// Mark a module as indexed with the given version.
+    pub fn set_module_version(&self, module_id: ModuleId, version: ModuleVersion) {
+        self.versions.insert(module_id, version);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// EXPORTED SYMBOL INDEX
+// ----------------------------------------------------------------------------
+
+/// Index for O(1) exported symbol lookups by name.
+#[derive(Debug, Default)]
+pub struct ExportedSymbolIndex {
+    /// Exports indexed by symbol name.
+    by_name: DashMap<StringId, Vec<ExportEntry>>,
+    /// Module versions for cache invalidation.
+    versions: DashMap<ModuleId, ModuleVersion>,
+}
+
+/// An entry in the exported symbol index.
+#[derive(Debug, Clone)]
+pub struct ExportEntry {
+    /// The module exporting the symbol.
+    pub module_id: ModuleId,
+    /// The local symbol id.
+    pub symbol_id: LocalSymbolId,
+    /// The symbol type.
+    pub symbol_type: SymbolType,
+    /// The symbol space.
+    pub space: SymbolSpace,
+    /// The symbol name (for display).
+    pub name: String,
+    /// The module path (for import generation).
+    pub module_path: Option<String>,
+}
+
+impl ExportedSymbolIndex {
+    /// Create a new empty export index.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Get exports by name.
+    pub fn get_by_name(&self, name: StringId) -> Vec<ExportEntry> {
+        self.by_name
+            .get(&name)
+            .map(|v| v.clone())
+            .unwrap_or_default()
+    }
+
+    /// Search exports by name prefix.
+    pub fn search_by_prefix(
+        &self,
+        prefix: &str,
+        exclude_module: Option<ModuleId>,
+    ) -> Vec<ExportEntry> {
+        let prefix_lower = prefix.to_lowercase();
+        let mut results = Vec::new();
+
+        for entry in self.by_name.iter() {
+            for export in entry.value() {
+                if Some(export.module_id) == exclude_module {
+                    continue;
+                }
+                if export.name.to_lowercase().starts_with(&prefix_lower) {
+                    results.push(export.clone());
+                }
+            }
+        }
+
+        results.sort_by(|a, b| a.name.cmp(&b.name));
+        results
+    }
+
+    /// Check if an entry for a module is stale.
+    pub fn is_stale(&self, module_id: ModuleId, current_version: ModuleVersion) -> bool {
+        self.versions
+            .get(&module_id)
+            .map(|v| *v != current_version)
+            .unwrap_or(true)
+    }
+
+    /// Clear entries for a module.
+    pub fn clear_module(&self, module_id: ModuleId) {
+        // remove all entries from this module
+        self.by_name.retain(|_, entries| {
+            entries.retain(|e| e.module_id != module_id);
+            !entries.is_empty()
+        });
+        self.versions.remove(&module_id);
+    }
+
+    /// Add an export entry.
+    pub fn add_export(&self, name: StringId, entry: ExportEntry) {
+        self.by_name.entry(name).or_default().push(entry);
+    }
+
+    /// Mark a module as indexed with the given version.
+    pub fn set_module_version(&self, module_id: ModuleId, version: ModuleVersion) {
+        self.versions.insert(module_id, version);
     }
 }

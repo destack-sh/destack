@@ -172,8 +172,7 @@ fn validate_hover_invariants(
         // reject ranges that do not cover the hover position
         if !contains_offset {
             errors.push(format!(
-                "hover range {:?} does not contain offset {}",
-                range, offset
+                "hover range {range:?} does not contain offset {offset}"
             ));
         }
     }

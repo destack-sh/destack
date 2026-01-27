@@ -1,11 +1,12 @@
 use destack_dir::Declaration;
-use destack_source::FileId;
+use destack_source::{FileId, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
-use crate::query::common::get_module_by_file_id;
+use crate::query::common::with_query_context_for_file;
 
 /// Kind of folding range.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FoldingRangeKind {
     /// A comment block.
     Comment,
@@ -16,7 +17,7 @@ pub enum FoldingRangeKind {
 }
 
 /// A foldable range in source code.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FoldingRange {
     /// Start line (0-indexed).
     pub start_line: u32,
@@ -58,6 +59,20 @@ impl FoldingRange {
     }
 }
 
+/// Request folding ranges for a document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldingRangesRequest {
+    /// The document URI.
+    pub uri: Uri,
+}
+
+/// Response payload for folding ranges queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FoldingRangesResponse {
+    /// Folding ranges.
+    pub ranges: Vec<FoldingRange>,
+}
+
 /// Get folding ranges for a file.
 ///
 /// Returns foldable regions for:
@@ -65,57 +80,58 @@ impl FoldingRange {
 /// - Class/struct/interface/enum bodies
 /// - Namespace blocks
 pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
-    let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return Vec::new();
-    };
+    with_query_context_for_file(session, file, |ctx| {
+        // resolve the source file and dir tree
+        let source_file = session.files.get(ctx.file_id);
+        let dir_tree = ctx.tree();
 
-    let source_file = session.files.get(ctx.file_id);
-    let dir_tree = ctx.tree();
+        // collect folding ranges from declarations
+        let mut ranges = Vec::new();
 
-    let mut ranges = Vec::new();
+        // iterate through all declarations and create folding ranges
+        for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
+            // only fold declarations with bodies
+            let should_fold = matches!(
+                declaration,
+                Declaration::Function { .. }
+                    | Declaration::Class { .. }
+                    | Declaration::Struct { .. }
+                    | Declaration::Interface { .. }
+                    | Declaration::Enum { .. }
+                    | Declaration::Global { .. }
+                    | Declaration::Namespace { .. }
+            );
+            if !should_fold {
+                continue;
+            }
 
-    // iterate through all declarations and create folding ranges
-    for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
-        // only fold declarations with bodies (multi-line)
-        let should_fold = matches!(
-            declaration,
-            Declaration::Function { .. }
-                | Declaration::Class { .. }
-                | Declaration::Struct { .. }
-                | Declaration::Interface { .. }
-                | Declaration::Enum { .. }
-                | Declaration::Global { .. }
-                | Declaration::Namespace { .. }
-        );
+            // resolve the declaration span
+            let ast_node_id = dir_tree.get_source(decl_id.id);
+            let span = ctx.ast.tree.source_map.get(ast_node_id);
 
-        if !should_fold {
-            continue;
+            // convert the span to line numbers
+            let Some((start_line, _)) = source_file.get_position(span.start) else {
+                continue;
+            };
+            let Some((end_line, _)) = source_file.get_position(span.end) else {
+                continue;
+            };
+
+            // skip single line declarations
+            if end_line > start_line {
+                ranges.push(FoldingRange::new(start_line, end_line));
+            }
         }
 
-        // get the span of this declaration
-        let ast_node_id = dir_tree.get_source(decl_id.id);
-        let span = ctx.ast.tree.source_map.get(ast_node_id);
+        // sort ranges by start and end line
+        ranges.sort_by_key(|range| (range.start_line, range.end_line));
 
-        // convert to line numbers
-        let Some((start_line, _)) = source_file.get_position(span.start) else {
-            continue;
-        };
-        let Some((end_line, _)) = source_file.get_position(span.end) else {
-            continue;
-        };
+        // drop duplicate folding ranges
+        ranges.dedup_by(|left, right| {
+            left.start_line == right.start_line && left.end_line == right.end_line
+        });
 
-        // only fold if spans multiple lines
-        if end_line > start_line {
-            ranges.push(FoldingRange::new(start_line, end_line));
-        }
-    }
-
-    // sort by start line
-    ranges.sort_by_key(|r| r.start_line);
-
-    ranges
+        ranges
+    })
+    .unwrap_or_default()
 }

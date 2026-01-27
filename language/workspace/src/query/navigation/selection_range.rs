@@ -1,12 +1,14 @@
-use destack_source::{FileId, Span};
+use destack_source::{FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::Session;
-use crate::query::common::get_module_by_file_id;
+use crate::query::common::with_query_context_for_file;
 
 /// A selection range with parent.
 ///
 /// Represents a range that can be expanded to its parent syntactic element.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SelectionRange {
     /// The range of this selection.
     pub range: Span,
@@ -40,6 +42,22 @@ impl SelectionRange {
     }
 }
 
+/// Request selection ranges for positions in a document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectionRangesRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offsets in the document.
+    pub offsets: Vec<u32>,
+}
+
+/// Response payload for selection ranges queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SelectionRangesResponse {
+    /// Selection ranges.
+    pub ranges: Vec<SelectionRange>,
+}
+
 /// Get selection ranges for positions in a file.
 ///
 /// For each position, returns a nested SelectionRange from most specific
@@ -47,51 +65,67 @@ impl SelectionRange {
 ///
 /// Used for "Expand Selection" / "Shrink Selection" editor commands.
 pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> Vec<SelectionRange> {
-    // get the module for this file
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return Vec::new();
-    };
+    with_query_context_for_file(session, file, |ctx| {
+        // allocate the results vector
+        let mut results = Vec::with_capacity(positions.len());
 
-    let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return Vec::new();
-    };
-    let mut results = Vec::with_capacity(positions.len());
+        for &offset in positions {
+            // find all enclosing AST nodes at this position
+            let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
 
-    for &offset in positions {
-        // find all enclosing AST nodes at this position
-        let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
-
-        if enclosing.is_empty() {
-            // no enclosing spans, return a minimal selection at the position
-            results.push(SelectionRange::leaf(Span::new(file, offset, offset)));
-            continue;
-        }
-
-        // enclosing spans are sorted by distance (innermost first)
-        // we need to deduplicate spans with the same range
-        let mut unique_spans: Vec<Span> = Vec::new();
-        for enc in &enclosing {
-            if unique_spans.last() != Some(&enc.span) {
-                unique_spans.push(enc.span);
+            // fall back to a minimal selection when no spans are available
+            if enclosing.is_empty() {
+                results.push(SelectionRange::leaf(Span::new(file, offset, offset)));
+                continue;
             }
+
+            // collect unique spans by range
+            let mut seen = HashSet::new();
+            let mut spans: Vec<Span> = enclosing
+                .iter()
+                .map(|enc| enc.span)
+                .filter(|span| seen.insert((span.start, span.end)))
+                .collect();
+
+            // sort by size and position so parents come after children
+            spans.sort_by_key(|span| {
+                let len = span.end.saturating_sub(span.start);
+                (len, span.start, span.end)
+            });
+
+            // find the most specific span at the cursor
+            let leaf_span = spans
+                .first()
+                .copied()
+                .unwrap_or(Span::new(file, offset, offset));
+
+            // build a containment chain starting at the leaf span
+            let mut chain = vec![leaf_span];
+            for span in spans.into_iter().skip(1) {
+                let last = *chain.last().unwrap_or(&leaf_span);
+                let contains_leaf = contains_span(span, leaf_span);
+                let contains_last = contains_span(span, last);
+                if contains_leaf && contains_last && span != last {
+                    chain.push(span);
+                }
+            }
+
+            // build the nested selection range from outermost to innermost
+            let mut selection = SelectionRange::leaf(*chain.last().unwrap_or(&leaf_span));
+            for span in chain.iter().rev().skip(1) {
+                selection = SelectionRange::with_parent(*span, selection);
+            }
+
+            // store the computed selection chain
+            results.push(selection);
         }
 
-        // build the nested SelectionRange from outermost to innermost
-        // start with the outermost as the root (no parent)
-        let mut selection = SelectionRange::leaf(
-            unique_spans
-                .pop()
-                .unwrap_or(Span::new(file, offset, offset)),
-        );
+        results
+    })
+    .unwrap_or_default()
+}
 
-        // add each subsequent span as a child (with the previous as parent)
-        while let Some(span) = unique_spans.pop() {
-            selection = SelectionRange::with_parent(span, selection);
-        }
-
-        results.push(selection);
-    }
-
-    results
+/// Check whether a span contains another span.
+fn contains_span(parent: Span, child: Span) -> bool {
+    parent.start <= child.start && parent.end >= child.end
 }

@@ -177,13 +177,12 @@ fn validate_code_action_invariants(
         if let Some(prev) = previous {
             if key < prev {
                 errors.push(format!(
-                    "code actions are not sorted: {:?} before {:?}",
-                    prev, key
+                    "code actions are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == prev {
-                errors.push(format!("duplicate code action {:?}", key));
+                errors.push(format!("duplicate code action {key:?}"));
             }
         }
 

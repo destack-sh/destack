@@ -1,0 +1,255 @@
+use destack_ast::{DependencyMode, Expression};
+use destack_source::{Edit, FileId};
+
+use crate::Session;
+
+/// Information about an existing import in the file.
+#[derive(Debug, Clone)]
+pub struct ExistingImport {
+    /// The import path (e.g., "./utils", "react")
+    pub path: String,
+    /// Start byte offset of the import statement
+    pub start: u32,
+    /// End byte offset of the import statement
+    pub end: u32,
+    /// Position of the closing brace `}` (for inserting new specifiers)
+    pub closing_brace_pos: Option<u32>,
+    /// Whether this is a namespace import (`import * as foo`)
+    pub is_namespace: bool,
+    /// Existing specifier names
+    pub specifiers: Vec<String>,
+}
+
+/// Import group category for ordering (matches formatter).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ImportGroup {
+    /// Builtin modules with protocol prefix (e.g. `node:fs`, `bun:test`)
+    Builtin = 0,
+    /// External packages (e.g. `lodash`, `@org/pkg`, `react`)
+    Package = 1,
+    /// Path aliases (e.g. `@/utils`, `~/lib`, `#internal`)
+    Alias = 2,
+    /// Relative imports (e.g. `./foo`, `../bar`)
+    Relative = 3,
+}
+
+impl ImportGroup {
+    /// Categorize an import target path into a group.
+    pub fn from_path(path: &str) -> Self {
+        // builtin protocols: "protocol:module" but not URLs ("protocol://...")
+        if let Some(colon_pos) = path.find(':')
+            && !path[colon_pos..].starts_with("://")
+        {
+            return ImportGroup::Builtin;
+        }
+
+        // relative imports
+        if path.starts_with("./") || path.starts_with("../") || path.starts_with('/') {
+            return ImportGroup::Relative;
+        }
+
+        // alias imports: @/ ~/ # (but not scoped packages like @org/pkg)
+        if path.starts_with("@/") || path.starts_with("~/") || path.starts_with('#') {
+            return ImportGroup::Alias;
+        }
+
+        // everything else is a package
+        ImportGroup::Package
+    }
+}
+
+/// Collect existing imports from a file's AST.
+pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<ExistingImport> {
+    let source_file = session.files.get(file_id);
+    let source = source_file.text();
+
+    // get module for this file
+    let Some(module) = crate::query::common::get_module_by_file_id(session, file_id) else {
+        return Vec::new();
+    };
+    let module = module.read();
+    let Some(ctx) = session.query_context(&module) else {
+        return Vec::new();
+    };
+
+    let mut imports = Vec::new();
+
+    // iterate over import expressions in the AST
+    for node_id in ctx.ast.tree.iter_nodes::<Expression>() {
+        let expr = ctx.ast.tree.get(node_id);
+
+        if let Expression::Import { target, items, .. } = expr {
+            let path = ctx.ast.strings.get(*target).to_string();
+            let span = ctx.ast.tree.source_map.get(node_id.id);
+
+            // check if it's a namespace import
+            let is_namespace = items.iter().any(|item_id| {
+                let item = ctx.ast.tree.get(*item_id);
+                item.mode == DependencyMode::Namespace
+            });
+
+            // collect specifier names
+            let specifiers: Vec<String> = items
+                .iter()
+                .filter_map(|item_id| {
+                    let item = ctx.ast.tree.get(*item_id);
+                    if item.mode == DependencyMode::Namespace {
+                        return None;
+                    }
+                    // use alias if present, otherwise name
+                    item.alias
+                        .or(item.name)
+                        .map(|id| ctx.ast.strings.get(id).to_string())
+                })
+                .collect();
+
+            // find closing brace position by scanning source
+            let closing_brace_pos = if !is_namespace && !items.is_empty() {
+                find_closing_brace(source, span.start as usize, span.end as usize)
+            } else {
+                None
+            };
+
+            imports.push(ExistingImport {
+                path,
+                start: span.start,
+                end: span.end,
+                closing_brace_pos,
+                is_namespace,
+                specifiers,
+            });
+        }
+    }
+
+    // sort by position
+    imports.sort_by_key(|i| i.start);
+    imports
+}
+
+/// Find the position of the closing brace `}` in an import statement.
+fn find_closing_brace(source: &str, start: usize, end: usize) -> Option<u32> {
+    let segment = source.get(start..end)?;
+
+    // find `from` keyword and look backwards for `}`
+    if let Some(from_pos) = segment.find(" from ") {
+        // scan backwards from `from` to find `}`
+        let before_from = &segment[..from_pos];
+        if let Some(brace_pos) = before_from.rfind('}') {
+            return Some((start + brace_pos) as u32);
+        }
+    }
+
+    None
+}
+
+/// Build edit(s) to add an import for a symbol.
+///
+/// If there's an existing import from the same path, merges into it.
+/// Otherwise, inserts a new import at the appropriate position based on import groups.
+pub fn build_import_edits(
+    session: &Session,
+    file_id: FileId,
+    symbol_name: &str,
+    import_path: &str,
+) -> Vec<Edit> {
+    let existing_imports = collect_existing_imports(session, file_id);
+
+    // check if there's already an import from this path
+    if let Some(existing) = existing_imports.iter().find(|i| i.path == import_path) {
+        // skip if already imported
+        if existing.specifiers.contains(&symbol_name.to_string()) {
+            return Vec::new();
+        }
+
+        // can't merge into namespace imports
+        if existing.is_namespace {
+            return build_new_import_edit(file_id, symbol_name, import_path, &existing_imports);
+        }
+
+        // merge into existing import
+        if let Some(brace_pos) = existing.closing_brace_pos {
+            // insert before closing brace: `{ a }` -> `{ a, b }`
+            let insert_text = if existing.specifiers.is_empty() {
+                format!(" {symbol_name} ")
+            } else {
+                format!(", {symbol_name}")
+            };
+            return vec![Edit::insert(file_id, brace_pos, insert_text)];
+        }
+    }
+
+    // no existing import, add new one
+    build_new_import_edit(file_id, symbol_name, import_path, &existing_imports)
+}
+
+/// Build an edit to insert a new import statement.
+fn build_new_import_edit(
+    file_id: FileId,
+    symbol_name: &str,
+    import_path: &str,
+    existing_imports: &[ExistingImport],
+) -> Vec<Edit> {
+    let new_group = ImportGroup::from_path(import_path);
+    let import_text = format!("import {{ {symbol_name} }} from \"{import_path}\";\n");
+
+    // find the right position based on import groups
+    let insert_pos = find_import_insert_position(import_path, new_group, existing_imports);
+
+    vec![Edit::insert(file_id, insert_pos, import_text)]
+}
+
+/// Find the correct position to insert a new import.
+fn find_import_insert_position(
+    import_path: &str,
+    new_group: ImportGroup,
+    existing_imports: &[ExistingImport],
+) -> u32 {
+    // if no existing imports, insert at start
+    if existing_imports.is_empty() {
+        return 0;
+    }
+
+    // find the right position based on group ordering
+    for existing in existing_imports {
+        let existing_group = ImportGroup::from_path(&existing.path);
+
+        // insert before first import of later group
+        if new_group < existing_group {
+            return existing.start;
+        }
+
+        // same group: alphabetical ordering
+        if new_group == existing_group && import_path < existing.path.as_str() {
+            return existing.start;
+        }
+    }
+
+    // append after last import
+    existing_imports.last().map(|i| i.end).unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_import_group_ordering() {
+        assert!(ImportGroup::Builtin < ImportGroup::Package);
+        assert!(ImportGroup::Package < ImportGroup::Alias);
+        assert!(ImportGroup::Alias < ImportGroup::Relative);
+    }
+
+    #[test]
+    fn test_import_group_categorization() {
+        assert_eq!(ImportGroup::from_path("node:fs"), ImportGroup::Builtin);
+        assert_eq!(ImportGroup::from_path("bun:test"), ImportGroup::Builtin);
+        assert_eq!(ImportGroup::from_path("react"), ImportGroup::Package);
+        assert_eq!(ImportGroup::from_path("@org/pkg"), ImportGroup::Package);
+        assert_eq!(ImportGroup::from_path("lodash"), ImportGroup::Package);
+        assert_eq!(ImportGroup::from_path("@/utils"), ImportGroup::Alias);
+        assert_eq!(ImportGroup::from_path("~/lib"), ImportGroup::Alias);
+        assert_eq!(ImportGroup::from_path("#internal"), ImportGroup::Alias);
+        assert_eq!(ImportGroup::from_path("./local"), ImportGroup::Relative);
+        assert_eq!(ImportGroup::from_path("../parent"), ImportGroup::Relative);
+    }
+}

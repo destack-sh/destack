@@ -1,13 +1,15 @@
 use destack_dir::{GlobalSymbolId, SymbolType};
-use destack_source::{FileId, Span};
+use destack_source::{FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{
-    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span,
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
+    get_symbol_definition_span,
 };
 
 /// An item in the type hierarchy.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeHierarchyItem {
     /// The name of the type.
     pub name: String,
@@ -26,7 +28,7 @@ pub struct TypeHierarchyItem {
 }
 
 /// Kind of type hierarchy item.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeHierarchyKind {
     Class,
     Interface,
@@ -47,6 +49,50 @@ impl TypeHierarchyKind {
             _ => None,
         }
     }
+}
+
+/// Request prepare type hierarchy at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareTypeHierarchyRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for prepare type hierarchy queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PrepareTypeHierarchyResponse {
+    /// Type hierarchy item, if available.
+    pub item: Option<TypeHierarchyItem>,
+}
+
+/// Request type hierarchy supertypes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeHierarchySupertypesRequest {
+    /// The type hierarchy item to expand.
+    pub item: TypeHierarchyItem,
+}
+
+/// Response payload for type hierarchy supertypes queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeHierarchySupertypesResponse {
+    /// Type hierarchy items.
+    pub items: Vec<TypeHierarchyItem>,
+}
+
+/// Request type hierarchy subtypes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeHierarchySubtypesRequest {
+    /// The type hierarchy item to expand.
+    pub item: TypeHierarchyItem,
+}
+
+/// Response payload for type hierarchy subtypes queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeHierarchySubtypesResponse {
+    /// Type hierarchy items.
+    pub items: Vec<TypeHierarchyItem>,
 }
 
 /// Prepare a type hierarchy item at the given position.
@@ -78,12 +124,11 @@ pub fn prepare_type_hierarchy(
     drop(symbols);
     drop(module);
 
-    // get the definition span
+    // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, canonical_id)?;
 
-    // for full range, we'd ideally get the entire declaration
-    // for now, use selection_range as both
-    let range = selection_range;
+    // resolve the full declaration range, fall back to the selection range
+    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
 
     Some(TypeHierarchyItem {
         name,
@@ -194,14 +239,18 @@ pub fn type_hierarchy_item_from_symbol(
     drop(symbols);
     drop(module);
 
+    // resolve the selection range at the symbol name
     let selection_range = get_symbol_definition_span(session, symbol_id)?;
+
+    // resolve the full declaration range, fall back to the selection range
+    let range = get_symbol_declaration_span(session, symbol_id).unwrap_or(selection_range);
 
     Some(TypeHierarchyItem {
         name,
         kind,
         detail: None,
         file: selection_range.file,
-        range: selection_range,
+        range,
         selection_range,
         symbol_id,
     })

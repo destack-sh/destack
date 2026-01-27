@@ -279,15 +279,12 @@ fn validate_reference_invariants(
         let declaration_present = normalized
             .iter()
             .any(|span| span.file == decl.file && span.start == decl.start && span.end == decl.end);
-        if declaration_present {
-            if let Some(first) = normalized.first() {
-                // ensure the declaration remains the first entry
-                if first.file != decl.file || first.start != decl.start || first.end != decl.end {
-                    errors.push(format!(
-                        "declaration is not first: expected {:?}, got {:?}",
-                        decl, first
-                    ));
-                }
+        if let (true, Some(first)) = (declaration_present, normalized.first()) {
+            // ensure the declaration remains the first entry
+            if first.file != decl.file || first.start != decl.start || first.end != decl.end {
+                errors.push(format!(
+                    "declaration is not first: expected {decl:?}, got {first:?}"
+                ));
             }
         }
     }

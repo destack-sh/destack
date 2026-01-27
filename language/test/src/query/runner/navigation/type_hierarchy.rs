@@ -53,8 +53,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         _ => {
             return TestResult::Failed {
                 message: format!(
-                    "type_hierarchy direction '{}' is invalid, expected supertypes or subtypes",
-                    direction
+                    "type_hierarchy direction '{direction}' is invalid, expected supertypes or subtypes"
                 ),
             };
         }
@@ -245,13 +244,12 @@ fn validate_items_invariants(
         if let Some(prev) = &previous {
             if key < *prev {
                 errors.push(format!(
-                    "type_hierarchy {label} items are not sorted: {:?} before {:?}",
-                    prev, key
+                    "type_hierarchy {label} items are not sorted: {prev:?} before {key:?}"
                 ));
             }
 
             if key == *prev {
-                errors.push(format!("duplicate type_hierarchy {label} item {:?}", key));
+                errors.push(format!("duplicate type_hierarchy {label} item {key:?}"));
             }
         }
 

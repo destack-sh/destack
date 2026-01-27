@@ -124,7 +124,7 @@ fn validate_link_range(
 
     // require ordered ranges within file bounds
     if range.start > range.end {
-        errors.push(format!("range start > end: {:?}", range));
+        errors.push(format!("range start > end: {range:?}"));
     }
     if range.end > source_len {
         errors.push(format!(

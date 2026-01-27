@@ -1,11 +1,12 @@
-use destack_source::{FileId, Span};
+use destack_source::{FileId, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::query::common::{find_symbol_at_offset, get_dir_node_span, get_symbol_definition_span};
 use crate::{ModuleAst, ModuleDir, Session};
 use destack_dir::{self as dir, Declarator, Expression, NodeType};
 
 /// Result of a goto definition query.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DefinitionResult {
     /// The definition location(s).
     /// Multiple locations for overloaded symbols or partial definitions.
@@ -31,6 +32,54 @@ impl DefinitionResult {
     pub fn is_empty(&self) -> bool {
         self.locations.is_empty()
     }
+}
+
+/// Request goto definition at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoDefinitionRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for goto definition queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoDefinitionResponse {
+    /// Definition locations, if any.
+    pub result: Option<DefinitionResult>,
+}
+
+/// Request goto declaration at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoDeclarationRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for goto declaration queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoDeclarationResponse {
+    /// Declaration locations, if any.
+    pub result: Option<DefinitionResult>,
+}
+
+/// Request goto type definition at a cursor position.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoTypeDefinitionRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The byte offset in the document.
+    pub offset: u32,
+}
+
+/// Response payload for goto type definition queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GotoTypeDefinitionResponse {
+    /// Type definition locations, if any.
+    pub result: Option<DefinitionResult>,
 }
 
 /// Find the definition of the symbol at the given position.
@@ -112,7 +161,21 @@ pub fn goto_type_definition(
 
     // for non-type symbols (variables, parameters, etc.), look up their value type
     let types = ctx.types();
+
+    // try get_value_type_id first (for inferred types)
     if let Some(type_id) = types.get_value_type_id(symbol_id) {
+        let ty = types.get_type(type_id);
+        if let Some(type_symbol) = ty.symbol() {
+            drop(types);
+            drop(module);
+            let span = get_symbol_definition_span(session, type_symbol)?;
+            return Some(DefinitionResult::single(span));
+        }
+    }
+
+    // fall back to declared type (type annotation) if inferred not available
+    let node_id = symbol_at.node_id.into_global(symbol_id.module_id);
+    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
         let ty = types.get_type(type_id);
         if let Some(type_symbol) = ty.symbol() {
             drop(types);
@@ -123,8 +186,7 @@ pub fn goto_type_definition(
     }
     drop(types);
 
-    // NOTE #Incomplete: get_value_type_id doesn't populate types for all variables/parameters yet
-    // (we can remove this once type inference populates value types for all symbols)
+    // final fallback: try to get type from AST context
     if let Some(type_symbol) =
         get_type_from_declaration_context(session, ctx.ast, ctx.dir, symbol_at.node_id)
     {
