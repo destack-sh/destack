@@ -1,7 +1,11 @@
+destack_test::specification::declarations/classes/members.md/instance-members/instance-members-are-not-available-on-classes
 destack_test::specification::declarations/functions/inference.md/tests/default-values-infer-parameters
 destack_test::specification::expressions/async/promise.md/await/await-distributes-over-unions
 destack_test::specification::expressions/async/promise.md/await/await-unwraps-nested-promises
 destack_test::specification::expressions/async/promise.md/await/await-unwraps-promise-value-type
+destack_test::specification::expressions/try/catch.md/try-error-typing/try-catch-unions-multiple-try-errors
+destack_test::specification::expressions/try/catch.md/try-error-typing/try-catch-unions-try-error-types
+destack_test::specification::expressions/try/catch.md/try-error-typing/try-catch-uses-try-error-type
 destack_test::specification::flow/match/narrowing.md/discriminants/match-narrows-discriminated-unions-per-arm
 destack_test::specification::flow/match/narrowing.md/match-results/match-results-use-best-common-type
 destack_test::specification::flow/match/widening.md/pattern-bindings/match-expression-results-do-not-keep-single-literals-in-let-bindings
@@ -60,8 +64,6 @@ destack_test::specification::types/generics/infer.md/infer/infer-from-never-hono
 destack_test::specification::types/generics/infer.md/infer/infer-from-never-yields-never-for-template-patterns
 destack_test::specification::types/generics/modifiers.md/key-remapping/key-remap-collisions-merge-value-types
 destack_test::specification::types/generics/modifiers.md/key-remapping/key-remapping-to-never-removes-keys
-destack_test::specification::types/generics/modifiers.md/modifiers/mapped-modifiers-can-remove-readonly-and-optional-markers
-destack_test::specification::types/generics/modifiers.md/modifiers/mapped-readonly-modifiers-prevent-mutation
 destack_test::specification::types/generics/recursion.md/recursive-aliases/direct-recursive-aliases-are-rejected
 destack_test::specification::types/generics/recursion.md/recursive-conditionals/recursive-conditionals-report-depth-errors
 destack_test::specification::types/operators/conditional.md/tests/conditional-types-with-any-yield-union-branches

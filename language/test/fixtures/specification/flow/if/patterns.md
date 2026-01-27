@@ -170,7 +170,7 @@ if let { debug } = config {
 }
 ```
 
-- contains: expected boolean
+- contains: not assignable
 
 ## Binding Patterns
 
