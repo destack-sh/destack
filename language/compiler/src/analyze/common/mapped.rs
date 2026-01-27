@@ -10,7 +10,7 @@ use destack_workspace::{Module, ProfileId};
 
 use super::key::KeySet;
 use crate::Compiler;
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
 
 /// A mapped key produced when expanding mapped types.
 #[derive(Debug, Clone)]
@@ -110,7 +110,14 @@ impl Compiler {
         visited_keys: &mut HashSet<LocalTypeId>,
     ) -> KeySet {
         // resolve apparent types for key extraction
-        let type_id = self.apparent_type(module, profile, type_id, symbols, types);
+        let type_id = self.apparent_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            RelationMode::TYPE_OPS,
+        );
 
         // avoid cycles when traversing recursive types
         if !visited_keys.insert(type_id) {
@@ -751,8 +758,22 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // resolve apparent operand types before index evaluation
-        let left = self.apparent_type(module, profile, left, symbols, types);
-        let index = self.apparent_type(module, profile, index, symbols, types);
+        let left = self.apparent_type(
+            module,
+            profile,
+            left,
+            symbols,
+            types,
+            RelationMode::TYPE_OPS,
+        );
+        let index = self.apparent_type(
+            module,
+            profile,
+            index,
+            symbols,
+            types,
+            RelationMode::TYPE_OPS,
+        );
 
         // normalize operands before evaluating the index
         let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);

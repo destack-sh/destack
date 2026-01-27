@@ -7,7 +7,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::CanonicalSymbolMode;
+use super::{CanonicalSymbolMode, RelationMode};
 use crate::Compiler;
 use crate::analyze::infer::Assignability;
 
@@ -44,6 +44,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
+            RelationMode::ASSIGN,
         );
 
         // stop when normalization already expanded the type
@@ -1610,7 +1611,13 @@ impl Compiler {
         type_id: LocalTypeId,
         _symbols: &SymbolTable,
         types: &mut TypeTable,
+        relation_mode: RelationMode,
     ) -> LocalTypeId {
+        // skip apparent type expansion when the relation mode says so
+        if !relation_mode.use_apparent_type {
+            return type_id;
+        }
+
         // unwrap cached alias instances
         self.unwrap_normalization_alias_reference(type_id, types)
     }
@@ -1623,23 +1630,26 @@ impl Compiler {
         type_id: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        relation_mode: RelationMode,
     ) -> LocalTypeId {
         // start with the original type id
         let mut apparent_id = type_id;
 
-        // substitute static parameter constraints when available
-        if let Type::Reference { symbol, .. } = types.get_type(apparent_id) {
-            let source_id = types.get_type_source(apparent_id);
-            if let Some(constraint_id) = self.static_parameter_constraint_type(
-                module, profile, *symbol, source_id, symbols, types,
-            ) && !matches!(
-                types.get_type(constraint_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
+        // substitute static parameter constraints when the relation mode allows it
+        if relation_mode.substitute_constraints_in_apparent_type {
+            if let Type::Reference { symbol, .. } = types.get_type(apparent_id) {
+                let source_id = types.get_type_source(apparent_id);
+                if let Some(constraint_id) = self.static_parameter_constraint_type(
+                    module, profile, *symbol, source_id, symbols, types,
+                ) && !matches!(
+                    types.get_type(constraint_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown
+                    }
+                ) && constraint_id != apparent_id
+                {
+                    apparent_id = constraint_id;
                 }
-            ) && constraint_id != apparent_id
-            {
-                apparent_id = constraint_id;
             }
         }
 
@@ -1656,13 +1666,20 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
     ) -> LocalTypeId {
         // normalize the input type first
         let type_id = self.normalize_type(module, profile, type_id, symbols, types, mode);
 
         // resolve apparent types after normalization
-        let type_id =
-            self.apparent_type_for_assignability(module, profile, type_id, symbols, types);
+        let type_id = self.apparent_type_for_assignability(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            relation_mode,
+        );
 
         // normalize again after apparent type expansion
         self.normalize_type(module, profile, type_id, symbols, types, mode)

@@ -5,7 +5,7 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashMap;
 
-use super::super::common::NormalizationMode;
+use super::super::common::{NormalizationMode, RelationMode};
 use super::{
     field_key_matches_index_kind, index_key_kind_for_type,
     index_key_kinds_compatible_for_assignability,
@@ -86,6 +86,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
+            RelationMode::ASSIGN,
         );
         let source_id = self.normalize_apparent_type(
             module,
@@ -94,6 +95,7 @@ impl Compiler {
             symbols,
             types,
             NormalizationMode::Assign,
+            RelationMode::ASSIGN,
         );
 
         // recheck equality after normalization
