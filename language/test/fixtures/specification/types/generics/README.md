@@ -1,7 +1,3 @@
 # Type Generics
 
-Tests for generic behavior in type positions.
-
-- `conditional-infer.md`
-- `mapped-types.md`
-- `utility-types.md`
+Generic tests cover inference, mapped types, modifiers, recursion, and utility type behavior.

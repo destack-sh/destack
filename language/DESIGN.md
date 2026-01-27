@@ -29,9 +29,9 @@ Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectl
 | [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [reflection/](test/fixtures/specification/reflection/) |
-| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
-| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [declarations/reflection/](test/fixtures/specification/declarations/reflection/) |
+| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [resolution/](test/fixtures/specification/resolution/) |
+| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [types/ownership/](test/fixtures/specification/types/ownership/) |
 
 ## Interactive Execution
 
@@ -593,7 +593,7 @@ type User = { name: string.minLength(1) }
 parse(User, data);  // User IS the Type (schema)
 ```
 
-<sub>See [test/fixtures/specification/reflection/](test/fixtures/specification/reflection/) for specification tests.</sub>
+<sub>See [test/fixtures/specification/declarations/reflection/](test/fixtures/specification/declarations/reflection/) for specification tests.</sub>
 
 ### Runtime Type Identity
 
