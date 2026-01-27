@@ -964,8 +964,7 @@ impl Compiler {
                     && !ctx.is_explicit_ownership
                     && matches!(module.source, ModuleSource::User)
                 {
-                    let value_ty = types.get_type(ty_id);
-                    if self.type_contains_managed(module, ctx.profile, value_ty, types) {
+                    if self.type_contains_managed(module, ctx.profile, ty_id, types) {
                         self.error(AnalyzeError::ManagedMemoryDisabled {
                             node: expression_id
                                 .into_global_any(module.id)
@@ -1140,8 +1139,7 @@ impl Compiler {
                     && !ctx.is_explicit_ownership
                     && matches!(module.source, ModuleSource::User)
                 {
-                    let value_ty = types.get_type(ty_id);
-                    if self.type_contains_managed(module, ctx.profile, value_ty, types) {
+                    if self.type_contains_managed(module, ctx.profile, ty_id, types) {
                         self.error(AnalyzeError::ManagedMemoryDisabled {
                             node: expression_id
                                 .into_global_any(module.id)

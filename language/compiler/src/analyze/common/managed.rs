@@ -2,11 +2,100 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral,
-    SymbolType, Type, TypeLiteral, TypeTable,
+    SymbolType, Type, TypeLiteral, TypeTable, TypeVisitor, TypeVisitorOptions, walk_type,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
+
+/// Walk types to detect managed defaults.
+struct ManagedTypeVisitor<'a, 'b> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The type table for the current module.
+    types: &'a TypeTable,
+    /// The visited type ids.
+    visited_types: HashSet<LocalTypeId>,
+    /// The visited symbol ids.
+    visited_symbols: &'b mut HashSet<GlobalSymbolId>,
+    /// Whether a managed type was found.
+    found: bool,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl<'a, 'b> ManagedTypeVisitor<'a, 'b> {
+    /// Create a visitor for managed type detection.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        types: &'a TypeTable,
+        visited_symbols: &'b mut HashSet<GlobalSymbolId>,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            profile,
+            types,
+            visited_types: HashSet::new(),
+            visited_symbols,
+            found: false,
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for ManagedTypeVisitor<'_, '_> {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        if self.found {
+            return;
+        }
+        if !self.visited_types.insert(id) {
+            return;
+        }
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        if self.found {
+            return;
+        }
+        match ty {
+            Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => {}
+            Type::Reference { symbol, .. } => {
+                if self.compiler.symbol_is_managed_inner(
+                    self.module,
+                    self.profile,
+                    *symbol,
+                    self.types,
+                    self.visited_symbols,
+                    false,
+                ) {
+                    self.found = true;
+                }
+            }
+            Type::Object { .. } | Type::Array { .. } | Type::Function { .. } | Type::This => {
+                self.found = true;
+            }
+            Type::TypeLiteral { value } => {
+                if self.compiler.type_literal_is_managed(value) {
+                    self.found = true;
+                }
+            }
+            _ => walk_type(self, types, id, ty),
+        }
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -30,12 +119,31 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        ty: &Type,
+        type_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        // track visited symbols to break alias cycles
-        let mut visited = HashSet::new();
-        self.type_contains_managed_inner(module, profile, ty, types, &mut visited)
+        let mut visited_symbols = HashSet::new();
+        self.type_contains_managed_with_visited_symbols(
+            module,
+            profile,
+            type_id,
+            types,
+            &mut visited_symbols,
+        )
+    }
+
+    /// Check whether a type expression relies on managed defaults with visited tracking.
+    fn type_contains_managed_with_visited_symbols(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited_symbols: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        let mut visitor = ManagedTypeVisitor::new(self, module, profile, types, visited_symbols);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
     }
 
     /// Check whether an expression makes ownership explicit.
@@ -182,40 +290,6 @@ impl Compiler {
     }
 
     /// Walk a type for any managed usage.
-    fn type_contains_managed_inner(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        ty: &Type,
-        types: &TypeTable,
-        visited: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // treat explicit ownership wrappers as non managed
-        match ty {
-            Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Unary { right, .. } | Type::Value { value: right } => {
-                // follow the wrapped type
-                let inner = types.get_type(*right);
-                self.type_contains_managed_inner(module, profile, inner, types, visited)
-            }
-            Type::Reference { symbol, .. } => {
-                // unwrap aliases before checking references
-                self.symbol_is_managed_inner(module, profile, *symbol, types, visited, false)
-            }
-            Type::Object { .. } | Type::Array { .. } | Type::Function { .. } => true,
-            Type::TypeLiteral { value } => self.type_literal_is_managed(value),
-            Type::Union { elements } | Type::Intersection { elements } => {
-                elements.iter().any(|element| {
-                    // report managed usage in union or intersection members
-                    let inner = types.get_type(*element);
-                    self.type_contains_managed_inner(module, profile, inner, types, visited)
-                })
-            }
-            Type::This => true,
-            _ => false,
-        }
-    }
-
     /// Walk a symbol definition to determine managed usage.
     fn symbol_is_managed_inner(
         &self,
@@ -246,7 +320,7 @@ impl Compiler {
                     profile,
                     symbol,
                     types,
-                    |alias_module, alias_types, alias_ty| {
+                    |alias_module, alias_types, alias_type_id, alias_ty| {
                         if treat_explicit_wrappers_as_managed {
                             self.type_is_implicit_managed_inner(
                                 alias_module,
@@ -256,10 +330,10 @@ impl Compiler {
                                 visited,
                             )
                         } else {
-                            self.type_contains_managed_inner(
+                            self.type_contains_managed_with_visited_symbols(
                                 alias_module,
                                 profile,
-                                alias_ty,
+                                alias_type_id,
                                 alias_types,
                                 visited,
                             )
@@ -278,13 +352,13 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
         types: &TypeTable,
-        handle: impl FnOnce(&Module, &TypeTable, &Type) -> R,
+        handle: impl FnOnce(&Module, &TypeTable, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
         // use the current module when the alias is local
         if symbol.module_id == module.id {
             let target_id = types.get_alias_target_type_id(symbol)?;
             let target_ty = types.get_type(target_id);
-            return Some(handle(module, types, target_ty));
+            return Some(handle(module, types, target_id, target_ty));
         }
 
         // load the alias target from the remote module
@@ -293,7 +367,7 @@ impl Compiler {
         let remote_types = remote_module.dir(profile).types.read();
         let target_id = remote_types.get_alias_target_type_id(symbol)?;
         let target_ty = remote_types.get_type(target_id);
-        Some(handle(&remote_module, &remote_types, target_ty))
+        Some(handle(&remote_module, &remote_types, target_id, target_ty))
     }
 
     /// Decide whether a type literal implies managed defaults.

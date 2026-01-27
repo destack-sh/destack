@@ -1,12 +1,123 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    GlobalSymbolId, LocalTypeId, PrimitiveType, StaticArgument, StaticExpression, StaticProperty,
-    Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, LocalTypeId, PrimitiveType, StaticExpression, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, walk_static_expression, walk_type,
 };
 use destack_workspace::Module;
 
 use crate::Compiler;
+
+/// Walk types to detect forbidden type literals.
+struct ForbiddenLiteralVisitor<'a> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The type table for the current module.
+    types: &'a TypeTable,
+    /// The literal predicate used for filtering.
+    predicate: fn(&TypeLiteral) -> bool,
+    /// Whether imported types should be skipped.
+    skip_imported_types: bool,
+    /// The visited type ids.
+    visited_types: &'a mut HashSet<LocalTypeId>,
+    /// The visited symbols.
+    visited_symbols: &'a mut HashSet<GlobalSymbolId>,
+    /// Whether a forbidden literal was found.
+    found: bool,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl<'a> ForbiddenLiteralVisitor<'a> {
+    /// Create a visitor for forbidden literal detection.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        types: &'a TypeTable,
+        predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
+        visited_types: &'a mut HashSet<LocalTypeId>,
+        visited_symbols: &'a mut HashSet<GlobalSymbolId>,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            types,
+            predicate,
+            skip_imported_types,
+            visited_types,
+            visited_symbols,
+            found: false,
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for ForbiddenLiteralVisitor<'_> {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        if self.found {
+            return;
+        }
+        if self.skip_imported_types && types.is_imported_type(id) {
+            return;
+        }
+        if !self.visited_types.insert(id) {
+            return;
+        }
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        if self.found {
+            return;
+        }
+        match ty {
+            Type::TypeLiteral { value } => {
+                if (self.predicate)(value) {
+                    self.found = true;
+                }
+            }
+            Type::Unary {
+                operator: TypeUnaryOperator::Keyof,
+                ..
+            } => {}
+            Type::Reference { symbol, .. } => {
+                if self.compiler.type_reference_contains_forbidden_literal(
+                    self.module,
+                    *symbol,
+                    self.types,
+                    self.predicate,
+                    self.skip_imported_types,
+                    self.visited_types,
+                    self.visited_symbols,
+                ) {
+                    self.found = true;
+                }
+            }
+            _ => walk_type(self, types, id, ty),
+        }
+    }
+
+    fn visit_static_expression(&mut self, types: &TypeTable, expression: &StaticExpression) {
+        if self.found {
+            return;
+        }
+        if let StaticExpression::TypeLiteral { value } = expression {
+            if (self.predicate)(value) {
+                self.found = true;
+            }
+            return;
+        }
+        walk_static_expression(self, types, expression);
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -82,352 +193,17 @@ impl Compiler {
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
-        // skip imported types when configured to ignore lib usage
-        if skip_imported_types && types.is_imported_type(ty_id) {
-            return false;
-        }
-
-        // stop on recursion
-        if !visited_types.insert(ty_id) {
-            return false;
-        }
-
-        // read the type for matching
-        let ty = types.get_type(ty_id);
-
-        // walk the type structure
-        match ty {
-            Type::TypeLiteral { value } => predicate(value),
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                ..
-            } => false,
-            Type::Value { value }
-            | Type::Unary { right: value, .. }
-            | Type::ValueOf { right: value, .. }
-            | Type::ReferenceOf { right: value, .. }
-            | Type::PointerOf { right: value, .. } => self.type_contains_forbidden_literal_inner(
-                module,
-                *value,
-                types,
-                predicate,
-                skip_imported_types,
-                visited_types,
-                visited_symbols,
-            ),
-            Type::Reference { symbol, .. } => self.type_reference_contains_forbidden_literal(
-                module,
-                *symbol,
-                types,
-                predicate,
-                skip_imported_types,
-                visited_types,
-                visited_symbols,
-            ),
-            Type::Conditional {
-                distributive_symbol: _,
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    *left,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *right,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *then_type,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *else_type,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }
-            Type::Mapped {
-                parameter, value, ..
-            } => {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    parameter.constraint,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || parameter.key_remap.is_some_and(|key_remap| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        key_remap,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *value,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }
-            Type::Index { left, index } => {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    *left,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *index,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }
-            Type::TemplateLiteral { spans, .. } => spans.iter().any(|span| {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    *span,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            Type::Import {
-                static_arguments, ..
-            } => static_arguments
-                .as_ref()
-                .map(|arguments| {
-                    arguments.iter().any(|argument| {
-                        self.static_argument_contains_forbidden_literal(
-                            module,
-                            argument,
-                            types,
-                            predicate,
-                            skip_imported_types,
-                            visited_types,
-                            visited_symbols,
-                        )
-                    })
-                })
-                .unwrap_or(false),
-            Type::Infer { constraint, .. } => constraint.is_some_and(|constraint| {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    constraint,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            Type::Predicate { target, .. } => target.is_some_and(|target| {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    target,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            Type::Binary { left, right, .. } => {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    *left,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.type_contains_forbidden_literal_inner(
-                    module,
-                    *right,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }
-            Type::ArraySized { element, .. } => self.type_contains_forbidden_literal_inner(
-                module,
-                *element,
-                types,
-                predicate,
-                skip_imported_types,
-                visited_types,
-                visited_symbols,
-            ),
-            Type::Array { element, .. } => element.is_some_and(|element| {
-                self.type_contains_forbidden_literal_inner(
-                    module,
-                    element,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            Type::Tuple { elements, .. } => elements.iter().any(|element| {
-                self.type_element_contains_forbidden_literal(
-                    module,
-                    element,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                fields.iter().any(|field| {
-                    self.type_field_contains_forbidden_literal(
-                        module,
-                        field,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || call_signatures.iter().any(|signature| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        *signature,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || construct_signatures.iter().any(|signature| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        *signature,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || index_signatures.iter().any(|signature| {
-                    self.type_index_signature_contains_forbidden_literal(
-                        module,
-                        signature,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                })
-            }
-            Type::Function {
-                static_parameters,
-                this_parameter,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                static_parameters.iter().any(|parameter| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        *parameter,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || this_parameter.is_some_and(|parameter| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        parameter,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || dynamic_parameters.iter().any(|parameter| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        *parameter,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                }) || return_type.is_some_and(|return_type| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        return_type,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                })
-            }
-            Type::Union { elements } | Type::Intersection { elements } => {
-                elements.iter().any(|element| {
-                    self.type_contains_forbidden_literal_inner(
-                        module,
-                        *element,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                })
-            }
-            Type::InferVar { .. } | Type::Unevaluated(_) | Type::This | Type::Error => false,
-        }
+        let mut visitor = ForbiddenLiteralVisitor::new(
+            self,
+            module,
+            types,
+            predicate,
+            skip_imported_types,
+            visited_types,
+            visited_symbols,
+        );
+        visitor.visit_type_id(types, ty_id);
+        visitor.found
     }
 
     /// Check whether a reference symbol uses a forbidden literal.
@@ -479,258 +255,6 @@ impl Compiler {
             visited_types,
             visited_symbols,
         )
-    }
-
-    /// Check whether a tuple element uses a forbidden literal.
-    fn type_element_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        element: &TypeElement,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // scan the element type
-        self.type_contains_forbidden_literal_inner(
-            module,
-            element.ty,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-        )
-    }
-
-    /// Check whether a field type uses a forbidden literal.
-    fn type_field_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        field: &TypeField,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // scan the field type
-        self.type_contains_forbidden_literal_inner(
-            module,
-            field.ty,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-        )
-    }
-
-    /// Check whether an index signature uses a forbidden literal.
-    fn type_index_signature_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        signature: &TypeIndexSignature,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // scan key and value types
-        self.type_contains_forbidden_literal_inner(
-            module,
-            signature.key_type,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-        ) || self.type_contains_forbidden_literal_inner(
-            module,
-            signature.value_type,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-        )
-    }
-
-    /// Check whether a static argument uses a forbidden literal.
-    fn static_argument_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        argument: &StaticArgument,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // ignore unevaluated static arguments
-        let StaticArgument::Evaluated { value, .. } = argument else {
-            return false;
-        };
-
-        // scan the evaluated argument value
-        self.static_expression_contains_forbidden_literal(
-            module,
-            value,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-        )
-    }
-
-    /// Check whether a static expression uses a forbidden literal.
-    fn static_expression_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        expression: &StaticExpression,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // walk the static expression tree
-        match expression {
-            StaticExpression::TypeLiteral { value } => predicate(value),
-            StaticExpression::Type { ty } => self.type_contains_forbidden_literal_inner(
-                module,
-                *ty,
-                types,
-                predicate,
-                skip_imported_types,
-                visited_types,
-                visited_symbols,
-            ),
-            StaticExpression::RangeExpression { start, end, .. } => {
-                self.static_expression_contains_forbidden_literal(
-                    module,
-                    start,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || self.static_expression_contains_forbidden_literal(
-                    module,
-                    end,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }
-            StaticExpression::ArrayExpression { elements } => elements.iter().any(|element| {
-                self.static_expression_contains_forbidden_literal(
-                    module,
-                    element,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
-                self.static_expression_contains_forbidden_literal(
-                    module,
-                    element,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                )
-            }),
-            StaticExpression::ObjectExpression { properties } => {
-                properties.iter().any(|property| {
-                    self.static_property_contains_forbidden_literal(
-                        module,
-                        property,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                })
-            }
-            StaticExpression::Declaration {
-                static_arguments, ..
-            } => static_arguments
-                .as_ref()
-                .map(|arguments| {
-                    arguments.iter().any(|argument| {
-                        self.static_argument_contains_forbidden_literal(
-                            module,
-                            argument,
-                            types,
-                            predicate,
-                            skip_imported_types,
-                            visited_types,
-                            visited_symbols,
-                        )
-                    })
-                })
-                .unwrap_or(false),
-            StaticExpression::ScalarLiteral { .. } | StaticExpression::Unevaluated { .. } => false,
-        }
-    }
-
-    /// Check whether a static property uses a forbidden literal.
-    fn static_property_contains_forbidden_literal(
-        &self,
-        module: &Module,
-        property: &StaticProperty,
-        types: &TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &mut HashSet<LocalTypeId>,
-        visited_symbols: &mut HashSet<GlobalSymbolId>,
-    ) -> bool {
-        // scan the static property payload
-        match property {
-            StaticProperty::Field { value, default, .. } => {
-                self.static_expression_contains_forbidden_literal(
-                    module,
-                    value,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ) || default.as_ref().is_some_and(|default| {
-                    self.static_expression_contains_forbidden_literal(
-                        module,
-                        default,
-                        types,
-                        predicate,
-                        skip_imported_types,
-                        visited_types,
-                        visited_symbols,
-                    )
-                })
-            }
-            StaticProperty::Method { body, .. } => self
-                .static_expression_contains_forbidden_literal(
-                    module,
-                    body,
-                    types,
-                    predicate,
-                    skip_imported_types,
-                    visited_types,
-                    visited_symbols,
-                ),
-            StaticProperty::Unevaluated { .. } => false,
-        }
     }
 }
 

@@ -1172,7 +1172,7 @@ impl Compiler {
         }
 
         // report managed types in signatures
-        if self.type_contains_managed(module, profile, types.get_type(ty_id), types) {
+        if self.type_contains_managed(module, profile, ty_id, types) {
             self.error(AnalyzeError::ManagedMemoryDisabled {
                 node: node_id.into_anchored(Some(profile)),
             });
