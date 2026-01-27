@@ -1,47 +1,4 @@
 # Expressions
 
-> NOTE #Incomplete: implement/mdtest Destack expression extensions
-
-Expression extensions beyond standard TypeScript.
-
-In TypeScript, `if` is a statement and you need a ternary or temporary to get a value.
-In Destack, everything is an expression.
-The last non-statement expression becomes the value.
-
-## Subdirectories
-
-| Directory | Description |
-|-----------|-------------|
-| `match/` | Pattern matching with exhaustiveness checking |
-| `switch/` | Switch statements with fallthrough |
-| `ranges/` | Range literals (`0..10`, `0..=10`) |
-| `tuples/` | Tuple literals and types `(a, b)` |
-| `arrays/` | Array literals and hole restrictions |
-| `loops/` | Infinite `loop { }` construct |
-| `blocks/` | Block expressions, labeled blocks, `do { }` |
-| `if/` | If expressions and if let |
-| `patterns/` | Pattern syntax for destructuring |
-| `comptime/` | Comptime expressions and blocks |
-| `try/` | Try/catch/finally expressions |
-
-## Coverage
-
-- **Implicit returns**: Last expression is the return value
-- **If expressions**: `if` as an expression returning a value
-- **If let**: `if let` pattern conditions
-
-## Example
-
-```ds
-const result = if (condition) { computeA() } else { computeB() };
-
-const label = match (state) {
-    Ready => "go"
-    Loading => "wait"
-    Error(e) => `failed: ${e}`
-};
-
-for (const i of 0..10) { print(i) }
-```
-
-See [DESIGN.md](../../../../../DESIGN.md#expressions) for full documentation.
+Expression tests focus on evaluation and typing rules that are not primarily about control flow narrowing.
+Control flow constructs such as `if`, `match`, and `switch` live under the flow directory.

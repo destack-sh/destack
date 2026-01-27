@@ -1,7 +1,4 @@
 # Newtypes
 
-Nominal (distinct) types that prevent mixing semantically different values.
-
-## Files
-
-- `basic.md`: constructor behavior and nominal assignability
+Newtypes are nominal wrappers that prevent mixing semantically different values.
+These tests cover constructor behavior and nominal assignability.

@@ -641,7 +641,7 @@ impl Compiler {
         cache.insert(ty_id, mapped);
         mapped
     }
-    
+
     /// Solve inference variables and commit the results into the TypeTable.
     pub fn solve_infer_table(
         &self,

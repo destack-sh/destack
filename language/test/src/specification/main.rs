@@ -1,19 +1,179 @@
-use std::process::ExitCode;
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::process::{Command, ExitCode};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 
-use destack_test::harness::{Runner, TestOptions};
+use destack_test::harness::{Runner, Suite, TestOptions, fixtures_dir};
+use destack_test::mdtest::discover_md_files;
 use destack_test::specification::SpecificationSuite;
+
+const SPEC_STACK_BYTES: &str = "134217728";
+const SPEC_CHILD_ENV: &str = "DESTACK_SPEC_CHILD";
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum IsolationLevel {
+    None,
+    Group,
+    File,
+    Test,
+}
 
 #[derive(Parser, Debug, Clone)]
 #[command(name = "specification", about = "Run Destack specification tests")]
 struct SpecificationOptions {
     #[command(flatten)]
     test: TestOptions,
+
+    /// Isolate tests in subprocesses by group, file, or test.
+    #[arg(long, value_enum, default_value_t = IsolationLevel::None)]
+    isolate: IsolationLevel,
 }
 
 fn main() -> ExitCode {
+    // increase worker stack size to reduce aborts from deep type recursion
+    unsafe {
+        // safe: set once before worker threads spawn
+        std::env::set_var("RUST_MIN_STACK", SPEC_STACK_BYTES);
+    }
+
     let options = SpecificationOptions::parse();
-    let suite = SpecificationSuite::load();
-    Runner::run_suite(&suite, &options.test)
+
+    // run a single unified suite in normal mode
+    let is_child = std::env::var_os(SPEC_CHILD_ENV).is_some();
+    let normal_mode = matches!(options.isolate, IsolationLevel::None);
+    if is_child || options.test.filter.is_some() || options.test.list || normal_mode {
+        let suite = SpecificationSuite::load();
+        return Runner::run_suite(&suite, &options.test);
+    }
+
+    run_isolated(&options.test, options.isolate)
+}
+
+fn run_isolated(options: &TestOptions, isolate: IsolationLevel) -> ExitCode {
+    let spec_dir = fixtures_dir().join("specification");
+    let entries = isolation_entries(&spec_dir, isolate);
+    if entries.is_empty() {
+        println!("no tests to run");
+        return ExitCode::SUCCESS;
+    }
+
+    let mut failures: Vec<(String, std::process::ExitStatus)> = Vec::new();
+    for entry in entries {
+        let (label, filter) = entry;
+        println!();
+        println!("== {label} ==");
+        let status = run_child(options, &filter);
+        if !status.success() {
+            print_child_failure(&label, &status);
+            failures.push((label, status));
+        }
+    }
+
+    if failures.is_empty() {
+        return ExitCode::SUCCESS;
+    }
+
+    println!();
+    println!("isolation failures: {}", failures.len());
+    for (label, status) in failures.iter().take(20) {
+        print_child_failure(label, status);
+    }
+    if failures.len() > 20 {
+        println!("...and {} more", failures.len() - 20);
+    }
+
+    ExitCode::FAILURE
+}
+
+fn isolation_entries(spec_dir: &Path, isolate: IsolationLevel) -> Vec<(String, String)> {
+    match isolate {
+        IsolationLevel::None => Vec::new(),
+        IsolationLevel::Group => top_level_groups(spec_dir)
+            .into_iter()
+            .map(|group| {
+                let filter = format!("{group}/");
+                (group, filter)
+            })
+            .collect(),
+        IsolationLevel::File => discover_md_files(spec_dir)
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|md_path| {
+                let relative = md_path.strip_prefix(spec_dir).ok()?;
+                let relative = relative.to_string_lossy().to_string();
+                Some(relative)
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .map(|relative| (relative.clone(), relative))
+            .collect(),
+        IsolationLevel::Test => {
+            let suite = SpecificationSuite::load();
+            let mut entries: BTreeSet<String> = BTreeSet::new();
+            for case in suite.discover(&TestOptions::default()) {
+                entries.insert(case.full_name());
+            }
+            entries
+                .into_iter()
+                .map(|name| (name.clone(), name))
+                .collect()
+        }
+    }
+}
+
+fn top_level_groups(spec_dir: &Path) -> BTreeSet<String> {
+    let mut groups = BTreeSet::new();
+    for md_path in discover_md_files(spec_dir).unwrap_or_default() {
+        let Ok(relative) = md_path.strip_prefix(spec_dir) else {
+            continue;
+        };
+        let Some(component) = relative.components().next() else {
+            continue;
+        };
+        let group = component.as_os_str().to_string_lossy().to_string();
+        groups.insert(group);
+    }
+    groups
+}
+
+fn run_child(options: &TestOptions, filter: &str) -> std::process::ExitStatus {
+    let exe = std::env::current_exe().expect("failed to resolve current executable");
+    let mut command = Command::new(exe);
+    command.env(SPEC_CHILD_ENV, "1");
+    command.arg(filter);
+    command.arg("--jobs");
+    command.arg(options.jobs.to_string());
+    if options.no_parallel {
+        command.arg("--no-parallel");
+    }
+    if options.verbose {
+        command.arg("--verbose");
+    }
+    if options.update_known_failures {
+        command.arg("--update-known-failures");
+    }
+    command.status().expect("failed to run specification child")
+}
+
+#[cfg(unix)]
+fn print_child_failure(group: &str, status: &std::process::ExitStatus) {
+    use std::os::unix::process::ExitStatusExt;
+
+    if let Some(signal) = status.signal() {
+        println!("group {group} aborted with signal {signal}");
+    } else if let Some(code) = status.code() {
+        println!("group {group} exited with code {code}");
+    } else {
+        println!("group {group} failed");
+    }
+}
+
+#[cfg(not(unix))]
+fn print_child_failure(group: &str, status: &std::process::ExitStatus) {
+    if let Some(code) = status.code() {
+        println!("group {group} exited with code {code}");
+    } else {
+        println!("group {group} failed");
+    }
 }

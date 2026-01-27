@@ -86,6 +86,9 @@ impl Runner {
         let summary = TestSummary::new();
         let start = Instant::now();
 
+        // decide whether to skip a known failure without running it
+        let skip_known_failures = !context.options.update_known_failures;
+
         let results: Vec<(TestCase, TestResult, std::time::Duration)> =
             if context.options.parallel() {
                 let jobs = context.options.jobs.max(1);
@@ -100,13 +103,12 @@ impl Runner {
                         .map(|case| {
                             let case_start = Instant::now();
 
-                            let result = if case.is_skipped {
-                                TestResult::Skipped {
-                                    reason: "marked as skipped".to_string(),
-                                }
-                            } else {
-                                run(case, context)
-                            };
+                            // skip known failures and underscore skipped tests up front
+                            let result =
+                                match skip_reason(case, expected_failures, skip_known_failures) {
+                                    Some(reason) => TestResult::Skipped { reason },
+                                    None => run(case, context),
+                                };
 
                             let duration = case_start.elapsed();
 
@@ -137,12 +139,11 @@ impl Runner {
                     .map(|case| {
                         let case_start = Instant::now();
 
-                        let result = if case.is_skipped {
-                            TestResult::Skipped {
-                                reason: "marked as skipped".to_string(),
-                            }
-                        } else {
-                            run(case, context)
+                        // skip known failures and underscore skipped tests up front
+                        let result = match skip_reason(case, expected_failures, skip_known_failures)
+                        {
+                            Some(reason) => TestResult::Skipped { reason },
+                            None => run(case, context),
                         };
 
                         let duration = case_start.elapsed();
@@ -176,7 +177,12 @@ impl Runner {
         let mut expected_summary = ExpectedFailureSummary::new(expected_failures);
         for (case, result, duration) in results {
             raw_results.push((case.clone(), result.clone()));
-            let result = expected_summary.update(&case, result);
+            let result = if is_known_failure_skip(&result) {
+                expected_summary.record_known_failure(&case);
+                result
+            } else {
+                expected_summary.update(&case, result)
+            };
             summary.record(&result);
             print_result(&case, &result, duration, context.options.verbose);
             final_results.push((case, result));
@@ -238,6 +244,38 @@ impl Runner {
     }
 }
 
+/// Compute a skip reason for a case when it should not run.
+fn skip_reason(
+    case: &TestCase,
+    expected_failures: Option<&HashSet<String>>,
+    skip_known_failures: bool,
+) -> Option<String> {
+    // respect underscore-prefixed skips first
+    if case.is_skipped {
+        return Some("marked as skipped".to_string());
+    }
+
+    // skip known failures unless we are refreshing the baseline
+    if skip_known_failures {
+        let full_name = case.full_name();
+        let is_known_failure = expected_failures
+            .is_some_and(|set| set.contains(&full_name) || set.contains(&case.name));
+        if is_known_failure {
+            return Some("known failure".to_string());
+        }
+    }
+
+    None
+}
+
+/// Check whether a result was skipped because it is a known failure.
+fn is_known_failure_skip(result: &TestResult) -> bool {
+    matches!(
+        result,
+        TestResult::Skipped { reason } if reason == "known failure"
+    )
+}
+
 #[derive(Debug, Default)]
 struct ExpectedFailureSummary {
     /// Set of known failures.
@@ -258,6 +296,19 @@ impl ExpectedFailureSummary {
             regressions: Vec::new(),
             fixed: Vec::new(),
             known_failed: Vec::new(),
+        }
+    }
+
+    /// Record a known failure that was skipped before running.
+    fn record_known_failure(&mut self, case: &TestCase) {
+        let Some(expected) = self.expected.as_ref() else {
+            return;
+        };
+
+        let full_name = case.full_name();
+        let is_expected = expected.contains(&full_name) || expected.contains(&case.name);
+        if is_expected {
+            self.known_failed.push(full_name);
         }
     }
 

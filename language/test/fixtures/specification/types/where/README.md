@@ -1,7 +1,4 @@
 # Where
 
-Where clauses attach constraints to declarations.
-
-## Files
-
-- `basic.md`: Constraint assertions
+Where clauses attach readable constraints to declarations.
+These tests focus on constraint satisfaction and error reporting.

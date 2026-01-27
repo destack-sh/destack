@@ -1,7 +1,4 @@
 # Enums
 
-Nominal enums with integer or string backing types.
-
-## Files
-
-- `basic.md`: backing type inference and nominal behavior
+Enums are nominal and have explicit backing type behavior.
+These tests cover backing type inference and nominal assignability rules.

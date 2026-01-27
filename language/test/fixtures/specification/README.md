@@ -1,53 +1,23 @@
 # Markdown Tests
 
-Markdown-driven specification tests for the Destack type checker.
+Markdown driven specification tests for the Destack type checker.
+The directory layout follows the analyzer pipeline so tests live near the semantics they exercise.
 
-## Directory Structure
+## Layout Principles
 
-Tests are organized into two main sections:
+Tests are grouped by semantic subsystem rather than by syntax alone.
+The core buckets mirror bind, resolve, type, and flow concerns, with modules as a first class boundary.
 
-### TypeScript
+### Primary Directories
 
-Standard JavaScript/TypeScript behavior that Destack inherits:
-
-| Directory | Description |
-|-----------|-------------|
-| `basics/` | Primitives, special types, type inference |
-| `literals/` | Literal type inference (strings, numbers, arrays, objects) |
-| `operators/` | Arithmetic, comparison, logical, bitwise operators |
-| `composites/` | Unions, intersections, tuples |
-| `narrowing/` | Type narrowing, control flow analysis |
-| `functions/` | Functions, generics, inference |
-| `classes/` | Class declarations, constructors, methods |
-| `inheritance/` | Class extends, interface implements |
-| `iterators/` | for...of, for...in, iterables |
-| `modules/` | Imports, exports, resolution |
-| `async/` | Promises, async/await, generators |
-
-### Destack
-
-Extensions beyond standard TypeScript, organized by `LanguageFeature`:
-
-| Directory | Feature | Description |
-|-----------|---------|-------------|
-| `expressions/` | Expressions | Implicit returns, if-expressions, match, ranges, tuples, patterns |
-| `types/` | Types | Newtypes, structs, precise primitives, where clauses |
-| `reflection/` | Reflection | Type descriptors, runtime type info, decorator metadata |
-| `dispatch/` | Dispatch | Extensions, function/operator overloading |
-| `ownership/` | Ownership | References (`&T`), values (`^T`), mutability |
-
-### Configuration
-
-| Directory | Description |
-|-----------|-------------|
-| `options/` | Compiler options and enforcement |
-
-### Development
-
-| Directory | Description |
-|-----------|-------------|
-| `staging/` | Tests for unimplemented features |
-| `regression/` | Tests for specific bug fixes |
+`modules` covers import graphs, exports, globals, and namespace behavior across files.
+`declarations` covers how symbols are introduced and validated across functions, classes, inheritance, static if, and reflection.
+`resolution` covers name, member, call, extension, operator, and overload selection.
+`types` covers assignability, generics, type operators, widening commitments, and Destack specific type system extensions.
+`flow` covers narrowing and control flow constructs that commit or preserve type information.
+`expressions` covers expression typing rules that are not primarily about control flow narrowing.
+`options` covers compiler options that gate behavior.
+`regression` covers surgical bug reproductions that do not fit cleanly elsewhere.
 
 ## Test Format
 
@@ -100,8 +70,8 @@ Examples:
 cargo test --test specification
 
 # filter by path/name
-cargo test --test specification -- basics
-cargo test --test specification -- functions/basic
+cargo test --test specification -- types/widening
+cargo test --test specification -- resolution/overloads
 
 # list tests
 cargo test --test specification -- --list
@@ -112,10 +82,10 @@ cargo test --test specification -- --verbose
 
 ## Adding Tests
 
-1. Find or create the appropriate category directory
-2. Find or create an appropriate `.md` file
-3. Add an H3/H4 test case with code and expected errors
-4. Run `cargo test --test specification` to verify
+1. Choose the semantic subsystem that owns the behavior.
+2. Add the test to an existing topical file or create a new noun named file.
+3. Keep positive and negative expectations in separate test cases because error assertions are not line specific.
+4. Run `cargo test --test specification` to verify.
 
 For bug fixes, include the issue number and add to `regression/`:
 ```markdown
