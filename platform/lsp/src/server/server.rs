@@ -1120,18 +1120,60 @@ impl LanguageServer for DestackLanguageServer {
         // convert to LSP completion items
         let items: Vec<lsp::CompletionItem> = completions
             .into_iter()
-            .map(|c| lsp::CompletionItem {
-                label: c.label,
-                kind: Some(completion_kind_to_lsp(c.kind)),
-                detail: c.detail,
-                documentation: c.documentation.map(|d| {
-                    lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                        kind: lsp::MarkupKind::Markdown,
-                        value: d,
-                    })
-                }),
-                insert_text: c.insert_text,
-                ..Default::default()
+            .map(|c| {
+                let insert_text_format = if c.is_snippet {
+                    Some(lsp::InsertTextFormat::SNIPPET)
+                } else {
+                    None
+                };
+
+                // convert additional text edits
+                let additional_text_edits = if c.additional_text_edits.is_empty() {
+                    None
+                } else {
+                    Some(
+                        c.additional_text_edits
+                            .iter()
+                            .filter_map(|edit| {
+                                // for now, only handle edits to the same file
+                                if edit.span.file != doc.file_id {
+                                    return None;
+                                }
+                                Some(lsp::TextEdit {
+                                    range: byte_span_to_range(&file, edit.span),
+                                    new_text: edit.new_text.clone(),
+                                })
+                            })
+                            .collect(),
+                    )
+                };
+
+                // handle deprecated items
+                let (deprecated, tags) = if c.deprecated {
+                    (Some(true), Some(vec![lsp::CompletionItemTag::DEPRECATED]))
+                } else {
+                    (None, None)
+                };
+
+                lsp::CompletionItem {
+                    label: c.label,
+                    kind: Some(completion_kind_to_lsp(c.kind)),
+                    detail: c.detail,
+                    documentation: c.documentation.map(|d| {
+                        lsp::Documentation::MarkupContent(lsp::MarkupContent {
+                            kind: lsp::MarkupKind::Markdown,
+                            value: d,
+                        })
+                    }),
+                    insert_text: c.insert_text,
+                    insert_text_format,
+                    sort_text: c.sort_text,
+                    preselect: if c.preselect { Some(true) } else { None },
+                    deprecated,
+                    tags,
+                    additional_text_edits,
+                    ..Default::default()
+                }
             })
             .collect();
 

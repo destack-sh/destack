@@ -7,10 +7,11 @@ use destack_compiler::{CompilerEventHandler, CompilerOptions};
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandStats, CommandTargetOverrides, CommonCommandOptions,
-    ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonRequest,
-    DaemonResponse, DiagnosticBatch, FileSnapshot, OpenWorkspaceRequest, OutputStream,
-    ProtocolClient, RescanReason, RescanWorkspaceRequest, WatchBatch as ProtocolWatchBatch,
-    WatchBatchRequest, WatchEvent, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
+    ConfigOverride, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonQuery,
+    DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
+    OpenWorkspaceRequest, OutputStream, ProtocolClient, RescanReason, RescanWorkspaceRequest,
+    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
+    WorkspaceHandleId, WorkspaceOpenOptions,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -19,6 +20,7 @@ use destack_daemon::{
 use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
+use destack_workspace::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 use destack_workspace::{OptimizeLevel, Session};
 
 use crate::common::report::CommandCacheStats;
@@ -354,6 +356,94 @@ impl ProtocolDaemonClient {
         };
 
         Ok(command_result_from_response(response))
+    }
+
+    /// Run a workspace query for a root.
+    pub fn run_query(
+        &self,
+        root: &Path,
+        request: QueryRequestEnvelope,
+    ) -> CliResult<QueryResponseEnvelope> {
+        // resolve the workspace handle
+        let handle = self.handle_for_root(root).ok_or_else(|| {
+            CliError::message(format!("workspace root not opened: {}", root.display()))
+        })?;
+
+        // send the request to the daemon
+        let response = self
+            .client
+            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
+                handle: handle.handle,
+                request,
+            }))
+            .map_err(|error| CliError::message(format!("query request failed: {error}")))?;
+
+        // unwrap the protocol response
+        let response = match response {
+            DaemonResponse::QueryResult(response) => response,
+            DaemonResponse::Error(error) => {
+                return Err(CliError::message(format!("query failed: {error}")));
+            }
+            other => {
+                return Err(CliError::message(format!("unexpected response: {other:?}")));
+            }
+        };
+
+        // unwrap the query response
+        let response = match response {
+            DaemonQueryResponse::WorkspaceQuery(response) => response,
+            other => {
+                return Err(CliError::message(format!(
+                    "unexpected query response: {other:?}"
+                )));
+            }
+        };
+
+        Ok(response)
+    }
+
+    /// Run a batch of workspace queries for a root.
+    pub fn run_query_batch(
+        &self,
+        root: &Path,
+        requests: Vec<QueryRequestEnvelope>,
+    ) -> CliResult<Vec<QueryResponseEnvelope>> {
+        // resolve the workspace handle
+        let handle = self.handle_for_root(root).ok_or_else(|| {
+            CliError::message(format!("workspace root not opened: {}", root.display()))
+        })?;
+
+        // send the request to the daemon
+        let response = self
+            .client
+            .send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
+                handle: handle.handle,
+                requests,
+            }))
+            .map_err(|error| CliError::message(format!("query request failed: {error}")))?;
+
+        // unwrap the protocol response
+        let response = match response {
+            DaemonResponse::QueryResult(response) => response,
+            DaemonResponse::Error(error) => {
+                return Err(CliError::message(format!("query failed: {error}")));
+            }
+            other => {
+                return Err(CliError::message(format!("unexpected response: {other:?}")));
+            }
+        };
+
+        // unwrap the query response
+        let response = match response {
+            DaemonQueryResponse::WorkspaceQueryBatch(response) => response,
+            other => {
+                return Err(CliError::message(format!(
+                    "unexpected query response: {other:?}"
+                )));
+            }
+        };
+
+        Ok(response)
     }
 
     /// Release the daemon connection.
