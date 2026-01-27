@@ -106,7 +106,6 @@ declare function getBroken(): BrokenTry<int, Error>;
 
 function read(): Result<int, Error> {
     const value = getBroken()?;
-    value satisfies int;
     return Result.ok(value);
 }
 ```
@@ -173,7 +172,6 @@ declare function getBad(): BadTry<int, Error>;
 
 function read(): Result<int, Error> {
     const value = getBad()?;
-    value satisfies int;
     return Result.ok(value);
 }
 ```

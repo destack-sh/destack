@@ -464,3 +464,42 @@ declare let value: Buffer<SIZE>;
 ```
 
 - contains: static argument must be a static expression
+
+## inference
+
+### value parameter inference preserves literal values
+
+> Inferred value parameters should preserve literal precision rather than widening.
+
+```ds
+type Buffer<comptime N: number> = uint8[N];
+
+declare function size<comptime N: number>(value: Buffer<N>): N;
+
+declare let buf: Buffer<4>;
+
+const n = size(buf);
+n satisfies 4;
+```
+
+## cross module
+
+### value parameter inference remains precise across modules
+
+> Cross-module inference should preserve literal value parameters without forcing remote inference.
+
+```ds:api.ds
+export type Buffer<comptime N: number> = uint8[N];
+
+export declare function size<comptime N: number>(value: Buffer<N>): N;
+```
+
+```ds:main.ds
+import type { Buffer } from "./api.ds";
+import { size } from "./api.ds";
+
+declare let buf: Buffer<4>;
+
+const n = size(buf);
+n satisfies 4;
+```

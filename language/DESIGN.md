@@ -693,6 +693,8 @@ extension for Vector2 implements Add<Vector2> {
 
 For operators, Destack uses **receiver-based dispatch**: `a + b` becomes `a.add(b)`.
 Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first matching overload wins.
+Overload resolution filters applicable candidates, including static and `comptime` constraints, then selects the first applicable candidate in declaration order.
+Overload order is defined at the declaring module and is forwarded unchanged across module boundaries.
 
 ### Dynamic Resolution
 
