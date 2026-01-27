@@ -39,7 +39,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "dead-arg-eliminate")]
+    #[pass(id = "dead-arg-eliminate", requires(call_effects))]
     pub DeadArgEliminate,
     "Eliminate unused function arguments"
 }

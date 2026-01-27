@@ -49,7 +49,7 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "dse")]
+    #[pass(id = "dse", requires(call_effects, memory_access_metadata))]
     pub DeadStoreEliminate,
     "Remove dead stores"
 }

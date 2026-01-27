@@ -21,7 +21,8 @@ struct DeclarePassInput {
 struct PassAttr {
     /// The pass ID (e.g., "constant-fold").
     id: String,
-    // NOTE #Incomplete: add requires/invalidates when we have analysis caching
+    /// Required metadata for this pass.
+    requires: Vec<String>,
 }
 
 impl Parse for DeclarePassInput {
@@ -68,6 +69,7 @@ fn parse_pass_attr(attrs: &[Attribute]) -> Result<PassAttr> {
         .ok_or_else(|| syn::Error::new_spanned(&attrs[0], "missing #[pass(...)] attribute"))?;
 
     let mut id: Option<String> = None;
+    let mut requires: Vec<String> = Vec::new();
 
     pass_attr.parse_nested_meta(|meta| {
         if meta.path.is_ident("id") {
@@ -75,14 +77,24 @@ fn parse_pass_attr(attrs: &[Attribute]) -> Result<PassAttr> {
             let lit: LitStr = meta.input.parse()?;
             id = Some(lit.value());
         }
-        // NOTE #Incomplete: parse requires/invalidates when we have analysis caching
+        if meta.path.is_ident("requires") {
+            let content;
+            syn::parenthesized!(content in meta.input);
+            while !content.is_empty() {
+                let ident: Ident = content.parse()?;
+                requires.push(ident.to_string());
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                }
+            }
+        }
         Ok(())
     })?;
 
     let id =
         id.ok_or_else(|| syn::Error::new_spanned(pass_attr, "missing `id` in #[pass(...)]"))?;
 
-    Ok(PassAttr { id })
+    Ok(PassAttr { id, requires })
 }
 
 /// Extract doc comment text from attributes.
@@ -118,7 +130,28 @@ pub(crate) fn declare_pass_impl(input: TokenStream) -> TokenStream {
         description,
     } = input;
 
-    let PassAttr { id } = pass_attr;
+    let PassAttr { id, requires } = pass_attr;
+
+    let mut requirements = quote!(crate::optimize::PassRequirements::NONE);
+    for requirement in requires {
+        let requirement_tokens = match requirement.as_str() {
+            "call_effects" => quote!(crate::optimize::PassRequirements::CALL_EFFECTS),
+            "memory_access_metadata" => {
+                quote!(crate::optimize::PassRequirements::MEMORY_ACCESS_METADATA)
+            }
+            "profile_data" => quote!(crate::optimize::PassRequirements::PROFILE_DATA),
+            "type_layouts" => quote!(crate::optimize::PassRequirements::TYPE_LAYOUTS),
+            _ => {
+                return syn::Error::new(
+                    name.span(),
+                    format!("unknown pass requirement {requirement}"),
+                )
+                .to_compile_error()
+                .into();
+            }
+        };
+        requirements = quote!(#requirements.union(#requirement_tokens));
+    }
 
     // generate static name: ConstantFold -> CONSTANT_FOLD
     let static_name = format_ident!("{}", to_screaming_snake_case(&name.to_string()));
@@ -132,7 +165,14 @@ pub(crate) fn declare_pass_impl(input: TokenStream) -> TokenStream {
             id: #id,
             name: stringify!(#name),
             description: #description,
+            requirements: #requirements,
         };
+
+        impl crate::optimize::Pass for #name {
+            fn metadata(&self) -> &'static crate::optimize::PassMetadata {
+                #static_name
+            }
+        }
 
         impl #name {
             /// Get the pass metadata.

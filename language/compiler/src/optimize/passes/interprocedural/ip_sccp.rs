@@ -43,7 +43,7 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "ip-sccp")]
+    #[pass(id = "ip-sccp", requires(call_effects))]
     pub InterproceduralSccp,
     "Interprocedural sparse conditional constant propagation"
 }

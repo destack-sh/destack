@@ -542,12 +542,18 @@ impl Compiler {
             .inline_budget_scale_percent
             .unwrap_or_else(|| Self::inline_budget_scale_percent_for_level(level));
 
+        let require_optimized_metadata = matches!(
+            level,
+            OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
+        );
+
         PipelineOptions {
             strict_borrow_mode,
             float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },
             unroll_threshold,
             inline_budget_scale_percent,
+            require_optimized_metadata,
             ..Default::default()
         }
     }

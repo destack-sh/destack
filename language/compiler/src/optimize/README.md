@@ -21,60 +21,22 @@ The Optimize phase runs verification passes early, then executes optimization pa
 Optimize performs transformations taking maximal advantage of high-level semantic information.
 The backend handles low-level optimizations such as register allocation, instruction selection, and peephole passes.
 
-This MIR optimizer runs only for native targets.
-JS or TS targets lower and generate code directly from DIR without MIR.
+MIR verification passes run at O0 for every target because they depend on lowered MIR and optimizer analyses.
+Optimization passes beyond verification run only for native targets.
+JS or TS targets generate code directly from canonical DIR after MIR verification.
+Comptime execution happens in Execute and is not part of the Optimize pipeline.
 
 ## Optimization Levels
 
 | Level | Use Case | What Runs |
 |-------|----------|-----------|
 | `O0` | Debug | Verification only |
-| `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization + type cleanup |
+| `O1` | Dev, fast builds | Verification + local scalar + SSA/memory canonicalization + type cleanup and bounds checks |
 | `O2` | Release | O1 + global scalar, memory, and loop optimizations |
 | `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
 | `O4` | Max | O3 + extra fixed point rounds and optional LTO |
 
 ---
-
-## MIR Contracts
-
-Optimize relies on two MIR contracts that become stricter at higher levels.
-Core MIR must be type-correct and fully typed for value producers.
-Pointer-producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry result types inline.
-`load` carries its result type inline.
-`call.indirect` carries its signature type inline.
-Core MIR is verified at O0 and O1.
-
-Optimizable MIR is required at O2 and above.
-All call sites must have call metadata with effects and dispatch information.
-All memory accesses must have memory metadata for size and address space at minimum.
-Aggregate layouts required by layout-sensitive passes must be present in the type table.
-Pipelines that enable profile guided transforms require profile data to be available.
-
-## Pass Contracts
-
-Each pass states and enforces its own legality conditions.
-Loop transforms require canonical loop form with preheaders, a single latch, and dedicated exits.
-Passes that mutate control flow must preserve block parameter arity and keep SSA values consistent.
-Memory transforms must conservatively handle unknown call or memory metadata by skipping the transform.
-Profile guided transforms must treat missing profiles as cold and skip speculative rewrites.
-
-## Pipeline Policy
-
-Pipelines are built from fixed point islands to avoid pass thrashing.
-Scalar islands are iterated with bounded counts at O2 and above.
-Memory and loop passes run in bounded fixed point islands at O2 and above.
-Loop simplify runs at the start of each loop island to enforce canonical form.
-Potentially conflicting loop transforms run in separate islands.
-Interprocedural transforms run before late function level pipelines and feed summaries forward.
-
-## Profitability Model
-
-Aggressive transforms are gated by cost models rather than legality alone.
-Inlining, specialization, and cloning use size, hotness, and threshold based cost models.
-Loop transforms use trip count, body size, memory stride, and profile hotness to decide.
-Vectorization and unroll decisions use target widths and configurable thresholds.
-Key heuristics are exposed via optimization configuration for tuning and regression control.
 
 ## Analyses
 
@@ -330,6 +292,3 @@ Target pipelines evolve with new analyses, but the expected layering is:
 - `O2`: `O1` + global scalar fixed point islands around memory, loop, and type transforms
 - `O3`: `O2` + more aggressive fixed point islands and loop transforms
 - `O4`: `O3` + extra fixed point rounds and LTO based on ltoMode
-
-Module passes run first, then function passes run on each function.
-Pipelines may iterate passes until a fixed point when profitable.

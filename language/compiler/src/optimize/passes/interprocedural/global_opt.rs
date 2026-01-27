@@ -30,7 +30,7 @@ declare_pass! {
     ///     return v1
     /// }
     /// ```
-    #[pass(id = "global-opt")]
+    #[pass(id = "global-opt", requires(call_effects))]
     pub GlobalOpt,
     "Optimize immutable globals"
 }

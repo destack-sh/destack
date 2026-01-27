@@ -47,7 +47,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "store-sink")]
+    #[pass(id = "store-sink", requires(call_effects, memory_access_metadata))]
     pub StoreSink,
     "Sink stores to the edges that require them"
 }

@@ -52,7 +52,7 @@ declare_pass! {
     ///     return v3
     /// }
     /// ```
-    #[pass(id = "load-pre")]
+    #[pass(id = "load-pre", requires(call_effects, memory_access_metadata))]
     pub LoadPre,
     "Eliminate partially redundant loads"
 }

@@ -52,7 +52,7 @@ declare_pass! {
     ///     return
     /// }
     /// ```
-    #[pass(id = "store-pre")]
+    #[pass(id = "store-pre", requires(call_effects, memory_access_metadata))]
     pub StorePre,
     "Eliminate partially redundant stores"
 }
