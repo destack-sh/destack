@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use destack_source::{ModuleId, ProfileId};
+use destack_workspace::query::{QueryRequestEnvelope, QueryResponseEnvelope};
 
 use super::{BinaryPayload, DiagnosticBatch, WorkspaceHandleId};
 
@@ -29,6 +30,20 @@ pub enum DaemonQuery {
     Diagnostics { handle: WorkspaceHandleId },
     /// Request cache statistics.
     CacheStats { handle: WorkspaceHandleId },
+    /// Execute a workspace query.
+    WorkspaceQuery {
+        /// Workspace handle.
+        handle: WorkspaceHandleId,
+        /// Query request envelope.
+        request: QueryRequestEnvelope,
+    },
+    /// Execute a batch of workspace queries.
+    WorkspaceQueryBatch {
+        /// Workspace handle.
+        handle: WorkspaceHandleId,
+        /// Query request envelopes.
+        requests: Vec<QueryRequestEnvelope>,
+    },
 }
 
 /// Query response payloads.
@@ -44,6 +59,10 @@ pub enum DaemonQueryResponse {
     Diagnostics(Vec<DiagnosticBatch>),
     /// Cache stats payload.
     CacheStats(CacheStatsPayload),
+    /// Workspace query response.
+    WorkspaceQuery(QueryResponseEnvelope),
+    /// Workspace query batch response.
+    WorkspaceQueryBatch(Vec<QueryResponseEnvelope>),
 }
 
 /// Cache stats payload.

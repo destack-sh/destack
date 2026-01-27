@@ -1281,6 +1281,7 @@ dependencies = [
  "pulldown-cmark",
  "rayon",
  "serde",
+ "serde_json",
  "toml",
 ]
 

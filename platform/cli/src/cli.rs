@@ -9,7 +9,7 @@ use crate::command::DevCommand;
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
     DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
-    ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
+    QueryArgs, ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -118,6 +118,9 @@ pub enum Command {
 
     /// Start the daemon service (for CLI/LSP integration).
     Daemon(DaemonArgs),
+
+    /// Execute workspace queries.
+    Query(QueryArgs),
 
     /// Start a REPL session.
     Repl(ReplArgs),
@@ -308,6 +311,12 @@ fn build_commands_help(color_enabled: bool) -> String {
             name: "lsp",
             example: "",
             help: "Start the language server (for editor integration)",
+            group: 3,
+        },
+        CommandEntry {
+            name: "query",
+            example: "",
+            help: "Execute workspace queries",
             group: 3,
         },
         CommandEntry {

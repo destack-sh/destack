@@ -14,16 +14,18 @@ use crate::{Daemon, DaemonError, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
     BinaryPayload, CacheStatsPayload, CommandRequest, CommandResponse, DaemonNotification,
-    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
-    FileUpdateKind, FileUpdateRequest, FileUpdateResponse, HandshakeRequest, HandshakeResponse,
-    PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId, ProtocolCodec,
-    ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
-    ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, RescanWorkspaceRequest,
-    ServerInfo, SessionId, Transport, TransportError, WatchBatchRequest, WatchBatchResponse,
-    WatchRequest, WatchResponse, WorkspaceHandleId, WorkspaceOpenedResponse,
-    WorkspaceRescanResponse, daemon_messages_to_records, daemon_updates_to_records,
-    diagnostics_to_batches, files_to_snapshots, inline_payload_max_bytes, payload_chunk_bytes,
+    DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate, FileUpdateKind, FileUpdateRequest,
+    FileUpdateResponse, HandshakeRequest, HandshakeResponse, PayloadBody, PayloadChunkNotification,
+    PayloadFormat, PayloadId, ProtocolCodec, ProtocolCodecError, ProtocolError, ProtocolErrorCode,
+    ProtocolLimits, ProtocolMessage, ProtocolNotification, ProtocolRange, ProtocolRequest,
+    ProtocolResponse, RescanWorkspaceRequest, ServerInfo, SessionId, Transport, TransportError,
+    WatchBatchRequest, WatchBatchResponse, WatchRequest, WatchResponse, WorkspaceHandleId,
+    WorkspaceOpenedResponse, WorkspaceRescanResponse, daemon_messages_to_records,
+    daemon_updates_to_records, diagnostics_to_batches, files_to_snapshots,
+    inline_payload_max_bytes, payload_chunk_bytes,
 };
+
+mod query;
 
 /// Server side protocol handler for daemon requests.
 #[derive(Debug)]
@@ -675,45 +677,6 @@ impl ProtocolServer {
             stats: result.stats,
             data,
         }))
-    }
-
-    /// Handle a query request.
-    fn handle_query(&self, query: DaemonQuery) -> Result<DaemonResponse, ProtocolError> {
-        self.require_session()?;
-        let response = match query {
-            DaemonQuery::WorkspaceIndex { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self.prepare_payload(self.workspace_index_payload(&root)?)?;
-                DaemonQueryResponse::WorkspaceIndex(payload)
-            }
-            DaemonQuery::ModuleGraph { handle, profile } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self.prepare_payload(self.module_graph_payload(&root, profile)?)?;
-                DaemonQueryResponse::ModuleGraph(payload)
-            }
-            DaemonQuery::ModuleSignature {
-                handle,
-                module_id,
-                profile,
-            } => {
-                let root = self.root_for_handle(handle)?;
-                let payload = self
-                    .prepare_payload(self.module_signature_payload(&root, module_id, profile)?)?;
-                DaemonQueryResponse::ModuleSignature(payload)
-            }
-            DaemonQuery::Diagnostics { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let diagnostics = self.diagnostics_for_root(&root)?;
-                DaemonQueryResponse::Diagnostics(diagnostics)
-            }
-            DaemonQuery::CacheStats { handle } => {
-                let root = self.root_for_handle(handle)?;
-                let stats = self.cache_stats_for_root(&root)?;
-                DaemonQueryResponse::CacheStats(stats)
-            }
-        };
-
-        Ok(DaemonResponse::QueryResult(response))
     }
 
     /// Handle watch subscribe and unsubscribe requests.
