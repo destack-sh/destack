@@ -730,6 +730,7 @@ Raw pointers are separate from ownership modifiers:
 ```
 **Borrow semantics:**
 - `&T` and `&mut T` are safe borrows verified by the borrow check pass.
+- Assigning through `&T` is invalid, mutation requires `&mut T`.
 - Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 - `&expr` takes the address of an addressable place.
 - When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
