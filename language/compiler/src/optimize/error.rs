@@ -164,6 +164,16 @@ pub enum OptimizeError {
     },
 
     // -------------------------------------------------------------------------
+    // 5xx: Metadata contract errors
+    // -------------------------------------------------------------------------
+    /// Required metadata is missing for the configured pipeline.
+    #[error(code = "EO500", message = "missing required metadata: {message}")]
+    MissingRequiredMetadata {
+        node: mir::AnchoredGlobalNodeId,
+        message: String,
+    },
+
+    // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported MIR construct encountered during optimization.

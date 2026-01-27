@@ -64,7 +64,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "argument-specialize")]
+    #[pass(id = "argument-specialize", requires(call_effects))]
     pub ArgumentSpecialize,
     "Clone functions for constant argument callsites"
 }

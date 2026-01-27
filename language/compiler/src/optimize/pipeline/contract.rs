@@ -1,0 +1,346 @@
+use destack_mir as mir;
+
+use crate::OptimizeError;
+use crate::optimize::{PassMetadata, PassRequirements, PipelineContext};
+
+/// Enforce metadata requirements for a function pass.
+pub(crate) fn enforce_function_requirements(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    function_id: mir::LocalNodeId<mir::Function>,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> bool {
+    // skip enforcement when not required
+    if !ctx.require_optimized_metadata() {
+        return true;
+    }
+
+    // skip when no requirements are set
+    if metadata.requirements.is_empty() {
+        return true;
+    }
+
+    // skip after errors have been emitted
+    if ctx.has_errors() {
+        return false;
+    }
+
+    // evaluate requirements
+    let mut ok = true;
+    if metadata
+        .requirements
+        .contains(PassRequirements::CALL_EFFECTS)
+    {
+        ok &= enforce_call_effects(ctx, metadata, function, tree);
+    }
+    if metadata
+        .requirements
+        .contains(PassRequirements::MEMORY_ACCESS_METADATA)
+    {
+        ok &= enforce_memory_metadata(ctx, metadata, function, tree);
+    }
+    if metadata
+        .requirements
+        .contains(PassRequirements::PROFILE_DATA)
+    {
+        ok &= enforce_profile_data(ctx, metadata, function_id, function);
+    }
+    if metadata
+        .requirements
+        .contains(PassRequirements::TYPE_LAYOUTS)
+    {
+        ok &= enforce_type_layouts(ctx, metadata, tree);
+    }
+
+    ok
+}
+
+/// Enforce metadata requirements for a module pass.
+pub(crate) fn enforce_module_requirements(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    tree: &mir::NodeTree,
+) -> bool {
+    // skip enforcement when not required
+    if !ctx.require_optimized_metadata() {
+        return true;
+    }
+
+    // skip when no requirements are set
+    if metadata.requirements.is_empty() {
+        return true;
+    }
+
+    // skip after errors have been emitted
+    if ctx.has_errors() {
+        return false;
+    }
+
+    // evaluate requirements per function
+    let mut ok = true;
+    for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+        ok &= enforce_function_requirements(ctx, metadata, function_id, function, tree);
+    }
+
+    ok
+}
+
+/// Enforce call effects metadata for a function.
+fn enforce_call_effects(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> bool {
+    // skip imported functions
+    if function.entry.is_none() {
+        return true;
+    }
+
+    // scan call instructions
+    let mut ok = true;
+    for block_id in &function.blocks {
+        let block = tree.get(*block_id);
+        for instruction_id in &block.instructions {
+            let instruction = tree.get(*instruction_id);
+            if !instruction_is_call(instruction) {
+                continue;
+            }
+
+            let Some(effects) = instruction.call_effects() else {
+                emit_missing_requirement(ctx, metadata, *instruction_id, "call effects");
+                ok = false;
+                continue;
+            };
+
+            if effects.memory_effects.is_none() {
+                emit_missing_requirement(ctx, metadata, *instruction_id, "call memory effects");
+                ok = false;
+            }
+
+            if effects.behavior.is_none() {
+                emit_missing_requirement(ctx, metadata, *instruction_id, "call behavior");
+                ok = false;
+            }
+        }
+    }
+
+    ok
+}
+
+/// Enforce memory access metadata for a function.
+fn enforce_memory_metadata(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> bool {
+    // skip imported functions
+    if function.entry.is_none() {
+        return true;
+    }
+
+    // scan memory access instructions
+    let mut ok = true;
+    for block_id in &function.blocks {
+        let block = tree.get(*block_id);
+        for instruction_id in &block.instructions {
+            let instruction = tree.get(*instruction_id);
+            if !instruction_is_memory_access(instruction) {
+                continue;
+            }
+
+            let Some(accesses) = tree.memory_table.memory_accesses(*instruction_id) else {
+                emit_missing_requirement(ctx, metadata, *instruction_id, "memory access metadata");
+                ok = false;
+                continue;
+            };
+
+            for access in accesses {
+                if access.size.is_none() {
+                    emit_missing_requirement(ctx, metadata, *instruction_id, "memory access size");
+                    ok = false;
+                }
+
+                if access.address_space.is_none() {
+                    emit_missing_requirement(
+                        ctx,
+                        metadata,
+                        *instruction_id,
+                        "memory access address space",
+                    );
+                    ok = false;
+                }
+            }
+        }
+    }
+
+    ok
+}
+
+/// Enforce profile data for a function.
+fn enforce_profile_data(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    function_id: mir::LocalNodeId<mir::Function>,
+    function: &mir::Function,
+) -> bool {
+    // accept when profile data is present
+    if ctx.has_profile() {
+        return true;
+    }
+
+    // emit an error when profile data is missing
+    let node = anchor_function(ctx, function_id, function);
+    let message = format!("{} requires profile data", metadata.id);
+    ctx.emit_error(OptimizeError::MissingRequiredMetadata { node, message });
+    false
+}
+
+/// Enforce type layout metadata for a module.
+fn enforce_type_layouts(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    tree: &mir::NodeTree,
+) -> bool {
+    let diagnostics = ctx.diagnostics();
+
+    // skip repeated validation
+    if diagnostics.type_layouts_validated() {
+        return !ctx.has_errors();
+    }
+
+    // scan layout sensitive types
+    let mut ok = true;
+    for (type_id, ty) in tree.iter_nodes::<mir::Type>() {
+        let type_metadata = tree.type_table.type_metadata(type_id);
+        if !type_requires_layout(ty, type_metadata) {
+            continue;
+        }
+        let Some(type_metadata) = type_metadata else {
+            emit_missing_type_layout(ctx, metadata, type_id, "type metadata");
+            ok = false;
+            continue;
+        };
+
+        let Some(layout_id) = type_metadata.layout_id else {
+            emit_missing_type_layout(ctx, metadata, type_id, "type layout");
+            ok = false;
+            continue;
+        };
+        if !layout_exists(&tree.type_table.layout_table, layout_id) {
+            emit_missing_type_layout(ctx, metadata, type_id, "type layout entry");
+            ok = false;
+        }
+    }
+
+    // mark validation complete
+    diagnostics.mark_type_layouts_validated();
+    ok
+}
+
+/// Emit a metadata requirement error for an instruction.
+fn emit_missing_requirement(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    requirement: &str,
+) {
+    let node = anchor_instruction(ctx, instruction_id);
+    let message = format!("{} requires {requirement}", metadata.id);
+    ctx.emit_error(OptimizeError::MissingRequiredMetadata { node, message });
+}
+
+/// Emit a metadata requirement error for a type.
+fn emit_missing_type_layout(
+    ctx: &PipelineContext<'_>,
+    metadata: &PassMetadata,
+    type_id: mir::LocalNodeId<mir::Type>,
+    requirement: &str,
+) {
+    let node = anchor_type(ctx, type_id);
+    let message = format!("{} requires {requirement}", metadata.id);
+    ctx.emit_error(OptimizeError::MissingRequiredMetadata { node, message });
+}
+
+/// Check if an instruction is a call instruction.
+fn instruction_is_call(instruction: &mir::Instruction) -> bool {
+    matches!(
+        instruction,
+        mir::Instruction::Call { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. }
+    )
+}
+
+/// Check if an instruction is a memory access instruction.
+fn instruction_is_memory_access(instruction: &mir::Instruction) -> bool {
+    match instruction {
+        mir::Instruction::Load { .. } | mir::Instruction::Store { .. } => true,
+        mir::Instruction::Intrinsic { intrinsic, .. } => is_memory_intrinsic(*intrinsic),
+        _ => false,
+    }
+}
+
+/// Check if an intrinsic has memory effects.
+fn is_memory_intrinsic(intrinsic: mir::Intrinsic) -> bool {
+    matches!(
+        intrinsic,
+        mir::Intrinsic::Memcpy
+            | mir::Intrinsic::Memmove
+            | mir::Intrinsic::Memset
+            | mir::Intrinsic::Memcmp
+            | mir::Intrinsic::VolatileLoad
+            | mir::Intrinsic::VolatileStore
+            | mir::Intrinsic::PrefetchRead
+            | mir::Intrinsic::PrefetchWrite
+    )
+}
+
+/// Return true when a type requires layout metadata.
+fn type_requires_layout(ty: &mir::Type, metadata: Option<&mir::TypeMetadata>) -> bool {
+    matches!(
+        ty,
+        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
+    ) || metadata.is_some_and(|metadata| metadata.union_layout.is_some())
+}
+
+/// Return true when a layout entry exists in the layout table.
+fn layout_exists(layout_table: &mir::LayoutTable, layout_id: mir::LayoutId) -> bool {
+    (layout_id.0 as usize) < layout_table.layouts.len()
+}
+
+/// Anchor an instruction id for diagnostics.
+fn anchor_instruction(
+    ctx: &PipelineContext<'_>,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> mir::AnchoredGlobalNodeId {
+    instruction_id
+        .into_any()
+        .into_anchored(ctx.module_id(), ctx.target_id().clone())
+}
+
+/// Anchor a function for diagnostics.
+fn anchor_function(
+    ctx: &PipelineContext<'_>,
+    function_id: mir::LocalNodeId<mir::Function>,
+    function: &mir::Function,
+) -> mir::AnchoredGlobalNodeId {
+    let node_id = function
+        .entry
+        .map(|entry| entry.into_any())
+        .unwrap_or_else(|| function_id.into_any());
+    node_id.into_anchored(ctx.module_id(), ctx.target_id().clone())
+}
+
+/// Anchor a type id for diagnostics.
+fn anchor_type(
+    ctx: &PipelineContext<'_>,
+    type_id: mir::LocalNodeId<mir::Type>,
+) -> mir::AnchoredGlobalNodeId {
+    type_id
+        .into_any()
+        .into_anchored(ctx.module_id(), ctx.target_id().clone())
+}

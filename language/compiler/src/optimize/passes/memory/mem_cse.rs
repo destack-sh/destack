@@ -45,7 +45,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "mem-cse")]
+    #[pass(id = "mem-cse", requires(call_effects, memory_access_metadata))]
     pub MemCse,
     "Eliminate redundant memory stores"
 }

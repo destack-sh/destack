@@ -46,7 +46,7 @@ declare_pass! {
     ///     return v2
     /// }
     /// ```
-    #[pass(id = "ip-constant-prop")]
+    #[pass(id = "ip-constant-prop", requires(call_effects))]
     pub InterproceduralConstantPropagation,
     "Propagate constants across callsites"
 }

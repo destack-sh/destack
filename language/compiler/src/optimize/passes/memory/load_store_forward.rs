@@ -54,7 +54,7 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "load-store-forward")]
+    #[pass(id = "load-store-forward", requires(call_effects, memory_access_metadata))]
     pub LoadStoreForward,
     "Forward stored values to subsequent loads"
 }

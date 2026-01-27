@@ -5,6 +5,59 @@ use crate::optimize::{
     ProgramPipelineContext, ProgramWorkset,
 };
 
+/// Requirements for running a pass in optimized pipelines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PassRequirements {
+    /// Bitmask storing requirement flags.
+    bits: u32,
+}
+
+impl PassRequirements {
+    /// No special requirements.
+    pub const NONE: Self = Self { bits: 0 };
+    /// Call instructions must carry call effects metadata.
+    pub const CALL_EFFECTS: Self = Self { bits: 1 << 0 };
+    /// Memory access instructions must carry memory access metadata.
+    pub const MEMORY_ACCESS_METADATA: Self = Self { bits: 1 << 1 };
+    /// Profile data must be present in the pipeline context.
+    pub const PROFILE_DATA: Self = Self { bits: 1 << 2 };
+    /// Aggregate types must carry layout metadata.
+    pub const TYPE_LAYOUTS: Self = Self { bits: 1 << 3 };
+
+    /// Return true when no requirements are set.
+    pub const fn is_empty(self) -> bool {
+        self.bits == 0
+    }
+
+    /// Return true when all bits in other are present.
+    pub const fn contains(self, other: Self) -> bool {
+        (self.bits & other.bits) == other.bits
+    }
+
+    /// Return the union of two requirement sets.
+    pub const fn union(self, other: Self) -> Self {
+        Self {
+            bits: self.bits | other.bits,
+        }
+    }
+}
+
+impl std::ops::BitOr for PassRequirements {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self {
+            bits: self.bits | rhs.bits,
+        }
+    }
+}
+
+impl std::ops::BitOrAssign for PassRequirements {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.bits |= rhs.bits;
+    }
+}
+
 /// Optimization level.
 ///
 /// Controls which passes run and how aggressive they are.
@@ -48,6 +101,8 @@ pub struct PassMetadata {
     pub name: &'static str,
     /// Human-readable description.
     pub description: &'static str,
+    /// Metadata requirements for optimized pipelines.
+    pub requirements: PassRequirements,
 }
 
 /// Base trait for all optimization passes.
@@ -61,7 +116,7 @@ pub trait Pass: Send + Sync {
 /// Trait for passes that operate on individual functions.
 ///
 /// Returns AnalysisPreservation to indicate what analyses are still valid.
-pub trait FunctionPass: Send + Sync {
+pub trait FunctionPass: Pass + Send + Sync {
     /// Run the pass on a function.
     ///
     /// The context provides access to strings, options, and diagnostic emission.
@@ -85,7 +140,7 @@ pub trait FunctionPass: Send + Sync {
 /// Trait for passes that operate on entire modules.
 ///
 /// Returns AnalysisPreservation to indicate what analyses are still valid.
-pub trait ModulePass: Send + Sync {
+pub trait ModulePass: Pass + Send + Sync {
     /// Run the pass on a module.
     ///
     /// The context provides access to strings, options, analyses, and diagnostics.
@@ -103,7 +158,7 @@ pub trait ModulePass: Send + Sync {
 /// Trait for passes that operate on packages.
 ///
 /// Returns AnalysisPreservation to indicate what analyses are still valid.
-pub trait PackagePass: Send + Sync {
+pub trait PackagePass: Pass + Send + Sync {
     /// Run the pass on a package workset.
     fn run(
         &self,
@@ -123,7 +178,7 @@ pub trait PackagePass: Send + Sync {
 /// Trait for passes that operate on programs.
 ///
 /// Returns AnalysisPreservation to indicate what analyses are still valid.
-pub trait ProgramPass: Send + Sync {
+pub trait ProgramPass: Pass + Send + Sync {
     /// Run the pass on a program workset.
     fn run(
         &self,

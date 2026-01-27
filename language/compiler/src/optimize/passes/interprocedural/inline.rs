@@ -43,7 +43,7 @@ declare_pass! {
     ///     return v4
     /// }
     /// ```
-    #[pass(id = "inline")]
+    #[pass(id = "inline", requires(call_effects))]
     pub Inline,
     "Inline direct calls"
 }

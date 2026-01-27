@@ -70,6 +70,12 @@ impl Pipeline for FunctionPipeline {
             }
 
             for pass in &self.passes {
+                // enforce pass requirements
+                if !ctx.enforce_function_requirements(pass.metadata(), function_id, &function, tree)
+                {
+                    continue;
+                }
+
                 // recompute next_value_id so passes can allocate fresh values
                 function.recompute_next_value_id(tree);
                 let preserved = pass.run(&mut function, tree, ctx);
@@ -134,6 +140,11 @@ impl Pipeline for ModulePipeline {
         let mut any_changed = false;
 
         for pass in &self.passes {
+            // enforce pass requirements
+            if !ctx.enforce_module_requirements(pass.metadata(), tree) {
+                continue;
+            }
+
             let preserved = pass.run(tree, ctx);
 
             if !preserved.preserves_all() {
@@ -302,10 +313,26 @@ impl Pipeline for CompositePipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimize::{AnalysisPreservation, PipelineBuilder};
+    use crate::optimize::{
+        AnalysisPreservation, Pass, PassMetadata, PassRequirements, PipelineBuilder,
+    };
 
     /// Return a no op function pass.
     struct NoOpFunctionPass;
+
+    /// No op pass metadata.
+    static NO_OP_METADATA: PassMetadata = PassMetadata {
+        id: "no-op",
+        name: "NoOpFunctionPass",
+        description: "No op pass.",
+        requirements: PassRequirements::NONE,
+    };
+
+    impl Pass for NoOpFunctionPass {
+        fn metadata(&self) -> &'static PassMetadata {
+            &NO_OP_METADATA
+        }
+    }
 
     impl FunctionPass for NoOpFunctionPass {
         fn run(
@@ -325,6 +352,21 @@ mod tests {
     /// Return a function pass that claims to make changes.
     #[allow(dead_code)]
     struct ChangesFunctionPass;
+
+    /// Changes pass metadata.
+    #[allow(dead_code)]
+    static CHANGES_METADATA: PassMetadata = PassMetadata {
+        id: "changes",
+        name: "ChangesFunctionPass",
+        description: "Changes pass.",
+        requirements: PassRequirements::NONE,
+    };
+
+    impl Pass for ChangesFunctionPass {
+        fn metadata(&self) -> &'static PassMetadata {
+            &CHANGES_METADATA
+        }
+    }
 
     impl FunctionPass for ChangesFunctionPass {
         fn run(

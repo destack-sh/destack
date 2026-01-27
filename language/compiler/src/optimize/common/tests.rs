@@ -515,6 +515,16 @@ impl TestProgram {
                 continue;
             }
 
+            // enforce pass requirements
+            if !context.enforce_function_requirements(
+                pass.metadata(),
+                function_id,
+                &function,
+                &self.tree,
+            ) {
+                continue;
+            }
+
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.tree);
             pass.run(&mut function, &mut self.tree, &context);
@@ -669,7 +679,34 @@ impl TestProgram {
             None,
         );
 
-        pass.run(&mut self.tree, &context);
+        // enforce pass requirements
+        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
+            pass.run(&mut self.tree, &context);
+        }
+
+        // collect diagnostics after pass completes
+        self.errors = context.take_errors();
+        self.warnings = context.take_warnings();
+    }
+
+    /// Apply a module pass with custom options.
+    pub(crate) fn run_module_pass_with_options<P: ModulePass + ?Sized>(
+        &mut self,
+        pass: &P,
+        options: PipelineOptions,
+    ) {
+        let context = PipelineContext::new(
+            &self.strings_pool,
+            options,
+            test_module_id(),
+            test_target_id(),
+            None,
+        );
+
+        // enforce pass requirements
+        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
+            pass.run(&mut self.tree, &context);
+        }
 
         // collect diagnostics after pass completes
         self.errors = context.take_errors();
@@ -690,7 +727,10 @@ impl TestProgram {
             Some(Arc::new(profile)),
         );
 
-        pass.run(&mut self.tree, &context);
+        // enforce pass requirements
+        if context.enforce_module_requirements(pass.metadata(), &self.tree) {
+            pass.run(&mut self.tree, &context);
+        }
 
         // collect diagnostics after pass completes
         self.errors = context.take_errors();
@@ -818,11 +858,14 @@ mod tests {
     use std::sync::Arc;
 
     use destack_base::StringPool;
+    use destack_compiler_macros::declare_pass;
     use destack_mir as mir;
 
     use super::TestProgram;
+    use crate::OptimizeError;
+    use crate::optimize::passes::{InterproceduralSccp, LoadPre};
     use crate::optimize::{
-        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis,
+        Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis, ModulePass,
         PipelineContext, PipelineOptions,
     };
 
@@ -1123,5 +1166,145 @@ block0:
         let some = AnalysisPreservation::preserving(&[AnalysisId("cfg")]);
         assert!(some.is_preserved(AnalysisId("cfg")));
         assert!(!some.is_preserved(AnalysisId("domtree")));
+    }
+
+    declare_pass! {
+        /// Require profile data for validation in tests.
+        #[pass(id = "test-profile", requires(profile_data))]
+        pub TestProfilePass,
+        "Test profile requirement enforcement"
+    }
+
+    declare_pass! {
+        /// Require type layout metadata for validation in tests.
+        #[pass(id = "test-layout", requires(type_layouts))]
+        pub TestLayoutPass,
+        "Test layout requirement enforcement"
+    }
+
+    impl ModulePass for TestProfilePass {
+        fn run(
+            &self,
+            _tree: &mut mir::NodeTree,
+            _ctx: &PipelineContext<'_>,
+        ) -> AnalysisPreservation {
+            AnalysisPreservation::all()
+        }
+
+        fn name(&self) -> &'static str {
+            "TestProfilePass"
+        }
+    }
+
+    impl ModulePass for TestLayoutPass {
+        fn run(
+            &self,
+            _tree: &mut mir::NodeTree,
+            _ctx: &PipelineContext<'_>,
+        ) -> AnalysisPreservation {
+            AnalysisPreservation::all()
+        }
+
+        fn name(&self) -> &'static str {
+            "TestLayoutPass"
+        }
+    }
+
+    /// Emits an error when call effects metadata is missing.
+    #[test]
+    fn test_requirements_call_effects() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @root() -> i32 {
+block0:
+    v0: i32 = iconst 1i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let options = PipelineOptions {
+            require_optimized_metadata: true,
+            ..Default::default()
+        };
+
+        test.run_module_pass_with_options(&InterproceduralSccp, options);
+        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
+    }
+
+    /// Emits an error when memory access metadata is missing.
+    #[test]
+    fn test_requirements_memory_access_metadata() {
+        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    v1: i32 = load v0
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let options = PipelineOptions {
+            require_optimized_metadata: true,
+            ..Default::default()
+        };
+
+        test.run_pass_with_options(&LoadPre, options);
+        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
+    }
+
+    /// Emits an error when profile data is required but missing.
+    #[test]
+    fn test_requirements_profile_data() {
+        let input = r#"function @test() -> void {
+block0:
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let options = PipelineOptions {
+            require_optimized_metadata: true,
+            ..Default::default()
+        };
+
+        test.run_module_pass_with_options(&TestProfilePass, options);
+        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
+    }
+
+    /// Emits an error when type layout metadata is missing.
+    #[test]
+    fn test_requirements_type_layouts() {
+        let input = r#"type @Point = { i32, i32 }
+function @make_point(v0: i32, v1: i32) -> @Point {
+block0(v0: i32, v1: i32):
+    v2: @Point = struct @Point (v0, v1)
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+
+        // remove layout metadata for the struct type
+        let struct_type_id = test
+            .tree
+            .iter_nodes::<mir::Type>()
+            .find_map(|(type_id, ty)| match ty {
+                mir::Type::Struct { .. } => Some(type_id),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("missing struct type"));
+        let metadata = test
+            .tree
+            .type_table
+            .type_metadata_mut(struct_type_id)
+            .unwrap_or_else(|| panic!("missing type metadata"));
+        metadata.layout_id = None;
+
+        let options = PipelineOptions {
+            require_optimized_metadata: true,
+            ..Default::default()
+        };
+
+        test.run_module_pass_with_options(&TestLayoutPass, options);
+        test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
     }
 }

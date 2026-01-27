@@ -9,7 +9,7 @@ use parking_lot::Mutex;
 
 use crate::optimize::{
     CallsiteHotnessPolicy, DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem,
-    PackageAnalyses, PackageWorkset, ProgramAnalyses, ProgramWorkset,
+    PackageAnalyses, PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -22,6 +22,8 @@ pub struct PipelineDiagnostics {
     warnings: Mutex<Vec<OptimizeWarning>>,
     /// Whether all verification passed with no aliasing violations.
     is_strict_safe: AtomicBool,
+    /// Whether type layouts have been validated for this pipeline run.
+    type_layouts_validated: AtomicBool,
 }
 
 impl PipelineDiagnostics {
@@ -31,6 +33,7 @@ impl PipelineDiagnostics {
             errors: Mutex::new(Vec::new()),
             warnings: Mutex::new(Vec::new()),
             is_strict_safe: AtomicBool::new(true),
+            type_layouts_validated: AtomicBool::new(false),
         }
     }
 
@@ -52,6 +55,16 @@ impl PipelineDiagnostics {
     /// Check if code is strict safe.
     pub fn is_strict_safe(&self) -> bool {
         self.is_strict_safe.load(Ordering::Relaxed)
+    }
+
+    /// Return true when type layouts have been validated.
+    pub fn type_layouts_validated(&self) -> bool {
+        self.type_layouts_validated.load(Ordering::Relaxed)
+    }
+
+    /// Mark that type layouts have been validated.
+    pub fn mark_type_layouts_validated(&self) {
+        self.type_layouts_validated.store(true, Ordering::Relaxed);
     }
 
     /// Take all accumulated errors.
@@ -115,6 +128,8 @@ pub struct PipelineOptions {
     pub specialize_hotness_policy: CallsiteHotnessPolicy,
     /// Inline budget scaling for this optimization level.
     pub inline_budget_scale_percent: u64,
+    /// Enforce optimizable MIR metadata requirements.
+    pub require_optimized_metadata: bool,
 }
 
 impl Default for PipelineOptions {
@@ -128,6 +143,7 @@ impl Default for PipelineOptions {
             inline_hotness_policy: CallsiteHotnessPolicy::inline_default(),
             specialize_hotness_policy: CallsiteHotnessPolicy::specialize_default(),
             inline_budget_scale_percent: 100,
+            require_optimized_metadata: false,
         }
     }
 }
@@ -156,6 +172,11 @@ impl PipelineOptions {
     /// Return the inline budget scale percent for this pipeline run.
     pub fn inline_budget_scale_percent(&self) -> u64 {
         self.inline_budget_scale_percent
+    }
+
+    /// Return true when optimizable MIR metadata is required.
+    pub fn require_optimized_metadata(&self) -> bool {
+        self.require_optimized_metadata
     }
 }
 
@@ -271,6 +292,31 @@ impl<'a> PipelineContext<'a> {
     /// Return the inline budget scale percent for this pipeline run.
     pub fn inline_budget_scale_percent(&self) -> u64 {
         self.options.inline_budget_scale_percent()
+    }
+
+    /// Return true when optimizable MIR metadata is required.
+    pub fn require_optimized_metadata(&self) -> bool {
+        self.options.require_optimized_metadata()
+    }
+
+    /// Enforce metadata requirements for a function pass.
+    pub fn enforce_function_requirements(
+        &self,
+        metadata: &PassMetadata,
+        function_id: mir::LocalNodeId<mir::Function>,
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        super::contract::enforce_function_requirements(self, metadata, function_id, function, tree)
+    }
+
+    /// Enforce metadata requirements for a module pass.
+    pub fn enforce_module_requirements(
+        &self,
+        metadata: &PassMetadata,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        super::contract::enforce_module_requirements(self, metadata, tree)
     }
 
     /// Create module level analyses for a tree.
