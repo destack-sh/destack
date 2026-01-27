@@ -77,6 +77,22 @@ const x: Animal = Animal {};
 def:Animal
 ```
 
+### Type alias reference
+
+Go to type definition on a type alias should navigate to the alias declaration.
+
+```ds
+type UserId = int32;
+//   ^^^^^^ def:UserId
+
+const id: UserId = 1;
+//        ^^^^^^ use:UserId
+```
+
+```query goto_type_definition use:UserId
+def:UserId
+```
+
 ### Enum type
 
 Go to type definition should work with enum types.

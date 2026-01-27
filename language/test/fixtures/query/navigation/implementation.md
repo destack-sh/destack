@@ -21,5 +21,6 @@ struct Rectangle implements Drawable {
 ```
 
 ```query implementation $0
-2
+main.ds:5:7-5:13
+main.ds:9:8-9:17
 ```

@@ -19,7 +19,34 @@ const msg = greet("World");
 Hovering over `greet` at the call site should show "function greet".
 
 ```query hover use:greet
-function greet
+range=main.ds:5:13-5:18 signature=function greet(name) documentation=<none>
+```
+
+### Hover over re-exported function
+
+Hovering over a re-exported function should resolve to the original symbol.
+
+```ds:lib.ds
+export function announce(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:barrel.ds
+export { announce } from "./lib.ds";
+```
+
+```ds:main.ds
+import { announce } from "./barrel.ds";
+
+const message = announce("World");
+//              ^^^^^^^^ use:announce
+```
+
+Hovering over `announce` should show "function announce".
+
+```query hover use:announce
+range=main.ds:3:17-3:25 signature=export function announce(name) documentation=<none>
 ```
 
 ## Structs
@@ -42,7 +69,7 @@ const p: Point = Point { x: 1, y: 2 };
 Hovering over `Point` in the type annotation should show "struct Point".
 
 ```query hover use:Point
-struct Point
+range=main.ds:6:10-6:15 signature=struct Point documentation=<none>
 ```
 
 ## Classes
@@ -65,7 +92,7 @@ const a: Animal = new Animal();
 Hovering over `Animal` in the type annotation should show "class Animal".
 
 ```query hover use:Animal
-class Animal
+range=main.ds:5:10-5:16 signature=class Animal documentation=<none>
 ```
 
 ## Class Fields
@@ -86,13 +113,13 @@ class Person {
 Hovering over `name` should show field info with container type.
 
 ```query hover def:name
-(property) Person.name
+range=main.ds:2:5-2:17 signature=(property) Person.name documentation=<none>
 ```
 
 Hovering over `age` should show field info with container type.
 
 ```query hover def:age
-(property) Person.age
+range=main.ds:3:5-3:15 signature=(property) Person.age documentation=<none>
 ```
 
 ## Struct Fields
@@ -116,6 +143,29 @@ Hovering over `x` should show field info with container type.
 (property) Vector2.x
 ```
 
+### Hover over struct field access
+
+Hovering over a struct field access should show the same field signature.
+
+```ds
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+function main() {
+    const p = Point { x: 1, y: 2 };
+    const value = p.x;
+//                   ^ use:point_x
+}
+```
+
+Hovering over `p.x` should show the field info for `Point.x`.
+
+```query hover use:point_x
+(property) Point.x
+```
+
 ## Methods
 
 ### Hover over method definition
@@ -135,6 +185,30 @@ Hovering over `add` should show method info with full signature.
 
 ```query hover def:add
 (method) Calculator.add(a: int32, b: int32): int32
+```
+
+### Hover over method call
+
+Hovering over a method call should resolve to the method signature.
+
+```ds
+class Logger {
+    log(message: string): void {
+        print(message);
+    }
+}
+
+function main() {
+    const logger = new Logger();
+    logger.log("hello");
+//         ^^^ use:logger_log
+}
+```
+
+Hovering over `logger.log` should show the method signature.
+
+```query hover use:logger_log
+(method) Logger.log(message: string): void
 ```
 
 ## Enums

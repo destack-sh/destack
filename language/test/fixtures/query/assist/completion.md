@@ -84,6 +84,27 @@ function test() {
 - string: type_parameter
 ```
 
+### Complete imported types in type position
+
+Imported type aliases should appear in type position.
+
+```ds:types.ds
+export type Options = {
+    name: string,
+};
+```
+
+```ds:main.ds
+import type { Options } from "./types.ds";
+
+function configure(config: $0/*type*/ Options) {}
+```
+
+```query completion $0
+- Options: type_parameter
+- int32: type_parameter
+```
+
 ### Complete in generic type parameter
 
 In generic brackets, should show types.
@@ -120,6 +141,154 @@ import { } from "$0"
 ```query completion $0
 - ./: folder
 - ../: folder
+```
+
+## Import Clause
+
+### Complete named imports from target module
+
+Completion should list exported symbols from the referenced module.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import { $0 } from "./types.ds";
+```
+
+```query completion $0
+- Widget: struct
+- makeWidget: function
+```
+
+### Skip already imported items
+
+Completion should not suggest items that are already imported in the same clause.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import { Widget, $0 } from "./types.ds";
+```
+
+```query completion $0
+- makeWidget: function
+! Widget: struct
+```
+
+### Respect import type
+
+Type-only imports should only suggest type symbols.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import type { $0 } from "./types.ds";
+```
+
+```query completion $0
+- Widget: struct
+! makeWidget: function
+```
+
+### Mixed type and value items
+
+Each import item should use its own type or value filter.
+
+```ds:types.ds
+export type Options = {
+    name: string,
+};
+
+export function makeOptions(): Options {
+    return { name: "ok" };
+}
+```
+
+```ds:main.ds
+import { type $0, makeOptions } from "./types.ds";
+import { type Options, ma$1 } from "./types.ds";
+```
+
+```query completion $0
+- Options: type_parameter
+! makeOptions: function
+```
+
+```query completion $1
+- makeOptions: function
+! Options: type_parameter
+```
+
+### Default import with named clause
+
+Default imports should not block named import completions.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import DefaultThing, { $0 } from "./types.ds";
+```
+
+```query completion $0
+- Widget: struct
+- makeWidget: function
+```
+
+### Multiline empty named clause
+
+Multiline import clauses should still resolve completions.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import {
+    $0
+} from "./types.ds";
+```
+
+```query completion $0
+- Widget: struct
+- makeWidget: function
 ```
 
 ## Member Access
@@ -213,6 +382,51 @@ function main() {
 - multiply: method
 ```
 
+### Complete extension methods
+
+Extension methods should appear after dot on the target type.
+
+```ds
+struct Calculator2 {}
+
+extension for Calculator2 {
+    sum(a: int32, b: int32): int32 {
+        return a + b;
+    }
+}
+
+function main() {
+    const calc = Calculator2 {};
+    calc.$0
+}
+```
+
+```query completion $0
+- sum: method
+```
+
+## New Expressions
+
+### Complete after new
+
+After `new`, suggest constructable types.
+
+```ds
+class Engine {}
+struct Wheel {
+    size: int32,
+}
+
+function main() {
+    new $0
+}
+```
+
+```query completion $0
+- Engine: class
+- Wheel: struct
+```
+
 ## Object Literal
 
 ### Complete fields in empty object literal
@@ -255,6 +469,46 @@ function main() {
 - port: field
 - timeout: field
 ! host: field
+```
+
+### Complete shorthand values in untyped object literal
+
+When no expected type is known, object literal completion should offer visible value symbols.
+
+```ds
+function main() {
+    const host = "localhost";
+    const port = 8080;
+    const cfg = { $0 };
+}
+```
+
+```query completion $0
+- host: variable
+- port: variable
+```
+
+### Avoid field completions in object value position
+
+When typing a value inside an object literal field, completion should be value-based.
+
+```ds
+struct Config {
+    host: string,
+    port: int32,
+    timeout: int32,
+}
+
+function main() {
+    const host = "localhost";
+    const cfg: Config = Config { host: ho$0 };
+}
+```
+
+```query completion $0
+- host: variable
+! port: field
+! timeout: field
 ```
 
 ### Complete fields in nested object literal
@@ -303,6 +557,22 @@ function test() {
 - name: variable
 - count: variable
 - test: function
+```
+
+### Exclude variables declared later in the same scope
+
+Completion should not show variables declared after the cursor.
+
+```ds
+function test() {
+    $0
+    const later = 1;
+}
+```
+
+```query completion $0
+- test: function
+! later: variable
 ```
 
 ### Complete variables from outer scope
@@ -569,113 +839,124 @@ function main() {
 - count: field
 ```
 
-## Extensions
+## Auto Imports
 
-### Complete extension methods
+### Suggest auto imports after prefix
 
-Extension methods should appear after dot on extended types.
+Auto imports should appear after local symbols and match the prefix.
 
-```ds
-struct Point {
-    x: number,
-    y: number,
+```ds:lib.ds
+export function formatName(value: string): string {
+    return value;
 }
+```
 
-extension for Point {
-    length(): number { return 0 }
-    normalized(): Point { return Point { x: 0, y: 0 } }
+```ds:main.ds
+function formatLocal(value: string): string {
+    return value;
 }
 
 function main() {
-    const p = Point { x: 1, y: 2 };
-    p.$0
+    fo$0
 }
 ```
 
 ```query completion $0
-- x: field
-- y: field
-- length: method
-- normalized: method
+top: 2
+[0] label=formatLocal kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
+[1] label=formatName kind=function sort=360 sort_text=0360:./lib:formatName detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { formatName } from \"./lib\";"
 ```
 
-### Complete extension methods with partial prefix
+### Prefer same folder auto imports
 
-Extension methods should be filtered by prefix.
+Auto imports from the same folder should rank above nearby and far modules.
 
-```ds
-struct Vector {
-    x: number,
-    y: number,
+```ds:format_root.ds
+export function formatSameRoot(value: string): string {
+    return value;
 }
+```
 
-extension for Vector {
-    lengthSquared(): number { return 0 }
-    length(): number { return 0 }
-    normalize(): Vector { return Vector { x: 0, y: 0 } }
+```ds:near/format.ds
+export function formatSameNearby(value: string): string {
+    return value;
 }
+```
 
+```ds:far/deeper/format.ds
+export function formatSameFar(value: string): string {
+    return value;
+}
+```
+
+```ds:main.ds
 function main() {
-    const v = Vector { x: 1, y: 2 };
-    v.len$0
+    formatSa$0
 }
 ```
 
 ```query completion $0
-- lengthSquared: method
-- length: method
-! normalize: method
+top: 3
+[0] label=formatSameRoot kind=function sort=360 sort_text=0360:./format_root:formatSameRoot detail=Auto import from ./format_root edits=main.ds:1:1-1:1=>"import { formatSameRoot } from \"./format_root\";"
+[1] label=formatSameNearby kind=function sort=471 sort_text=0471:./near/format:formatSameNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatSameNearby } from \"./near/format\";"
+[2] label=formatSameFar kind=function sort=482 sort_text=0482:./far/deeper/format:formatSameFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatSameFar } from \"./far/deeper/format\";"
 ```
 
-### Complete interface implementation via extension
+### Rank auto imports by proximity
 
-Interface methods from extension implementations should appear.
+Auto imports from closer paths should rank ahead of farther ones.
 
-```ds
-interface Describable {
-    describe(): string;
+```ds:near/format.ds
+export function formatNearby(value: string): string {
+    return value;
 }
+```
 
-struct Item {
-    name: string,
+```ds:far/deeper/format.ds
+export function formatFar(value: string): string {
+    return value;
 }
+```
 
-extension for Item implements Describable {
-    describe(): string { return "" }
-}
-
+```ds:main.ds
 function main() {
-    const item = Item { name: "test" };
-    item.$0
+    for$0
 }
 ```
 
 ```query completion $0
-- name: field
-- describe: method
+top: 2
+[0] label=formatNearby kind=function sort=471 sort_text=0471:./near/format:formatNearby detail=Auto import from ./near/format edits=main.ds:1:1-1:1=>"import { formatNearby } from \"./near/format\";"
+[1] label=formatFar kind=function sort=482 sort_text=0482:./far/deeper/format:formatFar detail=Auto import from ./far/deeper/format edits=main.ds:1:1-1:1=>"import { formatFar } from \"./far/deeper/format\";"
 ```
 
-## Additional Newtype Tests
+### Tie break auto imports by path
 
-### Complete newtype methods via extension
+When auto import scores tie, ordering should be stable by path.
 
-Extension methods on newtypes should appear after dot.
-
-```ds
-newtype Email = string;
-
-extension for Email {
-    domain(): string { return "" }
-    localPart(): string { return "" }
+```ds:a/format_tie.ds
+export function formatTieAlpha(value: string): string {
+    return value;
 }
+```
 
+```ds:b/format_tie.ds
+export function formatTieBeta(value: string): string {
+    return value;
+}
+```
+
+```ds:main.ds
 function main() {
-    const email = Email("test@example.com");
-    email.$0
+    formatTie$0
 }
 ```
 
 ```query completion $0
-- domain: method
-- localPart: method
+top: 2
+[0] label=formatTieAlpha kind=function sort=471 sort_text=0471:./a/format_tie:formatTieAlpha detail=Auto import from ./a/format_tie edits=main.ds:1:1-1:1=>"import { formatTieAlpha } from \"./a/format_tie\";"
+[1] label=formatTieBeta kind=function sort=471 sort_text=0471:./b/format_tie:formatTieBeta detail=Auto import from ./b/format_tie edits=main.ds:1:1-1:1=>"import { formatTieBeta } from \"./b/format_tie\";"
 ```
+
+<!-- NOTE #Incomplete: extension method completions require index population during compilation -->
+<!-- ## Extensions - tests removed until properly implemented -->

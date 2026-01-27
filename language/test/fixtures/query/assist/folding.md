@@ -25,5 +25,7 @@ struct Vector {
 This file has 3 multi-line declarations that produce folding ranges: function, class, and struct.
 
 ```query folding $0
-3
+1-3
+5-8
+10-13
 ```

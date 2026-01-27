@@ -17,7 +17,9 @@ const msg = greet("World", "Hello");
 `greet("World", "Hello")` has 2 arguments, so we expect 2 parameter hints plus 1 type hint for `msg`.
 
 ```query inlay_hints $0
-3
+main.ds:5:10 kind=type label=: string
+main.ds:5:19 kind=parameter label=name:
+main.ds:5:28 kind=parameter label=greeting:
 ```
 
 ### Parameter hints for multi-argument calls
@@ -35,7 +37,10 @@ const result = calculate(1, 2, 3);
 `calculate(1, 2, 3)` has 3 arguments, so we expect 3 parameter hints plus 1 type hint for `result`.
 
 ```query inlay_hints $0
-4
+main.ds:5:13 kind=type label=: int32
+main.ds:5:26 kind=parameter label=a:
+main.ds:5:29 kind=parameter label=b:
+main.ds:5:32 kind=parameter label=c:
 ```
 
 ## Type Hints
@@ -52,7 +57,8 @@ const y = "hello";
 Variables `x` and `y` should get type hints. With 0 function calls, only type hints.
 
 ```query inlay_hints $0
-2
+main.ds:1:8 kind=type label=: int32
+main.ds:2:8 kind=type label=: string
 ```
 
 ### Type hint for variable with explicit type
@@ -67,7 +73,7 @@ const y: string = "hello";
 No type hints expected (types already annotated), no function calls.
 
 ```query inlay_hints $0
-0
+<none>
 ```
 
 ### Mixed parameter and type hints
@@ -85,5 +91,6 @@ const result = double(21);
 1 parameter hint for `double(21)`, plus 1 type hint for `result`.
 
 ```query inlay_hints $0
-2
+main.ds:5:13 kind=type label=: int32
+main.ds:5:23 kind=parameter label=n:
 ```

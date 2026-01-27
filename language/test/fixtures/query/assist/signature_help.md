@@ -17,7 +17,8 @@ const result = add($0);
 With the cursor at `add($0)`, signature help should show "add".
 
 ```query signature_help $0
-add
+active_signature=0 active_parameter=0
+signature[0] label=add(x, y) documentation=<none> parameters=x|y param_docs=<none>|<none>
 ```
 
 ### Show signature for method call
@@ -41,7 +42,8 @@ const result = calc.add($0);
 For `calc.add($0)`, a method call on a Calculator instance, signature help should show "add".
 
 ```query signature_help $0
-add
+active_signature=0 active_parameter=0
+signature[0] label=add(x, y) documentation=<none> parameters=x|y param_docs=<none>|<none>
 ```
 
 ## Parameter Documentation
@@ -69,5 +71,6 @@ const message = greet($0);
 Signature help should include the function name.
 
 ```query signature_help $0
-greet
+active_signature=0 active_parameter=0
+signature[0] label=greet(name, formal) documentation=<none> parameters=name|formal param_docs=<none>|<none>
 ```

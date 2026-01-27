@@ -18,7 +18,10 @@ const baz = foo + foo;
 `foo` is defined once and used 3 times (in `bar`, and twice in `baz`), so the total is 4 references.
 
 ```query find_references def:foo
-4
+main.ds:1:7-1:10
+main.ds:3:13-3:16
+main.ds:4:13-4:16
+main.ds:4:19-4:22
 ```
 
 ## Functions
@@ -41,5 +44,69 @@ const b = greet("Test");
 `greet` is defined once and called twice (in `a` and `b`), so the total is 3 references.
 
 ```query find_references def:greet
-3
+main.ds:1:10-1:15
+main.ds:5:11-5:16
+main.ds:6:11-6:16
+```
+
+## Methods
+
+### Find references to class method
+
+Find references should include the method definition and all call sites.
+
+```ds
+class Calculator {
+    add(a: int32, b: int32): int32 {
+//  ^^^ def:calc_add
+        return a + b;
+    }
+}
+
+function main() {
+    const calc = new Calculator();
+    const first = calc.add(1, 2);
+//                     ^^^ use:calc_add_1
+    const second = calc.add(3, 4);
+//                      ^^^ use:calc_add_2
+}
+```
+
+`add` appears 3 times: its definition and two calls.
+
+```query find_references def:calc_add
+main.ds:2:5-2:8
+main.ds:9:24-9:27
+main.ds:10:25-10:28
+```
+
+## Struct Fields
+
+### Find references to a struct field
+
+Find references should include the field definition and all field accesses.
+
+```ds
+struct Point {
+    x: int32,
+//  ^ def:field_x
+    y: int32,
+}
+
+function main(p: Point) {
+    const a = p.x;
+//              ^ use:field_x_1
+    const b = p.x + p.x;
+//              ^ use:field_x_2
+//                    ^ use:field_x_3
+}
+```
+
+`x` appears 4 times for this symbol: its definition and three accesses.
+
+```query find_references def:field_x
+main.ds:2:5-2:6
+main.ds:7:17-7:18
+main.ds:8:17-8:18
+main.ds:8:23-8:24
 ```
