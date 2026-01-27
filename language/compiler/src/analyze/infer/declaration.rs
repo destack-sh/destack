@@ -362,9 +362,22 @@ impl Compiler {
                     &mut signature_ctx,
                 )?;
 
-                // expose the function type as a value for references and lambdas
-                let function_symbol = descriptor.symbol.into_global(module.id);
-                types.set_value_type(function_symbol, fn_ty_id);
+                // merge the inferred signature into the symbol value type
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || module.language_type.is_destack()
+                    || symbol_entry.origin.is_global_augmentation();
+                self.merge_function_value_type(
+                    module,
+                    ctx.profile,
+                    declaration_id,
+                    descriptor.symbol,
+                    fn_ty_id,
+                    declared_signature_ty_id,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
 
                 // infer the body when present
                 if let Some(body) = body {

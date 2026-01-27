@@ -23,6 +23,15 @@ mod r#type;
 
 use key::*;
 
+/// Mode used when resolving call signatures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SignatureResolutionMode {
+    /// Resolve signatures for inference (preserve inference variables).
+    Inference,
+    /// Resolve signatures for assignability and diagnostics.
+    Checking,
+}
+
 pub use assign::*;
 pub use context::*;
 pub use solve::*;

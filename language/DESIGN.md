@@ -319,6 +319,15 @@ Local inference is fully supported wherever convenient and unambiguous:
 - Local bindings may infer types from their initializer.
 - Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
 
+Widening and freshness follow TypeScript terminology and behavior.
+
+- Literal expressions start as fresh literal types.
+- Widening happens at explicit commitment points such as `let` bindings without contextual types.
+- `const` bindings keep literal types for scalar literals but still widen object and array members unless a const context applies.
+- Const contexts and const assertions suppress widening and produce readonly object and tuple shapes.
+- Contextual typing can prevent widening by providing a constraining type at the use site.
+- Exported surfaces follow the same rules as local bindings and do not invent extra widening or narrowing.
+
 ### Primitives
 
 Precise numeric types beyond TypeScript's `number`:

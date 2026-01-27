@@ -27,6 +27,18 @@ if let (left, _) = pair {
 }
 ```
 
+### if let single field tuple patterns bind the first element type
+
+> Single field tuple patterns should bind the first tuple element type.
+
+```ds
+declare const pair: (int32, string);
+
+if let (only) = pair {
+    only satisfies int32;
+}
+```
+
 ## Object Patterns
 
 ### if let object patterns bind named fields
@@ -117,6 +129,20 @@ if let UserId(value) = id {
     value satisfies int64;
 }
 ```
+
+### if let scalar newtype patterns reject multi field sequence patterns
+
+> Scalar newtypes should not accept multi field sequence patterns.
+
+```ds
+newtype UserId = int64;
+declare const id: UserId;
+
+if let UserId(first, second) = id {
+}
+```
+
+- contains: not assignable
 
 ### if let newtype object patterns require tags
 

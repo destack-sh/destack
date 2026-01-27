@@ -39,6 +39,21 @@ Analyze runs in five internal stages with a clear contract:
 4. **Capture**: resolve closure capture sets after inference
 5. **Validate**: run semantic validation checks across declarations, parameters, and members
 
+## Design Invariants
+
+Analyze relies on a small set of invariants that make the parallel declare, export, infer framing correct and predictable.
+
+- Declare owns shape construction: declared types, instance types, signature types, and symbolic constraint shapes must be available after declare.
+- Export depends only on declare surfaces across modules and must not force inference in other modules.
+- Infer owns validation: static argument bound validation happens at call and instantiation sites after substitutions are known.
+- Cross module reads must go through explicit require gates before reading remote tables and importing remote types.
+- Key queries and mapped types must use TSC-style apparent types rather than raw declared shapes or substituted constraints.
+- Infer should not mutate declare owned slots in place, and refinements should land in infer owned slots.
+- Type walkers and materialization caches must be keyed by mode and substitution context to avoid cross-context reuse bugs.
+- Normalization caching must track dependency fingerprints and remote stamps, not just a global invalidation epoch.
+- Contextual typing, freshness, widening, and narrowing should use explicit TSC terminology and explicit typing modes.
+- Const contexts and const assertions should control widening explicitly rather than via incidental binding details.
+
 # Outputs
 
 Analyze records results in the **TypeTable** (one per module).

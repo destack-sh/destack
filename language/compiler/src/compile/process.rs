@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -16,9 +16,15 @@ const MAX_TOTAL_YIELD_COUNT: u32 = 100;
 thread_local! {
     /// Flag to detect if we're inside a worker loop (to prevent nested run_task calls).
     static IN_WORKER_LOOP: Cell<bool> = const { Cell::new(false) };
+    /// The task currently being executed on this worker.
+    static CURRENT_TASK: RefCell<Option<Task>> = const { RefCell::new(None) };
 }
 
 impl Compiler {
+    /// Return the task currently executing on this worker thread.
+    pub(crate) fn current_task(&self) -> Option<Task> {
+        CURRENT_TASK.with(|current| current.borrow().clone())
+    }
     /// Enqueue a task to the compiler.
     /// Noop if we already have the same task queued, returns the existing TaskId.
     pub fn enqueue<T: Into<Task>>(&self, task: T) -> (TaskId, bool) {
@@ -157,7 +163,13 @@ impl Compiler {
         // process task
         let started_at = Instant::now();
         self.queue.set_status(task_id, TaskStatus::Running);
+        CURRENT_TASK.with(|current| {
+            *current.borrow_mut() = Some(handle.task.clone());
+        });
         let outcome = self.process_task(&handle);
+        CURRENT_TASK.with(|current| {
+            current.borrow_mut().take();
+        });
 
         // handle outcome
         let elapsed = started_at.elapsed();

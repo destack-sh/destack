@@ -186,13 +186,7 @@ impl Compiler {
         );
         let Some(target) = target else {
             return self.template_span_matches_string(
-                module,
-                profile,
-                span_ty_id,
-                span_value,
-                symbols,
-                types,
-                visited,
+                module, profile, span_ty_id, span_value, symbols, types, visited,
             );
         };
 
@@ -219,12 +213,8 @@ impl Compiler {
         }
 
         // infer a literal type when possible
-        let inferred_ty = self.template_infer_literal_type(
-            target.constraint_id,
-            span_value,
-            source_node,
-            types,
-        );
+        let inferred_ty =
+            self.template_infer_literal_type(target.constraint_id, span_value, source_node, types);
         if let Some(inferred_ty) = inferred_ty {
             infer.push_constraint(Constraint::Equal {
                 left: target.infer_ty_id,
@@ -314,7 +304,9 @@ impl Compiler {
         options: &AnalyzeOptions,
     ) -> bool {
         // require a single empty span template
-        if !strings.iter().all(|string_id| self.program.strings.get(*string_id).is_empty())
+        if !strings
+            .iter()
+            .all(|string_id| self.program.strings.get(*string_id).is_empty())
             || spans.len() != 1
         {
             return false;
@@ -459,13 +451,7 @@ impl Compiler {
         infer: &mut InferTable,
     ) -> Option<TemplateSpanInferenceTarget> {
         let (infer_var_id, infer_ty_id) = self.template_span_infer_var(
-            module,
-            profile,
-            span_ty_id,
-            span_node,
-            symbols,
-            types,
-            infer,
+            module, profile, span_ty_id, span_node, symbols, types, infer,
         )?;
         let constraint_id = self.template_span_constraint_type(
             module,

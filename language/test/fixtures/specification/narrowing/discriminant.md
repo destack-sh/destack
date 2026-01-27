@@ -17,7 +17,7 @@ if (result.kind == "ok") {
 }
 ```
 
-### _discriminant guard narrows with index access
+### discriminant guard narrows with index access
 
 ```ds
 type Result = { kind: "ok", value: string } | { kind: "err", error: string }

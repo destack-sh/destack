@@ -195,10 +195,7 @@ class Widget {
         .iter()
         .map(|binding| (binding.symbol, binding.kind))
         .collect::<Vec<_>>();
-    assert_eq!(
-        capture_symbols,
-        vec![(this_symbol, CaptureKind::ByValue)]
-    );
+    assert_eq!(capture_symbols, vec![(this_symbol, CaptureKind::ByValue)]);
 }
 
 #[test]

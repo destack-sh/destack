@@ -64,13 +64,8 @@ impl ModuleLowerer<'_> {
             LayoutTarget::Array(element, length) => {
                 let (layout_type, size, alignment) =
                     self.array_layout_info(type_id, element, length, anchor)?;
-                let layout_id = self.insert_layout_metadata(
-                    ty,
-                    layout_type,
-                    size,
-                    alignment,
-                    Vec::new(),
-                );
+                let layout_id =
+                    self.insert_layout_metadata(ty, layout_type, size, alignment, Vec::new());
 
                 Ok(Some(layout_id))
             }
@@ -139,9 +134,9 @@ impl ModuleLowerer<'_> {
         for (index, element) in elements.iter().enumerate() {
             // compute element size and alignment
             let element_type = self.builder.tree().get(*element);
-            let (size, alignment) =
-                self.type_lowerer
-                    .size_and_align_of_type(element_type, self.builder.tree());
+            let (size, alignment) = self
+                .type_lowerer
+                .size_and_align_of_type(element_type, self.builder.tree());
 
             // align the current offset
             offset = align_up(offset, alignment);
@@ -178,25 +173,25 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<(mir::LayoutType, u32, u32)> {
         // compute element size and alignment
         let element_type = self.builder.tree().get(element);
-        let (size, alignment) =
-            self.type_lowerer
-                .size_and_align_of_type(element_type, self.builder.tree());
+        let (size, alignment) = self
+            .type_lowerer
+            .size_and_align_of_type(element_type, self.builder.tree());
         let stride = align_up(size, alignment);
 
         // validate the array length
-        let length_u32 =
-            u32::try_from(length).map_err(|_| LowerError::UnsupportedType {
-                node: anchor,
-                ty: type_id.into_global(self.module_id),
-                message: "array length exceeds layout limits".to_string(),
-            })?;
-        let total_size = stride.checked_mul(length_u32).ok_or_else(|| {
-            LowerError::UnsupportedType {
-                node: anchor,
-                ty: type_id.into_global(self.module_id),
-                message: "array layout size overflow".to_string(),
-            }
+        let length_u32 = u32::try_from(length).map_err(|_| LowerError::UnsupportedType {
+            node: anchor,
+            ty: type_id.into_global(self.module_id),
+            message: "array length exceeds layout limits".to_string(),
         })?;
+        let total_size =
+            stride
+                .checked_mul(length_u32)
+                .ok_or_else(|| LowerError::UnsupportedType {
+                    node: anchor,
+                    ty: type_id.into_global(self.module_id),
+                    message: "array layout size overflow".to_string(),
+                })?;
 
         Ok((
             mir::LayoutType::Array {
@@ -226,32 +221,32 @@ impl ModuleLowerer<'_> {
             .get(&mir_type)
             .and_then(|metadata| metadata.union_layout.as_ref())
         {
-            let tag_index =
+            let tag_index = layout
+                .field_index(union_layout.tag_field_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "missing union tag field".to_string(),
+                })?;
+            let tag_field =
                 layout
-                    .field_index(union_layout.tag_field_name)
+                    .field(tag_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: anchor,
                         message: "missing union tag field".to_string(),
                     })?;
-            let tag_field = layout.field(tag_index).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
+            let payload_index = layout
+                .field_index(union_layout.payload_field_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: anchor,
-                    message: "missing union tag field".to_string(),
-                }
-            })?;
-            let payload_index =
+                    message: "missing union payload field".to_string(),
+                })?;
+            let payload_field =
                 layout
-                    .field_index(union_layout.payload_field_name)
+                    .field(payload_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: anchor,
                         message: "missing union payload field".to_string(),
                     })?;
-            let payload_field = layout.field(payload_index).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "missing union payload field".to_string(),
-                }
-            })?;
 
             mir::LayoutType::Union {
                 tag_type: union_layout.tag_type,

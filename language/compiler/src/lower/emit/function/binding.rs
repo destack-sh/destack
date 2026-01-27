@@ -62,22 +62,19 @@ impl FunctionContext<'_> {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
         // reject duplicate bindings when a symbol is provided
-        if let Some(symbol) = symbol {
-            if self.state.bindings.locals_by_symbol.contains_key(&symbol) {
-                return Err(LowerError::UnsupportedConstruct {
-                    node: node_id.into_anchored(self.env.module_id, Some(self.env.profile)),
-                    message: "duplicate this binding".to_string(),
-                });
-            }
+        if let Some(symbol) = symbol
+            && self.state.bindings.locals_by_symbol.contains_key(&symbol)
+        {
+            return Err(LowerError::UnsupportedConstruct {
+                node: node_id.into_anchored(self.env.module_id, Some(self.env.profile)),
+                message: "duplicate this binding".to_string(),
+            });
         }
 
         // create a binding from the implicit parameter value
         let value = self.state.builder.function_parameter(0);
         let binding = if self.this_needs_addressable_local() {
-            let local = self
-                .state
-                .builder
-                .local(ty, mir::Mutability::Immutable);
+            let local = self.state.builder.local(ty, mir::Mutability::Immutable);
             self.state.builder.local_set(local, value);
             LocalBinding::local(local, ty)
         } else {

@@ -86,10 +86,7 @@ async function read(): Promise<unknown> {
 }
 ```
 
-### _await unwraps promise aliases
-
-> TODO #Incomplete: await should unwrap generic aliases to Promise.
-
+### await unwraps promise aliases
 
 ```ds libs=es2015.promise
 type Box<T> = Promise<T>;

@@ -1,4 +1,4 @@
-use crate::Compiler;
+use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
     Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
@@ -271,6 +271,79 @@ impl Compiler {
         }
     }
 
+    /// Evaluate a static parameter constraint while preserving symbolic bounds.
+    fn evaluate_static_parameter_constraint_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declared_type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // skip when the declared type is already evaluated
+        let expression_id = match types.get_type(declared_type_id) {
+            Type::Unevaluated(expression_id) => *expression_id,
+            _ => return Ok(()),
+        };
+
+        // evaluate once without resolving static arguments to keep symbolic structure
+        let raw_evaluated = self.try_evaluate_expression_to_type_value(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            false,
+            true,
+            false,
+            false,
+        )?;
+
+        // stage the raw evaluation result in the declared type slot
+        {
+            let ty = types.get_type_mut(declared_type_id);
+            *ty = raw_evaluated;
+        }
+
+        // stop here when the bound still depends on static parameters
+        let mut visited = HashSet::new();
+        if self.type_contains_static_parameters(
+            module,
+            profile,
+            declared_type_id,
+            symbols,
+            types,
+            &mut visited,
+        ) {
+            // invalidate normalization cache after mutating the type table
+            types.invalidate_normalization_cache();
+            return Ok(());
+        }
+
+        // otherwise resolve static arguments now that the constraint is independent
+        let resolved = self.try_evaluate_expression_to_type_value(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            false,
+            true,
+            true,
+            false,
+        )?;
+        let ty = types.get_type_mut(declared_type_id);
+        *ty = resolved;
+
+        // invalidate normalization cache after replacing the raw shape
+        types.invalidate_normalization_cache();
+
+        Ok(())
+    }
+
     /// Resolve a static parameter constraint into the local type table.
     pub(crate) fn static_parameter_constraint_type(
         &self,
@@ -299,8 +372,8 @@ impl Compiler {
         // mark constraint resolution as in progress
         types.mark_static_parameter_constraint_in_progress(symbol);
 
-        // resolve local static parameter constraints from declared types
-        let resolved = if symbol.module_id == module.id {
+        // resolve local constraints only when the type table matches the module
+        let resolved = if symbol.module_id == module.id && types.module_id == module.id {
             // read the local symbol entry
             let symbol_entry = symbols.get_symbol(symbol.local_id);
             if !symbol_entry.is_static_parameter() {
@@ -312,10 +385,19 @@ impl Compiler {
                     .unwrap_or_else(|| types.insert_type_from_any(unknown_type.clone(), source_id));
 
                 // evaluate unevaluated constraint types on demand
-                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                let needs_evaluation =
+                    matches!(types.get_type(declared_type_id), Type::Unevaluated(_));
+                if needs_evaluation {
                     let tree = module.dir(profile).tree.read();
                     if self
-                        .evaluate_type(module, profile, declared_type_id, &tree, symbols, types)
+                        .evaluate_static_parameter_constraint_type(
+                            module,
+                            profile,
+                            declared_type_id,
+                            &tree,
+                            symbols,
+                            types,
+                        )
                         .is_err()
                     {
                         Some(types.insert_type_from_any(unknown_type.clone(), source_id))
@@ -333,6 +415,7 @@ impl Compiler {
             let remote_module = self.program.modules.get(symbol.module_id);
             let remote_module = remote_module.read();
             let remote_dir = remote_module.dir(profile);
+            let remote_tree = remote_dir.tree.read();
             let remote_symbols = remote_dir.symbols.read();
 
             // read the remote symbol
@@ -341,12 +424,27 @@ impl Compiler {
                 None
             } else if let Some(primary_declaration) = remote_symbol.primary_declaration {
                 // read and import the declared constraint type
-                let remote_types = remote_dir.types.read();
+                let mut remote_types = remote_dir.types.write();
                 if let Some(remote_declared_type_id) =
                     remote_types.get_declared_type_id(primary_declaration)
                 {
+                    // evaluate unevaluated remote constraints without bound validation
+                    let needs_evaluation = matches!(
+                        remote_types.get_type(remote_declared_type_id),
+                        Type::Unevaluated(_)
+                    );
+                    if needs_evaluation {
+                        let _ = self.evaluate_static_parameter_constraint_type(
+                            &remote_module,
+                            profile,
+                            remote_declared_type_id,
+                            &remote_tree,
+                            &remote_symbols,
+                            &mut remote_types,
+                        );
+                    }
+
                     let remote_declared_type = remote_types.get_type(remote_declared_type_id);
-                    // fall back when the declared type is unevaluated
                     if matches!(remote_declared_type, Type::Unevaluated(_)) {
                         Some(types.insert_type_from_any(unknown_type.clone(), source_id))
                     } else {
@@ -380,7 +478,7 @@ impl Compiler {
     fn collect_static_parameter_in_module(
         &self,
         module: &Module,
-        _profile: ProfileId,
+        profile: ProfileId,
         symbol_id: GlobalSymbolId,
         fallback_source_id: LocalNodeIdAny,
         tree: &NodeTree,
@@ -406,10 +504,42 @@ impl Compiler {
                     types.insert_type_from_any(ty, parameter_id.into_any())
                 })
         } else {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
+            // import the declared type for remote parameters when possible
+            let remote_dir = module.dir(profile);
+            let mut remote_types = remote_dir.types.write();
+            let remote_declared_type_id = remote_types.get_declared_type_id(primary_declaration);
+
+            let declared_type_id = if let Some(remote_declared_type_id) = remote_declared_type_id {
+                if matches!(
+                    remote_types.get_type(remote_declared_type_id),
+                    Type::Unevaluated(_)
+                ) {
+                    let _ = self.evaluate_type(
+                        module,
+                        profile,
+                        remote_declared_type_id,
+                        tree,
+                        symbols,
+                        &mut remote_types,
+                    );
+                }
+
+                let remote_declared_type = remote_types.get_type(remote_declared_type_id);
+                self.import_type_from_remote_for_node(
+                    fallback_source_id,
+                    remote_declared_type,
+                    &remote_types,
+                    symbol_id,
+                    types,
+                )
+            } else {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from_any(ty, fallback_source_id)
             };
-            types.insert_type_from_any(ty, fallback_source_id)
+
+            declared_type_id
         };
 
         // resolve the static parameter kind from the parameter modifiers

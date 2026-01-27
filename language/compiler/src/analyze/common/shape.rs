@@ -782,7 +782,9 @@ impl Compiler {
             }
 
             // ensure remote module declare is ready
-            self.require_analyze_module_declare(global_symbol.module_id, profile)?;
+            if global_symbol.module_id != module.id {
+                self.require_analyze_module_declare(global_symbol.module_id, profile)?;
+            }
 
             // load remote instance type data
             let remote_module = self.program.modules.get(global_symbol.module_id);
@@ -892,7 +894,9 @@ impl Compiler {
             }
 
             // ensure remote module declare is ready
-            self.require_analyze_module_declare(global_symbol.module_id, profile)?;
+            if global_symbol.module_id != module.id {
+                self.require_analyze_module_declare(global_symbol.module_id, profile)?;
+            }
 
             // load remote value type data
             let remote_module = self.program.modules.get(global_symbol.module_id);

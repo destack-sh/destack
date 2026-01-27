@@ -648,20 +648,32 @@ impl Compiler {
         // reuse cached expression types when available
         let global_node_id = expression_id.into_global_any(module.id);
         if let Some(existing) = types.get_declared_type_id(global_node_id) {
-            let is_unknown = matches!(
+            // avoid reusing unvalidated instantiations when bounds are required
+            let has_static_arguments = matches!(
                 types.get_type(existing),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
+                Type::Reference {
+                    static_arguments: Some(arguments),
+                    ..
+                } if !arguments.is_empty()
+            );
+            if validate_static_argument_bounds && has_static_arguments {
+                // fall through to re-evaluate with bound validation enabled
+            } else {
+                let is_unknown = matches!(
+                    types.get_type(existing),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown
+                    }
+                );
+                let is_reference = matches!(
+                    tree.get(expression_id),
+                    Expression::LocalReference { .. }
+                        | Expression::ModuleReference { .. }
+                        | Expression::GlobalReference { .. }
+                );
+                if !(is_unknown && is_reference) {
+                    return Ok(existing);
                 }
-            );
-            let is_reference = matches!(
-                tree.get(expression_id),
-                Expression::LocalReference { .. }
-                    | Expression::ModuleReference { .. }
-                    | Expression::GlobalReference { .. }
-            );
-            if !(is_unknown && is_reference) {
-                return Ok(existing);
             }
         }
 
@@ -681,7 +693,16 @@ impl Compiler {
         let ty_id = types.insert_type_from(ty.clone(), expression_id);
 
         // cache resolved type expressions for reuse
-        if !matches!(ty, Type::Unevaluated(_)) {
+        let should_cache = !matches!(ty, Type::Unevaluated(_))
+            && (validate_static_argument_bounds
+                || !matches!(
+                    ty,
+                    Type::Reference {
+                        static_arguments: Some(arguments),
+                        ..
+                    } if !arguments.is_empty()
+                ));
+        if should_cache {
             types.set_declared_type(global_node_id, ty_id);
         }
 
@@ -771,7 +792,7 @@ impl Compiler {
     /// Evaluate static arguments for a type reference.
     fn evaluate_static_arguments(
         &self,
-        _module: &Module,
+        module: &Module,
         _profile: ProfileId,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
         _tree: &NodeTree,
@@ -787,7 +808,9 @@ impl Compiler {
 
         // defer static argument evaluation until parameter kinds are known
         for argument_id in static_arguments {
-            evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
+            evaluated_arguments.push(StaticArgument::Unevaluated {
+                node: argument_id.into_global_any(module.id),
+            });
         }
 
         Ok(Some(evaluated_arguments))
@@ -1026,9 +1049,9 @@ impl Compiler {
                 }
             }
 
-            scope_cursor =
-                scope.parent
-                    .map(|(parent_id, _parent_mark)| (parent_id, symbols.get_scope_by_id(parent_id)));
+            scope_cursor = scope
+                .parent
+                .map(|(parent_id, _parent_mark)| (parent_id, symbols.get_scope_by_id(parent_id)));
         }
 
         fallback

@@ -457,6 +457,7 @@ impl Compiler {
                     right_ty_id,
                     symbols,
                     types,
+                    infer,
                     &ctx.options,
                 );
                 types.insert_type_from(ty, expression_id)
@@ -2789,7 +2790,20 @@ impl Compiler {
                 pattern,
             } => {
                 if let Some(ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                    let binding_symbol = symbol.into_global(module.id);
+                    types.set_value_type(binding_symbol, ty_id);
+
+                    // mirror onto the canonical symbol to avoid lookup misses
+                    let canonical_symbol = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        ctx.profile,
+                        binding_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
+                    if canonical_symbol != binding_symbol {
+                        types.set_value_type(canonical_symbol, ty_id);
+                    }
                 }
                 if let Some(pattern_id) = pattern {
                     self.infer_pattern(
@@ -3008,14 +3022,66 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        let binding_ty_fields: Vec<LocalTypeId> = binding_ty_id
-            .and_then(|ty_id| match types.get_type(ty_id) {
+        // map the binding type into sequence-friendly pieces
+        let (binding_ty_fields, binding_array_element) = binding_ty_id
+            .map(|ty_id| match types.get_type(ty_id) {
                 Type::Tuple { elements, .. } => {
-                    Some(elements.iter().map(|element| element.ty).collect())
+                    (elements.iter().map(|element| element.ty).collect(), None)
                 }
-                _ => None,
+                Type::ArraySized { element, .. } => (Vec::new(), Some(*element)),
+                Type::Array { element, .. } => (Vec::new(), *element),
+                _ => (Vec::new(), None),
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| (Vec::new(), None));
+
+        // allow a direct fallback only for a single field on non-sequence types
+        let allow_direct_binding_fallback = binding_ty_id.is_some()
+            && binding_ty_fields.is_empty()
+            && binding_array_element.is_none()
+            && fields.len() == 1
+            && !matches!(
+                tree.get(fields[0]),
+                PatternField::Spread { .. } | PatternField::Elision
+            );
+        let direct_binding_fallback = allow_direct_binding_fallback
+            .then_some(binding_ty_id)
+            .flatten();
+
+        // nothing to infer when the sequence has no fields
+        if fields.is_empty() {
+            return Ok(());
+        }
+
+        // reject non-sequence bindings that cannot use the guarded fallback
+        if let Some(binding_ty_id) = binding_ty_id
+            && binding_ty_fields.is_empty()
+            && binding_array_element.is_none()
+            && !allow_direct_binding_fallback
+        {
+            let first_field_id = fields[0];
+            let unknown_ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            let unknown_ty_id = types.insert_type_from(unknown_ty, first_field_id);
+            let actual_elements = fields
+                .iter()
+                .map(|_| TypeElement::new(unknown_ty_id))
+                .collect();
+            let actual_ty = Type::Tuple {
+                elements: actual_elements,
+                is_readonly: false,
+            };
+            let actual_ty_id = types.insert_type_from(actual_ty, first_field_id);
+            let error_node = first_field_id
+                .into_global_any(module.id)
+                .into_anchored(Some(ctx.profile));
+            self.error(AnalyzeError::UnassignableType {
+                node: error_node,
+                expected_ty: binding_ty_id.into_global(module.id),
+                actual_ty: actual_ty_id.into_global(module.id),
+            });
+        }
+
         let spread_len = binding_ty_fields.len().saturating_sub(fields.len() - 1);
         let mut ty_idx = 0;
         for field_id in fields {
@@ -3024,22 +3090,37 @@ impl Compiler {
                 PatternField::Named { .. }
                 | PatternField::Alias { .. }
                 | PatternField::Positional { .. } => {
-                    let ty = binding_ty_fields.get(ty_idx).cloned();
-                    ty_idx += 1;
-                    ty
+                    if !binding_ty_fields.is_empty() {
+                        let ty = binding_ty_fields.get(ty_idx).cloned();
+                        ty_idx += 1;
+                        ty
+                    } else if let Some(element_ty_id) = binding_array_element {
+                        Some(element_ty_id)
+                    } else {
+                        direct_binding_fallback
+                    }
                 }
                 PatternField::Spread { .. } => {
-                    let rest_types = binding_ty_fields
-                        .get(ty_idx..ty_idx + spread_len)
-                        .map(|s| s.to_vec())
-                        .unwrap_or_default();
-                    ty_idx += spread_len;
-                    let rest_ty = to_rest_type(rest_types);
-                    Some(types.insert_type_from(rest_ty, *field_id))
+                    if !binding_ty_fields.is_empty() {
+                        let rest_types = binding_ty_fields
+                            .get(ty_idx..ty_idx + spread_len)
+                            .map(|s| s.to_vec())
+                            .unwrap_or_default();
+                        ty_idx += spread_len;
+                        let rest_ty = to_rest_type(rest_types);
+                        Some(types.insert_type_from(rest_ty, *field_id))
+                    } else if let Some(element_ty_id) = binding_array_element {
+                        let rest_ty = to_rest_type(vec![element_ty_id]);
+                        Some(types.insert_type_from(rest_ty, *field_id))
+                    } else {
+                        None
+                    }
                 }
                 PatternField::Elision => {
                     // elision skips a type position
-                    ty_idx += 1;
+                    if !binding_ty_fields.is_empty() {
+                        ty_idx += 1;
+                    }
                     None
                 }
             };
@@ -3768,6 +3849,7 @@ impl Compiler {
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            super::SignatureResolutionMode::Checking,
             ctx.profile,
             &ctx.options,
             tree,

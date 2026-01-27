@@ -23,15 +23,62 @@ pub(super) struct InheritedStaticArguments {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Run logic with the module and tree that own a static argument node.
+    fn with_static_argument_owner<T>(
+        &self,
+        profile: ProfileId,
+        argument_node: GlobalNodeIdAny,
+        module: &Module,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        f: impl FnOnce(&Module, &NodeTree, &SymbolTable, LocalNodeId<Argument>) -> AnalyzeResult<T>,
+    ) -> AnalyzeResult<Option<T>> {
+        // static arguments should always point at argument nodes
+        let argument_id = match argument_node.try_into_local_typed::<Argument>() {
+            Ok(argument_id) => argument_id,
+            Err(_) => {
+                self.error(AnalyzeError::MissingType {
+                    node: argument_node.into_anchored(Some(profile)),
+                });
+                return Ok(None);
+            }
+        };
+
+        // prefer the call site tree when it owns the argument node
+        if argument_node.module_id == module.id && tree.has_node_id(argument_node.local_id.id) {
+            return f(module, tree, symbols, argument_id).map(Some);
+        }
+
+        // otherwise, resolve the owning module and ensure the node exists there
+        let argument_module = self.program.modules.get(argument_node.module_id);
+        let argument_module = argument_module.read();
+        let argument_tree = argument_module.dir(profile).tree.read();
+        if !argument_tree.has_node_id(argument_node.local_id.id) {
+            self.error(AnalyzeError::MissingType {
+                node: argument_node.into_anchored(Some(profile)),
+            });
+            return Ok(None);
+        }
+        let argument_symbols = argument_module.dir(profile).symbols.read();
+        f(
+            &argument_module,
+            &argument_tree,
+            &argument_symbols,
+            argument_id,
+        )
+        .map(Some)
+    }
+
     /// Map static argument values to parameters by name and position.
     pub(super) fn assign_static_argument_values(
         &self,
-        module_id: destack_source::ModuleId,
+        module: &Module,
         profile_id: ProfileId,
         node_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         parameters: &[StaticParameter],
         tree: &NodeTree,
+        symbols: &SymbolTable,
     ) -> Vec<Option<StaticArgument>> {
         // track assignments by parameter index
         let mut assigned: Vec<Option<StaticArgument>> = vec![None; parameters.len()];
@@ -41,18 +88,33 @@ impl Compiler {
             // resolve argument name for named mapping
             let (argument_name, is_spread) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
-                StaticArgument::Unevaluated { node } => match tree.get(*node) {
-                    Argument::Named { name, .. } => (Some(*name), false),
-                    Argument::Spread { .. } => (None, true),
-                    _ => (None, false),
-                },
+                StaticArgument::Unevaluated { node } => {
+                    let mut info = None;
+                    let _ = self.with_static_argument_owner(
+                        profile_id,
+                        *node,
+                        module,
+                        tree,
+                        symbols,
+                        |_, owner_tree, _, argument_id| {
+                            let argument = owner_tree.get(argument_id);
+                            info = Some(match argument {
+                                Argument::Named { name, .. } => (Some(*name), false),
+                                Argument::Spread { .. } => (None, true),
+                                _ => (None, false),
+                            });
+                            Ok(())
+                        },
+                    );
+                    info.unwrap_or((None, false))
+                }
             };
 
             // report unsupported spread arguments
             if is_spread {
                 let error_node = match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
-                    _ => node_id.into_global(module_id),
+                    StaticArgument::Unevaluated { node } => *node,
+                    _ => node_id.into_global(module.id),
                 };
                 self.error(AnalyzeError::MissingType {
                     node: error_node.into_anchored(Some(profile_id)),
@@ -82,8 +144,8 @@ impl Compiler {
             // report unknown or overflowed argument positions
             let Some(target_index) = target_index else {
                 let error_node = match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
-                    _ => node_id.into_global(module_id),
+                    StaticArgument::Unevaluated { node } => *node,
+                    _ => node_id.into_global(module.id),
                 };
                 self.error(AnalyzeError::MissingType {
                     node: error_node.into_anchored(Some(profile_id)),
@@ -94,8 +156,8 @@ impl Compiler {
             // reject duplicate assignments
             if assigned[target_index].is_some() {
                 let error_node = match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module_id),
-                    _ => node_id.into_global(module_id),
+                    StaticArgument::Unevaluated { node } => *node,
+                    _ => node_id.into_global(module.id),
                 };
                 self.error(AnalyzeError::MissingType {
                     node: error_node.into_anchored(Some(profile_id)),
@@ -122,23 +184,19 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<InheritedStaticArguments> {
         // resolve the receiver into a symbol and static arguments
-        let Some((symbol, static_arguments)) = (match receiver_ty {
-            // explicit reference
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => Some((*symbol, static_arguments.clone())),
-            // possibly implicit reference via well known type
-            _ => self
-                .well_known_type(profile, receiver_ty, types)
-                .and_then(|reference_ty| match reference_ty {
-                    Type::Reference {
-                        symbol,
-                        static_arguments,
-                    } => Some((symbol, static_arguments)),
-                    _ => None,
-                }),
-        }) else {
+        let reference = self
+            .receiver_reference_for_inherited_arguments(receiver_ty, types)
+            .or_else(|| {
+                self.well_known_type(profile, receiver_ty, types)
+                    .and_then(|reference_ty| match reference_ty {
+                        Type::Reference {
+                            symbol,
+                            static_arguments,
+                        } => Some((symbol, static_arguments)),
+                        _ => None,
+                    })
+            });
+        let Some((symbol, static_arguments)) = reference else {
             return Ok(InheritedStaticArguments {
                 arguments: Vec::new(),
                 substitutions: HashMap::new(),
@@ -158,12 +216,84 @@ impl Compiler {
             symbols,
             types,
         )?;
-        let Some(resolved_arguments) = resolved else {
-            return Ok(InheritedStaticArguments {
-                arguments: Vec::new(),
-                substitutions: HashMap::new(),
-            });
+        let mut resolved_arguments = match resolved {
+            Some(resolved) => resolved,
+            None => {
+                let Some(static_arguments) = static_arguments.as_ref() else {
+                    return Ok(InheritedStaticArguments {
+                        arguments: Vec::new(),
+                        substitutions: HashMap::new(),
+                    });
+                };
+                if static_arguments.is_empty() {
+                    return Ok(InheritedStaticArguments {
+                        arguments: Vec::new(),
+                        substitutions: HashMap::new(),
+                    });
+                }
+
+                if symbol.module_id == module.id {
+                    self.materialize_static_arguments_for_reference(
+                        module,
+                        profile,
+                        symbol,
+                        receiver_id,
+                        static_arguments,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                } else {
+                    let reference_module = self.program.modules.get(symbol.module_id);
+                    let reference_module = reference_module.read();
+                    let reference_tree = reference_module.dir(profile).tree.read();
+                    let reference_symbols = reference_module.dir(profile).symbols.read();
+                    self.materialize_static_arguments_for_reference(
+                        &reference_module,
+                        profile,
+                        symbol,
+                        receiver_id,
+                        static_arguments,
+                        &reference_tree,
+                        &reference_symbols,
+                        types,
+                    )
+                }
+            }
         };
+
+        if resolved_arguments
+            .iter()
+            .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
+        {
+            resolved_arguments = if symbol.module_id == module.id {
+                self.materialize_static_arguments_for_reference(
+                    module,
+                    profile,
+                    symbol,
+                    receiver_id,
+                    &resolved_arguments,
+                    tree,
+                    symbols,
+                    types,
+                )
+            } else {
+                let reference_module = self.program.modules.get(symbol.module_id);
+                let reference_module = reference_module.read();
+                let reference_tree = reference_module.dir(profile).tree.read();
+                let reference_symbols = reference_module.dir(profile).symbols.read();
+                self.materialize_static_arguments_for_reference(
+                    &reference_module,
+                    profile,
+                    symbol,
+                    receiver_id,
+                    &resolved_arguments,
+                    &reference_tree,
+                    &reference_symbols,
+                    types,
+                )
+            };
+        }
 
         // build type parameter substitutions
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
@@ -181,6 +311,47 @@ impl Compiler {
             arguments: resolved_arguments,
             substitutions,
         })
+    }
+
+    /// Extract a reference symbol from receiver types that preserve static arguments.
+    fn receiver_reference_for_inherited_arguments(
+        &self,
+        receiver_ty: &Type,
+        types: &TypeTable,
+    ) -> Option<(GlobalSymbolId, Option<Vec<StaticArgument>>)> {
+        // resolve direct references
+        let mut candidate = match receiver_ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => Some((*symbol, static_arguments.clone())),
+            Type::Value { value } => {
+                let value_ty = types.get_type(*value);
+                return self.receiver_reference_for_inherited_arguments(value_ty, types);
+            }
+            _ => None,
+        };
+
+        // scan intersection and union members for a unique reference
+        if let Type::Intersection { elements } | Type::Union { elements } = receiver_ty {
+            for element_id in elements {
+                let element_ty = types.get_type(*element_id);
+                let Some(found) =
+                    self.receiver_reference_for_inherited_arguments(element_ty, types)
+                else {
+                    continue;
+                };
+                if let Some(existing) = candidate.as_ref() {
+                    if existing.0 != found.0 || existing.1 != found.1 {
+                        return None;
+                    }
+                } else {
+                    candidate = Some(found);
+                }
+            }
+        }
+
+        candidate
     }
 
     /// Infer a dynamic argument value with contextual typing.
@@ -384,7 +555,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        node: LocalNodeId<Argument>,
+        node: GlobalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -913,6 +1084,7 @@ impl Compiler {
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
         prepared_substitution: Option<LocalTypeId>,
+        bound_substitutions: &HashMap<GlobalSymbolId, LocalTypeId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -935,29 +1107,70 @@ impl Compiler {
                 return Ok(Some(substitution_ty_id));
             }
 
-            // skip validation when the declared bound is still unevaluated
-            if matches!(
-                types.get_type(static_parameter.declared_type_id),
+            // resolve bounds via constraint lookup when the declared slot is not concrete
+            let mut declared_bound_id = static_parameter.declared_type_id;
+            let declared_bound_needs_constraint = matches!(
+                types.get_type(declared_bound_id),
                 Type::Unevaluated(_)
-            ) {
-                return Ok(Some(substitution_ty_id));
+                    | Type::InferVar { .. }
+                    | Type::TypeLiteral {
+                        value: TypeLiteral::Unknown | TypeLiteral::Any,
+                    }
+            );
+            if declared_bound_needs_constraint
+                && let Some(constraint_id) = self.static_parameter_constraint_type(
+                    module,
+                    profile,
+                    static_parameter.symbol,
+                    error_node.local_id,
+                    symbols,
+                    types,
+                )
+            {
+                declared_bound_id = constraint_id;
             }
 
             // substitute the argument into self referential bounds
-            let expected_ty_id = {
-                // bind the static parameter to the argument
-                let mut substitutions = HashMap::new();
-                substitutions.insert(static_parameter.symbol, substitution_ty_id);
+            let mut substitutions = bound_substitutions.clone();
+            substitutions.insert(static_parameter.symbol, substitution_ty_id);
+            let mut cache = HashMap::new();
+            let mut expected_ty_id = self.substitute_static_parameters(
+                declared_bound_id,
+                &substitutions,
+                types,
+                &mut cache,
+            );
 
-                // apply the substitution to the declared bound
+            // fall back to resolved constraint types when bounds are unknown
+            if matches!(
+                types.get_type(expected_ty_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any
+                }
+            ) && let Some(constraint_id) = self.static_parameter_constraint_type(
+                module,
+                profile,
+                static_parameter.symbol,
+                error_node.local_id,
+                symbols,
+                types,
+            ) {
                 let mut cache = HashMap::new();
-                self.substitute_static_parameters(
-                    static_parameter.declared_type_id,
+                let substituted = self.substitute_static_parameters(
+                    constraint_id,
                     &substitutions,
                     types,
                     &mut cache,
-                )
-            };
+                );
+                if !matches!(
+                    types.get_type(substituted),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown | TypeLiteral::Any
+                    }
+                ) {
+                    expected_ty_id = substituted;
+                }
+            }
 
             // accept all arguments when the declared bound is unknown or any
             if matches!(
@@ -979,7 +1192,7 @@ impl Compiler {
             }
 
             // report unassignable type
-            if !self.is_infer_var_type(static_parameter.declared_type_id, types)
+            if !self.is_infer_var_type(declared_bound_id, types)
                 && !self.is_infer_var_type(substitution_ty_id, types)
                 && self.is_type_assignable(
                     module,
@@ -1419,7 +1632,34 @@ impl Compiler {
         let argument_slice = static_arguments.unwrap_or(&[]);
         if types.is_static_argument_resolution_in_progress(symbol, argument_slice) {
             if !argument_slice.is_empty() {
-                return Ok(Some(argument_slice.to_vec()));
+                let resolved_arguments = if symbol.module_id == module.id {
+                    self.materialize_static_arguments_for_reference(
+                        module,
+                        profile,
+                        symbol,
+                        node_id,
+                        argument_slice,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                } else {
+                    let reference_module = self.program.modules.get(symbol.module_id);
+                    let reference_module = reference_module.read();
+                    let reference_tree = reference_module.dir(profile).tree.read();
+                    let reference_symbols = reference_module.dir(profile).symbols.read();
+                    self.materialize_static_arguments_for_reference(
+                        &reference_module,
+                        profile,
+                        symbol,
+                        node_id,
+                        argument_slice,
+                        &reference_tree,
+                        &reference_symbols,
+                        types,
+                    )
+                };
+                return Ok(Some(resolved_arguments));
             }
             return Ok(None);
         }
@@ -1468,273 +1708,341 @@ impl Compiler {
                 .map_err(AnalyzeError::from)?;
         }
 
-        // collect parameter symbols for the declaration
-        let parameter_symbols =
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
-        let parameter_symbols = match parameter_symbols {
-            Some(parameter_symbols) => parameter_symbols,
-            None => {
-                // keep explicit arguments when the declaration is unavailable
+        let mut resolve_with = |argument_module: &Module,
+                                argument_tree: &NodeTree,
+                                argument_symbols: &SymbolTable|
+         -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+            // collect parameter symbols for the declaration
+            let parameter_symbols = self.collect_static_parameter_symbols(
+                argument_module,
+                symbol,
+                profile,
+                argument_tree,
+                argument_symbols,
+            );
+            let parameter_symbols = match parameter_symbols {
+                Some(parameter_symbols) => parameter_symbols,
+                None => {
+                    // keep explicit arguments when the declaration is unavailable
+                    if let Some(static_arguments) = static_arguments
+                        && !static_arguments.is_empty()
+                    {
+                        return Ok(Some(static_arguments.to_vec()));
+                    }
+                    return Ok(None);
+                }
+            };
+
+            if parameter_symbols.is_empty() {
+                // keep explicit arguments when no parameters exist
                 if let Some(static_arguments) = static_arguments
                     && !static_arguments.is_empty()
                 {
                     return Ok(Some(static_arguments.to_vec()));
                 }
+
                 return Ok(None);
             }
-        };
 
-        if parameter_symbols.is_empty() {
-            // keep explicit arguments when no parameters exist
-            if let Some(static_arguments) = static_arguments
-                && !static_arguments.is_empty()
-            {
-                return Ok(Some(static_arguments.to_vec()));
-            }
+            // gather static parameter metadata for the declaration
+            let static_parameters: Vec<_> = parameter_symbols
+                .iter()
+                .map(|symbol_id| {
+                    self.collect_static_parameter(
+                        argument_module,
+                        *symbol_id,
+                        node_id,
+                        profile,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                    )
+                })
+                .collect();
 
-            return Ok(None);
-        }
-
-        // gather static parameter metadata for the declaration
-        let static_parameters: Vec<_> = parameter_symbols
-            .iter()
-            .map(|symbol_id| {
-                self.collect_static_parameter(
-                    module, *symbol_id, node_id, profile, tree, symbols, types,
-                )
-            })
-            .collect();
-
-        // map arguments to parameter slots
-        let argument_values = static_arguments.unwrap_or(&[]);
-        let assigned_arguments = self.assign_static_argument_values(
-            module.id,
-            profile,
-            node_id,
-            argument_values,
-            &static_parameters,
-            tree,
-        );
-        // resolve arguments with defaults and fallbacks
-        let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
-        let mut resolved_argument_map = HashMap::new();
-        for (index, static_parameter) in static_parameters.iter().enumerate() {
-            let assigned_argument = assigned_arguments.get(index).cloned().flatten();
-            let error_node = if let Some(argument) = &assigned_argument {
-                match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module.id),
-                    StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
-                }
-            } else if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-                GlobalNodeIdAny::new(
-                    default_expression.module_id,
-                    default_expression.local_id.into_any(),
-                )
-            } else {
-                node_id.into_global(module.id)
-            };
-
-            // resolve the argument value or synthesize a fallback
-            let mut resolved_argument = self
-                .resolve_static_argument(
-                    module,
-                    profile,
-                    static_parameter,
-                    assigned_argument,
-                    treat_type_arguments_as_types,
-                    tree,
-                    symbols,
-                    types,
-                )?
-                .unwrap_or_else(|| {
-                    // fallback for type references: unknown type
-                    let fallback_value = match static_parameter.kind {
-                        StaticParameterKind::Type => {
-                            let unknown_ty_id = types.insert_type_from_any(
-                                Type::TypeLiteral {
-                                    value: TypeLiteral::Unknown,
-                                },
-                                error_node.local_id,
-                            );
-                            StaticExpression::Type { ty: unknown_ty_id }
-                        }
-                        StaticParameterKind::Value => node_id
-                            .try_into_typed::<Expression>()
-                            .map(|expression_id| StaticExpression::Unevaluated {
-                                node: expression_id,
-                            })
-                            .unwrap_or(StaticExpression::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            }),
-                    };
-                    StaticArgument::Evaluated {
-                        name: static_parameter.name,
-                        value: fallback_value,
+            // map arguments to parameter slots
+            let argument_values = static_arguments.unwrap_or(&[]);
+            let assigned_arguments = self.assign_static_argument_values(
+                module,
+                profile,
+                node_id,
+                argument_values,
+                &static_parameters,
+                tree,
+                symbols,
+            );
+            // resolve arguments with defaults and fallbacks
+            let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
+            let mut resolved_argument_map = HashMap::new();
+            for (index, static_parameter) in static_parameters.iter().enumerate() {
+                let assigned_argument = assigned_arguments.get(index).cloned().flatten();
+                let error_node = if let Some(argument) = &assigned_argument {
+                    match argument {
+                        StaticArgument::Unevaluated { node } => *node,
+                        StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
                     }
-                });
-
-            // substitute earlier value parameters in defaults
-            if static_parameter.kind == StaticParameterKind::Value {
-                resolved_argument = self.substitute_value_parameter_reference(
-                    resolved_argument,
-                    &resolved_argument_map,
-                    types,
-                    error_node.into_anchored(Some(profile)),
-                )?;
-            }
-
-            // inherit value constraints when passing a static parameter through
-            if static_parameter.kind == StaticParameterKind::Value {
-                let referenced_symbol = match &resolved_argument {
-                    StaticArgument::Evaluated {
-                        value: StaticExpression::Type { ty },
-                        ..
-                    } => match types.get_type(*ty) {
-                        Type::Reference { symbol, .. } => Some(*symbol),
-                        _ => None,
-                    },
-                    _ => None,
+                } else if let Some(default_expression) =
+                    static_parameter.default_expression.as_ref()
+                {
+                    GlobalNodeIdAny::new(
+                        default_expression.module_id,
+                        default_expression.local_id.into_any(),
+                    )
+                } else {
+                    node_id.into_global(module.id)
                 };
 
-                if let Some(referenced_symbol) = referenced_symbol {
-                    let constraint_id = self.static_parameter_constraint_type(
+                // resolve the argument value or synthesize a fallback
+                let mut resolved_argument = self
+                    .resolve_static_argument(
                         module,
                         profile,
-                        referenced_symbol,
-                        error_node.local_id,
+                        static_parameter,
+                        assigned_argument,
+                        treat_type_arguments_as_types,
+                        tree,
                         symbols,
                         types,
-                    );
-
-                    if let Some(constraint_id) = constraint_id
-                        && matches!(
-                            types.get_type(constraint_id),
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Unknown
+                    )?
+                    .unwrap_or_else(|| {
+                        // fallback for type references: unknown type
+                        let fallback_value = match static_parameter.kind {
+                            StaticParameterKind::Type => {
+                                let unknown_ty_id = types.insert_type_from_any(
+                                    Type::TypeLiteral {
+                                        value: TypeLiteral::Unknown,
+                                    },
+                                    node_id,
+                                );
+                                StaticExpression::Type { ty: unknown_ty_id }
                             }
-                        )
-                    {
-                        if matches!(
-                            types.get_type(static_parameter.declared_type_id),
-                            Type::Unevaluated(_)
-                        ) {
-                            self.evaluate_type(
-                                module,
-                                profile,
-                                static_parameter.declared_type_id,
-                                tree,
-                                symbols,
-                                types,
-                            )?;
+                            StaticParameterKind::Value => node_id
+                                .try_into_typed::<Expression>()
+                                .map(|expression_id| StaticExpression::Unevaluated {
+                                    node: expression_id,
+                                })
+                                .unwrap_or(StaticExpression::TypeLiteral {
+                                    value: TypeLiteral::Unknown,
+                                }),
+                        };
+                        StaticArgument::Evaluated {
+                            name: static_parameter.name,
+                            value: fallback_value,
                         }
+                    });
 
-                        if !matches!(
-                            types.get_type(static_parameter.declared_type_id),
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Unknown
+                // substitute earlier value parameters in defaults
+                if static_parameter.kind == StaticParameterKind::Value {
+                    resolved_argument = self.substitute_value_parameter_reference(
+                        resolved_argument,
+                        &resolved_argument_map,
+                        types,
+                        error_node.into_anchored(Some(profile)),
+                    )?;
+                }
+
+                // inherit value constraints when passing a static parameter through
+                if static_parameter.kind == StaticParameterKind::Value {
+                    let referenced_symbol = match &resolved_argument {
+                        StaticArgument::Evaluated {
+                            value: StaticExpression::Type { ty },
+                            ..
+                        } => match types.get_type(*ty) {
+                            Type::Reference { symbol, .. } => Some(*symbol),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+
+                    if let Some(referenced_symbol) = referenced_symbol {
+                        let constraint_id = self.static_parameter_constraint_type(
+                            argument_module,
+                            profile,
+                            referenced_symbol,
+                            error_node.local_id,
+                            argument_symbols,
+                            types,
+                        );
+
+                        if let Some(constraint_id) = constraint_id
+                            && matches!(
+                                types.get_type(constraint_id),
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown
+                                }
+                            )
+                        {
+                            if matches!(
+                                types.get_type(static_parameter.declared_type_id),
+                                Type::Unevaluated(_)
+                            ) {
+                                self.evaluate_type(
+                                    argument_module,
+                                    profile,
+                                    static_parameter.declared_type_id,
+                                    argument_tree,
+                                    argument_symbols,
+                                    types,
+                                )?;
                             }
-                        ) {
-                            types.set_static_parameter_constraint_type(
-                                referenced_symbol,
-                                static_parameter.declared_type_id,
-                            );
+
+                            if !matches!(
+                                types.get_type(static_parameter.declared_type_id),
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown
+                                }
+                            ) {
+                                types.set_static_parameter_constraint_type(
+                                    referenced_symbol,
+                                    static_parameter.declared_type_id,
+                                );
+                            }
                         }
                     }
                 }
-            }
 
-            // materialized type argument validation when needed
-            let materialized_substitution = if validate_static_argument_bounds
-                && static_parameter.kind == StaticParameterKind::Type
-            {
-                Some(self.materialize_static_type_argument(
-                    module,
-                    profile,
-                    error_node,
-                    static_parameter,
-                    &resolved_argument,
-                    tree,
-                    symbols,
-                    types,
-                )?)
-            } else {
-                None
-            };
-
-            // validate type and value arguments against declared bounds
-            let validated_type = if validate_static_argument_bounds {
-                self.validate_static_argument(
-                    module,
-                    profile,
-                    error_node,
-                    static_parameter,
-                    &resolved_argument,
-                    materialized_substitution,
-                    tree,
-                    symbols,
-                    types,
-                    None,
-                    options,
-                )?
-            } else {
-                None
-            };
-
-            // update resolved arguments with validated substitutions
-            if let Some(substitution_ty_id) = validated_type {
-                let argument_name = match &resolved_argument {
-                    StaticArgument::Evaluated { name, .. } => *name,
-                    StaticArgument::Unevaluated { .. } => None,
+                // materialized type argument validation when needed
+                let materialized_substitution = if validate_static_argument_bounds
+                    && static_parameter.kind == StaticParameterKind::Type
+                {
+                    Some(self.materialize_static_type_argument(
+                        argument_module,
+                        profile,
+                        error_node,
+                        static_parameter,
+                        &resolved_argument,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                    )?)
+                } else {
+                    None
                 };
-                let preserves_reference = match &resolved_argument {
-                    StaticArgument::Evaluated {
-                        value: StaticExpression::Type { ty },
-                        ..
-                    } => match types.get_type(*ty) {
-                        Type::Reference { symbol, .. } => self
-                            .symbol_is_static_parameter(module, profile, *symbol, symbols, types),
+
+                // collect resolved substitutions for prior static parameters
+                let bound_substitutions = self.static_argument_substitutions_for_bounds(
+                    &static_parameters[..resolved_arguments.len()],
+                    &resolved_arguments,
+                );
+
+                // validate type and value arguments against declared bounds
+                let validated_type = if validate_static_argument_bounds {
+                    self.validate_static_argument(
+                        module,
+                        profile,
+                        error_node,
+                        static_parameter,
+                        &resolved_argument,
+                        materialized_substitution,
+                        &bound_substitutions,
+                        tree,
+                        symbols,
+                        types,
+                        None,
+                        options,
+                    )?
+                } else {
+                    None
+                };
+
+                // update resolved arguments with validated substitutions
+                if let Some(substitution_ty_id) = validated_type {
+                    let argument_name = match &resolved_argument {
+                        StaticArgument::Evaluated { name, .. } => *name,
+                        StaticArgument::Unevaluated { .. } => None,
+                    };
+                    let preserves_reference = match &resolved_argument {
+                        StaticArgument::Evaluated {
+                            value: StaticExpression::Type { ty },
+                            ..
+                        } => match types.get_type(*ty) {
+                            Type::Reference { symbol, .. } => self.symbol_is_static_parameter(
+                                argument_module,
+                                profile,
+                                *symbol,
+                                argument_symbols,
+                                types,
+                            ),
+                            _ => false,
+                        },
                         _ => false,
-                    },
-                    _ => false,
-                };
-                if matches!(types.get_type(substitution_ty_id), Type::Error)
-                    || static_parameter.kind == StaticParameterKind::Type
-                {
-                    resolved_argument = StaticArgument::Evaluated {
-                        name: argument_name,
-                        value: StaticExpression::Type {
-                            ty: substitution_ty_id,
-                        },
                     };
-                } else if static_parameter.kind == StaticParameterKind::Value
-                    && !preserves_reference
-                {
-                    let replacement = StaticArgument::Evaluated {
-                        name: argument_name,
-                        value: StaticExpression::Type {
-                            ty: substitution_ty_id,
-                        },
-                    };
-                    resolved_argument = self.normalize_value_static_argument(replacement, types);
+                    if matches!(types.get_type(substitution_ty_id), Type::Error)
+                        || static_parameter.kind == StaticParameterKind::Type
+                    {
+                        resolved_argument = StaticArgument::Evaluated {
+                            name: argument_name,
+                            value: StaticExpression::Type {
+                                ty: substitution_ty_id,
+                            },
+                        };
+                    } else if static_parameter.kind == StaticParameterKind::Value
+                        && !preserves_reference
+                    {
+                        let replacement = StaticArgument::Evaluated {
+                            name: argument_name,
+                            value: StaticExpression::Type {
+                                ty: substitution_ty_id,
+                            },
+                        };
+                        resolved_argument =
+                            self.normalize_value_static_argument(replacement, types);
+                    }
                 }
+
+                resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
+                resolved_arguments.push(resolved_argument);
             }
 
-            resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
-            resolved_arguments.push(resolved_argument);
+            // record resolved arguments for this reference instance
+            if !resolved_arguments.is_empty() && self.is_instantiable_symbol(symbol) {
+                let node_global_id = node_id.into_global(module.id);
+                self.register_instance_for_node(
+                    node_global_id,
+                    symbol,
+                    resolved_arguments.clone(),
+                    types,
+                );
+            }
+
+            Ok(Some(resolved_arguments))
+        };
+
+        if symbol.module_id == module.id {
+            return resolve_with(module, tree, symbols);
         }
 
-        // record resolved arguments for this reference instance
-        if !resolved_arguments.is_empty() && self.is_instantiable_symbol(symbol) {
-            let node_global_id = node_id.into_global(module.id);
-            self.register_instance_for_node(
-                node_global_id,
-                symbol,
-                resolved_arguments.clone(),
-                types,
-            );
+        let reference_module = self.program.modules.get(symbol.module_id);
+        let reference_module = reference_module.read();
+        let reference_tree = reference_module.dir(profile).tree.read();
+        let reference_symbols = reference_module.dir(profile).symbols.read();
+        resolve_with(&reference_module, &reference_tree, &reference_symbols)
+    }
+
+    /// Collect static parameter substitutions for bound evaluation.
+    fn static_argument_substitutions_for_bounds(
+        &self,
+        static_parameters: &[StaticParameter],
+        resolved_arguments: &[StaticArgument],
+    ) -> HashMap<GlobalSymbolId, LocalTypeId> {
+        // collect resolved type substitutions for prior parameters
+        let mut substitutions = HashMap::new();
+        for (parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter()) {
+            let resolved_type = match argument {
+                StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } => Some(*ty),
+                _ => None,
+            };
+            let Some(resolved_type) = resolved_type else {
+                continue;
+            };
+
+            substitutions.insert(parameter.symbol, resolved_type);
         }
 
-        Ok(Some(resolved_arguments))
+        substitutions
     }
 
     /// Build type parameter substitutions for a type symbol.
@@ -1834,37 +2142,50 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
+        argument_node: GlobalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
-        let argument = tree.get(argument_id);
-        let argument_name = match argument {
-            Argument::Named { name, .. } => Some(*name),
-            _ => None,
-        };
-
-        // try evaluate expression as a type
-        let expression_id = argument.value();
-        let ty_id = self.try_evaluate_expression_to_type(
-            module,
+        let mut evaluated = None;
+        let _ = self.with_static_argument_owner(
             profile,
-            expression_id,
+            argument_node,
+            module,
             tree,
             symbols,
-            types,
-            true,
-            true,
-        )?;
-        if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
-            return Ok(None);
-        }
+            |argument_module, argument_tree, argument_symbols, argument_id| {
+                let argument = argument_tree.get(argument_id);
+                let argument_name = match argument {
+                    Argument::Named { name, .. } => Some(*name),
+                    _ => None,
+                };
 
-        Ok(Some(StaticArgument::Evaluated {
-            name: argument_name,
-            value: StaticExpression::Type { ty: ty_id },
-        }))
+                // try evaluate expression as a type
+                let expression_id = argument.value();
+                let ty_id = self.try_evaluate_expression_to_type(
+                    argument_module,
+                    profile,
+                    expression_id,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    true,
+                    true,
+                )?;
+                if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
+                    return Ok(());
+                }
+
+                evaluated = Some(StaticArgument::Evaluated {
+                    name: argument_name,
+                    value: StaticExpression::Type { ty: ty_id },
+                });
+                Ok(())
+            },
+        )?;
+
+        Ok(evaluated)
     }
 
     /// Evaluate a static argument as a value.
@@ -1872,7 +2193,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
+        argument_node: GlobalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1880,7 +2201,7 @@ impl Compiler {
         self.evaluate_static_argument_as_value_inner(
             module,
             profile,
-            argument_id,
+            argument_node,
             tree,
             symbols,
             types,
@@ -1892,50 +2213,67 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        argument_id: LocalNodeId<Argument>,
+        argument_node: GlobalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
-        // capture argument name for reuse in evaluated form
-        let argument = tree.get(argument_id);
-        let argument_name = match argument {
-            Argument::Named { name, .. } => Some(*name),
-            _ => None,
-        };
-
-        // evaluate the expression into a static value when possible
-        let expression_id = argument.value();
-        let value = self.evaluate_static_expression_value(
-            module,
+        let mut evaluated = None;
+        let _ = self.with_static_argument_owner(
             profile,
-            expression_id,
+            argument_node,
+            module,
             tree,
             symbols,
-            types,
-            None,
-        )?;
-        let value = if let Some(value) = value {
-            value
-        } else if let Some(enum_symbol) =
-            self.enum_symbol_for_member_expression(module, profile, expression_id, tree, symbols)?
-        {
-            let ty = types.insert_type_from_any(
-                Type::Reference {
-                    symbol: enum_symbol,
-                    static_arguments: None,
-                },
-                expression_id.into_any(),
-            );
-            StaticExpression::Type { ty }
-        } else {
-            return Ok(None);
-        };
+            |argument_module, argument_tree, argument_symbols, argument_id| {
+                // capture argument name for reuse in evaluated form
+                let argument = argument_tree.get(argument_id);
+                let argument_name = match argument {
+                    Argument::Named { name, .. } => Some(*name),
+                    _ => None,
+                };
 
-        Ok(Some(StaticArgument::Evaluated {
-            name: argument_name,
-            value,
-        }))
+                // evaluate the expression into a static value when possible
+                let expression_id = argument.value();
+                let value = self.evaluate_static_expression_value(
+                    argument_module,
+                    profile,
+                    expression_id,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    None,
+                )?;
+                let value = if let Some(value) = value {
+                    value
+                } else if let Some(enum_symbol) = self.enum_symbol_for_member_expression(
+                    argument_module,
+                    profile,
+                    expression_id,
+                    argument_tree,
+                    argument_symbols,
+                )? {
+                    let ty = types.insert_type_from_any(
+                        Type::Reference {
+                            symbol: enum_symbol,
+                            static_arguments: None,
+                        },
+                        expression_id.into_any(),
+                    );
+                    StaticExpression::Type { ty }
+                } else {
+                    return Ok(());
+                };
+
+                evaluated = Some(StaticArgument::Evaluated {
+                    name: argument_name,
+                    value,
+                });
+                Ok(())
+            },
+        )?;
+
+        Ok(evaluated)
     }
 
     /// Resolve the enum symbol for an enum member expression.
@@ -2057,20 +2395,17 @@ impl Compiler {
     ) -> AnalyzeResult<StaticArgument> {
         match static_parameter.kind {
             StaticParameterKind::Type => {
-                // build an inference variable tied to the static parameter symbol
+                // build a fresh inference variable for this call site
                 let scope_owner = owner_symbol.unwrap_or(static_parameter.symbol);
                 let scope = InferScope {
                     owner: scope_owner,
                     function_id: Some(node_id.into_global(module.id)),
                 };
-                let inferred_ty_id = self.infer_var_type_for_symbol(
-                    infer,
-                    types,
-                    static_parameter.symbol,
-                    node_id,
-                    InferOrigin::TypeParameter(static_parameter.symbol),
-                    scope,
-                );
+                let var_id =
+                    infer.new_var(InferOrigin::TypeParameter(static_parameter.symbol), scope);
+                let inferred_ty_id =
+                    types.insert_type_from_any(Type::InferVar { id: var_id }, node_id);
+                infer.bind_type(var_id, inferred_ty_id);
 
                 Ok(StaticArgument::Evaluated {
                     name: static_parameter.name,
@@ -2197,18 +2532,19 @@ impl Compiler {
     ) -> bool {
         // skip validation when the declared bound still depends on static parameters
         let mut visited = HashSet::new();
-        if self.type_contains_static_parameters(
+        let expected_contains_static = self.type_contains_static_parameters(
             module,
             profile,
             expected_ty_id,
             symbols,
             types,
             &mut visited,
-        ) {
+        );
+        if expected_contains_static {
             return true;
         }
 
-        // skip validation when the constraint still depends on static parameters
+        // reject constraints that still depend on static parameters when the bound is concrete
         visited.clear();
         if self.type_contains_static_parameters(
             module,
@@ -2218,7 +2554,7 @@ impl Compiler {
             types,
             &mut visited,
         ) {
-            return true;
+            return false;
         }
 
         // accept arguments whose constraints satisfy the expected bound
@@ -3139,15 +3475,34 @@ impl Compiler {
                 };
 
                 // materialize unevaluated arguments using parameter kinds
-                let mut resolved_arguments = self.materialize_static_arguments_for_reference(
-                    argument_module,
-                    profile,
-                    symbol,
-                    &static_arguments,
-                    argument_tree,
-                    argument_symbols,
-                    types,
-                );
+                let fallback_source_id = types.get_type_source(ty_id);
+                let mut resolved_arguments = if symbol.module_id == argument_module.id {
+                    self.materialize_static_arguments_for_reference(
+                        argument_module,
+                        profile,
+                        symbol,
+                        fallback_source_id,
+                        &static_arguments,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                    )
+                } else {
+                    let reference_module = self.program.modules.get(symbol.module_id);
+                    let reference_module = reference_module.read();
+                    let reference_tree = reference_module.dir(profile).tree.read();
+                    let reference_symbols = reference_module.dir(profile).symbols.read();
+                    self.materialize_static_arguments_for_reference(
+                        &reference_module,
+                        profile,
+                        symbol,
+                        fallback_source_id,
+                        &static_arguments,
+                        &reference_tree,
+                        &reference_symbols,
+                        types,
+                    )
+                };
 
                 // materialize nested argument types for substitution
                 let mut changed = resolved_arguments != static_arguments;
@@ -3975,6 +4330,7 @@ impl Compiler {
         argument_module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
+        fallback_source_id: LocalNodeIdAny,
         static_arguments: &[StaticArgument],
         argument_tree: &NodeTree,
         argument_symbols: &SymbolTable,
@@ -4003,12 +4359,18 @@ impl Compiler {
         }
 
         // select a source node for parameter inference
-        let Some(source_id) = static_arguments.iter().find_map(|argument| match argument {
-            StaticArgument::Unevaluated { node } => Some(node.into_any()),
-            _ => None,
-        }) else {
-            return static_arguments.to_vec();
-        };
+        let source_id = static_arguments
+            .iter()
+            .find_map(|argument| match argument {
+                StaticArgument::Unevaluated { node }
+                    if node.module_id == argument_module.id
+                        && argument_tree.has_node_id(node.local_id.id) =>
+                {
+                    Some(node.local_id)
+                }
+                _ => None,
+            })
+            .unwrap_or(fallback_source_id);
 
         // map parameter names to their resolved kinds
         let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
@@ -4036,11 +4398,22 @@ impl Compiler {
             let (argument_name, argument_node) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, None),
                 StaticArgument::Unevaluated { node } => {
-                    let argument_node = argument_tree.get(*node);
-                    let name = match argument_node {
-                        Argument::Named { name, .. } => Some(*name),
-                        _ => None,
-                    };
+                    let mut name = None;
+                    let _ = self.with_static_argument_owner(
+                        profile,
+                        *node,
+                        argument_module,
+                        argument_tree,
+                        argument_symbols,
+                        |_, owner_tree, _, argument_id| {
+                            let argument_node = owner_tree.get(argument_id);
+                            name = match argument_node {
+                                Argument::Named { name, .. } => Some(*name),
+                                _ => None,
+                            };
+                            Ok(())
+                        },
+                    );
                     (name, Some(*node))
                 }
             };
@@ -4059,43 +4432,59 @@ impl Compiler {
                 continue;
             };
 
-            let argument = argument_tree.get(argument_node);
-            let expression_id = argument.value();
-            let evaluated = match parameter_kind {
-                StaticParameterKind::Type => {
-                    if let Ok(ty_id) = self.try_evaluate_expression_to_type(
-                        argument_module,
-                        profile,
-                        expression_id,
-                        argument_tree,
-                        argument_symbols,
-                        types,
-                        false,
-                        true,
-                    ) && !matches!(types.get_type(ty_id), Type::Unevaluated(_))
-                    {
-                        Some(StaticExpression::Type { ty: ty_id })
-                    } else {
-                        None
-                    }
-                }
-                StaticParameterKind::Value => self
-                    .evaluate_static_expression_value(
-                        argument_module,
-                        profile,
-                        expression_id,
-                        argument_tree,
-                        argument_symbols,
-                        types,
-                        None,
-                    )
-                    .ok()
-                    .flatten(),
-            };
+            let mut evaluated = None;
+            let mut evaluated_name = argument_name;
+            let _ = self.with_static_argument_owner(
+                profile,
+                argument_node,
+                argument_module,
+                argument_tree,
+                argument_symbols,
+                |owner_module, owner_tree, owner_symbols, argument_id| {
+                    let argument = owner_tree.get(argument_id);
+                    evaluated_name = match argument {
+                        Argument::Named { name, .. } => Some(*name),
+                        _ => None,
+                    };
+                    let expression_id = argument.value();
+                    evaluated = match parameter_kind {
+                        StaticParameterKind::Type => {
+                            if let Ok(ty_id) = self.try_evaluate_expression_to_type(
+                                owner_module,
+                                profile,
+                                expression_id,
+                                owner_tree,
+                                owner_symbols,
+                                types,
+                                false,
+                                true,
+                            ) && !matches!(types.get_type(ty_id), Type::Unevaluated(_))
+                            {
+                                Some(StaticExpression::Type { ty: ty_id })
+                            } else {
+                                None
+                            }
+                        }
+                        StaticParameterKind::Value => self
+                            .evaluate_static_expression_value(
+                                owner_module,
+                                profile,
+                                expression_id,
+                                owner_tree,
+                                owner_symbols,
+                                types,
+                                None,
+                            )
+                            .ok()
+                            .flatten(),
+                    };
+                    Ok(())
+                },
+            );
 
             if let Some(value) = evaluated {
                 resolved_arguments.push(StaticArgument::Evaluated {
-                    name: argument_name,
+                    name: evaluated_name,
                     value,
                 });
             } else {

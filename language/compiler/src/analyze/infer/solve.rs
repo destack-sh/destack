@@ -1,8 +1,9 @@
 use destack_dir::{
-    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    Constraint, InferTable, InferVar, InferVarId, LocalTypeId, SymbolTable, Type, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashMap;
 
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
@@ -53,6 +54,594 @@ impl InferSolution {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Replace infer vars inside a type with resolved bounds for assignability checks.
+    pub(crate) fn materialize_infer_type_for_check(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        ty_id: LocalTypeId,
+        infer: &InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> LocalTypeId {
+        let mut cache = HashMap::new();
+        self.materialize_infer_type_for_check_inner(
+            module, profile, symbols, ty_id, infer, types, options, &mut cache,
+        )
+    }
+
+    fn materialize_infer_type_for_check_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        ty_id: LocalTypeId,
+        infer: &InferTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> LocalTypeId {
+        if let Some(mapped) = cache.get(&ty_id).copied() {
+            return mapped;
+        }
+        cache.insert(ty_id, ty_id);
+
+        let ty = types.get_type(ty_id).clone();
+        let mapped = match ty {
+            Type::InferVar { .. } => {
+                if let Some(resolved) = self.resolve_infer_type_for_check(
+                    module, profile, symbols, ty_id, infer, types, options,
+                ) {
+                    self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, resolved, infer, types, options, cache,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Union { elements } => {
+                let mut did_change = false;
+                let mut mapped_elements = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mapped_element = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, element, infer, types, options, cache,
+                    );
+                    if mapped_element != element {
+                        did_change = true;
+                    }
+                    mapped_elements.push(mapped_element);
+                }
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::Union {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Intersection { elements } => {
+                let mut did_change = false;
+                let mut mapped_elements = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mapped_element = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, element, infer, types, options, cache,
+                    );
+                    if mapped_element != element {
+                        did_change = true;
+                    }
+                    mapped_elements.push(mapped_element);
+                }
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::Intersection {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Value { value } => {
+                let mapped_value = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, value, infer, types, options, cache,
+                );
+                if mapped_value == value {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Value {
+                            value: mapped_value,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Unary { operator, right } => {
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Unary {
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let mapped_left = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, left, infer, types, options, cache,
+                );
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Binary {
+                            left: mapped_left,
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Conditional {
+                distributive_symbol,
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let mapped_left = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, left, infer, types, options, cache,
+                );
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                let mapped_then = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, then_type, infer, types, options, cache,
+                );
+                let mapped_else = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, else_type, infer, types, options, cache,
+                );
+                if mapped_left == left
+                    && mapped_right == right
+                    && mapped_then == then_type
+                    && mapped_else == else_type
+                {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Conditional {
+                            distributive_symbol,
+                            left: mapped_left,
+                            right: mapped_right,
+                            then_type: mapped_then,
+                            else_type: mapped_else,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mapped_constraint = self.materialize_infer_type_for_check_inner(
+                    module,
+                    profile,
+                    symbols,
+                    parameter.constraint,
+                    infer,
+                    types,
+                    options,
+                    cache,
+                );
+                let mapped_key_remap = parameter.key_remap.map(|key_remap| {
+                    self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, key_remap, infer, types, options, cache,
+                    )
+                });
+                let mapped_value = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, value, infer, types, options, cache,
+                );
+                if mapped_constraint == parameter.constraint
+                    && mapped_key_remap == parameter.key_remap
+                    && mapped_value == value
+                {
+                    ty_id
+                } else {
+                    let parameter = TypeMappedParameter {
+                        name: parameter.name,
+                        symbol: parameter.symbol,
+                        constraint: mapped_constraint,
+                        key_remap: mapped_key_remap,
+                    };
+                    types.insert_type_from_type(
+                        Type::Mapped {
+                            parameter,
+                            modifiers,
+                            value: mapped_value,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Index { left, index } => {
+                let mapped_left = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, left, infer, types, options, cache,
+                );
+                let mapped_index = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, index, infer, types, options, cache,
+                );
+                if mapped_left == left && mapped_index == index {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Index {
+                            left: mapped_left,
+                            index: mapped_index,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                let mut did_change = false;
+                let mut mapped_spans = Vec::with_capacity(spans.len());
+                for span in spans {
+                    let mapped_span = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, span, infer, types, options, cache,
+                    );
+                    if mapped_span != span {
+                        did_change = true;
+                    }
+                    mapped_spans.push(mapped_span);
+                }
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::TemplateLiteral {
+                            strings,
+                            spans: mapped_spans,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
+                let mapped_element = element.map(|element| {
+                    self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, element, infer, types, options, cache,
+                    )
+                });
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Array {
+                            element: mapped_element,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
+                let mapped_element = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, element, infer, types, options, cache,
+                );
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ArraySized {
+                            element: mapped_element,
+                            count,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
+                let mut did_change = false;
+                let mut mapped_elements = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mapped_element = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, element.ty, infer, types, options, cache,
+                    );
+                    if mapped_element != element.ty {
+                        did_change = true;
+                    }
+                    mapped_elements.push(TypeElement {
+                        ty: mapped_element,
+                        ..element
+                    });
+                }
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::Tuple {
+                            elements: mapped_elements,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                let mut did_change = false;
+                let mut mapped_fields = Vec::with_capacity(fields.len());
+                for field in fields {
+                    let mapped_ty = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, field.ty, infer, types, options, cache,
+                    );
+                    if mapped_ty != field.ty {
+                        did_change = true;
+                    }
+                    mapped_fields.push(TypeField {
+                        ty: mapped_ty,
+                        ..field
+                    });
+                }
+                let mut mapped_calls = Vec::with_capacity(call_signatures.len());
+                for signature in call_signatures {
+                    let mapped_sig = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, signature, infer, types, options, cache,
+                    );
+                    if mapped_sig != signature {
+                        did_change = true;
+                    }
+                    mapped_calls.push(mapped_sig);
+                }
+                let mut mapped_constructs = Vec::with_capacity(construct_signatures.len());
+                for signature in construct_signatures {
+                    let mapped_sig = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, signature, infer, types, options, cache,
+                    );
+                    if mapped_sig != signature {
+                        did_change = true;
+                    }
+                    mapped_constructs.push(mapped_sig);
+                }
+                let mut mapped_indexes = Vec::with_capacity(index_signatures.len());
+                for signature in index_signatures {
+                    let mapped_key = self.materialize_infer_type_for_check_inner(
+                        module,
+                        profile,
+                        symbols,
+                        signature.key_type,
+                        infer,
+                        types,
+                        options,
+                        cache,
+                    );
+                    let mapped_value = self.materialize_infer_type_for_check_inner(
+                        module,
+                        profile,
+                        symbols,
+                        signature.value_type,
+                        infer,
+                        types,
+                        options,
+                        cache,
+                    );
+                    if mapped_key != signature.key_type || mapped_value != signature.value_type {
+                        did_change = true;
+                    }
+                    mapped_indexes.push(TypeIndexSignature {
+                        key_type: mapped_key,
+                        value_type: mapped_value,
+                        ..signature
+                    });
+                }
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::Object {
+                            fields: mapped_fields,
+                            call_signatures: mapped_calls,
+                            construct_signatures: mapped_constructs,
+                            index_signatures: mapped_indexes,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Function {
+                asynchrony,
+                cardinality,
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+            } => {
+                let mut did_change = false;
+                let mut mapped_static = Vec::with_capacity(static_parameters.len());
+                for parameter in static_parameters {
+                    let mapped_param = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, parameter, infer, types, options, cache,
+                    );
+                    if mapped_param != parameter {
+                        did_change = true;
+                    }
+                    mapped_static.push(mapped_param);
+                }
+                let mapped_this = this_parameter.map(|parameter| {
+                    let mapped_param = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, parameter, infer, types, options, cache,
+                    );
+                    if mapped_param != parameter {
+                        did_change = true;
+                    }
+                    mapped_param
+                });
+                let mut mapped_dynamic = Vec::with_capacity(dynamic_parameters.len());
+                for parameter in dynamic_parameters {
+                    let mapped_param = self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, parameter, infer, types, options, cache,
+                    );
+                    if mapped_param != parameter {
+                        did_change = true;
+                    }
+                    mapped_dynamic.push(mapped_param);
+                }
+                let mapped_return = return_type.map(|return_type| {
+                    let mapped_return = self.materialize_infer_type_for_check_inner(
+                        module,
+                        profile,
+                        symbols,
+                        return_type,
+                        infer,
+                        types,
+                        options,
+                        cache,
+                    );
+                    if mapped_return != return_type {
+                        did_change = true;
+                    }
+                    mapped_return
+                });
+                if did_change {
+                    types.insert_type_from_type(
+                        Type::Function {
+                            asynchrony,
+                            cardinality,
+                            static_parameters: mapped_static,
+                            this_parameter: mapped_this,
+                            dynamic_parameters: mapped_dynamic,
+                            return_type: mapped_return,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let mapped_target = target.map(|target| {
+                    self.materialize_infer_type_for_check_inner(
+                        module, profile, symbols, target, infer, types, options, cache,
+                    )
+                });
+                if mapped_target == target {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Predicate {
+                            asserts,
+                            subject,
+                            target: mapped_target,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ValueOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ReferenceOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::PointerOf { mutability, right } => {
+                let mapped_right = self.materialize_infer_type_for_check_inner(
+                    module, profile, symbols, right, infer, types, options, cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::PointerOf {
+                            mutability,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            _ => ty_id,
+        };
+
+        cache.insert(ty_id, mapped);
+        mapped
+    }
+    
     /// Solve inference variables and commit the results into the TypeTable.
     pub fn solve_infer_table(
         &self,

@@ -590,7 +590,6 @@ impl TypeTable {
         self.instance_type_by_symbol_id.get(&symbol_id).copied()
     }
 
-
     /// Find the symbol that owns an instance type id.
     pub fn symbol_for_instance_type(
         &self,
