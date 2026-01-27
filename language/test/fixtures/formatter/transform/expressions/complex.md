@@ -62,9 +62,11 @@ items.map((item) => { return item.value }).filter((v) => v > 0)
 ```
 
 ```ds expected
-items.map((item) => {
-    return item.value
-}).filter((v) => v > 0);
+items
+    .map((item) => {
+        return item.value
+    })
+    .filter((v) => v > 0);
 ```
 
 ### nested chains in callback
@@ -76,12 +78,44 @@ outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 ```
 
 ```ds expected
-outer.map(
-    (x) => x
-        .items
+outer.map((x) =>
+    x.items
         .filter((y) => y.ok)
         .map((y) => y.value),
 );
+```
+
+## Assignments and Chains
+
+### assignment with chained call breaks at the chain
+
+When the right hand side is a chain, prefer breaking at the chain segments.
+
+```ds line-width=40
+const result = someVeryLongChain().a().b().c()
+```
+
+```ds expected
+const result = someVeryLongChain()
+    .a()
+    .b()
+    .c();
+```
+
+### assignment with long left hand side still breaks at the chain
+
+Even with a long left hand side, the chain should break cleanly.
+
+```ds line-width=50
+const veryLongResultName = someVeryLongChain().a().b().c().d()
+```
+
+```ds expected
+const veryLongResultName = someVeryLongChain()
+    .a()
+    .b()
+    .c()
+    .d();
 ```
 
 ## Complex Function Calls
@@ -198,7 +232,8 @@ const x = a + b + c + d + e
 ```
 
 ```ds expected
-const x = a
+const x =
+    a
     + b
     + c
     + d
@@ -214,7 +249,8 @@ const valid = isActive() && hasPermission() && !isBlocked()
 ```
 
 ```ds expected
-const valid = isActive()
+const valid =
+    isActive()
     && hasPermission()
     && !isBlocked();
 ```
@@ -448,10 +484,8 @@ a((x) => b((y) => c((z) => d(x, y, z))))
 ```
 
 ```ds expected
-a(
-    (x) => b(
-        (y) => c((z) => d(x, y, z)),
-    ),
+a((x) =>
+    b((y) => c((z) => d(x, y, z))),
 );
 ```
 
@@ -478,10 +512,8 @@ const json = await fetch(url).then((r) => r.json())
 ```
 
 ```ds expected
-const json =
-    await fetch(url)
-        .then((r) => r.json())
-;
+const json = await fetch(url)
+    .then((r) => r.json());
 ```
 
 ### multiple awaits in expression
@@ -699,15 +731,15 @@ users[0].profile.settings.theme;
 
 ### complex chain with index and call
 
-Mix of property access, indexing, and method calls. Chains break after the receiver.
+Mix of property access, indexing, and method calls.
+Chains keep a short head group with the receiver.
 
 ```ds line-width=35
 obj.items[0].getValue().transform()
 ```
 
 ```ds expected
-obj
-    .items[0]
+obj.items[0]
     .getValue()
     .transform();
 ```
@@ -811,7 +843,8 @@ const inBounds = x >= 0 && x < width && y >= 0 && y < height
 ```
 
 ```ds expected
-const inBounds = x >= 0
+const inBounds =
+    x >= 0
     && x < width
     && y >= 0
     && y < height;
@@ -885,11 +918,9 @@ const handler = ({ event: { target, type }, timestamp }) => process(target, type
 ```
 
 ```ds expected
-const handler =
-    (
-        { event: { target, type }, timestamp },
-    ) => process(target, type)
-;
+const handler = (
+    { event: { target, type }, timestamp },
+) => process(target, type);
 ```
 
 ### rest in nested destructuring

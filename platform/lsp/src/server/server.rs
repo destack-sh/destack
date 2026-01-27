@@ -1960,6 +1960,7 @@ fn format_file(
                 side_tokens: &ast.side_tokens,
                 side_span: &side_span,
                 strings: &strings,
+                current_argument_group_id: None,
             };
 
             return format_expressions(&context, &ast.roots);
@@ -1993,6 +1994,7 @@ fn format_file(
         side_tokens: &parser.side_tokens,
         side_span: &side_span,
         strings: &strings,
+        current_argument_group_id: None,
     };
 
     format_expressions(&context, &expressions)
@@ -2080,6 +2082,7 @@ fn format_range(
         side_tokens: &parser.side_tokens,
         side_span: &side_span,
         strings: &strings,
+        current_argument_group_id: None,
     };
 
     // format overlapping expressions

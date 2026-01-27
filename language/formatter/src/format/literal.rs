@@ -72,8 +72,17 @@ pub(crate) fn format_scalar_literal<'ast>(
                 normalized.push(quote_char);
                 write!(f, [text(normalized.as_str())])?;
             } else {
-                // JSX text content (unquoted) -> trim whitespace
-                write!(f, [text(span_str.trim())])?;
+                // jsx text content (unquoted) -> normalize whitespace
+                let has_newline = span_str.contains(['\n', '\r']);
+                let has_non_whitespace = span_str.chars().any(|c| !c.is_whitespace());
+                if !has_non_whitespace {
+                    if !has_newline {
+                        write!(f, [text(" ")])?;
+                    }
+                } else {
+                    let normalized = normalize_jsx_text(span_str);
+                    write!(f, [text(normalized.as_str())])?;
+                }
             }
         }
         ScalarLiteral::RegexString { content, flags } => {
@@ -138,6 +147,22 @@ pub(crate) fn format_template_literal<'ast>(
     }
 
     Ok(())
+}
+
+/// Normalize jsx text by collapsing whitespace to single spaces and trimming edges.
+fn normalize_jsx_text(text: &str) -> String {
+    let mut parts = text.split_whitespace();
+    let Some(first) = parts.next() else {
+        return String::new();
+    };
+
+    let mut normalized = String::from(first);
+    for part in parts {
+        normalized.push(' ');
+        normalized.push_str(part);
+    }
+
+    normalized
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {

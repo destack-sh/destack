@@ -192,7 +192,8 @@ const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isB
 ```
 
 ```ds expected
-const valid = isActive()
+const valid =
+    isActive()
     && /* perm */ hasPermission()
     && /* not blocked */ !isBlocked();
 ```

@@ -449,9 +449,8 @@ const processItem = (item) => transformAndValidate(item)
 ```
 
 ```ds expected
-const processItem =
-    (item) => transformAndValidate(item)
-;
+const processItem = (item) =>
+    transformAndValidate(item);
 ```
 
 ### arrow function with long params breaks
@@ -463,14 +462,12 @@ const fn = (first, second, third, fourth) => first + second
 ```
 
 ```ds expected
-const fn =
-    (
-        first,
-        second,
-        third,
-        fourth,
-    ) => first + second
-;
+const fn = (
+    first,
+    second,
+    third,
+    fourth,
+) => first + second;
 ```
 
 ### arrow function with complex return breaks
@@ -482,11 +479,10 @@ const handler = (event) => ({ type: event.type, target: event.target, timestamp:
 ```
 
 ```ds expected
-const handler =
-    (event) => ({
+const handler = (event) =>
+    ({
         type: event.type,
         target: event.target,
         timestamp: Date.now(),
-    })
-;
+    });
 ```

@@ -541,6 +541,7 @@ impl<'a> LintResult<'a> {
             side_tokens: &parser.side_tokens,
             side_span: &side_span,
             strings: &strings,
+            current_argument_group_id: None,
         };
 
         // format

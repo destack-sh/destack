@@ -1,6 +1,6 @@
 use crate::argument::list_like;
 use crate::block::format_block_of_statements;
-use crate::expression::is_expression_breakable;
+use crate::expression::{is_expression_breakable, lambda_expression_should_break};
 use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause;
 use crate::{
@@ -776,8 +776,56 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 // body
                 if let Some(body) = body {
                     if signature.kind == FunctionKind::Lambda {
+                        let body_expression = f.context().tree.get(*body);
+                        let body_is_block = matches!(body_expression, Expression::Block(_));
+                        let body_is_tree =
+                            matches!(body_expression, Expression::TreeExpression { .. });
+                        let force_break = lambda_expression_should_break(f.context(), node_id);
+
                         // arrow is fine since lambdas can only have return type or body
-                        write!(f, [space(), token("=>"), space(), body])?;
+                        if body_is_block {
+                            write!(f, [space(), token("=>"), space(), body])?;
+                        } else if body_is_tree {
+                            // tree bodies need conditional parentheses when they break
+                            let body_group_id = f.group_id("lambda_body");
+                            let parenthesized_body = format_with(|f| {
+                                write!(f, [token("("), soft_block_indent(&body), token(")")])
+                            });
+                            let body_break = format_with(|f| {
+                                write!(
+                                    f,
+                                    [
+                                        if_group_breaks(&parenthesized_body)
+                                            .with_group_id(Some(body_group_id)),
+                                        if_group_fits_on_line(&body)
+                                            .with_group_id(Some(body_group_id))
+                                    ]
+                                )?;
+                                Ok(())
+                            });
+
+                            write!(
+                                f,
+                                [
+                                    group(&format_args![space(), token("=>"), space(), body_break])
+                                        .with_id(Some(body_group_id))
+                                        .should_expand(force_break)
+                                ]
+                            )?;
+                        } else {
+                            // default expression body formatting
+                            let body_break = format_with(|f| write!(f, [body]));
+
+                            write!(
+                                f,
+                                [group(&format_args![
+                                    space(),
+                                    token("=>"),
+                                    indent(&format_args![soft_line_break_or_space(), body_break])
+                                ])
+                                .should_expand(force_break)]
+                            )?;
+                        }
                     } else {
                         write!(f, [space(), body])?;
                     }

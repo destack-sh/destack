@@ -108,15 +108,6 @@ pub(crate) fn format_block_of_members<'ast>(
         // blank line between members
         if i > 0 {
             write!(f, [hard_line_break()])?;
-
-            let prev_member = f.context().tree.get(members[i - 1]);
-            let prev_is_field = matches!(prev_member, Member::Field { .. });
-            let member_is_field = matches!(member, Member::Field { .. });
-
-            // extra blank line between fields and methods
-            if prev_is_field && !member_is_field {
-                write!(f, [empty_line()])?;
-            }
         }
         member_id.format(f)?;
         // comma after field members
@@ -430,8 +421,8 @@ mod tests {
     #[test]
     fn test_format_struct_empty() {
         assert_format!(
-            "struct { }",
-            "struct { }",
+            "struct Foo { }",
+            "struct Foo { }",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
@@ -440,8 +431,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields() {
         assert_format!(
-            "struct { a: int32, b: boolean }",
-            "struct {\n\ta: int32,\n\tb: boolean,\n}",
+            "struct Foo { a: int32, b: boolean }",
+            "struct Foo {\n\ta: int32,\n\tb: boolean,\n}",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
@@ -450,8 +441,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_modified_fields() {
         assert_format!(
-            "struct { readonly a: int32, private b: boolean }",
-            "struct {\n\treadonly a: int32,\n\tprivate b: boolean,\n}",
+            "struct Foo { readonly a: int32, private b: boolean }",
+            "struct Foo {\n\treadonly a: int32,\n\tprivate b: boolean,\n}",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
@@ -470,8 +461,8 @@ mod tests {
     #[test]
     fn test_format_struct_with_fields_and_defaults() {
         assert_format!(
-            "struct { a?: int32 = 42, b: boolean }",
-            "struct {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
+            "struct Foo { a?: int32 = 42, b: boolean }",
+            "struct Foo {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
