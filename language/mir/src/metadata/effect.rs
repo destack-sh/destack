@@ -152,9 +152,42 @@ impl Default for MemoryEffect {
     }
 }
 
+/// Repeatability classification for an effectful operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Repeatability {
+    /// Pure operation with no observable side effects.
+    Pure,
+    /// Deterministic operation with observable effects.
+    Repeatable,
+    /// Non-deterministic operation that requires record or replay.
+    NonRepeatable,
+}
+
+impl Repeatability {
+    /// Return true when the operation is pure.
+    pub fn is_pure(self) -> bool {
+        matches!(self, Self::Pure)
+    }
+
+    /// Return true when the operation is deterministic.
+    pub fn is_repeatable(self) -> bool {
+        !matches!(self, Self::NonRepeatable)
+    }
+}
+
 /// Behavioral effects for calls and functions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallBehavior {
+    /// Repeatability classification for this operation.
+    pub repeatability: Repeatability,
+    /// True when this operation may suspend execution.
+    pub may_suspend: bool,
+    /// True when this operation must not be reordered or duplicated.
+    pub no_reorder: bool,
+    /// True when deoptimization must not transition across this operation.
+    pub no_deopt_across: bool,
+    /// True when replay mode must reject this operation.
+    pub no_replay: bool,
     /// The call never returns to the caller.
     pub noreturn: bool,
     /// The call is guaranteed to return eventually.
@@ -179,6 +212,11 @@ impl CallBehavior {
     /// Create a behavior with no special effects.
     pub const fn none() -> Self {
         Self {
+            repeatability: Repeatability::Repeatable,
+            may_suspend: false,
+            no_reorder: false,
+            no_deopt_across: false,
+            no_replay: false,
             noreturn: false,
             will_return: false,
             convergent: false,
@@ -194,6 +232,11 @@ impl CallBehavior {
     /// Create a conservative unknown behavior.
     pub const fn unknown() -> Self {
         Self {
+            repeatability: Repeatability::NonRepeatable,
+            may_suspend: false,
+            no_reorder: true,
+            no_deopt_across: true,
+            no_replay: true,
             noreturn: false,
             will_return: false,
             convergent: false,
@@ -201,6 +244,51 @@ impl CallBehavior {
             alloc_locations: None,
             alloc_address_spaces: None,
             frees: true,
+            free_locations: None,
+            free_address_spaces: None,
+        }
+    }
+
+    /// Create a pure behavior summary.
+    pub const fn pure() -> Self {
+        Self {
+            repeatability: Repeatability::Pure,
+            may_suspend: false,
+            no_reorder: false,
+            no_deopt_across: false,
+            no_replay: false,
+            noreturn: false,
+            will_return: false,
+            convergent: false,
+            allocates: false,
+            alloc_locations: None,
+            alloc_address_spaces: None,
+            frees: false,
+            free_locations: None,
+            free_address_spaces: None,
+        }
+    }
+
+    /// Create a repeatable behavior summary.
+    pub const fn repeatable() -> Self {
+        Self::none()
+    }
+
+    /// Create a non-repeatable behavior summary.
+    pub const fn non_repeatable() -> Self {
+        Self {
+            repeatability: Repeatability::NonRepeatable,
+            may_suspend: false,
+            no_reorder: true,
+            no_deopt_across: true,
+            no_replay: true,
+            noreturn: false,
+            will_return: false,
+            convergent: false,
+            allocates: false,
+            alloc_locations: None,
+            alloc_address_spaces: None,
+            frees: false,
             free_locations: None,
             free_address_spaces: None,
         }

@@ -156,6 +156,16 @@ impl MemoryEffectBuilder {
 
 /// Builder for call behavior summaries.
 struct CallBehaviorBuilder {
+    /// Repeatability classification for the function.
+    repeatability: mir::Repeatability,
+    /// Whether any callee may suspend execution.
+    may_suspend: bool,
+    /// Whether any callee forbids reordering or duplication.
+    no_reorder: bool,
+    /// Whether any callee forbids deoptimization across the call.
+    no_deopt_across: bool,
+    /// Whether any callee forbids replay mode.
+    no_replay: bool,
     /// Whether any callee is convergent.
     convergent: bool,
     /// Whether any callee allocates.
@@ -177,6 +187,11 @@ impl CallBehaviorBuilder {
     fn new() -> Self {
         // seed the builder with no behavior flags
         Self {
+            repeatability: mir::Repeatability::Repeatable,
+            may_suspend: false,
+            no_reorder: false,
+            no_deopt_across: false,
+            no_replay: false,
             convergent: false,
             allocates: false,
             alloc_locations: Some(mir::MemoryLocationSet::NONE),
@@ -189,6 +204,15 @@ impl CallBehaviorBuilder {
 
     /// Record a call behavior into the builder.
     fn record_behavior(&mut self, behavior: &mir::CallBehavior) {
+        // merge repeatability and barrier flags
+        if behavior.repeatability == mir::Repeatability::NonRepeatable {
+            self.repeatability = mir::Repeatability::NonRepeatable;
+        }
+        self.may_suspend |= behavior.may_suspend;
+        self.no_reorder |= behavior.no_reorder;
+        self.no_deopt_across |= behavior.no_deopt_across;
+        self.no_replay |= behavior.no_replay;
+
         // merge convergence information
         self.convergent |= behavior.convergent;
 
@@ -218,6 +242,11 @@ impl CallBehaviorBuilder {
     fn finish(self, noreturn: bool) -> mir::CallBehavior {
         // assemble the final call behavior summary
         mir::CallBehavior {
+            repeatability: self.repeatability,
+            may_suspend: self.may_suspend,
+            no_reorder: self.no_reorder,
+            no_deopt_across: self.no_deopt_across,
+            no_replay: self.no_replay,
             noreturn,
             will_return: false,
             convergent: self.convergent,
@@ -368,6 +397,9 @@ fn compute_function_summary(
                 behavior_builder.record_behavior(&behavior);
                 has_return = true;
             }
+            mir::Terminator::Yield { .. } => {
+                behavior_builder.may_suspend = true;
+            }
             _ => {}
         }
     }
@@ -421,6 +453,17 @@ fn merge_call_behavior(
 
     // union behavioral flags and location sets
     let mut merged = existing.clone();
+    merged.repeatability = match (merged.repeatability, inferred.repeatability) {
+        (mir::Repeatability::NonRepeatable, _) | (_, mir::Repeatability::NonRepeatable) => {
+            mir::Repeatability::NonRepeatable
+        }
+        (mir::Repeatability::Pure, mir::Repeatability::Pure) => mir::Repeatability::Pure,
+        _ => mir::Repeatability::Repeatable,
+    };
+    merged.may_suspend |= inferred.may_suspend;
+    merged.no_reorder |= inferred.no_reorder;
+    merged.no_deopt_across |= inferred.no_deopt_across;
+    merged.no_replay |= inferred.no_replay;
     merged.noreturn |= inferred.noreturn;
     merged.convergent |= inferred.convergent;
     merged.allocates |= inferred.allocates;

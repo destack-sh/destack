@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     AddressSpace, ArgumentSlice, Block, CallEffects, Constant, Function, Instruction, Local,
     LocalNodeId, MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree,
-    NodeType, ReferenceKind, SwitchCase, TensorDimension, Terminator, Type, Value,
+    NodeType, ReferenceKind, Repeatability, SwitchCase, TensorDimension, Terminator, Type, Value,
 };
 
 use super::{VerifyAnchor, VerifyError, VerifyResult};
@@ -2361,6 +2361,22 @@ impl<'a> Verifier<'a> {
         if behavior.noreturn && behavior.will_return {
             return Err(VerifyError::MetadataInvariantViolation {
                 message: "noreturn implies will_return is false".to_string(),
+                anchor,
+            });
+        }
+
+        // reject pure operations that may suspend
+        if behavior.repeatability == Repeatability::Pure && behavior.may_suspend {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "pure effect cannot suspend".to_string(),
+                anchor,
+            });
+        }
+
+        // reject replay barriers on repeatable operations
+        if behavior.no_replay && behavior.repeatability != Repeatability::NonRepeatable {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "no_replay requires non_repeatable effect".to_string(),
                 anchor,
             });
         }
