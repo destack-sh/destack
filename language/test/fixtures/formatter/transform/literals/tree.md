@@ -72,6 +72,42 @@ Elements can contain text content.
 <Text>Hello World</Text>;
 ```
 
+### text whitespace normalizes
+
+Text nodes collapse whitespace to single spaces.
+
+```ds
+<Text>  Hello   World </Text>
+```
+
+```ds expected
+<Text>Hello World</Text>;
+```
+
+### whitespace-only text is ignored
+
+Whitespace-only text is dropped (parser behavior).
+
+```ds
+<Text> </Text>
+```
+
+```ds expected
+<Text></Text>;
+```
+
+### whitespace expression container is preserved
+
+Whitespace in expression containers stays as `{" "}`.
+
+```ds
+<Text>{" "}Hello{" "}World{" "}</Text>
+```
+
+```ds expected
+<Text>{' '}Hello{' '}World{' '}</Text>;
+```
+
 ### element with element children
 
 Elements can contain other elements.
@@ -112,7 +148,9 @@ Elements can have mixed content types. Content stays on one line if it fits.
 ```
 
 ```ds expected
-<Paragraph>Hello <Strong>World</Strong> !</Paragraph>;
+<Paragraph>
+    Hello <Strong>World</Strong>!
+</Paragraph>;
 ```
 
 ## Complex Patterns
@@ -230,7 +268,9 @@ Map expressions can generate multiple elements.
 
 ```ds expected
 <List>
-    {items.map((item) => <Item key={item.id} />)}
+    {items.map((item) => (
+        <Item key={item.id} />
+    ))}
 </List>;
 ```
 

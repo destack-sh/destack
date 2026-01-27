@@ -1004,6 +1004,7 @@ impl TestProgram {
             side_tokens: &vec![],
             side_span: &MultiSpan::new(vec![]),
             strings: &strings,
+            current_argument_group_id: None,
         };
 
         // format each root expression and join with blank lines

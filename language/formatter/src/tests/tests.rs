@@ -80,6 +80,7 @@ impl TestFormatter {
             side_tokens: &self.side_tokens,
             side_span: &self.side_span,
             strings: &self.strings,
+            current_argument_group_id: None,
         };
         let formatted = format!(context, [n]).unwrap();
         let printed = formatted.print();

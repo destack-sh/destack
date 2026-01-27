@@ -5,7 +5,7 @@ use destack_ast::{
     PatternField, Property, TokenSpan, TokenType, WhereClause,
 };
 use destack_base::ImmutableStringPool;
-use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
+use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter, GroupId};
 use destack_fir::print::PrintOptions;
 use destack_source::{File, IndentStyle, LanguageType, LineEnding, MultiSpan, NodeSourceMap, Span};
 use destack_workspace::{
@@ -187,6 +187,8 @@ pub struct DestackFormatContext<'a> {
     pub parents: NodeParentIndex,
     /// The string pool.
     pub strings: &'a ImmutableStringPool,
+    /// The current argument list group id, if any.
+    pub current_argument_group_id: Option<GroupId>,
 }
 
 impl<'a> DestackFormatContext<'a> {

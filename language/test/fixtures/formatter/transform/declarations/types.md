@@ -69,9 +69,59 @@ type Combined = HasName & HasAge & HasEmail
 ```
 
 ```ds expected
-type Combined = HasName
-    & HasAge
-    & HasEmail;
+type Combined = HasName &
+    HasAge &
+    HasEmail;
+```
+
+### nullable union with object type hugs
+
+Nullable unions keep inline `|` separators, even when the object literal breaks.
+
+```ds line-width=20
+type MaybeUser = { name: string, email: string } | null | undefined
+```
+
+```ds expected
+type MaybeUser =
+    {
+        name: string,
+        email: string,
+    } | null | undefined
+;
+```
+
+### nullable union with comment breaks
+
+Nullable union hugging is disabled when comments appear between members.
+
+```ds line-width=20
+type MaybeUser = { name: string, email: string } /* note */ | null | undefined
+```
+
+```ds expected
+type MaybeUser = {
+    name: string,
+    email: string,
+} /* note */ | null
+    | undefined;
+```
+
+### intersection with object types stays inline
+
+Object-like types keep `&` separators inline.
+
+```ds line-width=30
+type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
+```
+
+```ds expected
+type WithDetails = {
+    id: string,
+    name: string,
+} & HasMeta & {
+    created: int32,
+};
 ```
 
 ## Mapped Types

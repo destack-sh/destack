@@ -53,6 +53,7 @@ fuzz_target!(|data: &[u8]| {
         side_tokens: &parser.side_tokens,
         side_span: &side_span,
         strings: &strings,
+        current_argument_group_id: None,
     };
 
     for expr in &expressions {

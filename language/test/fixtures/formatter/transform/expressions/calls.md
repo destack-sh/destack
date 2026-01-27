@@ -286,7 +286,23 @@ result = aLongVariableName + anotherLongName + thirdLongName
 ```
 
 ```ds expected
-result = aLongVariableName
+result =
+    aLongVariableName
+    + anotherLongName
+    + thirdLongName;
+```
+
+### long binary declarator breaks after equals
+
+Long binary declarators also break after `=` when needed.
+
+```ds line-width=40
+const sum = aLongVariableName + anotherLongName + thirdLongName
+```
+
+```ds expected
+const sum =
+    aLongVariableName
     + anotherLongName
     + thirdLongName;
 ```
@@ -300,7 +316,8 @@ const isValid = hasPermission && isActive && !isDisabled
 ```
 
 ```ds expected
-const isValid = hasPermission
+const isValid =
+    hasPermission
     && isActive
     && !isDisabled;
 ```

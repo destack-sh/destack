@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use destack_fir::format::{BestFittingMode, FormatResult};
+use destack_fir::format::{BestFittingMode, FormatResult, GroupId};
 use destack_workspace::TrailingComma;
 
 use crate::property::{
@@ -46,6 +46,7 @@ where
     force_trailing_separator: bool,
     force_expand: bool,
     kind: ListKind,
+    group_id: Option<GroupId>,
     elements: &'e Vec<LocalNodeId<T>>,
 
     _phantom: PhantomData<&'ast ()>,
@@ -80,6 +81,11 @@ where
     /// Mark this as a collection (arrays, objects, tuples) for trailing comma purposes.
     pub(crate) fn as_collection(&mut self) -> &mut Self {
         self.kind = ListKind::Collection;
+        self
+    }
+
+    pub(crate) fn with_group_id(&mut self, group_id: Option<GroupId>) -> &mut Self {
+        self.group_id = group_id;
         self
     }
 }
@@ -126,8 +132,20 @@ where
         });
 
         // prefer keeping the list on a single line
-        let format_inline =
-            format_with(|f| write!(f, [&token(self.start_token), body, &token(self.end_token)]));
+        let format_inline = format_with(|f| {
+            if let Some(group_id) = self.group_id {
+                group(&format_args![
+                    &token(self.start_token),
+                    body,
+                    &token(self.end_token)
+                ])
+                .with_id(Some(group_id))
+                .format(f)
+            } else {
+                write!(f, [&token(self.start_token), body, &token(self.end_token)])
+            }
+        });
+        
         // otherwise, indent the body
         let format_indented = format_with(|f| {
             group(&format_args![
@@ -135,6 +153,7 @@ where
                 block_indent(body),
                 &token(self.end_token)
             ])
+            .with_id(self.group_id)
             .should_expand(true)
             .format(f)
         });
@@ -176,6 +195,7 @@ where
         force_trailing_separator: false,
         force_expand: false,
         kind: ListKind::FunctionParameters,
+        group_id: None,
         elements,
         _phantom: PhantomData,
     }

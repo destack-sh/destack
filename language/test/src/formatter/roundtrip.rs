@@ -110,6 +110,7 @@ fn format_expressions(
         side_tokens: &parser.side_tokens,
         side_span: &side_span,
         strings: &strings,
+        current_argument_group_id: None,
     };
 
     let mut result = String::new();
