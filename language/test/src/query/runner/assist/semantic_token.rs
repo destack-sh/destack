@@ -1,6 +1,9 @@
+use destack_source::Span;
 use destack_workspace::query::{self, SemanticTokenModifiers, SemanticTokenType};
 
 use crate::harness::TestResult;
+use crate::query::runner::snapshot::normalize_expected_snapshot;
+use crate::query::runner::span::{format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
 
 /// Run a semantic_tokens test.
@@ -35,12 +38,12 @@ fn run_with_expectation(
     tokens: &[query::SemanticToken],
 ) -> TestResult {
     let content = exp.content.trim();
+    let snapshot = format_tokens_snapshot(session, tokens);
 
     // empty expectation is an error
     if content.is_empty() {
-        let formatted = format_tokens(session, tokens);
         return TestResult::Failed {
-            message: format!("semantic_tokens expectation is empty, got:\n{formatted}",),
+            message: format!("semantic_tokens expectation is empty, got:\n{snapshot}"),
         };
     }
 
@@ -49,10 +52,27 @@ fn run_with_expectation(
         return if tokens.is_empty() {
             TestResult::Passed
         } else {
-            let formatted = format_tokens(session, tokens);
             TestResult::Failed {
-                message: format!("semantic_tokens expected no tokens, got:\n{formatted}"),
+                message: format!("semantic_tokens expected no tokens, got:\n{snapshot}"),
             }
+        };
+    }
+
+    // validate basic invariants before comparing expectations
+    if let Err(message) = validate_token_invariants(session, tokens) {
+        return TestResult::Failed { message };
+    }
+
+    // support snapshot expectations for gold standard assertions
+    if is_snapshot_expectation(content) {
+        let expected = normalize_expected_snapshot(content);
+        if snapshot == expected {
+            return TestResult::Passed;
+        }
+        return TestResult::Failed {
+            message: format!(
+                "semantic_tokens snapshot mismatch\n\nexpected:\n{expected}\n\nactual:\n{snapshot}",
+            ),
         };
     }
 
@@ -77,10 +97,9 @@ fn run_with_expectation(
 
     // compare
     if actual.len() != expected.len() {
-        let formatted = format_tokens(session, tokens);
         return TestResult::Failed {
             message: format!(
-                "semantic_tokens count mismatch: expected {}, got {}\nActual:\n{formatted}",
+                "semantic_tokens count mismatch: expected {}, got {}\nActual:\n{snapshot}",
                 expected.len(),
                 actual.len(),
             ),
@@ -229,99 +248,192 @@ fn token_to_expected(
     })
 }
 
+/// Validate token invariants like bounds, order, and overlap.
+fn validate_token_invariants(
+    session: &QueryTestSession,
+    tokens: &[query::SemanticToken],
+) -> Result<(), String> {
+    // resolve the source once for this file
+    let source = source_for_file(session, session.file_id);
+    let source_len = u32::try_from(source.len()).unwrap_or(u32::MAX);
+
+    // track the previous span to check ordering and overlap
+    let mut previous_span: Option<Span> = None;
+
+    for token in tokens {
+        // validate span bounds against the source length
+        validate_span_bounds(token.span, source_len)?;
+
+        // ensure tokens are sorted and non overlapping
+        if let Some(prev) = previous_span {
+            // reject tokens that move backwards in the file
+            if token.span.start < prev.start {
+                let prev_range = format_span_line_col(source, prev);
+                let this_range = format_span_line_col(source, token.span);
+                return Err(format!(
+                    "semantic_tokens out of order: previous {prev_range}, current {this_range}",
+                ));
+            }
+
+            // reject tokens that still overlap after deduplication
+            if token.span.start < prev.end {
+                let prev_range = format_span_line_col(source, prev);
+                let this_range = format_span_line_col(source, token.span);
+                return Err(format!(
+                    "semantic_tokens overlap: previous {prev_range}, current {this_range}",
+                ));
+            }
+        }
+
+        previous_span = Some(token.span);
+    }
+
+    Ok(())
+}
+
+/// Validate that a span is well formed and within the source bounds.
+fn validate_span_bounds(span: Span, source_len: u32) -> Result<(), String> {
+    // reject inverted or empty spans early
+    if span.start >= span.end {
+        return Err(format!(
+            "semantic_tokens invalid span: start {} >= end {}",
+            span.start, span.end,
+        ));
+    }
+
+    // reject spans that exceed the source bounds
+    if span.end > source_len {
+        return Err(format!(
+            "semantic_tokens span out of bounds: end {} > source_len {}",
+            span.end, source_len,
+        ));
+    }
+
+    Ok(())
+}
+
 /// Collect all modifiers from a bitset.
 fn collect_modifiers(mods: SemanticTokenModifiers) -> Vec<SemanticTokenModifiers> {
+    // collect modifiers in a deterministic order
     let mut result = Vec::new();
-    if mods.contains(SemanticTokenModifiers::DECLARATION) {
-        result.push(SemanticTokenModifiers::DECLARATION);
+    let ordered = [
+        SemanticTokenModifiers::DECLARATION,
+        SemanticTokenModifiers::DEFINITION,
+        SemanticTokenModifiers::READONLY,
+        SemanticTokenModifiers::STATIC,
+        SemanticTokenModifiers::DEPRECATED,
+        SemanticTokenModifiers::ABSTRACT,
+        SemanticTokenModifiers::ASYNC,
+        SemanticTokenModifiers::MODIFICATION,
+        SemanticTokenModifiers::DOCUMENTATION,
+        SemanticTokenModifiers::DEFAULT_LIBRARY,
+        SemanticTokenModifiers::MUTABLE,
+    ];
+
+    for modifier in ordered {
+        if mods.contains(modifier) {
+            result.push(modifier);
+        }
     }
-    if mods.contains(SemanticTokenModifiers::DEFINITION) {
-        result.push(SemanticTokenModifiers::DEFINITION);
-    }
-    if mods.contains(SemanticTokenModifiers::READONLY) {
-        result.push(SemanticTokenModifiers::READONLY);
-    }
-    if mods.contains(SemanticTokenModifiers::STATIC) {
-        result.push(SemanticTokenModifiers::STATIC);
-    }
-    if mods.contains(SemanticTokenModifiers::DEPRECATED) {
-        result.push(SemanticTokenModifiers::DEPRECATED);
-    }
-    if mods.contains(SemanticTokenModifiers::ABSTRACT) {
-        result.push(SemanticTokenModifiers::ABSTRACT);
-    }
-    if mods.contains(SemanticTokenModifiers::ASYNC) {
-        result.push(SemanticTokenModifiers::ASYNC);
-    }
-    if mods.contains(SemanticTokenModifiers::MODIFICATION) {
-        result.push(SemanticTokenModifiers::MODIFICATION);
-    }
-    if mods.contains(SemanticTokenModifiers::DOCUMENTATION) {
-        result.push(SemanticTokenModifiers::DOCUMENTATION);
-    }
-    if mods.contains(SemanticTokenModifiers::DEFAULT_LIBRARY) {
-        result.push(SemanticTokenModifiers::DEFAULT_LIBRARY);
-    }
-    if mods.contains(SemanticTokenModifiers::MUTABLE) {
-        result.push(SemanticTokenModifiers::MUTABLE);
-    }
+
     result
 }
 
-/// Format tokens for error messages.
-fn format_tokens(session: &QueryTestSession, tokens: &[query::SemanticToken]) -> String {
-    tokens
-        .iter()
-        .filter_map(|t| {
-            let start = t.span.start as usize;
-            let end = t.span.end as usize;
-            let text = session.source.get(start..end)?;
-            let modifiers = format_modifiers(t.modifiers);
-            if modifiers.is_empty() {
-                Some(format!("{}: {:?}", text, t.token_type))
-            } else {
-                Some(format!("{}: {:?} [{}]", text, t.token_type, modifiers))
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+/// Detect whether an expectation uses the snapshot format.
+fn is_snapshot_expectation(content: &str) -> bool {
+    content
+        .lines()
+        .any(|line| line.contains("range=") || line.contains("kind="))
 }
 
-/// Format modifiers for display.
-fn format_modifiers(mods: SemanticTokenModifiers) -> String {
-    let mut parts = Vec::new();
-    if mods.contains(SemanticTokenModifiers::DECLARATION) {
-        parts.push("declaration");
+/// Format tokens into the snapshot format.
+fn format_tokens_snapshot(session: &QueryTestSession, tokens: &[query::SemanticToken]) -> String {
+    // resolve the correct source for this file
+    let source = source_for_file(session, session.file_id);
+
+    let mut lines = Vec::new();
+    for token in tokens {
+        // compute the token range and text
+        let range = format_span_line_col(source, token.span);
+        let text = token_text(source, token.span).unwrap_or("<missing>".to_string());
+
+        // compute stable names for the token kind and modifiers
+        let kind = semantic_token_kind_name(token.token_type);
+        let modifiers = semantic_token_modifiers_name(token.modifiers);
+
+        lines.push(format!(
+            "range={range} text={text} kind={kind} modifiers={modifiers}",
+        ));
     }
-    if mods.contains(SemanticTokenModifiers::DEFINITION) {
-        parts.push("definition");
+
+    normalize_expected_snapshot(&lines.join("\n"))
+}
+
+/// Extract the token text for a span.
+fn token_text(source: &str, span: Span) -> Option<String> {
+    let start = usize::try_from(span.start).ok()?;
+    let end = usize::try_from(span.end).ok()?;
+    source.get(start..end).map(|text| text.to_string())
+}
+
+/// Format a token kind as a stable string.
+fn semantic_token_kind_name(token_type: SemanticTokenType) -> &'static str {
+    match token_type {
+        SemanticTokenType::Namespace => "namespace",
+        SemanticTokenType::Type => "type",
+        SemanticTokenType::Class => "class",
+        SemanticTokenType::Enum => "enum",
+        SemanticTokenType::Interface => "interface",
+        SemanticTokenType::Struct => "struct",
+        SemanticTokenType::TypeParameter => "type_parameter",
+        SemanticTokenType::Parameter => "parameter",
+        SemanticTokenType::Variable => "variable",
+        SemanticTokenType::Property => "property",
+        SemanticTokenType::EnumMember => "enum_member",
+        SemanticTokenType::Function => "function",
+        SemanticTokenType::Method => "method",
+        SemanticTokenType::Macro => "macro",
+        SemanticTokenType::Keyword => "keyword",
+        SemanticTokenType::Modifier => "modifier",
+        SemanticTokenType::Comment => "comment",
+        SemanticTokenType::String => "string",
+        SemanticTokenType::Number => "number",
+        SemanticTokenType::Regexp => "regexp",
+        SemanticTokenType::Operator => "operator",
+        SemanticTokenType::Decorator => "decorator",
+        SemanticTokenType::Label => "label",
     }
-    if mods.contains(SemanticTokenModifiers::READONLY) {
-        parts.push("readonly");
+}
+
+/// Format token modifiers as a stable string.
+fn semantic_token_modifiers_name(modifiers: SemanticTokenModifiers) -> String {
+    let modifiers = collect_modifiers(modifiers);
+    if modifiers.is_empty() {
+        return "<none>".to_string();
     }
-    if mods.contains(SemanticTokenModifiers::STATIC) {
-        parts.push("static");
+
+    let mut names = Vec::with_capacity(modifiers.len());
+    for modifier in modifiers {
+        names.push(semantic_token_modifier_name(modifier));
     }
-    if mods.contains(SemanticTokenModifiers::DEPRECATED) {
-        parts.push("deprecated");
+
+    names.join(",")
+}
+
+/// Format a token modifier as a stable string.
+fn semantic_token_modifier_name(modifier: SemanticTokenModifiers) -> &'static str {
+    match modifier {
+        SemanticTokenModifiers::DECLARATION => "declaration",
+        SemanticTokenModifiers::DEFINITION => "definition",
+        SemanticTokenModifiers::READONLY => "readonly",
+        SemanticTokenModifiers::STATIC => "static",
+        SemanticTokenModifiers::DEPRECATED => "deprecated",
+        SemanticTokenModifiers::ABSTRACT => "abstract",
+        SemanticTokenModifiers::ASYNC => "async",
+        SemanticTokenModifiers::MODIFICATION => "modification",
+        SemanticTokenModifiers::DOCUMENTATION => "documentation",
+        SemanticTokenModifiers::DEFAULT_LIBRARY => "default_library",
+        SemanticTokenModifiers::MUTABLE => "mutable",
+        _ => "<unknown>",
     }
-    if mods.contains(SemanticTokenModifiers::ABSTRACT) {
-        parts.push("abstract");
-    }
-    if mods.contains(SemanticTokenModifiers::ASYNC) {
-        parts.push("async");
-    }
-    if mods.contains(SemanticTokenModifiers::MODIFICATION) {
-        parts.push("modification");
-    }
-    if mods.contains(SemanticTokenModifiers::DOCUMENTATION) {
-        parts.push("documentation");
-    }
-    if mods.contains(SemanticTokenModifiers::DEFAULT_LIBRARY) {
-        parts.push("default_library");
-    }
-    if mods.contains(SemanticTokenModifiers::MUTABLE) {
-        parts.push("mutable");
-    }
-    parts.join(", ")
 }

@@ -26,8 +26,12 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     };
 
+    // resolve target file and offset
+    let file_id = marker.span.file;
     let offset = marker.span.start;
-    let result = query::prepare_rename(&session.session, session.file_id, offset);
+
+    // run prepare rename at the resolved position
+    let result = query::prepare_rename(&session.session, file_id, offset);
 
     let content = exp.content.trim();
 
@@ -54,9 +58,10 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
         };
     }
 
-    // non-empty expectation should be the expected placeholder name
+    // compare the placeholder against the expected name
     match result {
         Some(prepare_result) => {
+            // check for placeholder mismatch
             if prepare_result.placeholder != content {
                 TestResult::Failed {
                     message: format!(

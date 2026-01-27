@@ -12,8 +12,8 @@ use crate::mdtest::{
     load_mdtest_expected_failures, parse_mdtest_file, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
-use destack_source::MemoryFileSystem;
-use destack_workspace::MemoryCacheStore;
+use destack_source::{BatchEdit, Edit, MemoryFileSystem};
+use destack_workspace::{MemoryCacheStore, query};
 
 /// Type of query test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -316,6 +316,7 @@ thread_local! {
 
 /// Dispatch to the appropriate test runner based on test type.
 fn run_query_test(test: &QueryTestCase) -> TestResult {
+    // reject empty tests
     if test.base.files.is_empty() {
         return TestResult::Skipped {
             reason: "no source files".to_string(),
@@ -333,6 +334,16 @@ fn run_query_test(test: &QueryTestCase) -> TestResult {
         )
     });
 
+    // run expected file validation when provided
+    if !test.expected_files.is_empty() {
+        return run_expected_files(test, &session);
+    }
+
+    // run explicit query expectations when provided
+    if !test.query_expectations.is_empty() {
+        return run_query_expectations(&session, &test.query_expectations);
+    }
+
     // determine query kind from expectations or markers
     let query_kind = test
         .query_expectations
@@ -344,7 +355,238 @@ fn run_query_test(test: &QueryTestCase) -> TestResult {
     // get the first query expectation if any
     let expectation = test.query_expectations.first();
 
+    // dispatch the query
     dispatch_query(query_kind, &session, expectation)
+}
+
+/// Run a query expectation and validate expected file outputs.
+fn run_expected_files(test: &QueryTestCase, session: &QueryTestSession) -> TestResult {
+    // ensure we have a query expectation
+    let expectation = match test.query_expectations.as_slice() {
+        [expectation] => expectation,
+        [] => {
+            return TestResult::Failed {
+                message: "expected query block for expected files".to_string(),
+            };
+        }
+        _ => {
+            return TestResult::Failed {
+                message: "expected a single query block for expected files".to_string(),
+            };
+        }
+    };
+
+    // dispatch expected file validation by query kind
+    match expectation.kind.as_str() {
+        "rename" => run_rename_expected_files(session, expectation, &test.expected_files),
+        other => TestResult::Failed {
+            message: format!("expected file validation not implemented for {other}"),
+        },
+    }
+}
+
+/// Run a rename expectation and validate edited file contents.
+fn run_rename_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // resolve the marker and new name
+    let Some(marker) = session.markers.range(&expectation.target) else {
+        return TestResult::Failed {
+            message: format!("marker '{}' not found", expectation.target),
+        };
+    };
+    let new_name = expectation
+        .args
+        .first()
+        .map(|name| name.as_str())
+        .unwrap_or("newName");
+
+    // resolve target file and offset
+    let file_id = marker.span.file;
+    let offset = marker.span.start;
+
+    // run rename
+    let result = query::rename(&session.session, file_id, offset, new_name);
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: format!("rename at '{}' returned None", expectation.target),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            return TestResult::Failed {
+                message: format!("rename output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Apply a batch of edits and return updated contents keyed by file path.
+fn apply_batch_edit(
+    session: &QueryTestSession,
+    edits: &BatchEdit,
+) -> Result<HashMap<String, String>, String> {
+    // map file ids to sources
+    let mut sources = HashMap::new();
+    for (name, file) in &session.files {
+        sources.insert(file.file_id, (name.clone(), file.source.clone()));
+    }
+
+    // apply edits per file
+    let mut outputs = HashMap::new();
+    for file_edit in &edits.files {
+        let Some((name, source)) = sources.get(&file_edit.file) else {
+            return Err(format!(
+                "edit target file {:?} not found in session",
+                file_edit.file
+            ));
+        };
+
+        let updated = apply_file_edits(source, &file_edit.edits)?;
+        outputs.insert(name.clone(), updated);
+    }
+
+    Ok(outputs)
+}
+
+/// Apply a set of edits to a source string.
+fn apply_file_edits(source: &str, edits: &[Edit]) -> Result<String, String> {
+    // return original source when no edits
+    if edits.is_empty() {
+        return Ok(source.to_string());
+    }
+
+    // sort edits by start descending
+    let mut sorted_edits = edits.to_vec();
+    sorted_edits.sort_by(|left, right| right.span.start.cmp(&left.span.start));
+
+    // apply edits from the end
+    let mut updated = source.to_string();
+    for edit in sorted_edits {
+        let start = edit.span.start as usize;
+        let end = edit.span.end as usize;
+
+        // validate span boundaries
+        if start > end || end > updated.len() {
+            return Err("edit span is out of bounds".to_string());
+        }
+        if !updated.is_char_boundary(start) || !updated.is_char_boundary(end) {
+            return Err("edit span is not on a char boundary".to_string());
+        }
+
+        updated.replace_range(start..end, &edit.new_text);
+    }
+
+    Ok(updated)
+}
+
+fn run_query_expectations(
+    session: &QueryTestSession,
+    expectations: &[QueryExpectation],
+) -> TestResult {
+    // reject empty expectation lists
+    if expectations.is_empty() {
+        return TestResult::Failed {
+            message: "no query expectations provided".to_string(),
+        };
+    }
+
+    // track results for aggregated output
+    let mut passed = 0usize;
+    let mut skipped = Vec::new();
+
+    for expectation in expectations {
+        // execute the query for this expectation
+        let result = dispatch_query(&expectation.kind, session, Some(expectation));
+
+        // handle the query result
+        match result {
+            TestResult::Passed => {
+                passed += 1;
+            }
+            TestResult::Skipped { reason } => {
+                skipped.push(format!(
+                    "{} {}: {reason}",
+                    expectation.kind, expectation.target
+                ));
+            }
+            TestResult::Failed { message } => {
+                return TestResult::Failed {
+                    message: format!(
+                        "query {} {} failed: {message}",
+                        expectation.kind, expectation.target
+                    ),
+                };
+            }
+            TestResult::Suite { .. } => {
+                return TestResult::Failed {
+                    message: format!(
+                        "query {} {} returned suite result",
+                        expectation.kind, expectation.target
+                    ),
+                };
+            }
+        }
+    }
+
+    // return when any expectation passed
+    if passed > 0 {
+        return TestResult::Passed;
+    }
+
+    // return aggregated skip reasons when nothing ran
+    if !skipped.is_empty() {
+        return TestResult::Skipped {
+            reason: format!("all query expectations skipped: {}", skipped.join(", ")),
+        };
+    }
+
+    TestResult::Failed {
+        message: "no query expectations executed".to_string(),
+    }
 }
 
 /// Dispatch to the appropriate runner based on query kind.
@@ -373,6 +615,9 @@ fn dispatch_query(
         }
         "document_symbols" | "symbols" => {
             runner::navigation::document_symbol::run(session, expectation)
+        }
+        "parity_tsserver_document_symbols" => {
+            runner::parity::tsserver_document_symbol::run(session, expectation)
         }
         "workspace_symbols" | "workspace" => {
             runner::navigation::workspace_symbol::run(session, expectation)

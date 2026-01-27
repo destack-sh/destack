@@ -207,16 +207,36 @@ impl QueryTestSession {
 
         let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
         compiler.options.load_libs = load_libs;
-        let module_version = program.modules.get(module_id).read().version;
+
+        // resolve all test modules so auto import queries can see exports
+        let mut module_ids = vec![module_id];
+        for (path, _, _) in &clean_files {
+            let file_path = root.join(path);
+            if file_path == main_path {
+                continue;
+            }
+
+            if let Ok(other_module_id) = compiler.resolve_path_to_module(&file_path) {
+                module_ids.push(other_module_id);
+            }
+        }
+
+        module_ids.sort();
+        module_ids.dedup();
+
         let profile_version = program
             .profiles
             .get(profile)
             .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
             .version;
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-            module: ModuleStamp::new(module_id, module_version),
-            profile: ProfileStamp::new(profile, profile_version),
-        });
+
+        for module_id in module_ids {
+            let module_version = program.modules.get(module_id).read().version;
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+                module: ModuleStamp::new(module_id, module_version),
+                profile: ProfileStamp::new(profile, profile_version),
+            });
+        }
         compiler.compile();
         drop(compiler);
 

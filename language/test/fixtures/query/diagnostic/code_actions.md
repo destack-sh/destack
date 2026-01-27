@@ -9,7 +9,7 @@ Tests for LSP code actions functionality.
 Valid code without errors should have no code actions.
 
 ```ds
-function greet(name: string): string {
+$0function greet(name: string): string {
     return "Hello, " + name;
 }
 
@@ -27,7 +27,7 @@ No code actions expected for valid code.
 Empty or minimal files should not generate code actions.
 
 ```ds
-const x = 42;
+$0const x = 42;
 ```
 
 No code actions expected.
