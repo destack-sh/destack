@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::harness::{TestResult, format_diagnostics};
@@ -33,11 +34,8 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
         };
     };
 
-    let file_type = if input_file.path.ends_with(".d.ds") {
-        FileType::DestackDeclaration
-    } else {
-        FileType::Destack
-    };
+    let file_path = Path::new(&input_file.path);
+    let file_type = FileType::from_path(file_path).unwrap_or(FileType::Destack);
 
     // build formatter options from test options
     let mut formatter_options = FormatterOptions::default();

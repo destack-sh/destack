@@ -145,7 +145,7 @@ where
                 write!(f, [&token(self.start_token), body, &token(self.end_token)])
             }
         });
-        
+
         // otherwise, indent the body
         let format_indented = format_with(|f| {
             group(&format_args![
