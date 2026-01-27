@@ -53,7 +53,7 @@ const ok: WithoutA<Shape> = { b: "x" };
 const bad: WithoutA<Shape> = { a: 1, b: "x" };
 ```
 
-- contains: not assignable
+- contains: excess property
 
 ### key remap collisions merge value types
 
