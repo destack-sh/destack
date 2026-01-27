@@ -3,8 +3,8 @@ use destack_source::FileId;
 
 use crate::parse::{ParseOptions, Parser};
 use crate::{
-    ArgumentSlice, Block, CallArgumentMetadata, CallEffects, Function, Instruction, Local,
-    Mutability, Ownership, Type, Value,
+    ArgumentSlice, Block, CallArgumentMetadata, CallBehavior, CallEffects, Function, Instruction,
+    Local, Mutability, Ownership, Repeatability, Type, Value,
 };
 
 use super::{Verifier, VerifierOptions};
@@ -372,5 +372,117 @@ fn test_reject_call_effect_argument_count_mismatch() {
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: call effects argument count mismatch expected 0 got 1"
+    );
+}
+
+/// Pure effects must not suspend execution.
+#[test]
+fn test_reject_pure_effect_with_suspend() {
+    let mut tree = crate::NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("pure_suspend");
+
+    let void_ty = tree.insert_type(Type::Void);
+    let signature = tree.insert_type(Type::FunctionPointer {
+        parameters: Vec::new(),
+        result: void_ty,
+    });
+    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee_id = tree.insert(callee);
+
+    let behavior = CallBehavior {
+        repeatability: Repeatability::Pure,
+        may_suspend: true,
+        no_reorder: false,
+        no_deopt_across: false,
+        no_replay: false,
+        ..CallBehavior::none()
+    };
+    let effects = CallEffects {
+        behavior: Some(behavior),
+        ..CallEffects::default()
+    };
+    let instruction = tree.insert(Instruction::Call {
+        destination: None,
+        function: callee_id,
+        arguments: ArgumentSlice::new(0, 0),
+        signature,
+        effects: Some(effects),
+    });
+    let block = Block {
+        parameters: Vec::new(),
+        instructions: vec![instruction],
+        terminator: crate::Terminator::Return { value: None },
+    };
+    let block_id = tree.insert(block);
+
+    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
+    let error = verifier
+        .verify_function(function_id)
+        .expect_err("expected verification failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: pure effect cannot suspend"
+    );
+}
+
+/// Replay barriers require non-repeatable effects.
+#[test]
+fn test_reject_repeatable_effect_with_no_replay() {
+    let mut tree = crate::NodeTree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("repeatable_no_replay");
+
+    let void_ty = tree.insert_type(Type::Void);
+    let signature = tree.insert_type(Type::FunctionPointer {
+        parameters: Vec::new(),
+        result: void_ty,
+    });
+    let callee = Function::import(name, Vec::new(), void_ty);
+    let callee_id = tree.insert(callee);
+
+    let behavior = CallBehavior {
+        repeatability: Repeatability::Repeatable,
+        may_suspend: false,
+        no_reorder: true,
+        no_deopt_across: false,
+        no_replay: true,
+        ..CallBehavior::none()
+    };
+    let effects = CallEffects {
+        behavior: Some(behavior),
+        ..CallEffects::default()
+    };
+    let instruction = tree.insert(Instruction::Call {
+        destination: None,
+        function: callee_id,
+        arguments: ArgumentSlice::new(0, 0),
+        signature,
+        effects: Some(effects),
+    });
+    let block = Block {
+        parameters: Vec::new(),
+        instructions: vec![instruction],
+        terminator: crate::Terminator::Return { value: None },
+    };
+    let block_id = tree.insert(block);
+
+    let mut function = Function::local(name, Vec::new(), void_ty, block_id);
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
+    let error = verifier
+        .verify_function(function_id)
+        .expect_err("expected verification failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: no_replay requires non_repeatable effect"
     );
 }

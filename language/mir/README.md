@@ -172,7 +172,8 @@ Atomic operations and barriers carry explicit execution scope, memory scope, and
 Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
 The memory metadata includes:
 - **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
-- **Function behaviors**: `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
+- **Function behaviors**: `repeatability` (`pure`, `repeatable`, `non_repeatable`), `may_suspend`, `no_reorder`, `no_deopt_across`, `no_replay`, `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
+- The `no_deopt_across` flag forbids deoptimization that would cross a call boundary, but it still permits deoptimization before or after the call.
 - **Allocator size metadata**: `alloc_size` ties allocator returns to parameter sizes for more precise aliasing and bounds reasoning.
 - **Pointer attributes** for parameters and returns: `noalias`, `capture`, `readonly`, `writeonly`, `nonnull`, `noundef`, `dereferenceable`, `dereferenceable_or_null`, `align`, and `returned`.
 - `capture` is one of `nocapture`, `return_only`, `store`, or `escape`.
@@ -211,6 +212,8 @@ These invariants keep metadata sound for optimization and codegen.
 - Call behavior: `allocAddressSpaces` is only set when `allocates` is true.
 - Call behavior: `freeLocations` is only set when `frees` is true.
 - Call behavior: `freeAddressSpaces` is only set when `frees` is true.
+- Call behavior: `pure` repeatability implies `may_suspend` is false.
+- Call behavior: `no_replay` implies `non_repeatable`.
 - Memory effects: `reads` and `writes` are both false only when `locations` is `NONE`.
 - Memory effects: `argmemonly` implies `locations` is `ARGUMENTS` or `NONE`.
 - Memory effects: `inaccessibleMemOnly` implies `locations` is `INACCESSIBLE` or `NONE`.
