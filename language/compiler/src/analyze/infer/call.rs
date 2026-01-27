@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberResolution};
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
-    InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
+    InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
+    NodeTree, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
     StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -201,6 +202,7 @@ impl Compiler {
         dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
         signature_ty_id: LocalTypeId,
         call_receiver_ty_id: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -209,7 +211,7 @@ impl Compiler {
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
         let Type::Function {
-            static_parameters,
+            mut static_parameters,
             dynamic_parameters,
             return_type,
             ..
@@ -217,6 +219,30 @@ impl Compiler {
         else {
             return Ok(None);
         };
+
+        // recover missing static parameters from the signature node when possible
+        if static_parameters.is_empty() {
+            let source_id = types.get_type_source(signature_ty_id);
+            if let Ok(member_id) = source_id.try_into_typed::<Member>() {
+                let member = tree.get(member_id);
+                if let Member::Method { signature, .. } = member
+                    && signature.generics.as_ref().is_some()
+                {
+                    static_parameters = self.static_parameter_placeholders_for_signature(
+                        module, signature, tree, types,
+                    );
+                }
+            } else if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
+                let declaration = tree.get(declaration_id);
+                if let Declaration::Function { signature, .. } = declaration
+                    && signature.generics.as_ref().is_some()
+                {
+                    static_parameters = self.static_parameter_placeholders_for_signature(
+                        module, signature, tree, types,
+                    );
+                }
+            }
+        }
 
         let resolved = self.resolve_function_signature(
             module,
@@ -227,6 +253,7 @@ impl Compiler {
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            mode,
             profile,
             options,
             tree,
@@ -269,6 +296,7 @@ impl Compiler {
         signature_ids: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -290,6 +318,7 @@ impl Compiler {
             signature_ids,
             dynamic_arguments,
             call_receiver_ty_id,
+            mode,
             profile,
             options,
             tree,
@@ -342,6 +371,7 @@ impl Compiler {
         signature_ids: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -364,6 +394,7 @@ impl Compiler {
             signature_ids,
             dynamic_arguments,
             call_receiver_ty_id,
+            mode,
             profile,
             options,
             tree,
@@ -404,7 +435,15 @@ impl Compiler {
         // infer arguments with contextual types when possible
         let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let expected_arg_ty_id = expected_argument_types.get(index).copied().flatten();
+            let expected_arg_ty_id = expected_argument_types
+                .get(index)
+                .copied()
+                .flatten()
+                .and_then(|parameter| {
+                    self.expected_parameter_type_for_inference(
+                        module, profile, parameter, symbols, types,
+                    )
+                });
             self.infer_argument(
                 module,
                 *argument_id,
@@ -452,6 +491,7 @@ impl Compiler {
                     *param_ty_id,
                     *argument_ty_id,
                     types,
+                    infer,
                     options,
                 ) {
                     is_applicable = false;
@@ -602,6 +642,7 @@ impl Compiler {
         signature_ids: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -621,6 +662,7 @@ impl Compiler {
                 Some(dynamic_arguments),
                 *signature_ty_id,
                 call_receiver_ty_id,
+                mode,
                 profile,
                 options,
                 tree,
@@ -821,6 +863,8 @@ impl Compiler {
         module: &Module,
         dynamic_arguments: &[LocalNodeId<Argument>],
         parameter_types: &[LocalTypeId],
+        profile: ProfileId,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -833,6 +877,7 @@ impl Compiler {
             module,
             dynamic_arguments,
             parameter_types,
+            profile,
             tree,
             symbols,
             types,
@@ -846,6 +891,7 @@ impl Compiler {
             dynamic_arguments,
             &argument_ty_ids,
             parameter_types,
+            bound_substitutions,
             options,
             tree,
             symbols,
@@ -877,6 +923,7 @@ impl Compiler {
         module: &Module,
         dynamic_arguments: &[LocalNodeId<Argument>],
         parameter_types: &[LocalTypeId],
+        profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -887,7 +934,11 @@ impl Compiler {
         let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             // apply contextual expectation from the parameter type
-            let expected_arg_ty_id = parameter_types.get(index).copied();
+            let expected_arg_ty_id = parameter_types.get(index).copied().and_then(|parameter| {
+                self.expected_parameter_type_for_inference(
+                    module, profile, parameter, symbols, types,
+                )
+            });
             self.infer_argument(
                 module,
                 *argument_id,
@@ -915,6 +966,28 @@ impl Compiler {
         Ok(argument_ty_ids)
     }
 
+    /// Select an expected parameter type for inference without widening type parameters.
+    fn expected_parameter_type_for_inference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        parameter_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // avoid contextual typing for type parameters
+        let expected_ty_id = self.expected_value_type(Some(parameter_ty_id), types)?;
+        if let Type::Reference {
+            symbol,
+            static_arguments: None,
+        } = types.get_type(expected_ty_id)
+            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+        {
+            return None;
+        }
+        Some(expected_ty_id)
+    }
+
     /// Add argument constraints and static parameter bounds for an invocation.
     fn add_invocation_argument_constraints(
         &self,
@@ -922,6 +995,7 @@ impl Compiler {
         dynamic_arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -975,6 +1049,19 @@ impl Compiler {
             );
             let Some(constraint_id) = constraint_id else {
                 continue;
+            };
+            let constraint_id = if let Some(bound_substitutions) = bound_substitutions
+                && !bound_substitutions.is_empty()
+            {
+                let mut cache = HashMap::new();
+                self.substitute_static_parameters(
+                    constraint_id,
+                    bound_substitutions,
+                    types,
+                    &mut cache,
+                )
+            } else {
+                constraint_id
             };
             if matches!(
                 types.get_type(constraint_id),
@@ -1288,9 +1375,64 @@ impl Compiler {
         param_ty_id: LocalTypeId,
         argument_ty_id: LocalTypeId,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> bool {
-        if let Some(elements) = self.union_elements_for_argument_type(argument_ty_id, types) {
+        let resolved_argument_ty_id = self.materialize_infer_type_for_check(
+            module,
+            profile,
+            symbols,
+            argument_ty_id,
+            infer,
+            types,
+            options,
+        );
+        if let Type::InferVar { id } = types.get_type(param_ty_id)
+            && let Some(var) = infer.vars.get(id.0 as usize)
+            && !var.upper_bounds.is_empty()
+        {
+            let mut satisfies_bound = false;
+            for upper_bound in &var.upper_bounds {
+                let resolved_bound = self.materialize_infer_type_for_check(
+                    module,
+                    profile,
+                    symbols,
+                    *upper_bound,
+                    infer,
+                    types,
+                    options,
+                );
+                if self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    resolved_bound,
+                    resolved_argument_ty_id,
+                    types,
+                    options,
+                ) != Assignability::NotAssignable
+                {
+                    satisfies_bound = true;
+                    break;
+                }
+            }
+            if !satisfies_bound {
+                return false;
+            }
+        }
+
+        let param_ty_id = self.materialize_infer_type_for_check(
+            module,
+            profile,
+            symbols,
+            param_ty_id,
+            infer,
+            types,
+            options,
+        );
+        if let Some(elements) =
+            self.union_elements_for_argument_type(resolved_argument_ty_id, types)
+        {
             return elements.iter().any(|element_id| {
                 self.is_type_assignable(
                     module,
@@ -1309,7 +1451,7 @@ impl Compiler {
             profile,
             symbols,
             param_ty_id,
-            argument_ty_id,
+            resolved_argument_ty_id,
             types,
             options,
         ) != Assignability::NotAssignable
@@ -1523,6 +1665,7 @@ impl Compiler {
                     &call_signatures,
                     dynamic_arguments,
                     Some(*element_id),
+                    SignatureResolutionMode::Inference,
                     profile,
                     options,
                     tree,
@@ -1549,6 +1692,7 @@ impl Compiler {
                     Some(dynamic_arguments),
                     signature_ty_id,
                     Some(*element_id),
+                    SignatureResolutionMode::Inference,
                     profile,
                     options,
                     tree,
@@ -1992,6 +2136,7 @@ impl Compiler {
                 &call_signatures,
                 dynamic_arguments,
                 call_receiver_ty_id,
+                SignatureResolutionMode::Inference,
                 ctx.profile,
                 &options,
                 tree,
@@ -2012,6 +2157,7 @@ impl Compiler {
                 &call_signatures,
                 dynamic_arguments,
                 call_receiver_ty_id,
+                SignatureResolutionMode::Inference,
                 ctx.profile,
                 &options,
                 tree,
@@ -2055,6 +2201,7 @@ impl Compiler {
                     Some(dynamic_arguments),
                     signature_ty_id,
                     call_receiver_ty_id,
+                    SignatureResolutionMode::Inference,
                     ctx.profile,
                     &options,
                     tree,
@@ -2075,25 +2222,44 @@ impl Compiler {
 
             let mut resolved_signature = resolved;
             if !inherited_substitutions.is_empty() {
-                let mut cache = HashMap::new();
+                let mut materialize_cache = HashMap::new();
+                let mut substitute_cache = HashMap::new();
                 let dynamic_parameters = resolved_signature
                     .dynamic_parameters
                     .iter()
                     .map(|parameter| {
-                        self.substitute_static_parameters(
+                        let materialized = self.materialize_static_arguments_in_type(
+                            module,
+                            ctx.profile,
                             *parameter,
+                            tree,
+                            symbols,
+                            types,
+                            &mut materialize_cache,
+                        );
+                        self.substitute_static_parameters(
+                            materialized,
                             &inherited_substitutions,
                             types,
-                            &mut cache,
+                            &mut substitute_cache,
                         )
                     })
                     .collect();
                 let return_type = resolved_signature.return_type.map(|return_type| {
-                    self.substitute_static_parameters(
+                    let materialized = self.materialize_static_arguments_in_type(
+                        module,
+                        ctx.profile,
                         return_type,
+                        tree,
+                        symbols,
+                        types,
+                        &mut materialize_cache,
+                    );
+                    self.substitute_static_parameters(
+                        materialized,
                         &inherited_substitutions,
                         types,
-                        &mut cache,
+                        &mut substitute_cache,
                     )
                 });
                 resolved_signature = ResolvedSignature {
@@ -2111,6 +2277,8 @@ impl Compiler {
                 module,
                 dynamic_arguments,
                 resolved_dynamic_parameters,
+                ctx.profile,
+                (!inherited_substitutions.is_empty()).then_some(&inherited_substitutions),
                 &options,
                 tree,
                 symbols,
@@ -2291,6 +2459,7 @@ impl Compiler {
                 &construct_signatures,
                 dynamic_arguments,
                 None,
+                SignatureResolutionMode::Inference,
                 ctx.profile,
                 &options,
                 tree,
@@ -2334,6 +2503,7 @@ impl Compiler {
                     Some(dynamic_arguments),
                     signature_ty_id,
                     None,
+                    SignatureResolutionMode::Inference,
                     ctx.profile,
                     &options,
                     tree,
@@ -2392,6 +2562,8 @@ impl Compiler {
                 module,
                 dynamic_arguments,
                 resolved_dynamic_parameters,
+                ctx.profile,
+                None,
                 &options,
                 tree,
                 symbols,
@@ -2507,6 +2679,7 @@ impl Compiler {
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -2523,6 +2696,7 @@ impl Compiler {
             static_parameters,
             dynamic_parameters,
             return_type,
+            mode,
             profile,
             options,
             tree,
@@ -2553,6 +2727,7 @@ impl Compiler {
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        mode: SignatureResolutionMode,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -2560,6 +2735,8 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<ResolvedSignature>> {
+        let _ = mode;
+
         // handle fast paths when there are no static parameters
         let has_static_arguments = static_argument_ids.is_some_and(|args| !args.is_empty());
 
@@ -2608,15 +2785,18 @@ impl Compiler {
         let argument_ids = static_argument_ids.unwrap_or(&[]);
         let argument_values = argument_ids
             .iter()
-            .map(|argument_id| StaticArgument::Unevaluated { node: *argument_id })
+            .map(|argument_id| StaticArgument::Unevaluated {
+                node: argument_id.into_global_any(module.id),
+            })
             .collect::<Vec<_>>();
         let assigned_arguments = self.assign_static_argument_values(
-            module.id,
+            module,
             profile,
             node_id,
             &argument_values,
             &static_parameters,
             tree,
+            symbols,
         );
 
         // resolve each parameter and build substitutions
@@ -2646,11 +2826,13 @@ impl Compiler {
 
             let error_node = if let Some(argument) = &assigned_argument {
                 match argument {
-                    StaticArgument::Unevaluated { node } => node.into_global_any(module.id),
+                    StaticArgument::Unevaluated { node } => *node,
                     StaticArgument::Evaluated { .. } => node_id.into_global(module.id),
                 }
             } else if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-                default_expression.local_id.into_global_any(module.id)
+                default_expression
+                    .local_id
+                    .into_global_any(default_expression.module_id)
             } else {
                 node_id.into_global(module.id)
             };
@@ -2712,6 +2894,7 @@ impl Compiler {
                 static_parameter,
                 &resolved_argument,
                 materialized_substitution,
+                &substitutions,
                 tree,
                 symbols,
                 types,
@@ -2741,7 +2924,8 @@ impl Compiler {
         }
 
         // apply substitutions to the dynamic signature
-        let mut cache = HashMap::new();
+        let mut materialize_cache = HashMap::new();
+        let mut substitute_cache = HashMap::new();
         let resolved_dynamic_parameters = if has_missing_value_argument {
             let error_ty_id = types.insert_type_from_any(Type::Error, node_id);
             dynamic_parameters
@@ -2752,7 +2936,21 @@ impl Compiler {
             dynamic_parameters
                 .iter()
                 .map(|parameter| {
-                    self.substitute_static_parameters(*parameter, &substitutions, types, &mut cache)
+                    let materialized = self.materialize_static_arguments_in_type(
+                        module,
+                        profile,
+                        *parameter,
+                        tree,
+                        symbols,
+                        types,
+                        &mut materialize_cache,
+                    );
+                    self.substitute_static_parameters(
+                        materialized,
+                        &substitutions,
+                        types,
+                        &mut substitute_cache,
+                    )
                 })
                 .collect::<Vec<_>>()
         };
@@ -2760,7 +2958,21 @@ impl Compiler {
             Some(types.insert_type_from_any(Type::Error, node_id))
         } else {
             return_type.map(|return_type| {
-                self.substitute_static_parameters(return_type, &substitutions, types, &mut cache)
+                let materialized = self.materialize_static_arguments_in_type(
+                    module,
+                    profile,
+                    return_type,
+                    tree,
+                    symbols,
+                    types,
+                    &mut materialize_cache,
+                );
+                self.substitute_static_parameters(
+                    materialized,
+                    &substitutions,
+                    types,
+                    &mut substitute_cache,
+                )
             })
         };
 
@@ -2913,6 +3125,7 @@ impl Compiler {
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            SignatureResolutionMode::Checking,
             profile,
             options,
             tree,

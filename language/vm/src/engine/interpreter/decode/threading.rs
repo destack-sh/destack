@@ -1433,10 +1433,8 @@ fn thread_instruction(
     match inst {
         mir::Instruction::Const { destination, value } => {
             let const_value = if matches!(value, mir::Constant::Null) {
-                let reference = reference_meta_for_type(
-                    tree,
-                    value_type_for_value(*destination, value_types),
-                );
+                let reference =
+                    reference_meta_for_type(tree, value_type_for_value(*destination, value_types));
                 let value = match reference.kind() {
                     Some(mir::ReferenceKind::Managed) => {
                         Value::managed_reference_with_meta(HeapHandle::NULL, reference)
@@ -2602,10 +2600,7 @@ fn reference_meta_for_value(value_kinds: &ValueKinds, value: mir::Value) -> Refe
 }
 
 /// Get reference metadata for a type when available.
-fn reference_meta_for_type(
-    tree: &mir::NodeTree,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> ReferenceMeta {
+fn reference_meta_for_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> ReferenceMeta {
     match kind_from_type(tree, ty) {
         ValueKind::Pointer { reference, .. } => reference,
         _ => ReferenceMeta::NONE,

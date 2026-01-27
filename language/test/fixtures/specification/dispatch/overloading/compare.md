@@ -7,7 +7,7 @@ Tests for comparison operator overloading via interface implementations.
 > TODO #Broken: comparison operators should lower compare to Ordering checks that return boolean
  (probably should do this in desugar during Bind?)
 
-### _equality and comparison operators dispatch
+### equality and comparison operators dispatch
 
 > Operators dispatch to interface methods when the receiver implements them.
 

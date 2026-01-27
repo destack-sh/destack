@@ -323,7 +323,9 @@ impl Compiler {
                 }
 
                 if source_index < source_spans.len() {
-                    segment.spans.extend_from_slice(&source_spans[source_index..]);
+                    segment
+                        .spans
+                        .extend_from_slice(&source_spans[source_index..]);
                 }
 
                 for literal in source_parts.iter().skip(source_index + 1) {
@@ -420,13 +422,9 @@ impl Compiler {
         // allow a single span segment when assignable
         if segment.literals.is_empty() && segment.spans.len() == 1 {
             // allow string spans to accept any stringifiable template span
-            if self.span_is_string_compatible_for_template(
-                module,
-                profile,
-                span_ty_id,
-                symbols,
-                types,
-            ) {
+            if self
+                .span_is_string_compatible_for_template(module, profile, span_ty_id, symbols, types)
+            {
                 return true;
             }
 
@@ -489,12 +487,7 @@ impl Compiler {
             && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
         {
             let constraint_id = self.static_parameter_constraint_type(
-                module,
-                profile,
-                *symbol,
-                source_id,
-                symbols,
-                types,
+                module, profile, *symbol, source_id, symbols, types,
             );
             let Some(constraint_id) = constraint_id else {
                 return TemplateSpanMatch::Any;
@@ -527,12 +520,7 @@ impl Compiler {
         // resolve the span type for matching
         let source_id = types.get_type_source(span_ty_id);
         let span_match = self.resolve_template_span_match_type(
-            module,
-            profile,
-            span_ty_id,
-            source_id,
-            symbols,
-            types,
+            module, profile, span_ty_id, source_id, symbols, types,
         );
 
         let span_ty_id = match span_match {
@@ -616,12 +604,7 @@ impl Compiler {
         // resolve the span type for matching
         let source_id = types.get_type_source(span_ty_id);
         let span_match = self.resolve_template_span_match_type(
-            module,
-            profile,
-            span_ty_id,
-            source_id,
-            symbols,
-            types,
+            module, profile, span_ty_id, source_id, symbols, types,
         );
 
         let span_ty_id = match span_match {
@@ -1144,9 +1127,7 @@ impl Compiler {
         }
 
         // allow exponent overflow numeric forms (matching JS literal grammar)
-        if parsed.is_infinite()
-            && (parts.trimmed.contains('e') || parts.trimmed.contains('E'))
-        {
+        if parsed.is_infinite() && (parts.trimmed.contains('e') || parts.trimmed.contains('E')) {
             return Some(parsed);
         }
 
@@ -1319,12 +1300,7 @@ impl Compiler {
         // resolve the span type for matching
         let source_id = types.get_type_source(span_ty_id);
         let span_match = self.resolve_template_span_match_type(
-            module,
-            profile,
-            span_ty_id,
-            source_id,
-            symbols,
-            types,
+            module, profile, span_ty_id, source_id, symbols, types,
         );
 
         let span_ty_id = match span_match {

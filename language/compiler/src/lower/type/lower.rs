@@ -385,9 +385,7 @@ impl TypeLowerer {
                 dynamic_parameters: _,
                 return_type: _,
                 ..
-            } => {
-                self.lower_function_type(types, type_id, module_id, node, builder)?
-            }
+            } => self.lower_function_type(types, type_id, module_id, node, builder)?,
             dir::Type::Union { elements } => {
                 self.lower_union_type(types, type_id, elements, module_id, node, builder)?
             }
@@ -455,16 +453,20 @@ impl TypeLowerer {
             return self.lower_enum_backing_type(types, symbol, node, builder);
         }
 
-        let instance_type_id = types.get_instance_type_id(symbol).ok_or_else(|| {
-            LowerError::UnsupportedType {
-                node,
-                ty: type_id.into_global(module_id),
-                message: "type reference has no instance type".to_string(),
-            }
-        })?;
+        let instance_type_id =
+            types
+                .get_instance_type_id(symbol)
+                .ok_or_else(|| LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "type reference has no instance type".to_string(),
+                })?;
 
         let instance_type = if instance_type_id == type_id {
-            if !matches!(symbol.ty(), dir::SymbolType::TypeAlias | dir::SymbolType::Newtype) {
+            if !matches!(
+                symbol.ty(),
+                dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
+            ) {
                 return Err(LowerError::UnsupportedType {
                     node,
                     ty: type_id.into_global(module_id),

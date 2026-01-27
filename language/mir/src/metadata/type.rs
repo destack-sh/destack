@@ -92,7 +92,6 @@ pub enum DispatchSlot {
     },
 }
 
-
 /// Metadata for a dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DispatchTable {

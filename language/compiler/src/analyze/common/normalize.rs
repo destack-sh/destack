@@ -68,14 +68,9 @@ impl Compiler {
 
         // load the alias target for substitution
         let source_id = types.get_type_source(type_id);
-        let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
-            module,
-            profile,
-            symbol,
-            source_id,
-            symbols,
-            types,
-        ) else {
+        let Some(alias_target_id) = self
+            .alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        else {
             return normalized;
         };
 
@@ -101,14 +96,7 @@ impl Compiler {
 
         // substitute parameters into the alias target
         let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
-            symbol,
-            source_id,
-            arguments,
-            &tree,
-            symbols,
-            types,
+            module, profile, symbol, source_id, arguments, &tree, symbols, types,
         );
         if substitutions.is_empty() {
             return self.normalize_type(
@@ -208,14 +196,7 @@ impl Compiler {
                 else if symbol.ty() == SymbolType::TypeAlias {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let expanded = self.normalize_type_alias_reference_with_arguments(
-                        module,
-                        profile,
-                        source_id,
-                        symbol,
-                        arguments,
-                        symbols,
-                        types,
-                        mode,
+                        module, profile, source_id, symbol, arguments, symbols, types, mode,
                         visited,
                     );
                     if let Some(expanded) = expanded {
@@ -1088,7 +1069,7 @@ impl Compiler {
             // fall back to local materialization when resolution is incomplete
             let tree = module.dir(profile).tree.read();
             let resolved = self.materialize_static_arguments_for_reference(
-                module, profile, symbol, arguments, &tree, symbols, types,
+                module, profile, symbol, source_id, arguments, &tree, symbols, types,
             );
             if resolved != arguments {
                 return resolved;
@@ -1624,6 +1605,19 @@ impl Compiler {
     /// Resolve the apparent type for type operations.
     pub(crate) fn apparent_type(
         &self,
+        _module: &Module,
+        _profile: ProfileId,
+        type_id: LocalTypeId,
+        _symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // unwrap cached alias instances
+        self.unwrap_normalization_alias_reference(type_id, types)
+    }
+
+    /// Resolve the apparent type for assignability checks.
+    pub(crate) fn apparent_type_for_assignability(
+        &self,
         module: &Module,
         profile: ProfileId,
         type_id: LocalTypeId,
@@ -1667,7 +1661,8 @@ impl Compiler {
         let type_id = self.normalize_type(module, profile, type_id, symbols, types, mode);
 
         // resolve apparent types after normalization
-        let type_id = self.apparent_type(module, profile, type_id, symbols, types);
+        let type_id =
+            self.apparent_type_for_assignability(module, profile, type_id, symbols, types);
 
         // normalize again after apparent type expansion
         self.normalize_type(module, profile, type_id, symbols, types, mode)

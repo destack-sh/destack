@@ -501,14 +501,9 @@ impl Compiler {
         let exports = dir.exported_symbols.read();
         let tree = dir.tree.read();
         let export_spaces = SymbolSpaceOrder::ValueThenType;
-        let Some(symbol_id) = self.resolve_exported_symbol(
-            &module,
-            profile,
-            &exports,
-            &tree,
-            export_spaces,
-            key,
-        ) else {
+        let Some(symbol_id) =
+            self.resolve_exported_symbol(&module, profile, &exports, &tree, export_spaces, key)
+        else {
             return Err(ResolveError::MissingLanguageSymbol { item });
         };
 

@@ -214,6 +214,22 @@ impl Compiler {
                     );
                 }
 
+                // fall back to declared type shapes when instance types are unavailable
+                if let Some(declared_id) =
+                    self.declared_type_for_symbol(module, profile, type_id, symbol, symbols, types)
+                {
+                    return self.key_set_for_type(
+                        module,
+                        profile,
+                        declared_id,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                        visited_keys,
+                    );
+                }
+
                 // fall back to all key kinds
                 self.key_set_for_all_index_kinds()
             }
@@ -277,6 +293,80 @@ impl Compiler {
             }
             _ => KeySet::default(),
         }
+    }
+
+    /// Resolve a declared type id for a symbol into the current type table.
+    fn declared_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_type_id: LocalTypeId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // read declared types locally when the type table matches the module
+        if symbol.module_id == module.id && types.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            let primary = symbol_entry.primary_declaration?;
+            let declared_id = types.get_declared_type_id(primary)?;
+            if matches!(types.get_type(declared_id), Type::Unevaluated(_)) {
+                let tree = module.dir(profile).tree.read();
+                if self
+                    .evaluate_type(module, profile, declared_id, &tree, symbols, types)
+                    .is_err()
+                {
+                    return None;
+                }
+            }
+            if matches!(types.get_type(declared_id), Type::Unevaluated(_)) {
+                return None;
+            }
+            return Some(declared_id);
+        }
+
+        // import declared types from remote modules when needed
+        if symbol.module_id != module.id
+            && self
+                .require_analyze_module_declare(symbol.module_id, profile)
+                .is_err()
+        {
+            return None;
+        }
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+        let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
+        let primary = symbol_entry.primary_declaration?;
+        let mut remote_types = remote_dir.types.write();
+        let remote_declared_id = remote_types.get_declared_type_id(primary)?;
+        if matches!(
+            remote_types.get_type(remote_declared_id),
+            Type::Unevaluated(_)
+        ) {
+            let _ = self.evaluate_type(
+                &remote_module,
+                profile,
+                remote_declared_id,
+                &remote_tree,
+                &remote_symbols,
+                &mut remote_types,
+            );
+        }
+        let remote_declared_ty = remote_types.get_type(remote_declared_id);
+        if matches!(remote_declared_ty, Type::Unevaluated(_)) {
+            return None;
+        }
+        let source_id = types.get_type_source(source_type_id);
+        Some(self.import_type_from_remote_for_node(
+            source_id,
+            remote_declared_ty,
+            &remote_types,
+            symbol,
+            types,
+        ))
     }
 
     /// Build a key set for a single index kind.
@@ -678,8 +768,16 @@ impl Compiler {
 
         // compute the accessed type for each key
         for key_type_id in index_types {
-            let value_type =
-                self.index_access_type_for_key_type(left, key_type_id, source_id, types);
+            let value_type = self.index_access_type_for_key_type(
+                module,
+                profile,
+                left,
+                key_type_id,
+                source_id,
+                symbols,
+                types,
+                mode,
+            );
             if let Some(value_type) = value_type {
                 value_types.push(value_type);
             } else {
@@ -714,19 +812,26 @@ impl Compiler {
     /// Resolve an index access for a single key type.
     fn index_access_type_for_key_type(
         &self,
+        module: &Module,
+        profile: ProfileId,
         left: LocalTypeId,
         key_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
+        mode: NormalizationMode,
     ) -> Option<LocalTypeId> {
         // handle literal key access first
         if let Some(static_key) = self.static_key_from_type(key_type_id, types) {
-            return self.index_access_for_literal_key(left, static_key, types);
+            return self.index_access_for_literal_key(
+                module, profile, left, static_key, symbols, types, mode,
+            );
         }
 
         // handle primitive index kinds
         if let Some(kind) = self.mapped_index_kind_for_type(key_type_id, types) {
-            return self.index_access_for_index_kind(left, kind, types);
+            return self
+                .index_access_for_index_kind(module, profile, left, kind, symbols, types, mode);
         }
 
         match types.get_type(key_type_id) {
@@ -745,21 +850,38 @@ impl Compiler {
     /// Resolve a literal key access on a type id.
     fn index_access_for_literal_key(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: StaticKey,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
+        mode: NormalizationMode,
     ) -> Option<LocalTypeId> {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
-        self.index_access_for_literal_key_inner(type_id, key, types, &mut visited)
+        self.index_access_for_literal_key_inner(
+            module,
+            profile,
+            type_id,
+            key,
+            symbols,
+            types,
+            mode,
+            &mut visited,
+        )
     }
 
     /// Resolve a literal key access on a type id with a recursion guard.
     fn index_access_for_literal_key_inner(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         key: StaticKey,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
+        mode: NormalizationMode,
         visited: &mut HashSet<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
@@ -776,8 +898,9 @@ impl Compiler {
 
                 // union values across elements
                 for element_id in elements {
-                    let value_type =
-                        self.index_access_for_literal_key_inner(element_id, key, types, visited)?;
+                    let value_type = self.index_access_for_literal_key_inner(
+                        module, profile, element_id, key, symbols, types, mode, visited,
+                    )?;
                     value_types.push(value_type);
                 }
 
@@ -792,14 +915,49 @@ impl Compiler {
                     if matches!(types.get_type(element_id), Type::Value { .. }) {
                         continue;
                     }
-                    let value_type =
-                        self.index_access_for_literal_key_inner(element_id, key, types, visited)?;
-                    value_types.push(value_type);
+                    if let Some(value_type) = self.index_access_for_literal_key_inner(
+                        module, profile, element_id, key, symbols, types, mode, visited,
+                    ) {
+                        value_types.push(value_type);
+                    }
                 }
                 if value_types.is_empty() {
                     None
                 } else {
                     Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mut normalize_visited = Vec::new();
+                let normalized_id = self.normalize_mapped_type(
+                    module,
+                    profile,
+                    source_id,
+                    parameter,
+                    modifiers,
+                    value,
+                    symbols,
+                    types,
+                    mode,
+                    &mut normalize_visited,
+                );
+                if matches!(types.get_type(normalized_id), Type::Mapped { .. }) {
+                    None
+                } else {
+                    self.index_access_for_literal_key_inner(
+                        module,
+                        profile,
+                        normalized_id,
+                        key,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                    )
                 }
             }
             _ => {
@@ -829,21 +987,38 @@ impl Compiler {
     /// Resolve an index access for a primitive index kind.
     fn index_access_for_index_kind(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
+        mode: NormalizationMode,
     ) -> Option<LocalTypeId> {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
-        self.index_access_for_index_kind_inner(type_id, kind, types, &mut visited)
+        self.index_access_for_index_kind_inner(
+            module,
+            profile,
+            type_id,
+            kind,
+            symbols,
+            types,
+            mode,
+            &mut visited,
+        )
     }
 
     /// Resolve an index access for a primitive index kind with a recursion guard.
     fn index_access_for_index_kind_inner(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
         kind: MappedIndexKind,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
+        mode: NormalizationMode,
         visited: &mut HashSet<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
@@ -860,8 +1035,9 @@ impl Compiler {
 
                 // union values across elements
                 for element_id in elements {
-                    let value_type =
-                        self.index_access_for_index_kind_inner(element_id, kind, types, visited)?;
+                    let value_type = self.index_access_for_index_kind_inner(
+                        module, profile, element_id, kind, symbols, types, mode, visited,
+                    )?;
                     value_types.push(value_type);
                 }
 
@@ -876,15 +1052,50 @@ impl Compiler {
                     if matches!(types.get_type(element_id), Type::Value { .. }) {
                         continue;
                     }
-                    let value_type =
-                        self.index_access_for_index_kind_inner(element_id, kind, types, visited)?;
-                    value_types.push(value_type);
+                    if let Some(value_type) = self.index_access_for_index_kind_inner(
+                        module, profile, element_id, kind, symbols, types, mode, visited,
+                    ) {
+                        value_types.push(value_type);
+                    }
                 }
 
                 if value_types.is_empty() {
                     None
                 } else {
                     Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mut normalize_visited = Vec::new();
+                let normalized_id = self.normalize_mapped_type(
+                    module,
+                    profile,
+                    source_id,
+                    parameter,
+                    modifiers,
+                    value,
+                    symbols,
+                    types,
+                    mode,
+                    &mut normalize_visited,
+                );
+                if matches!(types.get_type(normalized_id), Type::Mapped { .. }) {
+                    None
+                } else {
+                    self.index_access_for_index_kind_inner(
+                        module,
+                        profile,
+                        normalized_id,
+                        kind,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                    )
                 }
             }
             _ => {
@@ -1217,9 +1428,61 @@ impl Compiler {
         // use the mapped parameter symbol for substitution
         let parameter_symbol = Some(symbol);
 
+        // keep mapped types unresolved when the key depends on inference or static parameters
+        let mut static_visited = HashSet::new();
+        let constraint_contains_static = self.type_contains_static_parameters(
+            module,
+            profile,
+            constraint,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        let mut infer_visited = HashSet::new();
+        let constraint_contains_infer =
+            self.type_contains_infer_vars(constraint, types, &mut infer_visited);
+        let remap_contains_static = key_remap.is_some_and(|key_remap| {
+            self.type_contains_static_parameters(
+                module,
+                profile,
+                key_remap,
+                symbols,
+                types,
+                &mut HashSet::new(),
+            )
+        });
+        let remap_contains_infer = key_remap.is_some_and(|key_remap| {
+            self.type_contains_infer_vars(key_remap, types, &mut HashSet::new())
+        });
+        if constraint_contains_static
+            || constraint_contains_infer
+            || remap_contains_static
+            || remap_contains_infer
+        {
+            let normalized_value =
+                self.normalize_type_inner(module, profile, value, symbols, types, mode, visited);
+            let parameter = TypeMappedParameter {
+                name,
+                symbol,
+                constraint,
+                key_remap,
+            };
+            return types.insert_type_from_any(
+                Type::Mapped {
+                    parameter,
+                    modifiers,
+                    value: normalized_value,
+                },
+                source_id,
+            );
+        }
+
         // normalize the key constraint for evaluation
         let normalized_constraint =
             self.normalize_type_inner(module, profile, constraint, symbols, types, mode, visited);
+        let normalized_key_remap = key_remap.map(|key_remap| {
+            self.normalize_type_inner(module, profile, key_remap, symbols, types, mode, visited)
+        });
 
         // collect mapped keys from the constraint
         let mut keys = Vec::new();
@@ -1258,16 +1521,14 @@ impl Compiler {
         } else {
             None
         };
-        let normalized_remap_without_param = if let Some(key_remap) = key_remap
+        let normalized_remap_without_param = if let Some(key_remap) = normalized_key_remap
             && parameter_symbol.is_none()
         {
-            let normalized_remap = self
-                .normalize_type_inner(module, profile, key_remap, symbols, types, mode, visited);
             let mut remapped = Vec::new();
             self.collect_mapped_keys_for_type(
                 module,
                 profile,
-                normalized_remap,
+                key_remap,
                 symbols,
                 types,
                 &mut remapped,
@@ -1518,6 +1779,19 @@ impl Compiler {
                         module,
                         profile,
                         constraint_id,
+                        symbols,
+                        types,
+                        keys,
+                        visited,
+                    );
+                } else if static_arguments.is_none()
+                    && let Some(instance_id) = types.get_instance_type_id(symbol)
+                {
+                    // prefer instance shapes for type parameter and alias references
+                    self.collect_mapped_keys_for_type_inner(
+                        module,
+                        profile,
+                        instance_id,
                         symbols,
                         types,
                         keys,

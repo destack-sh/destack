@@ -847,11 +847,30 @@ impl Compiler {
     ) -> ast::LocalNodeId<ast::Argument> {
         // reuse unevaluated arguments directly
         if let dir::StaticArgument::Unevaluated { node } = argument {
+            let argument_id = node
+                .try_into_local_typed::<dir::Argument>()
+                .expect("static unevaluated argument should reference an argument node");
+            if node.module_id == module.id {
+                return self.unbind_argument(
+                    module,
+                    argument_id,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+            }
+
+            let argument_module = self.program.modules.get(node.module_id);
+            let argument_module = argument_module.read();
+            let argument_tree = argument_module.dir(context.profile).tree.read();
+            let argument_symbols = argument_module.dir(context.profile).symbols.read();
             return self.unbind_argument(
-                module,
-                *node,
-                tree,
-                symbols,
+                &argument_module,
+                argument_id,
+                &argument_tree,
+                &argument_symbols,
                 ast_tree,
                 ast_strings,
                 context,

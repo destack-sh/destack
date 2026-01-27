@@ -1328,8 +1328,7 @@ impl<'a> SignatureHasher<'a> {
         // hash argument details
         match argument {
             StaticArgument::Unevaluated { node } => {
-                self.hash_node(node.into_global_any(module_id))
-                    .hash(&mut hasher);
+                self.hash_node(*node).hash(&mut hasher);
             }
             StaticArgument::Evaluated { name, value } => {
                 name.map(|name| self.hash_string_id(name)).hash(&mut hasher);

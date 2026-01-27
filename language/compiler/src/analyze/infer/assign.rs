@@ -1722,6 +1722,12 @@ impl Compiler {
 
             match source_field {
                 Some(source_field) => {
+                    // reject readonly source fields when the target is mutable
+                    if source_field.is_readonly && !target_field.is_readonly {
+                        return Assignability::NotAssignable;
+                    }
+
+                    // reject optional source fields when the target is required
                     if !target_field.is_optional && source_field.is_optional {
                         return Assignability::NotAssignable;
                     }

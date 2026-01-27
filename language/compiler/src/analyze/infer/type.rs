@@ -11,11 +11,11 @@ use crate::{
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
-    Extension, ExtensionKind, FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType, NormalizationMode,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty,
-    StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    Extension, ExtensionKind, FunctionCardinality, GlobalSymbolId, InferTable, IntType,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
+    NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
     UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_source::ModuleId;
@@ -1078,6 +1078,13 @@ impl Compiler {
                         };
                     }
                 }
+                ScalarLiteral::Bigint(i) => {
+                    if let Some(negated) = i.checked_neg() {
+                        return Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Bigint(negated)),
+                        };
+                    }
+                }
                 ScalarLiteral::Float(f) => {
                     return Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(-f)),
@@ -1176,6 +1183,7 @@ impl Compiler {
         right_ty_id: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &InferTable,
         options: &AnalyzeOptions,
     ) -> Type {
         match operator {
@@ -1281,14 +1289,32 @@ impl Compiler {
                     Type::Value { value } => *value,
                     _ => left_ty_id,
                 };
+                let resolved_target = self.materialize_infer_type_for_check(
+                    module,
+                    profile,
+                    symbols,
+                    target_ty_id,
+                    infer,
+                    types,
+                    options,
+                );
+                let resolved_actual = self.materialize_infer_type_for_check(
+                    module,
+                    profile,
+                    symbols,
+                    actual_ty_id,
+                    infer,
+                    types,
+                    options,
+                );
 
                 // check if left type satisfies (is assignable to) right type
                 if self.is_type_assignable(
                     module,
                     profile,
                     symbols,
-                    target_ty_id,
-                    actual_ty_id,
+                    resolved_target,
+                    resolved_actual,
                     types,
                     options,
                 ) == Assignability::NotAssignable
@@ -1297,8 +1323,8 @@ impl Compiler {
                         node: expression_id
                             .into_global_any(module.id)
                             .into_anchored(Some(profile)),
-                        expected_ty: target_ty_id.into_global(module.id),
-                        actual_ty: actual_ty_id.into_global(module.id),
+                        expected_ty: resolved_target.into_global(module.id),
+                        actual_ty: resolved_actual.into_global(module.id),
                     });
                 }
                 // satisfies returns the original (left) type, not the asserted type

@@ -1,3 +1,4 @@
+use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
@@ -301,6 +302,7 @@ impl Compiler {
                             &static_parameters,
                             &dynamic_parameters,
                             return_type,
+                            SignatureResolutionMode::Checking,
                             ctx.profile,
                             &ctx.options,
                             tree,
@@ -401,6 +403,7 @@ impl Compiler {
                                 &static_parameters,
                                 &dynamic_parameters,
                                 return_type,
+                                SignatureResolutionMode::Checking,
                                 ctx.profile,
                                 &ctx.options,
                                 tree,

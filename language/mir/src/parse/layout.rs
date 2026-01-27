@@ -25,7 +25,9 @@ impl Parser<'_> {
         let target = match self.tree.get(type_id) {
             Type::Struct { fields, .. } => LayoutTarget::Struct(fields.clone()),
             Type::Tuple { elements, .. } => LayoutTarget::Tuple(elements.clone()),
-            Type::Array { element, length, .. } => LayoutTarget::Array(*element, *length),
+            Type::Array {
+                element, length, ..
+            } => LayoutTarget::Array(*element, *length),
             _ => return Ok(()),
         };
 
@@ -177,7 +179,12 @@ impl Parser<'_> {
     /// Insert a layout entry and attach it to the type metadata.
     fn insert_layout_entry(&mut self, type_id: LocalNodeId<Type>, layout: Layout) {
         let layout_id = self.tree.type_table.layout_table.insert(layout);
-        let metadata = self.tree.type_table.type_metadata_by_id.entry(type_id).or_default();
+        let metadata = self
+            .tree
+            .type_table
+            .type_metadata_by_id
+            .entry(type_id)
+            .or_default();
         metadata.layout_id = Some(layout_id);
     }
 

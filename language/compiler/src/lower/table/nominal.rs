@@ -195,5 +195,4 @@ impl ModuleLowerer<'_> {
 
         Ok(())
     }
-
 }

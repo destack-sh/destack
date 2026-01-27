@@ -258,13 +258,7 @@ function runMixer(): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir_function_output(
-        module_id,
-        "native",
-        "runMixer",
-        &[],
-        Value::int32(13),
-    );
+    test.assert_mir_function_output(module_id, "native", "runMixer", &[], Value::int32(13));
 }
 
 /// Verify closures mutate captured bindings while reading class fields.
@@ -306,13 +300,7 @@ function runAccumulator(): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir_function_output(
-        module_id,
-        "native",
-        "runAccumulator",
-        &[],
-        Value::int32(35),
-    );
+    test.assert_mir_function_output(module_id, "native", "runAccumulator", &[], Value::int32(35));
 }
 
 /// Verify closures combine by-value and by-reference captures.
@@ -344,13 +332,7 @@ function runStepper(): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir_function_output(
-        module_id,
-        "native",
-        "runStepper",
-        &[],
-        Value::int32(1213),
-    );
+    test.assert_mir_function_output(module_id, "native", "runStepper", &[], Value::int32(1213));
 }
 
 /// Verify closures can capture implicit `this` from member methods.
@@ -527,11 +509,5 @@ function run(): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir_function_output(
-        module_id,
-        "native",
-        "run",
-        &[],
-        Value::int32(16),
-    );
+    test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(16));
 }

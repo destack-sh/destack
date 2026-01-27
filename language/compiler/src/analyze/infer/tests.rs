@@ -7,13 +7,14 @@ use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
     FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind,
-    InferTable, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, NodeTree, Pattern,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
-    SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
-    TypeUnaryOperator,
+    InferTable, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, MatchCase, MatchSelector,
+    NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
+use std::collections::{HashMap, HashSet};
 
 /// Cached view of module tables for tests.
 struct TestModuleView<'a> {
@@ -1169,6 +1170,173 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     );
 }
 
+/// Bind array pattern elements from the array element type.
+#[test]
+fn test_bind_array_pattern_elements() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+let [first, second] = [1, 2];
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let first_symbol = test.resolve_to_symbol("test.ds", "first").unwrap();
+    let second_symbol = test.resolve_to_symbol("test.ds", "second").unwrap();
+
+    // accept either widened int32 or the literal union
+    let assert_element_type = |ty_id: LocalTypeId| match view.types().get_type(ty_id) {
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+        } => {}
+        Type::Union { elements } => {
+            for element_ty_id in elements {
+                assert_type!(
+                    view.types(),
+                    *element_ty_id,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
+                    }
+                );
+            }
+        }
+        other => panic!("unexpected array element type: {other:?}"),
+    };
+
+    // check both bindings
+    let first_ty_id = view.types().get_value_type_id(first_symbol).unwrap();
+    assert_element_type(first_ty_id);
+    let second_ty_id = view.types().get_value_type_id(second_symbol).unwrap();
+    assert_element_type(second_ty_id);
+}
+
+/// Bind newtype pattern inner values to the underlying scalar type.
+#[test]
+fn test_bind_newtype_pattern_inner_value() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype UserId = int64;
+
+function next_id(id: UserId): int64 {
+    match (id) {
+        UserId(value) => value
+    }
+}
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // walk the function body to the bound pattern symbol
+    let next_id_symbol = test.resolve_to_symbol("test.ds", "next_id").unwrap();
+    let next_id_entry = view.symbols().get_symbol(next_id_symbol.local_id);
+    let declaration_id = next_id_entry
+        .primary_declaration
+        .and_then(|decl| decl.try_into_typed::<Declaration>().ok())
+        .map(LocalNodeId::from)
+        .expect("next_id should resolve to a function declaration");
+    let Declaration::Function {
+        body: Some(body), ..
+    } = view.tree().get(declaration_id)
+    else {
+        panic!("next_id should have a body");
+    };
+
+    // normalize the function body to the last expression
+    let match_expression_id = match view.tree().get(*body) {
+        Expression::Match { .. } => *body,
+        Expression::Block { block } => {
+            let block = view.tree().get(*block);
+            *block
+                .expressions
+                .last()
+                .expect("function body block should have an expression")
+        }
+        other => panic!("unexpected function body kind: {}", other.kind_name()),
+    };
+    let Expression::Match { cases, .. } = view.tree().get(match_expression_id) else {
+        panic!("next_id body should end with a match expression");
+    };
+    let MatchCase::Expression { selector, .. } = view.tree().get(cases[0]) else {
+        panic!("match case should be an expression case");
+    };
+    let MatchSelector::Pattern { pattern, .. } = selector else {
+        panic!("match selector should be a pattern");
+    };
+    let Pattern::TaggedTuple { fields, .. } = view.tree().get(*pattern) else {
+        panic!("pattern should be a tagged tuple");
+    };
+
+    // accept either positional or named binding fields
+    let value_symbol = match view.tree().get(fields[0]) {
+        PatternField::Positional { pattern } => {
+            let Pattern::Binding { symbol, .. } = view.tree().get(*pattern) else {
+                panic!("positional field should bind a symbol");
+            };
+            symbol.into_global(module_id)
+        }
+        PatternField::Named { symbol, .. } | PatternField::Alias { symbol, .. } => {
+            symbol.into_global(module_id)
+        }
+        other => panic!("unexpected tagged tuple field: {other:?}"),
+    };
+
+    // the bound value should be the underlying int64
+    let value_ty_id = view.types().get_value_type_id(value_symbol).unwrap();
+    assert_type!(
+        view.types(),
+        value_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int64))
+        }
+    );
+}
+
+/// Infer negative bigint literals through template literal spans.
+#[test]
+fn test_infer_template_negative_bigint_literal() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+declare function parseBig<T extends bigint>(value: `${T}`): T;
+
+let ok = parseBig("-1");
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // resolve the module level binding
+    let view = test.view(module_id);
+    let ok_symbol = test.resolve_to_symbol("test.ds", "ok").unwrap();
+
+    // the inferred type should preserve the sign
+    let ok_ty_id = view.types().get_value_type_id(ok_symbol).unwrap();
+    assert_type!(
+        view.types(),
+        ok_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Bigint(-1))
+        }
+    );
+}
+
 /// Analyze cross module type import.
 #[test]
 fn test_analyze_cross_module_type_import() {
@@ -1452,9 +1620,12 @@ let b = obj.y;
 "#,
     );
 
-    // run analyze pipeline
+    // run resolve and analyze pipeline
+    test.resolve_builtins();
+    test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
+    test.check_clean();
 }
 
 /// Resolve member access across multiple fields.
@@ -1472,7 +1643,9 @@ let c = obj.z;
 "#,
     );
 
-    // run analyze pipeline
+    // run resolve and analyze pipeline
+    test.resolve_builtins();
+    test.resolve_libs();
     test.analyze_module(module_id);
     test.compile();
     test.check_clean();
@@ -2471,6 +2644,315 @@ const ok2: AgeOnly = { age: 42 };
 
     // run analyze pipeline
     test.analyze_module_and_check_clean(module_id);
+}
+
+/// Builtin Pick from libs expands to object shapes.
+#[test]
+fn test_analyze_builtin_pick_libs_shape() {
+    // pick from lib definitions preserves optionality and rejects extra fields
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_lib("es5")
+        .with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Person {
+    name: string
+    age?: number
+}
+
+type AgeOnly = Pick<Person, "age">;
+const ok: AgeOnly = {};
+const bad: AgeOnly = { name: "Ada" };
+"#,
+    );
+
+    // run analyze pipeline
+    test.resolve_builtins();
+    test.resolve_libs();
+    test.analyze_module(module_id);
+    test.compile();
+    // load module data for inspection
+    let view = test.view(module_id);
+    let profile = view.profile_id();
+    let resolved_symbol = test.resolve_to_symbol("test.ds", "AgeOnly").unwrap();
+    let age_only_entry = view.symbols().get_symbol(resolved_symbol.into_local());
+    let age_only_symbol = GlobalSymbolId::new(
+        resolved_symbol.module_id,
+        resolved_symbol.local_id.with_type(age_only_entry.ty),
+    );
+    let alias_target_id = view
+        .types()
+        .get_alias_target_type_id(age_only_symbol)
+        .expect("expected AgeOnly alias target type");
+
+    // normalize to the object shape and ensure it only contains the picked key
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
+    let normalized = test.compiler.normalize_type(
+        &module,
+        profile,
+        alias_target_id,
+        &symbols,
+        &mut types,
+        NormalizationMode::Assign,
+    );
+
+    assert_type!(types, normalized, Type::Object { fields, index_signatures, .. } => {
+        assert!(index_signatures.is_empty());
+        let age_key = StaticKey::Name(test.program.strings.intern("age"));
+        let age_field = fields.iter().find(|field| field.key.matches(&age_key));
+        assert!(age_field.is_some());
+        assert!(age_field.expect("expected age field").is_optional);
+    });
+
+    test.check_has_diagnostic("EA208");
+}
+
+/// Preserve builtin Pick constraints until substitution.
+#[test]
+fn test_preserve_pick_keyof_constraint_until_substitution() {
+    // load libs so we can inspect builtin Pick symbols
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_lib("es5")
+        .with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Person {
+    name: string
+    age: number
+}
+
+type Alias = Pick<Person, "name">;
+"#,
+    );
+
+    // run analyze pipeline to populate tables
+    test.resolve_builtins();
+    test.resolve_libs();
+    test.analyze_module(module_id);
+    test.compile();
+
+    // load local module state for constraint evaluation
+    let view = test.view(module_id);
+    let profile = view.profile_id();
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
+
+    // locate the es5 lib module that owns Pick
+    let builtins = test.program.builtins.as_ref().expect("expected builtins");
+    let es5_modules = builtins
+        .lib_module_by_name
+        .get("es5")
+        .expect("expected es5 lib modules");
+    let es5_module_id = es5_modules[0];
+    drop(es5_modules);
+
+    // resolve Pick and its static parameter symbols from the lib module
+    let es5_module = test.program.modules.get(es5_module_id);
+    let es5_module = es5_module.read();
+    let es5_profile = test.default_profile_id(es5_module_id);
+    let es5_dir = es5_module.dir(es5_profile);
+    let es5_tree = es5_dir.tree.read();
+    let es5_symbols = es5_dir.symbols.read();
+    let es5_uri = es5_module.uri.to_string();
+    let pick_symbol = test
+        .resolve_to_symbol(&es5_uri, "Pick")
+        .expect("expected Pick symbol");
+    let parameter_symbols = test
+        .compiler
+        .collect_static_parameter_symbols(
+            &es5_module,
+            pick_symbol,
+            es5_profile,
+            &es5_tree,
+            &es5_symbols,
+        )
+        .expect("expected Pick static parameters");
+
+    // pick out the T and K symbols by name
+    let t_name = test.program.strings.intern("T");
+    let k_name = test.program.strings.intern("K");
+    let mut t_symbol = None;
+    let mut k_symbol = None;
+    for symbol_id in parameter_symbols {
+        let entry = es5_symbols.get_symbol(symbol_id.local_id);
+        match entry.name() {
+            Some(name) if name == t_name => t_symbol = Some(symbol_id),
+            Some(name) if name == k_name => k_symbol = Some(symbol_id),
+            _ => {}
+        }
+    }
+    let t_symbol = t_symbol.expect("expected Pick<T, ..> symbol");
+    let k_symbol = k_symbol.expect("expected Pick<.., K> symbol");
+
+    // use the Person declaration as a stable local source anchor
+    let person_symbol = test
+        .resolve_to_symbol("test.ds", "Person")
+        .expect("expected Person symbol");
+    let person_entry = symbols.get_symbol(person_symbol.into_local());
+    let person_declaration = person_entry
+        .primary_declaration
+        .expect("expected Person declaration");
+    let source_id = person_declaration.local_id;
+
+    // import the K constraint into the local type table
+    let k_constraint_id = test
+        .compiler
+        .static_parameter_constraint_type(
+            &module, profile, k_symbol, source_id, &symbols, &mut types,
+        )
+        .expect("expected K constraint type");
+
+    // the raw constraint should still reference static parameters
+    let mut visited = HashSet::new();
+    assert!(test.compiler.type_contains_static_parameters(
+        &module,
+        profile,
+        k_constraint_id,
+        &symbols,
+        &types,
+        &mut visited,
+    ));
+
+    // substitute T with Person and ensure the bound becomes concrete
+    let person_ref_id = types.insert_type_from_any(
+        Type::Reference {
+            symbol: person_symbol,
+            static_arguments: None,
+        },
+        source_id,
+    );
+    let mut substitutions = HashMap::new();
+    substitutions.insert(t_symbol, person_ref_id);
+    let mut cache = HashMap::new();
+    let substituted_constraint_id = test.compiler.substitute_static_parameters(
+        k_constraint_id,
+        &substitutions,
+        &mut types,
+        &mut cache,
+    );
+    let normalized_constraint_id = test.compiler.normalize_type(
+        &module,
+        profile,
+        substituted_constraint_id,
+        &symbols,
+        &mut types,
+        NormalizationMode::Assign,
+    );
+    assert!(
+        !matches!(
+            types.get_type(normalized_constraint_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown | TypeLiteral::Any,
+            }
+        ),
+        "expected concrete keyof constraint after substitution"
+    );
+}
+
+/// Reject unknown keys passed to builtin Pick.
+#[test]
+fn test_pick_rejects_unknown_keys_bound_validation() {
+    // load libs and build a bad Pick instantiation
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_lib("es5")
+        .with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Person {
+    name: string
+    age: number
+}
+
+type Bad = Pick<Person, "missing">;
+"#,
+    );
+
+    // run analyze pipeline and expect a not assignable diagnostic
+    test.resolve_builtins();
+    test.resolve_libs();
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostic("EA101");
+}
+
+/// Destack overloads merge into a callable value type.
+#[test]
+fn test_analyze_destack_function_overload_merge() {
+    // overload implementations share a merged value shape
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function parse(value: string): string {
+    return value;
+}
+
+function parse(value: int32): int32 {
+    return value + 1;
+}
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load module data for inspection
+    let view = test.view(module_id);
+    let parse_symbol = test.resolve_to_symbol("test.ds", "parse").unwrap();
+    let value_ty_id = view
+        .types()
+        .get_value_type_id(parse_symbol)
+        .expect("expected parse value type");
+    let value_ty_id = match view.types().get_type(value_ty_id) {
+        Type::Value { value } => *value,
+        _ => value_ty_id,
+    };
+
+    match view.types().get_type(value_ty_id) {
+        Type::Object {
+            call_signatures, ..
+        } => {
+            assert_eq!(call_signatures.len(), 2);
+
+            let mut has_string = false;
+            let mut has_int32 = false;
+            for signature_id in call_signatures {
+                let Type::Function {
+                    dynamic_parameters, ..
+                } = view.types().get_type(*signature_id)
+                else {
+                    panic!("expected function signature");
+                };
+                let param_ty_id = *dynamic_parameters.first().expect("expected parameter type");
+                match view.types().get_type(param_ty_id) {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::String),
+                    } => has_string = true,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+                    } => has_int32 = true,
+                    _ => {}
+                }
+            }
+
+            assert!(has_string);
+            assert!(has_int32);
+        }
+        Type::Function { .. } => {
+            panic!("expected overload set, found single signature");
+        }
+        _ => {
+            panic!("expected callable value type");
+        }
+    }
 }
 
 /// Analyze builtin Omit mapped types.

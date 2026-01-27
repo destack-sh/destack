@@ -220,6 +220,35 @@ let count = 0;
 const label = "ready";
 ```
 
+#### Widening, freshness, and const contexts
+
+Widening and freshness follow TypeScript terminology and behavior.
+
+- Literal expressions start as fresh literal types.
+- Fresh literal types become regular literal types when they escape their defining expression.
+- `let` and `var` bindings without a constraining contextual type use widened types such as `number`, `string`, and `boolean`.
+- `const` bindings keep literal types for scalar literals but do not implicitly freeze object and array members.
+- Object and array literals widen their members by default even in `const` bindings.
+- Const contexts and const assertions suppress widening and produce readonly object and tuple shapes.
+- Contextual typing can prevent widening by constraining the expression before widening occurs.
+- Apparent types must not be computed by substituting constraint types into unrelated references.
+
+Examples:
+
+```ds
+let a = 1;
+a satisfies number;
+
+const b = 1;
+b satisfies 1;
+
+const c = { value: 1 };
+c.value satisfies number;
+
+const d = { value: 1 } as const;
+d.value satisfies 1;
+```
+
 - Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
 
 ```

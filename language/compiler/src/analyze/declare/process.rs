@@ -1,5 +1,6 @@
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, TaskDependencyError, TaskResultCollector,
+    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
+    TaskResultCollector,
 };
 use destack_dir::{LocalTypeId, Type};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
@@ -12,6 +13,17 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        // avoid self dependency when already declaring this module
+        if let Some(Task::Analyze(AnalyzeTask::AnalyzeModuleDeclare {
+            module: current_module,
+            profile: current_profile,
+        })) = self.current_task()
+            && current_module.id == module
+            && current_profile.id == profile
+        {
+            return Ok(());
+        }
+
         let module = self.module_stamp(module);
         let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module, profile })

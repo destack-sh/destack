@@ -595,10 +595,7 @@ impl ModuleLowerer<'_> {
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
             let ty = parameter_types[index];
-            let value = function_ctx
-                .state
-                .builder
-                .function_parameter(index);
+            let value = function_ctx.state.builder.function_parameter(index);
             let mutability = parameter
                 .modifiers()
                 .and_then(|modifier| modifier.mutability);
@@ -684,7 +681,9 @@ impl ModuleLowerer<'_> {
         if is_member {
             let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
             let this_name = self.compiler.program.strings.intern("this");
-            if let Some(symbol) = self.symbols.find_active_symbol(scope, dir::StaticKey::Name(this_name))
+            if let Some(symbol) = self
+                .symbols
+                .find_active_symbol(scope, dir::StaticKey::Name(this_name))
             {
                 return Some(symbol.into_global(self.module_id));
             }

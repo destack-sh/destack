@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingModifier, Expression, GlobalNodeId, GlobalSymbolId, LocalNodeId, LocalSymbolId,
-    LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId,
+    BindingModifier, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    LocalSymbolId, LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -107,7 +107,7 @@ impl Node for Argument {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticArgument {
     /// Unevaluated argument (needs compile-time evaluation).
-    Unevaluated { node: LocalNodeId<Argument> },
+    Unevaluated { node: GlobalNodeIdAny },
 
     /// Evaluated static argument.
     Evaluated {

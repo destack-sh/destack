@@ -313,7 +313,7 @@ impl Compiler {
                     types.insert_type_from(Type::Unevaluated(*value), *value)
                 } else {
                     self.try_evaluate_expression_to_type(
-                        module, profile, *value, tree, symbols, types, false, true,
+                        module, profile, *value, tree, symbols, types, true, true,
                     )?
                 };
                 types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
@@ -1255,6 +1255,11 @@ impl Compiler {
                                 | Some(FunctionMode::Constructor)
                         )
                     {
+                        // declare generics for the signature
+                        if let Some(generics) = signature.generics.as_ref() {
+                            self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                        }
+
                         // evaluate the signature type
                         let ty = self.evaluate_function_signature_to_type(
                             module,
@@ -1265,35 +1270,39 @@ impl Compiler {
                             symbols,
                             types,
                         )?;
-                        let signature_ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
+                        let signature_ty_id =
+                            types.insert_type_from_any(ty, (*member_id).into_any());
 
                         // override constructor returns when needed
-                        let construct_signature_id = if signature.mode == Some(FunctionMode::Constructor) {
-                            self.replace_signature_return_type(
-                                signature_ty_id,
-                                constructor_return,
-                                (*member_id).into_any(),
-                                types,
-                            )
-                        } else {
-                            signature_ty_id
-                        };
+                        let construct_signature_id =
+                            if signature.mode == Some(FunctionMode::Constructor) {
+                                self.replace_signature_return_type(
+                                    signature_ty_id,
+                                    constructor_return,
+                                    (*member_id).into_any(),
+                                    types,
+                                )
+                            } else {
+                                signature_ty_id
+                            };
 
                         // record the declared signature for inference
-                        let declared_signature_id = if signature.mode == Some(FunctionMode::Constructor) {
-                            let void_ty = Type::TypeLiteral {
-                                value: TypeLiteral::Void,
+                        let declared_signature_id =
+                            if signature.mode == Some(FunctionMode::Constructor) {
+                                let void_ty = Type::TypeLiteral {
+                                    value: TypeLiteral::Void,
+                                };
+                                let void_ty_id =
+                                    types.insert_type_from_any(void_ty, (*member_id).into_any());
+                                self.replace_signature_return_type(
+                                    signature_ty_id,
+                                    Some(void_ty_id),
+                                    (*member_id).into_any(),
+                                    types,
+                                )
+                            } else {
+                                signature_ty_id
                             };
-                            let void_ty_id = types.insert_type_from_any(void_ty, (*member_id).into_any());
-                            self.replace_signature_return_type(
-                                signature_ty_id,
-                                Some(void_ty_id),
-                                (*member_id).into_any(),
-                                types,
-                            )
-                        } else {
-                            signature_ty_id
-                        };
                         types.set_signature_type_for_node(
                             (*member_id).into_global_any(module.id),
                             declared_signature_id,
@@ -1302,7 +1311,10 @@ impl Compiler {
                         // route the signature to the correct shape
                         match signature.mode {
                             Some(FunctionMode::Constructor) => {
-                                shapes.value.construct_signatures.push(construct_signature_id);
+                                shapes
+                                    .value
+                                    .construct_signatures
+                                    .push(construct_signature_id);
                             }
                             Some(FunctionMode::New) => {
                                 target_shape.construct_signatures.push(signature_ty_id);
@@ -1320,6 +1332,11 @@ impl Compiler {
                     }) else {
                         continue;
                     };
+
+                    // declare generics for the signature
+                    if let Some(generics) = signature.generics.as_ref() {
+                        self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                    }
 
                     // build the method type
                     let ty = self.evaluate_function_signature_to_type(

@@ -53,6 +53,8 @@ impl Compiler {
                 .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter);
         }
 
+        // FUGU #Cleanup: audit all logic splits between local and remote modules
+        //  (and see if we can't introduce a more general helper somehow..?)
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.read();
         let remote_symbols = remote_module.dir(profile).symbols.read();
@@ -429,6 +431,133 @@ impl Compiler {
         }
     }
 
+    /// Check whether a type contains inference variables.
+    pub(crate) fn type_contains_infer_vars(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // avoid recursion cycles
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        // inspect the type shape
+        let ty = types.get_type(type_id);
+
+        // walk nested types for inference variables
+        match ty {
+            Type::InferVar { .. } => true,
+            Type::Reference {
+                static_arguments, ..
+            }
+            | Type::Import {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_infer_vars(argument, types, visited)
+                })
+            }),
+            Type::Conditional {
+                distributive_symbol: _,
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.type_contains_infer_vars(*left, types, visited)
+                    || self.type_contains_infer_vars(*right, types, visited)
+                    || self.type_contains_infer_vars(*then_type, types, visited)
+                    || self.type_contains_infer_vars(*else_type, types, visited)
+            }
+            Type::Mapped {
+                parameter,
+                modifiers: _,
+                value,
+            } => {
+                self.type_contains_infer_vars(parameter.constraint, types, visited)
+                    || parameter.key_remap.is_some_and(|key_remap| {
+                        self.type_contains_infer_vars(key_remap, types, visited)
+                    })
+                    || self.type_contains_infer_vars(*value, types, visited)
+            }
+            Type::Index { left, index } => {
+                self.type_contains_infer_vars(*left, types, visited)
+                    || self.type_contains_infer_vars(*index, types, visited)
+            }
+            Type::TemplateLiteral { spans, .. } => spans
+                .iter()
+                .any(|span| self.type_contains_infer_vars(*span, types, visited)),
+            Type::Array { element, .. } => element
+                .is_some_and(|element| self.type_contains_infer_vars(element, types, visited)),
+            Type::ArraySized { element, .. } => {
+                self.type_contains_infer_vars(*element, types, visited)
+            }
+            Type::Tuple { elements, .. } => elements
+                .iter()
+                .any(|element| self.type_contains_infer_vars(element.ty, types, visited)),
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                fields
+                    .iter()
+                    .any(|field| self.type_contains_infer_vars(field.ty, types, visited))
+                    || call_signatures
+                        .iter()
+                        .any(|signature| self.type_contains_infer_vars(*signature, types, visited))
+                    || construct_signatures
+                        .iter()
+                        .any(|signature| self.type_contains_infer_vars(*signature, types, visited))
+                    || index_signatures.iter().any(|signature| {
+                        self.type_contains_infer_vars(signature.key_type, types, visited)
+                            || self.type_contains_infer_vars(signature.value_type, types, visited)
+                    })
+            }
+            Type::Function {
+                static_parameters,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                static_parameters
+                    .iter()
+                    .any(|parameter| self.type_contains_infer_vars(*parameter, types, visited))
+                    || dynamic_parameters
+                        .iter()
+                        .any(|parameter| self.type_contains_infer_vars(*parameter, types, visited))
+                    || return_type.is_some_and(|return_type| {
+                        self.type_contains_infer_vars(return_type, types, visited)
+                    })
+            }
+            Type::Predicate { target, .. } => {
+                target.is_some_and(|target| self.type_contains_infer_vars(target, types, visited))
+            }
+            Type::Unary { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
+                self.type_contains_infer_vars(*right, types, visited)
+            }
+            Type::Binary { left, right, .. } => {
+                self.type_contains_infer_vars(*left, types, visited)
+                    || self.type_contains_infer_vars(*right, types, visited)
+            }
+            Type::Union { elements } | Type::Intersection { elements } => elements
+                .iter()
+                .any(|element| self.type_contains_infer_vars(*element, types, visited)),
+            Type::Value { value } => self.type_contains_infer_vars(*value, types, visited),
+            Type::TypeLiteral { .. }
+            | Type::Infer { .. }
+            | Type::Unevaluated(_)
+            | Type::This
+            | Type::Error => false,
+        }
+    }
+
     /// Check whether a static argument contains a static parameter.
     pub(crate) fn static_argument_contains_static_parameters(
         &self,
@@ -524,6 +653,21 @@ impl Compiler {
         }
     }
 
+    /// Check whether a static argument contains inference variables.
+    fn static_argument_contains_infer_vars(
+        &self,
+        argument: &StaticArgument,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        match argument {
+            StaticArgument::Unevaluated { .. } => false,
+            StaticArgument::Evaluated { value, .. } => {
+                self.static_expression_contains_infer_vars(value, types, visited)
+            }
+        }
+    }
+
     /// Check whether a static expression contains an infer binding.
     fn static_expression_contains_infer(
         &self,
@@ -563,6 +707,52 @@ impl Compiler {
             StaticExpression::RangeExpression { start, end, .. } => {
                 self.static_expression_contains_infer(start, types, visited)
                     || self.static_expression_contains_infer(end, types, visited)
+            }
+            StaticExpression::Unevaluated { .. }
+            | StaticExpression::ScalarLiteral { .. }
+            | StaticExpression::TypeLiteral { .. } => false,
+        }
+    }
+
+    /// Check whether a static expression contains inference variables.
+    fn static_expression_contains_infer_vars(
+        &self,
+        value: &StaticExpression,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        match value {
+            StaticExpression::Type { ty } => self.type_contains_infer_vars(*ty, types, visited),
+            StaticExpression::Declaration {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_infer_vars(argument, types, visited)
+                })
+            }),
+            StaticExpression::ArrayExpression { elements } => elements
+                .iter()
+                .any(|element| self.static_expression_contains_infer_vars(element, types, visited)),
+            StaticExpression::TupleExpression { elements } => elements
+                .iter()
+                .any(|element| self.static_expression_contains_infer_vars(element, types, visited)),
+            StaticExpression::ObjectExpression { properties } => {
+                properties.iter().any(|property| match property {
+                    StaticProperty::Unevaluated { .. } => false,
+                    StaticProperty::Field { value, default, .. } => {
+                        self.static_expression_contains_infer_vars(value, types, visited)
+                            || default.as_ref().is_some_and(|default| {
+                                self.static_expression_contains_infer_vars(default, types, visited)
+                            })
+                    }
+                    StaticProperty::Method { body, .. } => {
+                        self.static_expression_contains_infer_vars(body, types, visited)
+                    }
+                })
+            }
+            StaticExpression::RangeExpression { start, end, .. } => {
+                self.static_expression_contains_infer_vars(start, types, visited)
+                    || self.static_expression_contains_infer_vars(end, types, visited)
             }
             StaticExpression::Unevaluated { .. }
             | StaticExpression::ScalarLiteral { .. }
@@ -2306,12 +2496,7 @@ impl Compiler {
                     // map inferred spans directly
                     if let Some(existing) = substitutions.by_name.get(&name).copied()
                         && !self.inferred_type_ids_equivalent(
-                            module,
-                            profile,
-                            existing,
-                            *left_span,
-                            symbols,
-                            types,
+                            module, profile, existing, *left_span, symbols, types,
                         )
                     {
                         return None;
