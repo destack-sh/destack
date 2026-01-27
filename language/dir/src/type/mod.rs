@@ -8,6 +8,8 @@ mod resolution;
 mod subtype;
 mod table;
 mod r#type;
+mod visitor;
+mod walk;
 
 pub use equal::*;
 pub use extension::*;
@@ -19,3 +21,5 @@ pub use resolution::*;
 pub use subtype::*;
 pub use table::*;
 pub use r#type::*;
+pub use visitor::*;
+pub use walk::*;
