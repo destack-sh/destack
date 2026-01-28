@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, NodeType,
-    StaticKey, StringId, SymbolDecorators,
+    DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Mutability, Node,
+    NodeType, StaticKey, StringId, SymbolDecorators,
 };
 
 /// The space of a symbol.
@@ -217,6 +217,8 @@ pub struct Symbol {
     pub space: SymbolSpace,
     /// How this symbol was introduced/bound.
     pub binding: SymbolBinding,
+    /// The mutability for value bindings when known.
+    pub binding_mutability: Option<Mutability>,
     /// Where this symbol was introduced.
     pub origin: SymbolOrigin,
     /// The key of the symbol.
@@ -240,7 +242,6 @@ pub struct Symbol {
     /// Decorators applied to the symbol.
     pub decorators: SymbolDecorators,
     /// Whether the symbol is active for the current profile.
-    #[serde(default)]
     pub is_active: bool,
 }
 

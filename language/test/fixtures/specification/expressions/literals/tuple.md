@@ -50,4 +50,4 @@ pair satisfies (number, string);
 const pair: (number, string) = (1, 2);
 ```
 
-- contains: type (number, number) is not assignable to type (number, string)
+- contains: type (number, int32) is not assignable to type (number, string)

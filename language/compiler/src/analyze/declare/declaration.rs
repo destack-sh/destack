@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
-use super::super::common::{CanonicalSymbolMode, ObjectShape, ObjectShapeSet};
+use super::super::common::{CanonicalSymbolMode, ConstContext, ObjectShape, ObjectShapeSet};
 
 /// Visitor used to declare type-level constructs across a module.
 #[derive(Debug)]
@@ -149,6 +149,10 @@ struct ExportInference {
     declarator_id: LocalNodeId<Declarator>,
     /// The initializer expression when present.
     value_id: Option<LocalNodeId<Expression>>,
+    /// The binding mutability when available.
+    binding_mutability: Option<Mutability>,
+    /// Whether the initializer is a const assertion.
+    is_const_asserted: bool,
 }
 
 /// Track a function declaration that needs return inference.
@@ -1992,10 +1996,14 @@ impl Compiler {
 
             // defer to surface inference for initializer-only exports
             let declarator = tree.get(declarator_id);
+            let binding_mutability = symbols.get_symbol(value_symbol.local_id).binding_mutability;
+            let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
             export_inference.push(ExportInference {
                 export_symbol,
                 declarator_id,
                 value_id: declarator.value,
+                binding_mutability,
+                is_const_asserted,
             });
         }
 
@@ -2063,12 +2071,27 @@ impl Compiler {
                 continue;
             }
 
-            // infer the initializer with the export type as expectation
+            // infer the initializer with binding defaults and export expectations
             let mut ctx = base_ctx.fork().with_expected_type(Some(symbol_ty_id));
+            if let Some(mutability) = export.binding_mutability {
+                ctx = ctx.with_binding_mutability(mutability);
+            } else {
+                ctx = ctx
+                    .with_const_context(ConstContext::None)
+                    .with_widening()
+                    .with_fresh_literals();
+            }
             let inferred_ty_id = self
                 .infer_expression(module, value_id, tree, symbols, types, &mut infer, &mut ctx)?;
+            let committed_ty_id = self.commit_binding_type(
+                module,
+                &ctx,
+                inferred_ty_id,
+                types,
+                export.is_const_asserted,
+            );
             infer.push_constraint(Constraint::Subtype {
-                sub_type: inferred_ty_id,
+                sub_type: committed_ty_id,
                 super_type: symbol_ty_id,
                 variance: None,
             });

@@ -80,6 +80,7 @@ impl Compiler {
         };
 
         let constraint_scope = (scope.0, LocalScopeMark::end());
+        let default_mutability = self.default_binding_mutability(module);
         match ast_parameter {
             ast::Parameter::Named {
                 modifiers,
@@ -89,6 +90,9 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let binding_mutability = modifiers
+                    .and_then(|modifiers| modifiers.mutability)
+                    .unwrap_or(default_mutability);
                 let name = self.program.strings.intern_from(&ast.strings, *name);
                 let default = default.map(|default| {
                     self.bind_expression(
@@ -121,6 +125,7 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
@@ -144,12 +149,16 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let binding_mutability = modifiers
+                    .and_then(|modifiers| modifiers.mutability)
+                    .unwrap_or(default_mutability);
                 let pattern = self.bind_pattern(
                     module,
                     ast,
                     scope,
                     None,
                     SymbolBinding::Runtime,
+                    Some(binding_mutability),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -180,6 +189,7 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,
@@ -202,6 +212,9 @@ impl Compiler {
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
+                let binding_mutability = modifiers
+                    .and_then(|modifiers| modifiers.mutability)
+                    .unwrap_or(default_mutability);
                 let name = self.program.strings.intern_from(&ast.strings, *name);
                 let (symbol_id, _) = self.bind_named_item(
                     module,
@@ -220,6 +233,7 @@ impl Compiler {
                 let parameter_id = tree.insert(parameter_id, parameter);
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.primary_declaration = Some(parameter_id.into_global_any(module.id));
+                self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
                 if let Some(ty) = ty {
                     let ty = self.bind_expression_to_type(
                         module,

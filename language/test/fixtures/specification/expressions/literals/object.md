@@ -137,7 +137,7 @@ value satisfies { a: number, b: string };
 const value: { a: number, b: string } = { a: 1, b: 2 };
 ```
 
-- contains: type { a: number, b: number } is not assignable to type { a: number, b: string }
+- contains: type { a: number, b: int32 } is not assignable to type { a: number, b: string }
 
 ## Object Members
 

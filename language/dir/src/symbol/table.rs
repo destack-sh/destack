@@ -147,6 +147,7 @@ impl SymbolTable {
             ty,
             space,
             binding,
+            binding_mutability: None,
             origin: SymbolOrigin::Primary,
             key,
             scope,

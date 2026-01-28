@@ -5,7 +5,8 @@ use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{
-    CanonicalSymbolMode, ConstContext, ReadonlyMaterializer, RelationMode, WideningMode,
+    CanonicalSymbolMode, ConstContext, ReadonlyMaterializer, RelationMode, TypeRewriteCache,
+    TypeWalkContext, TypeWalkKey, WideningMode, rewrite_type_with_cache,
 };
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
@@ -14,15 +15,85 @@ use crate::{
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, DependencyItem, EnumBackingType, Expression,
-    Extension, ExtensionKind, FunctionCardinality, GlobalSymbolId, InferTable, IntType,
+    Extension, ExtensionKind, FloatType, FunctionCardinality, GlobalSymbolId, InferTable, IntType,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
     NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
     StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeTable,
-    TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter,
+    TypeRewriterOptions, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
+
+/// Rewrite literal types for binding commits.
+struct LiteralWideningRewriter<'a> {
+    /// The compiler backing literal widening helpers.
+    compiler: &'a Compiler,
+    /// The module providing language-specific widening defaults.
+    module: &'a Module,
+    /// The context controlling widening policy.
+    ctx: &'a InferContext,
+    /// The rewriter options for caching.
+    options: TypeRewriterOptions,
+}
+
+impl<'a> LiteralWideningRewriter<'a> {
+    /// Create a literal widening rewriter.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        ctx: &'a InferContext,
+        options: TypeRewriterOptions,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            ctx,
+            options,
+        }
+    }
+}
+
+impl TypeRewriter for LiteralWideningRewriter<'_> {
+    fn options(&self) -> &TypeRewriterOptions {
+        &self.options
+    }
+
+    /// Preserve static arguments during literal widening.
+    fn rewrite_static_argument(
+        &mut self,
+        _types: &mut TypeTable,
+        argument: &StaticArgument,
+    ) -> StaticArgument {
+        argument.clone()
+    }
+
+    fn rewrite_any(
+        &mut self,
+        types: &mut TypeTable,
+        id: LocalTypeId,
+        ty: &Type,
+    ) -> Option<LocalTypeId> {
+        let Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(literal),
+        } = ty
+        else {
+            return None;
+        };
+
+        if !self.compiler.should_widen_scalar_literal(self.ctx) {
+            return None;
+        }
+
+        let widened = Type::TypeLiteral {
+            value: self
+                .compiler
+                .widen_scalar_literal_for_module(self.module, literal),
+        };
+        Some(types.insert_type_from_type(widened, id))
+    }
+}
 
 /// A TypeGuardTarget describes the target for a typeof or runtime type guard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,12 +109,13 @@ pub(super) enum TypeGuardTarget {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Commit a binding type based on const context and widening rules.
-    pub(super) fn commit_binding_type(
+    pub(crate) fn commit_binding_type(
         &self,
-        _module: &Module,
+        module: &Module,
         ctx: &InferContext,
         binding_ty_id: LocalTypeId,
         types: &mut TypeTable,
+        is_const_asserted: bool,
     ) -> LocalTypeId {
         // preserve literal types for const contexts
         if matches!(
@@ -53,81 +125,24 @@ impl Compiler {
             return binding_ty_id;
         }
 
+        // preserve literal types for const assertions
+        if is_const_asserted {
+            return binding_ty_id;
+        }
+
         // avoid widening when the context requests literal preservation
         if matches!(ctx.widening_mode, WideningMode::Preserve) {
             return binding_ty_id;
         }
 
         // regularize fresh literals before widening
-        let source_id = types.get_type_source(binding_ty_id);
         let regularized_ctx = ctx.fork().with_regularized_literals().with_widening();
-
-        // widen scalar literals at the binding boundary
-        let binding_ty_id = self.widen_scalar_literal_type_if_needed(
-            types,
-            binding_ty_id,
-            &regularized_ctx,
-            source_id,
-        );
-
-        // widen unions of scalar literals at the binding boundary
-        self.widen_scalar_literal_union_type_if_needed(
-            types,
-            binding_ty_id,
-            &regularized_ctx,
-            source_id,
-        )
-    }
-
-    /// Widen scalar literal unions when the binding context allows widening.
-    pub(super) fn widen_scalar_literal_union_type_if_needed(
-        &self,
-        types: &mut TypeTable,
-        type_id: LocalTypeId,
-        ctx: &InferContext,
-        source_id: LocalNodeIdAny,
-    ) -> LocalTypeId {
-        if !self.should_widen_scalar_literal(ctx) {
-            return type_id;
-        }
-
-        let Type::Union { elements } = types.get_type(type_id).clone() else {
-            return type_id;
-        };
-
-        let mut widened_elements = Vec::with_capacity(elements.len());
-        let mut did_change = false;
-
-        for element_id in elements {
-            let element_ty = types.get_type(element_id);
-            match element_ty {
-                Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(literal),
-                } => {
-                    let widened = match self.widen_scalar_literal(literal) {
-                        TypeLiteral::Primitive(primitive) => Type::TypeLiteral {
-                            value: TypeLiteral::Primitive(primitive),
-                        },
-                        literal => Type::TypeLiteral { value: literal },
-                    };
-                    let widened_id = types.insert_type_from_any(widened, source_id);
-                    widened_elements.push(widened_id);
-                    did_change = true;
-                }
-                Type::TypeLiteral { .. } => {
-                    widened_elements.push(element_id);
-                }
-                _ => {
-                    return type_id;
-                }
-            }
-        }
-
-        if !did_change {
-            return type_id;
-        }
-
-        self.union_type_from_list(widened_elements, type_id, types)
+        let walk_ctx = TypeWalkContext::new(TypeWalkKey::BASE);
+        let options = walk_ctx.rewriter_options();
+        let cache_key = options.cache_key();
+        let mut cache = TypeRewriteCache::new();
+        let mut rewriter = LiteralWideningRewriter::new(self, module, &regularized_ctx, options);
+        rewrite_type_with_cache(&mut rewriter, types, &mut cache, cache_key, binding_ty_id)
     }
 
     /// Resolve a typeof guard target for a string literal.
@@ -780,10 +795,29 @@ impl Compiler {
     }
 
     /// Widen a scalar literal to its primitive type.
-    pub(super) fn widen_scalar_literal(&self, value: &ScalarLiteral) -> TypeLiteral {
+    pub(super) fn widen_scalar_literal_for_module(
+        &self,
+        module: &Module,
+        value: &ScalarLiteral,
+    ) -> TypeLiteral {
         let primitive = match value {
             ScalarLiteral::Boolean(_) => PrimitiveType::Boolean,
-            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => PrimitiveType::Number,
+            ScalarLiteral::Integer(value) => {
+                if module.language_type.is_destack()
+                    && self.is_integer_literal_assignable(*value as i128, &IntType::Int32)
+                {
+                    PrimitiveType::Int(IntType::Int32)
+                } else {
+                    PrimitiveType::Number
+                }
+            }
+            ScalarLiteral::Float(_) => {
+                if module.language_type.is_destack() {
+                    PrimitiveType::Float(FloatType::Float64)
+                } else {
+                    PrimitiveType::Number
+                }
+            }
             ScalarLiteral::Bigint(_) => PrimitiveType::Bigint,
             ScalarLiteral::Character(_)
             | ScalarLiteral::String(_)

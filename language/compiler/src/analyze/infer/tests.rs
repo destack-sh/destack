@@ -1045,12 +1045,12 @@ fn test_analyze_let_expression_infer_type() {
             .is_none()
     );
 
-    // value_type[x] = number
+    // value_type[x] = int32
     let x_ty = view.types().get_value_type(x_symbol).unwrap();
     assert_eq!(
         *x_ty,
         Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number)
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
 
@@ -1129,43 +1129,43 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     let rest_symbol = test.resolve_to_symbol("test.ds", "rest").unwrap();
     let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
 
-    // value_type[x] = literal 123
+    // value_type[x] = int32
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
     assert_type!(
         view.types(),
         x_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(123))
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
 
-    // value_type[y] = literal 'abc'
+    // value_type[y] = string
     let y_ty_id = view.types().get_value_type_id(y_symbol).unwrap();
     assert_type!(
         view.types(),
         y_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            value: TypeLiteral::Primitive(PrimitiveType::String)
         }
     );
 
-    // value_type[rest] = (true,)
+    // value_type[rest] = (boolean,)
     let rest_ty_id = view.types().get_value_type_id(rest_symbol).unwrap();
     assert_type!(view.types(), rest_ty_id, Type::Tuple { elements, is_readonly: _ } => {
         assert_eq!(elements.len(), 1);
         assert_type!(view.types(), elements[0].ty, Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean)
         });
     });
 
-    // value_type[z] = literal 456
+    // value_type[z] = int32
     let z_ty_id = view.types().get_value_type_id(z_symbol).unwrap();
     assert_type!(
         view.types(),
         z_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(456))
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
 }
@@ -1190,20 +1190,23 @@ let [first, second] = [1, 2];
     let first_symbol = test.resolve_to_symbol("test.ds", "first").unwrap();
     let second_symbol = test.resolve_to_symbol("test.ds", "second").unwrap();
 
-    // accept either widened int32 or the literal union
+    // accept int32 or literal unions
     let assert_element_type = |ty_id: LocalTypeId| match view.types().get_type(ty_id) {
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
         } => {}
         Type::Union { elements } => {
+            // each element should be int32 or a literal integer
             for element_ty_id in elements {
-                assert_type!(
-                    view.types(),
-                    *element_ty_id,
+                match view.types().get_type(*element_ty_id) {
                     Type::TypeLiteral {
-                        value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
-                    }
-                );
+                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+                    } => {}
+                    Type::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
+                    } => {}
+                    other => panic!("unexpected array element type: {other:?}"),
+                }
             }
         }
         other => panic!("unexpected array element type: {other:?}"),
@@ -1362,7 +1365,7 @@ let x = value;
     // load typed module data
     let view = test.view(module_id);
 
-    // x should have number type (imported from lib.ds)
+    // x should have int32 type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
@@ -1370,7 +1373,7 @@ let x = value;
         view.types(),
         x_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number)
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
 }
@@ -1400,22 +1403,31 @@ let x = items;
     // load typed module data
     let view = test.view(module_id);
 
-    // x should have an array element union from the imported literal values
+    // x should have an int32 array element type
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
     assert_type!(view.types(), x_ty_id, Type::Array { element: Some(element_id), .. } => {
-        assert_type!(view.types(), *element_id, Type::Union { elements } => {
-            // union has three literal elements
-            assert_eq!(elements.len(), 3);
-
-            // each element stays a literal integer
-            for element_id in elements {
-                assert_type!(view.types(), *element_id, Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
-                });
+        match view.types().get_type(*element_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+            } => {}
+            Type::Union { elements } => {
+                // each element should be int32 or a literal integer
+                for element_id in elements {
+                    match view.types().get_type(*element_id) {
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+                        } => {}
+                        Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
+                        } => {}
+                        other => panic!("unexpected array element type: {other:?}"),
+                    }
+                }
             }
-        });
+            other => panic!("unexpected array element type: {other:?}"),
+        }
     });
 }
 
@@ -1589,19 +1601,19 @@ export let b = a;
         .get_value_type_id(b_symbol.into_global(module_id))
         .expect("expected b type");
 
-    // both exports resolve to the number type
+    // both exports resolve to the int32 type
     assert_type!(
         view.types(),
         a_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number)
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
     assert_type!(
         view.types(),
         b_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::Primitive(PrimitiveType::Number)
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32))
         }
     );
 }
