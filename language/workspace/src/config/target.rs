@@ -2,6 +2,16 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use super::policy::{
+    BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
+    DeterminismPolicy, DeterminismPolicyJson, DivisionCheckPolicy, DivisionCheckPolicyJson,
+    FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
+    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, ReplayMode,
+    ReplayModeJson, SafetyPreset, SafetyPresetJson, SandboxPolicy, SandboxPolicyJson,
+    ShiftCheckPolicy, ShiftCheckPolicyJson, TrustPolicy, TrustPolicyJson, UnwindFormat,
+    UnwindFormatJson,
+};
+use super::runtime::{DsConfigRuntimeOptionsJson, runtime_options_with_base};
 use super::tsconfig::{EsTarget, ModuleTarget};
 
 /// How modules are discovered for a build target.
@@ -452,132 +462,159 @@ impl ProfilingMode {
     }
 }
 
-/// Determinism policy for runtime scheduling and I/O.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum DeterminismPolicy {
-    /// Best-effort execution without determinism guarantees.
+/// Policy for runtime task scheduling in thread pools.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum SchedulerPolicy {
+    /// First-in, first-out scheduling.
     #[default]
-    BestEffort,
-    /// Deterministic scheduling with controlled randomness.
+    Fifo,
+    /// Fair scheduling with time slicing.
+    Fair,
+    /// Work-stealing scheduling for throughput.
+    WorkStealing,
+}
+
+/// Time source selection for runtime clocks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum TimeMode {
+    /// Use the host clock directly.
+    #[default]
+    Host,
+    /// Use a virtualized clock derived from runtime state.
+    Virtual,
+}
+
+/// Randomness source selection for the runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum RandomMode {
+    /// Use the host randomness source.
+    #[default]
+    Host,
+    /// Use deterministic runtime-managed randomness.
     Deterministic,
 }
 
-impl std::str::FromStr for DeterminismPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "none" | "off" | "best_effort" => Ok(Self::BestEffort),
-            "deterministic" | "determinism" => Ok(Self::Deterministic),
-            _ => Err(()),
-        }
-    }
-}
-
-impl DeterminismPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Replay policy for external effects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ReplayMode {
-    /// Disable record/replay.
+/// Garbage collector logging verbosity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum GcLogging {
+    /// Disable GC logging.
     #[default]
     Off,
-    /// Record external effects for replay.
-    Record,
-    /// Replay external effects from the log.
-    Replay,
+    /// Emit summary GC events.
+    Summary,
+    /// Emit verbose GC events.
+    Verbose,
 }
 
-impl std::str::FromStr for ReplayMode {
-    type Err = ();
+/// Replay log configuration for runtime record/replay.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct ReplayLogOptions {
+    /// Base path for replay logs (file or directory).
+    pub path: Option<PathBuf>,
+    /// Template for auto-generated log file names.
+    pub template: Option<String>,
+    /// Chunk size in megabytes for log rotation.
+    pub chunk_size_mb: Option<u64>,
+}
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "none" | "off" => Ok(Self::Off),
-            "record" => Ok(Self::Record),
-            "replay" => Ok(Self::Replay),
-            _ => Err(()),
+/// Runtime clock configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct TimeOptions {
+    /// Clock mode selection.
+    pub mode: TimeMode,
+    /// Epoch in nanoseconds for virtual time.
+    pub epoch_ns: Option<u64>,
+    /// Tick size in nanoseconds for virtual time.
+    pub tick_ns: Option<u64>,
+    /// Time zone identifier or fixed offset string.
+    pub time_zone: Option<String>,
+}
+
+/// Runtime randomness configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RandomOptions {
+    /// Randomness source selection.
+    pub mode: RandomMode,
+    /// Seed for deterministic randomness streams.
+    pub seed: Option<u64>,
+    /// Whether to use a per-task random stream.
+    pub per_task: bool,
+}
+
+/// Runtime scheduler configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct SchedulerOptions {
+    // event loop
+    /// Event loop tick budget in nanoseconds.
+    pub tick_budget_ns: Option<u64>,
+    /// Maximum number of microtasks per tick.
+    pub microtask_budget: Option<u64>,
+    /// Maximum microtask nesting depth.
+    pub max_microtask_depth: Option<u64>,
+    /// Timer resolution in nanoseconds.
+    pub timer_resolution_ns: Option<u64>,
+    /// Maximum timer coalescing window in nanoseconds.
+    pub max_timer_coalesce_ns: Option<u64>,
+    /// Preemption interval for long-running tasks in nanoseconds.
+    pub preempt_interval_ns: Option<u64>,
+
+    // task pools
+    /// Scheduling policy for task pools.
+    pub policy: SchedulerPolicy,
+    /// Number of worker threads for parallel tasks.
+    pub worker_threads: Option<u64>,
+    /// Number of I/O threads.
+    pub io_threads: Option<u64>,
+    /// Number of blocking worker threads.
+    pub blocking_threads: Option<u64>,
+    /// Maximum number of concurrent tasks.
+    pub max_tasks: Option<u64>,
+}
+
+/// Runtime garbage collector configuration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct GcOptions {
+    /// Whether the garbage collector is enabled.
+    pub enabled: bool,
+    /// Heap growth target percentage.
+    pub heap_growth_percent: u32,
+    /// Soft heap limit in bytes.
+    pub heap_soft_limit_bytes: Option<u64>,
+    /// Initial heap size hint in bytes.
+    pub heap_initial_bytes: Option<u64>,
+    /// GC logging verbosity.
+    pub logging: GcLogging,
+}
+
+impl Default for GcOptions {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            heap_growth_percent: 100,
+            heap_soft_limit_bytes: None,
+            heap_initial_bytes: None,
+            logging: GcLogging::Off,
         }
     }
 }
 
-impl ReplayMode {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Trust policy for runtime execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum TrustPolicy {
-    /// Untrusted code with strict limits and validation.
-    #[default]
-    Untrusted,
-    /// Trusted code with relaxed limits.
-    Trusted,
-    /// Internal toolchain code with full privileges.
-    Internal,
-}
-
-impl std::str::FromStr for TrustPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "untrusted" | "sandboxed" => Ok(Self::Untrusted),
-            "trusted" => Ok(Self::Trusted),
-            "internal" => Ok(Self::Internal),
-            _ => Err(()),
-        }
-    }
-}
-
-impl TrustPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Sandbox policy for runtime isolation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum SandboxPolicy {
-    /// In-process isolation with VM guardrails.
-    #[default]
-    InProcess,
-    /// Process isolation with OS sandboxing.
-    Process,
-    /// Container or VM isolation.
-    Container,
-    /// Forbid execution without an external sandbox.
-    Forbidden,
-}
-
-impl std::str::FromStr for SandboxPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "in_process" | "inprocess" => Ok(Self::InProcess),
-            "process" => Ok(Self::Process),
-            "container" | "vm" => Ok(Self::Container),
-            "forbid" | "forbidden" | "deny" => Ok(Self::Forbidden),
-            _ => Err(()),
-        }
-    }
-}
-
-impl SandboxPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
+/// Runtime execution options for scheduler, time, randomness, and GC.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct RuntimeOptions {
+    /// Determinism policy for runtime scheduling and I/O.
+    pub determinism: DeterminismPolicy,
+    /// Replay policy for external effects.
+    pub replay: ReplayMode,
+    /// Replay log configuration.
+    pub replay_log: ReplayLogOptions,
+    /// Runtime clock configuration.
+    pub time: TimeOptions,
+    /// Runtime randomness configuration.
+    pub random: RandomOptions,
+    /// Runtime scheduler configuration.
+    pub scheduler: SchedulerOptions,
+    /// Runtime garbage collector configuration.
+    pub gc: GcOptions,
 }
 
 /// Symbol stripping policy.
@@ -606,336 +643,6 @@ impl std::str::FromStr for StripLevel {
 }
 
 impl StripLevel {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Panic policy for unrecoverable errors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum PanicPolicy {
-    /// Abort immediately.
-    #[default]
-    Abort,
-    /// Unwind the stack.
-    Unwind,
-}
-
-impl std::str::FromStr for PanicPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "abort" => Ok(Self::Abort),
-            "unwind" => Ok(Self::Unwind),
-            _ => Err(()),
-        }
-    }
-}
-
-impl PanicPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Unwind info format for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum UnwindFormat {
-    /// No unwind info.
-    #[default]
-    None,
-    /// DWARF unwind info.
-    Dwarf,
-    /// Windows SEH unwind info.
-    Seh,
-}
-
-impl std::str::FromStr for UnwindFormat {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "none" => Ok(Self::None),
-            "dwarf" => Ok(Self::Dwarf),
-            "seh" => Ok(Self::Seh),
-            _ => Err(()),
-        }
-    }
-}
-
-impl UnwindFormat {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Integer overflow checking policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum OverflowCheckPolicy {
-    /// Always emit overflow checks.
-    Always,
-    /// Emit overflow checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit overflow checks.
-    Never,
-}
-
-impl std::str::FromStr for OverflowCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl OverflowCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Floating point math optimization policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum FloatMathPolicy {
-    /// Strict IEEE semantics.
-    #[default]
-    Strict,
-    /// Allow reassociation and algebraic simplifications.
-    Reassociate,
-    /// Enable fast math optimizations (assume no NaN, inf, or signed zero).
-    Fast,
-}
-
-impl std::str::FromStr for FloatMathPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "strict" => Ok(Self::Strict),
-            "reassoc" | "reassociate" | "relaxed" => Ok(Self::Reassociate),
-            "fast" | "fast_math" | "fastmath" => Ok(Self::Fast),
-            _ => Err(()),
-        }
-    }
-}
-
-impl FloatMathPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Safety preset that configures runtime checks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SafetyPreset {
-    /// Debug safety mode with checks always enabled.
-    Debug,
-    /// Release mode with checks enabled.
-    ReleaseSafe,
-    /// Release mode with checks disabled for maximum speed.
-    ReleaseFast,
-    /// Release mode with checks disabled and size focused settings.
-    ReleaseSmall,
-}
-
-impl std::str::FromStr for SafetyPreset {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "debug" => Ok(Self::Debug),
-            "release_safe" | "releasesafe" | "safe" => Ok(Self::ReleaseSafe),
-            "release_fast" | "releasefast" | "fast" => Ok(Self::ReleaseFast),
-            "release_small" | "releasesmall" | "small" => Ok(Self::ReleaseSmall),
-            _ => Err(()),
-        }
-    }
-}
-
-impl SafetyPreset {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-
-    /// Return the runtime check policies for this preset.
-    pub fn runtime_check_policies(self) -> RuntimeCheckPolicies {
-        match self {
-            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => RuntimeCheckPolicies {
-                overflow: OverflowCheckPolicy::Always,
-                bounds: BoundsCheckPolicy::Always,
-                null: NullCheckPolicy::Always,
-                division: DivisionCheckPolicy::Always,
-                shift: ShiftCheckPolicy::Always,
-            },
-            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => RuntimeCheckPolicies {
-                overflow: OverflowCheckPolicy::Never,
-                bounds: BoundsCheckPolicy::Never,
-                null: NullCheckPolicy::Never,
-                division: DivisionCheckPolicy::Never,
-                shift: ShiftCheckPolicy::Never,
-            },
-        }
-    }
-
-    /// Return the float math policy for this preset.
-    pub fn float_math_policy(self) -> FloatMathPolicy {
-        match self {
-            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => FloatMathPolicy::Strict,
-            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => FloatMathPolicy::Fast,
-        }
-    }
-}
-
-/// Runtime check policy bundle for safety presets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct RuntimeCheckPolicies {
-    /// Overflow check policy.
-    pub overflow: OverflowCheckPolicy,
-    /// Bounds check policy.
-    pub bounds: BoundsCheckPolicy,
-    /// Null check policy.
-    pub null: NullCheckPolicy,
-    /// Division check policy.
-    pub division: DivisionCheckPolicy,
-    /// Shift range check policy.
-    pub shift: ShiftCheckPolicy,
-}
-
-/// Null check policy for reference operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum NullCheckPolicy {
-    /// Always emit null checks.
-    Always,
-    /// Emit null checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit null checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for NullCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl NullCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Division check policy for divide and remainder operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum DivisionCheckPolicy {
-    /// Always emit division checks.
-    Always,
-    /// Emit division checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit division checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for DivisionCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl DivisionCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Shift range check policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ShiftCheckPolicy {
-    /// Always emit shift range checks.
-    Always,
-    /// Emit shift range checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit shift range checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for ShiftCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl ShiftCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Check failure behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum CheckFailurePolicy {
-    /// Trap immediately on a failed check.
-    Trap,
-    /// Trigger a panic on a failed check.
-    #[default]
-    Panic,
-    /// Abort execution on a failed check.
-    Abort,
-}
-
-impl std::str::FromStr for CheckFailurePolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "trap" => Ok(Self::Trap),
-            "panic" => Ok(Self::Panic),
-            "abort" => Ok(Self::Abort),
-            _ => Err(()),
-        }
-    }
-}
-
-impl CheckFailurePolicy {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
@@ -996,38 +703,6 @@ impl From<ShrinkLevel> for u8 {
             ShrinkLevel::S2 => 2,
             ShrinkLevel::S3 => 3,
         }
-    }
-}
-
-/// Bounds check policy for array and slice accesses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum BoundsCheckPolicy {
-    /// Always emit bounds checks.
-    Always,
-    /// Emit bounds checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit bounds checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for BoundsCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl BoundsCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
     }
 }
 
@@ -1328,6 +1003,8 @@ pub struct Target {
     pub determinism: DeterminismPolicy,
     /// Replay policy for external effects.
     pub replay: ReplayMode,
+    /// Runtime execution options.
+    pub runtime_options: RuntimeOptions,
     /// Trust policy for runtime execution.
     pub trust_policy: TrustPolicy,
     /// Sandbox policy for runtime isolation.
@@ -1917,5 +1594,965 @@ mod tests {
         let fast_float = SafetyPreset::ReleaseFast.float_math_policy();
         assert_eq!(debug_float, FloatMathPolicy::Strict);
         assert_eq!(fast_float, FloatMathPolicy::Fast);
+    }
+}
+
+/// Normalized Destack build target options (from dsconfig.json).
+#[derive(Debug, Clone)]
+pub struct DsConfigTargetOptions {
+    // discovery
+    /// How modules are discovered for this target.
+    pub discovery: TargetDiscovery,
+    /// Entry points for entry-based discovery.
+    pub entry: Vec<PathBuf>,
+    /// Glob patterns for files to include (for include-based discovery).
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Vec<String>,
+
+    // output format
+    /// Output format (js, ts, wasm, native).
+    pub output: OutputFormat,
+    /// Runtime environment (browser, node, wasm-wasi, native-hosted, etc.).
+    pub runtime: Runtime,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
+    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
+    pub platform: Platform,
+    /// Target triple for native codegen.
+    /// This selects the ABI and CPU architecture for native targets.
+    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
+    pub target_triple: Option<String>,
+    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    pub cpu: Option<String>,
+    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    pub cpu_features: Vec<String>,
+    /// Relocation model for native codegen.
+    pub relocation_model: RelocationModel,
+    /// Link mode for native targets.
+    pub link_mode: LinkMode,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Extra linker arguments for native targets.
+    pub link_args: Vec<String>,
+    /// Sysroot path for native targets.
+    pub sysroot: Option<PathBuf>,
+    /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
+    pub declaration: bool,
+    /// Emit source maps.
+    pub source_map: bool,
+    /// Extra artifacts to emit.
+    pub emit: Vec<EmitArtifact>,
+
+    // output paths
+    /// Output directory for this target (defaults to "dist").
+    pub out_dir: PathBuf,
+    /// Output file for single-file targets like wasm.
+    pub out_file: Option<PathBuf>,
+    /// Separate directory for declaration files.
+    pub declaration_dir: Option<PathBuf>,
+
+    // JS/TS specific
+    /// Module format for this target.
+    pub module: ModuleTarget,
+    /// ECMAScript target for this target.
+    pub es_target: EsTarget,
+    /// Library files for this target. If `None`, derived automatically from runtime and platform.
+    pub lib: Option<Vec<String>>,
+    /// Additional library types for this target.
+    pub types: Option<Vec<String>>,
+    /// Explicit profile name for this target.
+    pub profile: Option<String>,
+
+    // optimization
+    /// Whether this is a debug build.
+    pub debug: bool,
+    /// Whether optimization is enabled.
+    pub optimize: bool,
+    /// Optimization level.
+    pub optimize_level: OptimizeLevel,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: Option<u64>,
+    /// Inline budget scaling in percent.
+    pub inline_budget_scale_percent: Option<u64>,
+    /// Link time optimization mode.
+    pub lto_mode: LtoMode,
+    /// Shrink level (code size reduction).
+    pub shrink_level: ShrinkLevel,
+    /// Floating point math optimization policy.
+    pub float_math: FloatMathPolicy,
+    /// Debug info emission policy.
+    pub debug_info: DebugInfoLevel,
+    /// Debug execution mode for VM/native targets.
+    pub debug_mode: DebugMode,
+    /// OSR mode for native execution.
+    pub osr_mode: OsrMode,
+    /// Safepoint insertion mode for native execution.
+    pub safepoint_mode: SafepointMode,
+    /// Instruction interval for safepoint polling (when enabled).
+    pub safepoint_interval: Option<u64>,
+    /// Speculation mode for native optimization.
+    pub speculation_mode: SpeculationMode,
+    /// Profiling mode for tiering and optimization.
+    pub profiling_mode: ProfilingMode,
+    /// Determinism policy for runtime scheduling and I/O.
+    pub determinism: DeterminismPolicy,
+    /// Replay policy for external effects.
+    pub replay: ReplayMode,
+    /// Runtime execution options.
+    pub runtime_options: RuntimeOptions,
+    /// Trust policy for runtime execution.
+    pub trust_policy: TrustPolicy,
+    /// Sandbox policy for runtime isolation.
+    pub sandbox_policy: SandboxPolicy,
+    /// Symbol stripping policy.
+    pub strip: StripLevel,
+    /// Panic policy for unrecoverable errors.
+    pub panic: PanicPolicy,
+    /// Unwind info format for native targets.
+    pub unwind: UnwindFormat,
+    /// Safety preset that configures runtime checks.
+    pub safety_preset: Option<SafetyPreset>,
+    /// Integer overflow checking policy.
+    pub overflow_checks: OverflowCheckPolicy,
+    /// Bounds check policy for array and slice accesses.
+    pub bounds_checks: BoundsCheckPolicy,
+    /// Null check policy for reference operations.
+    pub null_checks: NullCheckPolicy,
+    /// Division check policy for divide and remainder operations.
+    pub division_checks: DivisionCheckPolicy,
+    /// Shift range check policy.
+    pub shift_checks: ShiftCheckPolicy,
+    /// Check failure behavior.
+    pub check_failure: CheckFailurePolicy,
+    /// Global allocator selection for native targets.
+    pub allocator: Allocator,
+}
+
+impl Default for DsConfigTargetOptions {
+    fn default() -> Self {
+        Self {
+            discovery: TargetDiscovery::default(),
+            entry: Vec::new(),
+            include: Vec::new(),
+            exclude: Vec::new(),
+            output: OutputFormat::default(),
+            runtime: Runtime::default(),
+            runtime_version: None,
+            platform: Platform::default(),
+            target_triple: None,
+            cpu: None,
+            cpu_features: Vec::new(),
+            relocation_model: RelocationModel::default(),
+            link_mode: LinkMode::default(),
+            linker: None,
+            link_args: Vec::new(),
+            sysroot: None,
+            declaration: false,
+            source_map: false,
+            emit: Vec::new(),
+            out_dir: PathBuf::from(DEFAULT_OUT_DIR),
+            out_file: None,
+            declaration_dir: None,
+            module: ModuleTarget::default(),
+            es_target: EsTarget::default(),
+            lib: None,
+            types: None,
+            profile: None,
+            debug: true,
+            optimize: false,
+            optimize_level: OptimizeLevel::O0,
+            unroll_threshold: None,
+            inline_budget_scale_percent: None,
+            lto_mode: LtoMode::default(),
+            shrink_level: ShrinkLevel::S0,
+            float_math: FloatMathPolicy::default(),
+            debug_info: DebugInfoLevel::default(),
+            debug_mode: DebugMode::default(),
+            osr_mode: OsrMode::default(),
+            safepoint_mode: SafepointMode::default(),
+            safepoint_interval: None,
+            speculation_mode: SpeculationMode::default(),
+            profiling_mode: ProfilingMode::default(),
+            determinism: DeterminismPolicy::default(),
+            replay: ReplayMode::default(),
+            runtime_options: RuntimeOptions::default(),
+            trust_policy: TrustPolicy::default(),
+            sandbox_policy: SandboxPolicy::default(),
+            strip: StripLevel::default(),
+            panic: PanicPolicy::default(),
+            unwind: UnwindFormat::default(),
+            safety_preset: None,
+            overflow_checks: OverflowCheckPolicy::default(),
+            bounds_checks: BoundsCheckPolicy::default(),
+            null_checks: NullCheckPolicy::default(),
+            division_checks: DivisionCheckPolicy::default(),
+            shift_checks: ShiftCheckPolicy::default(),
+            check_failure: CheckFailurePolicy::default(),
+            allocator: Allocator::default(),
+        }
+    }
+}
+
+impl DsConfigTargetOptions {
+    /// Derive the output mode from the target configuration.
+    pub fn output_mode(&self) -> OutputMode {
+        if self.out_file.is_some() || self.output.is_single_file() {
+            OutputMode::File
+        } else {
+            OutputMode::Directory
+        }
+    }
+
+    /// Whether this target produces single-file output.
+    pub fn is_out_file(&self) -> bool {
+        self.output_mode() == OutputMode::File
+    }
+
+    /// Whether this target produces directory output (one file per source file).
+    pub fn is_out_dir(&self) -> bool {
+        self.output_mode() == OutputMode::Directory
+    }
+
+    /// Convert to a standalone Target with the given name.
+    pub fn to_target(&self, name: &str) -> Target {
+        Target {
+            name: name.to_string(),
+            synthetic: false,
+            discovery: self.discovery,
+            entry: self.entry.clone(),
+            include: self.include.clone(),
+            exclude: self.exclude.clone(),
+            output: self.output,
+            runtime: self.runtime,
+            runtime_version: self.runtime_version.clone(),
+            platform: self.platform,
+            target_triple: self.target_triple.clone(),
+            cpu: self.cpu.clone(),
+            cpu_features: self.cpu_features.clone(),
+            relocation_model: self.relocation_model,
+            link_mode: self.link_mode,
+            linker: self.linker.clone(),
+            link_args: self.link_args.clone(),
+            sysroot: self.sysroot.clone(),
+            declaration: self.declaration,
+            source_map: self.source_map,
+            emit: self.emit.clone(),
+            out_dir: self.out_dir.clone(),
+            out_file: self.out_file.clone(),
+            declaration_dir: self.declaration_dir.clone(),
+            module: self.module,
+            es_target: self.es_target,
+            lib: self.lib.clone(),
+            types: self.types.clone(),
+            profile: self.profile.clone(),
+            debug: self.debug,
+            optimize: self.optimize,
+            optimize_level: self.optimize_level,
+            unroll_threshold: self.unroll_threshold,
+            inline_budget_scale_percent: self.inline_budget_scale_percent,
+            lto_mode: self.lto_mode,
+            shrink_level: self.shrink_level,
+            float_math: self.float_math,
+            debug_info: self.debug_info,
+            debug_mode: self.debug_mode,
+            osr_mode: self.osr_mode,
+            safepoint_mode: self.safepoint_mode,
+            safepoint_interval: self.safepoint_interval,
+            speculation_mode: self.speculation_mode,
+            profiling_mode: self.profiling_mode,
+            determinism: self.determinism,
+            replay: self.replay,
+            runtime_options: self.runtime_options.clone(),
+            trust_policy: self.trust_policy,
+            sandbox_policy: self.sandbox_policy,
+            strip: self.strip,
+            panic: self.panic,
+            unwind: self.unwind,
+            safety_preset: self.safety_preset,
+            overflow_checks: self.overflow_checks,
+            bounds_checks: self.bounds_checks,
+            null_checks: self.null_checks,
+            division_checks: self.division_checks,
+            shift_checks: self.shift_checks,
+            check_failure: self.check_failure,
+            allocator: self.allocator,
+        }
+    }
+
+    /// Derive target options from JSON and base runtime options.
+    pub fn from_json_with_runtime(
+        json: &DsConfigTargetJson,
+        base_runtime: &RuntimeOptions,
+    ) -> Self {
+        // derive entry points
+        let entry: Vec<PathBuf> = json
+            .entry
+            .as_ref()
+            .map(|e| e.iter().map(PathBuf::from).collect())
+            .unwrap_or_default();
+
+        // derive discovery mode: Entry if entry points are set, otherwise Include
+        let discovery = if !entry.is_empty() {
+            TargetDiscovery::Entry
+        } else {
+            TargetDiscovery::Include
+        };
+
+        // apply runtime overrides on top of the base runtime options
+        let mut runtime_options =
+            runtime_options_with_base(base_runtime, json.runtime_options.as_ref());
+
+        // align legacy determinism and replay fields with runtime options
+        let determinism = json
+            .determinism
+            .map(DeterminismPolicy::from)
+            .unwrap_or(runtime_options.determinism);
+        let replay = json
+            .replay
+            .map(ReplayMode::from)
+            .unwrap_or(runtime_options.replay);
+        runtime_options.determinism = determinism;
+        runtime_options.replay = replay;
+
+        let safety_preset = json.safety_preset.map(SafetyPreset::from);
+        let default_checks = safety_preset
+            .map(|preset| preset.runtime_check_policies())
+            .unwrap_or_default();
+        let default_float_math = safety_preset
+            .map(|preset| preset.float_math_policy())
+            .unwrap_or_default();
+
+        Self {
+            discovery,
+            entry,
+            include: json.include.clone().unwrap_or_default(),
+            exclude: json.exclude.clone().unwrap_or_default(),
+            output: json.output.map(OutputFormat::from).unwrap_or_default(),
+            runtime: json
+                .runtime
+                .as_deref()
+                .and_then(Runtime::parse)
+                .unwrap_or_default(),
+            runtime_version: json.runtime_version.clone(),
+            platform: json
+                .platform
+                .as_deref()
+                .and_then(Platform::parse)
+                .unwrap_or_default(),
+            target_triple: json.target_triple.clone(),
+            cpu: json.cpu.clone(),
+            cpu_features: json.cpu_features.clone().unwrap_or_default(),
+            relocation_model: json
+                .relocation_model
+                .map(RelocationModel::from)
+                .unwrap_or_default(),
+            link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
+            linker: json.linker.clone(),
+            link_args: json.link_args.clone().unwrap_or_default(),
+            sysroot: json.sysroot.as_ref().map(PathBuf::from),
+            declaration: json.declaration,
+            source_map: json.source_map,
+            emit: json
+                .emit
+                .as_ref()
+                .map(|emit| emit.iter().copied().map(EmitArtifact::from).collect())
+                .unwrap_or_default(),
+            out_dir: json
+                .out_dir
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(DEFAULT_OUT_DIR)),
+            out_file: json.out_file.as_ref().map(PathBuf::from),
+            declaration_dir: json.declaration_dir.as_ref().map(PathBuf::from),
+            module: json
+                .module
+                .as_deref()
+                .and_then(ModuleTarget::parse)
+                .unwrap_or_default(),
+            es_target: json
+                .target
+                .as_deref()
+                .and_then(EsTarget::parse)
+                .unwrap_or_default(),
+            lib: json.lib.clone(),
+            types: json.types.clone(),
+            profile: json.profile.clone(),
+            debug: json.debug,
+            optimize: json.optimize,
+            optimize_level: json
+                .optimize_level
+                .map(OptimizeLevel::from)
+                .unwrap_or_default(),
+            unroll_threshold: json.unroll_threshold,
+            inline_budget_scale_percent: json.inline_budget_scale_percent,
+            lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
+            shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
+            float_math: json
+                .float_math
+                .map(FloatMathPolicy::from)
+                .unwrap_or(default_float_math),
+            debug_info: json
+                .debug_info
+                .map(DebugInfoLevel::from)
+                .unwrap_or_default(),
+            debug_mode: json.debug_mode.map(DebugMode::from).unwrap_or_default(),
+            osr_mode: json.osr_mode.map(OsrMode::from).unwrap_or_default(),
+            safepoint_mode: json
+                .safepoint_mode
+                .map(SafepointMode::from)
+                .unwrap_or_default(),
+            safepoint_interval: json.safepoint_interval,
+            speculation_mode: json
+                .speculation_mode
+                .map(SpeculationMode::from)
+                .unwrap_or_default(),
+            profiling_mode: json
+                .profiling_mode
+                .map(ProfilingMode::from)
+                .unwrap_or_default(),
+            determinism,
+            replay,
+            runtime_options,
+            trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
+            sandbox_policy: json
+                .sandbox_policy
+                .map(SandboxPolicy::from)
+                .unwrap_or_default(),
+            strip: json.strip.map(StripLevel::from).unwrap_or_default(),
+            panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
+            unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
+            safety_preset,
+            overflow_checks: json
+                .overflow_checks
+                .map(OverflowCheckPolicy::from)
+                .unwrap_or(default_checks.overflow),
+            bounds_checks: json
+                .bounds_checks
+                .map(BoundsCheckPolicy::from)
+                .unwrap_or(default_checks.bounds),
+            null_checks: json
+                .null_checks
+                .map(NullCheckPolicy::from)
+                .unwrap_or(default_checks.null),
+            division_checks: json
+                .division_checks
+                .map(DivisionCheckPolicy::from)
+                .unwrap_or(default_checks.division),
+            shift_checks: json
+                .shift_checks
+                .map(ShiftCheckPolicy::from)
+                .unwrap_or(default_checks.shift),
+            check_failure: json
+                .check_failure
+                .map(CheckFailurePolicy::from)
+                .unwrap_or_default(),
+            allocator: json.allocator.map(Allocator::from).unwrap_or_default(),
+        }
+    }
+}
+
+impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
+    fn from(json: &DsConfigTargetJson) -> Self {
+        Self::from_json_with_runtime(json, &RuntimeOptions::default())
+    }
+}
+
+/// Destack build target configuration.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigTargetJson {
+    // discovery
+    /// Entry points for entry-based discovery (bundled/executable targets).
+    /// If set, discovery mode is Entry; otherwise it's Include.
+    pub entry: Option<Vec<String>>,
+    /// Glob patterns for files to include (for include-based discovery).
+    pub include: Option<Vec<String>>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Option<Vec<String>>,
+
+    // output format
+    /// Output format (e.g., JavaScript, TypeScript, WebAssembly, Native).
+    pub output: Option<OutputFormatJson>,
+    /// Runtime environment (e.g., Browser, Node, Deno, Bun, Worker, Workerd).
+    pub runtime: Option<String>,
+    /// Runtime version for selecting versioned libs.
+    pub runtime_version: Option<String>,
+    /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, BareMetal, Universal).
+    pub platform: Option<String>,
+    /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
+    pub target_triple: Option<String>,
+    /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
+    pub cpu: Option<String>,
+    /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
+    pub cpu_features: Option<Vec<String>>,
+    /// Relocation model.
+    pub relocation_model: Option<RelocationModelJson>,
+    /// Link mode.
+    pub link_mode: Option<LinkModeJson>,
+    /// Explicit linker executable.
+    pub linker: Option<String>,
+    /// Extra linker arguments.
+    pub link_args: Option<Vec<String>>,
+    /// Sysroot path for native toolchains.
+    pub sysroot: Option<String>,
+    /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
+    #[serde(default)]
+    pub declaration: bool,
+    /// Emit source maps.
+    #[serde(default)]
+    pub source_map: bool,
+    /// Extra artifacts to emit.
+    pub emit: Option<Vec<EmitArtifactJson>>,
+
+    // output paths
+    /// Output directory for this target (overrides compilerOptions.outDir).
+    pub out_dir: Option<String>,
+    /// Output file for single-file targets like wasm (e.g., "./dist/core.wasm").
+    pub out_file: Option<String>,
+    /// Separate directory for declaration files (overrides compilerOptions.declarationDir).
+    pub declaration_dir: Option<String>,
+
+    // JS/TS specific
+    /// Module format for this target (overrides compilerOptions.module).
+    pub module: Option<String>,
+    /// ECMAScript target for this target (overrides compilerOptions.target).
+    pub target: Option<String>,
+    /// Library files for this target (overrides derived libs).
+    pub lib: Option<Vec<String>>,
+    /// Additional library types for this target.
+    pub types: Option<Vec<String>>,
+    /// Explicit profile name for this target.
+    pub profile: Option<String>,
+
+    // optimization
+    /// Whether this is a debug build.
+    #[serde(default)]
+    pub debug: bool,
+    /// Whether optimization is enabled.
+    #[serde(default)]
+    pub optimize: bool,
+    /// Optimization level (0-4).
+    pub optimize_level: Option<u8>,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: Option<u64>,
+    /// Inline budget scaling in percent.
+    pub inline_budget_scale_percent: Option<u64>,
+    /// Link time optimization mode.
+    pub lto_mode: Option<LtoModeJson>,
+    /// Shrink level (0-3).
+    pub shrink_level: Option<u8>,
+    /// Floating point math optimization policy.
+    pub float_math: Option<FloatMathPolicyJson>,
+    /// Debug info emission policy.
+    pub debug_info: Option<DebugInfoLevelJson>,
+    /// Debug execution mode for VM/native targets.
+    pub debug_mode: Option<DebugModeJson>,
+    /// OSR mode for native execution.
+    pub osr_mode: Option<OsrModeJson>,
+    /// Safepoint insertion mode for native execution.
+    pub safepoint_mode: Option<SafepointModeJson>,
+    /// Instruction interval for safepoint polling (when enabled).
+    pub safepoint_interval: Option<u64>,
+    /// Speculation mode for native optimization.
+    pub speculation_mode: Option<SpeculationModeJson>,
+    /// Profiling mode for tiering and optimization.
+    pub profiling_mode: Option<ProfilingModeJson>,
+    /// Determinism policy for runtime scheduling and I/O.
+    #[serde(alias = "determinismMode")]
+    #[serde(alias = "determinism_mode")]
+    pub determinism: Option<DeterminismPolicyJson>,
+    /// Replay policy for external effects.
+    #[serde(alias = "replayMode")]
+    #[serde(alias = "replay_mode")]
+    pub replay: Option<ReplayModeJson>,
+    /// Runtime options overrides for this target.
+    #[serde(alias = "runtimeOptions")]
+    pub runtime_options: Option<DsConfigRuntimeOptionsJson>,
+    /// Trust policy for runtime execution.
+    pub trust_policy: Option<TrustPolicyJson>,
+    /// Sandbox policy for runtime isolation.
+    pub sandbox_policy: Option<SandboxPolicyJson>,
+    /// Symbol stripping policy.
+    pub strip: Option<StripLevelJson>,
+    /// Panic policy.
+    pub panic: Option<PanicPolicyJson>,
+    /// Unwind info format.
+    pub unwind: Option<UnwindFormatJson>,
+    /// Safety preset that configures runtime checks.
+    pub safety_preset: Option<SafetyPresetJson>,
+    /// Overflow checking policy.
+    pub overflow_checks: Option<OverflowCheckPolicyJson>,
+    /// Bounds check policy.
+    pub bounds_checks: Option<BoundsCheckPolicyJson>,
+    /// Null check policy.
+    pub null_checks: Option<NullCheckPolicyJson>,
+    /// Division check policy.
+    pub division_checks: Option<DivisionCheckPolicyJson>,
+    /// Shift range check policy.
+    pub shift_checks: Option<ShiftCheckPolicyJson>,
+    /// Check failure behavior.
+    pub check_failure: Option<CheckFailurePolicyJson>,
+    /// Global allocator selection.
+    pub allocator: Option<AllocatorJson>,
+}
+
+/// Output format for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormatJson {
+    /// JavaScript (.js).
+    #[serde(alias = "javascript")]
+    Js,
+    /// TypeScript (.ts).
+    #[serde(alias = "typescript")]
+    Ts,
+    /// WebAssembly (.wasm).
+    #[serde(alias = "webassembly")]
+    Wasm,
+    /// Native binary.
+    #[serde(alias = "binary")]
+    Native,
+}
+
+impl From<OutputFormatJson> for OutputFormat {
+    fn from(value: OutputFormatJson) -> Self {
+        match value {
+            OutputFormatJson::Js => OutputFormat::Js,
+            OutputFormatJson::Ts => OutputFormat::Ts,
+            OutputFormatJson::Wasm => OutputFormat::Wasm,
+            OutputFormatJson::Native => OutputFormat::Native,
+        }
+    }
+}
+
+/// Extra artifacts to emit for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum EmitArtifactJson {
+    /// Lowered MIR.
+    Mir,
+    /// Backend IR.
+    Ir,
+    /// Assembly output.
+    Asm,
+    /// Object file output.
+    Object,
+    /// Symbol table output.
+    Symbols,
+}
+
+impl From<EmitArtifactJson> for EmitArtifact {
+    fn from(value: EmitArtifactJson) -> Self {
+        match value {
+            EmitArtifactJson::Mir => EmitArtifact::Mir,
+            EmitArtifactJson::Ir => EmitArtifact::Ir,
+            EmitArtifactJson::Asm => EmitArtifact::Asm,
+            EmitArtifactJson::Object => EmitArtifact::Object,
+            EmitArtifactJson::Symbols => EmitArtifact::Symbols,
+        }
+    }
+}
+
+/// Relocation model for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RelocationModelJson {
+    /// Static relocation model.
+    #[serde(alias = "static")]
+    Static,
+    /// Position-independent code.
+    #[serde(alias = "position_independent")]
+    #[serde(alias = "position_independent_code")]
+    #[serde(alias = "position_independent_executable")]
+    Pic,
+    /// Position-independent executable.
+    #[serde(alias = "pie")]
+    Pie,
+}
+
+impl From<RelocationModelJson> for RelocationModel {
+    fn from(value: RelocationModelJson) -> Self {
+        match value {
+            RelocationModelJson::Static => RelocationModel::Static,
+            RelocationModelJson::Pic => RelocationModel::Pic,
+            RelocationModelJson::Pie => RelocationModel::Pie,
+        }
+    }
+}
+
+/// Link mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LinkModeJson {
+    /// Prefer static linking.
+    #[serde(alias = "static")]
+    Static,
+    /// Prefer dynamic linking.
+    #[serde(alias = "shared")]
+    Dynamic,
+}
+
+impl From<LinkModeJson> for LinkMode {
+    fn from(value: LinkModeJson) -> Self {
+        match value {
+            LinkModeJson::Static => LinkMode::Static,
+            LinkModeJson::Dynamic => LinkMode::Dynamic,
+        }
+    }
+}
+
+/// Debug info emission policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DebugInfoLevelJson {
+    /// No debug info.
+    #[serde(alias = "off")]
+    None,
+    /// Line tables only.
+    #[serde(alias = "lines")]
+    #[serde(alias = "line_tables")]
+    Line,
+    /// Full debug info.
+    #[serde(alias = "full")]
+    Full,
+}
+
+impl From<DebugInfoLevelJson> for DebugInfoLevel {
+    fn from(value: DebugInfoLevelJson) -> Self {
+        match value {
+            DebugInfoLevelJson::None => DebugInfoLevel::None,
+            DebugInfoLevelJson::Line => DebugInfoLevel::Line,
+            DebugInfoLevelJson::Full => DebugInfoLevel::Full,
+        }
+    }
+}
+
+/// Debug execution mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DebugModeJson {
+    /// Choose mode based on target debug settings.
+    #[serde(alias = "default")]
+    Auto,
+    /// Always run the interpreter.
+    #[serde(alias = "interpreter")]
+    Vm,
+    /// Run native with deopt-first debugging.
+    Deopt,
+    /// Run native only (no deopt).
+    Native,
+}
+
+impl From<DebugModeJson> for DebugMode {
+    fn from(value: DebugModeJson) -> Self {
+        match value {
+            DebugModeJson::Auto => DebugMode::Auto,
+            DebugModeJson::Vm => DebugMode::Vm,
+            DebugModeJson::Deopt => DebugMode::Deopt,
+            DebugModeJson::Native => DebugMode::Native,
+        }
+    }
+}
+
+/// OSR mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OsrModeJson {
+    /// OSR disabled.
+    #[serde(alias = "off")]
+    Disabled,
+    /// OSR at loop headers.
+    #[serde(alias = "loops")]
+    #[serde(alias = "loop-headers")]
+    LoopHeaders,
+    /// OSR only at explicit sites.
+    Explicit,
+}
+
+impl From<OsrModeJson> for OsrMode {
+    fn from(value: OsrModeJson) -> Self {
+        match value {
+            OsrModeJson::Disabled => OsrMode::Disabled,
+            OsrModeJson::LoopHeaders => OsrMode::LoopHeaders,
+            OsrModeJson::Explicit => OsrMode::Explicit,
+        }
+    }
+}
+
+/// Safepoint mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SafepointModeJson {
+    /// Safepoints at calls, allocations, and loop back-edges.
+    #[serde(rename = "calls-alloc-backedges")]
+    #[serde(alias = "calls_alloc_backedges")]
+    #[serde(alias = "standard")]
+    CallsAllocBackEdges,
+    /// Add instruction-budget safepoints for bounded latency.
+    #[serde(alias = "budget")]
+    Budgeted,
+}
+
+impl From<SafepointModeJson> for SafepointMode {
+    fn from(value: SafepointModeJson) -> Self {
+        match value {
+            SafepointModeJson::CallsAllocBackEdges => SafepointMode::CallsAllocBackEdges,
+            SafepointModeJson::Budgeted => SafepointMode::Budgeted,
+        }
+    }
+}
+
+/// Speculation mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SpeculationModeJson {
+    /// Disable speculative optimizations.
+    #[serde(alias = "off")]
+    None,
+    /// Guarded speculations with explicit deopt metadata.
+    Guarded,
+    /// Aggressive speculation across more sites.
+    Aggressive,
+}
+
+impl From<SpeculationModeJson> for SpeculationMode {
+    fn from(value: SpeculationModeJson) -> Self {
+        match value {
+            SpeculationModeJson::None => SpeculationMode::None,
+            SpeculationModeJson::Guarded => SpeculationMode::Guarded,
+            SpeculationModeJson::Aggressive => SpeculationMode::Aggressive,
+        }
+    }
+}
+
+/// Profiling mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ProfilingModeJson {
+    /// Disable runtime profiling.
+    #[serde(alias = "off")]
+    None,
+    /// Counters only.
+    Counters,
+    /// Sampling only.
+    Sampling,
+    /// Counters + sampling + inline caches.
+    #[serde(alias = "full")]
+    Hybrid,
+}
+
+impl From<ProfilingModeJson> for ProfilingMode {
+    fn from(value: ProfilingModeJson) -> Self {
+        match value {
+            ProfilingModeJson::None => ProfilingMode::None,
+            ProfilingModeJson::Counters => ProfilingMode::Counters,
+            ProfilingModeJson::Sampling => ProfilingMode::Sampling,
+            ProfilingModeJson::Hybrid => ProfilingMode::Hybrid,
+        }
+    }
+}
+
+/// Link time optimization mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LtoModeJson {
+    /// Choose mode based on optimization level.
+    #[serde(alias = "auto")]
+    Auto,
+    /// Disable link time optimization.
+    #[serde(alias = "none")]
+    #[serde(alias = "off")]
+    #[serde(alias = "disabled")]
+    None,
+    /// Enable thin link time optimization.
+    #[serde(alias = "thin")]
+    #[serde(alias = "thinlto")]
+    #[serde(alias = "thin_lto")]
+    Thin,
+    /// Enable full link time optimization.
+    #[serde(alias = "full")]
+    #[serde(alias = "lto")]
+    Full,
+}
+
+impl From<LtoModeJson> for LtoMode {
+    fn from(value: LtoModeJson) -> Self {
+        match value {
+            LtoModeJson::Auto => LtoMode::Auto,
+            LtoModeJson::None => LtoMode::None,
+            LtoModeJson::Thin => LtoMode::Thin,
+            LtoModeJson::Full => LtoMode::Full,
+        }
+    }
+}
+
+/// Symbol stripping policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum StripLevelJson {
+    /// Keep all symbols.
+    #[serde(alias = "none")]
+    None,
+    /// Strip local symbols.
+    #[serde(alias = "locals")]
+    Partial,
+    /// Strip all symbols.
+    #[serde(alias = "all")]
+    Full,
+}
+
+impl From<StripLevelJson> for StripLevel {
+    fn from(value: StripLevelJson) -> Self {
+        match value {
+            StripLevelJson::None => StripLevel::None,
+            StripLevelJson::Partial => StripLevel::Partial,
+            StripLevelJson::Full => StripLevel::Full,
+        }
+    }
+}
+
+/// Allocator selection for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum AllocatorJson {
+    /// Use the platform default allocator.
+    #[serde(alias = "system")]
+    System,
+    /// Use mimalloc.
+    #[serde(alias = "mimalloc")]
+    #[serde(alias = "mi_malloc")]
+    MiMalloc,
+    /// Use jemalloc.
+    #[serde(alias = "jemalloc")]
+    #[serde(alias = "je_malloc")]
+    JeMalloc,
+    /// Use a custom allocator provided by the runtime.
+    #[serde(alias = "custom")]
+    Custom,
+}
+
+impl From<AllocatorJson> for Allocator {
+    fn from(value: AllocatorJson) -> Self {
+        match value {
+            AllocatorJson::System => Allocator::System,
+            AllocatorJson::MiMalloc => Allocator::MiMalloc,
+            AllocatorJson::JeMalloc => Allocator::JeMalloc,
+            AllocatorJson::Custom => Allocator::Custom,
+        }
     }
 }

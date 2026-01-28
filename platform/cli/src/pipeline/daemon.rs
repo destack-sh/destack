@@ -21,7 +21,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticOptions, File, FileRegistry, FileType, FileWatchStatus,
 };
 use destack_workspace::query::{QueryRequestEnvelope, QueryResponseEnvelope};
-use destack_workspace::{OptimizeLevel, Session};
+use destack_workspace::{DsConfigRuntimeOptionsJson, OptimizeLevel, Session};
 
 use crate::common::report::CommandCacheStats;
 use crate::common::{
@@ -207,6 +207,7 @@ impl CommandOptionsBuilder {
             config_path: program.config.clone(),
             target: None,
             target_overrides: None,
+            runtime_overrides: None,
             profile: None,
             diagnostic,
             env: Vec::new(),
@@ -239,6 +240,12 @@ impl CommandOptionsBuilder {
     /// Set the target overrides.
     pub fn target_overrides(mut self, overrides: Option<CommandTargetOverrides>) -> Self {
         self.options.target_overrides = overrides;
+        self
+    }
+
+    /// Set runtime overrides.
+    pub fn runtime_overrides(mut self, overrides: Option<DsConfigRuntimeOptionsJson>) -> Self {
+        self.options.runtime_overrides = overrides;
         self
     }
 

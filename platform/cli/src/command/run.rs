@@ -2,9 +2,9 @@ use std::path::Path;
 
 use crate::common::{
     CommandError, CommandReport, DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs,
-    InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileReason, WatchReporter,
-    collect_diagnostics_json, ensure_no_watch_or_dev, format_diagnostics, parse_command_payload,
-    print_report, report_error, report_no_input,
+    InputSource, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs, WatchCompileReason,
+    WatchReporter, collect_diagnostics_json, ensure_no_watch_or_dev, format_diagnostics,
+    parse_command_payload, print_report, report_error, report_no_input,
 };
 use crate::console;
 use crate::pipeline::daemon::{
@@ -41,6 +41,10 @@ pub struct RunArgs {
     /// Target configuration.
     #[command(flatten)]
     pub target: TargetArgs,
+
+    /// Runtime configuration.
+    #[command(flatten)]
+    pub runtime: RuntimeArgs,
 
     /// The diagnostic options.
     #[command(flatten)]
@@ -79,6 +83,8 @@ pub(crate) struct RunRequest {
     pub program: ProgramArgs,
     /// Target configuration.
     pub target: TargetArgs,
+    /// Runtime configuration.
+    pub runtime: RuntimeArgs,
     /// Diagnostic options.
     pub diagnostics: DiagnosticArgs,
     /// Report output options.
@@ -106,6 +112,7 @@ pub fn run(args: &RunArgs) -> i32 {
         input: args.input.clone(),
         program: args.program.clone(),
         target: args.target.clone(),
+        runtime: args.runtime.clone(),
         diagnostics: args.diagnostics.clone(),
         report: args.report.clone(),
         entry: args.entry.clone(),
@@ -186,6 +193,7 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
         .inputs(inputs)
         .target(target_name)
         .target_overrides(target_overrides_from_args(&request.target))
+        .runtime_overrides(request.runtime.to_runtime_overrides())
         .build();
     let payload = CommandPayload::Run(CommandRunOptions {
         entry: Some(request.entry.clone()),
@@ -612,6 +620,7 @@ fn compile_and_run_daemon(
         .inputs(inputs)
         .target(target_name.to_string())
         .target_overrides(target_overrides_from_args(&request.target))
+        .runtime_overrides(request.runtime.to_runtime_overrides())
         .build();
     let payload = CommandPayload::Run(CommandRunOptions {
         entry: Some(request.entry.clone()),

@@ -3,7 +3,9 @@ use std::io::IsTerminal;
 use clap::Args;
 
 use crate::command::run::{RunMode, RunRequest, run_with_request};
-use crate::common::{DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, TargetArgs, report_error};
+use crate::common::{
+    DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs, report_error,
+};
 
 /// Arguments for the eval command.
 #[derive(Args, Debug, Clone)]
@@ -39,6 +41,10 @@ pub struct EvalArgs {
     /// Target configuration.
     #[command(flatten)]
     pub target: TargetArgs,
+
+    /// Runtime configuration.
+    #[command(flatten)]
+    pub runtime: RuntimeArgs,
 
     /// Diagnostic options.
     #[command(flatten)]
@@ -101,6 +107,7 @@ pub fn run(args: &EvalArgs) -> i32 {
         input,
         program: args.program.clone(),
         target: args.target.clone(),
+        runtime: args.runtime.clone(),
         diagnostics: args.diagnostics.clone(),
         report: args.report.clone(),
         entry: args.entry.clone(),

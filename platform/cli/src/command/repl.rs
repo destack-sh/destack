@@ -3,7 +3,8 @@ use destack_daemon::protocol::{CommandPayload, CommandReplOptions};
 use destack_source::DiagnosticOptions;
 
 use crate::common::{
-    DiagnosticArgs, ProgramArgs, ReportArgs, TargetArgs, ensure_no_watch_or_dev, report_error,
+    DiagnosticArgs, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs, ensure_no_watch_or_dev,
+    report_error,
 };
 use crate::pipeline::daemon::{
     CommandOptionsBuilder, finish_daemon_message_command, run_daemon_command_with_session,
@@ -22,6 +23,10 @@ pub struct ReplArgs {
     /// Target configuration.
     #[command(flatten)]
     pub target: TargetArgs,
+
+    /// Runtime configuration.
+    #[command(flatten)]
+    pub runtime: RuntimeArgs,
 
     /// Diagnostic options.
     #[command(flatten)]
@@ -51,6 +56,7 @@ pub fn run(args: &ReplArgs) -> i32 {
     let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
         .target(target_name)
         .target_overrides(target_overrides_from_args(&args.target))
+        .runtime_overrides(args.runtime.to_runtime_overrides())
         .build();
     let payload = CommandPayload::Repl(CommandReplOptions::default());
 

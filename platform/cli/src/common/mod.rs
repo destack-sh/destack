@@ -8,6 +8,7 @@ pub mod output;
 pub mod program;
 pub mod progress;
 pub mod report;
+pub mod runtime;
 pub mod tracing;
 pub mod watch;
 
@@ -33,5 +34,6 @@ pub use report::{
     report_error, report_error_with, report_from_message_payload, report_from_payload,
     report_no_input,
 };
+pub use runtime::RuntimeArgs;
 pub use tracing::TracingArgs;
 pub use watch::{WatchCompileJson, WatchCompileReason, WatchReporter};

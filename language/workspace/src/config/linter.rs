@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use serde::Deserialize;
 
 /// Lint rule categories.
 ///
@@ -523,5 +524,335 @@ impl LintSeverity {
 impl std::fmt::Display for LintSeverity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+/// Linter options (top-level, like Biome/Deno).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterJson {
+    /// Whether linting is enabled. Default: true.
+    pub enabled: Option<bool>,
+    /// Rule configuration.
+    #[serde(default)]
+    pub rules: DsConfigLinterRulesJson,
+
+    // complexity thresholds
+    /// Maximum boolean parameters or fields.
+    pub max_booleans: Option<usize>,
+    /// Maximum cognitive complexity.
+    pub max_cognitive_complexity: Option<usize>,
+    /// Maximum cyclomatic complexity.
+    pub max_cyclomatic_complexity: Option<usize>,
+    /// Maximum nesting depth.
+    pub max_depth: Option<usize>,
+    /// Maximum lines per file.
+    pub max_lines: Option<usize>,
+    /// Maximum lines per function.
+    pub max_lines_per_function: Option<usize>,
+    /// Maximum callback nesting.
+    pub max_nested_callbacks: Option<usize>,
+    /// Maximum function parameters.
+    pub max_params: Option<usize>,
+    /// Maximum statements per function.
+    pub max_statements: Option<usize>,
+    /// Maximum return statements per function.
+    pub max_return_statements: Option<usize>,
+    /// Maximum switch cases per switch statement.
+    pub max_switch_cases: Option<usize>,
+    /// Maximum variants in a union type or enum.
+    pub max_type_variants: Option<usize>,
+    /// Maximum fields in a struct, class, or interface.
+    pub max_type_fields: Option<usize>,
+    /// Maximum type complexity (nesting depth of generics/unions/intersections).
+    pub max_type_complexity: Option<usize>,
+    /// Maximum occurrences of the same string literal before warning.
+    pub max_duplicate_string_occurrences: Option<usize>,
+    /// Maximum statements in a try block.
+    pub max_try_block_statements: Option<usize>,
+
+    // style options
+    /// Preferred array type syntax: "array" or "generic".
+    pub array_type: Option<ArrayTypeStyleJson>,
+    /// Preferred type definition syntax: "type" or "interface".
+    pub type_definition_style: Option<TypeDefinitionStyleJson>,
+    /// Required catch clause error name.
+    pub catch_error_name: Option<String>,
+    /// Required filename case style.
+    pub filename_case: Option<FilenameCaseJson>,
+
+    // restriction options
+    /// Magic numbers to allow.
+    pub allowed_magic_numbers: Option<Vec<f64>>,
+    /// Globals to restrict.
+    pub restricted_globals: Option<Vec<String>>,
+    /// Import paths to restrict.
+    pub restricted_imports: Option<Vec<String>>,
+    /// Comment terms to warn on.
+    pub warning_comment_terms: Option<Vec<String>>,
+}
+
+impl DsConfigLinterJson {
+    /// Apply linter options to a LinterOptions struct.
+    pub fn apply(&self, options: &mut LinterOptions) {
+        if let Some(enabled) = self.enabled {
+            options.enabled = enabled;
+        }
+        self.rules.apply(options);
+
+        // complexity thresholds
+        if let Some(max_booleans) = self.max_booleans {
+            options.max_booleans = max_booleans;
+        }
+        if let Some(max_cognitive_complexity) = self.max_cognitive_complexity {
+            options.max_cognitive_complexity = max_cognitive_complexity;
+        }
+        if let Some(max_cyclomatic_complexity) = self.max_cyclomatic_complexity {
+            options.max_cyclomatic_complexity = max_cyclomatic_complexity;
+        }
+        if let Some(max_depth) = self.max_depth {
+            options.max_depth = max_depth;
+        }
+        if let Some(max_lines) = self.max_lines {
+            options.max_lines = max_lines;
+        }
+        if let Some(max_lines_per_function) = self.max_lines_per_function {
+            options.max_lines_per_function = max_lines_per_function;
+        }
+        if let Some(max_nested_callbacks) = self.max_nested_callbacks {
+            options.max_nested_callbacks = max_nested_callbacks;
+        }
+        if let Some(max_params) = self.max_params {
+            options.max_params = max_params;
+        }
+        if let Some(max_statements) = self.max_statements {
+            options.max_statements = max_statements;
+        }
+        if let Some(max_return_statements) = self.max_return_statements {
+            options.max_return_statements = max_return_statements;
+        }
+        if let Some(max_switch_cases) = self.max_switch_cases {
+            options.max_switch_cases = max_switch_cases;
+        }
+        if let Some(max_type_variants) = self.max_type_variants {
+            options.max_type_variants = max_type_variants;
+        }
+        if let Some(max_type_fields) = self.max_type_fields {
+            options.max_type_fields = max_type_fields;
+        }
+        if let Some(max_type_complexity) = self.max_type_complexity {
+            options.max_type_complexity = max_type_complexity;
+        }
+        if let Some(max_duplicate_string_occurrences) = self.max_duplicate_string_occurrences {
+            options.max_duplicate_string_occurrences = max_duplicate_string_occurrences;
+        }
+        if let Some(max_try_block_statements) = self.max_try_block_statements {
+            options.max_try_block_statements = max_try_block_statements;
+        }
+
+        // style options
+        if let Some(array_type) = self.array_type {
+            options.array_type = array_type.into();
+        }
+        if let Some(type_definition_style) = self.type_definition_style {
+            options.type_definition_style = type_definition_style.into();
+        }
+        if let Some(ref catch_error_name) = self.catch_error_name {
+            options.catch_error_name = catch_error_name.clone();
+        }
+        if let Some(filename_case) = self.filename_case {
+            options.filename_case = filename_case.into();
+        }
+
+        // restriction options
+        if let Some(ref allowed_magic_numbers) = self.allowed_magic_numbers {
+            options.allowed_magic_numbers = allowed_magic_numbers.clone();
+        }
+        if let Some(ref restricted_globals) = self.restricted_globals {
+            options.restricted_globals = restricted_globals.clone();
+        }
+        if let Some(ref restricted_imports) = self.restricted_imports {
+            options.restricted_imports = restricted_imports.clone();
+        }
+        if let Some(ref warning_comment_terms) = self.warning_comment_terms {
+            options.warning_comment_terms = warning_comment_terms.clone();
+        }
+    }
+}
+
+/// Linter rules configuration.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigLinterRulesJson {
+    /// Preset: "none", "recommended", or "all".
+    pub preset: Option<String>,
+    /// Enable the recommended rule set (shorthand for preset: "recommended").
+    pub recommended: Option<bool>,
+    /// Enable all rules (shorthand for preset: "all").
+    pub all: Option<bool>,
+    /// Category-level severity overrides.
+    pub categories: Option<IndexMap<LintCategoryJson, RuleSeverityJson>>,
+    /// Individual rule overrides (rule name -> severity).
+    #[serde(flatten)]
+    pub overrides: IndexMap<String, RuleSeverityJson>,
+}
+
+impl DsConfigLinterRulesJson {
+    /// Apply rules configuration to LinterOptions.
+    pub fn apply(&self, options: &mut LinterOptions) {
+        // preset field takes precedence
+        if let Some(preset_str) = &self.preset {
+            if let Some(preset) = LintPreset::parse(preset_str) {
+                options.preset = preset;
+            }
+        } else if let Some(true) = self.all {
+            options.preset = LintPreset::All;
+        } else if let Some(recommended) = self.recommended {
+            options.preset = if recommended {
+                LintPreset::Recommended
+            } else {
+                LintPreset::None
+            };
+        }
+
+        // category overrides
+        if let Some(categories) = &self.categories {
+            for (category, severity) in categories {
+                options
+                    .categories
+                    .insert((*category).into(), (*severity).into());
+            }
+        }
+
+        // rule overrides
+        for (rule, severity) in &self.overrides {
+            options.overrides.insert(rule.clone(), (*severity).into());
+        }
+    }
+}
+
+/// Rule severity for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum RuleSeverityJson {
+    /// Rule is disabled.
+    Off,
+    /// Rule produces warnings.
+    Warn,
+    /// Rule produces errors.
+    Error,
+}
+
+impl From<RuleSeverityJson> for LintSeverity {
+    fn from(value: RuleSeverityJson) -> Self {
+        match value {
+            RuleSeverityJson::Off => LintSeverity::Off,
+            RuleSeverityJson::Warn => LintSeverity::Warning,
+            RuleSeverityJson::Error => LintSeverity::Error,
+        }
+    }
+}
+
+/// Lint category for JSON deserialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LintCategoryJson {
+    /// Correctness lints detect likely bugs and logic errors.
+    Correctness,
+    /// Suspicious lints detect code that is likely unintentional.
+    Suspicious,
+    /// Performance lints detect inefficient patterns.
+    Performance,
+    /// Style lints enforce consistent coding style.
+    Style,
+    /// Security lints detect potential vulnerabilities.
+    Security,
+    /// Complexity lints detect overly complex code.
+    Complexity,
+    /// Restriction lints enforce project-specific restrictions.
+    Restriction,
+}
+
+impl From<LintCategoryJson> for LintCategory {
+    fn from(value: LintCategoryJson) -> Self {
+        match value {
+            LintCategoryJson::Correctness => LintCategory::Correctness,
+            LintCategoryJson::Suspicious => LintCategory::Suspicious,
+            LintCategoryJson::Performance => LintCategory::Performance,
+            LintCategoryJson::Style => LintCategory::Style,
+            LintCategoryJson::Security => LintCategory::Security,
+            LintCategoryJson::Complexity => LintCategory::Complexity,
+            LintCategoryJson::Restriction => LintCategory::Restriction,
+        }
+    }
+}
+
+/// Preferred array type syntax for the `array-type` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ArrayTypeStyleJson {
+    /// Prefer `T[]` syntax.
+    Array,
+    /// Prefer `Array<T>` syntax.
+    Generic,
+}
+
+impl From<ArrayTypeStyleJson> for ArrayTypeStyle {
+    fn from(value: ArrayTypeStyleJson) -> Self {
+        match value {
+            ArrayTypeStyleJson::Array => ArrayTypeStyle::Array,
+            ArrayTypeStyleJson::Generic => ArrayTypeStyle::Generic,
+        }
+    }
+}
+
+/// Preferred type definition syntax for the `consistent-type-definitions` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum TypeDefinitionStyleJson {
+    /// Prefer `type` aliases.
+    Type,
+    /// Prefer `interface` declarations.
+    Interface,
+}
+
+impl From<TypeDefinitionStyleJson> for TypeDefinitionStyle {
+    fn from(value: TypeDefinitionStyleJson) -> Self {
+        match value {
+            TypeDefinitionStyleJson::Type => TypeDefinitionStyle::Type,
+            TypeDefinitionStyleJson::Interface => TypeDefinitionStyle::Interface,
+        }
+    }
+}
+
+/// Filename case style for the `filename-case` rule.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum FilenameCaseJson {
+    /// kebab-case (e.g., `my-component.ts`).
+    Kebab,
+    /// snake_case (e.g., `my_component.ts`).
+    Snake,
+    /// camelCase (e.g., `myComponent.ts`).
+    Camel,
+    /// PascalCase (e.g., `MyComponent.ts`).
+    Pascal,
+}
+
+impl From<FilenameCaseJson> for FilenameCase {
+    fn from(value: FilenameCaseJson) -> Self {
+        match value {
+            FilenameCaseJson::Kebab => FilenameCase::Kebab,
+            FilenameCaseJson::Snake => FilenameCase::Snake,
+            FilenameCaseJson::Camel => FilenameCase::Camel,
+            FilenameCaseJson::Pascal => FilenameCase::Pascal,
+        }
     }
 }

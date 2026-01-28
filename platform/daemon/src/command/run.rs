@@ -7,7 +7,7 @@ use destack_runtime::platform::{
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DeterminismPolicy as TargetDeterminismPolicy, Program,
+    DebugMode, DeterminismPolicy as TargetDeterminismPolicy, DsConfigRuntimeOptionsJson, Program,
     ReplayMode as TargetReplayMode, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
@@ -122,6 +122,7 @@ impl CommandContext<'_> {
             &entry_name,
             &options.args,
             options.run_mode,
+            self.common.runtime_overrides.as_ref(),
             self.output,
         ) {
             Ok(result) => result,
@@ -201,10 +202,14 @@ fn run_entry_module(
     entry_name: &str,
     args: &[String],
     run_mode: CommandRunMode,
+    runtime_overrides: Option<&DsConfigRuntimeOptionsJson>,
     output: &mut CommandOutputBuffer,
 ) -> Result<RunResult, String> {
-    let target = target_for_id(program, target_id)
+    let mut target = target_for_id(program, target_id)
         .ok_or_else(|| format!("target '{target_id:?}' not found"))?;
+    if let Some(runtime_overrides) = runtime_overrides {
+        apply_runtime_overrides(&mut target, runtime_overrides);
+    }
 
     let mut isolate = create_isolate(
         program,
@@ -388,11 +393,11 @@ fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 
 /// Create binding policy from target configuration.
 fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    let determinism = match target.determinism {
+    let determinism = match target.runtime_options.determinism {
         TargetDeterminismPolicy::BestEffort => DeterminismPolicy::BestEffort,
         TargetDeterminismPolicy::Deterministic => DeterminismPolicy::Deterministic,
     };
-    let replay = match target.replay {
+    let replay = match target.runtime_options.replay {
         TargetReplayMode::Off => ReplayMode::Off,
         TargetReplayMode::Record => ReplayMode::Record,
         TargetReplayMode::Replay => ReplayMode::Replay,
@@ -402,4 +407,13 @@ fn binding_policy_for_target(target: &Target) -> BindingPolicy {
         determinism,
         replay,
     }
+}
+
+/// Apply runtime overrides to a target.
+fn apply_runtime_overrides(target: &mut Target, overrides: &DsConfigRuntimeOptionsJson) {
+    let mut runtime_options = target.runtime_options.clone();
+    overrides.apply_to(&mut runtime_options);
+    target.runtime_options = runtime_options;
+    target.determinism = target.runtime_options.determinism;
+    target.replay = target.runtime_options.replay;
 }
