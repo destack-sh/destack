@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::analyze::common::{CanonicalSymbolMode, MaterializationMode};
+use crate::analyze::common::{
+    CanonicalSymbolMode, MaterializationMode, TypeRewriteCache, TypeWalkContext,
+    rewrite_type_with_cache,
+};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DynamicKey,
@@ -37,7 +40,9 @@ struct StaticArgumentMaterializer<'a> {
     /// The materialization mode.
     mode: MaterializationMode,
     /// The cached materializations.
-    cache: &'a mut HashMap<LocalTypeId, LocalTypeId>,
+    cache: TypeRewriteCache,
+    /// The cache key for rewrites.
+    cache_key: u64,
     /// The rewriter options.
     rewrite_options: TypeRewriterOptions,
 }
@@ -51,8 +56,11 @@ impl<'a> StaticArgumentMaterializer<'a> {
         argument_tree: &'a NodeTree,
         argument_symbols: &'a SymbolTable,
         mode: MaterializationMode,
-        cache: &'a mut HashMap<LocalTypeId, LocalTypeId>,
+        cache: TypeRewriteCache,
     ) -> Self {
+        let walk_context = TypeWalkContext::for_materialization(mode);
+        let rewrite_options = walk_context.rewriter_options();
+        let cache_key = rewrite_options.cache_key();
         Self {
             compiler,
             argument_module,
@@ -61,8 +69,14 @@ impl<'a> StaticArgumentMaterializer<'a> {
             argument_symbols,
             mode,
             cache,
-            rewrite_options: TypeRewriterOptions::default(),
+            cache_key,
+            rewrite_options,
         }
+    }
+
+    /// Return the internal cache.
+    fn into_cache(self) -> TypeRewriteCache {
+        self.cache
     }
 
     /// Rewrite a list of static arguments.
@@ -90,7 +104,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, id: LocalTypeId) -> LocalTypeId {
-        if let Some(mapped) = self.cache.get(&id).copied() {
+        if let Some(mapped) = self.cache.get(&(self.cache_key, id)).copied() {
             return mapped;
         }
 
@@ -106,14 +120,13 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
         }
 
         if matches!(types.get_type(id), Type::Unevaluated(_)) {
-            self.cache.insert(id, id);
+            self.cache.insert((self.cache_key, id), id);
             return id;
         }
 
-        self.cache.insert(id, id);
-        let ty = types.get_type(id).clone();
-        let mapped = self.rewrite_type(types, id, &ty);
-        self.cache.insert(id, mapped);
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, id);
+        self.cache = cache;
         mapped
     }
 
@@ -3624,8 +3637,9 @@ impl Compiler {
         argument_tree: &NodeTree,
         argument_symbols: &SymbolTable,
         types: &mut TypeTable,
-        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+        cache: &mut TypeRewriteCache,
     ) -> LocalTypeId {
+        let local_cache = std::mem::take(cache);
         let mut materializer = StaticArgumentMaterializer::new(
             self,
             argument_module,
@@ -3633,9 +3647,11 @@ impl Compiler {
             argument_tree,
             argument_symbols,
             MaterializationMode::Surface,
-            cache,
+            local_cache,
         );
-        materializer.rewrite_type_id(types, ty_id)
+        let mapped = materializer.rewrite_type_id(types, ty_id);
+        *cache = materializer.into_cache();
+        mapped
     }
 
     pub(crate) fn materialize_static_arguments_for_reference(

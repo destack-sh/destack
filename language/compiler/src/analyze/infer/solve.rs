@@ -3,9 +3,10 @@ use destack_dir::{
     TypeRewriter, TypeRewriterOptions, TypeTable, rewrite_type,
 };
 use destack_workspace::{Module, ProfileId};
-use std::collections::HashMap;
 
-use crate::analyze::common::MaterializationMode;
+use crate::analyze::common::{
+    MaterializationMode, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+};
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
 /// Track bounds for a single inference variable.
@@ -70,7 +71,9 @@ struct InferTypeMaterializer<'a> {
     /// The materialization mode.
     mode: MaterializationMode,
     /// Cached materializations by type id.
-    cache: HashMap<LocalTypeId, LocalTypeId>,
+    cache: TypeRewriteCache,
+    /// The cache key for rewrites.
+    cache_key: u64,
     /// The rewriter options.
     rewrite_options: TypeRewriterOptions,
 }
@@ -86,6 +89,9 @@ impl<'a> InferTypeMaterializer<'a> {
         options: &'a AnalyzeOptions,
         mode: MaterializationMode,
     ) -> Self {
+        let walk_context = TypeWalkContext::for_materialization(mode);
+        let rewrite_options = walk_context.rewriter_options();
+        let cache_key = rewrite_options.cache_key();
         Self {
             compiler,
             module,
@@ -94,8 +100,9 @@ impl<'a> InferTypeMaterializer<'a> {
             infer,
             options,
             mode,
-            cache: HashMap::new(),
-            rewrite_options: TypeRewriterOptions::default(),
+            cache: TypeRewriteCache::new(),
+            cache_key,
+            rewrite_options,
         }
     }
 }
@@ -106,13 +113,9 @@ impl TypeRewriter for InferTypeMaterializer<'_> {
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, id: LocalTypeId) -> LocalTypeId {
-        if let Some(mapped) = self.cache.get(&id).copied() {
-            return mapped;
-        }
-        self.cache.insert(id, id);
-        let ty = types.get_type(id).clone();
-        let mapped = self.rewrite_type(types, id, &ty);
-        self.cache.insert(id, mapped);
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, id);
+        self.cache = cache;
         mapped
     }
 

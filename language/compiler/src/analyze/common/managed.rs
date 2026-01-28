@@ -6,6 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
+use super::{TypeWalkContext, TypeWalkKey};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 /// Walk types to detect managed defaults.
@@ -37,6 +38,7 @@ impl<'a, 'b> ManagedTypeVisitor<'a, 'b> {
         types: &'a TypeTable,
         visited_symbols: &'b mut HashSet<GlobalSymbolId>,
     ) -> Self {
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
         Self {
             compiler,
             module,
@@ -45,7 +47,7 @@ impl<'a, 'b> ManagedTypeVisitor<'a, 'b> {
             visited_types: HashSet::new(),
             visited_symbols,
             found: false,
-            options: TypeVisitorOptions::default(),
+            options: walk_context.visitor_options(),
         }
     }
 }

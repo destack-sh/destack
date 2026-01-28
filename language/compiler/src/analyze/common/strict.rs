@@ -6,6 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::Module;
 
+use super::{TypeWalkContext, TypeWalkKey};
 use crate::Compiler;
 
 /// Walk types to detect forbidden type literals.
@@ -41,6 +42,7 @@ impl<'a> ForbiddenLiteralVisitor<'a> {
         visited_types: &'a mut HashSet<LocalTypeId>,
         visited_symbols: &'a mut HashSet<GlobalSymbolId>,
     ) -> Self {
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
         Self {
             compiler,
             module,
@@ -50,7 +52,7 @@ impl<'a> ForbiddenLiteralVisitor<'a> {
             visited_types,
             visited_symbols,
             found: false,
-            options: TypeVisitorOptions::default(),
+            options: walk_context.visitor_options(),
         }
     }
 }

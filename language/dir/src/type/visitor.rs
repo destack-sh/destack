@@ -4,8 +4,22 @@ use crate::{
 };
 
 /// Options for type visitors.
-#[derive(Debug, Clone, Default)]
-pub struct TypeVisitorOptions {}
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TypeVisitorOptions {
+    cache_key: u64,
+}
+
+impl TypeVisitorOptions {
+    /// Create visitor options with the given cache key.
+    pub fn new(cache_key: u64) -> Self {
+        Self { cache_key }
+    }
+
+    /// Return the cache key for this visitor.
+    pub fn cache_key(self) -> u64 {
+        self.cache_key
+    }
+}
 
 /// Visit the type graph.
 pub trait TypeVisitor {
