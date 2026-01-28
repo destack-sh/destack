@@ -4,7 +4,7 @@ use destack_source::{FileWatchEvent, FileWatchEventKind, MemoryFileWatcher};
 
 use crate::command::run::{RunArgs, RunMode, RunRequest, run, run_watch_with_driver};
 use crate::common::{
-    DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, TargetArgs, WatchCompileReason,
+    DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, RuntimeArgs, TargetArgs, WatchCompileReason,
 };
 
 use super::tests::{TestProgram, assert_exit, input_args_from_path, watch_loop_options_for_test};
@@ -17,6 +17,7 @@ fn test_run_requires_input() {
         input: InputArgs::default(),
         program: ProgramArgs::default(),
         target: TargetArgs::default(),
+        runtime: RuntimeArgs::default(),
         diagnostics: DiagnosticArgs::default(),
         report: ReportArgs::default(),
         entry: "main".to_string(),
@@ -43,6 +44,7 @@ fn test_run_watch_handles_update() {
         input: input_args_from_path(path.clone()),
         program: program.program_args(),
         target: TargetArgs::default(),
+        runtime: RuntimeArgs::default(),
         diagnostics: DiagnosticArgs::default(),
         report: ReportArgs::default(),
         entry: "main".to_string(),

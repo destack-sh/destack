@@ -1,3 +1,5 @@
+use serde::Deserialize;
+
 use destack_source::{IndentStyle, LineEnding};
 
 /// Quote style for string literals.
@@ -416,5 +418,287 @@ impl FormatterOptions {
     pub fn with_import_sort_order(mut self, import_sort_order: ImportSortOrder) -> Self {
         self.import_sort_order = import_sort_order;
         self
+    }
+}
+
+/// Line ending style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub enum LineEndingJson {
+    /// Unix-style line endings (LF).
+    #[serde(rename = "lf")]
+    Lf,
+    /// Windows-style line endings (CRLF).
+    #[serde(rename = "crlf")]
+    Crlf,
+    /// Classic Mac-style line endings (CR).
+    #[serde(rename = "cr")]
+    Cr,
+}
+
+impl From<LineEndingJson> for LineEnding {
+    fn from(value: LineEndingJson) -> Self {
+        match value {
+            LineEndingJson::Lf => LineEnding::LineFeed,
+            LineEndingJson::Crlf => LineEnding::CarriageReturnLineFeed,
+            LineEndingJson::Cr => LineEnding::CarriageReturn,
+        }
+    }
+}
+
+/// Indent style for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum IndentStyleJson {
+    #[serde(alias = "tabs")]
+    Tab,
+    #[serde(alias = "spaces")]
+    Space,
+}
+
+impl From<IndentStyleJson> for IndentStyle {
+    fn from(value: IndentStyleJson) -> Self {
+        match value {
+            IndentStyleJson::Tab => IndentStyle::Tab,
+            IndentStyleJson::Space => IndentStyle::Space,
+        }
+    }
+}
+
+/// Quote style for JSON deserialization (Prettier: `singleQuote`).
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum QuoteStyleJson {
+    /// Use double quotes.
+    Double,
+    /// Use single quotes.
+    Single,
+    /// Use single quotes for single characters, double quotes for strings.
+    #[serde(alias = "auto")]
+    Semantic,
+}
+
+impl From<QuoteStyleJson> for QuoteStyle {
+    fn from(value: QuoteStyleJson) -> Self {
+        match value {
+            QuoteStyleJson::Double => QuoteStyle::Double,
+            QuoteStyleJson::Single => QuoteStyle::Single,
+            QuoteStyleJson::Semantic => QuoteStyle::Semantic,
+        }
+    }
+}
+
+/// Trailing comma policy for JSON deserialization (Prettier: `trailingComma`).
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum TrailingCommaJson {
+    /// Trailing commas everywhere valid.
+    All,
+    /// Trailing commas where valid in ES5.
+    Es5,
+    /// No trailing commas.
+    None,
+}
+
+impl From<TrailingCommaJson> for TrailingComma {
+    fn from(value: TrailingCommaJson) -> Self {
+        match value {
+            TrailingCommaJson::All => TrailingComma::All,
+            TrailingCommaJson::Es5 => TrailingComma::Es5,
+            TrailingCommaJson::None => TrailingComma::None,
+        }
+    }
+}
+
+/// Arrow function parentheses for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum ArrowParenthesesJson {
+    /// Always include parentheses.
+    Always,
+    /// Omit when possible.
+    Avoid,
+}
+
+impl From<ArrowParenthesesJson> for ArrowParentheses {
+    fn from(value: ArrowParenthesesJson) -> Self {
+        match value {
+            ArrowParenthesesJson::Always => ArrowParentheses::Always,
+            ArrowParenthesesJson::Avoid => ArrowParentheses::Avoid,
+        }
+    }
+}
+
+/// Object property quoting for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum QuotePropertyJson {
+    /// Only quote when required.
+    AsNeeded,
+    /// Quote all if any require quotes.
+    Consistent,
+    /// Preserve original quoting.
+    Preserve,
+}
+
+impl From<QuotePropertyJson> for QuoteProperty {
+    fn from(value: QuotePropertyJson) -> Self {
+        match value {
+            QuotePropertyJson::AsNeeded => QuoteProperty::AsNeeded,
+            QuotePropertyJson::Consistent => QuoteProperty::Consistent,
+            QuotePropertyJson::Preserve => QuoteProperty::Preserve,
+        }
+    }
+}
+
+/// Whether to organize imports.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OrganizeImportsJson {
+    /// Organize imports: sort statements by group and specifiers alphabetically.
+    On,
+    /// Don't reorder imports (preserve original order).
+    Off,
+}
+
+impl From<OrganizeImportsJson> for OrganizeImports {
+    fn from(value: OrganizeImportsJson) -> Self {
+        match value {
+            OrganizeImportsJson::On => OrganizeImports::On,
+            OrganizeImportsJson::Off => OrganizeImports::Off,
+        }
+    }
+}
+
+/// Sort order for import specifiers.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ImportSortOrderJson {
+    /// Natural sort: numbers ordered as integers (a1 < a2 < a10).
+    Natural,
+    /// Alphabetical/lexicographic sort (a1 < a10 < a2).
+    Alphabetical,
+}
+
+impl From<ImportSortOrderJson> for ImportSortOrder {
+    fn from(value: ImportSortOrderJson) -> Self {
+        match value {
+            ImportSortOrderJson::Natural => ImportSortOrder::Natural,
+            ImportSortOrderJson::Alphabetical => ImportSortOrder::Alphabetical,
+        }
+    }
+}
+
+/// Formatter options (top-level, like Biome/Deno).
+///
+/// Field names use Prettier-compatible naming for familiarity.
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigFormatterJson {
+    /// Line ending style: "lf", "crlf", or "cr".
+    #[serde(alias = "endOfLine")]
+    pub line_ending: Option<LineEndingJson>,
+    /// Use tabs instead of spaces.
+    #[serde(alias = "useTabs")]
+    pub use_tabs: Option<bool>,
+    /// Indent style: "tab" or "space".
+    pub indent_style: Option<IndentStyleJson>,
+    /// Number of spaces per indent. Default: 4.
+    #[serde(alias = "tabWidth")]
+    pub indent_width: Option<u8>,
+    /// Maximum line width (best effort). Default: 100.
+    #[serde(alias = "printWidth")]
+    pub line_width: Option<u16>,
+
+    /// Quote style: "double", "single", or "semantic".
+    pub quote_style: Option<QuoteStyleJson>,
+    /// Use single quotes. Takes precedence over quoteStyle.
+    pub single_quote: Option<bool>,
+    /// Trailing comma policy: "all", "es5", or "none".
+    pub trailing_comma: Option<TrailingCommaJson>,
+    /// Spaces inside object braces: `{ foo }` (true) vs `{foo}` (false). Default: true.
+    pub bracket_spacing: Option<bool>,
+    /// Arrow function parentheses: "always" or "avoid".
+    pub arrow_parens: Option<ArrowParenthesesJson>,
+    /// Object property quoting: "as-needed", "consistent", or "preserve".
+    pub quote_props: Option<QuotePropertyJson>,
+
+    /// Put `>` of multi-line JSX on same line as last attribute.
+    #[serde(alias = "jsxBracketSameLine")]
+    pub bracket_same_line: Option<bool>,
+    /// Force each JSX attribute onto its own line.
+    pub single_attribute_per_line: Option<bool>,
+
+    /// Whether to organize imports: "on" or "off". Default: off.
+    pub organize_imports: Option<OrganizeImportsJson>,
+    /// Sort order for import specifiers: "natural" or "alphabetical". Default: natural.
+    pub import_sort_order: Option<ImportSortOrderJson>,
+}
+
+impl DsConfigFormatterJson {
+    /// Apply formatter options to a FormatterOptions struct.
+    pub fn apply(&self, options: &mut FormatterOptions) {
+        // layout
+        if let Some(line_ending) = self.line_ending {
+            options.line_ending = line_ending.into();
+        }
+        if let Some(true) = self.use_tabs {
+            options.indent_style = IndentStyle::Tab;
+        } else if let Some(indent_style) = self.indent_style {
+            options.indent_style = indent_style.into();
+        }
+        if let Some(indent_width) = self.indent_width {
+            options.indent_width = indent_width;
+        }
+        if let Some(line_width) = self.line_width {
+            options.line_width = line_width;
+        }
+
+        // syntax: singleQuote takes precedence over quoteStyle
+        if let Some(single_quote) = self.single_quote {
+            options.quote_style = if single_quote {
+                QuoteStyle::Single
+            } else {
+                QuoteStyle::Double
+            };
+        } else if let Some(quote_style) = self.quote_style {
+            options.quote_style = quote_style.into();
+        }
+        if let Some(trailing_comma) = self.trailing_comma {
+            options.trailing_comma = trailing_comma.into();
+        }
+        if let Some(bracket_spacing) = self.bracket_spacing {
+            options.bracket_spacing = bracket_spacing;
+        }
+        if let Some(arrow_parens) = self.arrow_parens {
+            options.arrow_parentheses = arrow_parens.into();
+        }
+        if let Some(quote_props) = self.quote_props {
+            options.quote_property = quote_props.into();
+        }
+
+        // tree/jsx
+        if let Some(bracket_same_line) = self.bracket_same_line {
+            options.bracket_same_line = bracket_same_line;
+        }
+        if let Some(single_attribute_per_line) = self.single_attribute_per_line {
+            options.single_attribute_per_line = single_attribute_per_line;
+        }
+
+        // imports
+        if let Some(organize_imports) = self.organize_imports {
+            options.organize_imports = organize_imports.into();
+        }
+        if let Some(import_sort_order) = self.import_sort_order {
+            options.import_sort_order = import_sort_order.into();
+        }
     }
 }

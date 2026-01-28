@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use destack_source::{DiagnosticOptions, FileType};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, OutputFormat, Platform,
-    Runtime, StripLevel, Target,
+    DebugInfoLevel, DsConfigRuntimeOptionsJson, EmitArtifact, LinkMode, LtoMode, OptimizeLevel,
+    OutputFormat, Platform, Runtime, StripLevel, Target,
 };
 use serde::{Deserialize, Serialize};
 
@@ -271,6 +271,8 @@ pub struct CommonCommandOptions {
     pub target: Option<String>,
     /// Optional target overrides.
     pub target_overrides: Option<CommandTargetOverrides>,
+    /// Optional runtime overrides.
+    pub runtime_overrides: Option<DsConfigRuntimeOptionsJson>,
     /// Optional profile name override.
     pub profile: Option<String>,
     /// Optional diagnostic options override.

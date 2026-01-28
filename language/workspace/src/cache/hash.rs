@@ -4,11 +4,12 @@ use rustc_hash::FxHasher;
 use serde_json::Value;
 
 /// Dsconfig keys ignored when hashing cache inputs.
-pub const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 6] = [
+pub const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 7] = [
     "cache",
     "watch",
     "formatter",
     "linter",
+    "runtimeOptions",
     "targets",
     "defaultTarget",
 ];

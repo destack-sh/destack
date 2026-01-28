@@ -49,6 +49,19 @@
       "description": "Compiler options.",
       "$ref": "#/$defs/CompilerOptionsJson"
     },
+    "runtimeOptions": {
+      "description": "Runtime options.",
+      "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
+      "default": {
+        "determinism": null,
+        "replay": null,
+        "replayLog": null,
+        "time": null,
+        "random": null,
+        "scheduler": null,
+        "gc": null
+      }
+    },
     "formatter": {
       "description": "Formatter options.",
       "$ref": "#/$defs/DsConfigFormatterJson"
@@ -791,6 +804,456 @@
       "enum": [
         "hint",
         "strict"
+      ]
+    },
+    "DsConfigRuntimeOptionsJson": {
+      "description": "Runtime options (top-level).",
+      "type": "object",
+      "properties": {
+        "determinism": {
+          "description": "Determinism policy for runtime scheduling and I/O.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeterminismPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replay": {
+          "description": "Replay policy for external effects.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplayModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replayLog": {
+          "description": "Replay log configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplayLogOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "time": {
+          "description": "Runtime clock configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "random": {
+          "description": "Runtime randomness configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RandomOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scheduler": {
+          "description": "Runtime scheduler configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchedulerOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gc": {
+          "description": "Runtime garbage collector configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GcOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "DeterminismPolicyJson": {
+      "description": "Determinism policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Best-effort execution without determinism guarantees.",
+          "type": "string",
+          "const": "besteffort"
+        },
+        {
+          "description": "Deterministic scheduling with controlled randomness.",
+          "type": "string",
+          "const": "deterministic"
+        }
+      ]
+    },
+    "ReplayModeJson": {
+      "description": "Replay policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable record/replay.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Record external effects for replay.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Replay external effects from the log.",
+          "type": "string",
+          "const": "replay"
+        }
+      ]
+    },
+    "ReplayLogOptionsJson": {
+      "description": "Replay log options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Base path for replay logs (file or directory).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "template": {
+          "description": "Template for auto-generated log file names.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chunkSizeMb": {
+          "description": "Chunk size in megabytes for log rotation.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "TimeOptionsJson": {
+      "description": "Runtime time options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Clock mode selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "epochNs": {
+          "description": "Epoch in nanoseconds for virtual time.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "tickNs": {
+          "description": "Tick size in nanoseconds for virtual time.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "timeZone": {
+          "description": "Time zone identifier or fixed offset string.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "TimeModeJson": {
+      "description": "Time mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Use the host clock directly.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "Use a virtualized clock derived from runtime state.",
+          "type": "string",
+          "const": "virtual"
+        }
+      ]
+    },
+    "RandomOptionsJson": {
+      "description": "Runtime randomness options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Randomness source selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RandomModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "seed": {
+          "description": "Seed for deterministic randomness streams.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "perTask": {
+          "description": "Whether to use a per-task random stream.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "RandomModeJson": {
+      "description": "Randomness mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Use the host randomness source.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "Use deterministic runtime-managed randomness.",
+          "type": "string",
+          "const": "deterministic"
+        }
+      ]
+    },
+    "SchedulerOptionsJson": {
+      "description": "Runtime scheduler options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "tickBudgetNs": {
+          "description": "Event loop tick budget in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "microtaskBudget": {
+          "description": "Maximum number of microtasks per tick.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxMicrotaskDepth": {
+          "description": "Maximum microtask nesting depth.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "timerResolutionNs": {
+          "description": "Timer resolution in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxTimerCoalesceNs": {
+          "description": "Maximum timer coalescing window in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "preemptIntervalNs": {
+          "description": "Preemption interval for long-running tasks in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "policy": {
+          "description": "Scheduling policy for task pools.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SchedulerPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workerThreads": {
+          "description": "Number of worker threads for parallel tasks.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "ioThreads": {
+          "description": "Number of I/O threads.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "blockingThreads": {
+          "description": "Number of blocking worker threads.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxTasks": {
+          "description": "Maximum number of concurrent tasks.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "SchedulerPolicyJson": {
+      "description": "Scheduler policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "First-in, first-out scheduling.",
+          "type": "string",
+          "const": "fifo"
+        },
+        {
+          "description": "Fair scheduling with time slicing.",
+          "type": "string",
+          "const": "fair"
+        },
+        {
+          "description": "Work-stealing scheduling for throughput.",
+          "type": "string",
+          "const": "work_stealing"
+        }
+      ]
+    },
+    "GcOptionsJson": {
+      "description": "Runtime GC options for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether the garbage collector is enabled.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "heapGrowthPercent": {
+          "description": "Heap growth target percentage.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "heapSoftLimitBytes": {
+          "description": "Soft heap limit in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "heapInitialBytes": {
+          "description": "Initial heap size hint in bytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "logging": {
+          "description": "GC logging verbosity.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GcLoggingJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "GcLoggingJson": {
+      "description": "GC logging for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable GC logging.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Emit summary GC events.",
+          "type": "string",
+          "const": "summary"
+        },
+        {
+          "description": "Emit verbose GC events.",
+          "type": "string",
+          "const": "verbose"
+        }
       ]
     },
     "DsConfigFormatterJson": {
@@ -1987,6 +2450,17 @@
             }
           ]
         },
+        "runtimeOptions": {
+          "description": "Runtime options overrides for this target.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DsConfigRuntimeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "trustPolicy": {
           "description": "Trust policy for runtime execution.",
           "anyOf": [
@@ -2256,12 +2730,12 @@
           "const": "strict"
         },
         {
-          "description": "Allow reassociation and algebraic simplifications.",
+          "description": "Permit reassociation but preserve NaNs and infinities.",
           "type": "string",
           "const": "reassociate"
         },
         {
-          "description": "Enable fast math optimizations (assume no NaN, inf, or signed zero).",
+          "description": "Enable fast math optimizations.",
           "type": "string",
           "const": "fast"
         }
@@ -2392,41 +2866,6 @@
         }
       ]
     },
-    "DeterminismPolicyJson": {
-      "description": "Determinism policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Best-effort execution without determinism guarantees.",
-          "type": "string",
-          "const": "besteffort"
-        },
-        {
-          "description": "Deterministic scheduling with controlled randomness.",
-          "type": "string",
-          "const": "deterministic"
-        }
-      ]
-    },
-    "ReplayModeJson": {
-      "description": "Replay policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable record/replay.",
-          "type": "string",
-          "const": "off"
-        },
-        {
-          "description": "Record external effects for replay.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay external effects from the log.",
-          "type": "string",
-          "const": "replay"
-        }
-      ]
-    },
     "TrustPolicyJson": {
       "description": "Trust policy for JSON deserialization.",
       "oneOf": [
@@ -2511,7 +2950,7 @@
       "description": "Unwind info format for JSON deserialization.",
       "oneOf": [
         {
-          "description": "No unwind info.",
+          "description": "Unwind info is omitted.",
           "type": "string",
           "const": "none"
         },
@@ -2556,77 +2995,77 @@
       "description": "Overflow checking policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always emit overflow checks.",
+          "description": "Always check for overflow.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Emit overflow checks only in debug builds.",
+          "description": "Debug builds check; release does not.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never emit overflow checks.",
+          "description": "Never check for overflow.",
           "type": "string",
           "const": "never"
         }
       ]
     },
     "BoundsCheckPolicyJson": {
-      "description": "Bounds check policy for JSON deserialization.",
+      "description": "Bounds checking policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always emit bounds checks.",
+          "description": "Always check bounds.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Emit bounds checks only in debug builds.",
+          "description": "Debug builds check; release does not.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never emit bounds checks.",
+          "description": "Never check bounds.",
           "type": "string",
           "const": "never"
         }
       ]
     },
     "NullCheckPolicyJson": {
-      "description": "Null check policy for JSON deserialization.",
+      "description": "Null checking policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always emit null checks.",
+          "description": "Always check for null.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Emit null checks only in debug builds.",
+          "description": "Debug builds check; release does not.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never emit null checks.",
+          "description": "Never check for null.",
           "type": "string",
           "const": "never"
         }
       ]
     },
     "DivisionCheckPolicyJson": {
-      "description": "Division check policy for JSON deserialization.",
+      "description": "Division checking policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always emit division checks.",
+          "description": "Always check for divide-by-zero.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Emit division checks only in debug builds.",
+          "description": "Debug builds check; release does not.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never emit division checks.",
+          "description": "Never check for divide-by-zero.",
           "type": "string",
           "const": "never"
         }
@@ -2636,17 +3075,17 @@
       "description": "Shift range check policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always emit shift range checks.",
+          "description": "Always check for invalid shift ranges.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Emit shift range checks only in debug builds.",
+          "description": "Debug builds check; release does not.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never emit shift range checks.",
+          "description": "Never check for invalid shift ranges.",
           "type": "string",
           "const": "never"
         }

@@ -22,6 +22,13 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
         "noImplicitAny": true,
         "incremental": true
     },
+    "runtimeOptions": {
+        "determinism": "deterministic",
+        "replay": "record",
+        "replayLog": { "path": ".destack/runtime/replay" },
+        "time": { "mode": "virtual" },
+        "random": { "mode": "deterministic", "seed": 1337 }
+    },
     "cache": {
         "mode": "disk",
         "dir": ".destack/cache",
@@ -104,6 +111,7 @@ struct Target {
     profilingMode: ProfilingMode,
     determinism: DeterminismPolicy,
     replay: ReplayMode,
+    runtimeOptions: RuntimeOptions,
     strip: StripLevel,
     allocator: Allocator,
     relocationModel: RelocationModel,
