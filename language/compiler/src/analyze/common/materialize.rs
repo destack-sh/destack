@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use destack_dir::{
     LocalNodeIdAny, LocalTypeId, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 
+use super::{TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache};
 /// The mode used when materializing types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MaterializationMode {
@@ -23,7 +22,9 @@ pub(crate) struct ReadonlyMaterializer {
     /// The source node to attribute new types to.
     source_id: LocalNodeIdAny,
     /// The cached mapped type ids.
-    cache: HashMap<LocalTypeId, LocalTypeId>,
+    cache: TypeRewriteCache,
+    /// The cache key for rewrites.
+    cache_key: u64,
     /// The rewriter options.
     options: TypeRewriterOptions,
 }
@@ -31,10 +32,14 @@ pub(crate) struct ReadonlyMaterializer {
 impl ReadonlyMaterializer {
     /// Create a readonly materializer for the given source.
     pub(crate) fn new(source_id: LocalNodeIdAny) -> Self {
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
+        let rewrite_options = walk_context.rewriter_options();
+        let cache_key = rewrite_options.cache_key();
         Self {
             source_id,
-            cache: HashMap::new(),
-            options: TypeRewriterOptions::default(),
+            cache: TypeRewriteCache::new(),
+            cache_key,
+            options: rewrite_options,
         }
     }
 
@@ -158,18 +163,13 @@ impl TypeRewriter for ReadonlyMaterializer {
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
-        // reuse previously rewritten ids
-        if let Some(mapped) = self.cache.get(&type_id) {
-            return *mapped;
-        }
-
-        // rewrite children first
-        let ty = types.get_type(type_id).clone();
-        let mapped = self.rewrite_type(types, type_id, &ty);
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, type_id);
 
         // apply readonly flags after rewrites
         let mapped = self.apply_readonly_flags(mapped, types);
-        self.cache.insert(type_id, mapped);
+        cache.insert((self.cache_key, type_id), mapped);
+        self.cache = cache;
         mapped
     }
 }

@@ -4,8 +4,22 @@ use crate::{
 };
 
 /// Options for type rewriters.
-#[derive(Debug, Clone, Default)]
-pub struct TypeRewriterOptions {}
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TypeRewriterOptions {
+    cache_key: u64,
+}
+
+impl TypeRewriterOptions {
+    /// Create rewriter options with the given cache key.
+    pub fn new(cache_key: u64) -> Self {
+        Self { cache_key }
+    }
+
+    /// Return the cache key for this rewriter.
+    pub fn cache_key(self) -> u64 {
+        self.cache_key
+    }
+}
 
 /// Rewrite the type graph.
 pub trait TypeRewriter {

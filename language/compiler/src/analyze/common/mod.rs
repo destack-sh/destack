@@ -15,6 +15,7 @@ mod shape;
 mod strict;
 mod template;
 mod r#type;
+mod walk;
 
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use context::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
@@ -25,3 +26,4 @@ pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};
+pub(crate) use walk::{TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache};

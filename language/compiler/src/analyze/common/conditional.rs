@@ -8,6 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use super::{TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache};
 use crate::Compiler;
 
 /// Substitutions captured from conditional infer patterns.
@@ -37,7 +38,9 @@ struct InferSubstitutionRewriter<'a> {
     /// The symbol table for the current module.
     symbols: &'a SymbolTable,
     /// The cached mapped type ids.
-    cache: HashMap<LocalTypeId, LocalTypeId>,
+    cache: TypeRewriteCache,
+    /// The cache key for rewrites.
+    cache_key: u64,
     /// The rewriter options.
     options: TypeRewriterOptions,
 }
@@ -50,13 +53,17 @@ impl<'a> InferSubstitutionRewriter<'a> {
         substitutions: &'a InferSubstitutions,
         symbols: &'a SymbolTable,
     ) -> Self {
+        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
+        let rewrite_options = walk_context.rewriter_options();
+        let cache_key = rewrite_options.cache_key();
         Self {
             compiler,
             module,
             substitutions,
             symbols,
-            cache: HashMap::new(),
-            options: TypeRewriterOptions::default(),
+            cache: TypeRewriteCache::new(),
+            cache_key,
+            options: rewrite_options,
         }
     }
 }
@@ -103,14 +110,9 @@ impl TypeRewriter for InferSubstitutionRewriter<'_> {
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
-        // reuse previously rewritten ids
-        if let Some(mapped) = self.cache.get(&type_id) {
-            return *mapped;
-        }
-
-        let ty = types.get_type(type_id).clone();
-        let mapped = self.rewrite_type(types, type_id, &ty);
-        self.cache.insert(type_id, mapped);
+        let mut cache = std::mem::take(&mut self.cache);
+        let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, type_id);
+        self.cache = cache;
         mapped
     }
 }
