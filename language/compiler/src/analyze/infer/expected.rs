@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use crate::analyze::common::RelationMode;
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticKey, SymbolTable, SymbolType, Type,
-    TypeKind, TypeLiteral, TypeTable,
+    NormalizationMode, PrimitiveType, Property, ScalarLiteral, StaticArgument, StaticKey,
+    SymbolTable, SymbolType, Type, TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -60,7 +61,21 @@ impl Compiler {
             return Ok(None);
         };
 
-        // reuse concrete object types
+        // normalize mapped, alias, and object shapes into concrete object types
+        let normalized_ty_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            expected_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        if matches!(types.get_type(normalized_ty_id), Type::Object { .. }) {
+            return Ok(Some(normalized_ty_id));
+        }
+
+        // reuse concrete object types when normalization does not change them
         let expected_type = types.get_type(expected_ty_id).clone();
         if matches!(expected_type, Type::Object { .. }) {
             return Ok(Some(expected_ty_id));
@@ -166,6 +181,116 @@ impl Compiler {
             self.substitute_static_parameters(instance_ty_id, &substitutions, types, &mut cache);
 
         Ok(Some(substituted))
+    }
+
+    /// Derive an expected object type for an object literal with a union context.
+    pub(super) fn expected_object_type_for_literal_union(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expected_ty_id: Option<LocalTypeId>,
+        properties: &[LocalNodeId<Property>],
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        let expected_ty_id = self.expected_value_type(expected_ty_id, types);
+        let Some(expected_ty_id) = expected_ty_id else {
+            return Ok(None);
+        };
+
+        let normalized_ty_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            expected_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        let Type::Union { elements } = types.get_type(normalized_ty_id).clone() else {
+            return Ok(None);
+        };
+
+        let mut literal_filters = Vec::new();
+        for property_id in properties {
+            let property = tree.get(*property_id);
+            let Property::Field { key, value, .. } = property else {
+                continue;
+            };
+            let Some(key) = key else {
+                continue;
+            };
+            let Some(value_id) = value else {
+                continue;
+            };
+            let Some(static_key) =
+                self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+            else {
+                continue;
+            };
+            let Expression::ScalarLiteral { value } = tree.get(*value_id) else {
+                continue;
+            };
+
+            let literal_type = Type::TypeLiteral {
+                value: self.infer_scalar_literal(value),
+            };
+            let literal_type_id = types.insert_type_from_any(literal_type, value_id.into_any());
+            literal_filters.push((static_key, literal_type_id));
+        }
+        if literal_filters.is_empty() {
+            return Ok(None);
+        }
+
+        let mut matching_elements = Vec::new();
+        'elements: for element_id in elements {
+            for (key, literal_type_id) in &literal_filters {
+                let field_info = self.type_field_type_for_key(
+                    module, profile, element_id, key, tree, symbols, types,
+                )?;
+                let Some((field_type_id, _)) = field_info else {
+                    continue 'elements;
+                };
+
+                let is_assignable = self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        field_type_id,
+                        *literal_type_id,
+                        types,
+                        options,
+                    )
+                    .is_assignable();
+                if !is_assignable {
+                    continue 'elements;
+                }
+            }
+            matching_elements.push(element_id);
+        }
+
+        if matching_elements.len() != 1 {
+            return Ok(None);
+        }
+
+        let matched_id = matching_elements[0];
+        let normalized_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            matched_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        if matches!(types.get_type(normalized_id), Type::Object { .. }) {
+            return Ok(Some(normalized_id));
+        }
+
+        Ok(Some(matched_id))
     }
 
     /// Derive an expected object type for tagged object literals.
@@ -329,11 +454,53 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         let expected_object_ty_id = expected_object_ty_id?;
         match types.get_type(expected_object_ty_id) {
-            Type::Object { fields, .. } => fields
-                .iter()
-                .find(|field| field.key.matches(key))
-                .map(|field| field.ty),
+            Type::Object {
+                fields,
+                index_signatures,
+                ..
+            } => {
+                if let Some(field) = fields.iter().find(|field| field.key.matches(key)) {
+                    return Some(field.ty);
+                }
+
+                for signature in index_signatures {
+                    if self.index_signature_allows_key(key, signature.key_type, types) {
+                        return Some(signature.value_type);
+                    }
+                }
+
+                None
+            }
             _ => None,
+        }
+    }
+
+    // check whether an index signature key type can accept a static key
+    fn index_signature_allows_key(
+        &self,
+        key: &StaticKey,
+        key_type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        match types.get_type(key_type_id) {
+            Type::Union { elements } => elements
+                .iter()
+                .any(|element_id| self.index_signature_allows_key(key, *element_id, types)),
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            } => key.is_string_like(),
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number | PrimitiveType::Float(_)),
+            }
+            | Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Int(_)),
+            } => key.is_string_like(),
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::Primitive(PrimitiveType::Symbol)
+                    | TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+            } => key.is_symbol_like(),
+            _ => false,
         }
     }
 
@@ -394,9 +561,10 @@ impl Compiler {
         value: &ScalarLiteral,
         expected_ty_id: Option<LocalTypeId>,
         types: &TypeTable,
+        options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
         let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
-        self.match_scalar_literal_expected(value, expected_ty_id, types)
+        self.match_scalar_literal_expected(value, expected_ty_id, types, options)
     }
 
     /// Strip a Type::Value wrapper from a type id.
@@ -423,26 +591,18 @@ impl Compiler {
         value: &ScalarLiteral,
         expected_ty_id: LocalTypeId,
         types: &TypeTable,
+        options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
         match types.get_type(expected_ty_id) {
             Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Number),
-            } => match value {
-                ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => Some(expected_ty_id),
-                _ => None,
-            },
-            Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::String),
-            } => match value {
-                ScalarLiteral::String(_) => Some(expected_ty_id),
-                _ => None,
-            },
-            Type::TypeLiteral {
-                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-            } => match value {
-                ScalarLiteral::Boolean(_) => Some(expected_ty_id),
-                _ => None,
-            },
+                value: TypeLiteral::Primitive(primitive),
+            } => {
+                if self.is_scalar_literal_assignable(value, primitive, options) {
+                    Some(expected_ty_id)
+                } else {
+                    None
+                }
+            }
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(expected_literal),
             } => {
@@ -454,10 +614,11 @@ impl Compiler {
             }
             Type::Union { elements } => {
                 for element in elements {
-                    if let Some(matched) =
-                        self.match_scalar_literal_expected(value, *element, types)
+                    if self
+                        .match_scalar_literal_expected(value, *element, types, options)
+                        .is_some()
                     {
-                        return Some(matched);
+                        return Some(expected_ty_id);
                     }
                 }
                 None

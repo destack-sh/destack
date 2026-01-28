@@ -29,7 +29,7 @@ const person = { name: "Ada" }
 person satisfies Person;
 ```
 
-- contains: expected person, found { name: "ada" }
+- contains: expected person, found { name: string }
 
 ### excess property reports error
 

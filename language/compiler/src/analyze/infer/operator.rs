@@ -3,7 +3,7 @@ use super::member::{MemberLookupMode, MemberResolution};
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,
     InferContext, OperatorLanguageSymbolExt,
@@ -34,8 +34,16 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let options = ctx.options;
-        let right_ty_id =
-            self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
+        let mut right_ctx = ctx.fork().with_expected_type(None);
+        let right_ty_id = self.infer_expression(
+            module,
+            right_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            &mut right_ctx,
+        )?;
         let right_ty = types.get_type(right_ty_id).clone();
 
         let operator_item = operator.language_symbol();
@@ -184,9 +192,35 @@ impl Compiler {
         // infer the right side after the left
         let right_ty_id =
             self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
+
+        // load resolved operand types for operator checks
+        let left_ty_id = self.unwrap_type_value(left_ty_id, types);
+        let right_ty_id = self.unwrap_type_value(right_ty_id, types);
         let left_ty = types.get_type(left_ty_id).clone();
         let right_ty = types.get_type(right_ty_id).clone();
         let options = ctx.options;
+
+        // resolve apparent operand types for builtin operator checks
+        let left_operator_ty_id = self.normalize_apparent_type(
+            module,
+            ctx.profile,
+            left_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        let right_operator_ty_id = self.normalize_apparent_type(
+            module,
+            ctx.profile,
+            right_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        let left_operator_ty = types.get_type(left_operator_ty_id).clone();
+        let right_operator_ty = types.get_type(right_operator_ty_id).clone();
 
         // enforce class-only instanceof targets
         if matches!(operator, BinaryOperator::InstanceOf)
@@ -303,10 +337,15 @@ impl Compiler {
 
         // use builtin rules when appropriate
         let operator_item = operator.language_symbol();
-        if self.should_use_builtin_binary_operator(operator, &left_ty, &right_ty, types)
-            || is_literal_equality
+        if self.should_use_builtin_binary_operator(
+            operator,
+            &left_operator_ty,
+            &right_operator_ty,
+            types,
+        ) || is_literal_equality
         {
-            let ty = self.infer_binary_operation(operator, &left_ty, &right_ty, types);
+            let ty =
+                self.infer_binary_operation(operator, &left_operator_ty, &right_operator_ty, types);
             self.record_builtin_resolution(
                 expression_id.into_global_any(module.id),
                 Some(left_ty_id),
@@ -950,6 +989,10 @@ impl Compiler {
                         .into_global_any(module.id)
                         .into_anchored(Some(ctx.profile)),
                 });
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
             }
         }
 
@@ -2958,8 +3001,10 @@ impl Compiler {
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
             | BinaryOperator::GreaterThanOrEqual => {
-                self.is_primitive_literal_type(left_ty, types)
-                    && self.is_primitive_literal_type(right_ty, types)
+                (self.is_numeric_like_type(left_ty, types)
+                    && self.is_numeric_like_type(right_ty, types))
+                    || (self.is_string_like_type(left_ty, types)
+                        && self.is_string_like_type(right_ty, types))
             }
             BinaryOperator::And
             | BinaryOperator::Or

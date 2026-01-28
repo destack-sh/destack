@@ -136,7 +136,7 @@ function abs(x: number): number {
             module_id,
             r#"
 function abs(x): number {
-    return x < 0 ? -x : x;
+    return x < 0 as number ? -x : x;
 }
 "#,
         );

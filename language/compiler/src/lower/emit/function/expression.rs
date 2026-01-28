@@ -1,7 +1,7 @@
 use destack_dir::{Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
 use super::{FunctionContext, RUNTIME_CHECK_MESSAGES};
 
@@ -71,10 +71,40 @@ impl FunctionContext<'_> {
         }
 
         // lower operands and types
-        let (left_value, _) = self.lower_value_expression(left)?;
-        let (right_value, _) = self.lower_value_expression(right)?;
+        let (mut left_value, _) = self.lower_value_expression(left)?;
+        let (mut right_value, _) = self.lower_value_expression(right)?;
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let integer_info = self.integer_scalar_info(left)?;
+        let left_type = self.lower_type_for_expression(left)?;
+        let right_type = self.lower_type_for_expression(right)?;
+        let target_scalar = self.scalar_type_for_mir_type(result_type);
+        let left_scalar = self.scalar_type_for_mir_type(left_type);
+        let right_scalar = self.scalar_type_for_mir_type(right_type);
+
+        // coerce numeric operands to the result type when needed
+        if let Some(target_scalar) = target_scalar
+            && self.is_numeric_scalar_type(target_scalar)
+            && let Some(left_scalar) = left_scalar
+            && let Some(right_scalar) = right_scalar
+            && self.is_numeric_scalar_type(left_scalar)
+            && self.is_numeric_scalar_type(right_scalar)
+        {
+            left_value = self.cast_numeric_value(
+                expression_id,
+                left_value,
+                left_scalar,
+                target_scalar,
+                result_type,
+            )?;
+            right_value = self.cast_numeric_value(
+                expression_id,
+                right_value,
+                right_scalar,
+                target_scalar,
+                result_type,
+            )?;
+        }
+
+        let integer_info = self.integer_scalar_info(expression_id)?;
 
         // emit checked integer arithmetic when configured
         if self.overflow_checks_enabled()
@@ -147,6 +177,106 @@ impl FunctionContext<'_> {
         };
 
         Ok((value, ty))
+    }
+
+    /// Check whether a scalar type is numeric.
+    fn is_numeric_scalar_type(&self, scalar_type: ScalarType) -> bool {
+        matches!(
+            scalar_type,
+            ScalarType::SignedInt { .. }
+                | ScalarType::UnsignedInt { .. }
+                | ScalarType::Float { .. }
+        )
+    }
+
+    /// Resolve a scalar type for a MIR type id.
+    fn scalar_type_for_mir_type(&self, type_id: mir::LocalNodeId<mir::Type>) -> Option<ScalarType> {
+        let mir_type = self.state.builder.tree().get(type_id);
+        match mir_type {
+            mir::Type::Int { width, is_signed } => Some(if *is_signed {
+                ScalarType::SignedInt { width: *width }
+            } else {
+                ScalarType::UnsignedInt { width: *width }
+            }),
+            mir::Type::Isize => Some(ScalarType::SignedInt {
+                width: self.env.type_lowerer.pointer_width_bits(),
+            }),
+            mir::Type::Usize => Some(ScalarType::UnsignedInt {
+                width: self.env.type_lowerer.pointer_width_bits(),
+            }),
+            mir::Type::Float { width } => Some(ScalarType::Float { width: *width }),
+            _ => None,
+        }
+    }
+
+    /// Cast a numeric value to the target scalar type when needed.
+    fn cast_numeric_value(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        value: mir::Value,
+        source: ScalarType,
+        target: ScalarType,
+        target_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<mir::Value> {
+        if source == target {
+            return Ok(value);
+        }
+
+        let operator = match (source, target) {
+            (ScalarType::SignedInt { width: from }, ScalarType::SignedInt { width: to }) => {
+                if to > from {
+                    mir::CastOperator::SignExtend
+                } else if to < from {
+                    mir::CastOperator::Truncate
+                } else {
+                    return Ok(value);
+                }
+            }
+            (ScalarType::UnsignedInt { width: from }, ScalarType::UnsignedInt { width: to }) => {
+                if to > from {
+                    mir::CastOperator::ZeroExtend
+                } else if to < from {
+                    mir::CastOperator::Truncate
+                } else {
+                    return Ok(value);
+                }
+            }
+            (ScalarType::SignedInt { .. }, ScalarType::UnsignedInt { .. })
+            | (ScalarType::UnsignedInt { .. }, ScalarType::SignedInt { .. }) => {
+                mir::CastOperator::Bitcast
+            }
+            (ScalarType::SignedInt { .. }, ScalarType::Float { .. }) => {
+                mir::CastOperator::SignedIntToFloat
+            }
+            (ScalarType::UnsignedInt { .. }, ScalarType::Float { .. }) => {
+                mir::CastOperator::UnsignedIntToFloat
+            }
+            (ScalarType::Float { .. }, ScalarType::SignedInt { .. }) => {
+                mir::CastOperator::FloatToSignedInt
+            }
+            (ScalarType::Float { .. }, ScalarType::UnsignedInt { .. }) => {
+                mir::CastOperator::FloatToUnsignedInt
+            }
+            (ScalarType::Float { width: from }, ScalarType::Float { width: to }) => {
+                if to > from {
+                    mir::CastOperator::FloatExtend
+                } else if to < from {
+                    mir::CastOperator::FloatTruncate
+                } else {
+                    return Ok(value);
+                }
+            }
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "unsupported numeric cast in binary expression".to_string(),
+                });
+            }
+        };
+
+        Ok(self.state.builder.cast(operator, value, target_type))
     }
 
     /// Lower null comparisons against nullable references.

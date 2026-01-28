@@ -1,3 +1,9 @@
+use std::collections::HashMap;
+
+use destack_dir::{
+    LocalNodeIdAny, LocalTypeId, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
+};
+
 /// The mode used when materializing types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MaterializationMode {
@@ -11,3 +17,159 @@ pub(crate) enum MaterializationMode {
 
 /// Placeholder to keep the shape mode reachable during refactors.
 const _SHAPE_MODE: MaterializationMode = MaterializationMode::Shape;
+
+/// Materialize readonly modifiers by rewriting types.
+pub(crate) struct ReadonlyMaterializer {
+    /// The source node to attribute new types to.
+    source_id: LocalNodeIdAny,
+    /// The cached mapped type ids.
+    cache: HashMap<LocalTypeId, LocalTypeId>,
+    /// The rewriter options.
+    options: TypeRewriterOptions,
+}
+
+impl ReadonlyMaterializer {
+    /// Create a readonly materializer for the given source.
+    pub(crate) fn new(source_id: LocalNodeIdAny) -> Self {
+        Self {
+            source_id,
+            cache: HashMap::new(),
+            options: TypeRewriterOptions::default(),
+        }
+    }
+
+    /// Apply readonly flags to an already rewritten type.
+    fn apply_readonly_flags(&self, mapped_id: LocalTypeId, types: &mut TypeTable) -> LocalTypeId {
+        let ty = types.get_type(mapped_id).clone();
+        match ty {
+            Type::Object {
+                mut fields,
+                call_signatures,
+                construct_signatures,
+                mut index_signatures,
+            } => {
+                // mark object fields and index signatures as readonly
+                let mut changed = false;
+                for field in fields.iter_mut() {
+                    if !field.is_readonly {
+                        field.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                for signature in index_signatures.iter_mut() {
+                    if !signature.is_readonly {
+                        signature.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                if !changed {
+                    return mapped_id;
+                }
+                types.insert_type_from_any(
+                    Type::Object {
+                        fields,
+                        call_signatures,
+                        construct_signatures,
+                        index_signatures,
+                    },
+                    self.source_id,
+                )
+            }
+            Type::Tuple {
+                mut elements,
+                is_readonly,
+            } => {
+                // mark tuple elements as readonly
+                let mut changed = false;
+                if !is_readonly {
+                    changed = true;
+                }
+                for element in elements.iter_mut() {
+                    if !element.is_readonly {
+                        element.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                if !changed {
+                    return mapped_id;
+                }
+                types.insert_type_from_any(
+                    Type::Tuple {
+                        elements,
+                        is_readonly: true,
+                    },
+                    self.source_id,
+                )
+            }
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
+                if is_readonly {
+                    return mapped_id;
+                }
+                types.insert_type_from_any(
+                    Type::ArraySized {
+                        element,
+                        count,
+                        is_readonly: true,
+                    },
+                    self.source_id,
+                )
+            }
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
+                if is_readonly {
+                    return mapped_id;
+                }
+                types.insert_type_from_any(
+                    Type::Array {
+                        element,
+                        is_readonly: true,
+                    },
+                    self.source_id,
+                )
+            }
+            _ => mapped_id,
+        }
+    }
+}
+
+impl TypeRewriter for ReadonlyMaterializer {
+    fn options(&self) -> &TypeRewriterOptions {
+        &self.options
+    }
+
+    fn rewrite_any(
+        &mut self,
+        _types: &mut TypeTable,
+        type_id: LocalTypeId,
+        ty: &Type,
+    ) -> Option<LocalTypeId> {
+        // avoid rewriting through nominal references
+        if matches!(ty, Type::Reference { .. } | Type::Import { .. }) {
+            return Some(type_id);
+        }
+
+        None
+    }
+
+    fn rewrite_type_id(&mut self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+        // reuse previously rewritten ids
+        if let Some(mapped) = self.cache.get(&type_id) {
+            return *mapped;
+        }
+
+        // rewrite children first
+        let ty = types.get_type(type_id).clone();
+        let mapped = self.rewrite_type(types, type_id, &ty);
+
+        // apply readonly flags after rewrites
+        let mapped = self.apply_readonly_flags(mapped, types);
+        self.cache.insert(type_id, mapped);
+        mapped
+    }
+}

@@ -2657,14 +2657,13 @@ impl Compiler {
         if ctx.options.no_managed
             && !ctx.is_explicit_ownership
             && matches!(module.source, ModuleSource::User)
+            && self.type_contains_managed(module, ctx.profile, ty_id, types)
         {
-            if self.type_contains_managed(module, ctx.profile, ty_id, types) {
-                self.error(AnalyzeError::ManagedMemoryDisabled {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
+            self.error(AnalyzeError::ManagedMemoryDisabled {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
         }
 
         Ok(ty_id)

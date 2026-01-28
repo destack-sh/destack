@@ -1110,7 +1110,9 @@ impl<'a> FunctionBuilder<'a> {
         let left_type = self.tree.get(left_type_id);
         let right_type = self.tree.get(right_type_id);
         if left_type != right_type {
-            panic!("binary operator expects matching operand types");
+            panic!(
+                "binary operator expects matching operand types: op {operator:?} left {left_type:?} right {right_type:?}"
+            );
         }
         self.insert_instruction(Instruction::Binary {
             destination,

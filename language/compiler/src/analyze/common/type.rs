@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression,
-    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeVisitor,
-    TypeVisitorOptions, walk_static_expression, walk_type,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, StaticArgument,
+    StaticExpression, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    TypeVisitor, TypeVisitorOptions, walk_static_expression, walk_type,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -260,6 +260,331 @@ impl TypeVisitor for UnevaluatedValueStaticArgumentVisitor<'_> {
     }
 }
 
+/// Walk types to detect static parameter usage.
+struct StaticParameterVisitor<'a> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The symbol table for the current module.
+    symbols: &'a SymbolTable,
+    /// The type table for the current module.
+    types: &'a TypeTable,
+    /// The visited type ids.
+    visited: &'a mut HashSet<LocalTypeId>,
+    /// Whether a static parameter was found.
+    found: bool,
+    /// Whether traversal is inside a static argument.
+    in_static_argument: bool,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl<'a> StaticParameterVisitor<'a> {
+    /// Create a visitor for static parameter detection.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        symbols: &'a SymbolTable,
+        types: &'a TypeTable,
+        visited: &'a mut HashSet<LocalTypeId>,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            profile,
+            symbols,
+            types,
+            visited,
+            found: false,
+            in_static_argument: false,
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for StaticParameterVisitor<'_> {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // avoid walking cycles
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // check for static parameter references and infer usage inside static arguments
+        match ty {
+            Type::Reference { symbol, .. } => {
+                if self.compiler.symbol_is_static_parameter(
+                    self.module,
+                    self.profile,
+                    *symbol,
+                    self.symbols,
+                    self.types,
+                ) {
+                    self.found = true;
+                    return;
+                }
+            }
+            Type::Infer { .. } => {
+                if self.in_static_argument {
+                    self.found = true;
+                    return;
+                }
+            }
+            _ => {}
+        }
+
+        // continue walking the type graph
+        walk_type(self, types, id, ty);
+    }
+
+    fn visit_static_argument(&mut self, types: &TypeTable, argument: &StaticArgument) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // inspect argument expressions for infer usage
+        match argument {
+            StaticArgument::Unevaluated { .. } => {
+                self.found = true;
+            }
+            StaticArgument::Evaluated { value, .. } => {
+                let previous = self.in_static_argument;
+                self.in_static_argument = true;
+                walk_static_expression(self, types, value);
+                self.in_static_argument = previous;
+            }
+        }
+    }
+}
+
+/// Walk types to detect free static parameters.
+struct FreeStaticParameterVisitor<'a> {
+    /// The compiler instance.
+    compiler: &'a Compiler,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The symbol table for the current module.
+    symbols: &'a SymbolTable,
+    /// The type table for the current module.
+    types: &'a TypeTable,
+    /// The bound static parameter symbols.
+    bound: HashSet<GlobalSymbolId>,
+    /// The visited type ids.
+    visited: &'a mut HashSet<LocalTypeId>,
+    /// Whether a free static parameter was found.
+    found: bool,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl<'a> FreeStaticParameterVisitor<'a> {
+    /// Create a visitor for free static parameter detection.
+    fn new(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        symbols: &'a SymbolTable,
+        types: &'a TypeTable,
+        bound: &HashSet<GlobalSymbolId>,
+        visited: &'a mut HashSet<LocalTypeId>,
+    ) -> Self {
+        Self {
+            compiler,
+            module,
+            profile,
+            symbols,
+            types,
+            bound: bound.clone(),
+            visited,
+            found: false,
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for FreeStaticParameterVisitor<'_> {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // avoid walking cycles
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // handle references and mapped parameters that bind static parameters
+        match ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                if static_arguments.is_none()
+                    && self.compiler.symbol_is_static_parameter(
+                        self.module,
+                        self.profile,
+                        *symbol,
+                        self.symbols,
+                        self.types,
+                    )
+                    && !self.bound.contains(symbol)
+                {
+                    self.found = true;
+                    return;
+                }
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                let inserted = self.bound.insert(parameter.symbol);
+                self.visit_type_id(types, parameter.constraint);
+                if let Some(key_remap) = parameter.key_remap {
+                    self.visit_type_id(types, key_remap);
+                }
+                self.visit_type_id(types, *value);
+                if inserted {
+                    self.bound.remove(&parameter.symbol);
+                }
+                return;
+            }
+            _ => {}
+        }
+
+        // continue walking the type graph
+        walk_type(self, types, id, ty);
+    }
+
+    fn visit_static_argument(&mut self, types: &TypeTable, argument: &StaticArgument) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // inspect argument expressions for unevaluated forms
+        match argument {
+            StaticArgument::Unevaluated { .. } => {
+                self.found = true;
+            }
+            StaticArgument::Evaluated { value, .. } => {
+                walk_static_expression(self, types, value);
+            }
+        }
+    }
+}
+
+/// Select which infer containment to detect.
+enum InferContainmentMode {
+    /// Detect conditional infer bindings.
+    Binding,
+    /// Detect inference variables.
+    Var,
+}
+
+/// Walk types to detect infer containment.
+struct InferContainmentVisitor<'a> {
+    /// The visited type ids.
+    visited: &'a mut HashSet<LocalTypeId>,
+    /// Whether a matching node was found.
+    found: bool,
+    /// The containment mode to detect.
+    mode: InferContainmentMode,
+    /// The visitor options.
+    options: TypeVisitorOptions,
+}
+
+impl<'a> InferContainmentVisitor<'a> {
+    /// Create a visitor for infer containment detection.
+    fn new(visited: &'a mut HashSet<LocalTypeId>, mode: InferContainmentMode) -> Self {
+        Self {
+            visited,
+            found: false,
+            mode,
+            options: TypeVisitorOptions::default(),
+        }
+    }
+}
+
+impl TypeVisitor for InferContainmentVisitor<'_> {
+    fn options(&self) -> &TypeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // avoid walking cycles
+        if !self.visited.insert(id) {
+            return;
+        }
+
+        let ty = types.get_type(id);
+        self.visit_type(types, id, ty);
+    }
+
+    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
+        // stop after a match was found
+        if self.found {
+            return;
+        }
+
+        // detect infer containment
+        let is_match = match self.mode {
+            InferContainmentMode::Binding => matches!(ty, Type::Infer { .. }),
+            InferContainmentMode::Var => matches!(ty, Type::InferVar { .. }),
+        };
+        if is_match {
+            self.found = true;
+            return;
+        }
+
+        // continue walking the type graph
+        walk_type(self, types, id, ty);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when a type is wrapped in explicit ownership modifiers.
@@ -273,6 +598,102 @@ impl Compiler {
             Type::Value { value } => self.type_is_explicit_ownership_wrapper(types, *value),
             _ => false,
         }
+    }
+
+    /// Check whether a symbol is a static parameter.
+    pub(crate) fn symbol_is_static_parameter(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // honor cached constraints for mapped parameters
+        if types.get_static_parameter_constraint_type(symbol).is_some() {
+            return true;
+        }
+
+        // rely on the declared parameter metadata
+        if symbol.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol.local_id);
+            if symbol.is_static_parameter() {
+                return true;
+            }
+            return symbol
+                .primary_declaration
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter);
+        }
+
+        // FUGU #Cleanup: audit all logic splits between local and remote modules
+        // (and see if we can't introduce a more general helper somehow..?)
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        let symbol = remote_symbols.get_symbol(symbol.local_id);
+        if symbol.is_static_parameter() {
+            return true;
+        }
+        symbol
+            .primary_declaration
+            .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
+    }
+
+    /// Check whether a type contains a static parameter reference.
+    pub(crate) fn type_contains_static_parameters(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor =
+            StaticParameterVisitor::new(self, module, profile, symbols, types, visited);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
+    }
+
+    /// Check whether a type contains free static parameter references.
+    pub(crate) fn type_contains_free_static_parameters(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        bound: &HashSet<GlobalSymbolId>,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor =
+            FreeStaticParameterVisitor::new(self, module, profile, symbols, types, bound, visited);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
+    }
+
+    /// Check whether a type contains conditional infer bindings.
+    pub(crate) fn type_contains_infer(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = InferContainmentVisitor::new(visited, InferContainmentMode::Binding);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
+    }
+
+    /// Check whether a type contains inference variables.
+    pub(crate) fn type_contains_infer_vars(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = InferContainmentVisitor::new(visited, InferContainmentMode::Var);
+        visitor.visit_type_id(types, type_id);
+        visitor.found
     }
 
     /// Evaluate a type id in place when it is unevaluated.

@@ -1,10 +1,16 @@
 use destack_dir as dir;
 
+const DEFAULT_RELATION_CACHE_KEY: u64 = 0;
+
 /// Return true when the type is strictly boolean.
 pub fn is_strict_boolean_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -22,7 +28,11 @@ pub fn is_array_type(
 ) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -40,7 +50,11 @@ pub fn is_string_type(
 ) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -54,7 +68,11 @@ pub fn is_string_type(
 pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -68,7 +86,11 @@ pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bo
 pub fn is_async_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -242,7 +264,11 @@ fn is_string_type_inner(
 pub fn is_float_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool {
     // prefer flow-normalized types when available
     let normalized_type_id = types
-        .normalized_type(dir::NormalizationMode::Flow, type_id)
+        .normalized_type(
+            dir::NormalizationMode::Flow,
+            DEFAULT_RELATION_CACHE_KEY,
+            type_id,
+        )
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles

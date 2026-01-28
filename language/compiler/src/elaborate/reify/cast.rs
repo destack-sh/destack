@@ -572,8 +572,16 @@ impl Compiler {
         types: &mut TypeTable,
         module: &Module,
     ) -> ElaborateResult<()> {
-        // require builtin numeric operators
-        if !self.is_builtin_numeric_binary_operator(module_id, expression_id, operator, types) {
+        // skip binary expressions without a resolution
+        if types
+            .get_resolution_for_node(expression_id.into_global_any(module_id))
+            .is_none()
+        {
+            return Ok(());
+        }
+
+        // require numeric operators
+        if !self.is_numeric_binary_operator(operator) {
             return Ok(());
         }
 
@@ -602,7 +610,7 @@ impl Compiler {
         types.set_inferred_type(expression_id.into_global_any(module_id), target_type_id);
 
         // wrap both operands when needed
-        let cast_left_id = self.wrap_value_with_cast_allow_literals(
+        let cast_left_id = self.wrap_value_with_cast_for_numeric_binary(
             module_id,
             profile,
             expression_id,
@@ -613,7 +621,7 @@ impl Compiler {
             types,
             module,
         )?;
-        let cast_right_id = self.wrap_value_with_cast_allow_literals(
+        let cast_right_id = self.wrap_value_with_cast_for_numeric_binary(
             module_id,
             profile,
             expression_id,
@@ -659,16 +667,16 @@ impl Compiler {
             origin_id,
             value_id,
             target_type_id,
-            false,
             tree,
             symbols,
             types,
             module,
+            true,
         )
     }
 
-    /// Wrap a value in a cast and allow numeric literal casts.
-    fn wrap_value_with_cast_allow_literals(
+    /// Wrap a value in a cast for numeric binary alignment.
+    fn wrap_value_with_cast_for_numeric_binary(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -686,15 +694,15 @@ impl Compiler {
             origin_id,
             value_id,
             target_type_id,
-            true,
             tree,
             symbols,
             types,
             module,
+            false,
         )
     }
 
-    /// Wrap a value in a cast with optional literal handling.
+    /// Wrap a value in a cast with numeric literal elision.
     fn wrap_value_with_cast_internal(
         &self,
         module_id: ModuleId,
@@ -702,11 +710,11 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         target_type_id: LocalTypeId,
-        allow_literal_casts: bool,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         module: &Module,
+        allow_assignable_skip: bool,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // read the source type id
         let value_type_id = self
@@ -776,7 +784,11 @@ impl Compiler {
             types,
             &options,
         );
-        if !requires_representation_cast && to_target.is_assignable() && to_source.is_assignable() {
+        if allow_assignable_skip
+            && !requires_representation_cast
+            && to_target.is_assignable()
+            && to_source.is_assignable()
+        {
             return Ok(value_id);
         }
 
@@ -857,14 +869,21 @@ impl Compiler {
             }
         }
 
-        // skip numeric casts for scalar literals unless requested
-        if !allow_literal_casts {
-            let value_type = types.get_type(value_type_id);
-            if is_scalar_literal_type(value_type) && self.is_numeric_cast_operator(operator) {
-                return Ok(value_id);
-            }
+        // skip numeric casts for scalar literals
+        let value_type = types.get_type(value_type_id);
+        if allow_assignable_skip
+            && is_scalar_literal_type(value_type)
+            && self.is_numeric_cast_operator(operator)
+        {
+            // align literal types with the selected numeric target
+            types.set_inferred_type(value_id.into_global_any(module_id), target_type_id);
+            return Ok(value_id);
         }
         if operator == CastOperator::Identity {
+            // align equivalent types when numeric binaries need a unified representation
+            if !allow_assignable_skip && value_type_id != target_type_id {
+                types.set_inferred_type(value_id.into_global_any(module_id), target_type_id);
+            }
             return Ok(value_id);
         }
 
@@ -935,11 +954,13 @@ impl Compiler {
         if let Some(symbol) = symbol
             && let Some(type_id) = types.get_value_type_id(symbol)
         {
-            return Some(type_id);
+            return Some(self.unwrap_value_type_id(types, type_id));
         }
 
         // fall back to declared or inferred types on the node
-        types.get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
+        types
+            .get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
+            .map(|type_id| self.unwrap_value_type_id(types, type_id))
     }
 
     /// Resolve the type id encoded in a type expression.
@@ -1080,29 +1101,6 @@ impl Compiler {
         } else {
             CastOperator::InstanceDowncast
         }
-    }
-
-    /// Check whether a binary expression is a builtin numeric operator.
-    fn is_builtin_numeric_binary_operator(
-        &self,
-        module_id: ModuleId,
-        expression_id: LocalNodeId<Expression>,
-        operator: BinaryOperator,
-        types: &TypeTable,
-    ) -> bool {
-        // require a builtin resolution
-        let Some(resolution_id) =
-            types.get_resolution_for_node(expression_id.into_global_any(module_id))
-        else {
-            return false;
-        };
-        let resolution = types.get_resolution(resolution_id);
-        if !matches!(resolution, Resolution::Builtin { .. }) {
-            return false;
-        }
-
-        // only numeric operators should be coerced here
-        self.is_numeric_binary_operator(operator)
     }
 
     /// Check whether a cast operator is numeric.
@@ -1599,7 +1597,7 @@ function test(condition): float64 {
 
     #[test]
     fn test_reify_implicit_cast_in_binary_comparison() {
-        // comparison expressions cast numeric literals
+        // comparison expressions cast numeric literals for alignment
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1623,7 +1621,7 @@ function test(value): boolean {
 
     #[test]
     fn test_reify_implicit_cast_in_binary_arithmetic() {
-        // arithmetic expressions cast numeric literals
+        // arithmetic expressions do not cast numeric literals
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1639,7 +1637,7 @@ function test(value: float): float {
             module_id,
             r#"
 function test(value): float64 {
-    return value - 1 as float64;
+    return value - 1;
 }
 "#,
         );
@@ -1647,7 +1645,7 @@ function test(value): float64 {
 
     #[test]
     fn test_reify_implicit_cast_in_binary_left_literal() {
-        // numeric literals cast to the non literal side
+        // numeric literals do not cast to the non literal side
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module(
             "test.ds",
@@ -1663,7 +1661,7 @@ function test(value: float): float {
             module_id,
             r#"
 function test(value): float64 {
-    return 2 as float64 + value;
+    return 2 + value;
 }
 "#,
         );
@@ -2152,12 +2150,12 @@ function test(): object {
         test.elaborate_module(module_id);
         test.compile_check_clean();
 
-        // assert elaborated: getArray() → object needs upcast, value → object is identity (skipped)
+        // assert elaborated: array literal is typed, getArray() → object needs upcast
         test.assert_elaborated(
             module_id,
             r#"
 function getArray(): int32[] {
-    return [1, 2, 3] as int32[];
+    return [1, 2, 3];
 }
 
 function test(): object {

@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 
 use crate::AnalyzeOptions;
-use crate::analyze::common::{ConstContext, LiteralFreshness, WideningMode};
+use crate::analyze::common::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
 
 /// InferContext holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
@@ -57,6 +57,8 @@ pub struct InferContext {
     pub widening_mode: WideningMode,
     /// The const context mode for this context.
     pub const_context: ConstContext,
+    /// The contextual typing mode for this context.
+    pub contextual_typing: ContextualTypingMode,
 }
 
 /// Describe flow data used for inference.
@@ -114,6 +116,7 @@ impl InferContext {
             literal_freshness: LiteralFreshness::Fresh,
             widening_mode: WideningMode::Widen,
             const_context: ConstContext::None,
+            contextual_typing: ContextualTypingMode::Default,
         }
     }
 
@@ -142,6 +145,7 @@ impl InferContext {
             literal_freshness: self.literal_freshness,
             widening_mode: self.widening_mode,
             const_context: self.const_context,
+            contextual_typing: self.contextual_typing,
         }
     }
 
@@ -170,6 +174,7 @@ impl InferContext {
             literal_freshness: self.literal_freshness,
             widening_mode: self.widening_mode,
             const_context: self.const_context,
+            contextual_typing: self.contextual_typing,
         }
     }
 
@@ -218,6 +223,12 @@ impl InferContext {
     /// Apply a const context mode to this context.
     pub fn with_const_context(mut self, const_context: ConstContext) -> Self {
         self.const_context = const_context;
+        self
+    }
+
+    /// Override contextual typing behavior for this context.
+    pub fn with_contextual_typing_mode(mut self, contextual_typing: ContextualTypingMode) -> Self {
+        self.contextual_typing = contextual_typing;
         self
     }
 

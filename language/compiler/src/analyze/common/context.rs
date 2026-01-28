@@ -27,3 +27,12 @@ pub enum ConstContext {
     /// An explicit const assertion applies.
     AsConst,
 }
+
+/// The contextual typing mode for inference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContextualTypingMode {
+    /// Use normal contextual typing rules.
+    Default,
+    /// Use satisfies-style contextual typing rules.
+    Satisfies,
+}

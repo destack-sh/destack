@@ -10,7 +10,7 @@ Tests for tuple literal type inference and checking.
 
 ```ds
 const x = (1, "two", true);
-x satisfies (1, "two", true);
+x satisfies (number, string, boolean);
 ```
 
 ### nested tuple
@@ -19,7 +19,16 @@ x satisfies (1, "two", true);
 
 ```ds
 const x = (1, (2, 3));
-x satisfies (1, (2, 3));
+x satisfies (number, (number, number));
+```
+
+### tuple with const assertion
+
+> Const assertions preserve tuple literal element types.
+
+```ds
+const x = (1, "two", true) as const;
+x satisfies readonly (1, "two", true);
 ```
 
 ## Contextual Tuples
@@ -41,4 +50,4 @@ pair satisfies (number, string);
 const pair: (number, string) = (1, 2);
 ```
 
-- contains: type (number, 2) is not assignable to type (number, string)
+- contains: type (number, number) is not assignable to type (number, string)

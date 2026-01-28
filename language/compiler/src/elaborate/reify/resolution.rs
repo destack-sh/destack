@@ -617,7 +617,7 @@ struct Counter {
     value: int32,
 
     increment(): Counter {
-        return Counter { value: this.value + 1 as int32 };
+        return Counter { value: this.value + 1 };
     }
 }
 

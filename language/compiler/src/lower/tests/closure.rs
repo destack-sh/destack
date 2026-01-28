@@ -194,15 +194,14 @@ block0:
     v2: ref<managed mut i32> = load v1
     v3: i32 = load v2
     v4: i32 = iconst 1i32
-    v5: i32 = trunc v4 -> i32
-    v6: i32 = iadd v3, v5
-    v7: ref<managed mut ref<managed mut i32>> = field.addr v0, 0
-    v8: ref<managed mut i32> = load v7
-    store v8, v6
-    v9: ref<managed mut ref<managed mut i32>> = field.addr v0, 0
-    v10: ref<managed mut i32> = load v9
-    v11: i32 = load v10
-    return v11
+    v5: i32 = iadd v3, v4
+    v6: ref<managed mut ref<managed mut i32>> = field.addr v0, 0
+    v7: ref<managed mut i32> = load v6
+    store v7, v5
+    v8: ref<managed mut ref<managed mut i32>> = field.addr v0, 0
+    v9: ref<managed mut i32> = load v8
+    v10: i32 = load v9
+    return v10
 }
 
 function @runCounter() -> i32 {

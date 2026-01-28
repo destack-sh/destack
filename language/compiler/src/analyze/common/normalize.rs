@@ -23,8 +23,39 @@ impl Compiler {
         types: &mut TypeTable,
         mode: NormalizationMode,
     ) -> LocalTypeId {
+        self.normalize_type_with_relation(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            mode,
+            RelationMode::ASSIGN,
+        )
+    }
+
+    /// Normalize a type id for the given mode and relation.
+    pub(crate) fn normalize_type_with_relation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+        relation_mode: RelationMode,
+    ) -> LocalTypeId {
         let mut visited = Vec::new();
-        self.normalize_type_inner(module, profile, type_id, symbols, types, mode, &mut visited)
+        self.normalize_type_inner(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            &mut visited,
+        )
     }
 
     /// Normalize a type for assignability checks.
@@ -133,10 +164,14 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // reuse cached normalization when available
-        if let Some(normalized) = types.normalized_type(mode, type_id) {
+        let relation_key = relation_mode.cache_key();
+        if relation_mode.is_cacheable()
+            && let Some(normalized) = types.normalized_type(mode, relation_key, type_id)
+        {
             return normalized;
         }
 
@@ -148,16 +183,31 @@ impl Compiler {
 
         // keep the source id for any normalized replacement
         let source_id = types.get_type_source(type_id);
-        // NOTE #Performance: clone to avoid holding a borrow across recursive normalization
         let ty = types.get_type(type_id).clone();
 
         // normalize based on structural shape
         let normalized_id = match ty {
             Type::Union { elements } => self.normalize_union_type(
-                module, profile, type_id, &elements, symbols, types, mode, visited,
+                module,
+                profile,
+                type_id,
+                &elements,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
             ),
             Type::Intersection { elements } => self.normalize_intersection_type(
-                module, profile, type_id, &elements, symbols, types, mode, visited,
+                module,
+                profile,
+                type_id,
+                &elements,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
             ),
             Type::Reference {
                 symbol,
@@ -190,6 +240,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     )
                 }
@@ -197,18 +248,40 @@ impl Compiler {
                 else if symbol.ty() == SymbolType::TypeAlias {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let expanded = self.normalize_type_alias_reference_with_arguments(
-                        module, profile, source_id, symbol, arguments, symbols, types, mode,
+                        module,
+                        profile,
+                        source_id,
+                        symbol,
+                        arguments,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
                         visited,
                     );
                     if let Some(expanded) = expanded {
                         self.normalize_type_inner(
-                            module, profile, expanded, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            expanded,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         )
                     } else {
                         let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
                         if unwrapped != type_id {
                             self.normalize_type_inner(
-                                module, profile, unwrapped, symbols, types, mode, visited,
+                                module,
+                                profile,
+                                unwrapped,
+                                symbols,
+                                types,
+                                mode,
+                                relation_mode,
+                                visited,
                             )
                         } else {
                             type_id
@@ -218,7 +291,14 @@ impl Compiler {
                     let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
                     if unwrapped != type_id {
                         self.normalize_type_inner(
-                            module, profile, unwrapped, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            unwrapped,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         )
                     } else {
                         type_id
@@ -233,7 +313,14 @@ impl Compiler {
                 let original_element = element;
                 let normalized_element = original_element.map(|element_id| {
                     self.normalize_type_inner(
-                        module, profile, element_id, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_id,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )
                 });
 
@@ -261,6 +348,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 if normalized_element == original_element {
@@ -283,7 +371,14 @@ impl Compiler {
                 let mut did_change = false;
                 for element in elements {
                     let (normalized, element_changed) = self.normalize_tuple_element(
-                        module, profile, element, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     );
                     if element_changed {
                         did_change = true;
@@ -314,7 +409,14 @@ impl Compiler {
                 let mut normalized_fields = Vec::with_capacity(fields.len());
                 for field in fields {
                     let normalized_ty = self.normalize_type_inner(
-                        module, profile, field.ty, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        field.ty,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     );
                     if normalized_ty != field.ty {
                         did_change = true;
@@ -333,6 +435,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     &mut did_change,
                 );
@@ -344,6 +447,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     &mut did_change,
                 );
@@ -358,6 +462,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     );
                     let normalized_value = self.normalize_type_inner(
@@ -367,6 +472,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     );
 
@@ -413,6 +519,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     &mut did_change,
                 );
@@ -423,6 +530,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     &mut did_change,
                 );
@@ -430,7 +538,14 @@ impl Compiler {
                 let normalized_this = match this_parameter {
                     Some(type_id) => {
                         let normalized = self.normalize_type_inner(
-                            module, profile, type_id, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            type_id,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         );
                         if normalized != type_id {
                             did_change = true;
@@ -443,7 +558,14 @@ impl Compiler {
                 let normalized_return = match return_type {
                     Some(type_id) => {
                         let normalized = self.normalize_type_inner(
-                            module, profile, type_id, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            type_id,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         );
                         if normalized != type_id {
                             did_change = true;
@@ -486,6 +608,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
                 visited,
             ),
             Type::Mapped {
@@ -493,11 +616,29 @@ impl Compiler {
                 modifiers,
                 value,
             } => self.normalize_mapped_type(
-                module, profile, source_id, parameter, modifiers, value, symbols, types, mode,
+                module,
+                profile,
+                source_id,
+                parameter,
+                modifiers,
+                value,
+                symbols,
+                types,
+                mode,
+                relation_mode,
                 visited,
             ),
             Type::Index { left, index } => self.normalize_index_type(
-                module, profile, source_id, left, index, symbols, types, mode, visited,
+                module,
+                profile,
+                source_id,
+                left,
+                index,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
             ),
             Type::TemplateLiteral { strings, spans } => {
                 // normalize template literal spans
@@ -509,6 +650,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     &mut did_change,
                 );
@@ -558,7 +700,14 @@ impl Compiler {
                 let original_constraint = constraint;
                 let constraint = original_constraint.map(|type_id| {
                     self.normalize_type_inner(
-                        module, profile, type_id, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        type_id,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )
                 });
 
@@ -578,7 +727,14 @@ impl Compiler {
                 let original_target = target;
                 let target = original_target.map(|type_id| {
                     self.normalize_type_inner(
-                        module, profile, type_id, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        type_id,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )
                 });
                 if target == original_target {
@@ -594,12 +750,27 @@ impl Compiler {
             }
             Type::Unary { operator, right } => match operator {
                 TypeUnaryOperator::Keyof => self.normalize_keyof_type(
-                    module, profile, source_id, right, symbols, types, mode, visited,
+                    module,
+                    profile,
+                    source_id,
+                    right,
+                    symbols,
+                    types,
+                    mode,
+                    relation_mode,
+                    visited,
                 ),
                 TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
                     // materialize readonly modifiers during normalization
                     let normalized_right = self.normalize_type_inner(
-                        module, profile, right, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        right,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     );
                     self.materialize_readonly_type(source_id, normalized_right, types)
                 }
@@ -613,6 +784,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     );
                     if right == original_right {
@@ -638,6 +810,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 let right = self.normalize_type_inner(
@@ -647,12 +820,22 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
 
                 // reduce decidable type operators to boolean literals
                 if let Some(normalized_id) = self.normalize_decidable_type_operator(
-                    module, profile, source_id, operator, left, right, symbols, types, mode,
+                    module,
+                    profile,
+                    source_id,
+                    operator,
+                    left,
+                    right,
+                    symbols,
+                    types,
+                    mode,
+                    relation_mode,
                 ) {
                     return normalized_id;
                 }
@@ -682,6 +865,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 if right == original_right {
@@ -709,6 +893,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 if right == original_right {
@@ -732,6 +917,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 if right == original_right {
@@ -751,6 +937,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 if value == original_value {
@@ -766,7 +953,9 @@ impl Compiler {
         // release the recursion guard for this type
         visited.pop();
         // cache the normalized result for reuse
-        types.set_normalized_type(mode, type_id, normalized_id);
+        if relation_mode.is_cacheable() {
+            types.set_normalized_type(mode, relation_key, type_id, normalized_id);
+        }
         normalized_id
     }
 
@@ -782,6 +971,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         if !matches!(
             operator,
@@ -835,6 +1025,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
                 &mut key_visited,
             );
             self.is_type_assignable(module, profile, symbols, key_type_id, left, types, &options)
@@ -866,10 +1057,15 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // return cached normalization results when available
-        if let Some(normalized) = types.normalized_alias_reference(symbol, mode, arguments) {
+        let relation_key = relation_mode.cache_key();
+        if relation_mode.is_cacheable()
+            && let Some(normalized) =
+                types.normalized_alias_reference(symbol, mode, relation_key, arguments)
+        {
             return Some(normalized);
         }
 
@@ -912,6 +1108,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 ));
             }
@@ -937,6 +1134,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 ));
             }
@@ -956,14 +1154,23 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
                 visited,
             );
             Some(normalized_id)
         })();
 
         types.clear_normalization_alias_in_progress(symbol);
-        if let Some(normalized_id) = normalized {
-            types.set_normalized_alias_reference(symbol, mode, arguments.to_vec(), normalized_id);
+        if let Some(normalized_id) = normalized
+            && relation_mode.is_cacheable()
+        {
+            types.set_normalized_alias_reference(
+                symbol,
+                mode,
+                relation_key,
+                arguments.to_vec(),
+                normalized_id,
+            );
         }
         normalized
     }
@@ -1173,6 +1380,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> (TypeElement, bool) {
         // unwrap readonly/const modifiers into tuple element flags
@@ -1197,6 +1405,7 @@ impl Compiler {
             symbols,
             types,
             mode,
+            relation_mode,
             visited,
         );
         if normalized_ty != element.ty || element_is_readonly != element.is_readonly {
@@ -1221,6 +1430,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // prepare union element collection
@@ -1235,6 +1445,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
                 visited,
             );
             // flatten nested unions
@@ -1320,6 +1531,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // prepare intersection element collection
@@ -1334,6 +1546,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
                 visited,
             );
             // flatten nested intersections
@@ -1560,14 +1773,23 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
         did_change: &mut bool,
     ) -> Vec<LocalTypeId> {
         let mut normalized = Vec::with_capacity(type_ids.len());
         // normalize each element and track changes
         for type_id in type_ids {
-            let normalized_id =
-                self.normalize_type_inner(module, profile, *type_id, symbols, types, mode, visited);
+            let normalized_id = self.normalize_type_inner(
+                module,
+                profile,
+                *type_id,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
             if normalized_id != *type_id {
                 *did_change = true;
             }
@@ -1613,6 +1835,7 @@ impl Compiler {
                 symbols,
                 types,
                 NormalizationMode::Assign,
+                relation_mode,
                 &mut visited,
             ) {
                 return expanded_id;
@@ -1679,7 +1902,15 @@ impl Compiler {
         relation_mode: RelationMode,
     ) -> LocalTypeId {
         // normalize the input type first
-        let type_id = self.normalize_type(module, profile, type_id, symbols, types, mode);
+        let type_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+        );
 
         // resolve apparent types after normalization
         let type_id = self.apparent_type_for_assignability(
@@ -1692,6 +1923,14 @@ impl Compiler {
         );
 
         // normalize again after apparent type expansion
-        self.normalize_type(module, profile, type_id, symbols, types, mode)
+        self.normalize_type_with_relation(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+        )
     }
 }

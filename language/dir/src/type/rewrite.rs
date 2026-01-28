@@ -889,7 +889,7 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
                 (
                     StaticProperty::Field {
                         modifiers: *modifiers,
-                        key: key.clone(),
+                        key: *key,
                         value: mapped_value,
                         default: mapped_default,
                         symbol: *symbol,
@@ -913,7 +913,7 @@ fn rewrite_static_property_inner<V: TypeRewriter + ?Sized>(
                 (
                     StaticProperty::Method {
                         modifiers: *modifiers,
-                        key: key.clone(),
+                        key: *key,
                         signature: signature.clone(),
                         body: mapped_body,
                         symbol: *symbol,

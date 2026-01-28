@@ -4,9 +4,12 @@ use super::member::MemberLookupMode;
 use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{
+    CanonicalSymbolMode, ConstContext, ReadonlyMaterializer, RelationMode, WideningMode,
+};
 use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
+    TaskDependencyError,
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
@@ -15,8 +18,8 @@ use destack_dir::{
     LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
     NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
     StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
-    UnaryOperator, VarianceBound, WellKnownSymbol,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeTable,
+    TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -34,6 +37,99 @@ pub(super) enum TypeGuardTarget {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Commit a binding type based on const context and widening rules.
+    pub(super) fn commit_binding_type(
+        &self,
+        _module: &Module,
+        ctx: &InferContext,
+        binding_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // preserve literal types for const contexts
+        if matches!(
+            ctx.const_context,
+            ConstContext::Const | ConstContext::AsConst
+        ) {
+            return binding_ty_id;
+        }
+
+        // avoid widening when the context requests literal preservation
+        if matches!(ctx.widening_mode, WideningMode::Preserve) {
+            return binding_ty_id;
+        }
+
+        // regularize fresh literals before widening
+        let source_id = types.get_type_source(binding_ty_id);
+        let regularized_ctx = ctx.fork().with_regularized_literals().with_widening();
+
+        // widen scalar literals at the binding boundary
+        let binding_ty_id = self.widen_scalar_literal_type_if_needed(
+            types,
+            binding_ty_id,
+            &regularized_ctx,
+            source_id,
+        );
+
+        // widen unions of scalar literals at the binding boundary
+        self.widen_scalar_literal_union_type_if_needed(
+            types,
+            binding_ty_id,
+            &regularized_ctx,
+            source_id,
+        )
+    }
+
+    /// Widen scalar literal unions when the binding context allows widening.
+    pub(super) fn widen_scalar_literal_union_type_if_needed(
+        &self,
+        types: &mut TypeTable,
+        type_id: LocalTypeId,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        if !self.should_widen_scalar_literal(ctx) {
+            return type_id;
+        }
+
+        let Type::Union { elements } = types.get_type(type_id).clone() else {
+            return type_id;
+        };
+
+        let mut widened_elements = Vec::with_capacity(elements.len());
+        let mut did_change = false;
+
+        for element_id in elements {
+            let element_ty = types.get_type(element_id);
+            match element_ty {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(literal),
+                } => {
+                    let widened = match self.widen_scalar_literal(literal) {
+                        TypeLiteral::Primitive(primitive) => Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(primitive),
+                        },
+                        literal => Type::TypeLiteral { value: literal },
+                    };
+                    let widened_id = types.insert_type_from_any(widened, source_id);
+                    widened_elements.push(widened_id);
+                    did_change = true;
+                }
+                Type::TypeLiteral { .. } => {
+                    widened_elements.push(element_id);
+                }
+                _ => {
+                    return type_id;
+                }
+            }
+        }
+
+        if !did_change {
+            return type_id;
+        }
+
+        self.union_type_from_list(widened_elements, type_id, types)
+    }
+
     /// Resolve a typeof guard target for a string literal.
     pub(super) fn type_guard_target_for_typeof_string(
         &self,
@@ -683,6 +779,19 @@ impl Compiler {
         TypeLiteral::ScalarLiteral(value.clone())
     }
 
+    /// Widen a scalar literal to its primitive type.
+    pub(super) fn widen_scalar_literal(&self, value: &ScalarLiteral) -> TypeLiteral {
+        let primitive = match value {
+            ScalarLiteral::Boolean(_) => PrimitiveType::Boolean,
+            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => PrimitiveType::Number,
+            ScalarLiteral::Bigint(_) => PrimitiveType::Bigint,
+            ScalarLiteral::Character(_)
+            | ScalarLiteral::String(_)
+            | ScalarLiteral::RegexString { .. } => PrimitiveType::String,
+        };
+        TypeLiteral::Primitive(primitive)
+    }
+
     /// Infer the result type of a binary operation.
     pub(super) fn infer_binary_operation(
         &self,
@@ -1157,6 +1266,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
+                    RelationMode::TYPE_OPS,
                     &mut visited,
                 );
                 types.get_type(key_type_id).clone()
@@ -1374,6 +1484,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
+                    RelationMode::TYPE_OPS,
                     &mut visited,
                 );
 
@@ -1486,146 +1597,8 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let ty = types.get_type(ty_id).clone();
-        match ty {
-            Type::Union { elements } => {
-                // map readonly across union elements
-                let mut changed = false;
-                let mut mapped = Vec::with_capacity(elements.len());
-                for element in elements {
-                    let mapped_id = self.materialize_readonly_type(source_id, element, types);
-                    if mapped_id != element {
-                        changed = true;
-                    }
-                    mapped.push(mapped_id);
-                }
-                if !changed {
-                    return ty_id;
-                }
-                types.insert_type_from_any(Type::Union { elements: mapped }, source_id)
-            }
-            Type::Intersection { elements } => {
-                // map readonly across intersection elements
-                let mut changed = false;
-                let mut mapped = Vec::with_capacity(elements.len());
-                for element in elements {
-                    let mapped_id = self.materialize_readonly_type(source_id, element, types);
-                    if mapped_id != element {
-                        changed = true;
-                    }
-                    mapped.push(mapped_id);
-                }
-                if !changed {
-                    return ty_id;
-                }
-                types.insert_type_from_any(Type::Intersection { elements: mapped }, source_id)
-            }
-            Type::Value { value } => {
-                // apply readonly to the underlying type value
-                let mapped = self.materialize_readonly_type(source_id, value, types);
-                if mapped == value {
-                    ty_id
-                } else {
-                    types.insert_type_from_any(Type::Value { value: mapped }, source_id)
-                }
-            }
-            Type::Reference { .. } => {
-                // avoid expanding nominal references for readonly wrappers
-                ty_id
-            }
-            Type::Object {
-                mut fields,
-                call_signatures,
-                construct_signatures,
-                mut index_signatures,
-            } => {
-                // mark object fields and index signatures as readonly
-                let mut changed = false;
-                for field in fields.iter_mut() {
-                    if !field.is_readonly {
-                        field.is_readonly = true;
-                        changed = true;
-                    }
-                }
-                for signature in index_signatures.iter_mut() {
-                    if !signature.is_readonly {
-                        signature.is_readonly = true;
-                        changed = true;
-                    }
-                }
-                if !changed {
-                    return ty_id;
-                }
-                types.insert_type_from_any(
-                    Type::Object {
-                        fields,
-                        call_signatures,
-                        construct_signatures,
-                        index_signatures,
-                    },
-                    source_id,
-                )
-            }
-            Type::Tuple {
-                mut elements,
-                is_readonly,
-            } => {
-                // mark tuple elements as readonly
-                let mut changed = false;
-                if !is_readonly {
-                    changed = true;
-                }
-                for element in elements.iter_mut() {
-                    if !element.is_readonly {
-                        element.is_readonly = true;
-                        changed = true;
-                    }
-                }
-                if !changed {
-                    return ty_id;
-                }
-                types.insert_type_from_any(
-                    Type::Tuple {
-                        elements,
-                        is_readonly: true,
-                    },
-                    source_id,
-                )
-            }
-            Type::ArraySized {
-                element,
-                count,
-                is_readonly,
-            } => {
-                if is_readonly {
-                    return ty_id;
-                }
-                types.insert_type_from_any(
-                    Type::ArraySized {
-                        element,
-                        count,
-                        is_readonly: true,
-                    },
-                    source_id,
-                )
-            }
-            Type::Array {
-                element,
-                is_readonly,
-            } => {
-                if is_readonly {
-                    return ty_id;
-                }
-                types.insert_type_from_any(
-                    Type::Array {
-                        element,
-                        is_readonly: true,
-                    },
-                    source_id,
-                )
-            }
-            _ => ty_id,
-        }
+        let mut rewriter = ReadonlyMaterializer::new(source_id);
+        rewriter.rewrite_type_id(types, ty_id)
     }
 
     /// Infer the result type of a value of operation.
@@ -1732,6 +1705,7 @@ impl Compiler {
                         symbols,
                         types,
                         NormalizationMode::Assign,
+                        RelationMode::ASSIGN,
                         &mut normalize_visited,
                     ) {
                         let expanded_ty = types.get_type(expanded_id).clone();
