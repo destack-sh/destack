@@ -1,6 +1,6 @@
 use destack_dir::{
     Declarator, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, NodeTree,
-    NodeType, Pattern, SymbolTable,
+    NodeType, Pattern, SymbolTable, TypeUnaryOperator,
 };
 use destack_workspace::Module;
 
@@ -60,6 +60,36 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Return true when a declarator initializer is a const assertion.
+    pub(crate) fn declarator_is_const_assertion(
+        &self,
+        declarator_id: LocalNodeId<Declarator>,
+        tree: &NodeTree,
+    ) -> bool {
+        let declarator = tree.get(declarator_id);
+        let Some(value_id) = declarator.value else {
+            return false;
+        };
+
+        self.expression_is_const_assertion(value_id, tree)
+    }
+
+    /// Return true when an expression is a const assertion.
+    pub(crate) fn expression_is_const_assertion(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+        matches!(
+            tree.get(expression_id),
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::AsConst,
+                ..
+            }
+        )
     }
 
     /// Return true when the primary declaration is a direct binding.

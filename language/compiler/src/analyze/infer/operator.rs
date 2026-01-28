@@ -10,8 +10,8 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, IfCondition, InferTable,
-    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType,
+    BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, InferTable,
+    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
     NormalizationMode, PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable,
     SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
 };
@@ -528,7 +528,7 @@ impl Compiler {
         if let Some(target_symbol) =
             self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
             && matches!(
-                self.binding_mutability_for_symbol(module, target_symbol, tree, symbols),
+                self.binding_mutability_for_symbol(module, target_symbol, symbols),
                 Some(Mutability::Immutable)
             )
         {
@@ -678,7 +678,7 @@ impl Compiler {
         if let Some(target_symbol) =
             self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
             && matches!(
-                self.binding_mutability_for_symbol(module, target_symbol, tree, symbols),
+                self.binding_mutability_for_symbol(module, target_symbol, symbols),
                 Some(Mutability::Immutable)
             )
         {
@@ -705,60 +705,12 @@ impl Compiler {
         &self,
         module: &Module,
         symbol: GlobalSymbolId,
-        tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<Mutability> {
         if symbol.module_id != module.id {
             return Some(Mutability::Immutable);
         }
-
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let mut declaration_ids = Vec::new();
-        if let Some(primary) = symbol_entry.primary_declaration {
-            declaration_ids.push(primary);
-        }
-        if let Some(secondaries) = symbol_entry.secondary_declarations.as_deref() {
-            declaration_ids.extend(secondaries.iter().copied());
-        }
-
-        for declaration_id in declaration_ids {
-            if declaration_id.module_id != module.id {
-                continue;
-            }
-
-            let mut current = declaration_id.local_id;
-            let mut declarator_id = None;
-            loop {
-                if current.ty == NodeType::Declarator {
-                    declarator_id = Some(current.into_typed());
-                }
-
-                if current.ty == NodeType::Expression {
-                    let expression_id = current.into_typed::<Expression>();
-                    match tree.get(expression_id) {
-                        Expression::Let { mutability, .. } => return Some(*mutability),
-                        Expression::If { condition, .. } => {
-                            if let IfCondition::Let {
-                                mutability,
-                                declarator,
-                            } = condition
-                                && declarator_id == Some(*declarator)
-                            {
-                                return Some(*mutability);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-
-                let Some(parent) = tree.get_parent(current.id) else {
-                    break;
-                };
-                current = parent;
-            }
-        }
-
-        None
+        symbols.get_symbol(symbol.local_id).binding_mutability
     }
 
     /// Check whether a type is an immutable reference or pointer.

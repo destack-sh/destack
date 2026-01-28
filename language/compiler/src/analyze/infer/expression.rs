@@ -58,6 +58,7 @@ impl Compiler {
     /// Widen a scalar literal type when the context requires it.
     pub(super) fn widen_scalar_literal_type_if_needed(
         &self,
+        module: &Module,
         types: &mut TypeTable,
         type_id: LocalTypeId,
         ctx: &InferContext,
@@ -75,7 +76,7 @@ impl Compiler {
         };
 
         let widened = Type::TypeLiteral {
-            value: self.widen_scalar_literal(literal),
+            value: self.widen_scalar_literal_for_module(module, literal),
         };
         types.insert_type_from_any(widened, source_id)
     }
@@ -99,9 +100,14 @@ impl Compiler {
         // widen scalar literals when no contextual type is forcing a shape
         if allow_widening {
             left_ty_id =
-                self.widen_scalar_literal_type_if_needed(types, left_ty_id, ctx, source_id);
-            right_ty_id =
-                self.widen_scalar_literal_type_if_needed(types, right_ty_id, ctx, source_id);
+                self.widen_scalar_literal_type_if_needed(module, types, left_ty_id, ctx, source_id);
+            right_ty_id = self.widen_scalar_literal_type_if_needed(
+                module,
+                types,
+                right_ty_id,
+                ctx,
+                source_id,
+            );
         }
 
         // prefer the contextual type when both branches satisfy it
@@ -329,8 +335,20 @@ impl Compiler {
         );
         types.set_value_type(symbol, placeholder_ty_id);
 
-        // infer the initializer with the placeholder installed
-        let mut value_ctx = ctx.fork();
+        // infer the initializer with binding defaults
+        let mut value_ctx = ctx
+            .reset()
+            .with_expected_type(None)
+            .with_contextual_typing_mode(ContextualTypingMode::Default);
+        let binding_mutability = symbols.get_symbol(symbol.local_id).binding_mutability;
+        if let Some(mutability) = binding_mutability {
+            value_ctx = value_ctx.with_binding_mutability(mutability);
+        } else {
+            value_ctx = value_ctx
+                .with_const_context(ConstContext::None)
+                .with_widening()
+                .with_fresh_literals();
+        }
         let inferred_ty_id = self.infer_expression(
             module,
             value_id,
@@ -340,9 +358,14 @@ impl Compiler {
             infer,
             &mut value_ctx,
         )?;
-        types.set_value_type(symbol, inferred_ty_id);
 
-        Ok(Some(inferred_ty_id))
+        // commit the binding type before caching it
+        let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
+        let committed_ty_id =
+            self.commit_binding_type(module, &value_ctx, inferred_ty_id, types, is_const_asserted);
+        types.set_value_type(symbol, committed_ty_id);
+
+        Ok(Some(committed_ty_id))
     }
 
     /// Infer an (expression) body with flow aware typing.
@@ -565,14 +588,7 @@ impl Compiler {
                 declarators,
             } => {
                 for decl_id in declarators {
-                    let mut decl_ctx = if matches!(mutability, Mutability::Immutable) {
-                        ctx.fork()
-                            .with_const_context(ConstContext::Const)
-                            .with_preserve_literals()
-                            .with_fresh_literals()
-                    } else {
-                        ctx.fork().with_widening().with_fresh_literals()
-                    };
+                    let mut decl_ctx = ctx.fork().with_binding_mutability(*mutability);
                     self.infer_declarator(
                         module,
                         *decl_id,
@@ -598,11 +614,7 @@ impl Compiler {
                 declarators,
             } => {
                 for decl_id in declarators {
-                    let mut decl_ctx = ctx
-                        .fork()
-                        .with_const_context(ConstContext::Const)
-                        .with_preserve_literals()
-                        .with_fresh_literals();
+                    let mut decl_ctx = ctx.fork().with_using_binding();
                     self.infer_declarator(
                         module,
                         *decl_id,
@@ -1074,7 +1086,7 @@ impl Compiler {
                     expected_ty_id
                 } else {
                     let literal = if self.should_widen_scalar_literal(ctx) {
-                        self.widen_scalar_literal(value)
+                        self.widen_scalar_literal_for_module(module, value)
                     } else {
                         self.infer_scalar_literal(value)
                     };

@@ -319,8 +319,9 @@ Local inference is fully supported wherever convenient and unambiguous:
 - Local bindings may infer types from their initializer.
 - Object literal fields may omit annotations when the binding is typed or uses `satisfies`.
 
-Widening and freshness follow TypeScript terminology and behavior.
-
+Mutability, widening and freshness follow TypeScript terminology and behavior.
+- Binding mutability defaults to mutable in TypeScript/JavaScript modules and immutable in Destack modules when no explicit mutability is provided.
+- Pattern-level mutability overrides binding-level mutability for that binding.
 - Literal expressions start as fresh literal types.
 - Widening happens at explicit commitment points such as `let` bindings without contextual types.
 - `const` bindings keep literal types for scalar literals but still widen object and array members unless a const context applies.

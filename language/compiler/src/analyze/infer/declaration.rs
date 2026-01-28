@@ -1604,8 +1604,10 @@ impl Compiler {
         // commit binding types for inferred values without annotations
         let binding_ty_id = declared_ty_id.or(inferred_ty_id);
         let committed_binding_ty_id = if declared_ty_id.is_none() {
-            binding_ty_id
-                .map(|binding_ty_id| self.commit_binding_type(module, ctx, binding_ty_id, types))
+            let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
+            binding_ty_id.map(|binding_ty_id| {
+                self.commit_binding_type(module, ctx, binding_ty_id, types, is_const_asserted)
+            })
         } else {
             binding_ty_id
         };

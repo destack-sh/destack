@@ -2,8 +2,8 @@ use destack_ast::{self as ast};
 use destack_base::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, NodeTree, NodeType, StaticKey, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, TypeTable,
+    LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, StaticKey, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
 use crate::Compiler;
@@ -149,6 +149,16 @@ impl Compiler {
         // set primary declaration for the symbol
         if let Some(symbol_id) = symbol_id {
             symbols.get_symbol_mut(symbol_id).declare_primary(item_id);
+            if symbol_space == SymbolSpace::Value
+                && matches!(
+                    source,
+                    DependencySource::ImportStatement
+                        | DependencySource::ImportEquals
+                        | DependencySource::ImportCall
+                )
+            {
+                self.apply_binding_mutability(symbols, symbol_id, Mutability::Immutable);
+            }
         }
 
         item_id

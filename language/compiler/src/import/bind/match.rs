@@ -33,6 +33,7 @@ impl Compiler {
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     None,
                     SymbolBinding::Runtime,
+                    None,
                     *ast_pattern,
                     Some(parent_id),
                     tree,

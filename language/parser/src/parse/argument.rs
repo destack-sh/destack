@@ -45,6 +45,13 @@ impl Parser {
             has_modifiers = true;
         }
 
+        // explicit mutability
+        if self.peek_keyword(Keyword::Mut).is_ok() {
+            self.bump(); // eat mut
+            modifiers.mutability = Some(Mutability::Mutable);
+            has_modifiers = true;
+        }
+
         // operator
         if self.peek_keyword(Keyword::Const).is_ok() {
             self.bump(); // eat const

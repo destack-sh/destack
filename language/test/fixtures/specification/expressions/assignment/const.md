@@ -1,8 +1,8 @@
-# Assignment
+# Const
 
-Assignment tests cover binding mutability and assignment validity.
+Const bindings are immutable, but member assignment is allowed.
 
-## Immutable bindings
+## Bindings
 
 ### const bindings reject assignment
 
@@ -37,6 +37,8 @@ count = 1;
 
 - contains: immutable binding
 
+## Members
+
 ### const bindings allow member assignment
 
 > Const bindings do not freeze object members.
@@ -45,34 +47,4 @@ count = 1;
 const state: { count: number } = { count: 0 };
 state.count = 1;
 state.count satisfies number;
-```
-
-## Imported bindings
-
-### imported bindings are immutable
-
-> Imported bindings cannot be reassigned.
-
-```ts:counter.ts
-export let counter: number = 0;
-```
-
-```ts:main.ts
-import { counter } from "./counter";
-
-counter = 1;
-```
-
-- contains: immutable binding
-
-## Mutable bindings
-
-### let bindings allow assignment
-
-> Let bindings may be reassigned.
-
-```ds
-let value: number = 1;
-value = 2;
-value satisfies number;
 ```

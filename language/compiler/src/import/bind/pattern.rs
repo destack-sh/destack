@@ -1,14 +1,48 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, NodeType,
-    Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    TypeTable,
+    DependencyMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
+    Mutability, NodeTree, NodeType, Pattern, PatternField, StaticKey, SymbolBinding, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Return the default mutability for bindings without explicit mutability.
+    pub(super) fn default_binding_mutability(&self, module: &Module) -> Mutability {
+        if module.language_type.is_destack() {
+            Mutability::Immutable
+        } else {
+            Mutability::Mutable
+        }
+    }
+
+    /// Resolve the mutability for a binding symbol.
+    fn resolve_binding_mutability(
+        &self,
+        module: &Module,
+        pattern_mutability: Option<Mutability>,
+        binding_mutability: Option<Mutability>,
+    ) -> Mutability {
+        pattern_mutability
+            .or(binding_mutability)
+            .unwrap_or_else(|| self.default_binding_mutability(module))
+    }
+
+    /// Record binding mutability for a symbol when provided.
+    pub(super) fn apply_binding_mutability(
+        &self,
+        symbols: &mut SymbolTable,
+        symbol_id: LocalSymbolId,
+        mutability: Mutability,
+    ) {
+        let symbol = symbols.get_symbol_mut(symbol_id);
+        if symbol.binding_mutability.is_none() {
+            symbol.binding_mutability = Some(mutability);
+        }
+    }
+
     /// Bind a pattern to a DIR pattern.
     pub(super) fn bind_pattern(
         &self,
@@ -17,6 +51,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
+        binding_mutability: Option<Mutability>,
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -34,6 +69,7 @@ impl Compiler {
                 scope,
                 export,
                 binding,
+                binding_mutability,
                 *ast_pattern_id,
                 Some(pattern_id),
                 tree,
@@ -51,6 +87,7 @@ impl Compiler {
                     scope,
                     export,
                     binding,
+                    binding_mutability,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -70,6 +107,7 @@ impl Compiler {
                     scope,
                     export,
                     binding,
+                    binding_mutability,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -92,6 +130,7 @@ impl Compiler {
                         scope,
                         export,
                         binding,
+                        binding_mutability,
                         pattern,
                         Some(pattern_id),
                         tree,
@@ -109,6 +148,9 @@ impl Compiler {
                     export,
                     symbols,
                 );
+                let symbol_mutability =
+                    self.resolve_binding_mutability(module, mutability, binding_mutability);
+                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
                 Pattern::Binding {
                     mutability,
                     name,
@@ -142,6 +184,7 @@ impl Compiler {
                         scope,
                         export,
                         binding,
+                        binding_mutability,
                         start,
                         Some(pattern_id),
                         tree,
@@ -156,6 +199,7 @@ impl Compiler {
                         scope,
                         export,
                         binding,
+                        binding_mutability,
                         end,
                         Some(pattern_id),
                         tree,
@@ -179,6 +223,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -210,6 +255,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -230,6 +276,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -250,6 +297,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -281,6 +329,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -301,6 +350,7 @@ impl Compiler {
                             scope,
                             export,
                             binding,
+                            binding_mutability,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -333,6 +383,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<DependencyMode>,
         binding: SymbolBinding,
+        binding_mutability: Option<Mutability>,
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut NodeTree,
@@ -365,6 +416,7 @@ impl Compiler {
                         scope,
                         export,
                         binding,
+                        binding_mutability,
                         pattern,
                         Some(pattern_field_id),
                         tree,
@@ -395,6 +447,9 @@ impl Compiler {
                     export,
                     symbols,
                 );
+                let symbol_mutability =
+                    self.resolve_binding_mutability(module, mutability, binding_mutability);
+                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
                 PatternField::Named {
                     mutability,
                     name,
@@ -490,6 +545,9 @@ impl Compiler {
                     export,
                     symbols,
                 );
+                let symbol_mutability =
+                    self.resolve_binding_mutability(module, mutability, binding_mutability);
+                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
                 PatternField::Alias {
                     mutability,
                     name,
@@ -507,6 +565,7 @@ impl Compiler {
                     scope,
                     export,
                     binding,
+                    binding_mutability,
                     *pattern_id,
                     Some(pattern_field_id),
                     tree,
@@ -539,6 +598,9 @@ impl Compiler {
                         self.bind_anonymous_local(module, ast, SymbolSpace::Value, scope, symbols);
                     symbol
                 };
+                let symbol_mutability =
+                    self.resolve_binding_mutability(module, mutability, binding_mutability);
+                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
                 PatternField::Spread {
                     mutability,
                     name,

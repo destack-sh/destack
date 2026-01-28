@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_dir::{
     Asynchrony, FlowGraph, FlowTable, FunctionCardinality, FunctionSignature, GlobalSymbolId,
-    LocalNodeIdAny, LocalTypeId,
+    LocalNodeIdAny, LocalTypeId, Mutability,
 };
 use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, ProfileId};
@@ -224,6 +224,27 @@ impl InferContext {
     pub fn with_const_context(mut self, const_context: ConstContext) -> Self {
         self.const_context = const_context;
         self
+    }
+
+    /// Apply binding defaults based on mutability.
+    pub fn with_binding_mutability(self, mutability: Mutability) -> Self {
+        match mutability {
+            Mutability::Immutable => self
+                .with_const_context(ConstContext::Const)
+                .with_preserve_literals()
+                .with_fresh_literals(),
+            Mutability::Mutable => self
+                .with_const_context(ConstContext::None)
+                .with_widening()
+                .with_fresh_literals(),
+        }
+    }
+
+    /// Apply binding defaults for using bindings.
+    pub fn with_using_binding(self) -> Self {
+        self.with_const_context(ConstContext::Const)
+            .with_preserve_literals()
+            .with_fresh_literals()
     }
 
     /// Override contextual typing behavior for this context.
