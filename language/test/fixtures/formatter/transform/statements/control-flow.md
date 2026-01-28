@@ -254,6 +254,32 @@ for ({ name, value } of items) {
 }
 ```
 
+## Using
+
+### using statement
+
+Using declarations keep spacing around `=`.
+
+```ds
+using resource = open(path)
+```
+
+```ds expected
+using resource = open(path);
+```
+
+### await using statement
+
+Async using declarations include the `await` keyword.
+
+```ds
+await using resource = openAsync(path)
+```
+
+```ds expected
+await using resource = openAsync(path);
+```
+
 ## Break and Continue
 
 ### break statement

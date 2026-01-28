@@ -28,6 +28,18 @@ const value = isActive ? activeValue : inactiveValue
 const value = isActive ? activeValue : inactiveValue;
 ```
 
+### ternary with logical condition
+
+Logical conditions remain inline when short.
+
+```ds
+const value = ready && valid ? ok : fail
+```
+
+```ds expected
+const value = ready && valid ? ok : fail;
+```
+
 ## Line Breaking
 
 ### long ternary in assignment breaks

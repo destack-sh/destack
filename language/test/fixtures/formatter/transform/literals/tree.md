@@ -250,9 +250,7 @@ Comments inside JSX use expression containers. Block infix comments cause expans
 
 ```ds expected
 <Container>
-    {
-        /* XOXO: something something add content */
-    }
+    {/* XOXO: something something add content */}
 </Container>;
 ```
 
@@ -284,14 +282,16 @@ Map with block body breaks appropriately. Return JSX gets parens when multi-line
 
 ```ds expected
 <List>
-    {items.map((item) => {
-        return (
-            <Item
-                key={item.id}
-                name={item.name}
-            />
-        )
-    })}
+    {
+        items.map((item) => {
+            return (
+                <Item
+                    key={item.id}
+                    name={item.name}
+                />
+            )
+        })
+    }
 </List>;
 ```
 
@@ -317,9 +317,11 @@ Ternary with multi-attribute JSX in branches.
 
 ```ds expected
 <div>
-    {loading
-        ? <Spinner size="large" />
-        : <Content data={data} />}
+    {
+        loading
+            ? <Spinner size="large" />
+            : <Content data={data} />
+    }
 </div>;
 ```
 

@@ -141,6 +141,32 @@ Arrays stay on one line when they fit within line width.
 [1, 2, 3, 4, 5];
 ```
 
+## Spread Elements
+
+### array with spread
+
+Spread elements stay tight with the ellipsis.
+
+```ds
+[head, ...rest]
+```
+
+```ds expected
+[head, ...rest];
+```
+
+### array with multiple spreads
+
+Multiple spread elements keep spacing normalized.
+
+```ds
+[...left, middle, ...right]
+```
+
+```ds expected
+[...left, middle, ...right];
+```
+
 ## Nested Arrays
 
 ### nested array
@@ -196,6 +222,21 @@ Matrix-like arrays format with one row per line.
     [1, 0, 0],
     [0, 1, 0],
     [0, 0, 1],
+];
+```
+
+### array of objects breaks
+
+Object elements break to one per line when they exceed width.
+
+```ds line-width=30
+[{ a: 1, b: 2 }, { c: 3, d: 4 }]
+```
+
+```ds expected
+[
+    { a: 1, b: 2 },
+    { c: 3, d: 4 },
 ];
 ```
 

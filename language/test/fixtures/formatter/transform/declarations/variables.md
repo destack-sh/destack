@@ -30,6 +30,42 @@ const   x  :  number   =   1
 const x: number = 1;
 ```
 
+### const with object destructuring
+
+Object patterns keep brace spacing and commas.
+
+```ds
+const {a,b} = value
+```
+
+```ds expected
+const { a, b } = value;
+```
+
+### const with array destructuring
+
+Array patterns keep tight brackets.
+
+```ds
+const [a, b] = tuple
+```
+
+```ds expected
+const [a, b] = tuple;
+```
+
+### const with rest destructuring
+
+Rest patterns keep tight spacing.
+
+```ds
+const { a, ...rest } = value
+```
+
+```ds expected
+const { a, ...rest } = value;
+```
+
 ## let
 
 ### basic let
@@ -42,6 +78,18 @@ let   x   =   1
 
 ```ds expected
 let x = 1;
+```
+
+### let with multiple declarators
+
+Multiple declarators use commas and spacing.
+
+```ds
+let a=1, b=2, c=3
+```
+
+```ds expected
+let a = 1, b = 2, c = 3;
 ```
 
 ## var

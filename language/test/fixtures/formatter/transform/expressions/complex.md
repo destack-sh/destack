@@ -111,8 +111,7 @@ const veryLongResultName = someVeryLongChain().a().b().c().d()
 ```
 
 ```ds expected
-const veryLongResultName = someVeryLongChain()
-    .a()
+const veryLongResultName = someVeryLongChain().a()
     .b()
     .c()
     .d();
