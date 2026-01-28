@@ -427,7 +427,6 @@ function greet(pet: Cat | Dog): string {
             r#"
 struct Cat {
     name: string,
-
     speak(): string {
         return "meow";
     }
@@ -435,7 +434,6 @@ struct Cat {
 
 struct Dog {
     name: string,
-
     speak(): string {
         return "woof";
     }
@@ -489,7 +487,6 @@ function greet(pet: Cat | Dog | Bird): string {
             r#"
 struct Cat {
     name: string,
-
     speak(): string {
         return "meow";
     }
@@ -497,7 +494,6 @@ struct Cat {
 
 struct Dog {
     name: string,
-
     speak(): string {
         return "woof";
     }
@@ -505,7 +501,6 @@ struct Dog {
 
 struct Bird {
     name: string,
-
     speak(): string {
         return "chirp";
     }
@@ -615,7 +610,6 @@ function bump(c: Counter): Counter {
             r#"
 struct Counter {
     value: int32,
-
     increment(): Counter {
         return Counter { value: this.value + 1 };
     }

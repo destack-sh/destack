@@ -483,6 +483,7 @@ impl Compiler {
                         scope,
                         export,
                         binding,
+                        binding_mutability,
                         pattern,
                         Some(pattern_field_id),
                         tree,

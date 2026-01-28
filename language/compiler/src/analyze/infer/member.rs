@@ -84,6 +84,15 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let left_ty_id = self.materialize_infer_type_for_check(
+            module,
+            ctx.profile,
+            symbols,
+            left_ty_id,
+            infer,
+            types,
+            &ctx.options,
+        );
         let left_ty = types.get_type(left_ty_id).clone();
         let mut member_instance_id = None;
 

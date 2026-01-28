@@ -1743,7 +1743,6 @@ interface Greeter {
 
 class GreeterImpl implements Greeter {
     value: int32,
-
     constructor(value) {
         this.value = value;
         return;
