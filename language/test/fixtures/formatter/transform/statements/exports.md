@@ -223,7 +223,7 @@ export default 42
 export default 42;
 ```
 
-### _export default object
+### export default object
 
 Object literals can be the default export.
 
@@ -249,7 +249,7 @@ export default (x) => x * 2;
 
 ## Type Exports
 
-### _type-only export
+### type-only export
 
 Type-only exports use `export type`.
 

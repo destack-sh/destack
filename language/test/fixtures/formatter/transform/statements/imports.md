@@ -312,7 +312,7 @@ export * as ns from "module"
 export * as ns from "module";
 ```
 
-### _type re-export
+### type re-export
 
 Type-only re-exports use `export type` (parser issue).
 
@@ -326,7 +326,7 @@ export type { Foo, Bar } from "module";
 
 ## Import Attributes
 
-### _import with attributes
+### import with attributes
 
 Import attributes provide metadata about the module.
 
@@ -338,7 +338,7 @@ import data from "data.json" with { type: "json" }
 import data from "data.json" with { type: "json" };
 ```
 
-### _import with multiple attributes
+### import with multiple attributes
 
 Multiple attributes can be specified.
 

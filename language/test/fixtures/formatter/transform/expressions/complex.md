@@ -936,7 +936,7 @@ const { a, ...rest } = obj;
 const [first, ...remaining] = arr;
 ```
 
-### _computed property in destructuring
+### computed property in destructuring
 
 TODO #Incomplete: Destack doesn't support computed property names in destructuring patterns yet.
 
