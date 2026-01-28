@@ -10,7 +10,7 @@ Tests for object literal type inference and checking.
 
 ```ds
 const x = { a: 1, b: "two" };
-x satisfies { a: 1, b: "two" };
+x satisfies { a: number, b: string };
 ```
 
 ### object with shorthand properties
@@ -39,7 +39,16 @@ x satisfies {};
 
 ```ds
 const x = { a: { b: 1 } };
-x satisfies { a: { b: 1 } };
+x satisfies { a: { b: number } };
+```
+
+### object with const assertion
+
+> Const assertions preserve literal property types.
+
+```ds
+const x = { a: 1, b: "two" } as const;
+x satisfies { readonly a: 1, readonly b: "two" };
 ```
 
 ## Object Spreads
@@ -128,7 +137,7 @@ value satisfies { a: number, b: string };
 const value: { a: number, b: string } = { a: 1, b: 2 };
 ```
 
-- contains: type { a: number, b: 2 } is not assignable to type { a: number, b: string }
+- contains: type { a: number, b: number } is not assignable to type { a: number, b: string }
 
 ## Object Members
 

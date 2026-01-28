@@ -387,9 +387,15 @@ impl Compiler {
                         .reset()
                         .with_options(function_options)
                         .in_function_with_signature(declaration_id.into_any(), signature);
-                    let mut ctx = ctx
-                        .with_return_type(return_type)
-                        .with_expected_type(return_type);
+                    let mut ctx = ctx.with_return_type(return_type);
+
+                    // only propagate return type expectations into expression bodies
+                    let body_expression = !matches!(tree.get(*body), Expression::Block { .. });
+                    if body_expression {
+                        ctx = ctx.with_expected_type(return_type);
+                    } else {
+                        ctx = ctx.with_expected_type(None);
+                    }
 
                     // infer the function body with implicit return typing
                     let body_ty_id =
@@ -1595,16 +1601,23 @@ impl Compiler {
             None
         };
 
+        // commit binding types for inferred values without annotations
+        let binding_ty_id = declared_ty_id.or(inferred_ty_id);
+        let committed_binding_ty_id = if declared_ty_id.is_none() {
+            binding_ty_id
+                .map(|binding_ty_id| self.commit_binding_type(module, ctx, binding_ty_id, types))
+        } else {
+            binding_ty_id
+        };
+
         // assign direct binding value types from declared or inferred types
         if let Pattern::Binding {
             symbol, pattern, ..
         } = tree.get(*pattern)
             && pattern.is_none()
+            && let Some(binding_ty_id) = committed_binding_ty_id
         {
-            let binding_ty_id = declared_ty_id.or(inferred_ty_id);
-            if let Some(binding_ty_id) = binding_ty_id {
-                types.set_value_type(symbol.into_global(module.id), binding_ty_id);
-            }
+            types.set_value_type(symbol.into_global(module.id), binding_ty_id);
         }
 
         // enforce explicit ownership when implicit managed values are disabled
@@ -1708,11 +1721,10 @@ impl Compiler {
         }
 
         // infer pattern bindings from declared or inferred type
-        let binding_ty_id = declared_ty_id.or(inferred_ty_id);
         self.infer_pattern(
             module,
             *pattern,
-            binding_ty_id,
+            committed_binding_ty_id,
             tree,
             symbols,
             types,

@@ -70,4 +70,33 @@ impl RelationMode {
         kind: RelationKind::Constraint,
         flags: RelationFlags::TYPE_OPS,
     };
+
+    /// Return a cache key representing this relation mode.
+    pub(crate) fn cache_key(self) -> u64 {
+        if self == Self::ASSIGN {
+            return 0;
+        }
+
+        let kind_key = match self.kind {
+            RelationKind::Assignable => 1_u64,
+            RelationKind::Comparable => 2_u64,
+            RelationKind::Subtype => 3_u64,
+            RelationKind::Identical => 4_u64,
+            RelationKind::Constraint => 5_u64,
+        };
+
+        // build a compact bitset for flags and kind
+        let mut key = kind_key;
+        key |= (self.flags.use_apparent_type as u64) << 8;
+        key |= (self.flags.substitute_constraints_in_apparent_type as u64) << 9;
+        key |= (self.flags.allow_fresh_literals as u64) << 10;
+        key |= (self.flags.prefer_non_widening as u64) << 11;
+        key |= (self.flags.use_contextual_type as u64) << 12;
+        key
+    }
+
+    /// Return true when normalization caching is valid for this relation mode.
+    pub(crate) fn is_cacheable(self) -> bool {
+        self == Self::ASSIGN
+    }
 }

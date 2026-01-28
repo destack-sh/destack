@@ -32,7 +32,7 @@ interface Person {
 const bad: Flags<Person> = { name: true, age: "no" };
 ```
 
-- contains: type { name: true, age: "no" } is not assignable to type flags<<type>>
+- contains: type { name: boolean, age: string } is not assignable to type flags<<type>>
 
 ### mapped types support optional modifiers
 
@@ -65,7 +65,7 @@ interface Person {
 const bad: Optional<Person> = { name: "Ada", age: "no" };
 ```
 
-- contains: type { name: "ada", age: "no" } is not assignable to type optional<<type>>
+- contains: type { name: string, age: string } is not assignable to type optional<<type>>
 
 ### mapped types can remove optional modifiers
 
@@ -114,7 +114,7 @@ interface Person {
 const bad: Renamed<Person> = { value: true };
 ```
 
-- contains: type { value: true } is not assignable to type renamed<<type>>
+- contains: type { value: boolean } is not assignable to type renamed<<type>>
 
 ### mapped types add readonly modifiers
 

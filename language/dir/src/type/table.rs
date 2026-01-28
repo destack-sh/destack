@@ -28,6 +28,8 @@ pub struct AliasNormalizationEntry {
     pub symbol: GlobalSymbolId,
     /// The normalization mode for this entry.
     pub mode: NormalizationMode,
+    /// The relation cache key for this entry.
+    pub relation_key: u64,
     /// The static arguments applied to the alias.
     pub arguments: Vec<StaticArgument>,
     /// The normalized type id.
@@ -51,11 +53,11 @@ pub struct TypeTable {
     /// Whether a type originates from an imported module.
     pub(crate) imported_type_by_id: Vec<bool>,
     /// Cached normalization results for assignability.
-    pub(crate) normalized_assignability_type_by_id: Vec<Option<LocalTypeId>>,
+    pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, LocalTypeId>>,
     /// Cache epoch for assignability normalization results.
     pub(crate) normalized_assignability_epoch_by_id: Vec<u64>,
     /// Cached normalization results for flow.
-    pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
+    pub(crate) normalized_flow_type_by_id: Vec<IndexMap<u64, LocalTypeId>>,
     /// Cache epoch for flow normalization results.
     pub(crate) normalized_flow_epoch_by_id: Vec<u64>,
     /// Cached alias normalization results.
@@ -204,8 +206,9 @@ impl TypeTable {
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id.into_any());
         self.imported_type_by_id.push(false);
-        self.normalized_assignability_type_by_id.push(None);
-        self.normalized_flow_type_by_id.push(None);
+        self.normalized_assignability_type_by_id
+            .push(IndexMap::new());
+        self.normalized_flow_type_by_id.push(IndexMap::new());
         type_id
     }
 
@@ -216,10 +219,11 @@ impl TypeTable {
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
         self.imported_type_by_id.push(false);
-        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_assignability_type_by_id
+            .push(IndexMap::new());
         self.normalized_assignability_epoch_by_id
             .push(self.normalization_epoch);
-        self.normalized_flow_type_by_id.push(None);
+        self.normalized_flow_type_by_id.push(IndexMap::new());
         self.normalized_flow_epoch_by_id
             .push(self.normalization_epoch);
         type_id
@@ -236,10 +240,11 @@ impl TypeTable {
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
         self.imported_type_by_id.push(true);
-        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_assignability_type_by_id
+            .push(IndexMap::new());
         self.normalized_assignability_epoch_by_id
             .push(self.normalization_epoch);
-        self.normalized_flow_type_by_id.push(None);
+        self.normalized_flow_type_by_id.push(IndexMap::new());
         self.normalized_flow_epoch_by_id
             .push(self.normalization_epoch);
         type_id
@@ -280,6 +285,7 @@ impl TypeTable {
     pub fn normalized_type(
         &self,
         mode: NormalizationMode,
+        relation_key: u64,
         type_id: LocalTypeId,
     ) -> Option<LocalTypeId> {
         let cache_index = type_id.0 as usize;
@@ -294,8 +300,7 @@ impl TypeTable {
                 }
                 self.normalized_assignability_type_by_id
                     .get(cache_index)
-                    .copied()
-                    .flatten()
+                    .and_then(|cache| cache.get(&relation_key).copied())
             }
             NormalizationMode::Flow => {
                 let cache_epoch = self.normalized_flow_epoch_by_id.get(cache_index).copied()?;
@@ -304,8 +309,7 @@ impl TypeTable {
                 }
                 self.normalized_flow_type_by_id
                     .get(cache_index)
-                    .copied()
-                    .flatten()
+                    .and_then(|cache| cache.get(&relation_key).copied())
             }
         }
     }
@@ -314,6 +318,7 @@ impl TypeTable {
     pub fn set_normalized_type(
         &mut self,
         mode: NormalizationMode,
+        relation_key: u64,
         type_id: LocalTypeId,
         normalized_type: LocalTypeId,
     ) {
@@ -322,25 +327,26 @@ impl TypeTable {
             NormalizationMode::Assign => {
                 if self.normalized_assignability_type_by_id.len() <= cache_index {
                     self.normalized_assignability_type_by_id
-                        .resize(cache_index + 1, None);
+                        .resize_with(cache_index + 1, IndexMap::new);
                 }
                 if self.normalized_assignability_epoch_by_id.len() <= cache_index {
                     self.normalized_assignability_epoch_by_id
                         .resize(cache_index + 1, self.normalization_epoch);
                 }
-                self.normalized_assignability_type_by_id[cache_index] = Some(normalized_type);
+                self.normalized_assignability_type_by_id[cache_index]
+                    .insert(relation_key, normalized_type);
                 self.normalized_assignability_epoch_by_id[cache_index] = self.normalization_epoch;
             }
             NormalizationMode::Flow => {
                 if self.normalized_flow_type_by_id.len() <= cache_index {
                     self.normalized_flow_type_by_id
-                        .resize(cache_index + 1, None);
+                        .resize_with(cache_index + 1, IndexMap::new);
                 }
                 if self.normalized_flow_epoch_by_id.len() <= cache_index {
                     self.normalized_flow_epoch_by_id
                         .resize(cache_index + 1, self.normalization_epoch);
                 }
-                self.normalized_flow_type_by_id[cache_index] = Some(normalized_type);
+                self.normalized_flow_type_by_id[cache_index].insert(relation_key, normalized_type);
                 self.normalized_flow_epoch_by_id[cache_index] = self.normalization_epoch;
             }
         }
@@ -373,12 +379,16 @@ impl TypeTable {
         &self,
         symbol_id: GlobalSymbolId,
         mode: NormalizationMode,
+        relation_key: u64,
         arguments: &[StaticArgument],
     ) -> Option<LocalTypeId> {
         self.normalized_alias_by_symbol
             .iter()
             .find(|entry| {
-                entry.symbol == symbol_id && entry.mode == mode && entry.arguments == arguments
+                entry.symbol == symbol_id
+                    && entry.mode == mode
+                    && entry.relation_key == relation_key
+                    && entry.arguments == arguments
             })
             .map(|entry| entry.normalized_type)
     }
@@ -388,11 +398,15 @@ impl TypeTable {
         &mut self,
         symbol_id: GlobalSymbolId,
         mode: NormalizationMode,
+        relation_key: u64,
         arguments: Vec<StaticArgument>,
         normalized_type: LocalTypeId,
     ) {
         if self.normalized_alias_by_symbol.iter().any(|entry| {
-            entry.symbol == symbol_id && entry.mode == mode && entry.arguments == arguments
+            entry.symbol == symbol_id
+                && entry.mode == mode
+                && entry.relation_key == relation_key
+                && entry.arguments == arguments
         }) {
             return;
         }
@@ -400,6 +414,7 @@ impl TypeTable {
             .push(AliasNormalizationEntry {
                 symbol: symbol_id,
                 mode,
+                relation_key,
                 arguments,
                 normalized_type,
             });

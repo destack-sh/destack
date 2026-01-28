@@ -176,7 +176,7 @@ function test(): number {
     let a = 1;
     let b = 2;
     let c = 3;
-    return a as number + b as number + c as number;
+    return a + b + c;
 }
 "#,
         );

@@ -50,11 +50,20 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // normalize the operand before extracting keys
-        let normalized_right =
-            self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
+        let normalized_right = self.normalize_type_inner(
+            module,
+            profile,
+            right,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        );
 
         // treat unconstrained type parameters as keyof any
         if let Type::Reference { symbol, .. } = types.get_type(normalized_right) {
@@ -88,13 +97,23 @@ impl Compiler {
             symbols,
             types,
             mode,
+            relation_mode,
             visited,
             &mut visited_keys,
         );
 
         // turn the key set into a union type
         let key_type_id = self.key_type_id_for_key_set(source_id, key_set, types);
-        self.normalize_type_inner(module, profile, key_type_id, symbols, types, mode, visited)
+        self.normalize_type_inner(
+            module,
+            profile,
+            key_type_id,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        )
     }
 
     /// Collect key information for a type id.
@@ -106,18 +125,12 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
         visited_keys: &mut HashSet<LocalTypeId>,
     ) -> KeySet {
         // resolve apparent types for key extraction
-        let type_id = self.apparent_type(
-            module,
-            profile,
-            type_id,
-            symbols,
-            types,
-            RelationMode::TYPE_OPS,
-        );
+        let type_id = self.apparent_type(module, profile, type_id, symbols, types, relation_mode);
 
         // avoid cycles when traversing recursive types
         if !visited_keys.insert(type_id) {
@@ -192,6 +205,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     ) {
                         return self.key_set_for_type(
@@ -201,6 +215,7 @@ impl Compiler {
                             symbols,
                             types,
                             mode,
+                            relation_mode,
                             visited,
                             visited_keys,
                         );
@@ -219,6 +234,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                         visited_keys,
                     );
@@ -239,11 +255,19 @@ impl Compiler {
                     module,
                     profile,
                     self.normalize_type_inner(
-                        module, profile, first, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        first,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     ),
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                     visited_keys,
                 );
@@ -252,11 +276,19 @@ impl Compiler {
                         module,
                         profile,
                         self.normalize_type_inner(
-                            module, profile, element_id, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            element_id,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         ),
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                         visited_keys,
                     );
@@ -273,11 +305,19 @@ impl Compiler {
                         module,
                         profile,
                         self.normalize_type_inner(
-                            module, profile, element_id, symbols, types, mode, visited,
+                            module,
+                            profile,
+                            element_id,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
                         ),
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                         visited_keys,
                     );
@@ -472,6 +512,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // normalize the condition operands
@@ -479,9 +520,26 @@ impl Compiler {
         let original_right = right;
         let original_then = then_type;
         let original_else = else_type;
-        let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
-        let right =
-            self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
+        let left = self.normalize_type_inner(
+            module,
+            profile,
+            left,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        );
+        let right = self.normalize_type_inner(
+            module,
+            profile,
+            right,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        );
 
         // keep conditional types unresolved when they depend on static parameters
         let left_contains_static_parameters = self.type_contains_static_parameters(
@@ -493,10 +551,26 @@ impl Compiler {
             &mut HashSet::new(),
         );
         if left_contains_static_parameters {
-            let normalized_then = self
-                .normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
-            let normalized_else = self
-                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
+            let normalized_then = self.normalize_type_inner(
+                module,
+                profile,
+                then_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
+            let normalized_else = self.normalize_type_inner(
+                module,
+                profile,
+                else_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
             let did_change = left != original_left
                 || right != original_right
                 || normalized_then != original_then
@@ -547,6 +621,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 branch_types.push(branch);
@@ -569,7 +644,14 @@ impl Compiler {
                         source_id,
                     );
                     self.normalize_type_inner(
-                        module, profile, union_id, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        union_id,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )
                 }
             };
@@ -635,12 +717,21 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
             }
 
-            return self
-                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
+            return self.normalize_type_inner(
+                module,
+                profile,
+                else_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
         }
 
         // choose the active branch based on assignability
@@ -654,7 +745,16 @@ impl Compiler {
             else_type
         };
 
-        self.normalize_type_inner(module, profile, branch_id, symbols, types, mode, visited)
+        self.normalize_type_inner(
+            module,
+            profile,
+            branch_id,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        )
     }
 
     /// Normalize indexed access types by resolving the accessed value types.
@@ -668,30 +768,34 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // resolve apparent operand types before index evaluation
-        let left = self.apparent_type(
+        let left = self.apparent_type(module, profile, left, symbols, types, relation_mode);
+        let index = self.apparent_type(module, profile, index, symbols, types, relation_mode);
+
+        // normalize operands before evaluating the index
+        let left = self.normalize_type_inner(
             module,
             profile,
             left,
             symbols,
             types,
-            RelationMode::TYPE_OPS,
+            mode,
+            relation_mode,
+            visited,
         );
-        let index = self.apparent_type(
+        let index = self.normalize_type_inner(
             module,
             profile,
             index,
             symbols,
             types,
-            RelationMode::TYPE_OPS,
+            mode,
+            relation_mode,
+            visited,
         );
-
-        // normalize operands before evaluating the index
-        let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
-        let index =
-            self.normalize_type_inner(module, profile, index, symbols, types, mode, visited);
 
         // split union index types into individual keys
         let index_types = match types.get_type(index) {
@@ -711,6 +815,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
+                relation_mode,
             );
             if let Some(value_type) = value_type {
                 value_types.push(value_type);
@@ -740,7 +845,16 @@ impl Compiler {
                 source_id,
             ),
         };
-        self.normalize_type_inner(module, profile, combined, symbols, types, mode, visited)
+        self.normalize_type_inner(
+            module,
+            profile,
+            combined,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        )
     }
 
     /// Resolve an index access for a single key type.
@@ -754,18 +868,34 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         // handle literal key access first
         if let Some(static_key) = self.static_key_from_type(key_type_id, types) {
             return self.index_access_for_literal_key(
-                module, profile, left, static_key, symbols, types, mode,
+                module,
+                profile,
+                left,
+                static_key,
+                symbols,
+                types,
+                mode,
+                relation_mode,
             );
         }
 
         // handle primitive index kinds
         if let Some(kind) = self.mapped_index_kind_for_type(key_type_id, types) {
-            return self
-                .index_access_for_index_kind(module, profile, left, kind, symbols, types, mode);
+            return self.index_access_for_index_kind(
+                module,
+                profile,
+                left,
+                kind,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+            );
         }
 
         match types.get_type(key_type_id) {
@@ -791,6 +921,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
@@ -802,6 +933,7 @@ impl Compiler {
             symbols,
             types,
             mode,
+            relation_mode,
             &mut visited,
         )
     }
@@ -816,6 +948,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut HashSet<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
@@ -833,7 +966,15 @@ impl Compiler {
                 // union values across elements
                 for element_id in elements {
                     let value_type = self.index_access_for_literal_key_inner(
-                        module, profile, element_id, key, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_id,
+                        key,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )?;
                     value_types.push(value_type);
                 }
@@ -850,7 +991,15 @@ impl Compiler {
                         continue;
                     }
                     if let Some(value_type) = self.index_access_for_literal_key_inner(
-                        module, profile, element_id, key, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_id,
+                        key,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     ) {
                         value_types.push(value_type);
                     }
@@ -877,6 +1026,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     &mut normalize_visited,
                 );
                 if matches!(types.get_type(normalized_id), Type::Mapped { .. }) {
@@ -890,6 +1040,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     )
                 }
@@ -931,6 +1082,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
         // guard against recursive index access cycles
         let mut visited = HashSet::new();
@@ -942,6 +1094,7 @@ impl Compiler {
             symbols,
             types,
             mode,
+            relation_mode,
             &mut visited,
         )
     }
@@ -956,6 +1109,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut HashSet<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // stop when revisiting the same type
@@ -973,7 +1127,15 @@ impl Compiler {
                 // union values across elements
                 for element_id in elements {
                     let value_type = self.index_access_for_index_kind_inner(
-                        module, profile, element_id, kind, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_id,
+                        kind,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     )?;
                     value_types.push(value_type);
                 }
@@ -990,7 +1152,15 @@ impl Compiler {
                         continue;
                     }
                     if let Some(value_type) = self.index_access_for_index_kind_inner(
-                        module, profile, element_id, kind, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_id,
+                        kind,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
                     ) {
                         value_types.push(value_type);
                     }
@@ -1018,6 +1188,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     &mut normalize_visited,
                 );
                 if matches!(types.get_type(normalized_id), Type::Mapped { .. }) {
@@ -1031,6 +1202,7 @@ impl Compiler {
                         symbols,
                         types,
                         mode,
+                        relation_mode,
                         visited,
                     )
                 }
@@ -1162,6 +1334,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
+                                RelationMode::TYPE_OPS,
                                 &mut visited_alias,
                             )
                         {
@@ -1258,6 +1431,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
+                                RelationMode::TYPE_OPS,
                                 &mut visited_alias,
                             )
                         {
@@ -1433,6 +1607,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         let TypeMappedParameter {
@@ -1480,8 +1655,16 @@ impl Compiler {
             || remap_contains_static
             || remap_contains_infer
         {
-            let normalized_value =
-                self.normalize_type_inner(module, profile, value, symbols, types, mode, visited);
+            let normalized_value = self.normalize_type_inner(
+                module,
+                profile,
+                value,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
             let parameter = TypeMappedParameter {
                 name,
                 symbol,
@@ -1499,10 +1682,27 @@ impl Compiler {
         }
 
         // normalize the key constraint for evaluation
-        let normalized_constraint =
-            self.normalize_type_inner(module, profile, constraint, symbols, types, mode, visited);
+        let normalized_constraint = self.normalize_type_inner(
+            module,
+            profile,
+            constraint,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        );
         let normalized_key_remap = key_remap.map(|key_remap| {
-            self.normalize_type_inner(module, profile, key_remap, symbols, types, mode, visited)
+            self.normalize_type_inner(
+                module,
+                profile,
+                key_remap,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            )
         });
 
         // collect mapped keys from the constraint
@@ -1513,6 +1713,7 @@ impl Compiler {
             normalized_constraint,
             symbols,
             types,
+            relation_mode,
             &mut keys,
         );
         if keys.is_empty() {
@@ -1538,7 +1739,16 @@ impl Compiler {
 
         // precompute normalized value and remap when the parameter is unused
         let normalized_value_without_param = if parameter_symbol.is_none() {
-            Some(self.normalize_type_inner(module, profile, value, symbols, types, mode, visited))
+            Some(self.normalize_type_inner(
+                module,
+                profile,
+                value,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            ))
         } else {
             None
         };
@@ -1552,6 +1762,7 @@ impl Compiler {
                 key_remap,
                 symbols,
                 types,
+                relation_mode,
                 &mut remapped,
             );
             Some(remapped)
@@ -1607,6 +1818,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 )
             };
@@ -1629,6 +1841,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
+                    relation_mode,
                     visited,
                 );
                 let mut remapped = Vec::new();
@@ -1638,6 +1851,7 @@ impl Compiler {
                     normalized_remap,
                     symbols,
                     types,
+                    relation_mode,
                     &mut remapped,
                 );
                 remapped
@@ -1749,6 +1963,7 @@ impl Compiler {
         type_id: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
     ) {
         // track visited types to avoid recursion cycles
@@ -1759,6 +1974,7 @@ impl Compiler {
             type_id,
             symbols,
             types,
+            relation_mode,
             keys,
             &mut visited,
         );
@@ -1772,6 +1988,7 @@ impl Compiler {
         type_id: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        relation_mode: RelationMode,
         keys: &mut Vec<MappedKey>,
         visited: &mut HashSet<LocalTypeId>,
     ) {
@@ -1788,7 +2005,14 @@ impl Compiler {
                 // expand each union member
                 for element_id in elements {
                     self.collect_mapped_keys_for_type_inner(
-                        module, profile, element_id, symbols, types, keys, visited,
+                        module,
+                        profile,
+                        element_id,
+                        symbols,
+                        types,
+                        relation_mode,
+                        keys,
+                        visited,
                     );
                 }
             }
@@ -1808,6 +2032,7 @@ impl Compiler {
                         constraint_id,
                         symbols,
                         types,
+                        relation_mode,
                         keys,
                         visited,
                     );
@@ -1822,6 +2047,7 @@ impl Compiler {
                         instance_id,
                         symbols,
                         types,
+                        relation_mode,
                         keys,
                         visited,
                     );
@@ -1839,6 +2065,7 @@ impl Compiler {
                         symbols,
                         types,
                         NormalizationMode::Assign,
+                        relation_mode,
                         &mut normalize_visited,
                     );
                     if let Some(normalized) = normalized {
@@ -1849,10 +2076,18 @@ impl Compiler {
                             symbols,
                             types,
                             NormalizationMode::Assign,
+                            relation_mode,
                             &mut Vec::new(),
                         );
                         self.collect_mapped_keys_for_type_inner(
-                            module, profile, normalized, symbols, types, keys, visited,
+                            module,
+                            profile,
+                            normalized,
+                            symbols,
+                            types,
+                            relation_mode,
+                            keys,
+                            visited,
                         );
                     }
                 }
@@ -1870,10 +2105,18 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
+                    relation_mode,
                     &mut normalize_visited,
                 );
                 self.collect_mapped_keys_for_type_inner(
-                    module, profile, normalized, symbols, types, keys, visited,
+                    module,
+                    profile,
+                    normalized,
+                    symbols,
+                    types,
+                    relation_mode,
+                    keys,
+                    visited,
                 );
             }
             Type::Conditional { .. } => {
@@ -1885,11 +2128,19 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
+                    relation_mode,
                     &mut normalize_visited,
                 );
                 if normalized != type_id {
                     self.collect_mapped_keys_for_type_inner(
-                        module, profile, normalized, symbols, types, keys, visited,
+                        module,
+                        profile,
+                        normalized,
+                        symbols,
+                        types,
+                        relation_mode,
+                        keys,
+                        visited,
                     );
                 }
             }
@@ -2056,6 +2307,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
+                                RelationMode::TYPE_OPS,
                                 &mut visited_alias,
                             )
                         {
@@ -2143,6 +2395,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 NormalizationMode::Assign,
+                                RelationMode::TYPE_OPS,
                                 &mut visited_alias,
                             )
                         {

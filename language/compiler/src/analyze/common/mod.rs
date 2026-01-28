@@ -17,11 +17,11 @@ mod template;
 mod r#type;
 
 pub(crate) use canonical::CanonicalSymbolMode;
-pub(crate) use context::{ConstContext, LiteralFreshness, WideningMode};
+pub(crate) use context::{ConstContext, ContextualTypingMode, LiteralFreshness, WideningMode};
 pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use json::json_value_to_type;
 pub(crate) use literal::evaluate_numeric_literal;
-pub(crate) use materialize::MaterializationMode;
+pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};

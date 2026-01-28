@@ -4,21 +4,24 @@ use std::sync::Arc;
 use super::declaration::DeclaratorConstraint;
 use super::member::MemberLookupMode;
 
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{
+    CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
+    WideningMode,
+};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
     Compiler, FlowContext, InferContext,
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint,
-    Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey,
-    Expression, FlowGraphBuilder, ForEachBinding, GlobalNodeIdAny, GlobalSymbolId, IfCondition,
-    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
-    NormalizationMode, Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey,
-    StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeKind, TypeLiteral, TypeTable, WellKnownSymbol,
+    Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
+    Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
+    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, GlobalNodeIdAny, GlobalSymbolId,
+    IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
+    NormalizationMode, Pattern, PatternField, PrimitiveType, Property, Resolution, ScalarLiteral,
+    StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
+    TypeField, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -41,6 +44,203 @@ impl ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Decide whether a scalar literal should be widened in this context.
+    pub(super) fn should_widen_scalar_literal(&self, ctx: &InferContext) -> bool {
+        if !matches!(ctx.widening_mode, WideningMode::Widen) {
+            return false;
+        }
+        if !matches!(ctx.literal_freshness, LiteralFreshness::Regularized) {
+            return false;
+        }
+        matches!(ctx.const_context, ConstContext::None)
+    }
+
+    /// Widen a scalar literal type when the context requires it.
+    pub(super) fn widen_scalar_literal_type_if_needed(
+        &self,
+        types: &mut TypeTable,
+        type_id: LocalTypeId,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        if !self.should_widen_scalar_literal(ctx) {
+            return type_id;
+        }
+
+        let Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(literal),
+        } = types.get_type(type_id)
+        else {
+            return type_id;
+        };
+
+        let widened = Type::TypeLiteral {
+            value: self.widen_scalar_literal(literal),
+        };
+        types.insert_type_from_any(widened, source_id)
+    }
+
+    /// Select the best common type for a pair of branch results.
+    fn best_common_type_for_pair(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        expected_type: Option<LocalTypeId>,
+        allow_widening: bool,
+    ) -> LocalTypeId {
+        let mut left_ty_id = left_ty_id;
+        let mut right_ty_id = right_ty_id;
+
+        // widen scalar literals when no contextual type is forcing a shape
+        if allow_widening {
+            left_ty_id =
+                self.widen_scalar_literal_type_if_needed(types, left_ty_id, ctx, source_id);
+            right_ty_id =
+                self.widen_scalar_literal_type_if_needed(types, right_ty_id, ctx, source_id);
+        }
+
+        // prefer the contextual type when both branches satisfy it
+        if let Some(expected_ty_id) = expected_type {
+            let left_assignable = self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                expected_ty_id,
+                left_ty_id,
+                types,
+                &ctx.options,
+            );
+            let right_assignable = self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                expected_ty_id,
+                right_ty_id,
+                types,
+                &ctx.options,
+            );
+            if left_assignable.is_assignable() && right_assignable.is_assignable() {
+                return expected_ty_id;
+            }
+        }
+
+        // prefer a common supertype when one branch subsumes the other
+        let left_to_right = self.is_type_assignable(
+            module,
+            ctx.profile,
+            symbols,
+            right_ty_id,
+            left_ty_id,
+            types,
+            &ctx.options,
+        );
+        if left_to_right.is_assignable() {
+            return right_ty_id;
+        }
+        let right_to_left = self.is_type_assignable(
+            module,
+            ctx.profile,
+            symbols,
+            left_ty_id,
+            right_ty_id,
+            types,
+            &ctx.options,
+        );
+        if right_to_left.is_assignable() {
+            return left_ty_id;
+        }
+
+        // widen numeric branches to a shared numeric type when allowed
+        let left_ty = types.get_type(left_ty_id).clone();
+        let right_ty = types.get_type(right_ty_id).clone();
+        let left_is_numeric = self.is_numeric_like_type(&left_ty, types);
+        let right_is_numeric = self.is_numeric_like_type(&right_ty, types);
+        if left_is_numeric && right_is_numeric {
+            let left_is_literal = matches!(
+                left_ty,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(
+                        ScalarLiteral::Integer(_)
+                            | ScalarLiteral::Float(_)
+                            | ScalarLiteral::Bigint(_),
+                    ),
+                }
+            );
+            let right_is_literal = matches!(
+                right_ty,
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(
+                        ScalarLiteral::Integer(_)
+                            | ScalarLiteral::Float(_)
+                            | ScalarLiteral::Bigint(_),
+                    ),
+                }
+            );
+            let allow_numeric_widening = allow_widening
+                && (!left_is_literal || !right_is_literal || self.should_widen_scalar_literal(ctx));
+            if allow_numeric_widening {
+                let widened = self.widen_numeric_types(&left_ty, &right_ty);
+                return types.insert_type_from_any(widened, source_id);
+            }
+        }
+
+        self.union_type(left_ty_id, right_ty_id, types)
+    }
+
+    /// Select the best common type for a list of branch results.
+    fn best_common_type_for_list(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+        candidates: &[LocalTypeId],
+    ) -> LocalTypeId {
+        let Some((&first, rest)) = candidates.split_first() else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            };
+            return types.insert_type_from_any(ty, source_id);
+        };
+
+        // allow the contextual type only when all candidates satisfy it
+        let expected_type = ctx.expected_type.filter(|expected_ty_id| {
+            candidates.iter().all(|candidate| {
+                self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    *expected_ty_id,
+                    *candidate,
+                    types,
+                    &ctx.options,
+                )
+                .is_assignable()
+            })
+        });
+        let allow_widening = expected_type.is_none();
+
+        rest.iter().fold(first, |current, next| {
+            self.best_common_type_for_pair(
+                module,
+                symbols,
+                types,
+                ctx,
+                source_id,
+                current,
+                *next,
+                expected_type,
+                allow_widening,
+            )
+        })
+    }
+
     /// Resolve a type expression or fall back to inference when unevaluated.
     fn resolve_type_expression(
         &self,
@@ -361,10 +561,18 @@ impl Compiler {
             // let
             Expression::Let {
                 descriptor: _,
-                mutability: _,
+                mutability,
                 declarators,
             } => {
                 for decl_id in declarators {
+                    let mut decl_ctx = if matches!(mutability, Mutability::Immutable) {
+                        ctx.fork()
+                            .with_const_context(ConstContext::Const)
+                            .with_preserve_literals()
+                            .with_fresh_literals()
+                    } else {
+                        ctx.fork().with_widening().with_fresh_literals()
+                    };
                     self.infer_declarator(
                         module,
                         *decl_id,
@@ -374,7 +582,7 @@ impl Compiler {
                         symbols,
                         types,
                         infer,
-                        ctx,
+                        &mut decl_ctx,
                     )?;
                 }
 
@@ -390,6 +598,11 @@ impl Compiler {
                 declarators,
             } => {
                 for decl_id in declarators {
+                    let mut decl_ctx = ctx
+                        .fork()
+                        .with_const_context(ConstContext::Const)
+                        .with_preserve_literals()
+                        .with_fresh_literals();
                     self.infer_declarator(
                         module,
                         *decl_id,
@@ -399,7 +612,7 @@ impl Compiler {
                         symbols,
                         types,
                         infer,
-                        ctx,
+                        &mut decl_ctx,
                     )?;
                 }
 
@@ -411,8 +624,23 @@ impl Compiler {
 
             // type operations
             Expression::TypeUnary { operator, right } => {
-                let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+                let mut right_ctx = if matches!(operator, TypeUnaryOperator::AsConst) {
+                    ctx.fork()
+                        .with_const_context(ConstContext::AsConst)
+                        .with_preserve_literals()
+                        .with_fresh_literals()
+                } else {
+                    ctx.fork()
+                };
+                let right_ty_id = self.infer_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut right_ctx,
+                )?;
 
                 let ty = self.infer_type_unary_operation(
                     module,
@@ -430,10 +658,10 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_ty_id = match operator {
+                let (left_ty_id, right_ty_id) = match operator {
                     destack_dir::TypeBinaryOperator::Extends
-                    | destack_dir::TypeBinaryOperator::Implements => self
-                        .try_evaluate_expression_to_type(
+                    | destack_dir::TypeBinaryOperator::Implements => {
+                        let left_ty_id = self.try_evaluate_expression_to_type(
                             module,
                             ctx.profile,
                             *left,
@@ -442,11 +670,55 @@ impl Compiler {
                             types,
                             true,
                             true,
-                        )?,
-                    _ => self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?,
+                        )?;
+                        let right_ty_id = self.resolve_type_expression(
+                            module,
+                            ctx.profile,
+                            *right,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                        (left_ty_id, right_ty_id)
+                    }
+                    destack_dir::TypeBinaryOperator::Satisfies => {
+                        let right_ty_id = self.resolve_type_expression(
+                            module,
+                            ctx.profile,
+                            *right,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                        let mut left_ctx = ctx
+                            .fork()
+                            .with_expected_type(Some(right_ty_id))
+                            .with_const_context(ConstContext::None)
+                            .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
+                        let left_ty_id =
+                            self.infer_expression(module, *left, tree, symbols, types, infer, &mut left_ctx)?;
+                        (left_ty_id, right_ty_id)
+                    }
+                    _ => {
+                        let left_ty_id =
+                            self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
+                        let right_ty_id = self.resolve_type_expression(
+                            module,
+                            ctx.profile,
+                            *right,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                        (left_ty_id, right_ty_id)
+                    }
                 };
-                let right_ty_id =
-                    self.resolve_type_expression(module, ctx.profile, *right, tree, symbols, types, infer, ctx)?;
 
                 let ty = self.infer_type_binary_operation(
                     module,
@@ -789,14 +1061,24 @@ impl Compiler {
                 }
 
                 // apply contextual typing when a matching expected type is available
-                if let Some(expected_ty_id) =
-                    self.expected_type_for_scalar_literal(value, ctx.expected_type, types)
+                let allow_contextual_literal =
+                    !matches!(ctx.contextual_typing, ContextualTypingMode::Satisfies);
+                if allow_contextual_literal
+                    && let Some(expected_ty_id) = self.expected_type_for_scalar_literal(
+                        value,
+                        ctx.expected_type,
+                        types,
+                        &ctx.options,
+                    )
                 {
                     expected_ty_id
                 } else {
-                    let ty = Type::TypeLiteral {
-                        value: self.infer_scalar_literal(value),
+                    let literal = if self.should_widen_scalar_literal(ctx) {
+                        self.widen_scalar_literal(value)
+                    } else {
+                        self.infer_scalar_literal(value)
                     };
+                    let ty = Type::TypeLiteral { value: literal };
                     types.insert_type_from(ty, expression_id)
                 }
             }
@@ -836,6 +1118,8 @@ impl Compiler {
                         Type::Tuple { .. } | Type::ArraySized { .. }
                     )
                 });
+                let is_as_const = matches!(ctx.const_context, ConstContext::AsConst);
+                let infer_tuple = expected_is_tuple || is_as_const;
 
                 // infer element types using any contextual type
                 let mut expected_element_types =
@@ -885,6 +1169,15 @@ impl Compiler {
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
+                    let mut element_ctx = if matches!(ctx.const_context, ConstContext::Const) {
+                        ctx.fork()
+                            .with_const_context(ConstContext::None)
+                            .with_widening()
+                            .with_regularized_literals()
+                    } else {
+                        ctx.fork()
+                    };
+                    element_ctx = element_ctx.with_expected_type(expected_element_ty_id);
                     self.infer_argument(
                         module,
                         *element_id,
@@ -893,7 +1186,7 @@ impl Compiler {
                         symbols,
                         types,
                         infer,
-                        ctx,
+                        &mut element_ctx,
                     )?;
                     let element = tree.get(*element_id);
                     let value_id = element.value();
@@ -902,7 +1195,6 @@ impl Compiler {
                     {
                         ty_id
                     } else {
-                        let mut element_ctx = ctx.fork().with_expected_type(expected_element_ty_id);
                         self.infer_expression(
                             module,
                             value_id,
@@ -917,11 +1209,14 @@ impl Compiler {
                 }
 
                 // use tuple types when an expected tuple type exists
-                let ty = if expected_is_tuple {
+                let ty = if infer_tuple {
                     let mut tuple_elements = Vec::with_capacity(element_type_ids.len());
                     for (index, element_id) in elements.iter().enumerate() {
                         let argument = tree.get(*element_id);
                         let mut element = TypeElement::new(element_type_ids[index]);
+                        if is_as_const {
+                            element.is_readonly = true;
+                        }
                         match argument {
                             Argument::Labeled { label, .. } => {
                                 element.label = Some(*label);
@@ -936,7 +1231,7 @@ impl Compiler {
 
                     Type::Tuple {
                         elements: tuple_elements,
-                        is_readonly: false,
+                        is_readonly: is_as_const,
                     }
                 } else {
                     // resolve the array element type
@@ -953,7 +1248,7 @@ impl Compiler {
 
                     Type::Array {
                         element: element_ty_id,
-                        is_readonly: false,
+                        is_readonly: is_as_const,
                     }
                 };
 
@@ -963,14 +1258,13 @@ impl Compiler {
                 if ctx.options.no_managed
                     && !ctx.is_explicit_ownership
                     && matches!(module.source, ModuleSource::User)
+                    && self.type_contains_managed(module, ctx.profile, ty_id, types)
                 {
-                    if self.type_contains_managed(module, ctx.profile, ty_id, types) {
-                        self.error(AnalyzeError::ManagedMemoryDisabled {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                    }
+                    self.error(AnalyzeError::ManagedMemoryDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
                 }
 
                 ty_id
@@ -984,9 +1278,19 @@ impl Compiler {
 
                 // infer element types and collect their contextualized types
                 let mut element_tys = Vec::with_capacity(elements.len());
+                let is_as_const = matches!(ctx.const_context, ConstContext::AsConst);
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
+                    let mut element_ctx = if matches!(ctx.const_context, ConstContext::Const) {
+                        ctx.fork()
+                            .with_const_context(ConstContext::None)
+                            .with_widening()
+                            .with_regularized_literals()
+                    } else {
+                        ctx.fork()
+                    };
+                    element_ctx = element_ctx.with_expected_type(expected_element_ty_id);
                     self.infer_argument(
                         module,
                         *element_id,
@@ -995,7 +1299,7 @@ impl Compiler {
                         symbols,
                         types,
                         infer,
-                        ctx,
+                        &mut element_ctx,
                     )?;
                     let element = tree.get(*element_id);
                     let value_id = element.value();
@@ -1004,7 +1308,6 @@ impl Compiler {
                     {
                         ty_id
                     } else {
-                        let mut element_ctx = ctx.fork().with_expected_type(expected_element_ty_id);
                         self.infer_expression(
                             module,
                             value_id,
@@ -1015,12 +1318,16 @@ impl Compiler {
                             &mut element_ctx,
                         )?
                     };
-                    element_tys.push(TypeElement::new(ty_id));
+                    let mut element = TypeElement::new(ty_id);
+                    if is_as_const {
+                        element.is_readonly = true;
+                    }
+                    element_tys.push(element);
                 }
 
                 let ty = Type::Tuple {
                     elements: element_tys,
-                    is_readonly: false,
+                    is_readonly: is_as_const,
                 };
                 types.insert_type_from(ty, expression_id)
             }
@@ -1083,6 +1390,24 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                let expected_object_ty_id =
+                    expected_object_ty_id.filter(|expected_ty_id| {
+                        matches!(types.get_type(*expected_ty_id), Type::Object { .. })
+                    });
+                let expected_object_ty_id = if expected_object_ty_id.is_some() {
+                    expected_object_ty_id
+                } else {
+                    self.expected_object_type_for_literal_union(
+                        module,
+                        ctx.profile,
+                        ctx.expected_type,
+                        properties,
+                        &ctx.options,
+                        tree,
+                        symbols,
+                        types,
+                    )?
+                };
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
                     module,
                     properties,
@@ -1138,14 +1463,13 @@ impl Compiler {
                 if ctx.options.no_managed
                     && !ctx.is_explicit_ownership
                     && matches!(module.source, ModuleSource::User)
+                    && self.type_contains_managed(module, ctx.profile, ty_id, types)
                 {
-                    if self.type_contains_managed(module, ctx.profile, ty_id, types) {
-                        self.error(AnalyzeError::ManagedMemoryDisabled {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(ctx.profile)),
-                        });
-                    }
+                    self.error(AnalyzeError::ManagedMemoryDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
                 }
 
                 ty_id
@@ -1322,76 +1646,14 @@ impl Compiler {
 
                 // compute the result type from the branches
                 if let Some(else_ty_id) = else_ty_id {
-                    let mut result_ty_id = None;
-
-                    // prefer the contextual type when both branches satisfy it
-                    if let Some(expected_ty_id) = ctx.expected_type {
-                        let then_assignable = self.is_type_assignable(
-                            module,
-                            ctx.profile,
-                            symbols,
-                            expected_ty_id,
-                            then_ty_id,
-                            types,
-                            &ctx.options,
-                        );
-                        let else_assignable = self.is_type_assignable(
-                            module,
-                            ctx.profile,
-                            symbols,
-                            expected_ty_id,
-                            else_ty_id,
-                            types,
-                            &ctx.options,
-                        );
-                        if then_assignable.is_assignable() && else_assignable.is_assignable() {
-                            result_ty_id = Some(expected_ty_id);
-                        }
-                    }
-
-                    // prefer a common supertype when one branch subsumes the other
-                    if result_ty_id.is_none() {
-                        let then_to_else = self.is_type_assignable(
-                            module,
-                            ctx.profile,
-                            symbols,
-                            else_ty_id,
-                            then_ty_id,
-                            types,
-                            &ctx.options,
-                        );
-                        if then_to_else.is_assignable() {
-                            result_ty_id = Some(else_ty_id);
-                        }
-                    }
-                    if result_ty_id.is_none() {
-                        let else_to_then = self.is_type_assignable(
-                            module,
-                            ctx.profile,
-                            symbols,
-                            then_ty_id,
-                            else_ty_id,
-                            types,
-                            &ctx.options,
-                        );
-                        if else_to_then.is_assignable() {
-                            result_ty_id = Some(then_ty_id);
-                        }
-                    }
-
-                    // widen numeric branches to a shared numeric type
-                    if result_ty_id.is_none() {
-                        let then_ty = types.get_type(then_ty_id).clone();
-                        let else_ty = types.get_type(else_ty_id).clone();
-                        if self.is_numeric_like_type(&then_ty, types)
-                            && self.is_numeric_like_type(&else_ty, types)
-                        {
-                            let widened = self.widen_numeric_types(&then_ty, &else_ty);
-                            result_ty_id = Some(types.insert_type_from(widened, expression_id));
-                        }
-                    }
-
-                    result_ty_id.unwrap_or_else(|| self.union_type(then_ty_id, else_ty_id, types))
+                    self.best_common_type_for_list(
+                        module,
+                        symbols,
+                        types,
+                        ctx,
+                        expression_id.into_any(),
+                        &[then_ty_id, else_ty_id],
+                    )
                 } else {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Void,
@@ -1633,10 +1895,14 @@ impl Compiler {
                             types.insert_type_from(ty, expression_id)
                         }
                         1 => case_type_ids[0],
-                        _ => {
-                            let source_type_id = case_type_ids[0];
-                            self.union_type_from_list(case_type_ids, source_type_id, types)
-                        }
+                        _ => self.best_common_type_for_list(
+                            module,
+                            symbols,
+                            types,
+                            &ctx,
+                            expression_id.into_any(),
+                            &case_type_ids,
+                        ),
                     }
                 }
             }
@@ -1741,7 +2007,14 @@ impl Compiler {
 
                 // combine try and catch result types
                 if let Some(catch_ty_id) = catch_ty_id {
-                    self.union_type(try_ty_id, catch_ty_id, types)
+                    self.best_common_type_for_list(
+                        module,
+                        symbols,
+                        types,
+                        ctx,
+                        expression_id.into_any(),
+                        &[try_ty_id, catch_ty_id],
+                    )
                 } else {
                     try_ty_id
                 }
@@ -2549,7 +2822,24 @@ impl Compiler {
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
                     // infer explicit property values
-                    let mut value_ctx = ctx.fork().with_expected_type(expected_field_ty_id);
+                    let is_as_const = modifiers.as_ref().is_some_and(|modifiers| {
+                        matches!(modifiers.operator, Some(BindingOperator::AsConst))
+                    });
+                    let mut value_ctx = if is_as_const {
+                        ctx.fork()
+                            .with_expected_type(expected_field_ty_id)
+                            .with_const_context(ConstContext::AsConst)
+                            .with_preserve_literals()
+                            .with_fresh_literals()
+                    } else if matches!(ctx.const_context, ConstContext::Const) {
+                        ctx.fork()
+                            .with_expected_type(expected_field_ty_id)
+                            .with_const_context(ConstContext::None)
+                            .with_widening()
+                            .with_regularized_literals()
+                    } else {
+                        ctx.fork().with_expected_type(expected_field_ty_id)
+                    };
                     self.infer_expression(
                         module,
                         *value,
@@ -2581,7 +2871,24 @@ impl Compiler {
 
                 // infer default with the same expected type
                 if let Some(default) = default {
-                    let mut default_ctx = ctx.fork().with_expected_type(expected_field_ty_id);
+                    let is_as_const = modifiers.as_ref().is_some_and(|modifiers| {
+                        matches!(modifiers.operator, Some(BindingOperator::AsConst))
+                    });
+                    let mut default_ctx = if is_as_const {
+                        ctx.fork()
+                            .with_expected_type(expected_field_ty_id)
+                            .with_const_context(ConstContext::AsConst)
+                            .with_preserve_literals()
+                            .with_fresh_literals()
+                    } else if matches!(ctx.const_context, ConstContext::Const) {
+                        ctx.fork()
+                            .with_expected_type(expected_field_ty_id)
+                            .with_const_context(ConstContext::None)
+                            .with_widening()
+                            .with_regularized_literals()
+                    } else {
+                        ctx.fork().with_expected_type(expected_field_ty_id)
+                    };
                     self.infer_expression(
                         module,
                         *default,
@@ -2599,9 +2906,12 @@ impl Compiler {
                     .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
 
                 // is readonly
-                let is_readonly = modifiers
+                let mut is_readonly = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
+                if matches!(ctx.const_context, ConstContext::AsConst) {
+                    is_readonly = true;
+                }
 
                 // static key
                 if let Some(key) = static_key {
@@ -4099,6 +4409,7 @@ impl Compiler {
                     symbols,
                     types,
                     NormalizationMode::Assign,
+                    RelationMode::TYPE_OPS,
                     &mut normalize_visited,
                 );
                 self.collect_object_literal_candidates(

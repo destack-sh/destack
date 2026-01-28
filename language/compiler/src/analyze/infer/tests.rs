@@ -1045,12 +1045,12 @@ fn test_analyze_let_expression_infer_type() {
             .is_none()
     );
 
-    // value_type[x] = literal 42
+    // value_type[x] = number
     let x_ty = view.types().get_value_type(x_symbol).unwrap();
     assert_eq!(
         *x_ty,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
     );
 
@@ -1362,7 +1362,7 @@ let x = value;
     // load typed module data
     let view = test.view(module_id);
 
-    // x should have literal type 42 (imported from lib.ds)
+    // x should have number type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
@@ -1370,7 +1370,7 @@ let x = value;
         view.types(),
         x_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
     );
 }
@@ -1444,7 +1444,7 @@ let x = greeting;
     // load typed module data
     let view = test.view(module_id);
 
-    // x should have literal string type (imported from lib.ds)
+    // x should have string type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
@@ -1452,7 +1452,7 @@ let x = greeting;
         view.types(),
         x_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            value: TypeLiteral::Primitive(PrimitiveType::String)
         }
     );
 }
@@ -1589,19 +1589,19 @@ export let b = a;
         .get_value_type_id(b_symbol.into_global(module_id))
         .expect("expected b type");
 
-    // both exports resolve to the literal number type
+    // both exports resolve to the number type
     assert_type!(
         view.types(),
         a_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
     );
     assert_type!(
         view.types(),
         b_ty_id,
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
     );
 }

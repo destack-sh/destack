@@ -74,9 +74,8 @@ block0(v0: i32):
     v3: @Box = load v2
     v4: i32 = field.get v3, 0
     v5: i32 = iconst 1i32
-    v6: i32 = trunc v5 -> i32
-    v7: i32 = iadd v4, v6
-    return v7
+    v6: i32 = iadd v4, v5
+    return v6
 }
         "#,
     );

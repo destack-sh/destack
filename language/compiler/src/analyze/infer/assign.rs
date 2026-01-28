@@ -139,6 +139,7 @@ impl Compiler {
                 symbols,
                 types,
                 NormalizationMode::Assign,
+                RelationMode::ASSIGN,
                 &mut visited,
             ) {
                 return self.is_type_assignable(
@@ -1435,7 +1436,7 @@ impl Compiler {
     }
 
     /// Check if a scalar literal value matches a primitive type.
-    fn is_scalar_literal_assignable(
+    pub(super) fn is_scalar_literal_assignable(
         &self,
         literal: &ScalarLiteral,
         ty: &PrimitiveType,
