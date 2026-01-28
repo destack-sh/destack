@@ -1323,7 +1323,38 @@ impl Compiler {
                             &mut element_ctx,
                         )?
                     };
-                    let mut element = TypeElement::new(ty_id);
+                    let contextual_ty_id = if let Some(expected_element_ty_id) =
+                        expected_element_ty_id
+                    {
+                        if self
+                            .is_type_assignable(
+                                module,
+                                ctx.profile,
+                                symbols,
+                                expected_element_ty_id,
+                                ty_id,
+                                types,
+                                &ctx.options,
+                            )
+                            .is_assignable()
+                        {
+                            expected_element_ty_id
+                        } else {
+                            ty_id
+                        }
+                    } else if ctx.expected_type.is_some() || is_as_const {
+                        ty_id
+                    } else {
+                        let commit_ctx = ctx.for_widening_commit();
+                        self.widen_scalar_literal_type_if_needed(
+                            module,
+                            types,
+                            ty_id,
+                            &commit_ctx,
+                            value_id.into_any(),
+                        )
+                    };
+                    let mut element = TypeElement::new(contextual_ty_id);
                     if is_as_const {
                         element.is_readonly = true;
                     }
