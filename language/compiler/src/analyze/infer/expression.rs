@@ -247,6 +247,19 @@ impl Compiler {
         })
     }
 
+    /// Commit a flow join result using best-common-type rules.
+    fn flow_join_type(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+        candidates: &[LocalTypeId],
+    ) -> LocalTypeId {
+        self.best_common_type_for_list(module, symbols, types, ctx, source_id, candidates)
+    }
+
     /// Resolve a type expression or fall back to inference when unevaluated.
     fn resolve_type_expression(
         &self,
@@ -344,10 +357,7 @@ impl Compiler {
         if let Some(mutability) = binding_mutability {
             value_ctx = value_ctx.with_binding_mutability(mutability);
         } else {
-            value_ctx = value_ctx
-                .with_const_context(ConstContext::None)
-                .with_widening()
-                .with_fresh_literals();
+            value_ctx = value_ctx.with_binding_initializer_defaults();
         }
         let inferred_ty_id = self.infer_expression(
             module,
@@ -637,10 +647,7 @@ impl Compiler {
             // type operations
             Expression::TypeUnary { operator, right } => {
                 let mut right_ctx = if matches!(operator, TypeUnaryOperator::AsConst) {
-                    ctx.fork()
-                        .with_const_context(ConstContext::AsConst)
-                        .with_preserve_literals()
-                        .with_fresh_literals()
+                    ctx.fork().with_const_assertion_context()
                 } else {
                     ctx.fork()
                 };
@@ -709,7 +716,7 @@ impl Compiler {
                         let mut left_ctx = ctx
                             .fork()
                             .with_expected_type(Some(right_ty_id))
-                            .with_const_context(ConstContext::None)
+                            .without_const_context()
                             .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
                         let left_ty_id =
                             self.infer_expression(module, *left, tree, symbols, types, infer, &mut left_ctx)?;
@@ -1181,15 +1188,8 @@ impl Compiler {
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
-                    let mut element_ctx = if matches!(ctx.const_context, ConstContext::Const) {
-                        ctx.fork()
-                            .with_const_context(ConstContext::None)
-                            .with_widening()
-                            .with_regularized_literals()
-                    } else {
-                        ctx.fork()
-                    };
-                    element_ctx = element_ctx.with_expected_type(expected_element_ty_id);
+                    let mut element_ctx =
+                        ctx.nested_literal_context().with_expected_type(expected_element_ty_id);
                     self.infer_argument(
                         module,
                         *element_id,
@@ -1294,15 +1294,8 @@ impl Compiler {
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
-                    let mut element_ctx = if matches!(ctx.const_context, ConstContext::Const) {
-                        ctx.fork()
-                            .with_const_context(ConstContext::None)
-                            .with_widening()
-                            .with_regularized_literals()
-                    } else {
-                        ctx.fork()
-                    };
-                    element_ctx = element_ctx.with_expected_type(expected_element_ty_id);
+                    let mut element_ctx =
+                        ctx.nested_literal_context().with_expected_type(expected_element_ty_id);
                     self.infer_argument(
                         module,
                         *element_id,
@@ -1658,7 +1651,7 @@ impl Compiler {
 
                 // compute the result type from the branches
                 if let Some(else_ty_id) = else_ty_id {
-                    self.best_common_type_for_list(
+                    self.flow_join_type(
                         module,
                         symbols,
                         types,
@@ -1907,7 +1900,7 @@ impl Compiler {
                             types.insert_type_from(ty, expression_id)
                         }
                         1 => case_type_ids[0],
-                        _ => self.best_common_type_for_list(
+                        _ => self.flow_join_type(
                             module,
                             symbols,
                             types,
@@ -2019,7 +2012,7 @@ impl Compiler {
 
                 // combine try and catch result types
                 if let Some(catch_ty_id) = catch_ty_id {
-                    self.best_common_type_for_list(
+                    self.flow_join_type(
                         module,
                         symbols,
                         types,
@@ -2840,17 +2833,10 @@ impl Compiler {
                     let mut value_ctx = if is_as_const {
                         ctx.fork()
                             .with_expected_type(expected_field_ty_id)
-                            .with_const_context(ConstContext::AsConst)
-                            .with_preserve_literals()
-                            .with_fresh_literals()
-                    } else if matches!(ctx.const_context, ConstContext::Const) {
-                        ctx.fork()
-                            .with_expected_type(expected_field_ty_id)
-                            .with_const_context(ConstContext::None)
-                            .with_widening()
-                            .with_regularized_literals()
+                            .with_const_assertion_context()
                     } else {
-                        ctx.fork().with_expected_type(expected_field_ty_id)
+                        ctx.nested_literal_context()
+                            .with_expected_type(expected_field_ty_id)
                     };
                     self.infer_expression(
                         module,
@@ -2889,17 +2875,10 @@ impl Compiler {
                     let mut default_ctx = if is_as_const {
                         ctx.fork()
                             .with_expected_type(expected_field_ty_id)
-                            .with_const_context(ConstContext::AsConst)
-                            .with_preserve_literals()
-                            .with_fresh_literals()
-                    } else if matches!(ctx.const_context, ConstContext::Const) {
-                        ctx.fork()
-                            .with_expected_type(expected_field_ty_id)
-                            .with_const_context(ConstContext::None)
-                            .with_widening()
-                            .with_regularized_literals()
+                            .with_const_assertion_context()
                     } else {
-                        ctx.fork().with_expected_type(expected_field_ty_id)
+                        ctx.nested_literal_context()
+                            .with_expected_type(expected_field_ty_id)
                     };
                     self.infer_expression(
                         module,
@@ -2974,6 +2953,7 @@ impl Compiler {
                     let return_type = self.function_return_type(method_ty_id, types);
                     let ctx = ctx
                         .reset()
+                        .without_const_context()
                         .in_function_with_signature(property_id.into_any(), signature);
                     let mut ctx = ctx
                         .with_return_type(return_type)

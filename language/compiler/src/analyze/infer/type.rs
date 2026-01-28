@@ -136,7 +136,7 @@ impl Compiler {
         }
 
         // regularize fresh literals before widening
-        let regularized_ctx = ctx.fork().with_regularized_literals().with_widening();
+        let regularized_ctx = ctx.for_widening_commit();
         let walk_ctx = TypeWalkContext::new(TypeWalkKey::BASE);
         let options = walk_ctx.rewriter_options();
         let cache_key = options.cache_key();

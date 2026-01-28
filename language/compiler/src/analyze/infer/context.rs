@@ -240,11 +240,57 @@ impl InferContext {
         }
     }
 
+    /// Clear any const context while preserving other inference modes.
+    pub fn without_const_context(mut self) -> Self {
+        self.const_context = ConstContext::None;
+        self
+    }
+
+    /// Apply binding defaults when mutability is not specified.
+    pub fn with_binding_initializer_defaults(self) -> Self {
+        self.without_const_context()
+            .with_widening()
+            .with_fresh_literals()
+    }
+
     /// Apply binding defaults for using bindings.
     pub fn with_using_binding(self) -> Self {
         self.with_const_context(ConstContext::Const)
             .with_preserve_literals()
             .with_fresh_literals()
+    }
+
+    /// Apply explicit const assertion defaults.
+    pub fn with_const_assertion_context(self) -> Self {
+        self.with_const_context(ConstContext::AsConst)
+            .with_preserve_literals()
+            .with_fresh_literals()
+    }
+
+    /// Build a nested literal context for child expressions.
+    pub fn nested_literal_context(&self) -> Self {
+        if matches!(self.const_context, ConstContext::Const) {
+            self.fork()
+                .with_const_context(ConstContext::None)
+                .with_widening()
+                .with_regularized_literals()
+        } else {
+            self.fork()
+        }
+    }
+
+    /// Build a nested expression context that drops const bindings but preserves const assertions.
+    pub fn nested_expression_context(&self) -> Self {
+        if matches!(self.const_context, ConstContext::Const) {
+            self.fork().without_const_context()
+        } else {
+            self.fork()
+        }
+    }
+
+    /// Build a context for literal widening commitment points.
+    pub fn for_widening_commit(&self) -> Self {
+        self.fork().with_regularized_literals().with_widening()
     }
 
     /// Override contextual typing behavior for this context.

@@ -22,6 +22,25 @@ pub(super) enum DeclaratorConstraint {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Commit inferred return types at function boundaries.
+    fn commit_inferred_return_type(
+        &self,
+        module: &Module,
+        ctx: &InferContext,
+        return_type: Option<LocalTypeId>,
+        body_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let should_commit =
+            return_type.is_some_and(|return_ty_id| self.is_infer_var_type(return_ty_id, types));
+        if should_commit {
+            let commit_ctx = ctx.for_widening_commit();
+            self.commit_binding_type(module, &commit_ctx, body_ty_id, types, false)
+        } else {
+            body_ty_id
+        }
+    }
+
     /// Infer the type of a declaration.
     pub(crate) fn infer_declaration(
         &self,
@@ -385,6 +404,7 @@ impl Compiler {
                     let return_type = self.function_return_type(fn_ty_id, types);
                     let ctx = ctx
                         .reset()
+                        .without_const_context()
                         .with_options(function_options)
                         .in_function_with_signature(declaration_id.into_any(), signature);
                     let mut ctx = ctx.with_return_type(return_type);
@@ -401,12 +421,21 @@ impl Compiler {
                     let body_ty_id =
                         self.infer_body(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
+                    // commit inferred return types for widening
+                    let committed_body_ty_id = self.commit_inferred_return_type(
+                        module,
+                        &ctx,
+                        return_type,
+                        body_ty_id,
+                        types,
+                    );
+
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
                         && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
-                            sub_type: body_ty_id,
+                            sub_type: committed_body_ty_id,
                             super_type: return_ty_id,
                             variance: None,
                         });
@@ -420,13 +449,13 @@ impl Compiler {
                         );
 
                         if !self.is_infer_var_type(return_ty_id, types)
-                            && !self.is_infer_var_type(body_ty_id, types)
+                            && !self.is_infer_var_type(committed_body_ty_id, types)
                             && self.is_type_assignable(
                                 module,
                                 ctx.profile,
                                 symbols,
                                 normalized_return_ty_id,
-                                body_ty_id,
+                                committed_body_ty_id,
                                 types,
                                 &function_options,
                             ) == Assignability::NotAssignable
@@ -731,6 +760,7 @@ impl Compiler {
                 if let Some(body) = body {
                     let ctx = ctx
                         .reset()
+                        .without_const_context()
                         .with_options(method_options)
                         .in_function_with_signature(member_id.into_any(), signature);
                     let mut ctx = ctx
@@ -741,12 +771,21 @@ impl Compiler {
                     let body_ty_id = self
                         .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
+                    // commit inferred return types for widening
+                    let committed_body_ty_id = self.commit_inferred_return_type(
+                        module,
+                        &ctx,
+                        return_type,
+                        body_ty_id,
+                        types,
+                    );
+
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
                         && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
-                            sub_type: body_ty_id,
+                            sub_type: committed_body_ty_id,
                             super_type: return_ty_id,
                             variance: None,
                         });
@@ -760,13 +799,13 @@ impl Compiler {
                         );
 
                         if !self.is_infer_var_type(return_ty_id, types)
-                            && !self.is_infer_var_type(body_ty_id, types)
+                            && !self.is_infer_var_type(committed_body_ty_id, types)
                             && self.is_type_assignable(
                                 module,
                                 ctx.profile,
                                 symbols,
                                 normalized_return_ty_id,
-                                body_ty_id,
+                                committed_body_ty_id,
                                 types,
                                 &method_options,
                             ) == Assignability::NotAssignable

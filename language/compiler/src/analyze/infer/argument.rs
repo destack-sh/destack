@@ -564,7 +564,9 @@ impl Compiler {
         let argument = tree.get(argument_id);
 
         // apply the expected type to the argument value
-        let mut argument_ctx = ctx.fork().with_expected_type(expected_ty_id);
+        let mut argument_ctx = ctx
+            .nested_expression_context()
+            .with_expected_type(expected_ty_id);
 
         match argument {
             Argument::Positional { value, .. } => {

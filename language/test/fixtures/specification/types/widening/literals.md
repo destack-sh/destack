@@ -68,6 +68,16 @@ const config = { version: 1 } as const;
 config.version satisfies 1;
 ```
 
+### const assertions preserve nested object members
+
+Const assertions are deep and preserve nested literal members.
+
+```ts
+const config = { nested: { mode: "dev" } } as const;
+
+config.nested.mode satisfies "dev";
+```
+
 ### const assertions suppress widening for tuples
 
 Const assertions preserve tuple literal members.
@@ -78,6 +88,41 @@ const pair = [1, 2] as const;
 pair[0] satisfies 1;
 pair[1] satisfies 2;
 ```
+
+### const assertions preserve object literal array members
+
+Const assertions preserve literal members in array elements.
+
+```ts
+const values = [{ kind: "a" }, { kind: "b" }] as const;
+
+values[0].kind satisfies "a";
+values[1].kind satisfies "b";
+```
+
+### const assertions preserve nested array members
+
+Const assertions are deep for nested array literals.
+
+```ts
+const grid = [[1, 2]] as const;
+
+grid[0][0] satisfies 1;
+grid[0][1] satisfies 2;
+```
+
+### const assertions preserve conditional literal unions
+
+Const assertions should preserve literal unions for conditional expressions.
+
+```ts
+const value = (true ? 1 : 2) as const;
+
+value satisfies 1 | 2;
+value satisfies 1;
+```
+
+- contains: expected 1
 
 ### const arrays widen without const assertions
 
@@ -189,4 +234,3 @@ config.version satisfies 1;
 ```
 
 - contains: not assignable
-
