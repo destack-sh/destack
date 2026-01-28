@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
-    ImportEditMode, build_import_display_path, build_import_edits_with_mode, get_module_by_file_id,
-    matches_symbol_space_filter, program_for_file, search_importable_symbols_for_program,
+    ImportEditMode, build_import_display_path, build_import_edits_with_mode, extract_identifier,
+    get_module_by_file_id, identifier_at_offset, is_simple_identifier, matches_symbol_space_filter,
+    program_for_file, search_importable_symbols_for_program,
 };
 use destack_dir::SymbolSpace;
 
@@ -498,114 +499,6 @@ fn missing_symbol_name_from_message(message: &str) -> Option<String> {
 
     // extract the first identifier from the message suffix
     extract_identifier(name)
-}
-
-/// Extract the first identifier from a string.
-fn extract_identifier(text: &str) -> Option<String> {
-    // scan for the first valid identifier start
-    let mut chars = text.chars().peekable();
-    while let Some(ch) = chars.peek().copied() {
-        if is_identifier_start(ch) {
-            break;
-        }
-        chars.next();
-    }
-
-    // collect identifier characters
-    let mut name = String::new();
-    while let Some(ch) = chars.peek().copied() {
-        if name.is_empty() {
-            if !is_identifier_start(ch) {
-                chars.next();
-                continue;
-            }
-            name.push(ch);
-            chars.next();
-            continue;
-        }
-
-        if is_identifier_continue(ch) {
-            name.push(ch);
-            chars.next();
-        } else {
-            break;
-        }
-    }
-
-    if name.is_empty() {
-        return None;
-    }
-
-    // return the extracted identifier
-    Some(name)
-}
-
-/// Extract the identifier that contains the given offset.
-fn identifier_at_offset(source: &str, offset: u32) -> Option<String> {
-    // guard against out of bounds offsets
-    let offset = offset as usize;
-    if offset > source.len() {
-        return None;
-    }
-
-    let bytes = source.as_bytes();
-    let mut start = offset;
-    let mut end = offset;
-
-    // walk left to the start of the identifier
-    while start > 0 {
-        let byte = bytes[start.saturating_sub(1)] as char;
-        if is_identifier_continue(byte) {
-            start = start.saturating_sub(1);
-        } else {
-            break;
-        }
-    }
-
-    // walk right to the end of the identifier
-    while end < bytes.len() {
-        let byte = bytes[end] as char;
-        if is_identifier_continue(byte) {
-            end = end.saturating_add(1);
-        } else {
-            break;
-        }
-    }
-
-    let name = source.get(start..end)?;
-    if !is_simple_identifier(name) {
-        return None;
-    }
-
-    Some(name.to_string())
-}
-
-/// Check if a string is a simple identifier.
-fn is_simple_identifier(text: &str) -> bool {
-    // check the first character
-    let mut chars = text.chars();
-    let Some(first) = chars.next() else {
-        return false;
-    };
-
-    // validate the first character
-    let first_ok = is_identifier_start(first);
-    if !first_ok {
-        return false;
-    }
-
-    // ensure the rest are valid identifier characters
-    chars.all(is_identifier_continue)
-}
-
-/// Check whether a character can start an identifier.
-fn is_identifier_start(ch: char) -> bool {
-    ch.is_ascii_alphabetic() || ch == '_' || ch == '$'
-}
-
-/// Check whether a character can continue an identifier.
-fn is_identifier_continue(ch: char) -> bool {
-    ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
 }
 
 /// Collect quick fixes from diagnostics that overlap with the range.

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::format::format_call_signature;
 use crate::query::common::{
-    ParameterData, doc_strings_for_node, line_doc_strings_before_span, parameter_data_for_symbol,
-    resolve_call_target, with_query_context_for_file,
+    ParameterData, QueryContext, doc_strings_for_node, line_doc_strings_before_span,
+    parameter_data_for_symbol, resolve_call_target, span_for_dir_node, with_query_context_for_file,
 };
 use crate::{ModuleAst, Session};
 
@@ -165,8 +165,7 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
 
                 // determine active parameter based on cursor position
                 let mut active_parameter = determine_active_parameter(
-                    ctx.ast,
-                    ctx.file_id,
+                    &ctx,
                     &dir_tree,
                     expression_id,
                     dynamic_arguments,
@@ -391,8 +390,7 @@ fn fallback_params(argument_count: usize) -> Vec<ParameterInfo> {
 ///
 /// Counts how many arguments come before the cursor position.
 fn determine_active_parameter(
-    ast: &ModuleAst,
-    file_id: FileId,
+    ctx: &QueryContext<'_>,
     dir_tree: &destack_dir::NodeTree,
     call_expression_id: destack_dir::LocalNodeId<Expression>,
     arguments: &[destack_dir::LocalNodeId<Argument>],
@@ -411,7 +409,7 @@ fn determine_active_parameter(
     for (idx, arg_id) in arguments.iter().enumerate() {
         // get the argument's source span
         let arg_node_id: destack_dir::LocalNodeIdAny = (*arg_id).into();
-        let span = get_argument_span(ast, file_id, dir_tree, arg_node_id);
+        let span = span_for_dir_node(ctx, dir_tree, arg_node_id);
         last_span_end = Some(span.end);
 
         // if cursor is before this argument's start, we're on the previous parameter
@@ -431,7 +429,7 @@ fn determine_active_parameter(
     // allow an extra parameter when cursor sits after a trailing comma
     if let Some(last_span_end) = last_span_end {
         // detect trailing comma usage for the call expression
-        let call_span = get_call_span(ast, file_id, dir_tree, call_expression_id);
+        let call_span = span_for_dir_node(ctx, dir_tree, call_expression_id.into());
         if cursor_offset > last_span_end && cursor_offset <= call_span.end {
             let slice_start = last_span_end.min(call_span.end) as usize;
             let slice_end = cursor_offset.min(call_span.end) as usize;
@@ -444,28 +442,4 @@ fn determine_active_parameter(
 
     // return the determined parameter index
     active_param
-}
-
-/// Get the span of an argument node.
-fn get_argument_span(
-    ast: &ModuleAst,
-    file_id: FileId,
-    dir_tree: &destack_dir::NodeTree,
-    node_id: destack_dir::LocalNodeIdAny,
-) -> destack_source::Span {
-    let source_id = dir_tree.get_source(node_id.id);
-    let ast_span = ast.tree.source_map.get(source_id);
-    destack_source::Span::new(file_id, ast_span.start, ast_span.end)
-}
-
-/// Get the span of a call expression node.
-fn get_call_span(
-    ast: &ModuleAst,
-    file_id: FileId,
-    dir_tree: &destack_dir::NodeTree,
-    node_id: destack_dir::LocalNodeId<Expression>,
-) -> destack_source::Span {
-    let source_id = dir_tree.get_source(node_id.id);
-    let ast_span = ast.tree.source_map.get(source_id);
-    destack_source::Span::new(file_id, ast_span.start, ast_span.end)
 }

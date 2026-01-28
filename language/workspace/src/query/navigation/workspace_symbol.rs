@@ -1,12 +1,13 @@
-use std::panic;
-
 use destack_base::StringPool;
 use destack_dir as dir;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use super::document_symbol::SymbolKind;
-use crate::query::common::{QueryContext, score_completion};
+use super::document_symbol::{SymbolKind, declaration_symbol_kind, member_symbol_kind};
+use crate::query::common::{
+    QueryContext, is_synthetic_function_keyword_field, member_key_name, score_completion,
+    span_for_dir_node_safe,
+};
 use crate::{ModuleSource, Session};
 
 /// A symbol in the workspace (flat list for workspace symbol search).
@@ -89,7 +90,7 @@ pub fn workspace_symbols(
             let container = find_container_name(&dir_tree, &session.strings, declaration_id.id);
 
             // resolve the declaration span
-            let Some(range) = node_span(&ctx, &dir_tree, declaration_id.id) else {
+            let Some(range) = span_for_dir_node_safe(&ctx, &dir_tree, declaration_id.id) else {
                 continue;
             };
 
@@ -194,22 +195,6 @@ fn score_workspace_symbol(name: &str, _container: Option<&str>, query: &str) -> 
     score_completion(name, query).map(|matched| matched.score)
 }
 
-/// Convert a declaration to a workspace symbol kind.
-fn declaration_symbol_kind(declaration: &dir::Declaration) -> SymbolKind {
-    // map declaration types to symbol kinds
-    match declaration {
-        dir::Declaration::Global { .. } => SymbolKind::Namespace,
-        dir::Declaration::Function { .. } => SymbolKind::Function,
-        dir::Declaration::Struct { .. } => SymbolKind::Struct,
-        dir::Declaration::Class { .. } => SymbolKind::Class,
-        dir::Declaration::Interface { .. } => SymbolKind::Interface,
-        dir::Declaration::Enum { .. } => SymbolKind::Enum,
-        dir::Declaration::Namespace { .. } => SymbolKind::Namespace,
-        dir::Declaration::Type { .. } => SymbolKind::TypeParameter,
-        dir::Declaration::Extension { .. } => SymbolKind::Class,
-    }
-}
-
 /// Convert a member to a workspace symbol.
 fn member_to_workspace_symbol(
     session: &Session,
@@ -222,28 +207,17 @@ fn member_to_workspace_symbol(
     let member = dir_tree.get::<dir::Member>(member_id);
 
     // resolve the member name from its key
-    let name = match member.key() {
-        Some(dir::DynamicKey::Name(string_id)) => session.strings.get(*string_id).to_string(),
-        Some(dir::DynamicKey::Number(string_id)) => session.strings.get(*string_id).to_string(),
-        _ => return None,
-    };
+    let key = member.key()?;
+    let name = member_key_name(session, key)?;
 
     // resolve the member kind
-    let kind = match member {
-        dir::Member::Type { .. } => SymbolKind::TypeParameter,
-        dir::Member::Field { .. } => SymbolKind::Field,
-        dir::Member::Method { .. } => SymbolKind::Method,
-        dir::Member::Embed { .. } => return None,
-        dir::Member::StaticBlock { .. } => return None,
-        dir::Member::ComptimeBlock { .. } => return None,
-    };
+    let kind = member_symbol_kind(member)?;
 
     // resolve the member span
-    let range = node_span(ctx, dir_tree, member_id.id)?;
+    let range = span_for_dir_node_safe(ctx, dir_tree, member_id.id)?;
 
     // skip synthetic function keyword fields for methods
-    let full_len = range.end.saturating_sub(range.start);
-    if matches!(member, dir::Member::Field { .. }) && name == "function" && full_len == 8 {
+    if is_synthetic_function_keyword_field(member, &name, range) {
         return None;
     }
 
@@ -271,7 +245,7 @@ fn enum_field_to_workspace_symbol(
     let name = session.strings.get(field.name).to_string();
 
     // resolve the field span
-    let range = node_span(ctx, dir_tree, field_id.id)?;
+    let range = span_for_dir_node_safe(ctx, dir_tree, field_id.id)?;
 
     // return the enum field symbol
     Some(WorkspaceSymbol {
@@ -281,22 +255,6 @@ fn enum_field_to_workspace_symbol(
         range,
         container: Some(container_name.to_string()),
     })
-}
-
-/// Resolve a node span safely from the source map.
-fn node_span(ctx: &QueryContext<'_>, dir_tree: &dir::NodeTree, node_id: u32) -> Option<Span> {
-    // resolve the AST node id
-    let ast_node_id = dir_tree.get_source(node_id);
-
-    // guard against panics from the source map
-    let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-        ctx.ast.tree.source_map.get(ast_node_id)
-    }));
-    let Ok(full_span) = full_span else {
-        return None;
-    };
-
-    Some(Span::new(ctx.file_id, full_span.start, full_span.end))
 }
 
 /// Find the container name for a node by walking up the parent tree.
