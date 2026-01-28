@@ -260,9 +260,12 @@ impl Parser {
             // function with body
             if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
                 let options = if is_generator {
-                    self.options.in_statement_position().in_generator()
+                    self.options
+                        .in_statement_position()
+                        .in_before_block()
+                        .in_generator()
                 } else {
-                    self.options.in_statement_position()
+                    self.options.in_statement_position().in_before_block()
                 };
                 let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
@@ -275,9 +278,12 @@ impl Parser {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
                 let options = if is_generator {
-                    self.options.in_statement_position().in_generator()
+                    self.options
+                        .in_statement_position()
+                        .in_before_block()
+                        .in_generator()
                 } else {
-                    self.options.in_statement_position()
+                    self.options.in_statement_position().in_before_block()
                 };
                 let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
