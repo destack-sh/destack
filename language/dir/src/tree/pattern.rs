@@ -87,6 +87,13 @@ pub enum PatternField {
         default: Option<LocalNodeId<Expression>>,
         symbol: LocalSymbolId,
     },
+    /// Computed field (like `[key]: value`).
+    Computed {
+        mutability: Option<Mutability>,
+        key: LocalNodeId<Expression>,
+        pattern: Option<LocalNodeId<Pattern>>,
+        default: Option<LocalNodeId<Expression>>,
+    },
     /// Named field with an alias (like `x: y` where `x` is the field name, `y` is the binding).
     /// `symbol` is the LOCAL binding created by the alias.
     Alias {
@@ -117,6 +124,7 @@ impl PatternField {
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
             PatternField::Named { symbol, .. } => Some(*symbol),
+            PatternField::Computed { .. } => None,
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,
             PatternField::Spread { symbol, .. } => Some(*symbol),

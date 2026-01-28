@@ -1604,6 +1604,16 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("mutability", mutability)
                     .end();
             }
+            PatternField::Computed {
+                mutability,
+                key: _,
+                pattern: _,
+                default: _,
+            } => {
+                self.node("PatternField::Computed", _id.id)
+                    .field_optional("mutability", mutability)
+                    .end();
+            }
             PatternField::Alias {
                 mutability,
                 name,

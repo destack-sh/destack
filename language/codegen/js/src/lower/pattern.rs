@@ -79,6 +79,36 @@ impl ModuleLowerer<'_> {
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }
+            dir::PatternField::Computed {
+                mutability,
+                key,
+                pattern,
+                default,
+            } => {
+                let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
+                let key = self
+                    .lower_expression(*key)
+                    .expect_node::<Expression>(key.into_global_any(self.module.id), self)?;
+                let pattern = pattern
+                    .map(|pattern| self.lower_pattern(pattern))
+                    .transpose()?;
+                let default = default
+                    .map(|default| {
+                        self.lower_expression(default).expect_node::<Expression>(
+                            default.into_global_any(self.module.id),
+                            self,
+                        )
+                    })
+                    .transpose()?;
+                let pattern_field = PatternField::Computed {
+                    mutability,
+                    key,
+                    pattern,
+                    default,
+                };
+                self.tree
+                    .insert_from_source(pattern_field, self.module.id, pattern_field_id)
+            }
             dir::PatternField::Alias {
                 mutability,
                 name,

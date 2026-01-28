@@ -363,7 +363,7 @@ impl Parser {
 
         // regular static parameters
         let mut options = self.options.nested().in_static();
-        if self.options.in_type {
+        if self.options.in_type || self.language.is_typescript() {
             options = options.in_type();
         }
         let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;

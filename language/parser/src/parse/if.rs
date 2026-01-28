@@ -5,7 +5,9 @@ impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
-        let expression_id = self.eat_expression()?;
+        let expression_id = self.with_options(self.options.in_before_block(), |parser| {
+            parser.eat_expression()
+        })?;
         if !matches!(self.tree.get(expression_id), Expression::Block { .. })
             && !matches!(self.tree.get(expression_id), Expression::If { .. })
         {

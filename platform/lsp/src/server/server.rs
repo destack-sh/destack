@@ -2,12 +2,12 @@ use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use dashmap::DashMap;
-use destack_ast::NodeParentIndex;
+use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_daemon::protocol::{
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord, FileSnapshot,
 };
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
@@ -2001,20 +2001,17 @@ fn format_file(
 }
 
 /// Format expressions and return the result string.
-fn format_expressions<T>(context: &DestackFormatContext<'_>, expressions: &[T]) -> Option<String>
-where
-    T: Copy,
-    for<'a> T: destack_fir::format::Format<DestackFormatContext<'a>>,
-{
-    let mut result = String::new();
-    for (i, expr) in expressions.iter().enumerate() {
-        let formatted = fir_format!(context.clone(), [expr]).ok()?;
+fn format_expressions(
+    context: &DestackFormatContext<'_>,
+    expressions: &[LocalNodeId<Expression>],
+) -> Option<String> {
+    let mut result = if expressions.is_empty() {
+        String::new()
+    } else {
+        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).ok()?;
         let printed = formatted.print().ok()?;
-        result.push_str(printed.as_str());
-        if i < expressions.len() - 1 {
-            result.push('\n');
-        }
-    }
+        printed.as_str().to_string()
+    };
 
     // ensure trailing newline
     if !result.is_empty() && !result.ends_with('\n') {
@@ -2086,15 +2083,9 @@ fn format_range(
     };
 
     // format overlapping expressions
-    let mut result = String::new();
-    for (i, expr) in overlapping.iter().enumerate() {
-        let formatted = fir_format!(context.clone(), [expr]).ok()?;
-        let printed = formatted.print().ok()?;
-        result.push_str(printed.as_str());
-        if i < overlapping.len() - 1 {
-            result.push('\n');
-        }
-    }
+    let formatted = fir_format!(context.clone(), [statement_list(&overlapping)]).ok()?;
+    let printed = formatted.print().ok()?;
+    let mut result = printed.as_str().to_string();
 
     // ensure trailing newline if we're at end of file
     let is_at_end = last_span.end >= file.len.saturating_sub(1);

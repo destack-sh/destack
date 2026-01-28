@@ -270,6 +270,35 @@ impl Compiler {
                     default,
                 }
             }
+            dir::PatternField::Computed {
+                mutability,
+                key,
+                pattern,
+                default,
+            } => {
+                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+                let key = self.unbind_expression(
+                    module,
+                    *key,
+                    tree,
+                    symbols,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let pattern = pattern.map(|p| {
+                    self.unbind_pattern(module, p, tree, symbols, ast_tree, ast_strings, context)
+                });
+                let default = default.map(|d| {
+                    self.unbind_expression(module, d, tree, symbols, ast_tree, ast_strings, context)
+                });
+                ast::PatternField::Computed {
+                    mutability,
+                    key,
+                    pattern,
+                    default,
+                }
+            }
             dir::PatternField::Alias {
                 mutability,
                 name,

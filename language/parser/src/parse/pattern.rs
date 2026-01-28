@@ -302,6 +302,38 @@ impl Parser {
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     PatternField::Positional { pattern }
                 }
+                // computed property (object patterns only)
+                else if terminator == TokenType::CloseBrace
+                    && (self.peek_token(TokenType::OpenBracket).is_ok()
+                        || (self.peek_mutability().is_ok()
+                            && self.peek_next_token(TokenType::OpenBracket).is_ok()))
+                {
+                    let mutability = self.eat_mutability_maybe()?;
+                    self.eat_token(TokenType::OpenBracket)?;
+                    let key = self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                    self.eat_token(TokenType::CloseBracket)?;
+                    self.eat_newlines_maybe()?;
+                    self.eat_token(TokenType::Colon)?;
+                    let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                    let default = if self.peek_token(TokenType::Assign).is_ok() {
+                        self.bump(); // eat assign
+                        let default = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        Some(default)
+                    } else {
+                        None
+                    };
+                    PatternField::Computed {
+                        mutability,
+                        key,
+                        pattern: Some(pattern),
+                        default,
+                    }
+                }
                 // named or named alias or spread
                 else if self.peek_name().is_ok()
                     || self.peek_mutability().is_ok()
@@ -665,6 +697,26 @@ mod tests {
 
             // ..
             assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, name: None } => {
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_struct_computed_field() {
+        let mut test = TestParser::new("{ [key]: value }");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Computed { mutability: None, key, pattern, default } => {
+                assert!(default.is_none());
+                assert_node!(parser.tree, *key, Expression::Path { path, static_arguments: None } => {
+                    assert_path!(parser, *path, "key");
+                });
+                assert_node!(parser.tree, pattern.unwrap(), Pattern::Binding { name, pattern: None, .. } => {
+                    assert_string!(parser, *name, "value");
+                });
             });
         });
     }

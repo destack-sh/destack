@@ -6,8 +6,8 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfCondition,
-    IfKind, InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
-    TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
+    IfKind, InfixOperator, Keyword, LiteralType, LocalNodeId, NodeType, PostfixPosition, TokenSpan,
+    TokenType, TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
 use destack_source::LanguageType;
 
@@ -446,6 +446,90 @@ impl Parser {
         }
     }
 
+    /// Check whether a `{` in statement position should be parsed as an object literal.
+    /// NOTE #Cleanup: can_parse_object_literal_in_statement_position is ugly (might not be fixable..) 
+    fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
+        // only allow this in destack files
+        if !self.language.is_destack() {
+            return false;
+        }
+
+        // avoid object literals when a block is expected
+        if self.options.in_before_block {
+            return false;
+        }
+
+        // skip newlines after the opening brace
+        let open_pos = match self.skip_newlines(self.pos()) {
+            Ok(pos) => pos,
+            Err(_) => return false,
+        };
+        let Some(next_token) = self.tokens.get(open_pos as usize + 1) else {
+            return false;
+        };
+
+        // spread property start
+        if next_token.token.ty == TokenType::Spread {
+            return true;
+        }
+
+        // computed key start: require a clear property marker after the closing bracket
+        if next_token.token.ty == TokenType::OpenBracket {
+            let open_bracket_pos = open_pos + 1;
+            let close_bracket_pos = match self.find_matching_close(
+                Some(open_bracket_pos),
+                TokenType::OpenBracket,
+                TokenType::CloseBracket,
+            ) {
+                Ok(pos) => pos,
+                Err(_) => return false,
+            };
+
+            let after_close_pos = match self.skip_newlines(close_bracket_pos) {
+                Ok(pos) => pos,
+                Err(_) => return false,
+            };
+            let Some(after_close) = self.tokens.get(after_close_pos as usize + 1) else {
+                return false;
+            };
+
+            return matches!(after_close.token.ty, TokenType::Colon | TokenType::Maybe);
+        }
+
+        // identifier or literal key with an explicit value marker
+        if next_token.token.ty == TokenType::Identifier || next_token.token.ty == TokenType::Literal
+        {
+            // only allow string or number literal keys
+            if next_token.token.ty == TokenType::Literal {
+                let literal = next_token.token.literal;
+                let is_key_literal = matches!(
+                    literal,
+                    Some(
+                        LiteralType::String { .. }
+                            | LiteralType::Int { .. }
+                            | LiteralType::Float { .. }
+                    )
+                );
+                if !is_key_literal {
+                    return false;
+                }
+            }
+
+            // check for a colon or optional marker after the key
+            let key_pos = match self.skip_newlines(open_pos + 1) {
+                Ok(pos) => pos,
+                Err(_) => return false,
+            };
+            let Some(after_key) = self.tokens.get(key_pos as usize + 1) else {
+                return false;
+            };
+
+            return matches!(after_key.token.ty, TokenType::Colon | TokenType::Maybe);
+        }
+
+        false
+    }
+
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
@@ -510,7 +594,11 @@ impl Parser {
             let keyword = self.peek_any_keyword().ok();
             let is_not_declaration_keyword =
                 keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
+            let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
+                && (self.peek_next_token(TokenType::OpenBrace).is_ok()
+                    || self.peek_next_token(TokenType::Multiply).is_ok());
             if mode == Some(DependencyMode::Namespace)
+                || is_export_type_binding
                 || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
                 || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
             {
@@ -1115,9 +1203,7 @@ impl Parser {
                 self.eat_using(start, descriptor, Asynchrony::Async)?
             }
             // await
-            else if keyword == Some(Keyword::Await)
-                && self.peek_next_keyword(Keyword::Import).is_err()
-            {
+            else if keyword == Some(Keyword::Await) {
                 self.eat_await()?
             }
             // comptime
@@ -1158,7 +1244,10 @@ impl Parser {
                 )
             }
             // object literal
-            else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
+            else if token_type == TokenType::OpenBrace
+                && (!self.options.in_statement_position
+                    || self.can_parse_object_literal_in_statement_position())
+            {
                 // prefer mapped types in type positions
                 if self.options.in_type {
                     let speculative_start = self.mark();
@@ -1201,15 +1290,6 @@ impl Parser {
                 self.tree
                     .insert(Expression::Block(block_id), self.get_span_from(start))
             }
-            // tree literal
-            else if self.language.supports_jsx()
-                && token_type == TokenType::LessThan
-                && self.peek_tree_literal().is_ok()
-            {
-                self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_tree_literal()
-                })?
-            }
             // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
             // (also handles multiline in type context: `<\nT\n>(...) => ...`)
             else if token_type == TokenType::LessThan
@@ -1223,48 +1303,56 @@ impl Parser {
                     cond1 || cond2
                 }
                 && (self.peek_next_next_token(TokenType::Comma).is_ok()
-                    || (self.options.in_type || !self.language.supports_jsx())
-                        && self
-                            .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
-                            .ok()
-                            .and_then(|gt_pos| {
-                                // must be `<T>(...` pattern, skip newlines in type context
-                                let after_gt_pos = if self.options.in_type {
-                                    self.skip_newlines(gt_pos).ok()?
-                                } else {
-                                    gt_pos
-                                };
-                                let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
-                                if after_gt.token.ty != TokenType::OpenParenthesis {
-                                    return None;
-                                }
-                                // find `)` and check for `:` or `=>` after (skip newlines in type context)
-                                let parenthesis_close = self
-                                    .find_matching_close(
-                                        Some(after_gt_pos + 1),
-                                        TokenType::OpenParenthesis,
-                                        TokenType::CloseParenthesis,
-                                    )
-                                    .ok()?;
-                                let after_close_pos = if self.options.in_type {
-                                    self.skip_newlines(parenthesis_close).ok()?
-                                } else {
-                                    parenthesis_close
-                                };
-                                let after_parenthesis_close =
-                                    self.tokens.get(after_close_pos as usize + 1)?;
-                                (after_parenthesis_close.token.ty == TokenType::Colon
-                                    || after_parenthesis_close.token.ty == TokenType::Arrow
-                                    || after_parenthesis_close.token.ty == TokenType::ArrowWide)
-                                    .then_some(true)
-                            })
-                            .is_some())
+                    || self
+                        .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
+                        .ok()
+                        .and_then(|gt_pos| {
+                            // must be `<T>(...` pattern, skip newlines in type context
+                            let after_gt_pos = if self.options.in_type {
+                                self.skip_newlines(gt_pos).ok()?
+                            } else {
+                                gt_pos
+                            };
+                            let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
+                            if after_gt.token.ty != TokenType::OpenParenthesis {
+                                return None;
+                            }
+                            // find `)` and check for `:` or `=>` after (skip newlines in type context)
+                            let parenthesis_close = self
+                                .find_matching_close(
+                                    Some(after_gt_pos + 1),
+                                    TokenType::OpenParenthesis,
+                                    TokenType::CloseParenthesis,
+                                )
+                                .ok()?;
+                            let after_close_pos = if self.options.in_type {
+                                self.skip_newlines(parenthesis_close).ok()?
+                            } else {
+                                parenthesis_close
+                            };
+                            let after_parenthesis_close =
+                                self.tokens.get(after_close_pos as usize + 1)?;
+                            (after_parenthesis_close.token.ty == TokenType::Colon
+                                || after_parenthesis_close.token.ty == TokenType::Arrow
+                                || after_parenthesis_close.token.ty == TokenType::ArrowWide)
+                                .then_some(true)
+                        })
+                        .is_some())
             {
                 let function_id = self.eat_function(start, descriptor, false, false)?;
                 self.tree.insert(
                     Expression::Declaration(function_id),
                     self.get_span_from(start),
                 )
+            }
+            // tree literal
+            else if self.language.supports_jsx()
+                && token_type == TokenType::LessThan
+                && self.peek_tree_literal().is_ok()
+            {
+                self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_tree_literal()
+                })?
             }
             // template literal
             else if self.peek_template_literal().is_ok() {
@@ -1304,9 +1392,8 @@ impl Parser {
                 // speculatively unwrap postfix static parameterisation with `<` or `<<`
                 //  (might also be just a comparison operator)
                 //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
-                let static_arguments = if !self.options.in_new_receiver
-                    && (self.peek_token(TokenType::LessThan).is_ok()
-                        || self.peek_token(TokenType::ShiftLeft).is_ok())
+                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok()
+                    || self.peek_token(TokenType::ShiftLeft).is_ok()
                 {
                     let speculative_start = self.mark();
                     let speculative_start_idx = self.tree.next_id();
@@ -1323,7 +1410,9 @@ impl Parser {
 
                 // immediately parse call if we have static arguments
                 // (so we can stuff the arguments into the call expression)
-                if static_arguments.is_some() && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                if static_arguments.is_some()
+                    && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                    && !self.options.in_new_receiver
                 {
                     let receiver = Expression::Path {
                         path,
@@ -2140,6 +2229,48 @@ type = type * 2
         });
     }
 
+    /// Parse `export type { Foo, Bar } from "module"`.
+    #[test]
+    fn test_parse_export_expression_type_items_with_target() {
+        let mut test = TestParser::new("export type { Foo, Bar } from \"module\"");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_string!(parser, *target, "module");
+            assert_eq!(items.len(), 2);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_string!(parser, *name, "Foo");
+                assert!(alias.is_none());
+            });
+            assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_string!(parser, *name, "Bar");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    /// Parse `export type { Foo }`.
+    #[test]
+    fn test_parse_export_expression_type_items_without_target() {
+        let mut test = TestParser::new("export type { Foo }");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Export { kind, target: None, items, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_string!(parser, *name, "Foo");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
     /// Parse `export * as baz from "foo"`.
     #[test]
     fn test_parse_export_expression_namespace_alias() {
@@ -2448,6 +2579,87 @@ const shapes = (
         assert_node!(parser.tree, expr_id, Expression::Block { .. });
     }
 
+    /// Parse a statement-position object literal with a comment.
+    #[test]
+    fn test_parse_statement_position_object_literal_with_comment() {
+        let mut test = TestParser::new("{ /* key */ a: 1 }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+                assert_string!(parser, *name, "a");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        });
+    }
+
+    /// Parse a statement-position object literal with a computed key.
+    #[test]
+    fn test_parse_statement_position_object_literal_computed_key() {
+        let mut test = TestParser::new("{ [key]: value }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::ObjectExpression { ty: None, properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { modifiers: _, key: Some(Key::Expression(key_id)), value: Some(value_id), default: None, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*key_id), "key");
+                assert_expression_path!(parser, parser.tree.get(*value_id), "value");
+            });
+        });
+    }
+
+    /// Parse a statement-position block with assignments.
+    #[test]
+    fn test_parse_statement_position_block_with_assignment() {
+        let mut test = TestParser::new("{ step = step + 1; return base + step; }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
+            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 2);
+                assert_node!(parser.tree, expressions[0], Expression::Statement(_));
+                assert_node!(parser.tree, expressions[1], Expression::Statement(statement_id) => {
+                    assert_node!(parser.tree, *statement_id, Expression::Return { .. });
+                });
+            });
+        });
+    }
+
+    /// Parse a statement-position block with an array literal.
+    #[test]
+    fn test_parse_statement_position_block_with_array_literal() {
+        let mut test = TestParser::new("{ [] }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Block(block_id) => {
+            assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                let expression_id = match parser.tree.get(expressions[0]) {
+                    Expression::Statement(statement_id) => *statement_id,
+                    _ => expressions[0],
+                };
+                assert_node!(parser.tree, expression_id, Expression::ArrayExpression { elements } => {
+                    assert!(elements.is_empty());
+                });
+            });
+        });
+    }
+
+    /// Prefer a block over a computed method object literal in statement position.
+    #[test]
+    fn test_parse_statement_position_computed_method_as_block() {
+        let mut test = TestParser::new("{ [key]() {} }");
+        let mut parser = test.prepare();
+        parser.options.in_statement_position = true;
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Block(_) => {});
+    }
+
     /// Parse an anonymous block with a do disambiguation.
     #[test]
     fn test_parse_anonymous_block_with_do_disambiguation() {
@@ -2683,6 +2895,36 @@ const shapes = (
         });
     }
 
+    /// Parse a TypeScript call with string literal type arguments.
+    #[test]
+    fn test_parse_typescript_call_with_string_literal_type_arguments() {
+        let mut test = TestParser::new_with_options(
+            "accessor.getValue<\"auto\" | \"always\" | \"never\">(\"long\")",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            let mut static_args = static_arguments.as_ref();
+            if static_args.is_none() {
+                if let Expression::Member { name, static_arguments: Some(member_args), .. } =
+                    parser.tree.get(*left)
+                {
+                    assert_string!(parser, *name, "getValue");
+                    static_args = Some(member_args);
+                }
+            }
+            let static_args = static_args.expect("expected static arguments on call or member");
+            assert_eq!(static_args.len(), 1);
+            assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                });
+            });
+        });
+    }
+
     /// Parse a lambda function type with empty parameters.
     #[test]
     fn test_parse_lambda_function_empty_type() {
@@ -2743,6 +2985,38 @@ const shapes = (
                     assert_eq!(*operator, BinaryOperator::GreaterThan);
                     assert_expression_path!(parser, parser.tree.get(*left), "a");
                     assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                });
+            });
+        });
+    }
+
+    /// Parse a generic lambda function value with a body.
+    #[test]
+    fn test_parse_generic_lambda_function_value() {
+        let mut test = TestParser::new("<T,>(x: T): T => x");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, default: None, .. } => {
+                    assert_string!(parser, *name, "T");
+                });
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "x");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "T");
+                    });
+                });
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "T");
+                });
+                assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "x");
                 });
             });
         });

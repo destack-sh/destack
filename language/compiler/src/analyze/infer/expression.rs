@@ -3451,7 +3451,8 @@ impl Compiler {
             let field_ty = match field {
                 PatternField::Named { .. }
                 | PatternField::Alias { .. }
-                | PatternField::Positional { .. } => {
+                | PatternField::Positional { .. }
+                | PatternField::Computed { .. } => {
                     if !binding_ty_fields.is_empty() {
                         let ty = binding_ty_fields.get(ty_idx).cloned();
                         ty_idx += 1;
@@ -3533,6 +3534,29 @@ impl Compiler {
                         module,
                         *pattern_id,
                         field_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+            }
+            PatternField::Computed {
+                key,
+                pattern,
+                default,
+                ..
+            } => {
+                self.infer_expression(module, *key, tree, symbols, types, infer, ctx)?;
+                if let Some(default) = default {
+                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                }
+                if let Some(pattern_id) = pattern {
+                    self.infer_pattern(
+                        module,
+                        *pattern_id,
+                        None,
                         tree,
                         symbols,
                         types,

@@ -1411,6 +1411,23 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *default, default_expression);
             }
         }
+        PatternField::Computed {
+            mutability: _,
+            key,
+            pattern,
+            default,
+        } => {
+            let key_expression = tree.get(*key);
+            visitor.visit_expression(tree, *key, key_expression);
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+            }
+            if let Some(default) = default {
+                let default_expression = tree.get(*default);
+                visitor.visit_expression(tree, *default, default_expression);
+            }
+        }
         PatternField::Alias {
             mutability: _,
             name: _,

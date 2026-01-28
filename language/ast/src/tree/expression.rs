@@ -874,7 +874,6 @@ impl Expression {
                     || finally_expression.is_some()
             }
             Expression::Match { .. } => true,
-            Expression::Using { .. } => true,
             _ => false,
         }
     }

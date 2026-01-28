@@ -1949,6 +1949,21 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 }
                 Some(field_block_id)
             }
+            PatternField::Computed {
+                key,
+                pattern,
+                default,
+                ..
+            } => {
+                let mut field_block_id = self.build_expression(*key, current_block_id)?;
+                if let Some(pattern_id) = pattern {
+                    field_block_id = self.build_pattern(*pattern_id, field_block_id)?;
+                }
+                if let Some(default_id) = default {
+                    return self.build_expression(*default_id, field_block_id);
+                }
+                Some(field_block_id)
+            }
             PatternField::Alias { default, .. } => {
                 if let Some(default_id) = default {
                     return self.build_expression(*default_id, current_block_id);
