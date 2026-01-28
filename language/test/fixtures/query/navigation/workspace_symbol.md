@@ -52,3 +52,50 @@ alpha(function) file=rank.ds range=1:1-1:33
 alphabet(function) file=rank.ds range=2:1-2:36
 megaAlpha(function) file=rank.ds range=3:1-3:37
 ```
+
+## Members and Containers
+
+### Include member symbols with containers
+
+Workspace symbol search should include class members and enum fields with container names.
+
+```ds:members.ds
+class Logger {
+    log(message: string): void {}
+    level: int32
+}
+
+enum Color {
+    Red,
+}
+```
+
+```query workspace_symbols log
+log(method) file=members.ds range=2:5-2:34 container=Logger
+Logger(class) file=members.ds range=1:1-4:2
+```
+
+```query workspace_symbols Red
+Red(enum_member) file=members.ds range=7:5-7:8 container=Color
+```
+
+## Additional Kinds
+
+### Include type aliases and namespaces
+
+Workspace symbol search should include type aliases and namespaces.
+
+```ds:kinds.ds
+export type UserId = string;
+export namespace Api {
+    export function fetch(): void {}
+}
+```
+
+```query workspace_symbols UserId
+UserId
+```
+
+```query workspace_symbols Api
+Api
+```

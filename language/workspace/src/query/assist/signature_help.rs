@@ -1,11 +1,11 @@
-use destack_base::StringId;
-use destack_dir::{Argument, Expression, GlobalSymbolId, NodeType};
+use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, Member, NodeType};
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
+use crate::format::format_call_signature;
 use crate::query::common::{
-    ParameterData, nominal_symbol_for_expression, parameter_data_for_symbol,
-    resolve_extension_member_symbol, resolve_member_access_symbol, with_query_context_for_file,
+    ParameterData, doc_strings_for_node, line_doc_strings_before_span, parameter_data_for_symbol,
+    resolve_call_target, with_query_context_for_file,
 };
 use crate::{ModuleAst, Session};
 
@@ -21,6 +21,7 @@ pub struct ParameterInfo {
 impl ParameterInfo {
     /// Create a parameter info.
     pub fn new(label: impl Into<String>) -> Self {
+        // build a parameter info with defaults
         Self {
             label: label.into(),
             documentation: None,
@@ -48,6 +49,7 @@ pub struct SignatureInfo {
 impl SignatureInfo {
     /// Create a signature info.
     pub fn new(label: impl Into<String>) -> Self {
+        // build a signature info with defaults
         Self {
             label: label.into(),
             documentation: None,
@@ -82,6 +84,7 @@ pub struct SignatureHelp {
 impl SignatureHelp {
     /// Create signature help with a single signature.
     pub fn single(signature: SignatureInfo, active_parameter: usize) -> Self {
+        // build a single signature response
         Self {
             signatures: vec![signature],
             active_signature: 0,
@@ -108,25 +111,36 @@ pub struct SignatureHelpResponse {
 
 /// Get signature help at the given position (inside a function call).
 pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<SignatureHelp> {
+    // resolve signature help within the query context
     with_query_context_for_file(session, file, |ctx| {
+        // resolve the dir tree for traversal
         let dir_tree = ctx.tree();
+
+        // resolve the source text for cursor checks
+        let source_file = session.files.get(ctx.file_id);
+        let source = source_file.text();
 
         // find enclosing AST nodes at the offset
         let enclosing = ctx.ast.tree.source_map.get_enclosing_spans(offset, offset);
+
+        // bail out when no enclosing spans exist
         if enclosing.is_empty() {
             return None;
         }
 
         // look for a call expression among the enclosing nodes
         for enclosing_span in &enclosing {
+            // resolve the dir node for the enclosing AST span
             let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enclosing_span.idx) else {
                 continue;
             };
 
+            // skip non expression nodes
             if dir_node_id.ty != NodeType::Expression {
                 continue;
             }
 
+            // read the expression node
             let expression_id = dir_node_id.try_into().ok()?;
             let expression = dir_tree.get::<Expression>(expression_id);
 
@@ -137,166 +151,237 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 ..
             } = expression
             {
-                // get the function being called
-                let left_expr = dir_tree.get::<Expression>(*left);
+                // resolve the call target symbol and name
+                let call_target = resolve_call_target(session, &ctx, *left);
+                let function_name = call_target.name.unwrap_or_else(|| "<function>".to_string());
 
-                // try to get the function name, target symbol, and member parameters
-                let (function_name, target_symbol, member_parameters) = match left_expr {
-                    // direct function call: add(...)
-                    Expression::GlobalReference { target_symbol, .. }
-                    | Expression::LocalReference { target_symbol, .. }
-                    | Expression::ModuleReference { target_symbol, .. } => {
-                        // copy the target symbol so all match arms use the same type
-                        let target_symbol = *target_symbol;
-
-                        // resolve the symbol name from the target module
-                        let target_module = session.modules.get(target_symbol.module_id);
-                        let target = target_module.read();
-                        let name = if let Some(target_ctx) = session.query_context(&target) {
-                            let symbols = target_ctx.symbols();
-                            let symbol_data = symbols.get_symbol(target_symbol.local_id);
-                            symbol_data
-                                .name()
-                                .map(|id| target_ctx.ast.strings.get(id).to_string())
-                        } else {
-                            None
-                        };
-                        (name, Some(target_symbol), None)
-                    }
-                    // method call: obj.method(...)
-                    Expression::Member {
-                        left: receiver,
-                        name,
-                        ..
-                    } => {
-                        // resolve the target symbol using the member expression and receiver
-                        let member_expression_id = *left;
-                        let target_symbol = resolve_member_access_symbol(
-                            session,
-                            &ctx,
-                            member_expression_id,
-                            *receiver,
-                            *name,
-                        );
-
-                        // resolve member parameters from extensions when symbol resolution fails
-                        let member_parameters = if target_symbol.is_none() {
-                            resolve_extension_member_parameters(session, &ctx, *receiver, *name)
-                        } else {
-                            None
-                        };
-
-                        let name = ctx.ast.strings.get(*name).to_string();
-                        (Some(name), target_symbol, member_parameters)
-                    }
-                    _ => (None, None, None),
-                };
-
-                let function_name = function_name.unwrap_or_else(|| "<function>".to_string());
-
-                // try to get actual parameter names from the function declaration
-                let params = member_parameters.unwrap_or_else(|| {
-                    get_function_parameters(session, target_symbol, dynamic_arguments.len())
-                });
-
-                let param_labels: Vec<_> = params.iter().map(|p| p.label.clone()).collect();
-                let signature_label = format!("{}({})", function_name, param_labels.join(", "));
-
-                let mut signature = SignatureInfo::new(signature_label);
-                for param in params {
-                    signature = signature.with_parameter(param);
-                }
+                // build signature info from the resolved symbol or fall back to args
+                let signature = build_signature_info(
+                    session,
+                    &function_name,
+                    call_target.symbol,
+                    dynamic_arguments.len(),
+                );
 
                 // determine active parameter based on cursor position
-                let active_parameter = determine_active_parameter(
+                let mut active_parameter = determine_active_parameter(
                     ctx.ast,
                     ctx.file_id,
                     &dir_tree,
+                    expression_id,
                     dynamic_arguments,
                     offset,
+                    source,
                 );
 
+                // default to zero when no parameters are available
+                if signature.parameters.is_empty() {
+                    active_parameter = 0;
+                }
+                // clamp to the last parameter when the cursor is past the end
+                else if active_parameter >= signature.parameters.len() {
+                    active_parameter = signature.parameters.len().saturating_sub(1);
+                }
+
+                // return the resolved signature help
                 return Some(SignatureHelp::single(signature, active_parameter));
             }
         }
 
+        // return none when no call expression is found
         None
     })?
 }
 
 /// Get parameter information for a function or method symbol.
-fn get_function_parameters(
+fn build_signature_info(
     session: &Session,
+    function_name: &str,
     target_symbol: Option<GlobalSymbolId>,
     argument_count: usize,
-) -> Vec<ParameterInfo> {
-    // bail out early when there is no target symbol
-    let Some(symbol_id) = target_symbol else {
-        return fallback_params(argument_count);
-    };
-
-    // collect parameter data from the shared parameter helpers
-    let Some(data) = parameter_data_for_symbol(session, symbol_id) else {
-        return fallback_params(argument_count);
-    };
-
-    // build parameter infos with optional documentation
-    let params = parameter_infos_from_data(&data);
-
-    // fall back when no parameters were collected
-    if params.is_empty() {
-        fallback_params(argument_count)
-    } else {
-        params
+) -> SignatureInfo {
+    // use formatted signature info when we can resolve the symbol
+    let symbol_id = target_symbol;
+    if let Some(symbol_id) = symbol_id {
+        // try to format the symbol's signature
+        let signature = signature_info_for_symbol(session, symbol_id, function_name);
+        // return the formatted signature when available
+        if let Some(signature) = signature {
+            return signature;
+        }
     }
+
+    // fall back to placeholder parameters based on argument count
+    let params = fallback_params(argument_count);
+    let param_labels: Vec<_> = params.iter().map(|p| p.label.clone()).collect();
+    let signature_label = format!("{function_name}({})", param_labels.join(", "));
+
+    // assemble the placeholder signature
+    let mut signature = SignatureInfo::new(signature_label);
+    for param in params {
+        signature = signature.with_parameter(param);
+    }
+
+    // return the assembled signature
+    signature
+}
+
+/// Format signature info from a resolved symbol.
+fn signature_info_for_symbol(
+    session: &Session,
+    symbol_id: GlobalSymbolId,
+    function_name: &str,
+) -> Option<SignatureInfo> {
+    // read the symbol's module and query context
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    // resolve the symbol declaration
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let declaration_ref = symbol.primary_declaration?;
+    drop(symbols);
+
+    // resolve the source text for doc parsing
+    let source_file = session.files.get(ctx.file_id);
+    let source = source_file.text();
+
+    // resolve the function signature from the declaration or member
+    let dir_tree = ctx.tree();
+    let (signature, doc_text) = match declaration_ref.local_id.ty {
+        // handle function declarations
+        NodeType::Declaration => {
+            let declaration_id = declaration_ref.local_id.try_into_typed().ok()?;
+            let declaration = dir_tree.get::<Declaration>(declaration_id);
+            let Declaration::Function { signature, .. } = declaration else {
+                return None;
+            };
+            let ast_node_id = dir_tree.get_source(declaration_id.id);
+            let doc_text = signature_doc_for_node(ctx.ast, source, ast_node_id);
+            (signature, doc_text)
+        }
+        // handle method members
+        NodeType::Member => {
+            let member_id = declaration_ref.local_id.try_into_typed().ok()?;
+            let member = dir_tree.get::<Member>(member_id);
+            let Member::Method { signature, .. } = member else {
+                return None;
+            };
+            let ast_node_id = dir_tree.get_source(member_id.id);
+            let doc_text = signature_doc_for_node(ctx.ast, source, ast_node_id);
+            (signature, doc_text)
+        }
+        _ => return None,
+    };
+
+    // format the signature label for display
+    let types = ctx.types();
+    let formatted = format_call_signature(
+        function_name,
+        signature,
+        ctx.module_id,
+        &dir_tree,
+        &types,
+        &session.modules,
+        &session.strings,
+        false,
+    );
+
+    // resolve parameter documentation when available
+    let params = if let Some(data) = parameter_data_for_symbol(session, symbol_id) {
+        parameter_infos_from_data(&formatted.parameters, &data)
+    } else {
+        formatted
+            .parameters
+            .iter()
+            .map(|label| ParameterInfo::new(label.clone()))
+            .collect()
+    };
+
+    // assemble the signature info
+    let mut signature = SignatureInfo::new(formatted.label);
+    if let Some(doc_text) = doc_text {
+        signature = signature.with_documentation(doc_text);
+    }
+    for param in params {
+        signature = signature.with_parameter(param);
+    }
+
+    // return the formatted signature
+    Some(signature)
+}
+
+/// Collect documentation attached to a declaration or member node.
+fn signature_doc_for_node(ast: &ModuleAst, source: &str, node_id: u32) -> Option<String> {
+    // collect doc strings from AST docs
+    let mut doc_strings = doc_strings_for_node(ast, node_id);
+
+    // fall back to line docs when AST docs are missing
+    if doc_strings.is_empty() {
+        let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+        doc_strings = line_doc_strings_before_span(source, span.start);
+    }
+
+    // return none when no docs are present
+    if doc_strings.is_empty() {
+        return None;
+    }
+
+    // filter out tag lines like @param and @returns
+    let mut lines = Vec::new();
+    for doc in doc_strings {
+        for raw_line in doc.lines() {
+            let mut line = raw_line.trim();
+            if let Some(stripped) = line.strip_prefix('*') {
+                line = stripped.trim();
+            }
+            if let Some(stripped) = line.strip_prefix("///") {
+                line = stripped.trim();
+            }
+            if line.is_empty() || line.starts_with("@param") || line.starts_with("@returns") {
+                continue;
+            }
+            lines.push(line.to_string());
+        }
+    }
+
+    // return none when no content remains
+    if lines.is_empty() {
+        return None;
+    }
+
+    // join the remaining lines
+    Some(lines.join("\n"))
 }
 
 /// Build parameter infos from shared parameter data.
-fn parameter_infos_from_data(data: &ParameterData) -> Vec<ParameterInfo> {
-    // map parameter names to infos and attach docs by name
-    data.names
+fn parameter_infos_from_data(labels: &[String], data: &ParameterData) -> Vec<ParameterInfo> {
+    // map parameter labels to infos and attach docs by position
+    labels
         .iter()
-        .map(|name| {
-            let mut info = ParameterInfo::new(name.clone());
-            if let Some(doc) = data.docs.get(name) {
-                info = info.with_documentation(doc.clone());
+        .enumerate()
+        .map(|(idx, label)| {
+            // build the parameter info
+            let mut info = ParameterInfo::new(label.clone());
+            let name = data.names.get(idx);
+            if let Some(name) = name {
+                let doc = data.docs.get(name);
+                if let Some(doc) = doc {
+                    info = info.with_documentation(doc.clone());
+                }
             }
             info
         })
         .collect()
 }
 
-/// Resolve member parameters from extensions when symbol resolution is unavailable.
-fn resolve_extension_member_parameters(
-    session: &Session,
-    ctx: &crate::query::common::QueryContext<'_>,
-    receiver: destack_dir::LocalNodeId<Expression>,
-    member_name_id: StringId,
-) -> Option<Vec<ParameterInfo>> {
-    // resolve the base nominal symbol for the receiver expression
-    let base_symbol = nominal_symbol_for_expression(session, ctx, receiver)?;
-
-    // resolve the member name once for comparisons
-    let member_name = session.strings.get(member_name_id).to_string();
-
-    // resolve the extension member symbol through the shared member resolver
-    let member_symbol =
-        resolve_extension_member_symbol(session, base_symbol, ctx.module_id, &member_name)?;
-
-    // collect parameter data from the resolved member symbol
-    let data = parameter_data_for_symbol(session, member_symbol)?;
-    let params = parameter_infos_from_data(&data);
-
-    // return none when the extension member has no parameters
-    if params.is_empty() {
-        None
-    } else {
-        Some(params)
-    }
-}
-
+/// Build placeholder parameter infos when signature data is missing.
 fn fallback_params(argument_count: usize) -> Vec<ParameterInfo> {
+    // ensure at least one parameter placeholder
     let count = argument_count.max(1);
+
+    // format placeholder parameter labels
     (0..count)
         .map(|i| ParameterInfo::new(format!("arg{i}")))
         .collect()
@@ -309,8 +394,10 @@ fn determine_active_parameter(
     ast: &ModuleAst,
     file_id: FileId,
     dir_tree: &destack_dir::NodeTree,
+    call_expression_id: destack_dir::LocalNodeId<Expression>,
     arguments: &[destack_dir::LocalNodeId<Argument>],
     cursor_offset: u32,
+    source: &str,
 ) -> usize {
     // if no arguments, we're on parameter 0
     if arguments.is_empty() {
@@ -319,15 +406,19 @@ fn determine_active_parameter(
 
     // find which argument the cursor is in or after
     let mut active_param = 0;
+    let mut last_span_end = None;
 
     for (idx, arg_id) in arguments.iter().enumerate() {
         // get the argument's source span
         let arg_node_id: destack_dir::LocalNodeIdAny = (*arg_id).into();
         let span = get_argument_span(ast, file_id, dir_tree, arg_node_id);
+        last_span_end = Some(span.end);
+
         // if cursor is before this argument's start, we're on the previous parameter
         if cursor_offset < span.start {
             break;
         }
+
         // cursor is in or after this argument
         active_param = idx;
 
@@ -337,6 +428,21 @@ fn determine_active_parameter(
         }
     }
 
+    // allow an extra parameter when cursor sits after a trailing comma
+    if let Some(last_span_end) = last_span_end {
+        // detect trailing comma usage for the call expression
+        let call_span = get_call_span(ast, file_id, dir_tree, call_expression_id);
+        if cursor_offset > last_span_end && cursor_offset <= call_span.end {
+            let slice_start = last_span_end.min(call_span.end) as usize;
+            let slice_end = cursor_offset.min(call_span.end) as usize;
+            let slice = source.get(slice_start..slice_end).unwrap_or("");
+            if slice.contains(',') {
+                return arguments.len();
+            }
+        }
+    }
+
+    // return the determined parameter index
     active_param
 }
 
@@ -346,6 +452,18 @@ fn get_argument_span(
     file_id: FileId,
     dir_tree: &destack_dir::NodeTree,
     node_id: destack_dir::LocalNodeIdAny,
+) -> destack_source::Span {
+    let source_id = dir_tree.get_source(node_id.id);
+    let ast_span = ast.tree.source_map.get(source_id);
+    destack_source::Span::new(file_id, ast_span.start, ast_span.end)
+}
+
+/// Get the span of a call expression node.
+fn get_call_span(
+    ast: &ModuleAst,
+    file_id: FileId,
+    dir_tree: &destack_dir::NodeTree,
+    node_id: destack_dir::LocalNodeId<Expression>,
 ) -> destack_source::Span {
     let source_id = dir_tree.get_source(node_id.id);
     let ast_span = ast.tree.source_map.get(source_id);

@@ -111,6 +111,40 @@ class Registration {
 }
 ```
 
+## Cross-Module
+
+### Rename exported function across imports
+
+Renaming an exported function should update its imports and call sites.
+
+```ds:lib.ds
+export function greet(name: string): string {
+//              ^^^^^^ target
+    return "Hello, " + name;
+}
+```
+
+```ds:main.ds
+import { greet } from "./lib.ds";
+
+const message = greet("Destack");
+```
+
+```query rename target "salute"
+```
+
+```expected:lib
+export function salute(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```expected:main
+import { salute } from "./lib.ds";
+
+const message = salute("Destack");
+```
+
 ## Members
 
 ### Rename class method
@@ -181,6 +215,35 @@ struct Point {
 function length(p: Point): int32 {
     return p.z + p.z;
 }
+```
+
+## Enums
+
+### Rename enum member
+
+Renaming an enum member should update the definition and all uses.
+
+```ds
+enum Status {
+    Pending,
+//  ^^^^^^ target
+    Active,
+}
+
+const state = Status.Pending;
+//                     ^ use:pending
+```
+
+```query rename target "Queued"
+```
+
+```expected:main
+enum Status {
+    Queued,
+    Active,
+}
+
+const state = Status.Queued;
 ```
 
 ## Scope and Shadowing

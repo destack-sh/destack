@@ -1,14 +1,14 @@
 use destack_ast as ast;
 use destack_base::StringId;
 use destack_dir::{
-    Declaration, Declarator, DependencyItem, DynamicKey, EnumField, Expression, ExtensionKind,
-    GlobalNodeIdAny, GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern,
-    Resolution, SymbolSpace, Type,
+    Declaration, Declarator, DependencyItem, DependencyMode, DynamicKey, EnumField, Expression,
+    GlobalNodeIdAny, GlobalSymbolId, LocalNodeIdAny, LocalScopeId, LocalSymbolId, Member, NodeType,
+    Parameter, Pattern, Resolution, SymbolSpace, SymbolType, Type,
 };
 use destack_source::{FileContent, FileId, ModuleId, Span};
 
-use super::QueryContext;
 use super::span::{get_dir_node_main_span, get_dir_node_span, get_module_by_file_id};
+use super::{QueryContext, for_each_visible_extension};
 use crate::Session;
 use crate::program::{ModuleAst, ModuleDir};
 
@@ -23,12 +23,68 @@ pub struct SymbolAtOffset {
     pub span: Span,
 }
 
+/// Check whether a symbol type participates in the type namespace.
+pub(crate) fn is_type_symbol(symbol_type: SymbolType) -> bool {
+    matches!(
+        symbol_type,
+        SymbolType::Class
+            | SymbolType::Struct
+            | SymbolType::Interface
+            | SymbolType::Enum
+            | SymbolType::TypeAlias
+            | SymbolType::Newtype
+    )
+}
+
+/// Check whether a symbol matches a requested symbol space filter.
+pub(crate) fn matches_symbol_space_filter(
+    symbol_type: SymbolType,
+    symbol_space: SymbolSpace,
+    filter: Option<SymbolSpace>,
+) -> bool {
+    // allow all symbols when no filter is present
+    let Some(filter) = filter else {
+        return true;
+    };
+
+    // return whether the symbol matches the filter
+    match filter {
+        SymbolSpace::Type => match symbol_space {
+            SymbolSpace::Type => true,
+            SymbolSpace::TypeValue => is_type_symbol(symbol_type),
+            _ => is_type_symbol(symbol_type),
+        },
+        SymbolSpace::Value => {
+            symbol_space == SymbolSpace::Value || symbol_space == SymbolSpace::TypeValue
+        }
+        SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
+        SymbolSpace::Label => symbol_space == SymbolSpace::Label,
+    }
+}
+
 /// Build a global symbol id from a module and local symbol id.
 fn global_symbol(module_id: ModuleId, local_id: destack_dir::LocalSymbolId) -> GlobalSymbolId {
+    // assemble the global symbol id
     GlobalSymbolId {
         module_id,
         local_id,
     }
+}
+
+/// Find the scope owned by a symbol when it declares one.
+pub(crate) fn owned_scope_for_symbol(
+    symbols: &destack_dir::SymbolTable,
+    symbol_id: LocalSymbolId,
+) -> Option<LocalScopeId> {
+    // scan scopes for the owner id
+    for (idx, scope) in symbols.scopes().enumerate() {
+        if scope.owner_id == Some(symbol_id) {
+            return Some(LocalScopeId::new(idx as u32));
+        }
+    }
+
+    // return none when no scope is owned
+    None
 }
 
 /// Find the symbol referenced at a given offset.
@@ -41,6 +97,7 @@ pub fn find_symbol_at_offset(
     file_id: FileId,
     offset: u32,
 ) -> Option<SymbolAtOffset> {
+    // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
     let ctx = session.query_context(&module)?;
@@ -97,8 +154,8 @@ pub fn find_symbol_at_offset(
                 let expr = dir_tree.get::<Expression>(expr_id);
 
                 // resolve member symbols when the cursor is on the member name
-                if let Expression::Member { left, name, .. } = expr
-                    && let Some(result) = member_symbol_at_offset(
+                if let Expression::Member { left, name, .. } = expr {
+                    let result = member_symbol_at_offset(
                         session,
                         &ctx,
                         expr_id,
@@ -106,9 +163,10 @@ pub fn find_symbol_at_offset(
                         *left,
                         *name,
                         offset,
-                    )
-                {
-                    return Some(result);
+                    );
+                    if let Some(result) = result {
+                        return Some(result);
+                    }
                 }
 
                 // resolve direct target symbols from the expression
@@ -218,7 +276,7 @@ pub fn find_symbol_at_offset(
                     ),
                 });
             }
-            // check if it's a dependency item (import or re-export specifier)
+            // check if it's a dependency item (import or re export specifier)
             NodeType::DependencyItem => {
                 let Ok(item_id) = dir_node_id.try_into() else {
                     continue;
@@ -278,8 +336,8 @@ pub fn find_symbol_at_offset(
         let expr = dir_tree.get::<Expression>(expr_id);
 
         // resolve member symbols when the cursor is on the member name
-        if let Expression::Member { left, name, .. } = expr
-            && let Some(result) = member_symbol_at_offset(
+        if let Expression::Member { left, name, .. } = expr {
+            let result = member_symbol_at_offset(
                 session,
                 &ctx,
                 expr_id,
@@ -287,9 +345,10 @@ pub fn find_symbol_at_offset(
                 *left,
                 *name,
                 offset,
-            )
-        {
-            return Some(result);
+            );
+            if let Some(result) = result {
+                return Some(result);
+            }
         }
 
         if let Some(target_symbol) = expr.target_symbol() {
@@ -339,9 +398,10 @@ fn member_symbol_at_offset(
 /// Get the canonical symbol for a given symbol id.
 ///
 /// Follows the canonical_symbol chain to get the original definition.
-/// For imports, this returns the imported symbol. For regular symbols,
-/// this returns the same symbol_id.
+/// For imports, this returns the imported symbol.
+/// For regular symbols, this returns the same symbol_id.
 pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> GlobalSymbolId {
+    // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let Some(ctx) = session.query_context(&module) else {
@@ -359,6 +419,7 @@ pub fn get_canonical_symbol(session: &Session, symbol_id: GlobalSymbolId) -> Glo
         return get_canonical_symbol(session, canonical);
     }
 
+    // return the original symbol id
     symbol_id
 }
 
@@ -441,12 +502,24 @@ fn get_symbol_span_with(
 
     // resolve the primary declaration for the canonical symbol
     let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
-    let declaration = canonical_symbol.primary_declaration?;
+    let declaration = canonical_symbol.primary_declaration;
+    let target_symbol = canonical_symbol.target_symbol;
 
     drop(symbols);
 
     // extract the desired span from the declaration node
-    span_for_declaration(ctx.ast, ctx.dir, declaration.local_id)
+    if let Some(declaration) = declaration {
+        return span_for_declaration(ctx.ast, ctx.dir, declaration.local_id);
+    }
+
+    // follow target symbols when the canonical symbol is an alias
+    if let Some(target) = target_symbol {
+        drop(module);
+        return get_symbol_span_with(session, target, span_for_declaration);
+    }
+
+    // fall back to default or export assignment spans when present
+    fallback_export_span(&ctx, canonical_id, span_for_declaration)
 }
 
 /// Get the definition span of a symbol.
@@ -459,6 +532,43 @@ pub fn get_symbol_definition_span(session: &Session, symbol_id: GlobalSymbolId) 
 /// Get the full declaration span of a symbol.
 pub fn get_symbol_declaration_span(session: &Session, symbol_id: GlobalSymbolId) -> Option<Span> {
     get_symbol_span_with(session, symbol_id, get_dir_node_span)
+}
+
+/// Resolve export assignment or default export spans for a symbol.
+fn fallback_export_span(
+    ctx: &QueryContext<'_>,
+    symbol_id: GlobalSymbolId,
+    span_for_declaration: impl Fn(&ModuleAst, &ModuleDir, LocalNodeIdAny) -> Option<Span> + Copy,
+) -> Option<Span> {
+    // handle export assignment symbols
+    let is_export_assignment = symbol_id.local_id == ctx.dir.export_assignment_symbol;
+    if is_export_assignment {
+        let item_id = *ctx.dir.export_assignment.read();
+        if let Some(item_id) = item_id {
+            return span_for_declaration(ctx.ast, ctx.dir, item_id.into());
+        }
+    }
+
+    // skip when the symbol is not the default export
+    if symbol_id.local_id != ctx.dir.default_symbol {
+        return None;
+    }
+
+    // scan dependency items for default exports
+    let dir_tree = ctx.tree();
+    for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
+        let DependencyItem::Value { mode, .. } = dir_tree.get(item_id) else {
+            continue;
+        };
+
+        if *mode != DependencyMode::Default {
+            continue;
+        }
+
+        return span_for_declaration(ctx.ast, ctx.dir, item_id.into());
+    }
+
+    None
 }
 
 /// Resolve a member symbol from recorded type resolution data.
@@ -535,10 +645,12 @@ pub(crate) fn nominal_symbol_for_expression(
 
     // fall back to the expression target symbol when type info is missing
     if type_id.is_none() {
+        // resolve the expression and its target symbol
         let dir_tree = ctx.tree();
         let expression = dir_tree.get::<Expression>(expression_id);
         let target_symbol = expression.target_symbol()?;
 
+        // resolve type information for the target symbol
         let types = ctx.types();
         let symbols = ctx.symbols();
         type_id = types.get_type_id_for_symbol(&symbols, target_symbol);
@@ -562,6 +674,7 @@ pub(crate) fn get_member_access_name_span(
     expression_id: destack_dir::LocalNodeId<Expression>,
     member_name: &str,
 ) -> Option<Span> {
+    // read the full expression span
     let full_span = get_dir_node_span(ctx.ast, ctx.dir, expression_id.into())?;
     let needle = member_name.as_bytes();
 
@@ -584,7 +697,6 @@ pub(crate) fn get_member_access_name_span(
     let Some(slice) = content.get(start..end) else {
         return Some(full_span);
     };
-
     let hay = slice.as_bytes();
 
     // bail out when the member name is longer than the expression span
@@ -641,6 +753,7 @@ fn resolve_nominal_symbol_from_type(
     types: &destack_dir::TypeTable,
     type_id: destack_dir::LocalTypeId,
 ) -> Option<GlobalSymbolId> {
+    // walk the type structure to find a nominal symbol
     match types.get_type(type_id) {
         Type::Reference { symbol, .. } => Some(*symbol),
         Type::Object { .. } => types.symbol_for_instance_type(type_id),
@@ -675,6 +788,7 @@ fn resolve_nominal_symbol_from_type(
 
 /// Resolve a static member name from a dynamic key.
 fn member_key_name(session: &Session, key: &DynamicKey) -> Option<String> {
+    // resolve name and numeric keys into strings
     match key {
         DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
             Some(session.strings.get(*name_id).to_string())
@@ -763,19 +877,24 @@ fn resolve_member_symbol_from_declaration(
     let declaration = tree.get(local_decl_id);
 
     // resolve members declared on the type
-    if let Some(member_ids) = declaration.member_ids()
-        && let Some(symbol_id) =
-            resolve_member_from_members(session, &tree, member_ids, member_name)
-    {
-        return Some(global_symbol(ctx.module_id, symbol_id));
+    let member_ids = declaration.member_ids();
+    if let Some(member_ids) = member_ids {
+        let symbol_id = resolve_member_from_members(session, &tree, member_ids, member_name);
+
+        // return the member symbol when found
+        if let Some(symbol_id) = symbol_id {
+            return Some(global_symbol(ctx.module_id, symbol_id));
+        }
     }
 
     // resolve enum fields for enum declarations
-    if let Declaration::Enum { fields, .. } = declaration
-        && let Some(symbol_id) =
-            resolve_member_from_enum_fields(session, &tree, fields, member_name)
-    {
-        return Some(global_symbol(ctx.module_id, symbol_id));
+    if let Declaration::Enum { fields, .. } = declaration {
+        let symbol_id = resolve_member_from_enum_fields(session, &tree, fields, member_name);
+
+        // return the member symbol when found
+        if let Some(symbol_id) = symbol_id {
+            return Some(global_symbol(ctx.module_id, symbol_id));
+        }
     }
 
     // return none when no member matches
@@ -789,45 +908,22 @@ pub(crate) fn resolve_extension_member_symbol(
     current_module_id: ModuleId,
     member_name: &str,
 ) -> Option<GlobalSymbolId> {
-    // normalize the target symbol across imports and re exports
-    let canonical_target = get_canonical_symbol(session, target_symbol);
+    // track the first matching extension member
+    let mut resolved = None;
 
-    // scan all modules for extensions that target the canonical symbol
-    for module in session.modules.iter() {
-        let module = module.read();
-        let Some(ctx) = session.query_context(&module) else {
-            continue;
-        };
-        let types = ctx.types();
-
-        // read extensions that target the canonical symbol
-        let Some(extension_ids) = types.get_extensions_for_target(canonical_target) else {
-            continue;
-        };
-
-        for extension_id in extension_ids {
-            let extension = types.get_extension(*extension_id);
-
-            // filter out non visible extensions
-            let visible = match extension.kind {
-                ExtensionKind::Inherent => true,
-                ExtensionKind::Local => extension.symbol.module_id == current_module_id,
-                ExtensionKind::Nominal => true,
-            };
-            if !visible {
-                continue;
-            }
-
-            // resolve the member within the extension declaration
-            if let Some(symbol_id) =
-                resolve_member_symbol_from_declaration(session, extension.symbol, member_name)
-            {
-                return Some(symbol_id);
-            }
+    for_each_visible_extension(session, target_symbol, current_module_id, |_, extension| {
+        // resolve the member within the extension declaration
+        if let Some(symbol_id) =
+            resolve_member_symbol_from_declaration(session, extension.symbol, member_name)
+        {
+            resolved = Some(symbol_id);
+            return true;
         }
-    }
 
-    None
+        false
+    });
+
+    resolved
 }
 
 /// Resolve a nominal type symbol from a binding initializer or annotation.
@@ -861,10 +957,12 @@ fn resolve_nominal_symbol_from_initializer(
     let declarator = dir_tree.get::<Declarator>(declarator_id);
 
     // resolve the nominal type from the type annotation when present
-    if let Some(ty_expr_id) = declarator.ty
-        && let Some(symbol) = resolve_nominal_symbol_from_type_expression(session, ctx, ty_expr_id)
-    {
-        return Some(symbol);
+    let ty_expr_id = declarator.ty;
+    if let Some(ty_expr_id) = ty_expr_id {
+        let symbol = resolve_nominal_symbol_from_type_expression(session, ctx, ty_expr_id);
+        if let Some(symbol) = symbol {
+            return Some(symbol);
+        }
     }
 
     // fall back to the initializer expression
@@ -878,9 +976,11 @@ fn resolve_nominal_symbol_from_value_expression(
     ctx: &QueryContext<'_>,
     expression_id: destack_dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
+    // resolve the expression node
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<Expression>(expression_id);
 
+    // resolve nominal symbols based on expression shapes
     match expression {
         Expression::TaggedScalarExpression { ty, .. }
         | Expression::TaggedTupleExpression { ty, .. }
@@ -898,15 +998,17 @@ fn resolve_nominal_symbol_from_value_expression(
 }
 
 /// Resolve a nominal type symbol from a type expression.
-fn resolve_nominal_symbol_from_type_expression(
+pub(crate) fn resolve_nominal_symbol_from_type_expression(
     session: &Session,
     ctx: &QueryContext<'_>,
     expression_id: destack_dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
+    // resolve the expression and target symbol
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<Expression>(expression_id);
     let target_symbol = expression.target_symbol()?;
 
+    // resolve the target symbol metadata
     let module = session.modules.get(target_symbol.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
@@ -914,8 +1016,9 @@ fn resolve_nominal_symbol_from_type_expression(
     let symbol = symbols.get_symbol(target_symbol.local_id);
 
     if symbol.space == SymbolSpace::Type || symbol.space == SymbolSpace::TypeValue {
-        Some(target_symbol)
-    } else {
-        None
+        return Some(target_symbol);
     }
+
+    // return none when the symbol is not a type
+    None
 }

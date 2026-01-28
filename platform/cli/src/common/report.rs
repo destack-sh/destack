@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Duration;
 
 use clap::{Args, ValueEnum};
@@ -604,8 +605,7 @@ pub fn print_stats_summary(
 
     // show per package breakdown if multiple packages, excluding internal ones
     // aggregate by package name to avoid duplicates
-    let mut package_map: std::collections::HashMap<String, (usize, usize, Duration)> =
-        std::collections::HashMap::new();
+    let mut package_map: HashMap<String, (usize, usize, Duration)> = HashMap::new();
     for pkg in &stats.packages {
         let name = pkg.name.as_deref().unwrap_or("");
         // skip internal packages

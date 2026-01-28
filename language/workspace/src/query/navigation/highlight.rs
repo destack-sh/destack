@@ -73,17 +73,18 @@ pub struct DocumentHighlightResponse {
 
 /// Highlight all occurrences of the symbol at the given position in the document.
 ///
-/// Only highlights within the same file (for cross-file, use find_references).
+/// Only highlights within the same file (for cross file, use find_references).
 pub fn document_highlight(session: &Session, file: FileId, offset: u32) -> Vec<DocumentHighlight> {
-    // 1. find the symbol at offset
+    // find the symbol at offset
     let Some(symbol_at) = find_symbol_at_offset(session, file, offset) else {
         return Vec::new();
     };
 
-    // 2. get canonical symbol (resolve imports)
+    // get canonical symbol and resolve imports
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
     with_query_context_for_file(session, file, |ctx| {
+        // initialize highlight collection
         let mut highlights = Vec::new();
 
         // check if the definition is in this file, add as write highlight

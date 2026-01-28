@@ -19,7 +19,7 @@ const msg = greet("World");
 Hovering over `greet` at the call site should show "function greet".
 
 ```query hover use:greet
-range=main.ds:5:13-5:18 signature=function greet(name) documentation=<none>
+range=main.ds:5:13-5:18 signature=function greet(name: string): string documentation=<none>
 ```
 
 ### Hover over re-exported function
@@ -46,7 +46,7 @@ const message = announce("World");
 Hovering over `announce` should show "function announce".
 
 ```query hover use:announce
-range=main.ds:3:17-3:25 signature=export function announce(name) documentation=<none>
+range=main.ds:3:17-3:25 signature=export function announce(name: string): string documentation=<none>
 ```
 
 ## Structs
@@ -70,6 +70,27 @@ Hovering over `Point` in the type annotation should show "struct Point".
 
 ```query hover use:Point
 range=main.ds:6:10-6:15 signature=struct Point documentation=<none>
+```
+
+## Type Aliases
+
+### Hover over type alias usage
+
+Hovering over a type alias reference should display its kind.
+
+```ds
+type UserId = string;
+
+function main() {
+    const id: UserId = "abc";
+//             ^^^^^ use:UserId
+}
+```
+
+Hovering over `UserId` should show "type UserId".
+
+```query hover use:UserId
+type UserId
 ```
 
 ## Classes
@@ -472,6 +493,21 @@ Hovering over `p` should show the variable with its type.
 let p: Point
 ```
 
+### Hover over inferred local variable
+
+Hovering over an inferred local variable should show the inferred type.
+
+```ds
+function main() {
+    const count = 1;
+//        ^ hover:local_count
+}
+```
+
+```query hover hover:local_count
+let count: 1
+```
+
 ## Documentation Comments
 
 ### Hover on documentation should not return symbol
@@ -491,4 +527,42 @@ Hovering over the doc comment text should return nothing (no symbol).
 
 ```query hover hover:doc_span
 <none>
+```
+
+### Hover includes documentation text
+
+Hovering over a documented symbol should include the doc comment text.
+
+```ds
+/// Says hello.
+function greet(name: string): string {
+    return name;
+}
+
+greet("World");
+//^^^^^ use:greet
+```
+
+```query hover use:greet
+range=main.ds:6:1-6:6 signature=function greet(name: string): string documentation=Says hello.
+```
+
+### Hover includes block documentation text
+
+Block doc comments should also appear in hover documentation.
+
+```ds
+/**
+ * Sends a greeting.
+ */
+function greetBlock(name: string): string {
+    return name;
+}
+
+greetBlock("World");
+//^^^^^^^^^^ use:greet_block
+```
+
+```query hover use:greet_block
+range=main.ds:8:1-8:11 signature=function greetBlock(name: string): string documentation=Sends a greeting.
 ```

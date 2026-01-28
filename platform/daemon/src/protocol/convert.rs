@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use destack_source::{
@@ -247,7 +247,7 @@ pub fn daemon_messages_to_records(messages: &[DaemonMessage]) -> Vec<DaemonMessa
 /// Convert diagnostics into protocol batches grouped by file id.
 pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch> {
     // group diagnostics by file
-    let mut by_file = std::collections::HashMap::new();
+    let mut by_file = HashMap::new();
     for diagnostic in diagnostics {
         by_file
             .entry(diagnostic.file_id)

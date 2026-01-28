@@ -95,6 +95,11 @@ impl Argument {
             Argument::Spread { value, .. } => *value,
         }
     }
+
+    /// Return whether the argument carries an explicit label.
+    pub fn is_named(&self) -> bool {
+        matches!(self, Argument::Named { .. } | Argument::Labeled { .. })
+    }
 }
 
 impl Node for Argument {

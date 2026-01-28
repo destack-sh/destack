@@ -6,7 +6,8 @@ use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
 use super::document_symbol::SymbolKind;
-use crate::Session;
+use crate::query::common::{QueryContext, score_completion};
+use crate::{ModuleSource, Session};
 
 /// A symbol in the workspace (flat list for workspace symbol search).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -41,18 +42,28 @@ pub struct WorkspaceSymbolsResponse {
 
 /// Search for symbols across the workspace.
 ///
-/// Returns symbols whose names contain the query string (case-insensitive).
+/// Returns symbols whose names contain the query string (case insensitive).
 pub fn workspace_symbols(
     session: &Session,
     query: &str,
     max_results: usize,
 ) -> Vec<WorkspaceSymbol> {
-    let mut scored_symbols: Vec<(u8, WorkspaceSymbol)> = Vec::new();
-    let query_lower = query.to_lowercase();
+    // prepare the scored symbol buffer
+    let mut scored_symbols: Vec<(u32, WorkspaceSymbol)> = Vec::new();
+
+    // normalize query input
+    let query = query.trim();
 
     // search all modules
     for module in session.modules.iter() {
         let module = module.read();
+
+        // skip builtin modules
+        if module.source != ModuleSource::User {
+            continue;
+        }
+
+        // resolve query context for the module
         let Some(ctx) = session.query_context(&module) else {
             continue;
         };
@@ -63,68 +74,88 @@ pub fn workspace_symbols(
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
             // get the declaration name
             let descriptor = declaration.descriptor();
-            let Some(name) = descriptor.name else {
-                continue;
+            let name = match declaration {
+                dir::Declaration::Global { .. } => "global".to_string(),
+                _ => descriptor
+                    .name
+                    .map(|name| session.strings.get(name.string()).to_string())
+                    .unwrap_or_else(|| "<anonymous>".to_string()),
             };
 
-            let name = session.strings.get(name.string()).to_string();
-            let name_lower = name.to_lowercase();
+            // get the declaration kind
+            let kind = declaration_symbol_kind(declaration);
 
-            // check whether the symbol matches the query and compute a score
-            let Some(score) = match_score(&name_lower, &query_lower) else {
-                continue;
-            };
-
-            // get the kind based on declaration type
-            let kind = match declaration {
-                dir::Declaration::Global { .. } => SymbolKind::Namespace,
-                dir::Declaration::Function { .. } => SymbolKind::Function,
-                dir::Declaration::Struct { .. } => SymbolKind::Struct,
-                dir::Declaration::Class { .. } => SymbolKind::Class,
-                dir::Declaration::Interface { .. } => SymbolKind::Interface,
-                dir::Declaration::Enum { .. } => SymbolKind::Enum,
-                dir::Declaration::Namespace { .. } => SymbolKind::Namespace,
-                dir::Declaration::Type { .. } => SymbolKind::TypeParameter,
-                dir::Declaration::Extension { .. } => SymbolKind::Class,
-            };
-
-            // find container by walking up parent tree
+            // resolve container by walking up the parent chain
             let container = find_container_name(&dir_tree, &session.strings, declaration_id.id);
 
-            // get span (safely, skipping if out of bounds)
-            let ast_node_id = dir_tree.get_source(declaration_id.id);
-            let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                ctx.ast.tree.source_map.get(ast_node_id)
-            }));
-
-            let Ok(full_span) = full_span else {
+            // resolve the declaration span
+            let Some(range) = node_span(&ctx, &dir_tree, declaration_id.id) else {
                 continue;
             };
 
-            scored_symbols.push((
-                score,
-                WorkspaceSymbol {
-                    name,
-                    kind,
-                    file: ctx.file_id,
-                    range: full_span,
-                    container,
-                },
-            ));
+            // score declaration match
+            if let Some(score) = score_workspace_symbol(&name, container.as_deref(), query) {
+                scored_symbols.push((
+                    score,
+                    WorkspaceSymbol {
+                        name: name.clone(),
+                        kind,
+                        file: ctx.file_id,
+                        range,
+                        container: container.clone(),
+                    },
+                ));
+            }
+
+            // collect member symbols with the declaration as container
+            if let Some(member_ids) = declaration.member_ids() {
+                for member_id in member_ids {
+                    let Some(member_symbol) =
+                        member_to_workspace_symbol(session, &ctx, &dir_tree, *member_id, &name)
+                    else {
+                        continue;
+                    };
+
+                    if let Some(score) =
+                        score_workspace_symbol(&member_symbol.name, Some(&name), query)
+                    {
+                        scored_symbols.push((score, member_symbol));
+                    }
+                }
+            }
+
+            // collect enum field symbols with the enum as container
+            if let dir::Declaration::Enum { fields, .. } = declaration {
+                for field_id in fields {
+                    let Some(field_symbol) =
+                        enum_field_to_workspace_symbol(session, &ctx, &dir_tree, *field_id, &name)
+                    else {
+                        continue;
+                    };
+
+                    if let Some(score) =
+                        score_workspace_symbol(&field_symbol.name, Some(&name), query)
+                    {
+                        scored_symbols.push((score, field_symbol));
+                    }
+                }
+            }
         }
     }
 
-    // sort by score, then name, then location for deterministic results
+    // sort by score descending, then name and location for deterministic results
     scored_symbols.sort_by(|left, right| {
         let left_key = (
-            left.0,
+            std::cmp::Reverse(left.0),
+            left.1.name.len(),
             left.1.name.to_lowercase(),
             left.1.file.0,
             left.1.range.start,
             left.1.range.end,
         );
         let right_key = (
-            right.0,
+            std::cmp::Reverse(right.0),
+            right.1.name.len(),
             right.1.name.to_lowercase(),
             right.1.file.0,
             right.1.range.start,
@@ -148,41 +179,133 @@ pub fn workspace_symbols(
         }
     }
 
+    // enforce the maximum result limit
     if symbols.len() > max_results {
         symbols.truncate(max_results);
     }
 
+    // return the final symbol list
     symbols
 }
 
-/// Score how well a symbol name matches the query.
-fn match_score(name_lower: &str, query_lower: &str) -> Option<u8> {
-    if query_lower.is_empty() {
-        return Some(2);
+/// Score a workspace symbol against the query.
+fn score_workspace_symbol(name: &str, _container: Option<&str>, query: &str) -> Option<u32> {
+    // match the symbol name against the query
+    score_completion(name, query).map(|matched| matched.score)
+}
+
+/// Convert a declaration to a workspace symbol kind.
+fn declaration_symbol_kind(declaration: &dir::Declaration) -> SymbolKind {
+    // map declaration types to symbol kinds
+    match declaration {
+        dir::Declaration::Global { .. } => SymbolKind::Namespace,
+        dir::Declaration::Function { .. } => SymbolKind::Function,
+        dir::Declaration::Struct { .. } => SymbolKind::Struct,
+        dir::Declaration::Class { .. } => SymbolKind::Class,
+        dir::Declaration::Interface { .. } => SymbolKind::Interface,
+        dir::Declaration::Enum { .. } => SymbolKind::Enum,
+        dir::Declaration::Namespace { .. } => SymbolKind::Namespace,
+        dir::Declaration::Type { .. } => SymbolKind::TypeParameter,
+        dir::Declaration::Extension { .. } => SymbolKind::Class,
+    }
+}
+
+/// Convert a member to a workspace symbol.
+fn member_to_workspace_symbol(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    member_id: dir::LocalNodeId<dir::Member>,
+    container_name: &str,
+) -> Option<WorkspaceSymbol> {
+    // resolve the member node
+    let member = dir_tree.get::<dir::Member>(member_id);
+
+    // resolve the member name from its key
+    let name = match member.key() {
+        Some(dir::DynamicKey::Name(string_id)) => session.strings.get(*string_id).to_string(),
+        Some(dir::DynamicKey::Number(string_id)) => session.strings.get(*string_id).to_string(),
+        _ => return None,
+    };
+
+    // resolve the member kind
+    let kind = match member {
+        dir::Member::Type { .. } => SymbolKind::TypeParameter,
+        dir::Member::Field { .. } => SymbolKind::Field,
+        dir::Member::Method { .. } => SymbolKind::Method,
+        dir::Member::Embed { .. } => return None,
+        dir::Member::StaticBlock { .. } => return None,
+        dir::Member::ComptimeBlock { .. } => return None,
+    };
+
+    // resolve the member span
+    let range = node_span(ctx, dir_tree, member_id.id)?;
+
+    // skip synthetic function keyword fields for methods
+    let full_len = range.end.saturating_sub(range.start);
+    if matches!(member, dir::Member::Field { .. }) && name == "function" && full_len == 8 {
+        return None;
     }
 
-    if name_lower == query_lower {
-        return Some(0);
-    }
+    Some(WorkspaceSymbol {
+        name,
+        kind,
+        file: ctx.file_id,
+        range,
+        container: Some(container_name.to_string()),
+    })
+}
 
-    if name_lower.starts_with(query_lower) {
-        return Some(1);
-    }
+/// Convert an enum field to a workspace symbol.
+fn enum_field_to_workspace_symbol(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    dir_tree: &dir::NodeTree,
+    field_id: dir::LocalNodeId<dir::EnumField>,
+    container_name: &str,
+) -> Option<WorkspaceSymbol> {
+    // resolve the enum field node
+    let field = dir_tree.get::<dir::EnumField>(field_id);
 
-    if name_lower.contains(query_lower) {
-        return Some(2);
-    }
+    // resolve the field name
+    let name = session.strings.get(field.name).to_string();
 
-    None
+    // resolve the field span
+    let range = node_span(ctx, dir_tree, field_id.id)?;
+
+    // return the enum field symbol
+    Some(WorkspaceSymbol {
+        name,
+        kind: SymbolKind::EnumMember,
+        file: ctx.file_id,
+        range,
+        container: Some(container_name.to_string()),
+    })
+}
+
+/// Resolve a node span safely from the source map.
+fn node_span(ctx: &QueryContext<'_>, dir_tree: &dir::NodeTree, node_id: u32) -> Option<Span> {
+    // resolve the AST node id
+    let ast_node_id = dir_tree.get_source(node_id);
+
+    // guard against panics from the source map
+    let full_span = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        ctx.ast.tree.source_map.get(ast_node_id)
+    }));
+    let Ok(full_span) = full_span else {
+        return None;
+    };
+
+    Some(Span::new(ctx.file_id, full_span.start, full_span.end))
 }
 
 /// Find the container name for a node by walking up the parent tree.
-/// NOTE #Performance: find workspace symbol containers more efficiently?
 fn find_container_name(
     dir_tree: &dir::NodeTree,
     strings: &StringPool,
     node_id: u32,
 ) -> Option<String> {
+    // start at the current node id
     let mut current_id = node_id;
 
     // walk up parent chain
@@ -202,5 +325,6 @@ fn find_container_name(
         current_id = parent.id;
     }
 
+    // return none when no container is found
     None
 }

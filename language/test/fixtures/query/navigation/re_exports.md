@@ -27,3 +27,81 @@ const message = greet("Destack");
 ```query goto_definition use:greet
 def:greet
 ```
+
+### Goto definition through re-exported aliases
+
+Re-exported aliases should resolve to the original definition.
+
+```ds:alias_base.ds
+export function build(name: string): string {
+//              ^^^^^ def:build
+    return "Hello, " + name;
+}
+```
+
+```ds:alias_reexport.ds
+export { build as buildAlias } from "./alias_base.ds";
+```
+
+```ds:alias_main.ds
+import { buildAlias } from "./alias_reexport.ds";
+
+const message = buildAlias("Destack");
+//              ^^^^^^^^^^ use:build_alias
+```
+
+```query goto_definition use:build_alias
+def:build
+```
+
+### Goto definition through export star chains
+
+Export star chains should resolve to the original definition.
+
+```ds:base_star.ds
+export function wave(name: string): string {
+//              ^^^^ def:wave
+    return "Hi, " + name;
+}
+```
+
+```ds:barrel_one.ds
+export * from "./base_star.ds";
+```
+
+```ds:barrel_two.ds
+export * from "./barrel_one.ds";
+```
+
+```ds:main_star.ds
+import { wave } from "./barrel_two.ds";
+
+const message = wave("Destack");
+//              ^^^^ use:wave
+```
+
+```query goto_definition use:wave
+def:wave
+```
+
+### Goto definition for default exports
+
+Default imports should resolve to the exported definition.
+
+```ds:base_default.ds
+export default function greetDefault(name: string): string {
+//                      ^^^^^^^^^^^^ def:greet_default
+    return "Hello, " + name;
+}
+```
+
+```ds:main_default.ds
+import greetDefault from "./base_default.ds";
+
+const message = greetDefault("Destack");
+//              ^^^^^^^^^^^^ use:greet_default
+```
+
+```query goto_definition use:greet_default
+def:greet_default
+```

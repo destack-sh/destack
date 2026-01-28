@@ -1,23 +1,25 @@
+use std::collections::HashSet;
 use std::env;
 use std::sync::OnceLock;
 
-use destack_dir::{self as dir, SymbolSpace, SymbolType, Type};
+use destack_dir::{self as dir, SymbolSpace, SymbolType};
 use destack_source::{Edit, FileId, ModuleId, PackageId, PathExt, Uri};
 use serde::{Deserialize, Serialize};
 
 use super::context::{CompletionContext, ContextResult, detect_completion_context};
-use super::fuzzy::score_completion;
 use crate::format::format_local_type;
 use crate::query::common::{
-    MemberKind, MemberName, build_import_edits, dynamic_parameter_display_names,
-    dynamic_parameter_names, get_canonical_symbol, get_module_by_file_id, resolve_type_members,
-    search_importable_symbols, visible_symbols,
+    ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
+    build_import_edits_with_mode, dynamic_parameter_names, ensure_program_export_index,
+    get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
+    owned_scope_for_symbol, path_component_count, path_distance, program_for_file,
+    resolve_extension_members_for_symbol, resolve_type_members, score_completion,
+    search_importable_symbols_for_program, visible_symbols,
 };
 use crate::{Session, TokenAtCursor};
 
 // sort order priorities (lower = higher priority in completion list)
 const SORT_LOCAL_SYMBOL: u32 = 10;
-const SORT_EXTENSION_METHOD: u32 = 15;
 const SORT_BUILTIN: u32 = 20;
 const SORT_IMPORT_STARTER: u32 = 50;
 const SORT_DEFAULT: u32 = 100;
@@ -99,124 +101,7 @@ fn parse_auto_import_weights_from_env() -> Option<AutoImportWeights> {
     Some(weights)
 }
 
-/// Check whether a symbol type participates in the type namespace.
-fn is_type_symbol(symbol_type: SymbolType) -> bool {
-    matches!(
-        symbol_type,
-        SymbolType::Class
-            | SymbolType::Struct
-            | SymbolType::Interface
-            | SymbolType::Enum
-            | SymbolType::TypeAlias
-            | SymbolType::Newtype
-    )
-}
-
-/// Check whether a symbol matches a completion filter.
-fn matches_completion_filter(
-    symbol_type: SymbolType,
-    symbol_space: SymbolSpace,
-    filter: Option<SymbolSpace>,
-) -> bool {
-    // allow everything when there is no filter
-    let Some(filter) = filter else {
-        return true;
-    };
-
-    // match filter semantics against symbol namespaces
-    match filter {
-        SymbolSpace::Type => is_type_symbol(symbol_type),
-        SymbolSpace::Value => {
-            symbol_space == SymbolSpace::Value || symbol_space == SymbolSpace::TypeValue
-        }
-        SymbolSpace::TypeValue => symbol_space == SymbolSpace::TypeValue,
-        SymbolSpace::Label => symbol_space == SymbolSpace::Label,
-    }
-}
-
-fn normalize_separators(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
-fn normal_components(path: &std::path::Path) -> Vec<String> {
-    use std::path::Component;
-
-    let mut components = Vec::new();
-    for component in path.components() {
-        match component {
-            Component::Prefix(prefix) => {
-                components.push(prefix.as_os_str().to_string_lossy().to_string());
-            }
-            Component::RootDir => {
-                components.push("/".to_string());
-            }
-            Component::Normal(part) => {
-                components.push(part.to_string_lossy().to_string());
-            }
-            Component::CurDir => {}
-            Component::ParentDir => {
-                components.push("..".to_string());
-            }
-        }
-    }
-    components
-}
-
-fn relative_path(
-    from_dir: &std::path::Path,
-    to_path: &std::path::Path,
-) -> Option<std::path::PathBuf> {
-    let from_dir = from_dir.normalize();
-    let to_path = to_path.normalize();
-
-    let from_components = normal_components(&from_dir);
-    let to_components = normal_components(&to_path);
-
-    let mut common = 0usize;
-    while common < from_components.len()
-        && common < to_components.len()
-        && from_components[common] == to_components[common]
-    {
-        common += 1;
-    }
-
-    if common == 0 && from_dir.is_absolute() && to_path.is_absolute() {
-        return None;
-    }
-
-    let mut relative = std::path::PathBuf::new();
-
-    for _ in common..from_components.len() {
-        relative.push("..");
-    }
-
-    for component in &to_components[common..] {
-        relative.push(component);
-    }
-
-    Some(relative)
-}
-
-fn path_distance(from_dir: &std::path::Path, to_path: &std::path::Path) -> u32 {
-    let from_dir = from_dir.normalize();
-    let to_dir = to_path.parent().unwrap_or(to_path).normalize();
-
-    let from_components = normal_components(&from_dir);
-    let to_components = normal_components(&to_dir);
-
-    let mut common = 0usize;
-    while common < from_components.len()
-        && common < to_components.len()
-        && from_components[common] == to_components[common]
-    {
-        common += 1;
-    }
-
-    let ups = from_components.len().saturating_sub(common);
-    let downs = to_components.len().saturating_sub(common);
-    (ups + downs) as u32
-}
-
+/// Compute a sort order for an auto import candidate.
 fn auto_import_sort_order(
     session: &Session,
     file_id: FileId,
@@ -224,14 +109,17 @@ fn auto_import_sort_order(
     target_module_id: ModuleId,
     module_path: &str,
 ) -> u32 {
+    // start with the base sort order and weights
     let mut sort_order = SORT_AUTO_IMPORT;
     let weights = auto_import_weights();
 
+    // resolve the target package id
     let target_package_id = {
         let module = session.modules.get(target_module_id);
         module.read().package_id
     };
 
+    // adjust for same or different packages
     if let Some(current_package_id) = current_package_id {
         if current_package_id == target_package_id {
             sort_order = sort_order.saturating_sub(weights.same_package_bonus);
@@ -240,6 +128,7 @@ fn auto_import_sort_order(
         }
     }
 
+    // resolve the source path and directory
     let source_file = session.files.get(file_id);
     let Some(source_path) = source_file.path.as_ref() else {
         return sort_order;
@@ -267,14 +156,15 @@ fn auto_import_sort_order(
     sort_order = sort_order.saturating_add(distance_penalty);
 
     // deeper paths are slightly less preferred
-    let source_depth = normal_components(&source_dir).len() as u32;
-    let target_depth = normal_components(&target_dir).len() as u32;
+    let source_depth = path_component_count(&source_dir);
+    let target_depth = path_component_count(&target_dir);
     let depth_penalty = target_depth
         .saturating_sub(source_depth)
         .saturating_mul(weights.depth_multiplier)
         .min(weights.depth_cap);
     sort_order = sort_order.saturating_add(depth_penalty);
 
+    // return the final sort order with minimum enforced
     sort_order.max(weights.minimum_sort_order)
 }
 
@@ -309,7 +199,9 @@ pub enum CompletionKind {
 }
 
 impl From<SymbolType> for CompletionKind {
+    /// Convert a symbol type into a completion kind.
     fn from(ty: SymbolType) -> Self {
+        // map symbol types to completion kinds
         match ty {
             SymbolType::Void => CompletionKind::Variable,
             SymbolType::Class => CompletionKind::Class,
@@ -347,7 +239,7 @@ pub struct Completion {
     pub preselect: bool,
     /// Whether the item is deprecated.
     pub deprecated: bool,
-    /// Additional text edits to apply (e.g., auto-import).
+    /// Additional text edits to apply (e.g., auto import).
     pub additional_text_edits: Vec<Edit>,
     /// Matched character positions in the label (for UI highlighting).
     pub match_positions: Vec<usize>,
@@ -356,6 +248,7 @@ pub struct Completion {
 impl Completion {
     /// Create a simple completion.
     pub fn new(label: impl Into<String>, kind: CompletionKind) -> Self {
+        // build a completion with defaults
         Self {
             label: label.into(),
             kind,
@@ -408,7 +301,7 @@ impl Completion {
         self
     }
 
-    /// Add additional text edits (e.g., auto-import).
+    /// Add additional text edits (e.g., auto import).
     pub fn with_additional_edits(mut self, edits: Vec<Edit>) -> Self {
         self.additional_text_edits = edits;
         self
@@ -434,7 +327,7 @@ pub enum CompletionTrigger {
     Invoked,
     /// Triggered by a character (e.g., '.').
     Character(char),
-    /// Re-triggered for incomplete results.
+    /// Retriggered for incomplete results.
     Incomplete,
 }
 
@@ -466,9 +359,11 @@ pub struct CompletionResponse {
 /// For no params: `"foo()"` with `is_snippet = false`.
 /// For params: `"foo(${1:param1}, ${2:param2})$0"` with `is_snippet = true`.
 fn generate_call_snippet(name: &str, param_names: &[String]) -> (String, bool) {
+    // return a plain call when there are no params
     if param_names.is_empty() {
         (format!("{name}()"), false)
     } else {
+        // build a snippet with parameter placeholders
         let params_str: String = param_names
             .iter()
             .enumerate()
@@ -495,7 +390,97 @@ fn get_function_param_names(
     Some(param_names)
 }
 
-/// Generate auto-import completions for a prefix using indexed lookup.
+/// Format a type detail string for a symbol's declared or inferred type.
+fn format_symbol_type_detail(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    // read the symbol's module and build query context
+    let module = session.modules.get(symbol_id.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    // load symbol and type tables
+    let symbols = ctx.symbols();
+    let types = ctx.types();
+
+    // resolve the declared or inferred type from the primary declaration
+    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    let type_id = types.get_declared_or_inferred_type_id(declaration)?;
+
+    // format the type using the symbol's module type table
+    Some(format_local_type(
+        type_id,
+        &types,
+        &session.modules,
+        &session.strings,
+    ))
+}
+
+/// Build a completion item from a resolved member entry.
+fn completion_for_member(
+    session: &Session,
+    member: MemberInfo,
+    types: Option<&dir::TypeTable>,
+) -> Option<Completion> {
+    // resolve a string name for the member
+    let MemberName::String(name) = member.name else {
+        return None;
+    };
+
+    // map member kinds to completion kinds
+    let kind = match member.kind {
+        MemberKind::Method => CompletionKind::Method,
+        MemberKind::Field => CompletionKind::Field,
+        MemberKind::CallSignature => CompletionKind::Function,
+        MemberKind::ConstructSignature => CompletionKind::Constructor,
+        MemberKind::IndexSignature => CompletionKind::Property,
+        MemberKind::EnumMember => CompletionKind::EnumMember,
+    };
+
+    // start with a base completion entry
+    let mut completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
+
+    // add type detail from the resolved member type
+    if let Some(member_type_id) = member.type_id {
+        if let Some(types) = types {
+            let type_text =
+                format_local_type(member_type_id, types, &session.modules, &session.strings);
+            completion = completion.with_detail(type_text);
+        }
+    } else {
+        let symbol_id = member.symbol_id;
+        if let Some(symbol_id) = symbol_id {
+            let type_text = format_symbol_type_detail(session, symbol_id);
+            if let Some(type_text) = type_text {
+                completion = completion.with_detail(type_text);
+            }
+        }
+    }
+
+    // add call snippet for method members with symbols
+    if member.kind == MemberKind::Method {
+        let symbol_id = member.symbol_id;
+        if let Some(symbol_id) = symbol_id {
+            if let Some(param_names) = get_function_param_names(session, symbol_id) {
+                let (snippet, is_snippet) = generate_call_snippet(&completion.label, &param_names);
+                completion = completion.with_insert_text(snippet);
+                if is_snippet {
+                    completion = completion.as_snippet();
+                }
+            } else {
+                let label = completion.label.clone();
+                completion = completion.with_insert_text(format!("{label}()"));
+            }
+        }
+    }
+
+    Some(completion)
+}
+
+// auto import completion thresholds
+const AUTO_IMPORT_MIN_PREFIX: usize = 2;
+const AUTO_IMPORT_SHORT_PREFIX_LIMIT: usize = 50;
+
+/// Generate auto import completions for a prefix using indexed lookup.
 ///
 /// Searches exported symbols from other modules and creates completions
 /// with import edits.
@@ -504,11 +489,20 @@ fn complete_auto_imports(
     file_id: FileId,
     prefix: &str,
     space_filter: Option<SymbolSpace>,
+    allow_short_prefix: bool,
 ) -> Vec<Completion> {
-    // only suggest auto-imports with 2+ characters typed
-    if prefix.len() < 2 {
+    // avoid scanning the full index for empty prefixes
+    if prefix.is_empty() {
         return Vec::new();
     }
+
+    // only suggest auto imports with 2 or more characters typed
+    if prefix.len() < AUTO_IMPORT_MIN_PREFIX && !allow_short_prefix {
+        return Vec::new();
+    }
+
+    // resolve the import mode from the space filter
+    let import_mode = import_mode_for_space(space_filter);
 
     // get current module to exclude from results and rank by package
     let (current_module_id, current_package_id) =
@@ -519,58 +513,78 @@ fn complete_auto_imports(
             (None, None)
         };
 
+    // prepare result storage and dedupe tracking
     let mut results = Vec::new();
     let mut found_indexed = false;
+    let mut seen: HashSet<(ModuleId, dir::LocalSymbolId)> = HashSet::new();
 
-    // use indexed lookup from all programs
-    for program in session.programs.iter() {
-        let program = program.value();
+    // resolve the program for this file
+    let program = program_for_file(session, file_id);
 
-        // search by prefix using the index
-        // NOTE #Incomplete: index is not yet populated during compilation
-        let exports = program
-            .index
-            .exports
-            .search_by_prefix(prefix, current_module_id);
+    // ensure the export index is populated for the current program
+    ensure_program_export_index(session, &program);
 
-        if !exports.is_empty() {
-            found_indexed = true;
+    // search by prefix using the index
+    let exports = program
+        .index
+        .exports
+        .search_by_prefix(prefix, current_module_id);
+    if !exports.is_empty() {
+        found_indexed = true;
+    }
+
+    for export in exports {
+        // filter exports by completion scope
+        if !matches_symbol_space_filter(export.symbol_type, export.space, space_filter) {
+            continue;
         }
 
-        for export in exports {
-            if !matches_completion_filter(export.symbol_type, export.space, space_filter) {
-                continue;
-            }
+        // skip exports without a module path
+        let Some(module_path) = &export.module_path else {
+            continue;
+        };
 
-            let Some(module_path) = &export.module_path else {
-                continue;
-            };
-
-            // convert the export into an auto import completion
-            push_auto_import_completion(
-                session,
-                file_id,
-                current_package_id,
-                export.module_id,
-                module_path,
-                &export.name,
-                export.symbol_type,
-                &mut results,
-            );
+        // dedupe across modules
+        let key = (export.module_id, export.symbol_id);
+        if !seen.insert(key) {
+            continue;
         }
+
+        // convert the export into an auto import completion
+        push_auto_import_completion(
+            session,
+            file_id,
+            current_package_id,
+            export.module_id,
+            module_path,
+            &export.name,
+            export.symbol_type,
+            import_mode,
+            &mut results,
+        );
     }
 
     if !found_indexed {
-        let exports = search_importable_symbols(session, prefix, current_module_id);
+        // fall back to direct module scanning when no indexes are available
+        let exports =
+            search_importable_symbols_for_program(session, &program, prefix, current_module_id);
 
         for export in exports {
-            if !matches_completion_filter(export.kind, export.space, space_filter) {
+            // filter exports by completion scope
+            if !matches_symbol_space_filter(export.kind, export.space, space_filter) {
                 continue;
             }
 
+            // skip exports without a module path
             let Some(module_path) = &export.module_path else {
                 continue;
             };
+
+            // dedupe across modules
+            let key = (export.module_id, export.local_id);
+            if !seen.insert(key) {
+                continue;
+            }
 
             // convert the export into an auto import completion
             push_auto_import_completion(
@@ -581,12 +595,101 @@ fn complete_auto_imports(
                 module_path,
                 &export.name,
                 export.kind,
+                import_mode,
                 &mut results,
             );
         }
     }
 
+    if allow_short_prefix && prefix.len() < AUTO_IMPORT_MIN_PREFIX {
+        sort_auto_imports_for_short_prefix(&mut results);
+        results.truncate(AUTO_IMPORT_SHORT_PREFIX_LIMIT);
+    }
+
     results
+}
+
+/// Generate auto import completions and remove visible duplicates.
+fn complete_auto_imports_with_visibility(
+    session: &Session,
+    file_id: FileId,
+    prefix: &str,
+    space_filter: Option<SymbolSpace>,
+    scope_id: Option<dir::LocalScopeId>,
+    scope_mark: Option<dir::LocalScopeMark>,
+    allow_short_prefix: bool,
+) -> Vec<Completion> {
+    // build auto import completions
+    let mut completions =
+        complete_auto_imports(session, file_id, prefix, space_filter, allow_short_prefix);
+
+    // filter out completions that are already visible
+    if let Some(visible_names) =
+        collect_visible_names(session, file_id, scope_id, scope_mark, space_filter)
+    {
+        completions.retain(|item| !visible_names.contains(item.label.as_str()));
+    }
+
+    completions
+}
+
+/// Collect visible symbol names for a scope and space.
+fn collect_visible_names(
+    session: &Session,
+    file_id: FileId,
+    scope_id: Option<dir::LocalScopeId>,
+    scope_mark: Option<dir::LocalScopeMark>,
+    space_filter: Option<SymbolSpace>,
+) -> Option<HashSet<String>> {
+    // resolve the module and query context
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+    let symbols = ctx.symbols();
+
+    // collect names from visible symbols when scope is available
+    let mut names = HashSet::new();
+    if let Some(scope_id) = scope_id {
+        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+
+        // walk visible symbols in scope order
+        for visible in visible_symbols(&symbols, scope_id, mark, space_filter) {
+            // resolve the symbol name key
+            let dir::StaticKey::Name(name_id) = visible.key else {
+                continue;
+            };
+
+            // insert the name
+            let name = session.strings.get(name_id).to_string();
+            names.insert(name);
+        }
+
+        return Some(names);
+    }
+
+    // fall back to module symbols when there is no scope
+    for symbol in symbols.symbols() {
+        // skip symbols that are not active
+        if !symbol.is_active() {
+            continue;
+        }
+
+        // skip symbols outside the requested space
+        if !matches_symbol_space_filter(symbol.ty, symbol.space, space_filter) {
+            continue;
+        }
+
+        // skip symbols without names
+        let Some(name_id) = symbol.name() else {
+            continue;
+        };
+
+        // insert the name
+        let name = session.strings.get(name_id).to_string();
+        names.insert(name);
+    }
+
+    Some(names)
 }
 
 /// Push a single auto import completion into the results list.
@@ -599,13 +702,15 @@ fn push_auto_import_completion(
     module_path: &str,
     export_name: &str,
     symbol_type: SymbolType,
+    import_mode: ImportEditMode,
     results: &mut Vec<Completion>,
 ) {
     // build a display path relative to the current file
-    let display_path = build_display_path(session, file_id, module_path);
+    let display_path = build_import_display_path(session, file_id, module_path);
 
     // build import edits and skip already imported symbols
-    let import_edits = build_import_edits(session, file_id, export_name, &display_path);
+    let import_edits =
+        build_import_edits_with_mode(session, file_id, export_name, &display_path, import_mode);
     if import_edits.is_empty() {
         return;
     }
@@ -627,34 +732,31 @@ fn push_auto_import_completion(
     results.push(completion);
 }
 
-/// Build a display path for an import.
-///
-/// Tries to compute a relative path from the current file to the target module.
-fn build_display_path(session: &Session, file_id: FileId, module_path: &str) -> String {
-    let source_file = session.files.get(file_id);
-    let Some(source_path) = source_file.path.as_ref() else {
-        return module_path.to_string();
-    };
-    let Some(source_dir) = source_path.parent() else {
-        return module_path.to_string();
-    };
+/// Sort auto import completions for short prefixes.
+fn sort_auto_imports_for_short_prefix(completions: &mut [Completion]) {
+    // sort by sort order and label fallback
+    completions.sort_by(|left, right| {
+        let left_key = (
+            left.sort_order,
+            left.sort_text.as_deref().unwrap_or(&left.label),
+            left.label.as_str(),
+        );
+        let right_key = (
+            right.sort_order,
+            right.sort_text.as_deref().unwrap_or(&right.label),
+            right.label.as_str(),
+        );
+        left_key.cmp(&right_key)
+    });
+}
 
-    let target_path = std::path::Path::new(module_path);
-
-    let relative =
-        relative_path(source_dir, target_path).unwrap_or_else(|| target_path.normalize());
-    let mut display_path = normalize_separators(&relative.to_string_lossy());
-    if !display_path.starts_with("./") && !display_path.starts_with("../") {
-        display_path = format!("./{display_path}");
+/// Resolve the import mode based on a completion space filter.
+fn import_mode_for_space(space_filter: Option<SymbolSpace>) -> ImportEditMode {
+    // prefer type imports for type space completions
+    match space_filter {
+        Some(SymbolSpace::Type) => ImportEditMode::Type,
+        _ => ImportEditMode::Value,
     }
-
-    for extension in [".ds", ".ts"] {
-        if display_path.ends_with(extension) {
-            display_path.truncate(display_path.len().saturating_sub(extension.len()));
-        }
-    }
-
-    display_path
 }
 
 /// Filter and rank completions using fuzzy matching.
@@ -662,27 +764,45 @@ fn filter_and_rank_completions(
     completions: Vec<Completion>,
     token: Option<&TokenAtCursor>,
 ) -> Vec<Completion> {
-    use super::fuzzy::FuzzyMatch;
+    // import fuzzy matching helpers
+    use crate::query::common::FuzzyMatch;
 
+    // resolve the prefix for matching
     let prefix = token.map(|t| t.text.as_str()).unwrap_or("");
 
-    // score each completion and filter non-matches, capturing match positions
+    // score each completion and filter non matches, capturing match positions
     let mut scored: Vec<(Completion, FuzzyMatch)> = completions
         .into_iter()
         .filter_map(|c| score_completion(&c.label, prefix).map(|m| (c, m)))
         .collect();
 
-    // sort by match tier, then by sort_order, then by sort_text and score
+    // sort by completion group, then match tier, then sort_order, sort_text and score
     scored.sort_by(|a, b| {
-        b.1.tier
-            .cmp(&a.1.tier)
-            .then(a.0.sort_order.cmp(&b.0.sort_order))
-            .then_with(|| {
+        let left_group = completion_group_rank(&a.0);
+        let right_group = completion_group_rank(&b.0);
+        let left_auto = is_auto_import_completion(&a.0);
+        let right_auto = is_auto_import_completion(&b.0);
+
+        let base_order = left_group
+            .cmp(&right_group)
+            .then(b.1.tier.cmp(&a.1.tier))
+            .then(a.0.sort_order.cmp(&b.0.sort_order));
+
+        if left_auto && right_auto {
+            base_order
+                .then_with(|| {
+                    let a_text = a.0.sort_text.as_deref().unwrap_or(&a.0.label);
+                    let b_text = b.0.sort_text.as_deref().unwrap_or(&b.0.label);
+                    a_text.cmp(b_text)
+                })
+                .then(b.1.score.cmp(&a.1.score))
+        } else {
+            base_order.then(b.1.score.cmp(&a.1.score)).then_with(|| {
                 let a_text = a.0.sort_text.as_deref().unwrap_or(&a.0.label);
                 let b_text = b.0.sort_text.as_deref().unwrap_or(&b.0.label);
                 a_text.cmp(b_text)
             })
-            .then(b.1.score.cmp(&a.1.score))
+        }
     });
 
     // convert to results, populating match_positions
@@ -702,7 +822,39 @@ fn filter_and_rank_completions(
         results[0].preselect = true;
     }
 
+    // return the sorted results
     results
+}
+
+/// Compute a sort rank for completion group ordering.
+fn completion_group_rank(completion: &Completion) -> u8 {
+    // place keywords last
+    if completion.kind == CompletionKind::Keyword {
+        return 2;
+    }
+
+    // place auto imports after local symbols
+    if is_auto_import_completion(completion) {
+        return 1;
+    }
+
+    // return the default group rank
+    0
+}
+
+/// Check whether a completion entry represents an auto import.
+fn is_auto_import_completion(completion: &Completion) -> bool {
+    // require additional text edits for auto imports
+    if completion.additional_text_edits.is_empty() {
+        return false;
+    }
+
+    // match the auto import detail prefix
+    completion
+        .detail
+        .as_deref()
+        .map(|detail| detail.starts_with("Auto import from"))
+        .unwrap_or(false)
 }
 
 /// Get completions at the given position.
@@ -715,7 +867,9 @@ pub fn completions(
     // detect completion context
     let ContextResult { context, token } = detect_completion_context(session, file, offset);
     let prefix = token.as_ref().map(|t| t.text.as_str()).unwrap_or("");
+    let allow_short_prefix = matches!(trigger, CompletionTrigger::Invoked);
 
+    // resolve base completions for the detected context
     let mut results = match &context {
         CompletionContext::MemberAccess {
             receiver_symbol,
@@ -731,7 +885,18 @@ pub fn completions(
         CompletionContext::ValuePosition {
             scope_id,
             scope_mark,
-        } => complete_values(session, file, *scope_id, *scope_mark, trigger),
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
+
+        CompletionContext::StatementPosition {
+            scope_id,
+            scope_mark,
+        } => complete_values(
+            session,
+            file,
+            *scope_id,
+            *scope_mark,
+            matches!(trigger, CompletionTrigger::Invoked),
+        ),
 
         CompletionContext::ObjectLiteral {
             expected_type,
@@ -747,6 +912,18 @@ pub fn completions(
             *scope_id,
             *scope_mark,
         ),
+        CompletionContext::ObjectLiteralValue {
+            scope_id,
+            scope_mark,
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        CompletionContext::CallArgument {
+            scope_id,
+            scope_mark,
+        } => complete_values(session, file, *scope_id, *scope_mark, false),
+        CompletionContext::NewExpression {
+            scope_id,
+            scope_mark,
+        } => complete_new_expression(session, file, *scope_id, *scope_mark),
 
         CompletionContext::ImportPath { partial_path } => {
             complete_import_paths(session, file, partial_path)
@@ -758,26 +935,105 @@ pub fn completions(
             space_filter,
         } => complete_imports(session, *target_module, existing_names, *space_filter),
 
-        CompletionContext::Unknown => complete_all(session, file),
+        CompletionContext::Unknown => {
+            complete_all(session, file, matches!(trigger, CompletionTrigger::Invoked))
+        }
     };
 
-    // add auto-import completions for value and type positions
+    // add auto import completions for relevant positions
     match context {
-        CompletionContext::ValuePosition { .. } => {
-            results.extend(complete_auto_imports(
+        CompletionContext::ValuePosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
                 session,
                 file,
                 prefix,
                 Some(SymbolSpace::Value),
-            ));
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
         }
-        CompletionContext::TypePosition { .. } => {
-            results.extend(complete_auto_imports(
+        CompletionContext::StatementPosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::TypePosition {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
                 session,
                 file,
                 prefix,
                 Some(SymbolSpace::Type),
-            ));
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::ObjectLiteralValue {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::CallArgument {
+            scope_id,
+            scope_mark,
+        } => {
+            let auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+            results.extend(auto_imports);
+        }
+        CompletionContext::NewExpression {
+            scope_id,
+            scope_mark,
+        } => {
+            let mut auto_imports = complete_auto_imports_with_visibility(
+                session,
+                file,
+                prefix,
+                Some(SymbolSpace::Value),
+                scope_id,
+                scope_mark,
+                allow_short_prefix,
+            );
+
+            // filter to constructable auto import entries
+            auto_imports.retain(is_constructable_completion);
+            results.extend(auto_imports);
         }
         _ => {}
     }
@@ -793,6 +1049,7 @@ fn complete_members(
     receiver_type: Option<dir::LocalTypeId>,
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Vec<Completion> {
+    // prepare the completion buffer
     let mut results = Vec::new();
 
     // get the module for context
@@ -807,61 +1064,27 @@ fn complete_members(
     let symbols = ctx.symbols();
     let current_module_id = ctx.module_id;
 
-    // primary path: use receiver type for type-aware completions
+    // primary path: use receiver type for type aware completions
     if let Some(type_id) = receiver_type {
         // resolve members from the type
-        let members = resolve_type_members(&types, &symbols, type_id, session);
+        let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
 
         for member in members {
-            // skip non-displayable members
-            let MemberName::String(name) = member.name else {
+            let Some(completion) = completion_for_member(session, member, Some(&types)) else {
                 continue;
             };
-            let kind = match member.kind {
-                MemberKind::Method => CompletionKind::Method,
-                MemberKind::Field => CompletionKind::Field,
-                MemberKind::CallSignature => CompletionKind::Function,
-                MemberKind::ConstructSignature => CompletionKind::Constructor,
-                MemberKind::IndexSignature => CompletionKind::Property,
-                MemberKind::EnumMember => CompletionKind::EnumMember,
-            };
-
-            let mut completion = Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
-
-            // add type detail
-            if let Some(member_type_id) = member.type_id {
-                let type_text =
-                    format_local_type(member_type_id, &types, &session.modules, &session.strings);
-                completion = completion.with_detail(type_text);
-            }
 
             results.push(completion);
         }
 
-        // also check for extension methods if the type is nominal
-        let extension_symbol = {
-            let ty = types.get_type(type_id);
-            if let Type::Reference { symbol, .. } = ty {
-                Some(*symbol)
-            } else {
-                None
-            }
-        };
-
+        // release the borrowed module state before moving on
         drop(types);
         drop(symbols);
         drop(module);
-
-        if let Some(symbol) = extension_symbol {
-            results.extend(complete_extension_methods(
-                session,
-                symbol,
-                current_module_id,
-            ));
-        }
     }
     // fallback path: use receiver symbol (for cases where type inference hasn't run)
     else if let Some(symbol_id) = receiver_symbol {
+        // release the current module state before switching contexts
         drop(types);
         drop(symbols);
         drop(module);
@@ -876,7 +1099,7 @@ fn complete_members(
         let types = symbol_ctx.types();
 
         // get the scope owned by this symbol (for types like struct/class)
-        if let Some(owned_scope_id) = get_symbol_owned_scope(&symbols, symbol_id.local_id) {
+        if let Some(owned_scope_id) = owned_scope_for_symbol(&symbols, symbol_id.local_id) {
             let scope = symbols.get_scope_by_id(owned_scope_id);
 
             // add all named symbols in the scope as member completions
@@ -890,12 +1113,18 @@ fn complete_members(
                         Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL);
 
                     // add type detail from primary declaration
-                    if let Some(declaration) = member_symbol.primary_declaration
-                        && let Some(type_id) = types.get_declared_or_inferred_type_id(declaration)
-                    {
-                        let type_text =
-                            format_local_type(type_id, &types, &session.modules, &session.strings);
-                        completion = completion.with_detail(type_text);
+                    let declaration = member_symbol.primary_declaration;
+                    if let Some(declaration) = declaration {
+                        let type_id = types.get_declared_or_inferred_type_id(declaration);
+                        if let Some(type_id) = type_id {
+                            let type_text = format_local_type(
+                                type_id,
+                                &types,
+                                &session.modules,
+                                &session.strings,
+                            );
+                            completion = completion.with_detail(type_text);
+                        }
                     }
 
                     // fall back to generic detail for functions
@@ -908,16 +1137,30 @@ fn complete_members(
             }
         }
 
+        // release the borrowed symbol module state
         drop(types);
         drop(symbols);
         drop(symbol_module);
 
-        // also check for extension methods
-        results.extend(complete_extension_methods(
-            session,
-            symbol_id,
-            current_module_id,
-        ));
+        // merge extension members for this symbol
+        let extension_members =
+            resolve_extension_members_for_symbol(session, symbol_id, current_module_id);
+        let mut seen_names: HashSet<String> = results
+            .iter()
+            .map(|completion| completion.label.clone())
+            .collect();
+
+        for member in extension_members {
+            let Some(completion) = completion_for_member(session, member, None) else {
+                continue;
+            };
+
+            if !seen_names.insert(completion.label.clone()) {
+                continue;
+            }
+
+            results.push(completion);
+        }
     }
 
     // if no results, fall back to common properties
@@ -925,147 +1168,13 @@ fn complete_members(
         results.extend(common_member_completions());
     }
 
-    results
-}
-
-/// Get the scope owned by a symbol (for types that declare scopes).
-fn get_symbol_owned_scope(
-    symbols: &dir::SymbolTable,
-    symbol_id: dir::LocalSymbolId,
-) -> Option<dir::LocalScopeId> {
-    // iterate through scopes to find the one owned by this symbol
-    for (idx, scope) in symbols.scopes().enumerate() {
-        if scope.owner_id == Some(symbol_id) {
-            return Some(dir::LocalScopeId::new(idx as u32));
-        }
-    }
-    None
-}
-
-/// Complete extension methods for a symbol.
-///
-/// NOTE #Architecture: extension methods should be part of resolve_type_members output,
-/// not a separate lookup. The caller shouldn't need to know about extensions as a
-/// separate concept.
-fn complete_extension_methods(
-    session: &Session,
-    target_symbol: dir::GlobalSymbolId,
-    current_module_id: ModuleId,
-) -> Vec<Completion> {
-    let mut results = Vec::new();
-    let canonical_target = get_canonical_symbol(session, target_symbol);
-
-    for module in session.modules.iter() {
-        let module = module.read();
-        let Some(ctx) = session.query_context(&module) else {
-            continue;
-        };
-        let types = ctx.types();
-        let symbols = ctx.symbols();
-
-        let Some(extension_ids) = types.get_extensions_for_target(canonical_target) else {
-            continue;
-        };
-
-        for extension_id in extension_ids {
-            let extension = types.get_extension(*extension_id);
-            let visible = match extension.kind {
-                dir::ExtensionKind::Inherent => true,
-                dir::ExtensionKind::Local => extension.symbol.module_id == current_module_id,
-                dir::ExtensionKind::Nominal => true,
-            };
-            if !visible {
-                continue;
-            }
-
-            let ext_symbol = symbols.get_symbol(extension.symbol.local_id);
-            let Some(ext_decl_id) = ext_symbol.primary_declaration else {
-                continue;
-            };
-            let Ok(local_decl_id): Result<dir::LocalNodeId<dir::Declaration>, _> =
-                ext_decl_id.try_into()
-            else {
-                continue;
-            };
-            let tree = ctx.tree();
-            let ext_decl: &dir::Declaration = tree.get(local_decl_id);
-
-            let Some(member_ids) = ext_decl.member_ids() else {
-                continue;
-            };
-
-            for member_node_id in member_ids {
-                let member_node: &dir::Member = tree.get(*member_node_id);
-
-                // get the member's name from its key
-                let Some(key) = member_node.key() else {
-                    continue;
-                };
-                let name_id = match key {
-                    dir::DynamicKey::Name(name_id) => *name_id,
-                    dir::DynamicKey::Number(name_id) => *name_id,
-                    _ => continue,
-                };
-                let name = session.strings.get(name_id).to_string();
-
-                // determine completion kind from member type
-                let (kind, is_method) = match member_node {
-                    dir::Member::Method { .. } => (CompletionKind::Method, true),
-                    dir::Member::Field { .. } => (CompletionKind::Field, false),
-                    dir::Member::Type { .. } => (CompletionKind::Class, false),
-                    _ => (CompletionKind::Property, false),
-                };
-
-                // slightly lower priority than direct members
-                let mut completion =
-                    Completion::new(&name, kind).with_sort_order(SORT_EXTENSION_METHOD);
-
-                // get the member's symbol for type info (may be Void if not fully resolved)
-                let member_symbol_id = member_node.symbol();
-                let member = symbols.get_symbol(member_symbol_id);
-
-                // add type info
-                if let Some(decl) = member.primary_declaration
-                    && let Some(type_id) = types.get_declared_or_inferred_type_id(decl)
-                {
-                    let type_text =
-                        format_local_type(type_id, &types, &session.modules, &session.strings);
-                    completion = completion.with_detail(type_text);
-                }
-
-                // for methods, try to generate snippet with parameter placeholders
-                if is_method {
-                    // try to get param names from the method signature in the Member node
-                    if let dir::Member::Method { signature, .. } = member_node {
-                        let param_names = dynamic_parameter_display_names(
-                            session,
-                            &tree,
-                            &signature.dynamic_parameters,
-                        );
-
-                        if !param_names.is_empty() {
-                            let (snippet, is_snippet) = generate_call_snippet(&name, &param_names);
-                            completion = completion.with_insert_text(snippet);
-                            if is_snippet {
-                                completion = completion.as_snippet();
-                            }
-                        } else {
-                            // no params, just add ()
-                            completion = completion.with_insert_text(format!("{name}()"));
-                        }
-                    }
-                }
-
-                results.push(completion);
-            }
-        }
-    }
-
+    // return the final member completions
     results
 }
 
 /// Common member completions (fallback).
 fn common_member_completions() -> Vec<Completion> {
+    // return the common fallback completions
     vec![
         Completion::new("toString", CompletionKind::Method)
             .with_detail("(): string")
@@ -1085,7 +1194,9 @@ fn complete_object_literal(
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
 ) -> Vec<Completion> {
+    // prepare the completion buffer and scope name tracking
     let mut results = Vec::new();
+    let mut seen_names = HashSet::new();
 
     // if we have an expected type, suggest its fields
     if let Some(type_id) = expected_type {
@@ -1098,17 +1209,18 @@ fn complete_object_literal(
         };
         let types = ctx.types();
         let symbols = ctx.symbols();
+        let current_module_id = ctx.module_id;
 
         // resolve type members
-        let members = resolve_type_members(&types, &symbols, type_id, session);
+        let members = resolve_type_members(&types, &symbols, type_id, session, current_module_id);
 
         for member in members {
-            // skip non-field members (methods, call signatures, etc.)
+            // skip non field members (methods, call signatures, etc.)
             if member.kind != MemberKind::Field {
                 continue;
             }
 
-            // skip non-displayable members
+            // skip non displayable members
             let MemberName::String(name) = member.name else {
                 continue;
             };
@@ -1130,8 +1242,8 @@ fn complete_object_literal(
                     format_local_type(member_type_id, &types, &session.modules, &session.strings);
                 completion = completion.with_detail(type_text);
             }
-
             results.push(completion);
+            seen_names.insert(name);
         }
     }
 
@@ -1145,7 +1257,6 @@ fn complete_object_literal(
             return results;
         };
         let symbols = ctx.symbols();
-        let mut seen_names = std::collections::HashSet::new();
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -1154,6 +1265,8 @@ fn complete_object_literal(
             };
 
             let name = session.strings.get(name_id).to_string();
+
+            // dedupe against names already emitted from expected type fields
             if !seen_names.insert(name.clone()) {
                 continue;
             }
@@ -1170,6 +1283,7 @@ fn complete_object_literal(
         }
     }
 
+    // return the object literal completions
     results
 }
 
@@ -1191,8 +1305,11 @@ fn complete_types(
     let symbols = ctx.symbols();
     let dir_tree = ctx.tree();
 
+    // prepare the completion buffer
     let mut results = Vec::new();
-    let mut seen_names = std::collections::HashSet::new();
+    let mut seen_names = HashSet::new();
+
+    // resolve symbol types across re exports
     let resolve_symbol_type = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
         if symbol.ty != SymbolType::Void {
             return symbol.ty;
@@ -1235,13 +1352,13 @@ fn complete_types(
             results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
         }
     } else {
-        // no scope, add all module-level type symbols
+        // no scope, add all module level type symbols
         for (idx, symbol) in symbols.symbols().enumerate() {
             if !symbol.is_active() {
                 continue;
             }
 
-            // only include type-space symbols
+            // only include type space symbols
             if symbol.space != dir::SymbolSpace::Type && symbol.space != dir::SymbolSpace::TypeValue
             {
                 continue;
@@ -1261,6 +1378,7 @@ fn complete_types(
         }
     }
 
+    // include type imports and re exports from dependencies
     for (_, item) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
         let Some(symbol_id) = item.symbol() else {
             continue;
@@ -1287,16 +1405,19 @@ fn complete_types(
     // add primitive types
     results.extend(primitive_type_completions());
 
+    // return the type completions
     results
 }
 
 /// Primitive type completions.
 fn primitive_type_completions() -> Vec<Completion> {
+    // define the primitive type names
     const PRIMITIVES: &[&str] = &[
         "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32",
         "float64", "bool", "string", "void", "never", "any", "unknown",
     ];
 
+    // return the primitive completions
     PRIMITIVES
         .iter()
         .map(|p| Completion::new(*p, CompletionKind::TypeParameter).with_sort_order(SORT_BUILTIN))
@@ -1309,7 +1430,7 @@ fn complete_values(
     file: FileId,
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
-    trigger: CompletionTrigger,
+    include_keywords: bool,
 ) -> Vec<Completion> {
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
@@ -1322,6 +1443,7 @@ fn complete_values(
     let symbols = ctx.symbols();
     let module_id = ctx.module_id;
 
+    // initialize completion buffers
     let mut results = Vec::new();
 
     // collect symbols to process (to avoid holding symbols lock while generating snippets)
@@ -1329,7 +1451,7 @@ fn complete_values(
 
     // if we have a scope, walk visible symbols in scope order
     if let Some(scope_id) = scope_id {
-        let mut seen_names = std::collections::HashSet::new();
+        let mut seen_names = HashSet::new();
         let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
         for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
@@ -1346,7 +1468,7 @@ fn complete_values(
         }
     } else {
         // no scope, fall back to any active value symbols
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
 
         for (idx, symbol) in symbols.symbols().enumerate() {
             if !symbol.is_active() {
@@ -1372,6 +1494,7 @@ fn complete_values(
         }
     }
 
+    // release symbol and module handles before formatting snippets
     drop(symbols);
     drop(module);
 
@@ -1398,12 +1521,112 @@ fn complete_values(
         results.push(completion);
     }
 
-    // add keywords if triggered manually
-    if matches!(trigger, CompletionTrigger::Invoked) {
+    // add keywords if requested
+    if include_keywords {
         results.extend(keyword_completions());
     }
 
+    // return the value completions
     results
+}
+
+/// Complete constructable symbols for a new expression.
+fn complete_new_expression(
+    session: &Session,
+    file: FileId,
+    scope_id: Option<dir::LocalScopeId>,
+    scope_mark: Option<dir::LocalScopeMark>,
+) -> Vec<Completion> {
+    // resolve the module and query context
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+    let module = module.read();
+    let Some(ctx) = session.query_context(&module) else {
+        return Vec::new();
+    };
+    let symbols = ctx.symbols();
+
+    // prepare result containers
+    let mut results = Vec::new();
+    let mut seen = HashSet::new();
+    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+
+    // prefer scoped symbol lookup when possible
+    if let Some(scope_id) = scope_id {
+        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
+            // skip symbols that are not constructable
+            if !is_constructable_symbol(visible.symbol.ty) {
+                continue;
+            }
+
+            // resolve the symbol name key
+            let dir::StaticKey::Name(name_id) = visible.key else {
+                continue;
+            };
+
+            // skip duplicate names
+            let name = session.strings.get(name_id).to_string();
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+
+            // push a completion entry
+            let kind = CompletionKind::from(visible.symbol.ty);
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        }
+    } else {
+        // fall back to module symbol scan
+        for symbol in symbols.symbols() {
+            // skip symbols that are not active
+            if !symbol.is_active() {
+                continue;
+            }
+
+            // skip symbols outside the value spaces
+            if symbol.space != SymbolSpace::Value && symbol.space != SymbolSpace::TypeValue {
+                continue;
+            }
+
+            // skip symbols that are not constructable
+            if !is_constructable_symbol(symbol.ty) {
+                continue;
+            }
+
+            // skip symbols without names
+            let Some(string_id) = symbol.name() else {
+                continue;
+            };
+
+            // skip duplicate names
+            let name = session.strings.get(string_id).to_string();
+            if !seen.insert(name.clone()) {
+                continue;
+            }
+
+            // push a completion entry
+            let kind = CompletionKind::from(symbol.ty);
+            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        }
+    }
+
+    // return the new expression completions
+    results
+}
+
+/// Check whether a symbol type is constructable with new.
+fn is_constructable_symbol(symbol_type: SymbolType) -> bool {
+    // return whether the symbol is constructable
+    matches!(symbol_type, SymbolType::Class | SymbolType::Struct)
+}
+
+/// Check whether a completion entry is constructable with new.
+fn is_constructable_completion(completion: &Completion) -> bool {
+    // return whether the completion kind supports new
+    matches!(
+        completion.kind,
+        CompletionKind::Class | CompletionKind::Struct
+    )
 }
 
 /// Complete imports from a module.
@@ -1413,6 +1636,7 @@ fn complete_imports(
     existing_names: &[String],
     space_filter: Option<SymbolSpace>,
 ) -> Vec<Completion> {
+    // resolve the target module id
     let Some(module_id) = target_module else {
         return Vec::new();
     };
@@ -1425,10 +1649,11 @@ fn complete_imports(
     };
     let symbols = ctx.symbols();
 
+    // prepare the completion buffer
     let mut results = Vec::new();
 
-    let existing_names: std::collections::HashSet<&str> =
-        existing_names.iter().map(String::as_str).collect();
+    // normalize existing names for filtering
+    let existing_names: HashSet<&str> = existing_names.iter().map(String::as_str).collect();
 
     // add all exported symbols
     for symbol in symbols.symbols() {
@@ -1440,7 +1665,7 @@ fn complete_imports(
             continue;
         };
 
-        if !matches_completion_filter(symbol.ty, symbol.space, space_filter) {
+        if !matches_symbol_space_filter(symbol.ty, symbol.space, space_filter) {
             continue;
         }
 
@@ -1453,23 +1678,34 @@ fn complete_imports(
         results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
     }
 
+    // return the collected completions
     results
 }
 
 /// Complete all symbols (fallback for unknown context).
-fn complete_all(session: &Session, file: FileId) -> Vec<Completion> {
+fn complete_all(session: &Session, file: FileId, include_keywords: bool) -> Vec<Completion> {
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
-        return keyword_completions();
+        return if include_keywords {
+            keyword_completions()
+        } else {
+            Vec::new()
+        };
     };
     let module = module.read();
     let Some(ctx) = session.query_context(&module) else {
-        return keyword_completions();
+        return if include_keywords {
+            keyword_completions()
+        } else {
+            Vec::new()
+        };
     };
     let symbols = ctx.symbols();
 
+    // initialize completion buffer
     let mut results = Vec::new();
 
+    // collect all symbol names
     for symbol in symbols.symbols() {
         let Some(string_id) = symbol.name() else {
             continue;
@@ -1480,15 +1716,22 @@ fn complete_all(session: &Session, file: FileId) -> Vec<Completion> {
         results.push(Completion::new(name, kind));
     }
 
+    // release module state before adding keywords
     drop(symbols);
     drop(module);
 
-    results.extend(keyword_completions());
+    // append keywords when requested
+    if include_keywords {
+        results.extend(keyword_completions());
+    }
+
+    // return the combined completions
     results
 }
 
 /// Get keyword completions.
 fn keyword_completions() -> Vec<Completion> {
+    // define the keyword list
     const KEYWORDS: &[&str] = &[
         "as",
         "async",
@@ -1543,6 +1786,7 @@ fn keyword_completions() -> Vec<Completion> {
         "yield",
     ];
 
+    // return keyword completion items
     KEYWORDS
         .iter()
         .map(|kw| Completion::new(*kw, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD))
@@ -1551,15 +1795,19 @@ fn keyword_completions() -> Vec<Completion> {
 
 /// Complete import paths (relative paths or package names).
 fn complete_import_paths(session: &Session, file: FileId, partial: &str) -> Vec<Completion> {
+    // prepare the completion buffer
     let mut results = Vec::new();
 
+    // select completion strategy based on the partial path
     if partial.starts_with("./") || partial.starts_with("../") {
         // relative path: list directory contents
         let source_file = session.files.get(file);
-        if let Some(ref path) = source_file.path
-            && let Some(base_dir) = path.parent()
-        {
-            results.extend(complete_relative_path(session, base_dir, partial));
+        let path = source_file.path.as_ref();
+        if let Some(path) = path {
+            let base_dir = path.parent();
+            if let Some(base_dir) = base_dir {
+                results.extend(complete_relative_path(session, base_dir, partial));
+            }
         }
     } else if partial.is_empty() {
         // empty: suggest starters
@@ -1579,6 +1827,7 @@ fn complete_import_paths(session: &Session, file: FileId, partial: &str) -> Vec<
         results.extend(complete_package_names(session, partial));
     }
 
+    // return the import path completions
     results
 }
 
@@ -1595,10 +1844,12 @@ fn complete_relative_path(
         (base_dir.to_path_buf(), partial)
     };
 
+    // read directory entries for completion
     let Ok(entries) = session.fs.read_dir(&dir_to_list) else {
         return vec![];
     };
 
+    // map entries into completion items
     entries
         .iter()
         .filter_map(|entry| {
@@ -1636,27 +1887,33 @@ fn complete_relative_path(
 
 /// Complete package names from the registry.
 fn complete_package_names(session: &Session, prefix: &str) -> Vec<Completion> {
-    session
-        .packages
-        .iter()
-        .filter_map(|pkg_ref| {
-            let pkg = pkg_ref.read();
-            let name = pkg.name.as_ref()?;
+    // prepare the completion buffer
+    let mut results = Vec::new();
 
-            // filter by prefix
-            if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
-                return None;
-            }
+    // iterate packages in the registry
+    for pkg_ref in session.packages.iter() {
+        let pkg = pkg_ref.read();
+        let Some(name) = pkg.name.as_ref() else {
+            continue;
+        };
 
-            let mut completion =
-                Completion::new(name.clone(), CompletionKind::Module).with_sort_order(SORT_BUILTIN);
+        // filter by prefix
+        if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
+            continue;
+        }
 
-            // add version detail if available
-            if let Some(v) = &pkg.version {
-                completion = completion.with_detail(format!("v{v}"));
-            }
+        // build the completion entry
+        let mut completion =
+            Completion::new(name.clone(), CompletionKind::Module).with_sort_order(SORT_BUILTIN);
 
-            Some(completion)
-        })
-        .collect()
+        // add version detail if available
+        if let Some(v) = &pkg.version {
+            completion = completion.with_detail(format!("v{v}"));
+        }
+
+        results.push(completion);
+    }
+
+    // return package completions
+    results
 }

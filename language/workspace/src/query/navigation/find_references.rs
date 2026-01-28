@@ -64,13 +64,13 @@ pub fn find_references(
     offset: u32,
     include_declaration: bool,
 ) -> Option<ReferencesResult> {
-    // 1. find the symbol at offset
+    // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
-    // 2. get canonical symbol (resolve imports)
+    // get canonical symbol and resolve imports
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
-    // 3. search all modules for references to that symbol
+    // search all modules for references to that symbol
     let references = find_references_to_symbol(session, canonical_id, include_declaration);
 
     Some(ReferencesResult {
@@ -85,7 +85,10 @@ fn find_references_to_symbol(
     canonical_id: GlobalSymbolId,
     include_declaration: bool,
 ) -> Vec<Span> {
+    // initialize the reference list
     let mut references = Vec::new();
+
+    // resolve the declaration span when requested
     let declaration_span = if include_declaration {
         get_symbol_definition_span(session, canonical_id)
     } else {
@@ -130,5 +133,6 @@ fn find_references_to_symbol(
         references.insert(0, decl_span);
     }
 
+    // return the final reference list
     references
 }

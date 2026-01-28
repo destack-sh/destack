@@ -190,3 +190,31 @@ Direction(enum) range=1:1-4:2 selection=1:6-1:15
   Up(enum_member) range=2:5-2:7 selection=2:5-2:7
   Down(enum_member) range=3:5-3:9 selection=3:5-3:9
 ```
+
+## Additional Kinds
+
+### Namespace, interface, and type alias
+
+Document symbols should include namespaces, interfaces, and type aliases with correct kinds.
+
+```ds
+namespace Utils {
+    export function format(): string {
+        return "ok";
+    }
+}
+
+interface Drawable {
+    function draw(): void;
+}
+
+type UserId = string;
+```
+
+```query document_symbols $0
+Utils(namespace) range=1:1-5:2 selection=1:11-1:16
+format(function) range=2:5-4:6 selection=2:21-2:27
+Drawable(interface) range=7:1-9:2 selection=7:11-7:19
+  draw(method) range=8:14-8:26 selection=8:14-8:18
+UserId(type_parameter) range=11:1-11:21 selection=11:6-11:12
+```

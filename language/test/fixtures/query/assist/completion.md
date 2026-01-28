@@ -30,6 +30,21 @@ $0
 - const: keyword
 ```
 
+### Avoid keywords in expression position
+
+When completing inside an expression, do not include statement keywords.
+
+```ds
+function main() {
+    const value = $0
+}
+```
+
+```query completion $0
+! function: keyword
+! const: keyword
+```
+
 ## Type Position
 
 ### Complete primitives after colon
@@ -82,6 +97,22 @@ function test() {
 - Point: struct
 - int32: type_parameter
 - string: type_parameter
+```
+
+### Exclude value symbols in type position
+
+Value symbols should not appear in type position completions.
+
+```ds
+const value = 1;
+
+function test() {
+    const v: $0
+}
+```
+
+```query completion $0
+! value: variable
 ```
 
 ### Complete imported types in type position
@@ -143,6 +174,53 @@ import { } from "$0"
 - ../: folder
 ```
 
+### Complete relative entries with prefix
+
+Relative import completion should list matching folders and modules.
+
+```ds:utils/helpers.ds
+export function help(): void {}
+```
+
+```ds:user.ds
+export function user(): void {}
+```
+
+```ds:main.ds
+import { } from "./u$0"
+```
+
+```query completion $0
+- utils/: folder
+- user: module
+```
+
+### Complete entries inside a folder
+
+Relative import completion should list entries within a subfolder.
+
+```ds:utils/format.ds
+export function format(): void {}
+```
+
+```ds:utils/format_more.ds
+export function formatMore(): void {}
+```
+
+```ds:utils/forms/form.ds
+export function form(): void {}
+```
+
+```ds:main.ds
+import { } from "./utils/f$0"
+```
+
+```query completion $0
+- format: module
+- format_more: module
+- forms/: folder
+```
+
 ## Import Clause
 
 ### Complete named imports from target module
@@ -189,6 +267,124 @@ import { Widget, $0 } from "./types.ds";
 ```query completion $0
 - makeWidget: function
 ! Widget: struct
+```
+
+### Prefer type only symbols in type only imports
+
+Type only import clauses should only include type space symbols.
+
+```ds:types.ds
+export struct Widget {
+    value: int32,
+}
+
+export function makeWidget(): Widget {
+    return Widget { value: 1 };
+}
+```
+
+```ds:main.ds
+import type { $0 } from "./types.ds";
+```
+
+```query completion $0
+- Widget: struct
+! makeWidget: function
+```
+
+## Member Access
+
+### Complete fields and extension methods
+
+Member access should include fields and extension methods for nominal types.
+
+```ds
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+extension for Point {
+    magnitude(): float32 {
+        return 0.0;
+    }
+}
+
+function main() {
+    const p = Point { x: 1, y: 2 };
+    p.$0
+}
+```
+
+```query completion $0
+- x: field
+- y: field
+- magnitude: method
+```
+
+## Object Literals
+
+### Complete missing fields from expected type
+
+Object literal completion should suggest missing fields from the expected type.
+
+```ds
+type Config = {
+    timeout: int32,
+    retries: int32,
+};
+
+const cfg: Config = {
+    timeout: 10,
+    $0
+};
+```
+
+```query completion $0
+- retries: field
+! timeout: field
+```
+
+## New Expressions
+
+### Complete constructable symbols after new
+
+Completion after `new` should only include constructable symbols.
+
+```ds
+class Alpha {}
+struct Beta {}
+
+function main() {
+    const value = new $0
+}
+```
+
+```query completion $0
+- Alpha: class
+- Beta: struct
+```
+
+## Auto Imports
+
+### Auto import completions for missing symbols
+
+Auto import completions should appear for missing symbols in value position.
+
+```ds:lib.ds
+export function makeWidget(): int32 {
+    return 1;
+}
+```
+
+```ds:main.ds
+function main() {
+    const value = make$0
+}
+```
+
+```query completion $0
+- makeWidget: function
 ```
 
 ### Respect import type
@@ -416,6 +612,9 @@ class Engine {}
 struct Wheel {
     size: int32,
 }
+function makeWheel(): Wheel {
+    return Wheel { size: 32 };
+}
 
 function main() {
     new $0
@@ -425,6 +624,26 @@ function main() {
 ```query completion $0
 - Engine: class
 - Wheel: struct
+! makeWheel: function
+```
+
+### Auto import constructable types after new
+
+Auto imports should include constructable types in `new` expressions.
+
+```ds:lib.ds
+export class Engine {}
+```
+
+```ds:main.ds
+function main() {
+    new Eng$0
+}
+```
+
+```query completion $0
+top: 1
+[0] label=Engine kind=class sort=360 sort_text=0360:./lib:Engine detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { Engine } from \"./lib\";"
 ```
 
 ## Object Literal
@@ -471,6 +690,28 @@ function main() {
 ! host: field
 ```
 
+### Avoid duplicate field and variable completions
+
+Expected type fields should not be duplicated by same named locals.
+
+```ds
+struct Config {
+    host: string,
+    timeout: int32,
+}
+
+function main() {
+    const timeout = 5;
+    const cfg: Config = Config { $0 };
+}
+```
+
+```query completion $0
+- host: field
+- timeout: field
+! timeout: variable
+```
+
 ### Complete shorthand values in untyped object literal
 
 When no expected type is known, object literal completion should offer visible value symbols.
@@ -509,6 +750,7 @@ function main() {
 - host: variable
 ! port: field
 ! timeout: field
+! function: keyword
 ```
 
 ### Complete fields in nested object literal
@@ -772,6 +1014,7 @@ function main() {
 - userName: variable
 - main: function
 - greet: function
+! function: keyword
 ```
 
 ## Interface Members
@@ -867,6 +1110,86 @@ top: 2
 [1] label=formatName kind=function sort=360 sort_text=0360:./lib:formatName detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { formatName } from \"./lib\";"
 ```
 
+### Suggest auto imports on explicit invocation with short prefix
+
+Explicit completion invocation should include auto imports even with a single character prefix.
+
+```ds:lib.ds
+export function zetaGreeting(): void {}
+```
+
+```ds:main.ds
+function main() {
+    z$0
+}
+```
+
+```query completion $0
+top: 1
+[0] label=zetaGreeting kind=function sort=360 sort_text=0360:./lib:zetaGreeting detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { zetaGreeting } from \"./lib\";"
+```
+
+### Prefer locals over auto imports with stronger matches
+
+Local symbols should rank ahead of auto imports even when the auto import is a better text match.
+
+```ds:lib.ds
+export function color(): void {}
+```
+
+```ds:main.ds
+function setColor(): void {}
+
+function main() {
+    co$0
+}
+```
+
+```query completion $0
+top: 2
+[0] label=setColor kind=function sort=10 sort_text=<none> detail=<none> edits=<none>
+[1] label=color kind=function sort=360 sort_text=0360:./lib:color detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import { color } from \"./lib\";"
+```
+
+### Skip auto imports for visible names
+
+Auto imports should not be suggested when a matching name is already visible.
+
+```ds:lib.ds
+export struct Widget {}
+```
+
+```ds:main.ds
+function main() {
+    const Widget = 1;
+    Wid$0
+}
+```
+
+```query completion $0
+- Widget: variable
+! Widget: struct
+```
+
+### Use type only auto imports in type position
+
+Auto imports in type position should use `import type`.
+
+```ds:lib.ds
+export type Widget = {
+    value: string,
+};
+```
+
+```ds:main.ds
+type Alias = Wid$0;
+```
+
+```query completion $0
+top: 1
+[0] label=Widget kind=type_parameter sort=360 sort_text=0360:./lib:Widget detail=Auto import from ./lib edits=main.ds:1:1-1:1=>"import type { Widget } from \"./lib\";"
+```
+
 ### Prefer same folder auto imports
 
 Auto imports from the same folder should rank above nearby and far modules.
@@ -957,6 +1280,3 @@ top: 2
 [0] label=formatTieAlpha kind=function sort=471 sort_text=0471:./a/format_tie:formatTieAlpha detail=Auto import from ./a/format_tie edits=main.ds:1:1-1:1=>"import { formatTieAlpha } from \"./a/format_tie\";"
 [1] label=formatTieBeta kind=function sort=471 sort_text=0471:./b/format_tie:formatTieBeta detail=Auto import from ./b/format_tie edits=main.ds:1:1-1:1=>"import { formatTieBeta } from \"./b/format_tie\";"
 ```
-
-<!-- NOTE #Incomplete: extension method completions require index population during compilation -->
-<!-- ## Extensions - tests removed until properly implemented -->

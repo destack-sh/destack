@@ -22,6 +22,21 @@ main.ds:5:19 kind=parameter label=name:
 main.ds:5:28 kind=parameter label=greeting:
 ```
 
+### No hints for empty calls
+
+Calls without arguments should not produce parameter hints.
+
+```ds
+function ping(): void {}
+ping();
+```
+
+No hints expected for a zero argument call.
+
+```query inlay_hints $0
+<none>
+```
+
 ### Parameter hints for multi-argument calls
 
 Inlay hints count should match the number of arguments passed to a function.
@@ -41,6 +56,237 @@ main.ds:5:13 kind=type label=: int32
 main.ds:5:26 kind=parameter label=a:
 main.ds:5:29 kind=parameter label=b:
 main.ds:5:32 kind=parameter label=c:
+```
+
+### Parameter hints for method calls
+
+Method calls should include parameter hints, and inferred types should be shown for results.
+
+```ds
+class Greeter {
+    greet(name: string): string {
+        return name;
+    }
+}
+
+const greeter: Greeter = new Greeter();
+const message = greeter.greet("World");
+```
+
+Expect a type hint for `message` and a parameter hint for `greet`.
+
+```query inlay_hints $0
+main.ds:8:14 kind=type label=: string
+main.ds:8:31 kind=parameter label=name:
+```
+
+### Skip hints that repeat argument names
+
+Parameter hints should not repeat obvious argument names.
+
+```ds
+function greet(name: string, greeting: string): string {
+    return greeting + ", " + name;
+}
+
+const name = "World";
+const msg = greet(name, "Hello");
+```
+
+Expect type hints for `name` and `msg`, plus a parameter hint only for `greeting`.
+
+```query inlay_hints $0
+main.ds:5:11 kind=type label=: string
+main.ds:6:10 kind=type label=: string
+main.ds:6:25 kind=parameter label=greeting:
+```
+
+### Skip non literal arguments in literals mode
+
+Parameter hints should only appear for literal arguments in literals mode.
+
+```ds
+function greet(name: string): void {}
+
+const who = "World";
+greet(who);
+```
+
+Expect only a type hint for `who` and no parameter hints.
+
+```query inlay_hints $0
+main.ds:3:10 kind=type label=: string
+```
+
+### Skip hints for named arguments
+
+Named arguments already include the parameter name, so inlay hints should be suppressed.
+
+```ds
+function greet(name: string, greeting: string): void {}
+
+greet(name: "World", greeting: "Hello");
+```
+
+```query inlay_hints $0
+<none>
+```
+
+### Treat template literals as literals
+
+Template string literals should count as literal arguments for parameter hints.
+
+```ds
+function greet(name: string): void {}
+
+greet(`World`);
+```
+
+```query inlay_hints $0
+main.ds:3:7 kind=parameter label=name:
+```
+
+### No type hints when an explicit type annotation is present
+
+Bindings with explicit type annotations should not receive inlay type hints.
+
+```ds
+function greet(name: string): string {
+    return name;
+}
+
+const msg: string = greet("World");
+```
+
+```query inlay_hints $0
+main.ds:5:27 kind=parameter label=name:
+```
+
+### No type hints for destructured bindings
+
+Destructured binding patterns should not receive inlay type hints.
+
+```ds
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+const { x, y } = Point { x: 1, y: 2 };
+```
+
+```query inlay_hints $0
+<none>
+```
+
+### Skip hints for spread arguments
+
+Spread arguments should not receive parameter name hints.
+
+```ds
+function greet(name: string): void {}
+
+const names: string[] = ["World"];
+greet(...names);
+```
+
+```query inlay_hints $0
+<none>
+```
+
+### Type hints for inferred literal bindings
+
+Bindings without explicit annotations should receive type hints.
+
+```ds
+const count = 1;
+```
+
+```query inlay_hints $0
+main.ds:1:12 kind=type label=: int32
+```
+
+### Skip hints for member access arguments
+
+Parameter hints should not appear for member access expressions.
+
+```ds
+struct Config {
+    timeout: int32,
+}
+
+function useTimeout(timeout: int32): void {}
+
+const cfg = Config { timeout: 5 };
+useTimeout(cfg.timeout);
+```
+
+Expect a type hint for `cfg` and no parameter hint for the member access.
+
+```query inlay_hints $0
+main.ds:7:10 kind=type label=: Config
+```
+
+### Include single-argument hints even when name is in function name
+
+Single-argument calls should still show hints when the argument is a literal.
+
+```ds
+function setColor(color: string): void {}
+
+setColor("red");
+```
+
+```query inlay_hints $0
+main.ds:3:10 kind=parameter label=color:
+```
+
+### Include boolean literal hints
+
+Boolean literal arguments should include parameter hints in literals mode.
+
+```ds
+function setEnabled(enabled: bool): void {}
+
+setEnabled(true);
+```
+
+```query inlay_hints $0
+main.ds:3:12 kind=parameter label=enabled:
+```
+
+### Include template literal hints
+
+Template literal arguments should include parameter hints in literals mode.
+
+```ds
+function logMessage(message: string): void {}
+
+logMessage(`hello`);
+```
+
+```query inlay_hints $0
+main.ds:3:12 kind=parameter label=message:
+```
+
+### Skip parameter hints for spread arguments
+
+Spread arguments should not produce parameter name hints.
+
+```ds
+function sum(a: int32, b: int32, c: int32): int32 {
+    return a + b + c;
+}
+
+const args: int32[] = [1, 2, 3];
+const count = 1;
+sum(...args);
+```
+
+Expect a type hint for `count` and no parameter hints for the spread call.
+
+```query inlay_hints $0
+main.ds:6:12 kind=type label=: int32
 ```
 
 ## Type Hints
