@@ -99,7 +99,7 @@ const x = 123;
 x satisfies string;
 ```
 
-- expected string, found 123
+- contains: expected string, found 123
 
 ## Number Members
 

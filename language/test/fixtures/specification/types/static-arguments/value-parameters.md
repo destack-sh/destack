@@ -29,6 +29,18 @@ declare let value: Buffer<4>;
 value satisfies uint8[4];
 ```
 
+### sized arrays are assignable to dynamic arrays
+
+> Sized arrays are assignable to dynamic arrays with compatible element types.
+
+```ds
+type Buffer<comptime N: number> = uint8[N];
+
+declare let value: Buffer<4>;
+
+value satisfies uint8[];
+```
+
 ### static value parameters flow through type aliases
 
 > Static value parameters can be passed through type aliases.

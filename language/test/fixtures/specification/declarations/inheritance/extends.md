@@ -78,7 +78,7 @@ declare function getAnimal(): Animal;
 getAnimal() satisfies Dog;
 ```
 
-- expected Dog, found Animal
+- contains: expected Dog, found Animal
 
 ## Multi-level Inheritance
 

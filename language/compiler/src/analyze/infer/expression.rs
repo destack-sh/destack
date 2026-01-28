@@ -4214,6 +4214,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             super::SignatureResolutionMode::Checking,
+            false,
             ctx.profile,
             &ctx.options,
             tree,

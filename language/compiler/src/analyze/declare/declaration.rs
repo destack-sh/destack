@@ -9,6 +9,7 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashMap;
 
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
@@ -215,6 +216,27 @@ impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Check whether TypeScript overload implementations must be restricted.
+    fn should_enforce_single_overload(&self, module: &Module) -> bool {
+        module.language_type.is_typescript() && !module.language_type.is_declaration()
+    }
+
+    /// Report an overload implementation error for a node.
+    fn report_overload_implementation_error(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        is_constructor: bool,
+    ) {
+        let node = node_id.into_global(module.id).into_anchored(Some(profile));
+        if is_constructor {
+            self.error(AnalyzeError::MultipleConstructorImplementations { node });
+        } else {
+            self.error(AnalyzeError::MultipleOverloadImplementations { node });
+        }
+    }
+
     /// Declare all declarations reachable from the module roots.
     pub(crate) fn declare_module_declarations(
         &self,
@@ -767,6 +789,7 @@ impl Compiler {
             Declaration::Function {
                 descriptor,
                 signature,
+                body,
                 ..
             } => {
                 // resolve declaration merge state
@@ -774,6 +797,43 @@ impl Compiler {
                 let allow_merge = module.language_type.supports_declaration_merging()
                     || module.language_type.is_destack()
                     || symbol_entry.origin.is_global_augmentation();
+
+                // enforce single implementation for TypeScript overloads
+                if self.should_enforce_single_overload(module) && body.is_some() {
+                    let mut implementation_count = 0;
+                    let mut declaration_nodes = Vec::new();
+                    if let Some(primary) = symbol_entry.primary_declaration {
+                        declaration_nodes.push(primary);
+                    }
+                    if let Some(secondary) = symbol_entry.secondary_declarations.as_ref() {
+                        declaration_nodes.extend(secondary.iter().copied());
+                    }
+
+                    for declaration_id in declaration_nodes {
+                        if declaration_id.module_id != module.id {
+                            continue;
+                        }
+                        let Ok(declaration_id) =
+                            declaration_id.local_id.try_into_typed::<Declaration>()
+                        else {
+                            continue;
+                        };
+                        if let Declaration::Function { body: Some(_), .. } =
+                            tree.get(declaration_id)
+                        {
+                            implementation_count += 1;
+                            if implementation_count > 1 {
+                                self.report_overload_implementation_error(
+                                    module,
+                                    profile,
+                                    declaration_id.into_any(),
+                                    false,
+                                );
+                                break;
+                            }
+                        }
+                    }
+                }
 
                 // declare generics for the signature
                 if let Some(generics) = signature.generics.as_ref() {
@@ -1149,6 +1209,61 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShapeSet> {
+        // enforce single implementations for TypeScript methods and constructors
+        if self.should_enforce_single_overload(module) {
+            let mut method_implementations: HashMap<StaticKey, usize> = HashMap::new();
+            let mut constructor_implementations = 0;
+
+            for member_id in members {
+                let Member::Method {
+                    key,
+                    signature,
+                    body,
+                    ..
+                } = tree.get(*member_id)
+                else {
+                    continue;
+                };
+
+                if body.is_none() {
+                    continue;
+                }
+
+                if signature.mode == Some(FunctionMode::Constructor) {
+                    constructor_implementations += 1;
+                    if constructor_implementations > 1 {
+                        self.report_overload_implementation_error(
+                            module,
+                            profile,
+                            (*member_id).into_any(),
+                            true,
+                        );
+                    }
+                    continue;
+                }
+
+                let Some(key) = key.as_ref() else {
+                    continue;
+                };
+                let Some(static_key) =
+                    self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+                else {
+                    continue;
+                };
+
+                let count = method_implementations.entry(static_key).or_insert(0);
+                *count += 1;
+                if *count > 1 {
+                    self.report_overload_implementation_error(
+                        module,
+                        profile,
+                        (*member_id).into_any(),
+                        false,
+                    );
+                }
+            }
+        }
+
         // initialize member shapes
         let mut shapes = ObjectShapeSet::default();
 

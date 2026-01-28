@@ -515,6 +515,49 @@ impl Compiler {
                 )
             }
 
+            // sized arrays: assignable to arrays by element type
+            (
+                Type::Array {
+                    element: Some(target_elem),
+                    is_readonly: target_readonly,
+                },
+                Type::ArraySized {
+                    element: source_elem,
+                    is_readonly: source_readonly,
+                    ..
+                },
+            ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
+                self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_elem,
+                    source_elem,
+                    types,
+                    options,
+                )
+            }
+
+            // sized arrays: assignable to unknown element arrays
+            (
+                Type::Array {
+                    element: None,
+                    is_readonly: target_readonly,
+                },
+                Type::ArraySized {
+                    is_readonly: source_readonly,
+                    ..
+                },
+            ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
+                Assignability::Assignable
+            }
+
             // empty array is assignable to any array (including itself)
             (
                 Type::Array {
