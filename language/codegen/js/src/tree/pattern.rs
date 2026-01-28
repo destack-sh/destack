@@ -32,6 +32,13 @@ pub enum PatternField {
         pattern: Option<LocalNodeId<Pattern>>,
         default: Option<LocalNodeId<Expression>>,
     },
+    /// Computed pattern field (like `[key]: value`).
+    Computed {
+        mutability: Option<Mutability>,
+        key: LocalNodeId<Expression>,
+        pattern: Option<LocalNodeId<Pattern>>,
+        default: Option<LocalNodeId<Expression>>,
+    },
     /// Named field with an alias (like `x: y`).
     Alias {
         mutability: Option<Mutability>,

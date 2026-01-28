@@ -403,6 +403,58 @@ impl Compiler {
                     symbol,
                 }
             }
+            ast::PatternField::Computed {
+                mutability,
+                key,
+                pattern,
+                default,
+            } => {
+                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
+                let key = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *key,
+                    Some(pattern_field_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
+                );
+                let pattern = pattern.map(|pattern| {
+                    self.bind_pattern(
+                        module,
+                        ast,
+                        scope,
+                        export,
+                        binding,
+                        pattern,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                    )
+                });
+                let default = default.map(|default| {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        default,
+                        Some(pattern_field_id),
+                        tree,
+                        symbols,
+                        types,
+                        SymbolSpaceOrder::ValueThenType,
+                    )
+                });
+                PatternField::Computed {
+                    mutability,
+                    key,
+                    pattern,
+                    default,
+                }
+            }
             ast::PatternField::Alias {
                 mutability,
                 name,

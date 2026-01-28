@@ -760,8 +760,9 @@ impl Compiler {
                 }
                 PatternField::Spread { .. }
                 | PatternField::Alias { .. }
+                | PatternField::Computed { .. }
                 | PatternField::Elision => {
-                    // #Incomplete: handle spread/alias/elision in tuple patterns
+                    // #Incomplete: handle spread, alias, computed, elision in tuple patterns
                 }
             }
         }
@@ -810,8 +811,9 @@ impl Compiler {
                 }
                 PatternField::Positional { .. }
                 | PatternField::Spread { .. }
+                | PatternField::Computed { .. }
                 | PatternField::Elision => {
-                    // #Incomplete: handle positional/spread/elision in object patterns
+                    // #Incomplete: handle positional, spread, computed, elision in object patterns
                 }
             }
         }

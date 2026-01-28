@@ -2,7 +2,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
-    Doc, DocStyle, LocalNodeId, NodeType, TokenSpan, TokenType,
+    Doc, DocStyle, Expression, LocalNodeId, NodeType, TokenSpan, TokenType,
 };
 use destack_source::{MultiSpan, NodeSearchMode, Span};
 
@@ -319,7 +319,23 @@ impl Parser {
 
         let start_token = tokens[group_start_idx];
         let end_token = tokens[group_end_idx];
-        let is_one_line = self.is_same_line(start_token.span, end_token.span);
+        let is_block_comment = matches!(
+            start_token.token.ty,
+            TokenType::BlockComment | TokenType::DocBlockComment
+        );
+        let is_block_comment_single_line = if is_block_comment {
+            let raw = self.get_span_str(start_token.span);
+            let trimmed = raw.trim_end_matches(|c: char| c.is_whitespace());
+            let body = trimmed
+                .strip_prefix("/*")
+                .and_then(|slice| slice.strip_suffix("*/"))
+                .unwrap_or(trimmed);
+            !body.contains('\n') && !body.contains('\r')
+        } else {
+            false
+        };
+        let is_one_line =
+            self.is_same_line(start_token.span, end_token.span) || is_block_comment_single_line;
         let enclosing_scope = self.find_node_enclosing_at(
             &start_token.span,
             NodeSearchMode::SmallestInnermost,
@@ -392,6 +408,20 @@ impl Parser {
                 }
             };
 
+            // inline member split: keep comments between receiver and dot on their own line
+            if let (Some(prev_token), Some(next_token), Some(enclosing_scope)) =
+                (prev_token, next_token, enclosing_scope)
+                && next_token.token.ty == TokenType::Dot
+                && self.is_same_line(end_token.span, next_token.span)
+                && self.is_same_line(prev_token.span, end_token.span)
+                && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
+            {
+                let enclosing_expr_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
+                if matches!(self.tree.get(enclosing_expr_id), Expression::Path { .. }) {
+                    return Some((AnnotationPosition::BlockInfix, enclosing_scope.idx));
+                }
+            }
+
             // line postfix: check for directly preceding node that ends at the start token
             let line_postfix_target = if let Some(prev_token) = prev_token
                 && self.is_same_line(prev_token.span, end_token.span)
@@ -448,15 +478,49 @@ impl Parser {
                     return Some((AnnotationPosition::LinePostfix, target_node_id));
                 }
             }
+            // special case: inline comment between path segments attaches to the path as postfix
+            else if let Some(prev_token) = prev_token
+                && let Some(enclosing_scope) = enclosing_scope
+                && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
+            {
+                let expression_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
+                if let Expression::Path { path, .. } = self.tree.get(expression_id)
+                    && path.segments.len() > 1
+                    && enclosing_scope.span.end > prev_token.span.end
+                {
+                    return Some((AnnotationPosition::LinePostfixBoundary, expression_id.id));
+                }
+            }
             // line prefix: check for directly following node that starts at the end token
             else if let Some(next_token) = next_token
                 && next_token.token.ty != TokenType::Newline
-                && self.is_same_line(end_token.span, next_token.span)
-                && let Some(target_node_id) = self
-                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
-                    .map(|span| span.idx)
+                && !matches!(
+                    next_token.token.ty,
+                    TokenType::CloseParenthesis
+                        | TokenType::CloseBrace
+                        | TokenType::CloseBracket
+                        | TokenType::End
+                )
+                && (self.is_same_line(end_token.span, next_token.span)
+                    || self.is_same_line(start_token.span, next_token.span))
             {
-                return Some((AnnotationPosition::LinePrefix, target_node_id));
+                let target_node_id = self
+                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
+                    .or_else(|| {
+                        self.find_node_enclosing_at(
+                            &next_token.span,
+                            NodeSearchMode::SmallestOutermost,
+                            |span| {
+                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
+                                    && !ignore_span.contains(&span.span)
+                            },
+                        )
+                    })
+                    .map(|span| span.idx);
+
+                if let Some(target_node_id) = target_node_id {
+                    return Some((AnnotationPosition::LinePrefix, target_node_id));
+                }
             }
         }
 
@@ -1045,6 +1109,157 @@ export enum EventStatus {
                 assert_eq!(*style, CommentStyle::Slash);
             });
         });
+    }
+
+    /// Trailing comments on chained paths attach to the path expression.
+    #[test]
+    fn test_attach_trailing_comment_to_chain_path() {
+        let mut test = TestParser::new("foo\n  .getParameters /* trailing comment */\n  ?.();");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        // locate the path expression for `foo.getParameters`
+        let mut current = expr_id;
+        let mut path_id = None;
+        loop {
+            match parser.tree.get(current) {
+                Expression::Path { .. } => {
+                    path_id = Some(current);
+                    break;
+                }
+                Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. } => current = *left,
+                _ => break,
+            }
+        }
+
+        let path_id = path_id.expect("expected a chained path expression");
+
+        let annotations = parser.tree.get_annotations(path_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(
+            parser.tree,
+            annotations[0],
+            Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "trailing comment");
+                    assert_eq!(*style, CommentStyle::Star);
+                });
+            }
+        );
+    }
+
+    /// Inline comments between path segments attach as line postfix boundaries.
+    #[test]
+    fn test_attach_inline_comment_between_path_segments() {
+        let mut test = TestParser::new("wow /* inline comment */\n  .omg!");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        let mut current = expr_id;
+        let mut path_id = None;
+        loop {
+            match parser.tree.get(current) {
+                Expression::Path { .. } => {
+                    path_id = Some(current);
+                    break;
+                }
+                Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. } => current = *left,
+                _ => break,
+            }
+        }
+
+        let path_id = path_id.expect("expected a chained path expression");
+        let annotations = parser.tree.get_annotations(path_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(
+            parser.tree,
+            annotations[0],
+            Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::LinePostfixBoundary);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "inline comment");
+                    assert_eq!(*style, CommentStyle::Star);
+                });
+            }
+        );
+    }
+
+    /// Inline comments before a dot path segment attach as block infix annotations.
+    #[test]
+    fn test_attach_inline_comment_before_dot_member() {
+        let mut test = TestParser::new("wow /* inline comment */ .omg");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        let mut current = expr_id;
+        let mut path_id = None;
+        loop {
+            match parser.tree.get(current) {
+                Expression::Path { .. } => {
+                    path_id = Some(current);
+                    break;
+                }
+                Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. } => current = *left,
+                _ => break,
+            }
+        }
+
+        let path_id = path_id.expect("expected a path expression");
+        let annotations = parser.tree.get_annotations(path_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(
+            parser.tree,
+            annotations[0],
+            Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockInfix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "inline comment");
+                    assert_eq!(*style, CommentStyle::Star);
+                });
+            }
+        );
+    }
+
+    /// Inline comments after operators attach to the following operand as block prefixes.
+    #[test]
+    fn test_attach_inline_comment_between_binary_operands() {
+        let mut test = TestParser::new("a && /* keep */ b");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Binary { right, .. } => {
+                let annotations = parser.tree.get_annotations(right.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(
+                    parser.tree,
+                    annotations[0],
+                    Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "keep");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
+                    }
+                );
+            }
+        );
     }
 
     /// Multi-line suffix is attached to the previous node on the same line as a block postfix.

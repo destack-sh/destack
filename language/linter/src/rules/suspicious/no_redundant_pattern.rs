@@ -134,6 +134,11 @@ fn field_binds_anything(
             pattern.map(|p| binds_anything(ctx, p)).unwrap_or(true)
         }
 
+        // computed fields bind if their nested pattern binds
+        ast::PatternField::Computed { pattern, .. } => {
+            pattern.map(|p| binds_anything(ctx, p)).unwrap_or(false)
+        }
+
         // alias binds unless it's a wildcard
         ast::PatternField::Alias { alias, .. } => {
             let alias_name = ctx.strings.get(*alias);

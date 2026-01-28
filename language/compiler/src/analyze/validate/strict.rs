@@ -1205,6 +1205,10 @@ impl Compiler {
                 pattern: Some(pattern),
                 ..
             }
+            | PatternField::Computed {
+                pattern: Some(pattern),
+                ..
+            }
             | PatternField::Positional { pattern } => {
                 self.collect_value_binding_symbols_for_pattern(tree, *pattern, symbols, bindings);
             }
