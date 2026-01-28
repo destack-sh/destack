@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "destack_ast"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "criterion",
  "destack_base",
@@ -817,7 +817,7 @@ dependencies = [
 
 [[package]]
 name = "destack_base"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "parking_lot",
  "rustc-hash 2.1.1",
@@ -827,11 +827,11 @@ dependencies = [
 
 [[package]]
 name = "destack_builtin"
-version = "0.51.6"
+version = "0.52.0"
 
 [[package]]
 name = "destack_cli"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -864,7 +864,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_js"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "dashmap",
  "destack_ast",
@@ -883,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_lib"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "dashmap",
  "destack_ast",
@@ -900,7 +900,7 @@ dependencies = [
 
 [[package]]
 name = "destack_codegen_native"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "cranelift-codegen",
  "cranelift-frontend",
@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "base64",
  "criterion",
@@ -967,7 +967,7 @@ dependencies = [
 
 [[package]]
 name = "destack_compiler_macros"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -976,7 +976,7 @@ dependencies = [
 
 [[package]]
 name = "destack_daemon"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
@@ -1008,7 +1008,7 @@ dependencies = [
 
 [[package]]
 name = "destack_dir"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "dashmap",
  "destack_base",
@@ -1026,7 +1026,7 @@ dependencies = [
 
 [[package]]
 name = "destack_fir"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_source",
  "destack_unicode",
@@ -1034,7 +1034,7 @@ dependencies = [
 
 [[package]]
 name = "destack_formatter"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_ast",
  "destack_base",
@@ -1047,7 +1047,7 @@ dependencies = [
 
 [[package]]
 name = "destack_json"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_fir",
  "destack_source",
@@ -1057,7 +1057,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_ast",
  "destack_base",
@@ -1080,7 +1080,7 @@ dependencies = [
 
 [[package]]
 name = "destack_linter_macros"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1089,7 +1089,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "dashmap",
  "destack_ast",
@@ -1116,7 +1116,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp_server"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "bytes",
  "dashmap",
@@ -1135,7 +1135,7 @@ dependencies = [
 
 [[package]]
 name = "destack_lsp_types"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "bitflags 2.10.0",
  "fluent-uri",
@@ -1146,7 +1146,7 @@ dependencies = [
 
 [[package]]
 name = "destack_mir"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_base",
  "destack_fir",
@@ -1159,7 +1159,7 @@ dependencies = [
 
 [[package]]
 name = "destack_napi"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_codegen_js",
  "destack_compiler",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "destack_parser"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "criterion",
  "destack_ast",
@@ -1191,7 +1191,7 @@ dependencies = [
 
 [[package]]
 name = "destack_platform_test"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_cli",
  "destack_daemon",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "destack_resolver"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "cfg-if",
  "crossbeam-deque",
@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "destack_runtime"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "destack_ast",
  "destack_dir",
@@ -1240,7 +1240,7 @@ dependencies = [
 
 [[package]]
 name = "destack_source"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "cfg-if",
  "crossbeam-channel",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "clap",
  "destack_ast",
@@ -1287,7 +1287,7 @@ dependencies = [
 
 [[package]]
 name = "destack_test_mirbench"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "clap",
  "destack_mir",
@@ -1297,11 +1297,11 @@ dependencies = [
 
 [[package]]
 name = "destack_unicode"
-version = "0.51.6"
+version = "0.52.0"
 
 [[package]]
 name = "destack_vm"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "clap",
  "criterion",
@@ -1317,15 +1317,15 @@ dependencies = [
 
 [[package]]
 name = "destack_vm_abi"
-version = "0.51.6"
+version = "0.52.0"
 
 [[package]]
 name = "destack_vscode"
-version = "0.51.6"
+version = "0.52.0"
 
 [[package]]
 name = "destack_workspace"
-version = "0.51.6"
+version = "0.52.0"
 dependencies = [
  "crossbeam-deque",
  "dashmap",

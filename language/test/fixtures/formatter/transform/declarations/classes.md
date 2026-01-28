@@ -677,10 +677,13 @@ class Point {
 
 ### field with doc comment
 
-Inline doc comments before fields are moved to their own line (parser issue - doc comment eats line).
+Doc comments before fields remain attached.
 
 ```ds
-class Point { /// The x coordinate. x: number }
+class Point {
+    /// The x coordinate.
+    x: number
+}
 ```
 
 ```ds expected

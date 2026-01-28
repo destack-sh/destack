@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
 use destack_source::{DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
@@ -56,9 +56,7 @@ fuzz_target!(|data: &[u8]| {
         current_argument_group_id: None,
     };
 
-    for expr in &expressions {
-        if let Ok(formatted) = fir_format!(context.clone(), [expr]) {
-            let _ = formatted.print();
-        }
+    if let Ok(formatted) = fir_format!(context.clone(), [statement_list(&expressions)]) {
+        let _ = formatted.print();
     }
 });

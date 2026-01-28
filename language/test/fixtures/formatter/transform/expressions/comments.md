@@ -53,8 +53,6 @@ const x = /* pre-A */ A /* A comment */ && B /* B comment */;
 
 Objects with internal comments expand to multiple lines.
 
-// #Broken: Parser doesn't handle comments before object properties yet.
-
 ```ds
 { /* key */ a: 1, /* another */ b: 2 }
 ```
@@ -65,6 +63,20 @@ The formatter expands the object when it contains comments.
 {
     /* key */ a: 1,
     /* another */ b: 2,
+};
+```
+
+### comment in computed object key
+
+Comments before computed keys also expand objects to multiple lines.
+
+```ds
+{ /* key */ [k]: value }
+```
+
+```ds expected
+{
+    /* key */ [k]: value,
 };
 ```
 

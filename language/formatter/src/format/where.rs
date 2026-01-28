@@ -1,9 +1,10 @@
-use destack_fir::format::FormatResult;
+use destack_fir::format::{BestFittingMode, FormatResult};
 
+use crate::argument::list_like;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{Keyword, LocalNodeId, WhereClause};
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use destack_fir::{best_fitting, write};
 
 pub(crate) fn format_where_clause<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -17,14 +18,32 @@ pub(crate) fn format_where_clause<'ast>(
     write!(f, [space()])?;
 
     // clauses
-    write!(
-        f,
-        [best_fit_parenthesize(&format_with(|f| {
-            f.join_with(&format_args![&token(","), soft_line_break_or_space()])
-                .entries(clauses)
-                .finish()
-        }))]
-    )?;
+    if clauses.len() == 1 {
+        write!(f, [&clauses[0]])?;
+    } else {
+        let clauses_vec = clauses.to_vec();
+        write!(f, [list_like("(", ")", ",", &clauses_vec)])?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn format_where_clause_with_break<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    clauses: &[LocalNodeId<WhereClause>],
+) -> FormatResult<()> {
+    let inline = format_with(|f| {
+        write!(f, [space()])?;
+        format_where_clause(f, clauses)
+    });
+    let break_line = format_with(|f| {
+        write!(f, [hard_line_break()])?;
+        format_where_clause(f, clauses)
+    });
+
+    best_fitting![inline, break_line]
+        .with_mode(BestFittingMode::AllLines)
+        .format(f)?;
 
     Ok(())
 }

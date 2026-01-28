@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::harness::{TestCase, TestResult, check_diagnostics};
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::Parser;
 use destack_source::{
     DiffOptions, File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
@@ -113,15 +113,13 @@ fn format_expressions(
         current_argument_group_id: None,
     };
 
-    let mut result = String::new();
-    for (i, expr) in expressions.iter().enumerate() {
-        let formatted = fir_format!(context.clone(), [expr]).unwrap();
+    let mut result = if expressions.is_empty() {
+        String::new()
+    } else {
+        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
         let printed = formatted.print().unwrap();
-        result.push_str(printed.as_str());
-        if i < expressions.len() - 1 {
-            result.push('\n');
-        }
-    }
+        printed.as_str().to_string()
+    };
 
     if !result.is_empty() && !result.ends_with('\n') {
         result.push('\n');

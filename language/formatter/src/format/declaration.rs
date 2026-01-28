@@ -2,14 +2,14 @@ use crate::argument::list_like;
 use crate::block::format_block_of_statements;
 use crate::expression::{is_expression_breakable, lambda_expression_should_break};
 use crate::property::format_block_of_members;
-use crate::r#where::format_where_clause;
+use crate::r#where::format_where_clause_with_break;
 use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationKind, DependencyMode, EnumKind, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword, LocalNodeId,
-    Mutability, Parameter, TypeKind, Visibility,
+    Asynchrony, Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode, EnumKind,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword,
+    LocalNodeId, Mutability, Parameter, TypeKind, Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -102,7 +102,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(
                         f,
                         [group(&block_indent(&format_with(|f| {
-                            format_block_of_statements(f, node_id.into_any(), expressions)
+                            format_block_of_statements(f, expressions)
                         })))]
                     )?;
                     write!(
@@ -139,8 +139,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // body
@@ -153,7 +152,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(
                         f,
                         [group(&block_indent(&format_with(|f| {
-                            format_block_of_statements(f, node_id.into_any(), expressions)
+                            format_block_of_statements(f, expressions)
                         })))]
                     )?;
                     write!(
@@ -268,6 +267,11 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [Keyword::Declare, space()])?;
                 }
 
+                // abstraction
+                if descriptor.abstraction == DeclarationAbstraction::Abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+
                 // keyword
                 if is_class {
                     write!(f, [Keyword::Class])?;
@@ -305,8 +309,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 write!(f, [space()])?;
@@ -393,8 +396,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 write!(f, [space()])?;
@@ -484,8 +486,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // space before body
@@ -599,8 +600,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 if let Some(where_clauses) = generics.where_clauses.as_ref()
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // body
@@ -698,7 +698,14 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     generics.and_then(|generics| generics.static_parameters.as_ref())
                     && !static_parameters.is_empty()
                 {
-                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                    let needs_jsx_disambiguation = signature.kind == FunctionKind::Lambda
+                        && f.context().options.language_type.supports_jsx()
+                        && static_parameters.len() == 1;
+                    let mut static_params_list = list_like("<", ">", ",", static_parameters);
+                    if needs_jsx_disambiguation {
+                        static_params_list.force_trailing_separator();
+                    }
+                    write!(f, [static_params_list])?;
                 }
 
                 let mut dynamic_parameters =
@@ -769,8 +776,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // body

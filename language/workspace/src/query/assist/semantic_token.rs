@@ -1,5 +1,6 @@
 use destack_dir as dir;
-use destack_source::{FileId, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanType, Span, Uri};
+use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::get_module_by_file_id;
@@ -8,7 +9,7 @@ use crate::query::common::get_module_by_file_id;
 ///
 /// Maps to LSP's SemanticTokenTypes. More granular than lexical highlighting
 /// because we have resolution information from DIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SemanticTokenType {
     Namespace,
     Type,
@@ -38,7 +39,8 @@ pub enum SemanticTokenType {
 /// Semantic token modifiers (can be combined as a bitset).
 ///
 /// Maps to LSP's SemanticTokenModifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct SemanticTokenModifiers(u32);
 
 impl SemanticTokenModifiers {
@@ -69,7 +71,7 @@ impl SemanticTokenModifiers {
 }
 
 /// A single semantic token.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SemanticToken {
     /// The span of the token.
     pub span: Span,
@@ -92,6 +94,31 @@ impl SemanticToken {
         self.modifiers = self.modifiers.union(modifiers);
         self
     }
+}
+
+/// Request semantic tokens for a document.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticTokensRequest {
+    /// The document URI.
+    pub uri: Uri,
+}
+
+/// Request semantic tokens for a document range.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticTokensRangeRequest {
+    /// The document URI.
+    pub uri: Uri,
+    /// The start byte offset in the document.
+    pub start: u32,
+    /// The end byte offset in the document.
+    pub end: u32,
+}
+
+/// Response payload for semantic tokens queries.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SemanticTokensResponse {
+    /// Semantic tokens.
+    pub tokens: Vec<SemanticToken>,
 }
 
 /// Get semantic tokens for a file.

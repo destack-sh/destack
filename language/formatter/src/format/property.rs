@@ -1,5 +1,5 @@
 use crate::argument::list_like;
-use crate::r#where::format_where_clause;
+use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
@@ -103,6 +103,7 @@ pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
+    let is_typescript = f.context().options.language_type.is_typescript();
     for (i, &member_id) in members.iter().enumerate() {
         let member = f.context().tree.get(member_id);
         // blank line between members
@@ -110,9 +111,19 @@ pub(crate) fn format_block_of_members<'ast>(
             write!(f, [hard_line_break()])?;
         }
         member_id.format(f)?;
-        // comma after field members
-        if matches!(member, Member::Field { .. }) {
-            write!(f, [token(",")])?;
+        if is_typescript {
+            let needs_semicolon = matches!(
+                member,
+                Member::Field { .. } | Member::Method { body: None, .. }
+            );
+            if needs_semicolon {
+                write!(f, [token(";")])?;
+            }
+        } else {
+            // comma after field members
+            if matches!(member, Member::Field { .. }) {
+                write!(f, [token(",")])?;
+            }
         }
     }
     Ok(())
@@ -221,8 +232,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // body
@@ -372,8 +382,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     generics.and_then(|generics| generics.where_clauses.as_ref())
                     && !where_clauses.is_empty()
                 {
-                    write!(f, [space()])?;
-                    format_where_clause(f, where_clauses)?;
+                    format_where_clause_with_break(f, where_clauses)?;
                 }
 
                 // body

@@ -5,7 +5,7 @@ use crate::harness::{TestResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileRegistry, FileSystem,
@@ -181,15 +181,13 @@ fn format_expressions(
     };
 
     // format expressions
-    let mut result = String::new();
-    for (i, expr) in expressions.iter().enumerate() {
-        let formatted = fir_format!(context.clone(), [expr]).unwrap();
+    let mut result = if expressions.is_empty() {
+        String::new()
+    } else {
+        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).unwrap();
         let printed = formatted.print().unwrap();
-        result.push_str(printed.as_str());
-        if i < expressions.len() - 1 {
-            result.push('\n');
-        }
-    }
+        printed.as_str().to_string()
+    };
 
     // ensure trailing newline
     if !result.is_empty() && !result.ends_with('\n') {

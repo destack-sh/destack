@@ -409,11 +409,11 @@ const f = (a) => (b) => (c) => a + b + c;
 ### arrow function with type parameter
 
 ```ds
-const identity = <T>(x: T): T => x
+const identity = <T,>(x: T): T => x
 ```
 
 ```ds expected
-const identity = <T>(x: T): T => x;
+const identity = <T,>(x: T): T => x;
 ```
 
 ### arrow function with constrained type parameter
