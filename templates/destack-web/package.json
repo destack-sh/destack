@@ -1,6 +1,6 @@
 {
 	"name": "@destack-sh/template-slides",
-	"version": "0.51.6",
+	"version": "0.52.0",
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
