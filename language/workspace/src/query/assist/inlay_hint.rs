@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::format::format_type_for_inlay_hint;
 use crate::query::common::{
-    dynamic_parameter_names, resolve_call_target, with_query_context_for_file,
+    binding_name_span, dynamic_parameter_names, resolve_call_target, with_query_context_for_file,
 };
 
 /// Kind of inlay hint.
@@ -236,45 +236,6 @@ fn hint_kind_rank(kind: InlayHintKind) -> u8 {
         InlayHintKind::Type => 0,
         InlayHintKind::Parameter => 1,
     }
-}
-
-/// Resolve the span of a binding name within a pattern span.
-fn binding_name_span(source: &str, span: Span, name: &str) -> Span {
-    // slice the source to the pattern span
-    let slice = source
-        .get(span.start as usize..span.end as usize)
-        .unwrap_or("");
-
-    // locate the binding name within the span
-    if let Some(rel_start) = slice.find(name) {
-        let name_start = span.start.saturating_add(rel_start as u32);
-        let name_end = name_start.saturating_add(name.len() as u32);
-        return Span::new(span.file, name_start, name_end);
-    }
-
-    // fall back to trimming trailing whitespace
-    let trimmed_end = trim_span_end(source, span.start, span.end);
-    Span::new(span.file, span.start, trimmed_end)
-}
-
-/// Trim trailing whitespace from a span end offset.
-fn trim_span_end(source: &str, start: u32, end: u32) -> u32 {
-    // walk backwards from the end while whitespace is present
-    let mut idx = end as usize;
-    let min = start as usize;
-    let bytes = source.as_bytes();
-    while idx > min {
-        let Some(byte) = bytes.get(idx.saturating_sub(1)) else {
-            break;
-        };
-        if byte.is_ascii_whitespace() {
-            idx = idx.saturating_sub(1);
-        } else {
-            break;
-        }
-    }
-
-    idx as u32
 }
 
 /// Get parameter names for a function.

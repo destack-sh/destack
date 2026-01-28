@@ -1,10 +1,13 @@
-use destack_dir::{Declaration, DynamicKey, EnumField, LocalNodeId, Member, NodeTree};
+use destack_dir::{Declaration, EnumField, LocalNodeId, Member, NodeTree};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::QueryContext;
-use crate::query::common::with_query_context_for_file;
+use crate::query::common::{
+    is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
+    span_for_dir_node, with_query_context_for_file,
+};
 
 /// Kind of document symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -109,17 +112,7 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
         // iterate through all declarations
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
             // get the kind based on declaration type
-            let kind = match declaration {
-                Declaration::Global { .. } => SymbolKind::Namespace,
-                Declaration::Function { .. } => SymbolKind::Function,
-                Declaration::Struct { .. } => SymbolKind::Struct,
-                Declaration::Class { .. } => SymbolKind::Class,
-                Declaration::Interface { .. } => SymbolKind::Interface,
-                Declaration::Enum { .. } => SymbolKind::Enum,
-                Declaration::Namespace { .. } => SymbolKind::Namespace,
-                Declaration::Type { .. } => SymbolKind::TypeParameter,
-                Declaration::Extension { .. } => SymbolKind::Class,
-            };
+            let kind = declaration_symbol_kind(declaration);
 
             // get the declaration name using the descriptor method
             let descriptor = declaration.descriptor();
@@ -132,17 +125,9 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
             };
 
             // resolve the full range and the main selection range
-            let ast_node_id = dir_tree.get_source(declaration_id.id);
-            let full_span = ctx.ast.tree.source_map.get(ast_node_id);
-            let range = Span::new(ctx.file_id, full_span.start, full_span.end);
-
-            let selection_range = ctx
-                .ast
-                .tree
-                .source_map
-                .get_main(ast_node_id)
-                .map(|span| Span::new(ctx.file_id, span.start, span.end))
-                .unwrap_or(range);
+            let range = span_for_dir_node(&ctx, &dir_tree, declaration_id.into());
+            let selection_range =
+                main_span_for_dir_node(&ctx, &dir_tree, declaration_id.into()).unwrap_or(range);
 
             let mut symbol =
                 DocumentSymbol::new(name, kind, range).with_selection_range(selection_range);
@@ -185,43 +170,23 @@ fn member_to_document_symbol(
     session: &Session,
 ) -> Option<DocumentSymbol> {
     let member = dir_tree.get::<Member>(member_id);
-    let ast_node_id = dir_tree.get_source(member_id.id);
-    let full_span = ctx.ast.tree.source_map.get(ast_node_id);
+    let range = span_for_dir_node(ctx, dir_tree, member_id.into());
 
     // get the member name from the key
-    let name = match member.key() {
-        Some(DynamicKey::Name(string_id)) => session.strings.get(*string_id).to_string(),
-        Some(DynamicKey::Number(string_id)) => session.strings.get(*string_id).to_string(),
-        _ => return None, // skip members without static names
-    };
+    let key = member.key()?;
+    let name = member_key_name(session, key)?;
 
     // get kind based on member type
-    let kind = match member {
-        Member::Type { .. } => SymbolKind::TypeParameter,
-        Member::Field { .. } => SymbolKind::Field,
-        Member::Method { .. } => SymbolKind::Method,
-        Member::Embed { .. } => return None, // skip embedded types
-        Member::StaticBlock { .. } => return None, // skip static blocks
-        Member::ComptimeBlock { .. } => return None, // skip comptime blocks
-    };
+    let kind = member_symbol_kind(member)?;
 
     // skip synthetic function keyword fields for methods
-    let full_len = full_span.end.saturating_sub(full_span.start);
-    if matches!(member, Member::Field { .. }) && name == "function" && full_len == 8 {
+    if is_synthetic_function_keyword_field(member, &name, range) {
         return None;
     }
 
     // get spans
-    let range = Span::new(ctx.file_id, full_span.start, full_span.end);
-
     // get main span (name span) if available
-    let selection_range = ctx
-        .ast
-        .tree
-        .source_map
-        .get_main(ast_node_id)
-        .map(|span| Span::new(ctx.file_id, span.start, span.end))
-        .unwrap_or(range);
+    let selection_range = main_span_for_dir_node(ctx, dir_tree, member_id.into()).unwrap_or(range);
 
     Some(DocumentSymbol::new(name, kind, range).with_selection_range(selection_range))
 }
@@ -239,21 +204,40 @@ fn enum_field_to_document_symbol(
     let name = session.strings.get(field.name).to_string();
 
     // get spans
-    let ast_node_id = dir_tree.get_source(field_id.id);
-    let full_span = ctx.ast.tree.source_map.get(ast_node_id);
-    let range = Span::new(ctx.file_id, full_span.start, full_span.end);
+    let range = span_for_dir_node(ctx, dir_tree, field_id.into());
 
     // get main span (name span) if available
-    let selection_range = ctx
-        .ast
-        .tree
-        .source_map
-        .get_main(ast_node_id)
-        .map(|span| Span::new(ctx.file_id, span.start, span.end))
-        .unwrap_or(range);
+    let selection_range = main_span_for_dir_node(ctx, dir_tree, field_id.into()).unwrap_or(range);
 
     Some(
         DocumentSymbol::new(name, SymbolKind::EnumMember, range)
             .with_selection_range(selection_range),
     )
+}
+
+/// Map a declaration to its document symbol kind.
+pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
+    match declaration {
+        Declaration::Global { .. } => SymbolKind::Namespace,
+        Declaration::Function { .. } => SymbolKind::Function,
+        Declaration::Struct { .. } => SymbolKind::Struct,
+        Declaration::Class { .. } => SymbolKind::Class,
+        Declaration::Interface { .. } => SymbolKind::Interface,
+        Declaration::Enum { .. } => SymbolKind::Enum,
+        Declaration::Namespace { .. } => SymbolKind::Namespace,
+        Declaration::Type { .. } => SymbolKind::TypeParameter,
+        Declaration::Extension { .. } => SymbolKind::Class,
+    }
+}
+
+/// Map a member to its document symbol kind.
+pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
+    match member {
+        Member::Type { .. } => Some(SymbolKind::TypeParameter),
+        Member::Field { .. } => Some(SymbolKind::Field),
+        Member::Method { .. } => Some(SymbolKind::Method),
+        Member::Embed { .. } => None,
+        Member::StaticBlock { .. } => None,
+        Member::ComptimeBlock { .. } => None,
+    }
 }

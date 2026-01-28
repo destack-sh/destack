@@ -3,7 +3,7 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
-use crate::query::common::with_query_context_for_file;
+use crate::query::common::{main_or_enclosing_span_for_dir_node, with_query_context_for_file};
 
 /// A clickable link in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -128,8 +128,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
                     };
 
                     // get the span of this import expression
-                    let ast_node_id = dir_tree.get_source(expr_id.id);
-                    let span = ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id);
+                    let span = main_or_enclosing_span_for_dir_node(&ctx, &dir_tree, expr_id.into());
 
                     // make the link
                     let import_path = session.strings.get(*target).to_string();

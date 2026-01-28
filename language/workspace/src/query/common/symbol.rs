@@ -787,7 +787,7 @@ fn resolve_nominal_symbol_from_type(
 }
 
 /// Resolve a static member name from a dynamic key.
-fn member_key_name(session: &Session, key: &DynamicKey) -> Option<String> {
+pub(crate) fn member_key_name(session: &Session, key: &DynamicKey) -> Option<String> {
     // resolve name and numeric keys into strings
     match key {
         DynamicKey::Name(name_id) | DynamicKey::Number(name_id) => {
@@ -795,6 +795,21 @@ fn member_key_name(session: &Session, key: &DynamicKey) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// Check whether a member field is the synthetic `function` keyword placeholder.
+pub(crate) fn is_synthetic_function_keyword_field(
+    member: &Member,
+    name: &str,
+    range: Span,
+) -> bool {
+    // only skip field members that match the exact `function` token length
+    if !matches!(member, Member::Field { .. }) || name != "function" {
+        return false;
+    }
+
+    let full_len = range.end.saturating_sub(range.start);
+    full_len == 8
 }
 
 /// Resolve a member symbol from declaration members.

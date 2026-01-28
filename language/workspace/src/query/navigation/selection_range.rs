@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 use crate::Session;
-use crate::query::common::with_query_context_for_file;
+use crate::query::common::{span_contains_span, with_query_context_for_file};
 
 /// A selection range with parent.
 ///
@@ -103,8 +103,8 @@ pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> V
             let mut chain = vec![leaf_span];
             for span in spans.into_iter().skip(1) {
                 let last = *chain.last().unwrap_or(&leaf_span);
-                let contains_leaf = contains_span(span, leaf_span);
-                let contains_last = contains_span(span, last);
+                let contains_leaf = span_contains_span(span, leaf_span);
+                let contains_last = span_contains_span(span, last);
                 if contains_leaf && contains_last && span != last {
                     chain.push(span);
                 }
@@ -123,9 +123,4 @@ pub fn selection_ranges(session: &Session, file: FileId, positions: &[u32]) -> V
         results
     })
     .unwrap_or_default()
-}
-
-/// Check whether a span contains another span.
-fn contains_span(parent: Span, child: Span) -> bool {
-    parent.start <= child.start && parent.end >= child.end
 }
