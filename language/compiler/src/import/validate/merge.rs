@@ -145,6 +145,11 @@ pub(crate) fn can_merge_declarations(
         return true;
     }
 
+    // allow function overloads
+    if left.symbol_type == SymbolType::Function && right.symbol_type == SymbolType::Function {
+        return true;
+    }
+
     // allow enum redeclarations
     if left.symbol_type == SymbolType::Enum && right.symbol_type == SymbolType::Enum {
         return true;

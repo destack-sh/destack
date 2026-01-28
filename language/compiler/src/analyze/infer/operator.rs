@@ -476,6 +476,20 @@ impl Compiler {
             )
         });
 
+        // comparison operators lower compare results to boolean
+        if matches!(
+            operator,
+            BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual
+                | BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+        ) {
+            let boolean_ty = Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            };
+            return Ok(types.insert_type_from(boolean_ty, expression_id));
+        }
+
         Ok(return_ty_id)
     }
 

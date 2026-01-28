@@ -203,6 +203,7 @@ impl Compiler {
         signature_ty_id: LocalTypeId,
         call_receiver_ty_id: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
+        allow_missing_value_arguments: bool,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -254,6 +255,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             mode,
+            allow_missing_value_arguments,
             profile,
             options,
             tree,
@@ -338,298 +340,8 @@ impl Compiler {
             return Ok(Some(candidates.remove(0)));
         }
 
-        // find the most specific signature among candidates
-        let candidate_index = self.select_signature_by_specificity(
-            module,
-            profile,
-            &candidates,
-            symbols,
-            types,
-            options,
-        );
-        if let Some(index) = candidate_index {
-            return Ok(Some(candidates.remove(index)));
-        }
-
-        let candidates = callee_symbol.into_iter().collect();
-        Err(AnalyzeError::AmbiguousOverload {
-            node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            candidates,
-        })
-    }
-
-    /// Resolve overloads when union arguments require a union return type.
-    fn resolve_union_argument_overload_return(
-        &self,
-        module: &Module,
-        expression_id: LocalNodeId<Expression>,
-        callee_symbol: Option<GlobalSymbolId>,
-        callee_ty_id: LocalTypeId,
-        static_arguments: Option<&[LocalNodeId<Argument>]>,
-        signature_ids: &[LocalTypeId],
-        dynamic_arguments: &[LocalNodeId<Argument>],
-        call_receiver_ty_id: Option<LocalTypeId>,
-        mode: SignatureResolutionMode,
-        profile: ProfileId,
-        options: &AnalyzeOptions,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        infer: &mut InferTable,
-        ctx: &mut InferContext,
-    ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // skip union handling when no overloads exist
-        if signature_ids.len() <= 1 {
-            return Ok(None);
-        }
-
-        // resolve and filter applicable overloads
-        let candidates = self.collect_applicable_signatures(
-            module,
-            expression_id,
-            callee_symbol,
-            static_arguments,
-            signature_ids,
-            dynamic_arguments,
-            call_receiver_ty_id,
-            mode,
-            profile,
-            options,
-            tree,
-            symbols,
-            types,
-            infer,
-        )?;
-
-        // drop equivalent overloads introduced by declaration merging
-        let candidates =
-            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
-        if candidates.is_empty() {
-            return Ok(None);
-        }
-
-        // compute expected argument types when uniform across candidates
-        let mut expected_argument_types = Vec::with_capacity(dynamic_arguments.len());
-        for index in 0..dynamic_arguments.len() {
-            let mut expected = None;
-            let mut is_uniform = true;
-            for candidate in &candidates {
-                let Some(param_ty_id) = candidate.1.dynamic_parameters.get(index).copied() else {
-                    is_uniform = false;
-                    break;
-                };
-                if let Some(current) = expected {
-                    if current != param_ty_id {
-                        is_uniform = false;
-                        break;
-                    }
-                } else {
-                    expected = Some(param_ty_id);
-                }
-            }
-            expected_argument_types.push(if is_uniform { expected } else { None });
-        }
-
-        // infer arguments with contextual types when possible
-        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-            let expected_arg_ty_id = expected_argument_types
-                .get(index)
-                .copied()
-                .flatten()
-                .and_then(|parameter| {
-                    self.expected_parameter_type_for_inference(
-                        module, profile, parameter, symbols, types,
-                    )
-                });
-            self.infer_argument(
-                module,
-                *argument_id,
-                expected_arg_ty_id,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?;
-
-            let argument = tree.get(*argument_id);
-            let argument_value_id = argument.value();
-            let argument_ty_id = if let Some(ty_id) =
-                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
-            {
-                ty_id
-            } else {
-                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
-            };
-            argument_ty_ids.push(argument_ty_id);
-        }
-
-        // only use union overload handling when an argument is a union type
-        let has_union_argument = argument_ty_ids.iter().any(|argument_ty_id| {
-            self.union_elements_for_argument_type(*argument_ty_id, types)
-                .is_some()
-        });
-        if !has_union_argument {
-            return Ok(None);
-        }
-
-        // filter candidates that are compatible with union arguments
-        let mut union_candidates = Vec::new();
-        for (signature_id, resolved) in candidates {
-            let mut is_applicable = true;
-            for (argument_ty_id, param_ty_id) in argument_ty_ids
-                .iter()
-                .zip(resolved.dynamic_parameters.iter())
-            {
-                if !self.argument_assignable_to_parameter(
-                    module,
-                    profile,
-                    symbols,
-                    *param_ty_id,
-                    *argument_ty_id,
-                    types,
-                    infer,
-                    options,
-                ) {
-                    is_applicable = false;
-                    break;
-                }
-            }
-            if is_applicable {
-                union_candidates.push((signature_id, resolved));
-            }
-        }
-
-        if union_candidates.is_empty() {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                receiver_ty: callee_ty_id.into_global(module.id),
-            });
-
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(Some(types.insert_type_from(ty, expression_id)));
-        }
-
-        // add constraints between arguments and parameters for each candidate
-        for candidate in &union_candidates {
-            for (argument_ty_id, param_ty_id) in argument_ty_ids
-                .iter()
-                .zip(candidate.1.dynamic_parameters.iter())
-            {
-                infer.push_constraint(Constraint::Subtype {
-                    sub_type: *argument_ty_id,
-                    super_type: *param_ty_id,
-                    variance: None,
-                });
-            }
-        }
-
-        // ensure each union element is covered by at least one candidate
-        let mut has_missing_element = false;
-        for (index, argument_ty_id) in argument_ty_ids.iter().enumerate() {
-            let Some(elements) = self.union_elements_for_argument_type(*argument_ty_id, types)
-            else {
-                continue;
-            };
-            for element_id in &elements {
-                let mut is_covered = false;
-                for candidate in &union_candidates {
-                    let Some(param_ty_id) = candidate.1.dynamic_parameters.get(index).copied()
-                    else {
-                        continue;
-                    };
-                    if self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
-                        param_ty_id,
-                        *element_id,
-                        types,
-                        options,
-                    ) != Assignability::NotAssignable
-                    {
-                        is_covered = true;
-                        break;
-                    }
-                }
-                if !is_covered {
-                    has_missing_element = true;
-                    break;
-                }
-            }
-            if has_missing_element {
-                break;
-            }
-        }
-
-        if has_missing_element {
-            self.error(AnalyzeError::NoOverload {
-                node: expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                receiver_ty: callee_ty_id.into_global(module.id),
-            });
-
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            return Ok(Some(types.insert_type_from(ty, expression_id)));
-        }
-
-        // build the union return type from candidate signatures
-        let mut void_type_id = None;
-        let mut return_type_ids = Vec::new();
-        for candidate in &union_candidates {
-            let return_type_id = match candidate.1.return_type {
-                Some(return_type_id) => return_type_id,
-                None => *void_type_id.get_or_insert_with(|| {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Void,
-                    };
-                    types.insert_type_from(ty, expression_id)
-                }),
-            };
-            return_type_ids.push(return_type_id);
-        }
-
-        let return_type_id = match return_type_ids.len() {
-            0 => {
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Void,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
-            1 => return_type_ids[0],
-            _ => self.union_type_from_list(return_type_ids, callee_ty_id, types),
-        };
-
-        // record dynamic resolution when a symbol is available
-        if let Some(callee_symbol) = callee_symbol {
-            let resolution_candidates = union_candidates
-                .into_iter()
-                .map(|candidate| ResolutionCandidate {
-                    key: None,
-                    target_symbol: callee_symbol,
-                    instance: None,
-                    resolved_signature: Some(candidate.1),
-                })
-                .collect();
-            self.record_dynamic_resolution(
-                expression_id.into_global_any(module.id),
-                call_receiver_ty_id,
-                resolution_candidates,
-                types,
-            );
-        }
-
-        Ok(Some(return_type_id))
+        // prefer the first applicable signature in declaration order
+        Ok(candidates.into_iter().next())
     }
 
     /// Resolve and filter applicable overloads for call selection.
@@ -663,6 +375,7 @@ impl Compiler {
                 *signature_ty_id,
                 call_receiver_ty_id,
                 mode,
+                true,
                 profile,
                 options,
                 tree,
@@ -717,68 +430,6 @@ impl Compiler {
         }
 
         deduped
-    }
-
-    /// Select the most specific signature among candidates.
-    fn select_signature_by_specificity(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        candidates: &[(LocalTypeId, ResolvedSignature)],
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
-    ) -> Option<usize> {
-        // compute maximal candidates by specificity
-        let mut maximal = Vec::new();
-        for (index, candidate) in candidates.iter().enumerate() {
-            let mut dominated = false;
-
-            for (other_index, other) in candidates.iter().enumerate() {
-                if index == other_index {
-                    continue;
-                }
-                if self.is_signature_more_specific(
-                    module,
-                    profile,
-                    &other.1,
-                    &candidate.1,
-                    symbols,
-                    types,
-                    options,
-                ) {
-                    dominated = true;
-                    break;
-                }
-            }
-
-            if !dominated {
-                maximal.push(index);
-            }
-        }
-
-        if maximal.len() == 1 {
-            return Some(maximal[0]);
-        }
-
-        // break ties by parameter count
-        let min_params = maximal
-            .iter()
-            .map(|index| candidates[*index].1.dynamic_parameters.len())
-            .min()
-            .unwrap_or(0);
-        let mut narrowed = Vec::new();
-        for index in maximal {
-            if candidates[index].1.dynamic_parameters.len() == min_params {
-                narrowed.push(index);
-            }
-        }
-
-        if narrowed.len() == 1 {
-            return Some(narrowed[0]);
-        }
-
-        None
     }
 
     /// Check whether two resolved signatures are equivalent after normalization.
@@ -1313,6 +964,32 @@ impl Compiler {
             {
                 return Ok(false);
             }
+
+            // check known argument types against parameter types
+            let argument_ty_id = types
+                .get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                .or_else(|| {
+                    argument_value
+                        .target_symbol()
+                        .and_then(|symbol| types.get_type_id_for_symbol(symbols, symbol))
+                });
+            if let Some(argument_ty_id) = argument_ty_id {
+                if self.is_infer_var_type(argument_ty_id, types) {
+                    continue;
+                }
+                if self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    param_ty_id,
+                    argument_ty_id,
+                    types,
+                    options,
+                ) == Assignability::NotAssignable
+                {
+                    return Ok(false);
+                }
+            }
         }
 
         Ok(true)
@@ -1348,164 +1025,6 @@ impl Compiler {
         Ok(Some(
             types.insert_type_from_any(ty, argument_value_id.into_any()),
         ))
-    }
-
-    /// Return union elements for a type used as an argument when possible.
-    fn union_elements_for_argument_type(
-        &self,
-        argument_ty_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> Option<Vec<LocalTypeId>> {
-        match types.get_type(argument_ty_id) {
-            Type::Union { elements } => Some(elements.clone()),
-            Type::Value { value } => match types.get_type(*value) {
-                Type::Union { elements } => Some(elements.clone()),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
-
-    /// Return true when an argument type can flow to a parameter type, distributing unions.
-    fn argument_assignable_to_parameter(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        param_ty_id: LocalTypeId,
-        argument_ty_id: LocalTypeId,
-        types: &mut TypeTable,
-        infer: &InferTable,
-        options: &AnalyzeOptions,
-    ) -> bool {
-        let resolved_argument_ty_id = self.materialize_infer_type_for_check(
-            module,
-            profile,
-            symbols,
-            argument_ty_id,
-            infer,
-            types,
-            options,
-        );
-        if let Type::InferVar { id } = types.get_type(param_ty_id)
-            && let Some(var) = infer.vars.get(id.0 as usize)
-            && !var.upper_bounds.is_empty()
-        {
-            let mut satisfies_bound = false;
-            for upper_bound in &var.upper_bounds {
-                let resolved_bound = self.materialize_infer_type_for_check(
-                    module,
-                    profile,
-                    symbols,
-                    *upper_bound,
-                    infer,
-                    types,
-                    options,
-                );
-                if self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    resolved_bound,
-                    resolved_argument_ty_id,
-                    types,
-                    options,
-                ) != Assignability::NotAssignable
-                {
-                    satisfies_bound = true;
-                    break;
-                }
-            }
-            if !satisfies_bound {
-                return false;
-            }
-        }
-
-        let param_ty_id = self.materialize_infer_type_for_check(
-            module,
-            profile,
-            symbols,
-            param_ty_id,
-            infer,
-            types,
-            options,
-        );
-        if let Some(elements) =
-            self.union_elements_for_argument_type(resolved_argument_ty_id, types)
-        {
-            return elements.iter().any(|element_id| {
-                self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    param_ty_id,
-                    *element_id,
-                    types,
-                    options,
-                ) != Assignability::NotAssignable
-            });
-        }
-
-        self.is_type_assignable(
-            module,
-            profile,
-            symbols,
-            param_ty_id,
-            resolved_argument_ty_id,
-            types,
-            options,
-        ) != Assignability::NotAssignable
-    }
-
-    /// Return true when the left signature is more specific than the right.
-    fn is_signature_more_specific(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        left: &ResolvedSignature,
-        right: &ResolvedSignature,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        options: &AnalyzeOptions,
-    ) -> bool {
-        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
-            return false;
-        }
-
-        let mut is_strict = false;
-        for (left_param, right_param) in left
-            .dynamic_parameters
-            .iter()
-            .zip(right.dynamic_parameters.iter())
-        {
-            let left_to_right = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                *right_param,
-                *left_param,
-                types,
-                options,
-            );
-            if left_to_right == Assignability::NotAssignable {
-                return false;
-            }
-
-            let right_to_left = self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                *left_param,
-                *right_param,
-                types,
-                options,
-            );
-            if right_to_left == Assignability::NotAssignable {
-                is_strict = true;
-            }
-        }
-
-        is_strict
     }
 
     /// Resolve per variant member call candidates for a union receiver.
@@ -1695,6 +1214,7 @@ impl Compiler {
                     signature_ty_id,
                     Some(*element_id),
                     SignatureResolutionMode::Inference,
+                    false,
                     profile,
                     options,
                     tree,
@@ -2129,28 +1649,6 @@ impl Compiler {
 
         let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
         let ty_id = if !call_signatures.is_empty() {
-            // resolve union argument overloads before selecting a single signature
-            if let Some(return_type_id) = self.resolve_union_argument_overload_return(
-                module,
-                expression_id,
-                callee_symbol,
-                callee_ty_id,
-                effective_static_arguments,
-                &call_signatures,
-                dynamic_arguments,
-                call_receiver_ty_id,
-                SignatureResolutionMode::Inference,
-                ctx.profile,
-                &options,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )? {
-                return Ok(return_type_id);
-            }
-
             // select the matching overload
             let selection = self.select_call_signature(
                 module,
@@ -2205,6 +1703,7 @@ impl Compiler {
                     signature_ty_id,
                     call_receiver_ty_id,
                     SignatureResolutionMode::Inference,
+                    false,
                     ctx.profile,
                     &options,
                     tree,
@@ -2507,6 +2006,7 @@ impl Compiler {
                     signature_ty_id,
                     None,
                     SignatureResolutionMode::Inference,
+                    false,
                     ctx.profile,
                     &options,
                     tree,
@@ -2681,6 +2181,7 @@ impl Compiler {
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
+        allow_missing_value_arguments: bool,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -2698,6 +2199,7 @@ impl Compiler {
             dynamic_parameters,
             return_type,
             mode,
+            allow_missing_value_arguments,
             profile,
             options,
             tree,
@@ -2729,6 +2231,7 @@ impl Compiler {
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
+        allow_missing_value_arguments: bool,
         profile: ProfileId,
         options: &AnalyzeOptions,
         tree: &NodeTree,
@@ -2854,6 +2357,13 @@ impl Compiler {
                     if let Some(inferred_argument) = inferred_argument {
                         inferred_argument
                     } else {
+                        if static_parameter.kind == StaticParameterKind::Value
+                            && mode == SignatureResolutionMode::Inference
+                            && allow_missing_value_arguments
+                        {
+                            return Ok(None);
+                        }
+
                         // track missing value arguments to suppress cascading errors
                         if static_parameter.kind == StaticParameterKind::Value {
                             has_missing_value_argument = true;
@@ -3130,6 +2640,7 @@ impl Compiler {
             &dynamic_parameters,
             return_type,
             SignatureResolutionMode::Checking,
+            false,
             profile,
             options,
             tree,

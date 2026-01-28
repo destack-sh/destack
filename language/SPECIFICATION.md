@@ -554,6 +554,7 @@ The rules for arrays and tuples center around correctness and performance:
 - Mutable arrays are assignable to readonly arrays.
 - Readonly arrays are not assignable to mutable arrays.
 - Readonly tuples are also not assignable to mutable tuples.
+- Fixed-size arrays are assignable to dynamic arrays when their element types are compatible.
 - Tuples are fixed-length value types and are assignable to arrays when their element types are compatible.
 
 ### References and Values

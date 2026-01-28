@@ -1646,12 +1646,30 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         match receiver_ty {
             // object type: look up field directly
-            Type::Object { fields, .. } => {
+            Type::Object {
+                fields,
+                call_signatures,
+                ..
+            } => {
                 // check explicit object fields first
                 if let Some(field_ty) =
                     self.member_type_from_fields(fields, member_key, node_id, types)
                 {
                     return Ok(Some(field_ty));
+                }
+
+                // prefer strict bind/call/apply inference when enabled
+                let options = self.analyze_context_options_for_module(module.id);
+                if options.strict_bind_call_apply
+                    && !call_signatures.is_empty()
+                    && let Some(synthetic) = self.strict_bind_call_apply_member_type(
+                        node_id,
+                        receiver_ty,
+                        member_key,
+                        types,
+                    )
+                {
+                    return Ok(Some(synthetic));
                 }
 
                 // fall back to implicit Object members
@@ -1951,12 +1969,77 @@ impl Compiler {
         Some(self.union_type_from_list(matching, source_type_id, types))
     }
 
-    /// Build strict bind/call/apply member types for function receivers.
+    /// Build strict bind/call/apply member types for callable receivers.
     fn strict_bind_call_apply_member_type(
         &self,
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let member_name = member_key.name()?;
+
+        // only override call/apply/bind with strict signatures
+        let member_name = self.program.strings.get(member_name);
+        let member_name = member_name.as_ref();
+        if member_name != "call" && member_name != "apply" && member_name != "bind" {
+            return None;
+        }
+
+        let mut member_signatures = Vec::new();
+        match receiver_ty {
+            Type::Function { .. } => {
+                if let Some(signature_id) = self.strict_bind_call_apply_signature_from_type(
+                    node_id,
+                    receiver_ty,
+                    member_name,
+                    types,
+                ) {
+                    member_signatures.push(signature_id);
+                }
+            }
+            Type::Object {
+                call_signatures, ..
+            } => {
+                for signature_id in call_signatures {
+                    let signature_ty = types.get_type(*signature_id).clone();
+                    if let Some(member_signature_id) = self
+                        .strict_bind_call_apply_signature_from_type(
+                            node_id,
+                            &signature_ty,
+                            member_name,
+                            types,
+                        )
+                    {
+                        member_signatures.push(member_signature_id);
+                    }
+                }
+            }
+            _ => return None,
+        }
+
+        if member_signatures.is_empty() {
+            return None;
+        }
+
+        if member_signatures.len() == 1 {
+            return Some(member_signatures[0]);
+        }
+
+        let overload_set = Type::Object {
+            fields: Vec::new(),
+            call_signatures: member_signatures,
+            construct_signatures: Vec::new(),
+            index_signatures: Vec::new(),
+        };
+        Some(types.insert_type_from_any(overload_set, node_id))
+    }
+
+    fn strict_bind_call_apply_signature_from_type(
+        &self,
+        node_id: LocalNodeIdAny,
+        receiver_ty: &Type,
+        member_name: &str,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let Type::Function {
@@ -1969,15 +2052,6 @@ impl Compiler {
         else {
             return None;
         };
-
-        let member_name = member_key.name()?;
-
-        // only override call/apply/bind with strict signatures
-        let member_name = self.program.strings.get(member_name);
-        let member_name = member_name.as_ref();
-        if member_name != "call" && member_name != "apply" && member_name != "bind" {
-            return None;
-        }
 
         // resolve the implicit this argument type
         let this_arg = if let Some(this_parameter) = this_parameter {

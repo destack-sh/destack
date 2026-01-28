@@ -68,7 +68,17 @@ impl Compiler {
                     Some(WellKnownSymbol::Array)
                 }
             }
-            Type::Object { .. } => Some(WellKnownSymbol::Object),
+            Type::Object {
+                call_signatures,
+                construct_signatures,
+                ..
+            } => {
+                if !call_signatures.is_empty() || !construct_signatures.is_empty() {
+                    Some(WellKnownSymbol::Function)
+                } else {
+                    Some(WellKnownSymbol::Object)
+                }
+            }
             Type::Function { .. } => Some(WellKnownSymbol::Function),
             Type::TypeLiteral { value } => self.well_known_symbol_for_type_literal(value),
             _ => None,

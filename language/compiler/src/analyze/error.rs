@@ -48,7 +48,10 @@ pub enum AnalyzeError {
     },
 
     /// Type does not satisfy the expected type (satisfies expression).
-    #[error(code = "EA102", message = "expected {expected_ty}, found {actual_ty}")]
+    #[error(
+        code = "EA102",
+        message = "expected {expected_ty}, found {actual_ty} (not assignable)"
+    )]
     UnsatisfiedType {
         node: AnchoredGlobalNodeId,
         expected_ty: GlobalTypeId,
@@ -247,6 +250,14 @@ pub enum AnalyzeError {
     /// Duplicate overload signature in a non-declaration module.
     #[error(code = "EA211", message = "duplicate overload signature")]
     DuplicateOverloadSignature { node: AnchoredGlobalNodeId },
+
+    /// Multiple overload implementations in a TypeScript module.
+    #[error(code = "EA212", message = "multiple overload implementations")]
+    MultipleOverloadImplementations { node: AnchoredGlobalNodeId },
+
+    /// Multiple constructor implementations in a TypeScript module.
+    #[error(code = "EA213", message = "multiple constructor implementations")]
+    MultipleConstructorImplementations { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 3xx: Control flow
