@@ -406,7 +406,7 @@ const f = (a) => (b) => (c) => a + b + c;
 
 ## Generic Arrow Functions
 
-### _arrow function with type parameter
+### arrow function with type parameter
 
 ```ds
 const identity = <T>(x: T): T => x
@@ -416,7 +416,7 @@ const identity = <T>(x: T): T => x
 const identity = <T>(x: T): T => x;
 ```
 
-### _arrow function with constrained type parameter
+### arrow function with constrained type parameter
 
 ```ds
 const first = <T: Iterable<U>, U>(items: T): U => items[0]

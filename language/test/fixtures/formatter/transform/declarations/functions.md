@@ -378,7 +378,7 @@ function process<T>(x: T): T where T: Copy {
 }
 ```
 
-### _function with multiple where constraints
+### function with multiple where constraints
 
 Multiple where constraints can be grouped in parentheses.
 

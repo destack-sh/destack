@@ -42,6 +42,34 @@ type   Foo   =   A   &   B
 type Foo = A & B;
 ```
 
+### typescript type literal uses semicolons
+
+TypeScript type literals use semicolons between properties.
+
+```ts:main.ts
+type Foo = { a: string, b: number }
+```
+
+```ts expected
+type Foo = { a: string; b: number };
+```
+
+### typescript type literal keeps semicolons when multiline
+
+Multiline TypeScript type literals include semicolons after each property.
+
+```ts:main.ts line-width=20
+type Foo = { a: string, b: number, c: number }
+```
+
+```ts expected
+type Foo = {
+    a: string;
+    b: number;
+    c: number;
+};
+```
+
 ## Multi-line Type Unions
 
 ### long union breaks at operators
@@ -152,7 +180,7 @@ type Readonly<T> = { [K in keyof T]: T[K] }
 type Readonly<T> = { [K in keyof T]: T[K] };
 ```
 
-### _mapped type with modifier
+### mapped type with modifier
 
 NOTE #Incomplete: support mapped type modifier removal syntax
  (`-readonly`, `+readonly`, `-?`, `+?`, 

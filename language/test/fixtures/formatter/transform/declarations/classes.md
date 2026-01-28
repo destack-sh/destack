@@ -216,6 +216,51 @@ class Foo {
 }
 ```
 
+## TypeScript Classes
+
+### typescript class fields use semicolons
+
+TypeScript class fields use semicolons instead of commas.
+
+```ts:main.ts
+class Foo { x: number; y: string }
+```
+
+```ts expected
+class Foo {
+    x: number;
+    y: string;
+}
+```
+
+### typescript abstract class preserves keyword
+
+Abstract classes keep the `abstract` modifier.
+
+```ts:main.ts
+abstract class Foo { abstract bar(): void }
+```
+
+```ts expected
+abstract class Foo {
+    abstract bar(): void;
+}
+```
+
+### typescript declaration method signatures use semicolons
+
+TypeScript declaration class signatures end with semicolons.
+
+```ts:main.d.ts
+declare class Foo { bar(): void }
+```
+
+```ts expected
+declare class Foo {
+    bar(): void;
+}
+```
+
 ## Methods
 
 ### simple method
@@ -630,7 +675,7 @@ class Point {
 }
 ```
 
-### _field with doc comment
+### field with doc comment
 
 Inline doc comments before fields are moved to their own line (parser issue - doc comment eats line).
 

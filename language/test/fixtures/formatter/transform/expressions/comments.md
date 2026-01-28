@@ -49,7 +49,7 @@ const x = /* pre-A */ A /* A comment */ && B /* B comment */;
 
 ## Comments Causing Expansion
 
-### _comment in object causes expansion
+### comment in object causes expansion
 
 Objects with internal comments expand to multiple lines.
 
