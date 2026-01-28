@@ -55,6 +55,7 @@ pub fn collect_symbol_references_in_context(
     canonical_id: GlobalSymbolId,
     options: ReferenceCollectionOptions<'_>,
 ) -> Vec<Span> {
+    // initialize the collected span list
     let mut spans = Vec::new();
 
     // compute namespace import aliases when namespace fallbacks are enabled
@@ -85,6 +86,7 @@ pub fn collect_symbol_references_in_context(
         spans.extend(dependency_spans);
     }
 
+    // return the collected spans
     spans
 }
 
@@ -109,10 +111,21 @@ fn collect_expression_reference_spans(
                 }
 
                 // skip dependency aliases when requested
-                if options.skip_dependency_aliases
-                    && let Some(target_symbol) = target_symbol
-                    && is_dependency_alias_for_target(session, ctx, target_symbol, canonical_id)
-                {
+                let is_alias = if options.skip_dependency_aliases {
+                    target_symbol
+                        .map(|target_symbol| {
+                            is_dependency_alias_for_target(
+                                session,
+                                ctx,
+                                target_symbol,
+                                canonical_id,
+                            )
+                        })
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+                if is_alias {
                     return None;
                 }
 
@@ -132,8 +145,9 @@ fn collect_expression_reference_spans(
         };
 
         // filter out spans outside the requested file
-        if let Some(limit_file) = options.limit_to_file
-            && span.file != limit_file
+        if options
+            .limit_to_file
+            .is_some_and(|limit_file| span.file != limit_file)
         {
             continue;
         }
@@ -141,6 +155,7 @@ fn collect_expression_reference_spans(
         spans.push(span);
     }
 
+    // return the matching spans
     spans
 }
 
@@ -152,6 +167,7 @@ fn collect_member_reference_spans(
     options: ReferenceCollectionOptions<'_>,
     namespace_aliases: &[GlobalSymbolId],
 ) -> Vec<Span> {
+    // initialize the collected span list
     let mut spans = Vec::new();
 
     // scan member expressions for matches and namespace fallbacks
@@ -227,6 +243,7 @@ fn collect_member_reference_spans(
         spans.push(span);
     }
 
+    // return the collected spans
     spans
 }
 
@@ -274,6 +291,7 @@ fn collect_dependency_reference_spans(
         spans.push(span);
     }
 
+    // return the collected spans
     spans
 }
 
@@ -292,6 +310,7 @@ fn dependency_item_name_span(
         return Some(full_span);
     };
 
+    // find the name span inside the dependency item
     find_identifier_span_in_span(session, full_span, target_name)
 }
 

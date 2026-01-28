@@ -1,3 +1,4 @@
+use destack_ast::TokenType;
 use destack_dir::Declaration;
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
@@ -100,6 +101,7 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
                     | Declaration::Enum { .. }
                     | Declaration::Global { .. }
                     | Declaration::Namespace { .. }
+                    | Declaration::Extension { .. }
             );
             if !should_fold {
                 continue;
@@ -123,6 +125,82 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
             }
         }
 
+        // collect folding ranges for comment blocks
+        let mut line_comment_block: Option<(u32, u32)> = None;
+        for token in &ctx.ast.side_tokens {
+            let span = token.span;
+            if span.file != ctx.file_id {
+                continue;
+            }
+
+            match token.token.ty {
+                TokenType::LineComment | TokenType::DocLineComment => {
+                    let Some((start_line, _)) = source_file.get_position(span.start) else {
+                        continue;
+                    };
+                    match line_comment_block {
+                        Some((block_start, block_end)) => {
+                            if start_line == block_end.saturating_add(1) {
+                                line_comment_block = Some((block_start, start_line));
+                            } else {
+                                if block_end > block_start {
+                                    ranges.push(
+                                        FoldingRange::new(block_start, block_end)
+                                            .with_kind(FoldingRangeKind::Comment),
+                                    );
+                                }
+                                line_comment_block = Some((start_line, start_line));
+                            }
+                        }
+                        None => {
+                            line_comment_block = Some((start_line, start_line));
+                        }
+                    }
+                }
+                TokenType::BlockComment | TokenType::DocBlockComment => {
+                    if let Some((block_start, block_end)) =
+                        line_comment_block.take().filter(|(start, end)| end > start)
+                    {
+                        ranges.push(
+                            FoldingRange::new(block_start, block_end)
+                                .with_kind(FoldingRangeKind::Comment),
+                        );
+                    }
+                    let Some((start_line, _)) = source_file.get_position(span.start) else {
+                        continue;
+                    };
+                    let Some((end_line, _)) = source_file.get_position(span.end) else {
+                        continue;
+                    };
+                    if end_line > start_line {
+                        ranges.push(
+                            FoldingRange::new(start_line, end_line)
+                                .with_kind(FoldingRangeKind::Comment),
+                        );
+                    }
+                }
+                TokenType::Whitespace | TokenType::Newline => {}
+                _ => {
+                    if let Some((block_start, block_end)) =
+                        line_comment_block.take().filter(|(start, end)| end > start)
+                    {
+                        ranges.push(
+                            FoldingRange::new(block_start, block_end)
+                                .with_kind(FoldingRangeKind::Comment),
+                        );
+                    }
+                }
+            }
+        }
+
+        if let Some((block_start, block_end)) =
+            line_comment_block.take().filter(|(start, end)| end > start)
+        {
+            ranges.push(
+                FoldingRange::new(block_start, block_end).with_kind(FoldingRangeKind::Comment),
+            );
+        }
+
         // sort ranges by start and end line
         ranges.sort_by_key(|range| (range.start_line, range.end_line));
 
@@ -130,7 +208,6 @@ pub fn folding_ranges(session: &Session, file: FileId) -> Vec<FoldingRange> {
         ranges.dedup_by(|left, right| {
             left.start_line == right.start_line && left.end_line == right.end_line
         });
-
         ranges
     })
     .unwrap_or_default()

@@ -7,8 +7,8 @@ use crate::query::common::with_query_context_for_file;
 
 /// Semantic token type for LSP semantic highlighting.
 ///
-/// Maps to LSP's SemanticTokenTypes. More granular than lexical highlighting
-/// because we have resolution information from DIR.
+/// Maps to LSP's SemanticTokenTypes.
+/// More granular than lexical highlighting because we have resolution information from DIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SemanticTokenType {
     Namespace,
@@ -124,7 +124,7 @@ pub struct SemanticTokensResponse {
 /// Get semantic tokens for a file.
 ///
 /// Returns tokens suitable for LSP textDocument/semanticTokens/full.
-/// Tokens are in source order (not delta-encoded; the LSP layer handles that).
+/// Tokens are in source order (not delta encoded; the LSP layer handles that).
 pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     with_query_context_for_file(session, file, |ctx| {
         let mut tokens = Vec::new();
@@ -274,7 +274,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             let span = ctx.ast.tree.get_span_by_id(ast_node_id);
 
             match expression {
-                // symbol references - look up the symbol to determine type
+                // symbol references: look up the symbol to determine type
                 dir::Expression::GlobalReference { target_symbol, .. }
                 | dir::Expression::LocalReference { target_symbol, .. }
                 | dir::Expression::ModuleReference { target_symbol, .. } => {
@@ -290,7 +290,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                     tokens.push(SemanticToken::new(span, token_type));
                 }
 
-                // labelled statement - the label itself
+                // labelled statement: the label itself
                 dir::Expression::Labelled { .. } => {
                     if let Some(main_span) = ctx
                         .ast
@@ -327,7 +327,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                     tokens.push(SemanticToken::new(span, SemanticTokenType::String));
                 }
 
-                // member access - the member name is a property
+                // member access: the member name is a property
                 dir::Expression::Member { .. } => {
                     // try to get just the member name span
                     if let Some(main_span) = ctx
@@ -442,20 +442,21 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             };
 
             // collect type parameter tokens from static parameters
-            if let Some(generics) = generics
-                && let Some(static_params) = &generics.static_parameters
-            {
-                for parameter_id in static_params {
-                    let ast_node_id = dir_tree.get_source(parameter_id.id);
-                    if let Some(main_span) = ctx
-                        .ast
-                        .tree
-                        .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
-                    {
-                        tokens.push(
-                            SemanticToken::new(main_span, SemanticTokenType::TypeParameter)
-                                .with_modifiers(SemanticTokenModifiers::DECLARATION),
-                        );
+            if let Some(generics) = generics {
+                let static_params = generics.static_parameters.as_ref();
+                if let Some(static_params) = static_params {
+                    for parameter_id in static_params {
+                        let ast_node_id = dir_tree.get_source(parameter_id.id);
+                        if let Some(main_span) = ctx
+                            .ast
+                            .tree
+                            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+                        {
+                            tokens.push(
+                                SemanticToken::new(main_span, SemanticTokenType::TypeParameter)
+                                    .with_modifiers(SemanticTokenModifiers::DECLARATION),
+                            );
+                        }
                     }
                 }
             }

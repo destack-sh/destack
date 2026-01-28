@@ -1,35 +1,47 @@
-use destack_ast::{DependencyMode, Expression};
-use destack_source::{Edit, FileId};
+use destack_ast::{DependencyKind, DependencyMode, Expression};
+use destack_source::{Edit, FileId, PathExt};
 
 use crate::Session;
+use crate::query::common::relative_path;
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
 pub struct ExistingImport {
-    /// The import path (e.g., "./utils", "react")
+    /// The import path (e.g., "./utils", "react").
     pub path: String,
-    /// Start byte offset of the import statement
+    /// Whether this is a type only import statement.
+    pub is_type_only: bool,
+    /// Start byte offset of the import statement.
     pub start: u32,
-    /// End byte offset of the import statement
+    /// End byte offset of the import statement.
     pub end: u32,
-    /// Position of the closing brace `}` (for inserting new specifiers)
+    /// Position of the closing brace `}` (for inserting new specifiers).
     pub closing_brace_pos: Option<u32>,
-    /// Whether this is a namespace import (`import * as foo`)
+    /// Whether this is a namespace import (`import * as foo`).
     pub is_namespace: bool,
-    /// Existing specifier names
+    /// Existing specifier names.
     pub specifiers: Vec<String>,
+}
+
+/// The mode for a new import edit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportEditMode {
+    /// A value import.
+    Value,
+    /// A type only import.
+    Type,
 }
 
 /// Import group category for ordering (matches formatter).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ImportGroup {
-    /// Builtin modules with protocol prefix (e.g. `node:fs`, `bun:test`)
+    /// Builtin modules with protocol prefix (e.g. `node:fs`, `bun:test`).
     Builtin = 0,
-    /// External packages (e.g. `lodash`, `@org/pkg`, `react`)
+    /// External packages (e.g. `lodash`, `@org/pkg`, `react`).
     Package = 1,
-    /// Path aliases (e.g. `@/utils`, `~/lib`, `#internal`)
+    /// Path aliases (e.g. `@/utils`, `~/lib`, `#internal`).
     Alias = 2,
-    /// Relative imports (e.g. `./foo`, `../bar`)
+    /// Relative imports (e.g. `./foo`, `../bar`).
     Relative = 3,
 }
 
@@ -60,6 +72,7 @@ impl ImportGroup {
 
 /// Collect existing imports from a file's AST.
 pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<ExistingImport> {
+    // resolve the source file content
     let source_file = session.files.get(file_id);
     let source = source_file.text();
 
@@ -72,15 +85,24 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
         return Vec::new();
     };
 
+    // prepare the import collection
     let mut imports = Vec::new();
 
     // iterate over import expressions in the AST
     for node_id in ctx.ast.tree.iter_nodes::<Expression>() {
         let expr = ctx.ast.tree.get(node_id);
 
-        if let Expression::Import { target, items, .. } = expr {
+        if let Expression::Import {
+            target,
+            items,
+            kind,
+            ..
+        } = expr
+        {
+            // resolve import path, span, and kind
             let path = ctx.ast.strings.get(*target).to_string();
             let span = ctx.ast.tree.source_map.get(node_id.id);
+            let is_type_only = *kind == DependencyKind::Type;
 
             // check if it's a namespace import
             let is_namespace = items.iter().any(|item_id| {
@@ -112,6 +134,7 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
 
             imports.push(ExistingImport {
                 path,
+                is_type_only,
                 start: span.start,
                 end: span.end,
                 closing_brace_pos,
@@ -123,11 +146,14 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
 
     // sort by position
     imports.sort_by_key(|i| i.start);
+
+    // return collected imports
     imports
 }
 
 /// Find the position of the closing brace `}` in an import statement.
 fn find_closing_brace(source: &str, start: usize, end: usize) -> Option<u32> {
+    // slice the statement text
     let segment = source.get(start..end)?;
 
     // find `from` keyword and look backwards for `}`
@@ -139,6 +165,7 @@ fn find_closing_brace(source: &str, start: usize, end: usize) -> Option<u32> {
         }
     }
 
+    // return none when no brace is found
     None
 }
 
@@ -152,6 +179,28 @@ pub fn build_import_edits(
     symbol_name: &str,
     import_path: &str,
 ) -> Vec<Edit> {
+    // default to value import edits
+    build_import_edits_with_mode(
+        session,
+        file_id,
+        symbol_name,
+        import_path,
+        ImportEditMode::Value,
+    )
+}
+
+/// Build edit(s) to add an import for a symbol with a mode.
+///
+/// If there's an existing import from the same path, merges into it.
+/// Otherwise, inserts a new import at the appropriate position based on import groups.
+pub fn build_import_edits_with_mode(
+    session: &Session,
+    file_id: FileId,
+    symbol_name: &str,
+    import_path: &str,
+    mode: ImportEditMode,
+) -> Vec<Edit> {
+    // collect existing imports for the file
     let existing_imports = collect_existing_imports(session, file_id);
 
     // check if there's already an import from this path
@@ -163,23 +212,85 @@ pub fn build_import_edits(
 
         // can't merge into namespace imports
         if existing.is_namespace {
-            return build_new_import_edit(file_id, symbol_name, import_path, &existing_imports);
+            return build_new_import_edit(
+                file_id,
+                symbol_name,
+                import_path,
+                &existing_imports,
+                mode,
+            );
         }
 
-        // merge into existing import
-        if let Some(brace_pos) = existing.closing_brace_pos {
-            // insert before closing brace: `{ a }` -> `{ a, b }`
-            let insert_text = if existing.specifiers.is_empty() {
-                format!(" {symbol_name} ")
-            } else {
-                format!(", {symbol_name}")
-            };
-            return vec![Edit::insert(file_id, brace_pos, insert_text)];
+        // decide whether to merge into the existing import
+        let can_merge = match mode {
+            ImportEditMode::Value => !existing.is_type_only,
+            ImportEditMode::Type => true,
+        };
+
+        if can_merge {
+            let brace_pos = existing.closing_brace_pos;
+            if let Some(brace_pos) = brace_pos {
+                // insert before closing brace, `{ a }` becomes `{ a, b }`
+                let insert_text = if existing.specifiers.is_empty() {
+                    format!(" {symbol_name} ")
+                } else {
+                    format!(", {symbol_name}")
+                };
+
+                return vec![Edit::insert(file_id, brace_pos, insert_text)];
+            }
         }
     }
 
     // no existing import, add new one
-    build_new_import_edit(file_id, symbol_name, import_path, &existing_imports)
+    build_new_import_edit(file_id, symbol_name, import_path, &existing_imports, mode)
+}
+
+/// Build a display path for an import.
+///
+/// Tries to compute a relative path from the current file to the target module.
+pub(crate) fn build_import_display_path(
+    session: &Session,
+    file_id: FileId,
+    module_path: &str,
+) -> String {
+    // resolve the source file path
+    let source_file = session.files.get(file_id);
+    let Some(source_path) = source_file.path.as_ref() else {
+        return module_path.to_string();
+    };
+
+    // resolve the source directory
+    let Some(source_dir) = source_path.parent() else {
+        return module_path.to_string();
+    };
+
+    // compute a relative path to the target module
+    let target_path = std::path::Path::new(module_path);
+    // compute a relative path to the target module
+    let relative =
+        relative_path(source_dir, target_path).unwrap_or_else(|| target_path.normalize());
+    let mut display_path = normalize_separators(&relative.to_string_lossy());
+
+    // ensure a relative prefix for local imports
+    if !display_path.starts_with("./") && !display_path.starts_with("../") {
+        display_path = format!("./{display_path}");
+    }
+
+    // strip common source extensions
+    for extension in [".ds", ".ts"] {
+        if display_path.ends_with(extension) {
+            display_path.truncate(display_path.len().saturating_sub(extension.len()));
+        }
+    }
+
+    // return the normalized display path
+    display_path
+}
+
+/// Normalize path separators to forward slashes.
+fn normalize_separators(path: &str) -> String {
+    path.replace('\\', "/")
 }
 
 /// Build an edit to insert a new import statement.
@@ -188,13 +299,23 @@ fn build_new_import_edit(
     symbol_name: &str,
     import_path: &str,
     existing_imports: &[ExistingImport],
+    mode: ImportEditMode,
 ) -> Vec<Edit> {
+    // resolve the import group
     let new_group = ImportGroup::from_path(import_path);
-    let import_text = format!("import {{ {symbol_name} }} from \"{import_path}\";\n");
+
+    // choose the import text for the mode
+    let import_text = match mode {
+        ImportEditMode::Value => format!("import {{ {symbol_name} }} from \"{import_path}\";\n"),
+        ImportEditMode::Type => {
+            format!("import type {{ {symbol_name} }} from \"{import_path}\";\n")
+        }
+    };
 
     // find the right position based on import groups
     let insert_pos = find_import_insert_position(import_path, new_group, existing_imports);
 
+    // return the insertion edit
     vec![Edit::insert(file_id, insert_pos, import_text)]
 }
 
@@ -232,15 +353,19 @@ fn find_import_insert_position(
 mod tests {
     use super::*;
 
+    /// Order import groups by builtin, package, alias, then relative.
     #[test]
     fn test_import_group_ordering() {
+        // compare group ordering
         assert!(ImportGroup::Builtin < ImportGroup::Package);
         assert!(ImportGroup::Package < ImportGroup::Alias);
         assert!(ImportGroup::Alias < ImportGroup::Relative);
     }
 
+    /// Categorize import paths into the expected groups.
     #[test]
     fn test_import_group_categorization() {
+        // compare group categorization for sample paths
         assert_eq!(ImportGroup::from_path("node:fs"), ImportGroup::Builtin);
         assert_eq!(ImportGroup::from_path("bun:test"), ImportGroup::Builtin);
         assert_eq!(ImportGroup::from_path("react"), ImportGroup::Package);

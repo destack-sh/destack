@@ -189,6 +189,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
                 };
             };
 
+            // fail when ordering is violated
             if let Some(previous) = last_index
                 && index <= previous
             {
@@ -287,10 +288,13 @@ fn parse_snapshot_top_directive(content: &str) -> (Option<usize>, String) {
             continue;
         }
 
-        if !directive_consumed && let Some(rest) = trimmed.strip_prefix("top:") {
-            top_limit = rest.trim().parse::<usize>().ok();
-            directive_consumed = true;
-            continue;
+        if !directive_consumed {
+            let rest = trimmed.strip_prefix("top:");
+            if let Some(rest) = rest {
+                top_limit = rest.trim().parse::<usize>().ok();
+                directive_consumed = true;
+                continue;
+            }
         }
 
         directive_consumed = true;

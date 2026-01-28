@@ -2,7 +2,6 @@ mod code_lens;
 mod completion;
 mod context;
 mod folding;
-mod fuzzy;
 mod hover;
 mod inlay_hint;
 mod semantic_token;

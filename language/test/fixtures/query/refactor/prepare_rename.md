@@ -105,6 +105,24 @@ Preparing rename at `counter.inc` should return `inc`.
 inc
 ```
 
+### Prepare rename on enum member
+
+Prepare rename should resolve enum member references.
+
+```ds
+enum Status {
+    Pending,
+    Active,
+}
+
+const state = Status.Pending;
+//                     ^ use:pending
+```
+
+```query prepare_rename use:pending
+Pending
+```
+
 ## Imports
 
 ### Prepare rename on type-only import usage
@@ -131,6 +149,27 @@ Preparing rename at a type-only import usage should return the imported type nam
 
 ```query prepare_rename use:Options
 Options
+```
+
+### Prepare rename on default import usage
+
+Prepare rename should work for default imports.
+
+```ds:default_export.ds
+export default function greetDefault(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```ds:default_main.ds
+import greetDefault from "./default_export.ds";
+
+const message = greetDefault("Destack");
+//              ^^^^^^^^^^^^ use:default_greet
+```
+
+```query prepare_rename use:default_greet
+greetDefault
 ```
 
 ## Keywords

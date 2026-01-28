@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 use std::sync::Arc;
@@ -240,7 +240,7 @@ fn discover_package_files(
         files.extend(matches);
     }
 
-    let mut exclude_set = std::collections::HashSet::new();
+    let mut exclude_set = HashSet::new();
 
     for pattern in &manifest.discovery.exclude {
         let full_pattern = package_dir.join(pattern);

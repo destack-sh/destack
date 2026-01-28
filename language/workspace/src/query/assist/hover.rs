@@ -1,4 +1,3 @@
-use destack_ast::{AnnotationPosition, Doc};
 use destack_dir::{
     self as dir, DynamicKey, EnumField, GlobalNodeIdAny, LocalNodeId, Member, NodeType, Parameter,
     SymbolType,
@@ -7,8 +6,10 @@ use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
-use crate::format::{format_local_type, format_symbol_signature};
-use crate::query::common::{find_symbol_at_offset, get_canonical_symbol};
+use crate::format::{
+    format_call_signature, format_hover_markdown, format_local_type, format_symbol_signature,
+};
+use crate::query::common::{doc_text_for_node, find_symbol_at_offset, get_canonical_symbol};
 
 /// Hover information for a symbol.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,6 +18,10 @@ pub struct HoverInfo {
     pub signature: String,
     /// Documentation (markdown).
     pub documentation: Option<String>,
+    /// Resolved type information when available.
+    pub type_text: Option<String>,
+    /// Source location text when available.
+    pub location: Option<String>,
     /// The range of the hovered element.
     pub range: Option<Span>,
 }
@@ -24,15 +29,19 @@ pub struct HoverInfo {
 impl HoverInfo {
     /// Create hover info with just a signature.
     pub fn signature(signature: impl Into<String>) -> Self {
+        // build the base hover info
         Self {
             signature: signature.into(),
             documentation: None,
+            type_text: None,
+            location: None,
             range: None,
         }
     }
 
     /// Add documentation.
     pub fn with_documentation(mut self, doc: impl Into<String>) -> Self {
+        // normalize and store documentation
         let doc = doc.into();
         if !doc.is_empty() {
             self.documentation = Some(doc);
@@ -40,20 +49,42 @@ impl HoverInfo {
         self
     }
 
+    /// Add resolved type text.
+    pub fn with_type_text(mut self, type_text: Option<String>) -> Self {
+        // store the type text when non empty
+        let type_text = type_text.filter(|text| !text.trim().is_empty());
+        if let Some(type_text) = type_text {
+            self.type_text = Some(type_text);
+        }
+        self
+    }
+
+    /// Add location text.
+    pub fn with_location(mut self, location: Option<String>) -> Self {
+        // store the location text when non empty
+        let location = location.filter(|text| !text.trim().is_empty());
+        if let Some(location) = location {
+            self.location = Some(location);
+        }
+        self
+    }
+
     /// Add range.
     pub fn with_range(mut self, range: Span) -> Self {
+        // store the hovered range
         self.range = Some(range);
         self
     }
 
     /// Format as markdown for display.
     pub fn to_markdown(&self) -> String {
-        let mut result = format!("```destack\n{}\n```", self.signature);
-        if let Some(doc) = &self.documentation {
-            result.push_str("\n\n---\n\n");
-            result.push_str(doc);
-        }
-        result
+        // format the hover into markdown
+        format_hover_markdown(
+            &self.signature,
+            self.type_text.as_deref(),
+            self.documentation.as_deref(),
+            self.location.as_deref(),
+        )
     }
 }
 
@@ -75,6 +106,7 @@ pub struct HoverResponse {
 
 /// Get hover information for the symbol at the given position.
 pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> {
+    // resolve the hovered symbol and profile
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
     let profile = session.default_profile_for_module(canonical_id.module_id);
@@ -82,42 +114,54 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     // get documentation for this symbol
     let documentation = get_symbol_documentation(session, canonical_id);
 
-    // try rich signature formatting first (for top-level declarations)
+    // try rich signature formatting first (for top level declarations)
     if let Some(formatted) =
         format_symbol_signature(canonical_id, &session.modules, &session.strings, profile)
     {
+        // resolve the hover location
+        let location = hover_location(session, symbol_at.span);
+
+        // return a minimal hover payload
         return Some(
             HoverInfo::signature(formatted.text)
                 .with_documentation(documentation.unwrap_or_default())
+                .with_location(location)
                 .with_range(symbol_at.span),
         );
     }
 
+    // resolve module query context for richer formatting
     let module = session.modules.get(symbol_at.symbol_id.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
 
+    // resolve symbol metadata
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_at.symbol_id.local_id);
     let name = symbol.name().map(|id| session.strings.get(id).to_string());
 
+    // prefer declaration nodes for expression hovers
     let mut hover_node_id = symbol_at.node_id;
-    if matches!(hover_node_id.ty, NodeType::Expression)
-        && let Some(declaration) = symbol.primary_declaration
-    {
-        hover_node_id = declaration.local_id;
+    if matches!(hover_node_id.ty, NodeType::Expression) {
+        let declaration = symbol.primary_declaration;
+        if let Some(declaration) = declaration {
+            hover_node_id = declaration.local_id;
+        }
     }
 
     // get container name for members
     let container_name = get_container_name(session, symbol_at.symbol_id);
 
+    // resolve shared dir data for formatting
+    let dir_tree = ctx.tree();
+    let types = ctx.types();
+
     // format based on node type
     let module_id = ctx.module_id;
     let signature = match hover_node_id.ty {
         NodeType::Member => {
-            let dir_tree = ctx.tree();
-            let types = ctx.types();
             if let Ok(member_id) = hover_node_id.try_into() {
+                // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
                     session,
@@ -133,9 +177,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             }
         }
         NodeType::EnumField => {
-            let dir_tree = ctx.tree();
-            let types = ctx.types();
             if let Ok(field_id) = hover_node_id.try_into() {
+                // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
                     session,
@@ -150,9 +193,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             }
         }
         NodeType::Parameter => {
-            let dir_tree = ctx.tree();
-            let types = ctx.types();
             if let Ok(param_id) = hover_node_id.try_into() {
+                // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
                 format_parameter_hover(session, param, param_id, module_id, &types)
             } else {
@@ -161,7 +203,6 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         }
         NodeType::Pattern => {
             // local variable or destructuring pattern
-            let types = ctx.types();
             format_local_variable_hover(
                 session,
                 name.as_deref(),
@@ -173,22 +214,29 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         _ => format_simple_signature(symbol.ty, name.as_deref()),
     };
 
-    drop(symbols);
-    drop(module);
+    // resolve type and location metadata
+    let type_text =
+        resolve_hover_type_text(session, &ctx, &symbols, hover_node_id, symbol_at.symbol_id);
+    let location = hover_location(session, symbol_at.span);
 
+    // return the assembled hover payload
     Some(
         HoverInfo::signature(signature)
             .with_documentation(documentation.unwrap_or_default())
+            .with_type_text(type_text)
+            .with_location(location)
             .with_range(symbol_at.span),
     )
 }
 
 /// Get documentation comments for a symbol.
 fn get_symbol_documentation(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    // resolve the module query context
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
 
+    // resolve the target symbol
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
@@ -200,41 +248,44 @@ fn get_symbol_documentation(session: &Session, symbol_id: dir::GlobalSymbolId) -
     let dir_tree = ctx.tree();
     let ast_node_id = dir_tree.get_source(declaration_ref.local_id.id);
 
-    // get doc annotations attached to this AST node
-    let docs = ctx.ast.tree.get_docs_for(ast_node_id);
-    if docs.is_empty() {
-        return None;
+    // try to collect docs on the declaration node first
+    if let Some(doc_text) = doc_text_for_node(ctx.ast, ast_node_id) {
+        return Some(doc_text);
     }
 
-    // collect prefix docs (those that appear before the declaration)
-    let doc_strings: Vec<String> = docs
-        .into_iter()
-        .filter(|(_, pos)| {
-            matches!(
-                pos,
-                AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
-            )
-        })
-        .map(|(doc_id, _)| {
-            let doc = ctx.ast.tree.get::<Doc>(doc_id);
-            ctx.ast.strings.get(doc.string).to_string()
-        })
-        .collect();
+    // fall back to enclosing nodes when docs are attached to wrapper expressions
+    let declaration_span = ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id);
+    let mut enclosing = ctx.ast.tree.source_map.get_enclosing_spans(
+        declaration_span.start,
+        declaration_span.end.saturating_sub(1),
+    );
 
-    if doc_strings.is_empty() {
-        None
-    } else {
-        Some(doc_strings.join("\n\n"))
+    // sort so the innermost nodes are checked first
+    enclosing.sort_by_key(|span| span.length);
+
+    // walk enclosing spans until documentation is found
+    for span in enclosing {
+        if span.idx == ast_node_id {
+            continue;
+        }
+
+        if let Some(doc_text) = doc_text_for_node(ctx.ast, span.idx) {
+            return Some(doc_text);
+        }
     }
+
+    None
 }
 
 /// Get the name of the container (class/struct/interface) for a member.
 fn get_container_name(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    // resolve the base dir for the module
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
     let dir = module.dir_base_maybe()?;
     let symbols = dir.symbols.read();
 
+    // resolve the symbol and owning scope
     let symbol = symbols.get_symbol(symbol_id.into_local());
     let scope = symbols.get_scope_by_id(symbol.scope.0);
 
@@ -242,11 +293,10 @@ fn get_container_name(session: &Session, symbol_id: dir::GlobalSymbolId) -> Opti
     let owner_id = scope.owner_id?;
     let owner = symbols.get_symbol(owner_id);
     let name_id = owner.name()?;
+
+    // return the container name
     Some(session.strings.get(name_id).to_string())
 }
-
-// NOTE #Architecture: member hover formatting duplicates the signature formatter
-// NOTE #Architecture: consolidate into shared member formatting, differences: kind prefixes, declared or inferred types
 
 /// Format hover for a member (field, method, etc).
 fn format_member_hover(
@@ -258,7 +308,7 @@ fn format_member_hover(
     types: &dir::TypeTable,
     container: Option<&str>,
 ) -> String {
-    // get member name from key field
+    // resolve the member name from its key
     let member_name = member
         .key()
         .and_then(|key| match key {
@@ -286,6 +336,7 @@ fn format_member_hover(
         None => member_name,
     };
 
+    // format the hover text by member kind
     match member {
         Member::Type { .. } => {
             if let Some(ty) = type_str {
@@ -324,146 +375,20 @@ fn format_method_hover(
     types: &dir::TypeTable,
     session: &Session,
 ) -> String {
-    let modules = &session.modules;
-    let strings = &session.strings;
-
-    // async prefix
-    let async_prefix = match signature.asynchrony {
-        dir::Asynchrony::Async => "async ",
-        dir::Asynchrony::Sync => "",
-    };
-
-    // generic parameters
-    let generics_text = signature
-        .generics
-        .as_ref()
-        .map(|g| format_generics_for_hover(g, module_id, dir_tree, types, session))
-        .unwrap_or_default();
-
-    // dynamic parameters
-    let params_text = format_params_for_hover(
-        &signature.dynamic_parameters,
+    // format a call signature label for the method
+    let formatted = format_call_signature(
+        qualified_name,
+        signature,
         module_id,
         dir_tree,
         types,
-        session,
+        &session.modules,
+        &session.strings,
+        false,
     );
 
-    // return type
-    let return_text = signature
-        .return_type
-        .and_then(|return_node| {
-            let node_id = GlobalNodeIdAny {
-                module_id,
-                local_id: return_node.into(),
-            };
-            types.get_declared_or_inferred_type_id(node_id)
-        })
-        .map(|type_id| format!(": {}", format_local_type(type_id, types, modules, strings)))
-        .unwrap_or_default();
-
-    format!("(method) {async_prefix}{qualified_name}{generics_text}({params_text}){return_text}")
-}
-
-/// Format generic parameters for hover.
-fn format_generics_for_hover(
-    generics: &dir::Generics,
-    module_id: destack_source::ModuleId,
-    dir_tree: &dir::NodeTree,
-    types: &dir::TypeTable,
-    session: &Session,
-) -> String {
-    let Some(parameters) = &generics.static_parameters else {
-        return String::new();
-    };
-    if parameters.is_empty() {
-        return String::new();
-    }
-
-    let formatted: Vec<_> = parameters
-        .iter()
-        .map(|param_id| {
-            let param = dir_tree.get::<Parameter>(*param_id);
-            format_type_param_for_hover(param, *param_id, module_id, types, session)
-        })
-        .collect();
-
-    format!("<{}>", formatted.join(", "))
-}
-
-/// Format a single type parameter for hover.
-fn format_type_param_for_hover(
-    param: &Parameter,
-    param_id: LocalNodeId<Parameter>,
-    module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
-    session: &Session,
-) -> String {
-    let name = match param {
-        Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
-        Parameter::Pattern { .. } => "_".to_string(),
-        Parameter::Variadic { name, .. } => format!("...{}", session.strings.get(*name).as_str()),
-    };
-
-    // try to get constraint type
-    let node_id = GlobalNodeIdAny {
-        module_id,
-        local_id: param_id.into(),
-    };
-
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
-        format!("{name} extends {type_text}")
-    } else {
-        name
-    }
-}
-
-/// Format function parameters for hover.
-fn format_params_for_hover(
-    parameters: &[LocalNodeId<Parameter>],
-    module_id: destack_source::ModuleId,
-    dir_tree: &dir::NodeTree,
-    types: &dir::TypeTable,
-    session: &Session,
-) -> String {
-    let formatted: Vec<_> = parameters
-        .iter()
-        .map(|param_id| {
-            let param = dir_tree.get::<Parameter>(*param_id);
-            format_param_for_hover(param, *param_id, module_id, types, session)
-        })
-        .collect();
-
-    formatted.join(", ")
-}
-
-/// Format a single parameter for hover.
-fn format_param_for_hover(
-    param: &Parameter,
-    param_id: LocalNodeId<Parameter>,
-    module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
-    session: &Session,
-) -> String {
-    let name = match param {
-        Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
-        Parameter::Pattern { .. } => "_".to_string(),
-        Parameter::Variadic { name, .. } => format!("...{}", session.strings.get(*name).as_str()),
-    };
-
-    let node_id = GlobalNodeIdAny {
-        module_id,
-        local_id: param_id.into(),
-    };
-
-    // use declared type (from annotation) or inferred type
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
-        format!("{name}: {type_text}")
-    } else {
-        name
-    }
+    // prefix the label with the member kind
+    format!("(method) {}", formatted.label)
 }
 
 /// Format hover for an enum field.
@@ -475,23 +400,26 @@ fn format_enum_field_hover(
     types: &dir::TypeTable,
     container: Option<&str>,
 ) -> String {
+    // resolve the enum field name
     let field_name = session.strings.get(field.name).to_string();
 
+    // build a qualified name when a container is available
     let qualified_name = match container {
         Some(c) => format!("{c}.{field_name}"),
         None => field_name,
     };
 
-    // try to get the value/discriminant
+    // try to get the value or discriminant
     let node_id = GlobalNodeIdAny {
         module_id,
         local_id: field_id.into(),
     };
-
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+        // format the enum field with its value type
         let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
         format!("(enum member) {qualified_name} = {type_text}")
     } else {
+        // format the enum field without a value
         format!("(enum member) {qualified_name}")
     }
 }
@@ -504,21 +432,24 @@ fn format_parameter_hover(
     module_id: destack_source::ModuleId,
     types: &dir::TypeTable,
 ) -> String {
+    // derive a display name for the parameter
     let name = match param {
         Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
         Parameter::Pattern { .. } => "_".to_string(),
         Parameter::Variadic { name, .. } => format!("...{}", session.strings.get(*name).as_str()),
     };
 
+    // resolve the parameter node id for type lookup
     let node_id = GlobalNodeIdAny {
         module_id,
         local_id: param_id.into(),
     };
-
     if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+        // format the parameter with its type
         let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
         format!("(parameter) {name}: {type_text}")
     } else {
+        // format the parameter without a type
         format!("(parameter) {name}")
     }
 }
@@ -531,21 +462,26 @@ fn format_local_variable_hover(
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
 ) -> String {
+    // resolve the display name
     let name = name.unwrap_or("<anonymous>");
 
     // local variable types are stored as value types on the symbol, not on the node
     if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) {
+        // format the local binding with its inferred type
         let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
         format!("let {name}: {type_text}")
     } else {
+        // format the local binding without a type
         format!("let {name}")
     }
 }
 
 /// Simple signature formatting for symbols without richer context.
 fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> String {
+    // resolve the display name
     let name = name.unwrap_or("<anonymous>");
 
+    // map the symbol type to a simple signature
     match symbol_type {
         SymbolType::Void => format!("let {name}"),
         SymbolType::Class => format!("class {name}"),
@@ -557,4 +493,49 @@ fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> Strin
         SymbolType::TypeAlias => format!("type {name}"),
         SymbolType::Newtype => format!("newtype {name}"),
     }
+}
+
+/// Resolve a type string for a hover target when available.
+fn resolve_hover_type_text(
+    session: &Session,
+    ctx: &crate::query::common::QueryContext<'_>,
+    symbols: &dir::SymbolTable,
+    hover_node_id: dir::LocalNodeIdAny,
+    symbol_id: dir::GlobalSymbolId,
+) -> Option<String> {
+    // resolve the type table
+    let types = ctx.types();
+
+    // map the hover node to a type id
+    let type_id = match hover_node_id.ty {
+        NodeType::Pattern => types.get_type_id_for_symbol(symbols, symbol_id),
+        NodeType::Member | NodeType::EnumField | NodeType::Parameter => {
+            ctx.get_node_type(hover_node_id)
+        }
+        _ => None,
+    }?;
+
+    // format the local type for display
+    Some(format_local_type(
+        type_id,
+        &types,
+        &session.modules,
+        &session.strings,
+    ))
+}
+
+/// Format a source location string for a hover span.
+fn hover_location(session: &Session, span: Span) -> Option<String> {
+    // resolve the source file and path
+    let file = session.files.get(span.file);
+    let path = file.path.as_ref()?;
+    let (line, col) = file.get_position(span.start)?;
+
+    // format as path and 1 based coordinates
+    Some(format!(
+        "{}:{}:{}",
+        path.to_string_lossy(),
+        line + 1,
+        col + 1
+    ))
 }

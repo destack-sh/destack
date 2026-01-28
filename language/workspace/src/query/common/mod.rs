@@ -1,17 +1,27 @@
+mod call;
 mod context;
+mod docs;
+mod extensions;
+mod fuzzy;
 mod import_edit;
 mod module;
 mod parameters;
+mod path;
 mod references;
 mod span;
 mod symbol;
 mod type_members;
 mod visible_symbols;
 
+pub(crate) use call::*;
 pub use context::*;
+pub(crate) use docs::*;
+pub(crate) use extensions::*;
+pub(crate) use fuzzy::*;
 pub use import_edit::*;
 pub use module::*;
 pub use parameters::*;
+pub(crate) use path::*;
 pub use references::*;
 pub use span::*;
 pub use symbol::*;

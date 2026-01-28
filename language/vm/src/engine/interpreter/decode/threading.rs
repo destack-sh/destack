@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
@@ -699,7 +699,7 @@ pub(crate) fn thread_function(
 
     // seed traversal queue
     let mut queue = vec![entry_block];
-    let mut visited = std::collections::HashSet::new();
+    let mut visited = HashSet::new();
 
     while let Some(block_id) = queue.pop() {
         // skip visited blocks

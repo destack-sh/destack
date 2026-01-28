@@ -20,12 +20,81 @@ struct Vector {
     dx: float;
     dy: float;
 }
+
+extension for Vector {
+    magnitude(): float32 {
+        return 0.0;
+    }
+}
+
+interface Shape {
+    area(): float;
+}
+
+enum Color {
+    Red,
+    Blue,
+}
+
+namespace math {
+    function sum(a: int, b: int): int {
+        return a + b;
+    }
+}
+
+/*
+multi line
+comment
+*/
+
+// line comment block
+// keeps going
+// and going
 ```
 
-This file has 3 multi-line declarations that produce folding ranges: function, class, and struct.
+This file has multi-line declarations that produce folding ranges: function, class, struct, interface, enum, namespace, and nested function.
 
 ```query folding $0
 1-3
 5-8
 10-13
+15-19
+21-23
+25-28
+30-34
+31-33
+36-39
+41-43
+```
+
+## Comments
+
+### Comment blocks and mixed content
+
+Multi-line comment blocks should be foldable.
+Single line comments should not produce folding ranges.
+
+```ds
+/*
+block
+comment
+*/
+
+function keep() {}
+
+// line comment block
+// continues
+
+const value = 1;
+
+// single line comment
+
+// another
+// block
+```
+
+```query folding $0
+1-4
+8-9
+15-16
 ```

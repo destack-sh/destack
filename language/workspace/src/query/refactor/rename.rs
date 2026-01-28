@@ -92,18 +92,16 @@ pub struct RenameResponse {
 ///
 /// Returns the range and current name if renameable.
 pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<PrepareRenameResult> {
-    // 1. find the symbol at offset
+    // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
     // reject non modifier keywords at the cursor
-    if let Some(token) = token_at_offset(session, file, offset)
-        && is_keyword(&token)
-        && !is_modifier_keyword(&token)
-    {
+    let token = token_at_offset(session, file, offset);
+    if token.is_some_and(|token| is_keyword(&token) && !is_modifier_keyword(&token)) {
         return None;
     }
 
-    // 2. get canonical symbol and check if it's in our workspace
+    // get canonical symbol and check if it's in our workspace
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
     // get the symbol to check if it has a name
@@ -129,7 +127,7 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
         slice.to_string()
     };
 
-    // 3. return the range and current name
+    // return the range and current name
     Some(PrepareRenameResult {
         range: symbol_at.span,
         placeholder: name,
@@ -145,29 +143,27 @@ pub fn rename(
     offset: u32,
     new_name: &str,
 ) -> Option<RenameResult> {
-    // 1. find the symbol at offset
+    // find the symbol at offset
     let symbol_at = find_symbol_at_offset(session, file, offset)?;
 
     // reject non modifier keywords at the cursor
-    if let Some(token) = token_at_offset(session, file, offset)
-        && is_keyword(&token)
-        && !is_modifier_keyword(&token)
-    {
+    let token = token_at_offset(session, file, offset);
+    if token.is_some_and(|token| is_keyword(&token) && !is_modifier_keyword(&token)) {
         return None;
     }
 
-    // 2. validate new_name is a valid identifier (basic check)
+    // validate new_name is a valid identifier
     if new_name.is_empty() || !is_valid_identifier(new_name) {
         return None;
     }
 
-    // 3. get canonical symbol
+    // get canonical symbol
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
-    // 4. resolve the existing symbol name for span targeting
+    // resolve the existing symbol name for span targeting
     let old_name = symbol_name(session, canonical_id, symbol_at.span)?;
 
-    // 5. collect all spans to rename, grouped by file
+    // collect all spans to rename, grouped by file
     let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
 
     // add the definition

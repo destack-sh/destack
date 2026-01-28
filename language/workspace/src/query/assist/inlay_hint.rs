@@ -1,10 +1,12 @@
-use destack_dir::{Declarator, Expression, GlobalNodeIdAny, GlobalSymbolId, Pattern, Resolution};
+use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::format::format_type_for_inlay_hint;
-use crate::query::common::{dynamic_parameter_names, with_query_context_for_file};
+use crate::query::common::{
+    dynamic_parameter_names, resolve_call_target, with_query_context_for_file,
+};
 
 /// Kind of inlay hint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -33,6 +35,7 @@ pub struct InlayHint {
 impl InlayHint {
     /// Create a type hint.
     pub fn type_hint(position: u32, type_name: impl Into<String>) -> Self {
+        // build the type hint with default padding
         Self {
             position,
             label: format!(": {}", type_name.into()),
@@ -44,6 +47,7 @@ impl InlayHint {
 
     /// Create a parameter hint.
     pub fn parameter_hint(position: u32, param_name: impl Into<String>) -> Self {
+        // build the parameter hint with default padding
         Self {
             position,
             label: format!("{}:", param_name.into()),
@@ -74,7 +78,12 @@ pub struct InlayHintsResponse {
 
 /// Get inlay hints for a range in a file.
 pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
+    // resolve hints within the query context
     with_query_context_for_file(session, file, |ctx| {
+        // resolve the source file text
+        let source_file = session.files.get(ctx.file_id);
+        let source = source_file.text();
+
         // resolve shared dir data for hint generation
         let dir_tree = ctx.tree();
         let types = ctx.types();
@@ -109,23 +118,43 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
             }
 
             // resolve the target symbol for this call
-            let target_symbol = call_target_symbol(&ctx, expression_id, *left);
+            let call_target = resolve_call_target(session, &ctx, *left);
+            let target_symbol = call_target.symbol;
 
             // get actual parameter names for this function
-            let param_names = get_parameter_names(session, target_symbol, dynamic_arguments.len());
+            let param_names = get_parameter_names(session, target_symbol);
+
+            // skip parameter hints when we do not have names
+            if param_names.is_empty() {
+                continue;
+            }
 
             // add parameter hints for each argument
             for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-                // get the span of the argument
-                let arg_ast_id = dir_tree.get_source(argument_id.id);
+                // resolve the argument and parameter name
+                let argument = dir_tree.get::<Argument>(*argument_id);
+                let param_name = match param_names.get(index) {
+                    Some(name) => name.as_str(),
+                    None => continue,
+                };
+                let argument_is_literal = argument_is_literal(&dir_tree, argument);
+
+                // skip hints for arguments that already carry labels or match the name
+                if should_skip_parameter_hint(
+                    session,
+                    &dir_tree,
+                    argument,
+                    param_name,
+                    argument_is_literal,
+                ) {
+                    continue;
+                }
+
+                // get the span of the argument expression
+                let arg_ast_id = dir_tree.get_source(argument.value().id);
                 let arg_span = ctx.ast.tree.source_map.get(arg_ast_id);
 
                 // add a parameter hint at the start of the argument
-                let param_name = param_names
-                    .get(index)
-                    .cloned()
-                    .unwrap_or_else(|| format!("arg{index}"));
-
                 hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
             }
         }
@@ -139,13 +168,17 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
             // get the pattern to find its span and symbol
             let pattern = dir_tree.get::<Pattern>(declarator.pattern);
-            if let Pattern::Binding { symbol, .. } = pattern {
+
+            // only emit hints for binding patterns
+            if let Pattern::Binding { symbol, name, .. } = pattern {
                 // get the span of the binding name
                 let ast_node_id = dir_tree.get_source(declarator.pattern.id);
                 let pattern_span = ctx.ast.tree.source_map.get(ast_node_id);
+                let name_text = ctx.ast.strings.get(*name);
+                let name_span = binding_name_span(source, pattern_span, name_text.as_str());
 
                 // skip if outside the requested range
-                if pattern_span.end < range.start || pattern_span.start > range.end {
+                if name_span.end < range.start || name_span.start > range.end {
                     continue;
                 }
 
@@ -155,15 +188,17 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
                     local_id: *symbol,
                 };
 
+                // resolve the inferred type when available
                 if let Some(type_id) = types.get_value_type_id(global_symbol_id) {
+                    // resolve the inferred type for the binding
                     let ty = types.get_type(type_id);
 
                     // format a widened display type for literal values
                     let type_str =
                         format_type_for_inlay_hint(ty, &types, &session.modules, &session.strings);
 
-                    // add type hint after the pattern
-                    hints.push(InlayHint::type_hint(pattern_span.end, type_str));
+                    // add type hint after the binding name
+                    hints.push(InlayHint::type_hint(name_span.end, type_str));
                 }
             }
         }
@@ -188,6 +223,7 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
             left.position == right.position && left.kind == right.kind && left.label == right.label
         });
 
+        // return the collected hints
         hints
     })
     .unwrap_or_default()
@@ -195,64 +231,153 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
 
 /// Rank inlay hint kinds for stable sorting.
 fn hint_kind_rank(kind: InlayHintKind) -> u8 {
+    // order types before parameter hints
     match kind {
         InlayHintKind::Type => 0,
         InlayHintKind::Parameter => 1,
     }
 }
 
-/// Resolve the call target symbol using recorded resolutions when available.
-fn call_target_symbol(
-    ctx: &crate::query::QueryContext<'_>,
-    expression_id: destack_dir::LocalNodeId<Expression>,
-    left: destack_dir::LocalNodeId<Expression>,
-) -> Option<GlobalSymbolId> {
-    // prefer recorded call resolution data when it exists
-    let types = ctx.types();
-    let node_id = GlobalNodeIdAny {
-        module_id: ctx.module_id,
-        local_id: expression_id.into(),
-    };
-    if let Some(resolution_id) = types.get_resolution_for_node(node_id) {
-        let resolution = types.get_resolution(resolution_id);
-        let candidates = match resolution {
-            Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
-            Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
-            Resolution::Unresolved { candidates, .. } => candidates.as_slice(),
-            _ => &[],
-        };
+/// Resolve the span of a binding name within a pattern span.
+fn binding_name_span(source: &str, span: Span, name: &str) -> Span {
+    // slice the source to the pattern span
+    let slice = source
+        .get(span.start as usize..span.end as usize)
+        .unwrap_or("");
 
-        // accept a single recorded candidate when present
-        if candidates.len() == 1 {
-            return candidates.first().map(|candidate| candidate.target_symbol);
+    // locate the binding name within the span
+    if let Some(rel_start) = slice.find(name) {
+        let name_start = span.start.saturating_add(rel_start as u32);
+        let name_end = name_start.saturating_add(name.len() as u32);
+        return Span::new(span.file, name_start, name_end);
+    }
+
+    // fall back to trimming trailing whitespace
+    let trimmed_end = trim_span_end(source, span.start, span.end);
+    Span::new(span.file, span.start, trimmed_end)
+}
+
+/// Trim trailing whitespace from a span end offset.
+fn trim_span_end(source: &str, start: u32, end: u32) -> u32 {
+    // walk backwards from the end while whitespace is present
+    let mut idx = end as usize;
+    let min = start as usize;
+    let bytes = source.as_bytes();
+    while idx > min {
+        let Some(byte) = bytes.get(idx.saturating_sub(1)) else {
+            break;
+        };
+        if byte.is_ascii_whitespace() {
+            idx = idx.saturating_sub(1);
+        } else {
+            break;
         }
     }
 
-    // fall back to direct reference targets on the callee expression
-    let dir_tree = ctx.tree();
-    let left_expr = dir_tree.get::<Expression>(left);
-    match left_expr {
-        Expression::GlobalReference { target_symbol, .. }
-        | Expression::LocalReference { target_symbol, .. }
-        | Expression::ModuleReference { target_symbol, .. } => Some(*target_symbol),
-        _ => None,
-    }
+    idx as u32
 }
 
 /// Get parameter names for a function.
 ///
 /// If the target symbol points to a function declaration, extracts actual parameter names.
-/// Returns an empty vec if not available (caller will use generic names).
-fn get_parameter_names(
-    session: &Session,
-    target_symbol: Option<GlobalSymbolId>,
-    _argument_count: usize,
-) -> Vec<String> {
+/// Returns an empty vec if not available (caller will skip parameter hints).
+fn get_parameter_names(session: &Session, target_symbol: Option<GlobalSymbolId>) -> Vec<String> {
     // require a resolved target symbol for parameter extraction
     let Some(symbol_id) = target_symbol else {
         return Vec::new();
     };
 
-    // reuse the shared parameter name extraction helper
+    // resolve dynamic parameter names from the DIR
     dynamic_parameter_names(session, symbol_id).unwrap_or_default()
+}
+
+/// Decide whether a parameter hint should be skipped for an argument.
+fn should_skip_parameter_hint(
+    session: &Session,
+    dir_tree: &destack_dir::NodeTree,
+    argument: &Argument,
+    param_name: &str,
+    argument_is_literal: bool,
+) -> bool {
+    // skip placeholders and empty names
+    if param_name.is_empty() || param_name == "_" {
+        return true;
+    }
+
+    // skip arguments that already carry labels
+    if argument.is_named() {
+        return true;
+    }
+
+    // skip spread arguments
+    if matches!(argument, Argument::Spread { .. }) {
+        return true;
+    }
+
+    // skip when parameter hints are disabled for non literal arguments
+    if !should_emit_parameter_hint(argument_is_literal) {
+        return true;
+    }
+
+    // skip when the argument already repeats the parameter name
+    if let Some(argument_name) = argument_reference_name(session, dir_tree, argument) {
+        if argument_name == param_name && !parameter_name_hints_when_argument_matches_name() {
+            return true;
+        }
+
+        // skip common implicit receiver names
+        if argument_name == "this" {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Extract a simple reference name from an argument value when available.
+fn argument_reference_name(
+    session: &Session,
+    dir_tree: &destack_dir::NodeTree,
+    argument: &Argument,
+) -> Option<String> {
+    // resolve the argument expression
+    let expr = dir_tree.get::<Expression>(argument.value());
+
+    // resolve a simple reference name
+    match expr {
+        Expression::LocalReference { path, .. }
+        | Expression::ModuleReference { path, .. }
+        | Expression::GlobalReference { path, .. } => path
+            .last_segment()
+            .map(|id| session.strings.get(id).to_string()),
+        Expression::This => Some("this".to_string()),
+        _ => None,
+    }
+}
+
+/// Check whether an argument is a literal value.
+fn argument_is_literal(dir_tree: &destack_dir::NodeTree, argument: &Argument) -> bool {
+    // resolve the argument expression
+    let expr = dir_tree.get::<Expression>(argument.value());
+
+    // treat scalar literals and static templates as literals
+    match expr {
+        Expression::ScalarLiteral { .. } => true,
+        Expression::TemplateExpression { value } => {
+            matches!(value, TemplateLiteral::String { .. })
+        }
+        _ => false,
+    }
+}
+
+/// Decide whether parameter name hints are enabled for this argument.
+fn should_emit_parameter_hint(argument_is_literal: bool) -> bool {
+    // use literal detection as the hint gate
+    argument_is_literal
+}
+
+/// Decide whether to include hints when argument matches the parameter name.
+fn parameter_name_hints_when_argument_matches_name() -> bool {
+    // disable redundant hints by default
+    false
 }
