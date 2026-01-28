@@ -1,17 +1,19 @@
 use std::cmp::Ordering;
 
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachKind, FunctionKind,
-    IfCondition, IfKind, ImportSource, Keyword, LetKind, LocalNodeId, MatchCase, MatchKind,
-    MatchSelector, Member, Mutability, NodeTree, NodeType, OperatorPrecedence, Parameter, Pattern,
-    PostfixPosition, Property, ScalarLiteral, TypeLiteral, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, WhereClause, WhileKind, YieldCardinality,
+    Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator,
+    Declaration, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ForEachBinding, ForEachKind, FunctionKind, IfCondition, IfKind, ImportSource, Keyword, LetKind,
+    LocalNodeId, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType,
+    OperatorPrecedence, Parameter, Pattern, PostfixPosition, Property, ScalarLiteral, TokenType,
+    TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhereClause, WhileKind,
+    YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError, GroupId};
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
+use destack_source::Span;
 use destack_workspace::ImportSortOrder;
 use smallvec::{SmallVec, smallvec};
 
@@ -26,7 +28,7 @@ use crate::{
 const MAX_CHAIN_HEAD_OPS: usize = 2;
 const MAX_CHAIN_HEAD_LEN_DIVISOR: usize = 2;
 const DECLARATOR_PREFIX_PADDING: usize = 6;
-const ASSIGNMENT_CHAIN_TAIL_RESERVE: usize = 8;
+const ASSIGNMENT_CHAIN_TAIL_RESERVE: usize = 0;
 
 /// Compare two strings using natural sort order (numbers ordered as integers).
 /// Example: `"a1" < "a2" < "a10"` (not `"a1" < "a10" < "a2"`).
@@ -136,6 +138,32 @@ struct TreeExpressionArgument {
     argument_id: LocalNodeId<Argument>,
 }
 
+fn format_inline_stub_comment<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let Some(annotations) = f.context().get_annotations(value_id) else {
+        return Ok(());
+    };
+
+    let mut first = true;
+    for annotation_id in annotations {
+        let Annotation::Comment { node, .. } = f.context().tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+
+        if !first {
+            write!(f, [space()])?;
+        }
+        first = false;
+
+        write!(f, [*node])?;
+    }
+
+    Ok(())
+}
+
 impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [f.context().any_prefix_annotations(self.argument_id)])?;
@@ -182,20 +210,25 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TreeExpressionArgument {
                             | Expression::TreeExpression { .. }
                     );
                 if needs_braces {
-                    // for comment-only containers (stub), use soft_block_indent
-                    // for regular expressions, keep inline to preserve ternary formatting
-                    let is_comment_only = matches!(value_expr, Expression::Stub);
-                    if is_comment_only {
-                        write!(
-                            f,
-                            [group(&format_args![
-                                token("{"),
-                                soft_block_indent(&value),
-                                token("}")
-                            ])]
-                        )?;
+                    if matches!(value_expr, Expression::Stub) {
+                        write!(f, [token("{")])?;
+                        format_inline_stub_comment(f, *value)?;
+                        write!(f, [token("}")])?;
                     } else {
-                        write!(f, [token("{"), value, token("}")])?;
+                        let use_block_indent =
+                            tree_child_needs_block_indent(f.context(), self.argument_id);
+                        if use_block_indent {
+                            write!(
+                                f,
+                                [group(&format_args![
+                                    token("{"),
+                                    block_indent(&value),
+                                    token("}")
+                                ])]
+                            )?;
+                        } else {
+                            write!(f, [token("{"), value, token("}")])?;
+                        }
                     }
                 } else {
                     write!(f, [value])?;
@@ -1583,8 +1616,10 @@ fn format_maybe_expression<'ast>(
 #[derive(Clone)]
 enum ChainExpressionBaseHead {
     Path {
+        node_id: LocalNodeId<Expression>,
         segment: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        emit_postfix_annotations: bool,
     },
     Expression(LocalNodeId<Expression>),
 }
@@ -1604,11 +1639,14 @@ enum ChainExpression {
         node_id: LocalNodeId<Expression>,
         segment: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        emit_prefix_annotations: bool,
+        emit_postfix_annotations: bool,
     },
     /// Call expression.
     Call {
         node_id: LocalNodeId<Expression>,
         position: PostfixPosition,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         dynamic_arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Index expression.
@@ -1622,6 +1660,11 @@ enum ChainExpression {
         node_id: LocalNodeId<Expression>,
         position: PostfixPosition,
     },
+    /// Must expression.
+    Must {
+        node_id: LocalNodeId<Expression>,
+        position: PostfixPosition,
+    },
 }
 
 /// Format the base portion of the chain.
@@ -1631,12 +1674,18 @@ fn format_chain_base<'ast>(
 ) -> FormatResult<()> {
     match &base.head {
         ChainExpressionBaseHead::Path {
+            node_id,
             segment,
             static_arguments,
+            emit_postfix_annotations,
         } => {
+            write!(f, [f.context().any_prefix_annotations(*node_id)])?;
             write!(f, [*segment])?;
             if let Some(arguments) = static_arguments {
                 write!(f, [list_like("<", ">", ",", arguments)])?;
+            }
+            if *emit_postfix_annotations {
+                write!(f, [f.context().any_infix_or_postfix_annotations(*node_id)])?;
             }
         }
         ChainExpressionBaseHead::Expression(node_id) => {
@@ -1668,13 +1717,25 @@ fn format_chain_expression<'ast>(
     op: &ChainExpression,
 ) -> FormatResult<()> {
     // output any line prefix annotations before the operation
-    let node_id = match op {
-        ChainExpression::Member { node_id, .. }
-        | ChainExpression::Call { node_id, .. }
+    let (node_id, emit_prefix_annotations, emit_postfix_annotations) = match op {
+        ChainExpression::Member {
+            node_id,
+            emit_prefix_annotations,
+            emit_postfix_annotations,
+            ..
+        } => (
+            *node_id,
+            *emit_prefix_annotations,
+            *emit_postfix_annotations,
+        ),
+        ChainExpression::Call { node_id, .. }
         | ChainExpression::Index { node_id, .. }
-        | ChainExpression::Maybe { node_id, .. } => *node_id,
+        | ChainExpression::Maybe { node_id, .. }
+        | ChainExpression::Must { node_id, .. } => (*node_id, true, true),
     };
-    write!(f, [f.context().line_prefix_annotations(node_id)])?;
+    if emit_prefix_annotations {
+        write!(f, [f.context().any_prefix_annotations(node_id)])?;
+    }
 
     match op {
         ChainExpression::Member {
@@ -1691,10 +1752,14 @@ fn format_chain_expression<'ast>(
         ChainExpression::Call {
             node_id: call_node_id,
             position,
+            static_arguments,
             dynamic_arguments,
         } => {
             if *position == PostfixPosition::Indirect {
                 write!(f, [token(".")])?;
+            }
+            if let Some(arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", arguments)])?;
             }
             format_call_arguments(f, *call_node_id, dynamic_arguments)?;
         }
@@ -1716,10 +1781,18 @@ fn format_chain_expression<'ast>(
                 write!(f, [token("."), token("?")])?;
             }
         },
+        ChainExpression::Must { position, .. } => match position {
+            PostfixPosition::Direct => write!(f, [token("!")])?,
+            PostfixPosition::Indirect => {
+                write!(f, [token("."), token("!")])?;
+            }
+        },
     }
 
     // output any line postfix annotations after the operation
-    write!(f, [f.context().line_postfix_annotations(node_id)])?;
+    if emit_postfix_annotations {
+        write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+    }
 
     Ok(())
 }
@@ -1750,6 +1823,10 @@ fn group_chain_expression_lines(
                     // (maybe, member)
                     Some(ChainExpression::Member { .. }) => {
                         line.push(iter.next().unwrap());
+                        // (maybe, member, must?)
+                        if let Some(ChainExpression::Must { .. }) = iter.peek() {
+                            line.push(iter.next().unwrap());
+                        }
                         // (maybe, member, index | call)
                         if let Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) =
                             iter.peek()
@@ -1760,12 +1837,20 @@ fn group_chain_expression_lines(
                     // (maybe, index | call)
                     Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) => {
                         line.push(iter.next().unwrap());
+                        // (maybe, index | call, must?)
+                        if let Some(ChainExpression::Must { .. }) = iter.peek() {
+                            line.push(iter.next().unwrap());
+                        }
                     }
                     _ => {}
                 }
             }
             // (member)
             ChainExpression::Member { .. } => {
+                // (member, must)
+                if let Some(ChainExpression::Must { .. }) = iter.peek() {
+                    line.push(iter.next().unwrap());
+                }
                 // (member, index | call)
                 if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
                     iter.peek()
@@ -1775,7 +1860,23 @@ fn group_chain_expression_lines(
             }
             // (index | call)
             ChainExpression::Index { .. } | ChainExpression::Call { .. } => {
-                // end of line
+                // (index | call, must)
+                if let Some(ChainExpression::Must { .. }) = iter.peek() {
+                    line.push(iter.next().unwrap());
+                }
+            }
+            // (must)
+            ChainExpression::Must { .. } => {
+                // (must, member)
+                if let Some(ChainExpression::Member { .. }) = iter.peek() {
+                    line.push(iter.next().unwrap());
+                }
+                // (must, index | call)
+                if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
+                    iter.peek()
+                {
+                    line.push(iter.next().unwrap());
+                }
             }
         }
         lines.push(line);
@@ -1790,7 +1891,8 @@ pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expressi
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
-        | Expression::Maybe { left, .. } => is_chain_expression(tree.get(*left)),
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => is_chain_expression(tree.get(*left)),
         _ => false,
     }
 }
@@ -1801,7 +1903,8 @@ pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
-        | Expression::Maybe { left, .. } => !is_chain_expression(tree.get(*left)),
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => !is_chain_expression(tree.get(*left)),
         _ => false,
     }
 }
@@ -1980,7 +2083,8 @@ fn chain_head_id(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> LocalNode
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. } => Some(*left),
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
             _ => None,
         };
 
@@ -2066,24 +2170,34 @@ pub(crate) fn is_poorly_breakable_chain(
     let mut has_call = false;
 
     loop {
-        if context.has_annotation(current) {
+        if chain_node_has_non_inline_annotation(context, current) {
             return false;
         }
 
         match tree.get(current) {
             Expression::Call {
-                dynamic_arguments, ..
+                static_arguments,
+                dynamic_arguments,
+                ..
             } => {
                 has_call = true;
 
                 // only allow no args or a single short argument
+                let static_breakable = match static_arguments {
+                    None => false,
+                    Some(arguments) => match arguments.len() {
+                        0 => false,
+                        1 => !is_short_chain_argument(context, arguments[0]),
+                        _ => true,
+                    },
+                };
                 let is_breakable_call = match dynamic_arguments.len() {
                     0 => false,
                     1 => !is_short_chain_argument(context, dynamic_arguments[0]),
                     _ => true,
                 };
 
-                if is_breakable_call {
+                if static_breakable || is_breakable_call {
                     return false;
                 }
             }
@@ -2097,7 +2211,7 @@ pub(crate) fn is_poorly_breakable_chain(
                     }
                 }
             }
-            Expression::Member { .. } | Expression::Maybe { .. } => {}
+            Expression::Member { .. } | Expression::Maybe { .. } | Expression::Must { .. } => {}
             _ => break,
         }
 
@@ -2105,7 +2219,8 @@ pub(crate) fn is_poorly_breakable_chain(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. } => Some(*left),
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
             _ => None,
         };
 
@@ -2281,7 +2396,8 @@ fn expression_chain_should_break(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. } => Some(*left),
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
             _ => None,
         };
 
@@ -2556,10 +2672,15 @@ fn is_simple_chain_static_arguments(
 fn is_simple_chain_call(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
+    static_arguments: &Option<Vec<LocalNodeId<Argument>>>,
     dynamic_arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     // annotated calls are never simple
     if context.has_infix_annotation(node_id) {
+        return false;
+    }
+
+    if !is_simple_chain_static_arguments(context, static_arguments) {
         return false;
     }
 
@@ -2579,21 +2700,140 @@ fn is_simple_chain_operation(
         ChainExpression::Member {
             node_id,
             static_arguments,
+            emit_prefix_annotations,
+            emit_postfix_annotations,
             ..
         } => {
-            !context.has_annotation(*node_id)
-                && is_simple_chain_static_arguments(context, static_arguments)
+            let has_intervening_break = member_has_intervening_break_or_comment(context, *node_id);
+            let has_annotations = (*emit_prefix_annotations || *emit_postfix_annotations)
+                && chain_node_has_non_inline_annotation(context, *node_id);
+            let has_break = has_intervening_break || has_annotations;
+            !has_break && is_simple_chain_static_arguments(context, static_arguments)
         }
         ChainExpression::Call {
             node_id,
+            static_arguments,
             dynamic_arguments,
             ..
-        } => is_simple_chain_call(context, *node_id, dynamic_arguments),
+        } => is_simple_chain_call(context, *node_id, static_arguments, dynamic_arguments),
         ChainExpression::Index { node_id, index, .. } => {
-            !context.has_annotation(*node_id) && is_numeric_index(context, index)
+            !chain_node_has_non_inline_annotation(context, *node_id)
+                && is_numeric_index(context, index)
         }
-        ChainExpression::Maybe { node_id, .. } => !context.has_annotation(*node_id),
+        ChainExpression::Maybe { node_id, .. } | ChainExpression::Must { node_id, .. } => {
+            !chain_node_has_non_inline_annotation(context, *node_id)
+        }
     }
+}
+
+/// Check if a member access has a newline or comment between its receiver and property.
+fn member_has_intervening_break_or_comment(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    match context.tree.get(node_id) {
+        Expression::Member { left, .. } => {
+            let Some(property_span) = context.tree.get_main_span(node_id) else {
+                return false;
+            };
+            let left_span = context.get_span(*left);
+
+            // guard against malformed spans
+            if property_span.start <= left_span.end {
+                return false;
+            }
+
+            let span = Span::new(left_span.file, left_span.end, property_span.start);
+            let between = context.get_span_str(span);
+
+            between.contains('\n')
+                || between.contains('\r')
+                || between.contains("/*")
+                || between.contains("//")
+        }
+        Expression::Path { .. } => {
+            let span = context.get_span(node_id);
+            let between = context.get_span_str(span);
+
+            between.contains('\n')
+                || between.contains('\r')
+                || between.contains("/*")
+                || between.contains("//")
+        }
+        _ => false,
+    }
+}
+
+/// Decide whether postfix annotations on a path belong after the last segment.
+fn path_postfix_annotations_emit_on_tail(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    segments_len: usize,
+) -> bool {
+    let Some(annotations) = context.get_annotations(node_id) else {
+        return true;
+    };
+    let Some(last_segment_start) = path_last_segment_start(context, node_id, segments_len) else {
+        return false;
+    };
+
+    let mut has_postfix = false;
+    for annotation_id in annotations {
+        let annotation = context.tree.get::<Annotation>(annotation_id);
+        let position = annotation.position();
+        let is_postfix = matches!(
+            position,
+            AnnotationPosition::LinePostfix
+                | AnnotationPosition::LinePostfixBoundary
+                | AnnotationPosition::BlockInfix
+                | AnnotationPosition::BlockPostfix
+        );
+        if !is_postfix {
+            continue;
+        }
+
+        has_postfix = true;
+        let span = context.get_span(annotation_id);
+        if span.start < last_segment_start {
+            return false;
+        }
+    }
+
+    if !has_postfix {
+        return true;
+    }
+
+    true
+}
+
+/// Find the start byte of the last path segment token.
+fn path_last_segment_start(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    segments_len: usize,
+) -> Option<u32> {
+    if segments_len == 0 {
+        return None;
+    }
+
+    let span = context.get_span(node_id);
+    let mut count = 0usize;
+    for token in context.tokens.iter() {
+        if token.span.start < span.start {
+            continue;
+        }
+        if token.span.start >= span.end {
+            break;
+        }
+        if token.token.ty == TokenType::Identifier {
+            count += 1;
+            if count == segments_len {
+                return Some(token.span.start);
+            }
+        }
+    }
+
+    None
 }
 
 /// Estimate the rendered length of static arguments.
@@ -2634,17 +2874,24 @@ fn chain_operation_len(context: &DestackFormatContext<'_>, operation: &ChainExpr
         }
         ChainExpression::Call {
             position,
+            static_arguments,
             dynamic_arguments,
             ..
         } => {
             // account for a leading `.` on indirect calls
             let dot_len = usize::from(*position == PostfixPosition::Indirect);
 
+            // include static arguments
+            let static_len = static_arguments_len(context, static_arguments);
+
             // measure the arguments within parentheses
             let arguments_len = arguments_rendered_len(context, dynamic_arguments);
 
             // include `(` and `)`
-            dot_len.saturating_add(2).saturating_add(arguments_len)
+            dot_len
+                .saturating_add(static_len)
+                .saturating_add(2)
+                .saturating_add(arguments_len)
         }
         ChainExpression::Index {
             position, index, ..
@@ -2665,6 +2912,10 @@ fn chain_operation_len(context: &DestackFormatContext<'_>, operation: &ChainExpr
             PostfixPosition::Direct => 1,
             PostfixPosition::Indirect => 2,
         },
+        ChainExpression::Must { position, .. } => match position {
+            PostfixPosition::Direct => 1,
+            PostfixPosition::Indirect => 2,
+        },
     }
 }
 
@@ -2673,8 +2924,10 @@ fn chain_base_len(context: &DestackFormatContext<'_>, base: &ChainExpressionBase
     // measure the base head
     let mut head_len = match &base.head {
         ChainExpressionBaseHead::Path {
+            node_id: _,
             segment,
             static_arguments,
+            emit_postfix_annotations: _,
         } => {
             let segment_len = context.strings.get(*segment).chars().count();
             let static_len = static_arguments_len(context, static_arguments);
@@ -2712,7 +2965,8 @@ pub(crate) fn chain_inline_len(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. } => Some(*left),
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
             _ => None,
         };
 
@@ -2748,18 +3002,26 @@ pub(crate) fn chain_inline_len(
 
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
-            Expression::Member { name, .. } => ChainExpression::Member {
+            Expression::Member {
+                name,
+                static_arguments,
+                ..
+            } => ChainExpression::Member {
                 node_id: expression_id,
                 segment: *name,
-                static_arguments: None,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
             },
             Expression::Call {
                 position,
+                static_arguments,
                 dynamic_arguments,
                 ..
             } => ChainExpression::Call {
                 node_id: expression_id,
                 position: *position,
+                static_arguments: static_arguments.clone(),
                 dynamic_arguments: dynamic_arguments.clone(),
             },
             Expression::Index {
@@ -2770,6 +3032,10 @@ pub(crate) fn chain_inline_len(
                 index: *index,
             },
             Expression::Maybe { position, .. } => ChainExpression::Maybe {
+                node_id: expression_id,
+                position: *position,
+            },
+            Expression::Must { position, .. } => ChainExpression::Must {
                 node_id: expression_id,
                 position: *position,
             },
@@ -2826,6 +3092,9 @@ fn split_chain_head_operations(
         }
 
         let operation = &operations[index];
+        if matches!(operation, ChainExpression::Maybe { .. }) {
+            break;
+        }
 
         // avoid splitting a member from its immediate call or index
         let next_operation = operations.get(index + 1);
@@ -2927,7 +3196,9 @@ fn summarize_chain_calls(
 
     for expression_id in chain {
         let Expression::Call {
-            dynamic_arguments, ..
+            static_arguments,
+            dynamic_arguments,
+            ..
         } = context.tree.get(*expression_id)
         else {
             continue;
@@ -2940,6 +3211,11 @@ fn summarize_chain_calls(
             .any(|argument_id| is_function_like_argument(context, argument_id));
 
         let has_annotations = context.has_infix_annotation(*expression_id)
+            || static_arguments.as_ref().is_some_and(|arguments| {
+                arguments
+                    .iter()
+                    .any(|argument_id| context.has_annotation(*argument_id))
+            })
             || dynamic_arguments
                 .iter()
                 .copied()
@@ -2947,6 +3223,7 @@ fn summarize_chain_calls(
 
         // simple calls have at most one simple argument and no annotations
         let arguments_simple = !has_annotations
+            && is_simple_chain_static_arguments(context, static_arguments)
             && dynamic_arguments.len() <= 1
             && dynamic_arguments
                 .iter()
@@ -2954,11 +3231,18 @@ fn summarize_chain_calls(
                 .all(|argument_id| is_simple_chain_argument(context, argument_id));
 
         let arguments_complex = has_annotations || !arguments_simple;
-        let arguments_rendered_len = arguments_rendered_len(context, dynamic_arguments);
+        let arguments_rendered_len = arguments_rendered_len(context, dynamic_arguments)
+            .saturating_add(static_arguments_len(context, static_arguments));
         let has_multiline_argument = dynamic_arguments
             .iter()
             .copied()
-            .any(|argument_id| argument_forces_multiline(context, argument_id));
+            .any(|argument_id| argument_forces_multiline(context, argument_id))
+            || static_arguments.as_ref().is_some_and(|arguments| {
+                arguments
+                    .iter()
+                    .copied()
+                    .any(|argument_id| argument_forces_multiline(context, argument_id))
+            });
 
         summaries.push(ChainCallSummary {
             arguments_complex,
@@ -2969,6 +3253,48 @@ fn summarize_chain_calls(
     }
 
     summaries
+}
+
+/// Check whether a chain node has an annotation that should force breaking.
+fn chain_node_has_breaking_annotation(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    context.get_annotations(node_id).is_some_and(|annotations| {
+        annotations.iter().any(|annotation_id| {
+            matches!(
+                context.tree.get::<Annotation>(*annotation_id).position(),
+                AnnotationPosition::LinePrefix
+                    | AnnotationPosition::LinePostfixBoundary
+                    | AnnotationPosition::BlockPrefix
+                    | AnnotationPosition::BlockInfix
+                    | AnnotationPosition::BlockPostfix
+            )
+        })
+    })
+}
+
+/// Check whether a chain node has annotations that prevent head grouping.
+fn chain_node_has_non_inline_annotation(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    context.get_annotations(node_id).is_some_and(|annotations| {
+        annotations.iter().any(|annotation_id| {
+            match context.tree.get::<Annotation>(*annotation_id) {
+                Annotation::Blank { .. } => true,
+                Annotation::Doc { position, .. }
+                | Annotation::Comment { position, .. }
+                | Annotation::Decorator { position, .. } => matches!(
+                    position,
+                    AnnotationPosition::LinePrefix
+                        | AnnotationPosition::BlockPrefix
+                        | AnnotationPosition::BlockInfix
+                        | AnnotationPosition::BlockPostfix
+                ),
+            }
+        })
+    })
 }
 
 /// Decide whether a chain should proactively break across lines.
@@ -2982,6 +3308,16 @@ fn should_break_chain(
         .copied()
         .expect("chain must contain at least one node");
     let call_summaries = summarize_chain_calls(context, chain);
+    let chain_head = chain_head_id(context.tree, chain_root);
+    let has_chain_annotations = chain
+        .iter()
+        .copied()
+        .any(|expression_id| chain_node_has_breaking_annotation(context, expression_id))
+        || chain_node_has_breaking_annotation(context, chain_head);
+
+    if has_chain_annotations {
+        return true;
+    }
 
     // chains with no calls stay inline unless they overflow
     if call_summaries.is_empty() {
@@ -3067,7 +3403,8 @@ pub(crate) fn format_expression_chain<'ast>(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
-            | Expression::Maybe { left, .. } => Some(*left),
+            | Expression::Maybe { left, .. }
+            | Expression::Must { left, .. } => Some(*left),
             _ => None,
         };
 
@@ -3097,6 +3434,9 @@ pub(crate) fn format_expression_chain<'ast>(
         let first_segment = segments.next().expect("path is not empty");
         let remaining_segments: Vec<StringId> = segments.collect();
 
+        let emit_postfix_on_tail = !remaining_segments.is_empty()
+            && path_postfix_annotations_emit_on_tail(f.context(), root_id, path.segments.len());
+
         // path base (keeps static arguments if there are no remaining segments)
         let base_static_arguments = if remaining_segments.is_empty() {
             static_arguments.clone()
@@ -3104,8 +3444,10 @@ pub(crate) fn format_expression_chain<'ast>(
             None
         };
         base_head = ChainExpressionBaseHead::Path {
+            node_id: root_id,
             segment: first_segment,
             static_arguments: base_static_arguments,
+            emit_postfix_annotations: remaining_segments.is_empty() || !emit_postfix_on_tail,
         };
 
         // path rest (tail segments)
@@ -3113,8 +3455,9 @@ pub(crate) fn format_expression_chain<'ast>(
         //  so we use root_id for annotations, even though they won't have intra-path comments)
         let tail_len = remaining_segments.len();
         for (index, segment) in remaining_segments.into_iter().enumerate() {
+            let is_last = tail_len != 0 && index + 1 == tail_len;
             // last segment keeps static arguments if there are any
-            let static_args = if tail_len != 0 && index + 1 == tail_len {
+            let static_args = if is_last {
                 static_arguments.clone()
             } else {
                 None
@@ -3123,6 +3466,8 @@ pub(crate) fn format_expression_chain<'ast>(
                 node_id: root_id,
                 segment,
                 static_arguments: static_args,
+                emit_prefix_annotations: false,
+                emit_postfix_annotations: emit_postfix_on_tail && is_last,
             });
         }
     }
@@ -3134,18 +3479,26 @@ pub(crate) fn format_expression_chain<'ast>(
     // convert the chain into individual chain expressions, preserving node IDs for annotations
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
-            Expression::Member { name, .. } => ChainExpression::Member {
+            Expression::Member {
+                name,
+                static_arguments,
+                ..
+            } => ChainExpression::Member {
                 node_id: expression_id,
                 segment: *name,
-                static_arguments: None,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
             },
             Expression::Call {
                 position,
+                static_arguments,
                 dynamic_arguments,
                 ..
             } => ChainExpression::Call {
                 node_id: expression_id,
                 position: *position,
+                static_arguments: static_arguments.clone(),
                 dynamic_arguments: dynamic_arguments.clone(),
             },
             Expression::Index {
@@ -3156,6 +3509,10 @@ pub(crate) fn format_expression_chain<'ast>(
                 index: *index,
             },
             Expression::Maybe { position, .. } => ChainExpression::Maybe {
+                node_id: expression_id,
+                position: *position,
+            },
+            Expression::Must { position, .. } => ChainExpression::Must {
                 node_id: expression_id,
                 position: *position,
             },
@@ -3416,6 +3773,7 @@ fn is_chain_expression(expression: &Expression) -> bool {
             | Expression::Call { .. }
             | Expression::Index { .. }
             | Expression::Maybe { .. }
+            | Expression::Must { .. }
     )
 }
 
@@ -3604,6 +3962,9 @@ pub fn is_expression_breakable(tree: &NodeTree, expression: &Expression) -> bool
         Expression::Call {
             dynamic_arguments, ..
         } => !dynamic_arguments.is_empty(),
+        Expression::New {
+            dynamic_arguments, ..
+        } => !dynamic_arguments.is_empty(),
         Expression::Match { .. } => true,
         Expression::Path {
             static_arguments, ..
@@ -3639,6 +4000,28 @@ pub fn is_pattern_breakable(tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -
     }
 }
 
+/// Check if a span includes any comment tokens.
+fn span_has_comment(context: &DestackFormatContext<'_>, span: destack_source::Span) -> bool {
+    let is_comment_token = |token: &destack_ast::TokenSpan| {
+        matches!(
+            token.token.ty,
+            TokenType::LineComment
+                | TokenType::BlockComment
+                | TokenType::DocLineComment
+                | TokenType::DocBlockComment
+        )
+    };
+
+    context
+        .tokens
+        .iter()
+        .any(|token| span.intersects(token.span) && is_comment_token(token))
+        || context
+            .side_tokens
+            .iter()
+            .any(|token| span.intersects(token.span) && is_comment_token(token))
+}
+
 /// Format a struct literal.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
@@ -3667,13 +4050,21 @@ pub(crate) fn format_struct_literal<'ast>(
     let keep_newline =
         f.context().has_newline(f.context().get_span(expression_id)) && properties.len() > 1;
 
-    // only force expand for methods, annotations, or explicit newlines
+    // only force expand for methods, annotations, comments, or explicit newlines
     // otherwise let best_fitting decide based on line width
-    let must_expand = has_methods || has_annotations || keep_newline;
+    let span = f.context().get_span(expression_id);
+    let has_comments = span_has_comment(f.context(), span)
+        || properties_ids
+            .iter()
+            .any(|property_id| span_has_comment(f.context(), f.context().get_span(*property_id)));
+    let must_expand = has_methods || has_annotations || keep_newline || has_comments;
+    let is_typescript = f.context().options.language_type.is_typescript();
+    let in_type_context = is_typescript && is_type_context(f.context(), expression_id);
+    let separator = if in_type_context { ";" } else { "," };
 
     write!(
         f,
-        [list_like("{", "}", ",", properties_ids)
+        [list_like("{", "}", separator, properties_ids)
             .as_collection()
             .include_space()
             .should_expand(must_expand)]
@@ -3851,6 +4242,109 @@ fn text_ends_with_opening_punctuation(text: &str) -> bool {
     matches!(text.chars().last(), Some('(' | '[' | '{'))
 }
 
+/// Get the expression value for a tree child argument.
+fn tree_child_value_id(
+    tree: &NodeTree,
+    argument_id: LocalNodeId<Argument>,
+) -> Option<LocalNodeId<Expression>> {
+    match tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => Some(*value),
+    }
+}
+
+/// Check whether a tree child forces the element to break.
+fn tree_child_breaks_element(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+        return false;
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    let value_expr = context.tree.get(value_id);
+    let span = context.get_span(value_id);
+    let argument_span = context.get_span(argument_id);
+    let is_text_node = matches!(
+        value_expr,
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+    );
+    let is_tree_node = matches!(value_expr, Expression::TreeExpression { .. });
+    if !is_text_node && !is_tree_node {
+        let has_comment =
+            span_has_comment(context, span) || span_has_comment(context, argument_span);
+        if context.has_newline(span) || has_comment {
+            return true;
+        }
+    }
+
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id)) && !is_text_node {
+        return true;
+    }
+
+    match value_expr {
+        Expression::Stub => true,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => expression_source_len(context, value_id) > usize::from(context.options.line_width),
+        Expression::Block(_) | Expression::Match { .. } => true,
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::TreeExpression { .. } => false,
+        _ => expression_has_complex_callback(context, value_id),
+    }
+}
+
+/// Check whether a tree child should use block indentation inside braces.
+fn tree_child_needs_block_indent(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let Some(value_id) = tree_child_value_id(context.tree, argument_id) else {
+        return false;
+    };
+
+    let value_id = transparent_inner_expression(context, value_id);
+    let value_expr = context.tree.get(value_id);
+    let span = context.get_span(value_id);
+    let argument_span = context.get_span(argument_id);
+    let is_text_node = matches!(
+        value_expr,
+        Expression::ScalarLiteral(ScalarLiteral::String(_))
+    );
+    let is_tree_node = matches!(value_expr, Expression::TreeExpression { .. });
+    if !is_text_node && !is_tree_node {
+        let has_comment =
+            span_has_comment(context, span) || span_has_comment(context, argument_span);
+        if context.has_newline(span) || has_comment {
+            return !matches!(value_expr, Expression::Stub);
+        }
+    }
+
+    if (context.has_annotation(argument_id) || context.has_annotation(value_id)) && !is_text_node {
+        return true;
+    }
+
+    match value_expr {
+        Expression::Stub => false,
+        Expression::If {
+            kind: IfKind::Ternary,
+            ..
+        } => expression_source_len(context, value_id) > usize::from(context.options.line_width),
+        Expression::Block(_) | Expression::Match { .. } => true,
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::TreeExpression { .. } => false,
+        _ => expression_has_block_callback(context, value_id),
+    }
+}
+
 /// Check whether a lambda body is complex enough to force tree breaking.
 fn lambda_body_is_complex_for_tree(
     context: &DestackFormatContext<'_>,
@@ -3904,6 +4398,118 @@ fn argument_is_complex_callback(
     lambda_body_is_complex_for_tree(context, *decl_id)
 }
 
+/// Check whether an argument is a lambda with a block body.
+fn argument_is_block_callback(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let tree = context.tree;
+
+    // grab the argument value
+    let value_id = match tree.get(argument_id) {
+        Argument::Positional { value, .. } | Argument::Spread { value, .. } => *value,
+        Argument::Named { value, .. } | Argument::Labeled { value, .. } => *value,
+    };
+
+    // unwrap transparent wrappers
+    let value_id = transparent_inner_expression(context, value_id);
+
+    // only lambda declarations qualify
+    let Expression::Declaration(decl_id) = tree.get(value_id) else {
+        return false;
+    };
+
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = tree.get(*decl_id)
+    else {
+        return false;
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        return false;
+    }
+
+    let body_id = transparent_inner_expression(context, *body_id);
+    matches!(tree.get(body_id), Expression::Block(_))
+}
+
+/// Check whether an expression is a lambda with a block body.
+fn expression_is_block_lambda(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let tree = context.tree;
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    let Expression::Declaration(decl_id) = tree.get(expression_id) else {
+        return false;
+    };
+
+    let Declaration::Function {
+        signature,
+        body: Some(body_id),
+        ..
+    } = tree.get(*decl_id)
+    else {
+        return false;
+    };
+
+    if signature.kind != FunctionKind::Lambda {
+        return false;
+    }
+
+    let body_id = transparent_inner_expression(context, *body_id);
+    matches!(tree.get(body_id), Expression::Block(_))
+}
+
+/// Check whether an expression contains a call with a block-bodied callback.
+fn expression_has_block_callback(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let tree = context.tree;
+    let expression_id = transparent_inner_expression(context, expression_id);
+
+    match tree.get(expression_id) {
+        Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        }
+        | Expression::New {
+            left,
+            dynamic_arguments,
+            ..
+        } => {
+            let has_block_argument = dynamic_arguments
+                .iter()
+                .any(|arg_id| argument_is_block_callback(context, *arg_id));
+
+            if has_block_argument {
+                return true;
+            }
+
+            if expression_is_block_lambda(context, *left) {
+                return true;
+            }
+
+            expression_has_block_callback(context, *left)
+        }
+        Expression::Member { left, .. }
+        | Expression::Index { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => expression_has_block_callback(context, *left),
+        Expression::Parenthesized { expression } => {
+            expression_has_block_callback(context, *expression)
+        }
+        Expression::Statement(inner_id) => expression_has_block_callback(context, *inner_id),
+        _ => false,
+    }
+}
+
 /// Check whether an expression contains a call with a complex callback.
 fn expression_has_complex_callback(
     context: &DestackFormatContext<'_>,
@@ -3944,6 +4550,12 @@ fn expression_has_complex_callback(
         | Expression::Must { left, .. } => {
             // walk through postfix chains
             expression_has_complex_callback(context, *left)
+        }
+        Expression::Declaration(declaration_id) => {
+            lambda_body_is_complex_for_tree(context, *declaration_id)
+        }
+        Expression::Parenthesized { expression } => {
+            expression_has_complex_callback(context, *expression)
         }
         Expression::Statement(inner_id) => {
             // peel statement wrappers
@@ -3993,19 +4605,14 @@ pub(crate) fn tree_literal_should_break(
         })
         .count();
 
-    let has_complex_child = elements.iter().any(|elem_id| {
-        let arg = tree.get(*elem_id);
-        if let Argument::Positional { value, .. } = arg {
-            expression_has_complex_callback(context, *value)
-        } else {
-            false
-        }
-    });
+    let has_breaking_child = elements
+        .iter()
+        .any(|elem_id| tree_child_breaks_element(context, *elem_id));
 
     let has_tree_child = element_children_count > 0;
-    let has_single_text_child = elements.len() == 1 && !has_tree_child && !has_complex_child;
+    let has_single_text_child = elements.len() == 1 && !has_tree_child && !has_breaking_child;
 
-    force_break_attributes || has_complex_child || (has_tree_child && !has_single_text_child)
+    force_break_attributes || has_breaking_child || (has_tree_child && !has_single_text_child)
 }
 
 /// Format a tree literal.
@@ -4111,11 +4718,15 @@ pub(crate) fn format_tree_literal<'ast>(
                         let bracket_same_line = f.context().options.bracket_same_line;
                         let has_attributes = arguments.is_some();
                         if left.is_some() || has_attributes {
-                            // space before /> when inline, or when bracket_same_line is true
-                            if bracket_same_line && has_attributes {
-                                write!(f, [if_group_breaks(&space())])?;
+                            if has_attributes {
+                                // space before /> when inline, or when bracket_same_line is true
+                                if bracket_same_line {
+                                    write!(f, [if_group_breaks(&space())])?;
+                                }
+                                write!(f, [if_group_fits_on_line(&space())])?;
+                            } else {
+                                write!(f, [space()])?;
                             }
-                            write!(f, [if_group_fits_on_line(&space())])?;
                         }
                         write!(f, [token("/")])?;
                     }
@@ -4141,16 +4752,27 @@ pub(crate) fn format_tree_literal<'ast>(
                     })
                     .count();
                 let all_tree_children = element_children_count == elements.len();
-
-                // check if any child has complex content (block expressions)
-                let has_complex_child = elements.iter().any(|elem_id| {
+                let only_tree_or_comment_children = elements.iter().all(|elem_id| {
                     let arg = tree.get(*elem_id);
-                    if let Argument::Positional { value, .. } = arg {
-                        expression_has_complex_callback(f.context(), *value)
-                    } else {
-                        false
-                    }
+                    let value_id = match arg {
+                        Argument::Positional { value, .. }
+                        | Argument::Spread { value, .. }
+                        | Argument::Named { value, .. }
+                        | Argument::Labeled { value, .. } => *value,
+                    };
+                    let value_id = transparent_inner_expression(f.context(), value_id);
+                    matches!(
+                        tree.get(value_id),
+                        Expression::TreeExpression { .. } | Expression::Stub
+                    )
                 });
+
+                // check if any child forces a break
+                let child_breaks = elements
+                    .iter()
+                    .map(|elem_id| tree_child_breaks_element(f.context(), *elem_id))
+                    .collect::<Vec<_>>();
+                let has_breaking_child = child_breaks.iter().any(|breaks| *breaks);
 
                 // force breaking when:
                 // - attributes require a break, OR
@@ -4158,15 +4780,15 @@ pub(crate) fn format_tree_literal<'ast>(
                 // - there is at least one tree child, unless the only child is plain text
                 let has_tree_child = element_children_count > 0;
                 let has_single_text_child =
-                    elements.len() == 1 && !has_tree_child && !has_complex_child;
+                    elements.len() == 1 && !has_tree_child && !has_breaking_child;
                 let force_break = force_break_attributes
-                    || has_complex_child
+                    || has_breaking_child
                     || (has_tree_child && !has_single_text_child);
 
                 // Format children using TreeExpressionArgument for proper brace handling
                 let format_children = format_with(|f| {
                     // when all children are tree elements, keep one element per line
-                    if all_tree_children && elements.len() > 1 {
+                    if (all_tree_children || only_tree_or_comment_children) && elements.len() > 1 {
                         for (index, elem_id) in elements.iter().enumerate() {
                             if index > 0 {
                                 write!(f, [hard_line_break()])?;
@@ -4209,9 +4831,10 @@ pub(crate) fn format_tree_literal<'ast>(
                             let current_text = texts[index].as_deref();
                             let prev_is_whitespace_only = whitespace_flags[index - 1].0;
                             let current_is_whitespace_only = whitespace_flags[index].0;
+                            let force_hard_break = child_breaks[index - 1] || child_breaks[index];
 
                             if prev_is_whitespace_only || current_is_whitespace_only {
-                                separators.push((false, false));
+                                separators.push((false, force_hard_break));
                                 continue;
                             }
 
@@ -4235,8 +4858,7 @@ pub(crate) fn format_tree_literal<'ast>(
                             let should_insert_space_inline =
                                 has_inline_boundary_space && !omit_space_for_punctuation;
 
-                            separators
-                                .push((omit_space_for_punctuation, should_insert_space_inline));
+                            separators.push((should_insert_space_inline, force_hard_break));
                         }
 
                         separators
@@ -4246,8 +4868,7 @@ pub(crate) fn format_tree_literal<'ast>(
                     let mut fill = f.fill();
 
                     for (index, elem_id) in elements.iter().enumerate() {
-                        let (omit_space_for_punctuation, should_insert_space_inline) =
-                            separators[index];
+                        let (should_insert_space_inline, force_break) = separators[index];
 
                         // build a separator doc for fill
                         let separator = format_with(|f| {
@@ -4255,12 +4876,12 @@ pub(crate) fn format_tree_literal<'ast>(
                                 return Ok(());
                             }
 
-                            if omit_space_for_punctuation {
-                                write!(f, [if_group_fits_on_line(&soft_line_break())])?;
+                            if force_break {
+                                write!(f, [hard_line_break()])?;
                             } else if should_insert_space_inline {
                                 write!(f, [soft_line_break_or_space()])?;
                             } else {
-                                write!(f, [soft_line_break()])?;
+                                write!(f, [token("")])?;
                             }
 
                             Ok(())
@@ -4277,7 +4898,7 @@ pub(crate) fn format_tree_literal<'ast>(
                 });
 
                 if force_break {
-                    write!(f, [block_indent(&format_children)])?;
+                    write!(f, [block_indent(&group(&format_children))])?;
                 } else {
                     // Use soft indent - stays on one line if it fits
                     write!(f, [group(&soft_block_indent(&format_children))])?;
@@ -5312,7 +5933,7 @@ pub(crate) fn format_expression<'ast>(
             if let Some(mutability) = mutability
                 && *mutability == Mutability::Mutable
             {
-                write!(f, [*mutability])?;
+                write!(f, [*mutability, space()])?;
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
@@ -5326,7 +5947,7 @@ pub(crate) fn format_expression<'ast>(
             if let Some(mutability) = mutability
                 && *mutability == Mutability::Mutable
             {
-                write!(f, [*mutability])?;
+                write!(f, [*mutability, space()])?;
             }
             right.format(f)?;
         }
@@ -5387,16 +6008,20 @@ pub(crate) fn format_expression<'ast>(
 
         // must
         Expression::Must { position, left } => {
-            let needs_parentheses = needs_parens_in_postfix_position(tree, *left);
-            if needs_parentheses {
-                write!(f, [token("("), left, token(")")])?;
+            if is_expression_chain(tree, node_id) {
+                format_expression_chain(f, node_id)?;
             } else {
-                write!(f, [left])?;
+                let needs_parentheses = needs_parens_in_postfix_position(tree, *left);
+                if needs_parentheses {
+                    write!(f, [token("("), left, token(")")])?;
+                } else {
+                    write!(f, [left])?;
+                }
+                if *position == PostfixPosition::Indirect {
+                    write!(f, [token(".")])?;
+                }
+                write!(f, [token("!")])?;
             }
-            if *position == PostfixPosition::Indirect {
-                write!(f, [token(".")])?;
-            }
-            write!(f, [token("!")])?;
         }
 
         // binary
@@ -5406,6 +6031,7 @@ pub(crate) fn format_expression<'ast>(
             right: _,
         } => {
             let in_type_context = is_type_context(f.context(), node_id);
+            let is_destack = f.context().options.language_type.is_destack();
             let is_type_intersection =
                 in_type_context && *operator == BinaryOperator::ElementwiseAnd;
             let is_type_union = in_type_context && *operator == BinaryOperator::ElementwiseOr;
@@ -5443,8 +6069,8 @@ pub(crate) fn format_expression<'ast>(
                 return Ok(());
             }
 
-            // type intersections: prefer trailing `&` with object-like heuristics
-            if is_type_intersection {
+            // destack intersections: prefer trailing `&` with object-like heuristics
+            if is_type_intersection && is_destack {
                 write!(
                     f,
                     [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -6341,7 +6967,7 @@ mod tests {
     fn test_format_jsx_with_comment() {
         assert_format!(
             "<Container>{/* XOXO */}</Container>",
-            "<Container>\n    {\n        /* XOXO */\n    }\n</Container>",
+            "<Container>\n    {/* XOXO */}\n</Container>",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );

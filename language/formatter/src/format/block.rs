@@ -1,5 +1,6 @@
 use destack_ast::{
-    Block, Expression, LocalNodeId, LocalNodeIdAny, Node, NodeTree, NodeTreeImpl, NodeType,
+    Block, Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    ScalarLiteral,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -8,6 +9,67 @@ use destack_fir::{format_args, write};
 use super::imports;
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+
+/// Check whether an expression is a directive prologue string literal.
+fn is_directive_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+    match tree.get(expression_id) {
+        Expression::Statement(inner_id) => is_directive_expression(tree, *inner_id),
+        Expression::Parenthesized { expression } => is_directive_expression(tree, *expression),
+        Expression::ScalarLiteral(ScalarLiteral::String(_)) => true,
+        _ => false,
+    }
+}
+
+/// Check whether two consecutive expressions form a function overload pair.
+fn is_function_overload_pair(
+    tree: &NodeTree,
+    prev_expression_id: LocalNodeId<Expression>,
+    current_expression_id: LocalNodeId<Expression>,
+) -> bool {
+    // extract the declaration nodes
+    let Expression::Declaration(prev_declaration_id) = tree.get(prev_expression_id) else {
+        return false;
+    };
+    let Expression::Declaration(current_declaration_id) = tree.get(current_expression_id) else {
+        return false;
+    };
+
+    // check for matching function declarations
+    let Declaration::Function {
+        descriptor: prev_descriptor,
+        ..
+    } = tree.get(*prev_declaration_id)
+    else {
+        return false;
+    };
+    let Declaration::Function {
+        descriptor: current_descriptor,
+        ..
+    } = tree.get(*current_declaration_id)
+    else {
+        return false;
+    };
+
+    // require matching descriptors and a shared name
+    prev_descriptor.name.is_some() && prev_descriptor == current_descriptor
+}
+
+/// A formatted list of expression statements.
+#[derive(Debug, Clone, Copy)]
+pub struct StatementList<'a> {
+    expressions: &'a [LocalNodeId<Expression>],
+}
+
+impl<'ast, 'a> Format<DestackFormatContext<'ast>> for StatementList<'a> {
+    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
+        format_block_of_statements(f, self.expressions)
+    }
+}
+
+/// Create a formatter for a list of expression statements.
+pub fn statement_list(expressions: &[LocalNodeId<Expression>]) -> StatementList<'_> {
+    StatementList { expressions }
+}
 
 /// Empty block with infix annotations.
 #[derive(Debug, Clone, PartialEq)]
@@ -95,7 +157,6 @@ pub(crate) fn format_block_body_wide<'ast>(
             hard_line_break(),
             soft_block_indent(&format_with(|f| format_block_of_statements(
                 f,
-                block_id.into_any(),
                 &block.expressions
             ))),
             hard_line_break(),
@@ -108,7 +169,6 @@ pub(crate) fn format_block_body_wide<'ast>(
 /// Format a block of expression statements (with appropriate empty annotations).
 pub(crate) fn format_block_of_statements<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    _scope_id: LocalNodeIdAny,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     let organize = f.context().options.organize_imports.is_enabled();
@@ -134,19 +194,32 @@ pub(crate) fn format_block_of_statements<'ast>(
         expressions.to_vec()
     };
 
+    let directive_count = effective_expressions
+        .iter()
+        .take_while(|&&expr_id| is_directive_expression(tree, expr_id))
+        .count();
+
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
 
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
         let is_import_expr = imports::is_import(expression_id, tree);
+        let prev_expression_id = if i > 0 {
+            Some(effective_expressions[i - 1])
+        } else {
+            None
+        };
 
         // blank line between expressions
         if i > 0 {
             write!(f, [hard_line_break()])?;
 
             // determine if we need an extra blank line
-            let needs_blank = if organize && prev_was_import && is_import_expr {
+            let needs_blank = if directive_count > 0 && i == directive_count {
+                !f.context()
+                    .has_blank_prefix_annotation_in_first_position(expression_id)
+            } else if organize && prev_was_import && is_import_expr {
                 // check if different import groups
                 prev_import_id.is_some_and(|prev_id| {
                     imports::should_insert_blank_between(
@@ -162,8 +235,14 @@ pub(crate) fn format_block_of_statements<'ast>(
                     .has_blank_prefix_annotation_in_first_position(expression_id)
             } else if matches!(expression, Expression::Declaration(_)) {
                 // extra blank line between declarations
-                !f.context()
-                    .has_blank_prefix_annotation_in_first_position(expression_id)
+                let is_overload_group = prev_expression_id
+                    .is_some_and(|prev_id| is_function_overload_pair(tree, prev_id, expression_id));
+                if is_overload_group {
+                    false
+                } else {
+                    !f.context()
+                        .has_blank_prefix_annotation_in_first_position(expression_id)
+                }
             } else {
                 false
             };

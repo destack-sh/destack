@@ -132,6 +132,25 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                     write!(f, [space(), token("="), space(), default])?;
                 }
             }
+            PatternField::Computed {
+                mutability,
+                key,
+                pattern,
+                default,
+            } => {
+                if let Some(mutability) = mutability
+                    && *mutability == Mutability::Mutable
+                {
+                    write!(f, [mutability, space()])?;
+                }
+                write!(f, [token("["), key, token("]")])?;
+                if let Some(pattern) = pattern {
+                    write!(f, [token(":"), space(), pattern])?;
+                }
+                if let Some(default) = default {
+                    write!(f, [space(), token("="), space(), default])?;
+                }
+            }
             PatternField::Alias {
                 mutability,
                 name,

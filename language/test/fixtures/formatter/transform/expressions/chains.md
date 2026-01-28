@@ -19,6 +19,22 @@ const result = api.getClient()
     .map((x) => x.id);
 ```
 
+### chain with long generic call arguments
+
+Long generic calls break their argument list and keep the chain head intact.
+
+```ts:main.ts line-width=60
+const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
+```
+
+```ts expected
+const defaultColorDecoratorsEnablement = accessor
+    .get(IConfigurationService)
+    .getValue<"auto" | "always" | "never">(
+        "longlonglonglonglonglonglonglonglong",
+    );
+```
+
 ## Optional Chaining
 
 ### optional chain breaks with leading operators
@@ -49,6 +65,42 @@ const value = api?.users?.[0]?.profile?.["full-name"]
 const value = api?.users?.[0]?.profile?.["full-name"];
 ```
 
+### optional chain with trailing comments
+
+Trailing comments stay attached to the chain segment they follow.
+
+```ds line-width=60
+this.getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+  ?.();
+
+this
+  .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+  ?.();
+
+foo
+  .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+  ?.();
+
+getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+  ?.();
+```
+
+```ds expected
+this.getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+    ?.();
+
+this
+    .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+    ?.();
+
+foo
+    .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+    ?.();
+
+getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
+    ?.();
+```
+
 ## Non-Null Assertions
 
 ### non-null assertions stay tight
@@ -75,4 +127,26 @@ const value = client.users[0]["full-name"].toString()
 
 ```ds expected
 const value = client.users[0]["full-name"].toString();
+```
+
+## Commented Chains
+
+### chain with inline comments
+
+Inline comments stay attached to their chain segment.
+
+```ds line-width=80
+wow /* do something weird here */
+  .omg! /* do something weird here */
+  .map((x) => x.name) /* do something weird here */
+  .filter((x) => x.length > 3)
+  .sort((a, b) => a.length - b.length)
+```
+
+```ds expected
+wow /* do something weird here */
+    .omg! /* do something weird here */
+    .map((x) => x.name) /* do something weird here */
+    .filter((x) => x.length > 3)
+    .sort((a, b) => a.length - b.length);
 ```

@@ -22,5 +22,8 @@ pub mod property;
 pub mod r#try;
 pub mod r#where;
 
-pub use block::{EmptyBlockWithInfixAnnotations, empty_block_with_infix_annotations};
+pub use block::{
+    EmptyBlockWithInfixAnnotations, StatementList, empty_block_with_infix_annotations,
+    statement_list,
+};
 pub use context::*;

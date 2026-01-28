@@ -244,7 +244,6 @@ fn compute_tuple_layout(
     Ok(TypeLayout::new(final_size, max_alignment))
 }
 
-
 /// Compute the offset of a tuple element by index.
 ///
 /// NOTE: Callers should typically verify bounds before calling, as they have
