@@ -1587,7 +1587,7 @@ impl Compiler {
         relation_mode: RelationMode,
     ) -> LocalTypeId {
         // skip apparent type expansion when the relation mode says so
-        if !relation_mode.use_apparent_type {
+        if !relation_mode.flags.use_apparent_type {
             return type_id;
         }
 
@@ -1646,7 +1646,7 @@ impl Compiler {
         let mut apparent_id = type_id;
 
         // substitute static parameter constraints when the relation mode allows it
-        if relation_mode.substitute_constraints_in_apparent_type
+        if relation_mode.flags.substitute_constraints_in_apparent_type
             && let Type::Reference { symbol, .. } = types.get_type(apparent_id)
         {
             let source_id = types.get_type_source(apparent_id);

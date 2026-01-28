@@ -8,6 +8,7 @@ use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, ProfileId};
 
 use crate::AnalyzeOptions;
+use crate::analyze::common::{ConstContext, LiteralFreshness, WideningMode};
 
 /// InferContext holds contextual, flow sensitive information during type analysis.
 #[derive(Debug)]
@@ -50,6 +51,12 @@ pub struct InferContext {
     pub is_surface_inference: bool,
     /// Whether the current expression is under an explicit ownership operator.
     pub is_explicit_ownership: bool,
+    /// The literal freshness mode for this context.
+    pub literal_freshness: LiteralFreshness,
+    /// The widening mode for this context.
+    pub widening_mode: WideningMode,
+    /// The const context mode for this context.
+    pub const_context: ConstContext,
 }
 
 /// Describe flow data used for inference.
@@ -104,6 +111,9 @@ impl InferContext {
             flow: None,
             is_surface_inference: false,
             is_explicit_ownership: false,
+            literal_freshness: LiteralFreshness::Fresh,
+            widening_mode: WideningMode::Widen,
+            const_context: ConstContext::None,
         }
     }
 
@@ -129,6 +139,9 @@ impl InferContext {
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
             is_explicit_ownership: self.is_explicit_ownership,
+            literal_freshness: self.literal_freshness,
+            widening_mode: self.widening_mode,
+            const_context: self.const_context,
         }
     }
 
@@ -154,6 +167,9 @@ impl InferContext {
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
             is_explicit_ownership: self.is_explicit_ownership,
+            literal_freshness: self.literal_freshness,
+            widening_mode: self.widening_mode,
+            const_context: self.const_context,
         }
     }
 
@@ -172,6 +188,36 @@ impl InferContext {
     /// Mark this context as explicitly controlling ownership.
     pub fn with_explicit_ownership(mut self) -> Self {
         self.is_explicit_ownership = true;
+        self
+    }
+
+    /// Mark this context as preserving literal freshness.
+    pub fn with_fresh_literals(mut self) -> Self {
+        self.literal_freshness = LiteralFreshness::Fresh;
+        self
+    }
+
+    /// Mark this context as regularizing literal freshness.
+    pub fn with_regularized_literals(mut self) -> Self {
+        self.literal_freshness = LiteralFreshness::Regularized;
+        self
+    }
+
+    /// Mark this context as widening literals.
+    pub fn with_widening(mut self) -> Self {
+        self.widening_mode = WideningMode::Widen;
+        self
+    }
+
+    /// Mark this context as preserving literal types.
+    pub fn with_preserve_literals(mut self) -> Self {
+        self.widening_mode = WideningMode::Preserve;
+        self
+    }
+
+    /// Apply a const context mode to this context.
+    pub fn with_const_context(mut self, const_context: ConstContext) -> Self {
+        self.const_context = const_context;
         self
     }
 
