@@ -77,3 +77,53 @@ await fetchData()
 ```ds expected
 await fetchData();
 ```
+
+## Increment and Decrement
+
+### prefix increment
+
+Prefix increment stays attached to the identifier.
+
+```ds
+++count
+```
+
+```ds expected
+++count;
+```
+
+### prefix decrement
+
+Prefix decrement stays attached to the identifier.
+
+```ds
+--count
+```
+
+```ds expected
+--count;
+```
+
+### postfix increment
+
+Postfix increment stays attached to the identifier.
+
+```ds
+count++
+```
+
+```ds expected
+count++;
+```
+
+### postfix decrement
+
+Postfix decrement stays attached to the identifier.
+
+```ds
+count--
+```
+
+```ds expected
+count--;
+```

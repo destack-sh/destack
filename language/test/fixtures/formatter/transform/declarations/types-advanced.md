@@ -56,6 +56,72 @@ type Maybe<T> = T extends string ? T | null : T
 type Maybe<T> = T extends string ? T | null : T;
 ```
 
+## Type Operators
+
+### keyof typeof chain
+
+Combined `keyof` and `typeof` stays inline.
+
+```ds
+type Keys = keyof typeof values
+```
+
+```ds expected
+type Keys = keyof typeof values;
+```
+
+## Ownership Types
+
+### borrowed reference type
+
+Borrowed references keep the `&` operator tight to the type.
+
+```ds
+type Borrowed = &Buffer
+```
+
+```ds expected
+type Borrowed = &Buffer;
+```
+
+### mutable borrowed reference type
+
+Mutable borrows keep `&mut` tight.
+
+```ds
+type Borrowed = &mut Buffer
+```
+
+```ds expected
+type Borrowed = &mut Buffer;
+```
+
+### owned reference type
+
+Owned references keep the `^` operator tight.
+
+```ds
+type Owned = ^Result
+```
+
+```ds expected
+type Owned = ^Result;
+```
+
+## Tuple Types
+
+### tuple type alias
+
+Tuple types keep parentheses and commas.
+
+```ds
+type Point = (int32, int32)
+```
+
+```ds expected
+type Point = (int32, int32,);
+```
+
 ### nested conditional type
 
 Nested conditional types preserve parentheses.

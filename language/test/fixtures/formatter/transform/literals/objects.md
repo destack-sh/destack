@@ -147,6 +147,32 @@ const x = { [`prefix_${name}`]: value }
 const x = { [`prefix_${name}`]: value };
 ```
 
+## Quoted Properties
+
+### quoted property names
+
+Property names that require quotes stay quoted.
+
+```ds
+const x = { "data-id": 1, "default": 2 }
+```
+
+```ds expected
+const x = { "data-id": 1, "default": 2 };
+```
+
+### mixed quoted and unquoted
+
+Only properties that require quotes stay quoted.
+
+```ds
+const x = { normal: 1, "needs-quotes": 2 }
+```
+
+```ds expected
+const x = { normal: 1, "needs-quotes": 2 };
+```
+
 ## Methods
 
 ### method in object
@@ -320,6 +346,18 @@ const x = { a: 1, ...middle, b: 2 }
 
 ```ds expected
 const x = { a: 1, ...middle, b: 2 };
+```
+
+### spread with shorthand
+
+Spread and shorthand properties can mix.
+
+```ds
+const x = { a, ...rest, b: 2 }
+```
+
+```ds expected
+const x = { a, ...rest, b: 2 };
 ```
 
 ## Complex Objects

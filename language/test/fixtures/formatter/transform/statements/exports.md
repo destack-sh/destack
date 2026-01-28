@@ -66,6 +66,19 @@ export { foo as default }
 export { foo as default };
 ```
 
+### export all from module
+
+Re-exporting all keeps spacing and semicolons.
+
+```ds
+export * from "module"
+```
+
+```ds expected
+export * from "module";
+```
+
+
 ## Inline Exports
 
 ### export const

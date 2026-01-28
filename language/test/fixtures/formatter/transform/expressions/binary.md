@@ -89,6 +89,30 @@ value in container && value instanceof Type
 value in container && value instanceof Type;
 ```
 
+### additive and multiplicative precedence
+
+Multiplication binds tighter than addition without extra parentheses.
+
+```ds
+a + b * c - d / e
+```
+
+```ds expected
+a + b * c - d / e;
+```
+
+### bitwise and logical mix
+
+Bitwise operators remain inline when mixed with logical operators.
+
+```ds
+flags & mask && ready
+```
+
+```ds expected
+flags & mask && ready;
+```
+
 ## Bitwise Operators
 
 ### elementwise operators stay spaced

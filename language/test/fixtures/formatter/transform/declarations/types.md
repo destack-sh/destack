@@ -74,6 +74,20 @@ type Combined = HasName &
     HasEmail;
 ```
 
+### long intersection breaks with leading operators in TypeScript
+
+TypeScript intersections break with leading `&` operators.
+
+```ts:main.ts line-width=30
+type Combined = HasName & HasAge & HasEmail
+```
+
+```ts expected
+type Combined = HasName
+    & HasAge
+    & HasEmail;
+```
+
 ### nullable union with object type hugs
 
 Nullable unions keep inline `|` separators, even when the object literal breaks.
