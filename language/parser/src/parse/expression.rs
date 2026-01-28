@@ -447,7 +447,7 @@ impl Parser {
     }
 
     /// Check whether a `{` in statement position should be parsed as an object literal.
-    /// NOTE #Cleanup: can_parse_object_literal_in_statement_position is ugly (might not be fixable..) 
+    /// NOTE #Cleanup: can_parse_object_literal_in_statement_position is ugly (might not be fixable..)
     fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
         // only allow this in destack files
         if !self.language.is_destack() {
@@ -2907,14 +2907,13 @@ const shapes = (
         assert_node!(parser.tree, expr_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
             assert_eq!(dynamic_arguments.len(), 1);
             let mut static_args = static_arguments.as_ref();
-            if static_args.is_none() {
-                if let Expression::Member { name, static_arguments: Some(member_args), .. } =
+            if static_args.is_none()
+                && let Expression::Member { name, static_arguments: Some(member_args), .. } =
                     parser.tree.get(*left)
                 {
                     assert_string!(parser, *name, "getValue");
                     static_args = Some(member_args);
                 }
-            }
             let static_args = static_args.expect("expected static arguments on call or member");
             assert_eq!(static_args.len(), 1);
             assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: _, value } => {

@@ -478,6 +478,48 @@ impl Parser {
                     return Some((AnnotationPosition::LinePostfix, target_node_id));
                 }
             }
+            // inline block comment before a node: keep on the same line
+            else if is_block_comment_single_line
+                && let Some(next_token) = next_token
+                && next_token.token.ty != TokenType::Newline
+                && !matches!(
+                    next_token.token.ty,
+                    TokenType::CloseParenthesis
+                        | TokenType::CloseBrace
+                        | TokenType::CloseBracket
+                        | TokenType::End
+                )
+                && (self.is_same_line(end_token.span, next_token.span)
+                    || self.is_same_line(start_token.span, next_token.span))
+            {
+                let target_node_id = self
+                    .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
+                    .or_else(|| {
+                        self.find_node_enclosing_at(
+                            &next_token.span,
+                            NodeSearchMode::SmallestOutermost,
+                            |span| {
+                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
+                                    && !ignore_span.contains(&span.span)
+                            },
+                        )
+                    })
+                    .or_else(|| {
+                        self.find_node_enclosing_at(
+                            &next_token.span,
+                            NodeSearchMode::BiggestOutermost,
+                            |span| {
+                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
+                                    && !ignore_span.contains(&span.span)
+                            },
+                        )
+                    })
+                    .map(|span| span.idx);
+
+                if let Some(target_node_id) = target_node_id {
+                    return Some((AnnotationPosition::LinePrefix, target_node_id));
+                }
+            }
             // special case: inline comment between path segments attaches to the path as postfix
             else if let Some(prev_token) = prev_token
                 && let Some(enclosing_scope) = enclosing_scope
@@ -862,9 +904,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
-        CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc, DocStyle,
-        Expression, FunctionMode, Key, Member, Name, TypeKind,
+        Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
+        Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc,
+        DocStyle, Expression, FunctionMode, Key, Member, Name, TypeKind,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -1233,7 +1275,7 @@ export enum EventStatus {
         );
     }
 
-    /// Inline comments after operators attach to the following operand as block prefixes.
+    /// Inline comments after operators attach to the following operand as line prefixes.
     #[test]
     fn test_attach_inline_comment_between_binary_operands() {
         let mut test = TestParser::new("a && /* keep */ b");
@@ -1251,7 +1293,7 @@ export enum EventStatus {
                     parser.tree,
                     annotations[0],
                     Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
                         assert_node!(parser.tree, *node, Comment { string, style } => {
                             assert_string!(parser, *string, "keep");
                             assert_eq!(*style, CommentStyle::Star);
@@ -1260,6 +1302,56 @@ export enum EventStatus {
                 );
             }
         );
+    }
+
+    /// Inline comments before call arguments attach as line prefixes.
+    #[test]
+    fn test_attach_inline_comment_before_call_argument() {
+        let mut test = TestParser::new("foo(/* first */ a)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        assert_node!(parser.tree, expr_id, Expression::Call { dynamic_arguments, .. } => {
+            assert_eq!(dynamic_arguments.len(), 1);
+            let argument_id = dynamic_arguments[0];
+            let annotations = parser.tree.get_annotations(argument_id.id);
+            if annotations.is_empty() {
+                let argument = parser.tree.get(argument_id);
+                let value_id = match argument {
+                    Argument::Named { value, .. }
+                    | Argument::Labeled { value, .. }
+                    | Argument::Positional { value, .. }
+                    | Argument::Spread { value, .. } => *value,
+                };
+                let annotations = parser.tree.get_annotations(value_id.id);
+                assert_eq!(annotations.len(), 1);
+                assert_node!(
+                    parser.tree,
+                    annotations[0],
+                    Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "first");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
+                    }
+                );
+            } else {
+                assert_eq!(annotations.len(), 1);
+                assert_node!(
+                    parser.tree,
+                    annotations[0],
+                    Annotation::Comment { node, position } => {
+                        assert_eq!(*position, AnnotationPosition::LinePrefix);
+                        assert_node!(parser.tree, *node, Comment { string, style } => {
+                            assert_string!(parser, *string, "first");
+                            assert_eq!(*style, CommentStyle::Star);
+                        });
+                    }
+                );
+            }
+        });
     }
 
     /// Multi-line suffix is attached to the previous node on the same line as a block postfix.
