@@ -8,8 +8,8 @@ use crate::harness::{TestOptions, fixtures_dir};
 
 // pinned version of test262-parser-tests
 // update this when upgrading the test suite
-const TEST262_VERSION: &str = "0.1.0";
-const TEST262_COMMIT: &str = "521b4ab"; // short sha
+const TEST262_VERSION: &str = "2026-01-29";
+const TEST262_COMMIT: &str = "0e808c7"; // short sha
 
 /// Test262 parser conformance suite.
 #[derive(Debug, Clone)]

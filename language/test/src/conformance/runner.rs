@@ -13,8 +13,10 @@ use destack_source::FileType;
 use crate::harness::print::color;
 use crate::harness::{TestOptions, load_expected_failures, save_expected_failures};
 
-/// Per-test timeout in seconds.
-const TEST_TIMEOUT_SECONDS: u64 = 1;
+/// Parse only timeout in seconds.
+const PARSE_TIMEOUT_SECONDS: u64 = 1;
+/// Early check timeout in seconds.
+const EARLY_TIMEOUT_SECONDS: u64 = 3;
 
 /// Result of running a single conformance test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +107,15 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Extract category from test name (default: first path segment).
     fn category_for_test(&self, test_name: &str) -> String {
         test_name.split('/').next().unwrap_or("unknown").to_string()
+    }
+
+    /// Select the timeout for a conformance test.
+    fn timeout_for_test(&self, test: &Test) -> Duration {
+        if test.expect_error {
+            Duration::from_secs(EARLY_TIMEOUT_SECONDS)
+        } else {
+            Duration::from_secs(PARSE_TIMEOUT_SECONDS)
+        }
     }
 }
 
@@ -303,8 +314,6 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // run tests in parallel
     let start = Instant::now();
-    let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
-
     // atomic counters for progress reporting
     let progress_counter = AtomicUsize::new(0);
     let total_tests = tests.len();
@@ -322,6 +331,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             tests
                 .par_iter()
                 .map(|test| {
+                    let timeout = suite.timeout_for_test(test);
                     let outcome = run_test_with_timeout(suite, test, timeout);
 
                     // progress reporting (approximate due to parallelism)
@@ -345,6 +355,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         tests
             .iter()
             .map(|test| {
+                let timeout = suite.timeout_for_test(test);
                 let outcome = run_test_with_timeout(suite, test, timeout);
                 (test.name.clone(), outcome)
             })
@@ -761,10 +772,9 @@ fn print_conformance_result(
     // timeouts (separate from regressions for visibility)
     if result.has_timeouts() {
         println!(
-            "{} ({} tests exceeded {}s timeout, likely infinite loops):",
+            "{} ({} tests exceeded timeout, likely infinite loops):",
             color::yellow("TIMEOUTS"),
             result.timeouts.len(),
-            TEST_TIMEOUT_SECONDS
         );
         let show_count = result.timeouts.len().min(20);
         for test in &result.timeouts[..show_count] {

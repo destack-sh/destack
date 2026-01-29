@@ -8,8 +8,8 @@
 set -euo pipefail
 
 # pinned version
-TEST262_VERSION="0.1.0"
-TEST262_COMMIT="521b4ab99d50d1b88522deab7dd4ac37a56f9af0"
+TEST262_VERSION="2026-01-29"
+TEST262_COMMIT="0e808c74fbec780646434cad17bb22dc52461003"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET_DIR="$SCRIPT_DIR/test262"

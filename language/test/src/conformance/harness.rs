@@ -33,16 +33,23 @@ pub struct ConformanceHarnessSuite {
     pub selection: ConformanceSelection,
     /// Update known-failures file with current failures.
     pub update_known_failures: bool,
+    /// Filter tests inside a selected suite.
+    pub suite_filter: Option<String>,
     /// Results of the conformance tests.
     results: Mutex<Vec<SuiteResult>>,
 }
 
 impl ConformanceHarnessSuite {
     /// Create a new conformance test suite.
-    pub fn new(selection: ConformanceSelection, update_known_failures: bool) -> Self {
+    pub fn new(
+        selection: ConformanceSelection,
+        update_known_failures: bool,
+        suite_filter: Option<String>,
+    ) -> Self {
         Self {
             selection,
             update_known_failures,
+            suite_filter,
             results: Mutex::new(Vec::new()),
         }
     }
@@ -98,11 +105,16 @@ impl Suite for ConformanceHarnessSuite {
     }
 
     fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
+        let mut suite_options = context.options.clone();
+        if let Some(filter) = &self.suite_filter {
+            suite_options.filter = Some(filter.clone());
+        }
+
         let suite_result = match case.name.as_str() {
-            "test262" => run_test262(context.options, self.update_known_failures),
-            "babel" => run_babel(context.options, self.update_known_failures),
-            "swc" => run_swc(context.options, self.update_known_failures),
-            "biome" => run_biome(context.options, self.update_known_failures),
+            "test262" => run_test262(&suite_options, self.update_known_failures),
+            "babel" => run_babel(&suite_options, self.update_known_failures),
+            "swc" => run_swc(&suite_options, self.update_known_failures),
+            "biome" => run_biome(&suite_options, self.update_known_failures),
             other => {
                 return TestResult::Failed {
                     message: format!("unknown conformance suite: {other}"),
@@ -142,7 +154,7 @@ impl Suite for ConformanceHarnessSuite {
         print_summary(&results, baseline.as_ref());
 
         // update README.md with results (skip if filtering is applied)
-        if context.options.filter.is_some() {
+        if context.options.filter.is_some() || self.suite_filter.is_some() {
             return;
         }
 

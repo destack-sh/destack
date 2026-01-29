@@ -6,8 +6,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use destack_compiler::{
     AnalyzeError, AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError,
 };
+use destack_parser::Parser;
 use destack_source::{
-    DiagnosticSeverity, FileType, MemoryFileSystem, ModuleStamp, ProfileStamp, Uri,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleStamp,
+    ProfileStamp, Uri,
 };
 use destack_workspace::{MemoryCacheStore, Session};
 
@@ -24,9 +26,9 @@ pub(super) enum ParseOutcome {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(super) enum TestArea {
     /// Pure grammar-level conformance.
+    #[default]
     Parse,
     /// "Early" error semi-semantic conformance.
-    #[default]
     Early,
 }
 
@@ -136,7 +138,64 @@ pub(super) fn parse_file(
     file_type: FileType,
     options: ParseOptions,
 ) -> ParseOutcome {
+    // select the parsing pipeline for this conformance area
+    match options.area {
+        // parse only tests should not pay the cost of full compiler analysis
+        TestArea::Parse => parse_file_with_parser(path, content, file_type, options.area),
+        // early error tests still need compiler checks
+        TestArea::Early => parse_file_with_compiler(path, content, file_type, options.area),
+    }
+}
+
+fn parse_file_with_parser(
+    path: &Path,
+    content: &str,
+    file_type: FileType,
+    area: TestArea,
+) -> ParseOutcome {
+    // build a synthetic file for parser only diagnostics
+    let uri = Uri::from_path(path);
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("case.js")
+        .to_string();
+    let file = Arc::new(File::from_text(
+        FileId::new(0),
+        name,
+        uri,
+        Some(path.to_path_buf()),
+        file_type,
+        content.to_string(),
+    ));
+
+    // parse and collect diagnostics
+    let language = LanguageType::from(file_type);
+    let mut parser = Parser::lex_file(file, language);
+    let _ = parser.parse();
+
+    // check for errors relevant to the test area
+    let has_relevant_error = parser
+        .diagnostics
+        .iter()
+        .into_iter()
+        .any(|d| d.severity == DiagnosticSeverity::Error && area.is_relevant_error(&d.code));
+
+    if has_relevant_error {
+        ParseOutcome::Error
+    } else {
+        ParseOutcome::Ok
+    }
+}
+
+fn parse_file_with_compiler(
+    path: &Path,
+    content: &str,
+    file_type: FileType,
+    area: TestArea,
+) -> ParseOutcome {
     let (session, program, file_path) = SHARED_CONFORMANCE_ENV.with(|env| {
+        // allocate a fresh test root and file path
         let root = env.root_for(path);
         let file_path = env.file_for(&root, path);
         let session = env.session.clone();
@@ -185,9 +244,11 @@ pub(super) fn parse_file(
     }
 
     // check for errors relevant to the test area
-    let has_relevant_error = program.diagnostics.iter().into_iter().any(|d| {
-        d.severity == DiagnosticSeverity::Error && options.area.is_relevant_error(&d.code)
-    });
+    let has_relevant_error = program
+        .diagnostics
+        .iter()
+        .into_iter()
+        .any(|d| d.severity == DiagnosticSeverity::Error && area.is_relevant_error(&d.code));
 
     if has_relevant_error {
         ParseOutcome::Error

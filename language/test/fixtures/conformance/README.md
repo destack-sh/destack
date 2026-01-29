@@ -13,6 +13,9 @@ cargo test --release --test conformance
 
 # run a specific suite
 cargo test --release --test conformance -- --test262
+
+# run a specific suite with an inner filter
+cargo test --release --test conformance -- --babel --suite-filter type-only-import-export-specifiers
 ```
 
 ## Test Suites
@@ -33,6 +36,28 @@ Each suite has a `<suite>-known-failures.txt` file listing tests expected to fai
 
 The overall conformance test suite passes if there are no *regressions*. 
 To make progress, fix bugs and remove newly passing tests from the known-failures files.
+
+## Test Semantics
+
+Conformance suites are parser-first unless a suite explicitly marks early-error tests.
+
+- babel, biome, swc: parse-only for both passing and failing tests.
+- test262 pass and pass-explicit: parse-only.
+- test262 fail: parse-only and must fail to parse.
+- test262 early: early checks are enabled and must produce an error.
+
+We do not attempt to match external error messages or error codes.
+We only require that an error is surfaced in the relevant category.
+
+## Support Boundaries
+
+Conformance expectations follow `language/INTEROPERABILITY.md`.
+All files parse as strict modules and script mode is out of scope.
+TypeScript syntax is rejected in `.js` and `.jsx` by default.
+JSX is only enabled in `.jsx` and `.tsx`.
+Decorators are only enabled in `.ts`, `.tsx`, and `.ds`.
+Import attributes and `using` are supported across file types.
+Annex B and other sloppy mode behaviors are treated as expected failures.
 
 ### Updating Baselines
 
