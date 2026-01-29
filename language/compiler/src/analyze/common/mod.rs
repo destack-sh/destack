@@ -27,4 +27,8 @@ pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};
-pub(crate) use walk::{TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache};
+pub(crate) use walk::{
+    REWRITER_TAG_INFER_MATERIALIZER, REWRITER_TAG_INFER_SUBSTITUTION,
+    REWRITER_TAG_LITERAL_WIDENING, REWRITER_TAG_READONLY, REWRITER_TAG_STATIC_ARGUMENT,
+    TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+};

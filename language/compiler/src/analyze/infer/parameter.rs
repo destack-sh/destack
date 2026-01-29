@@ -302,10 +302,7 @@ impl Compiler {
         )?;
 
         // stage the raw evaluation result in the declared type slot
-        {
-            let ty = types.get_type_mut(declared_type_id);
-            *ty = raw_evaluated;
-        }
+        types.update_type(declared_type_id, raw_evaluated);
 
         // stop here when the bound still depends on static parameters
         let mut visited = HashSet::new();
@@ -317,8 +314,6 @@ impl Compiler {
             types,
             &mut visited,
         ) {
-            // invalidate normalization cache after mutating the type table
-            types.invalidate_normalization_cache();
             return Ok(());
         }
 
@@ -335,11 +330,7 @@ impl Compiler {
             true,
             false,
         )?;
-        let ty = types.get_type_mut(declared_type_id);
-        *ty = resolved;
-
-        // invalidate normalization cache after replacing the raw shape
-        types.invalidate_normalization_cache();
+        types.update_type(declared_type_id, resolved);
 
         Ok(())
     }

@@ -297,15 +297,26 @@ impl Compiler {
         // reuse cached normalization when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
-            && let Some(normalized) = types.normalized_type(mode, relation_key, type_id)
+            && let Some(entry) = types.normalized_type(mode, relation_key, type_id)
         {
-            return normalized;
+            for (dependency_id, _) in &entry.dependency_versions.type_versions {
+                types.record_normalization_dependency(*dependency_id);
+            }
+            for (dependency_id, _) in &entry.dependency_versions.symbol_versions {
+                types.record_normalization_symbol_dependency(*dependency_id);
+            }
+            return entry.normalized_type;
         }
 
         // avoid infinite recursion on self referential types
         if visited.contains(&type_id) {
+            types.record_normalization_dependency(type_id);
             return type_id;
         }
+
+        // collect dependencies for this normalization pass
+        types.push_normalization_dependency_scope();
+        types.record_normalization_dependency(type_id);
         visited.push(type_id);
 
         // keep the source id for any normalized replacement
@@ -348,39 +359,6 @@ impl Compiler {
                         static_arguments,
                     };
                     let normalized_id = types.insert_type_from_any(normalized, source_id);
-                    return self.normalize_type_inner(
-                        module,
-                        profile,
-                        normalized_id,
-                        symbols,
-                        types,
-                        mode,
-                        relation_mode,
-                        visited,
-                    );
-                }
-                let symbol = normalized_symbol;
-
-                // follow import targets while preserving alias identity
-                let symbol = self.canonical_symbol_id(
-                    module,
-                    symbols,
-                    profile,
-                    symbol,
-                    CanonicalSymbolMode::PreserveAliases,
-                );
-
-                // rewrite well known references to canonical shapes
-                if let Some(normalized) = self.normalize_well_known_type_reference(
-                    module,
-                    symbols,
-                    profile,
-                    source_id,
-                    symbol,
-                    static_arguments.as_deref(),
-                    types,
-                ) {
-                    let normalized_id = types.insert_type_from_any(normalized, source_id);
                     self.normalize_type_inner(
                         module,
                         profile,
@@ -391,33 +369,84 @@ impl Compiler {
                         relation_mode,
                         visited,
                     )
-                }
-                // expand type aliases with static arguments
-                else if symbol.ty() == SymbolType::TypeAlias {
-                    let arguments = static_arguments.as_deref().unwrap_or(&[]);
-                    let expanded = self.normalize_type_alias_reference_with_arguments(
+                } else {
+                    let symbol = normalized_symbol;
+
+                    // follow import targets while preserving alias identity
+                    let symbol = self.canonical_symbol_id(
                         module,
+                        symbols,
+                        profile,
+                        symbol,
+                        CanonicalSymbolMode::PreserveAliases,
+                    );
+
+                    // rewrite well known references to canonical shapes
+                    if let Some(normalized) = self.normalize_well_known_type_reference(
+                        module,
+                        symbols,
                         profile,
                         source_id,
                         symbol,
-                        arguments,
-                        symbols,
+                        static_arguments.as_deref(),
                         types,
-                        mode,
-                        relation_mode,
-                        visited,
-                    );
-                    if let Some(expanded) = expanded {
+                    ) {
+                        let normalized_id = types.insert_type_from_any(normalized, source_id);
                         self.normalize_type_inner(
                             module,
                             profile,
-                            expanded,
+                            normalized_id,
                             symbols,
                             types,
                             mode,
                             relation_mode,
                             visited,
                         )
+                    }
+                    // expand type aliases with static arguments
+                    else if symbol.ty() == SymbolType::TypeAlias {
+                        let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                        let expanded = self.normalize_type_alias_reference_with_arguments(
+                            module,
+                            profile,
+                            source_id,
+                            symbol,
+                            arguments,
+                            symbols,
+                            types,
+                            mode,
+                            relation_mode,
+                            visited,
+                        );
+                        if let Some(expanded) = expanded {
+                            self.normalize_type_inner(
+                                module,
+                                profile,
+                                expanded,
+                                symbols,
+                                types,
+                                mode,
+                                relation_mode,
+                                visited,
+                            )
+                        } else {
+                            let unwrapped =
+                                self.unwrap_normalization_alias_reference(type_id, types);
+                            if unwrapped != type_id {
+                                self.normalize_type_inner(
+                                    module,
+                                    profile,
+                                    unwrapped,
+                                    symbols,
+                                    types,
+                                    mode,
+                                    relation_mode,
+                                    visited,
+                                )
+                            } else {
+                                type_id
+                            }
+                        }
                     } else {
                         let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
                         if unwrapped != type_id {
@@ -434,22 +463,6 @@ impl Compiler {
                         } else {
                             type_id
                         }
-                    }
-                } else {
-                    let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
-                    if unwrapped != type_id {
-                        self.normalize_type_inner(
-                            module,
-                            profile,
-                            unwrapped,
-                            symbols,
-                            types,
-                            mode,
-                            relation_mode,
-                            visited,
-                        )
-                    } else {
-                        type_id
                     }
                 }
             }
@@ -811,15 +824,13 @@ impl Compiler {
                         }
                     )
                 }) {
-                    return types.insert_type_from_any(
+                    types.insert_type_from_any(
                         Type::TypeLiteral {
                             value: TypeLiteral::Never,
                         },
                         source_id,
-                    );
-                }
-
-                if !did_change {
+                    )
+                } else if !did_change {
                     type_id
                 } else {
                     let normalized = Type::TemplateLiteral {
@@ -985,10 +996,8 @@ impl Compiler {
                     mode,
                     relation_mode,
                 ) {
-                    return normalized_id;
-                }
-
-                if left == original_left && right == original_right {
+                    normalized_id
+                } else if left == original_left && right == original_right {
                     type_id
                 } else {
                     let normalized = Type::Binary {
@@ -1100,9 +1109,17 @@ impl Compiler {
 
         // release the recursion guard for this type
         visited.pop();
+        let dependencies = types.pop_normalization_dependency_scope();
         // cache the normalized result for reuse
         if relation_mode.is_cacheable() {
-            types.set_normalized_type(mode, relation_key, type_id, normalized_id);
+            let dependency_versions = types.collect_dependency_versions(dependencies);
+            types.set_normalized_type(
+                mode,
+                relation_key,
+                type_id,
+                normalized_id,
+                dependency_versions,
+            );
         }
         normalized_id
     }
@@ -1214,10 +1231,16 @@ impl Compiler {
         // return cached normalization results when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
-            && let Some(normalized) =
+            && let Some(entry) =
                 types.normalized_alias_reference(symbol, mode, relation_key, arguments)
         {
-            return Some(normalized);
+            for (dependency_id, _) in &entry.dependency_versions.type_versions {
+                types.record_normalization_dependency(*dependency_id);
+            }
+            for (dependency_id, _) in &entry.dependency_versions.symbol_versions {
+                types.record_normalization_symbol_dependency(*dependency_id);
+            }
+            return Some(entry.normalized_type);
         }
 
         // report recursion when already resolving the same alias
@@ -1243,6 +1266,7 @@ impl Compiler {
             return Some(error_id);
         }
         types.mark_normalization_alias_in_progress(symbol);
+        types.push_normalization_dependency_scope();
 
         let normalized = (|| {
             // ensure remote declarations are ready before reading instance types
@@ -1329,16 +1353,19 @@ impl Compiler {
             Some(normalized_id)
         })();
 
+        let dependencies = types.pop_normalization_dependency_scope();
         types.clear_normalization_alias_in_progress(symbol);
         if let Some(normalized_id) = normalized
             && relation_mode.is_cacheable()
         {
+            let dependency_versions = types.collect_dependency_versions(dependencies);
             types.set_normalized_alias_reference(
                 symbol,
                 mode,
                 relation_key,
                 arguments.to_vec(),
                 normalized_id,
+                dependency_versions,
             );
         }
         normalized
@@ -1701,8 +1728,7 @@ impl Compiler {
             return type_id;
         }
 
-        let normalized = Type::Union { elements: filtered };
-        types.insert_type_from_any(normalized, types.get_type_source(type_id))
+        types.intern_union_type(filtered, type_id)
     }
 
     /// Normalize intersection types by flattening and collapsing special cases.
@@ -1900,31 +1926,33 @@ impl Compiler {
             return type_id;
         }
 
-        let normalized = Type::Intersection { elements: filtered };
-        types.insert_type_from_any(normalized, types.get_type_source(type_id))
+        types.intern_intersection_type(filtered, type_id)
     }
 
     /// Unwrap structural type aliases using cached instance types.
     pub(super) fn unwrap_normalization_alias_reference(
         &self,
         type_id: LocalTypeId,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> LocalTypeId {
         let mut current_id = type_id;
         let mut visited = Vec::new();
         loop {
             // exit when the current type is not a reference
-            let Type::Reference {
-                symbol,
-                static_arguments,
-            } = types.get_type(current_id)
-            else {
-                break;
+            let (symbol, static_arguments) = match types.get_type(current_id) {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => (*symbol, static_arguments.clone()),
+                _ => {
+                    break;
+                }
             };
+
             // exit when this is not a type alias
             if symbol.ty() != SymbolType::TypeAlias {
                 break;
-            }
+            };
             // avoid unwrapping aliases with explicit static arguments
             if static_arguments
                 .as_ref()
@@ -1933,13 +1961,14 @@ impl Compiler {
                 break;
             }
             // exit on alias cycles
-            if visited.contains(symbol) {
+            if visited.contains(&symbol) {
                 break;
             }
-            visited.push(*symbol);
+            visited.push(symbol);
 
             // exit when the alias has no instance type yet
-            let Some(instance_id) = types.get_instance_type_id(*symbol) else {
+            types.record_normalization_symbol_dependency(symbol);
+            let Some(instance_id) = types.get_instance_type_id(symbol) else {
                 break;
             };
             current_id = instance_id;

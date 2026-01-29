@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
@@ -139,7 +141,7 @@ pub enum Constraint {
 }
 
 /// Store inference variables and constraints for a module.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct InferTable {
     /// All inference variables allocated in this module.
     pub vars: Vec<InferVar>,
@@ -153,6 +155,27 @@ pub struct InferTable {
     pub var_by_type_parameter: IndexMap<GlobalSymbolId, InferVarId>,
     /// Types that wrap inference variables by id.
     pub type_by_var_id: Vec<Option<LocalTypeId>>,
+    /// Stable cache key base for this table.
+    #[serde(default = "infer_table_cache_key_base_default")]
+    cache_key_base: u64,
+    /// Mutation generation for this table.
+    #[serde(default)]
+    cache_generation: u64,
+}
+
+impl Default for InferTable {
+    fn default() -> Self {
+        Self {
+            vars: Vec::new(),
+            constraints: Vec::new(),
+            var_by_node_id: IndexMap::new(),
+            var_by_symbol_id: IndexMap::new(),
+            var_by_type_parameter: IndexMap::new(),
+            type_by_var_id: Vec::new(),
+            cache_key_base: infer_table_cache_key_base_default(),
+            cache_generation: 0,
+        }
+    }
 }
 
 impl InferTable {
@@ -161,6 +184,7 @@ impl InferTable {
         let id = InferVarId::new(self.vars.len() as u32);
         self.vars.push(InferVar::new(origin, scope));
         self.type_by_var_id.push(None);
+        self.bump_cache_generation();
         id
     }
 
@@ -168,6 +192,7 @@ impl InferTable {
     #[inline]
     pub fn push_constraint(&mut self, constraint: Constraint) {
         self.constraints.push(constraint);
+        self.bump_cache_generation();
     }
 
     /// Bind a type to an inference variable id.
@@ -177,10 +202,29 @@ impl InferTable {
             self.type_by_var_id.resize(index + 1, None);
         }
         self.type_by_var_id[index] = Some(ty_id);
+        self.bump_cache_generation();
     }
 
     /// Get the type that wraps an inference variable.
     pub fn type_for_var(&self, id: InferVarId) -> Option<LocalTypeId> {
         self.type_by_var_id.get(id.0 as usize).copied().flatten()
     }
+
+    /// Return the cache key for this table.
+    pub fn cache_key(&self) -> u64 {
+        self.cache_key_base ^ self.cache_generation
+    }
+
+    /// Record a mutation that impacts cacheable inference state.
+    fn bump_cache_generation(&mut self) {
+        self.cache_generation = self.cache_generation.wrapping_add(1);
+    }
 }
+
+/// Return a new cache key base for inference tables.
+fn infer_table_cache_key_base_default() -> u64 {
+    INFER_TABLE_CACHE_KEY_COUNTER.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Global counter for inference table cache keys.
+static INFER_TABLE_CACHE_KEY_COUNTER: AtomicU64 = AtomicU64::new(1);

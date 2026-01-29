@@ -99,6 +99,12 @@ impl LocalNodeIdAny {
         }
     }
 
+    /// Return a cache key for this node id.
+    #[inline]
+    pub fn cache_key(self) -> u64 {
+        (self.id as u64) | ((self.ty as u64) << 32)
+    }
+
     /// Turn into an AnchoredGlobalNodeId.
     #[inline]
     pub fn into_anchored(

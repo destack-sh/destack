@@ -1,5 +1,6 @@
 use std::num::NonZero;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
 use dashmap::DashMap;
@@ -174,6 +175,8 @@ pub struct Compiler {
     pub cache: CacheRegistry,
     /// Snapshot of strings for signature hashing.
     signature_strings: Mutex<Option<CompilerStringSnapshot>>,
+    /// monotonic counter for infer substitution cache keys
+    infer_substitution_counter: AtomicU64,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
@@ -219,6 +222,7 @@ impl Compiler {
             stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
             signature_strings: Mutex::new(None),
+            infer_substitution_counter: AtomicU64::new(1),
         };
 
         // load workspace index snapshot when available
@@ -254,6 +258,12 @@ impl Compiler {
             strings: strings.clone(),
         });
         strings
+    }
+
+    /// Return a fresh cache key for infer substitution sets.
+    pub(crate) fn next_infer_substitution_key(&self) -> u64 {
+        self.infer_substitution_counter
+            .fetch_add(1, Ordering::Relaxed)
     }
 
     /// Get the builtins (if loaded in program).

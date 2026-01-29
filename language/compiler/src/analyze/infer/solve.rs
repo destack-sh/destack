@@ -5,7 +5,8 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use crate::analyze::common::{
-    MaterializationMode, TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
+    MaterializationMode, REWRITER_TAG_INFER_MATERIALIZER, TypeRewriteCache, TypeWalkContext,
+    rewrite_type_with_cache,
 };
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
@@ -89,7 +90,10 @@ impl<'a> InferTypeMaterializer<'a> {
         options: &'a AnalyzeOptions,
         mode: MaterializationMode,
     ) -> Self {
-        let walk_context = TypeWalkContext::for_materialization(mode);
+        let walk_context = TypeWalkContext::for_materialization(mode)
+            .with_rewriter_tag(REWRITER_TAG_INFER_MATERIALIZER);
+        let context_key = infer.cache_key() ^ options.cache_key();
+        let walk_context = walk_context.with_context_key(context_key);
         let rewrite_options = walk_context.rewriter_options();
         let cache_key = rewrite_options.cache_key();
         Self {
@@ -221,7 +225,7 @@ impl Compiler {
         }
 
         // apply resolved types into the table
-        self.apply_solution(&solution, types);
+        self.apply_solution(&solution, infer, types);
 
         solution
     }
@@ -453,21 +457,17 @@ impl Compiler {
     }
 
     /// Replace infer var types in the table with resolved types.
-    fn apply_solution(&self, solution: &InferSolution, types: &mut TypeTable) {
-        // iterate through all types to replace inference variables
-        let count = types.type_count();
-        for id in 0..count {
-            let ty_id = LocalTypeId::new(id);
-            let resolved = match types.get_type(ty_id) {
-                Type::InferVar { id } => solution.get(*id),
-                _ => None,
+    fn apply_solution(&self, solution: &InferSolution, infer: &InferTable, types: &mut TypeTable) {
+        // update the concrete infer var type ids rather than scanning every type
+        for (index, resolved) in solution.resolved.iter().enumerate() {
+            let Some(resolved_id) = *resolved else {
+                continue;
             };
-            if let Some(resolved_id) = resolved {
-                let resolved_ty = types.get_type(resolved_id).clone();
-                *types.get_type_mut(ty_id) = resolved_ty;
-            }
+            let Some(var_type_id) = infer.type_for_var(InferVarId::new(index as u32)) else {
+                continue;
+            };
+            let resolved_ty = types.get_type(resolved_id).clone();
+            types.update_type(var_type_id, resolved_ty);
         }
-
-        types.invalidate_normalization_cache();
     }
 }

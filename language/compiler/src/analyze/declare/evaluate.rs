@@ -192,11 +192,7 @@ impl Compiler {
             true,
             true,
         )?;
-        let ty = types.get_type_mut(ty_id);
-        *ty = evaluated_ty;
-
-        // invalidate normalization cache after in-place updates
-        types.invalidate_normalization_cache();
+        types.update_type(ty_id, evaluated_ty);
 
         Ok(())
     }

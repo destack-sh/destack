@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, MaterializationMode, TypeRewriteCache, TypeWalkContext,
-    rewrite_type_with_cache,
+    CanonicalSymbolMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache,
+    TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
@@ -59,7 +59,10 @@ impl<'a> StaticArgumentMaterializer<'a> {
         cache: TypeRewriteCache,
     ) -> Self {
         // derive rewrite options from the materialization mode
-        let walk_context = TypeWalkContext::for_materialization(mode);
+        let walk_context = TypeWalkContext::for_materialization(mode)
+            .with_rewriter_tag(REWRITER_TAG_STATIC_ARGUMENT);
+        let context_key = static_argument_context_key(argument_module, profile);
+        let walk_context = walk_context.with_context_key(context_key);
         let rewrite_options = walk_context.rewriter_options();
         let cache_key = rewrite_options.cache_key();
 
@@ -100,6 +103,18 @@ impl<'a> StaticArgumentMaterializer<'a> {
         }
         (mapped, changed)
     }
+}
+
+/// Return a cache key for static argument materialization.
+fn static_argument_context_key(argument_module: &Module, profile: ProfileId) -> u64 {
+    // base module key
+    let module_id = argument_module.id;
+    let module_key = module_id.package_id.raw() ^ ((module_id.local_id as u64) << 32);
+
+    // profile key mix
+    let profile_key = (profile.raw() as u64).rotate_left(17);
+
+    module_key ^ profile_key
 }
 
 impl TypeRewriter for StaticArgumentMaterializer<'_> {

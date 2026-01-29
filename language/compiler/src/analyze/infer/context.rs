@@ -183,6 +183,13 @@ impl InferContext {
         }
     }
 
+    /// Return the cache key for literal widening.
+    pub fn widening_cache_key(&self) -> u64 {
+        (self.widening_mode as u64)
+            | ((self.literal_freshness as u64) << 4)
+            | ((self.const_context as u64) << 8)
+    }
+
     /// Reset flow context.
     pub fn reset(&self) -> Self {
         Self {
