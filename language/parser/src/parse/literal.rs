@@ -527,12 +527,13 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // left
-        let path: Option<Path> = {
-            if self.peek_token(TokenType::Identifier).is_ok() {
-                Some(self.eat_path()?)
-            } else {
-                None
-            }
+        let mut path_name_span = None;
+        let path: Option<Path> = if self.peek_token(TokenType::Identifier).is_ok() {
+            let (path, name_span) = self.eat_path_with_last_span()?;
+            path_name_span = Some(name_span);
+            Some(path)
+        } else {
+            None
         };
         self.eat_newlines_maybe()?;
         let header_start = self.mark();
@@ -639,14 +640,18 @@ impl Parser {
         };
 
         // tree literal
-        let left = path.map(|path| {
-            self.tree.insert(
+        let left = path.as_ref().map(|path| {
+            let expression_id = self.tree.insert(
                 Expression::Path {
-                    path,
+                    path: path.clone(),
                     static_arguments: None,
                 },
                 self.get_span_between(start, header_start),
-            )
+            );
+            if let Some(name_span) = path_name_span {
+                self.tree.set_main_span(expression_id, name_span);
+            }
+            expression_id
         });
         let expression = Expression::TreeExpression {
             left,

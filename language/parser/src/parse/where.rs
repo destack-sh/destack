@@ -2,6 +2,7 @@
 use crate::{ParseResult, Parser};
 
 use destack_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat a where context declaration maybe.
@@ -88,14 +89,24 @@ impl Parser {
 
     /// Eat a single where clause.
     fn eat_where_clause(&mut self) -> ParseResult<LocalNodeId<WhereClause>> {
+        // span start
         let start = self.mark();
 
-        let left = self.eat_identifier()?;
+        // left name
+        let (left, left_span) = self.eat_identifier_with_span()?;
+
+        // constraint type
+        let type_start = self.mark();
         self.eat_token(TokenType::Colon)?;
         let right = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
         let clause = self
             .tree
             .insert(WhereClause { left, right }, self.get_span_from(start));
+
+        // spans
+        self.tree.set_main_span(clause, left_span);
+        self.tree
+            .set_side_span(clause, NodeSpanType::Type, self.get_span_from(type_start));
 
         Ok(clause)
     }
@@ -104,6 +115,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Expression, IntType, TypeLiteral, WhereClause};
+    use destack_source::NodeSpanType;
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
 
@@ -181,5 +193,28 @@ mod tests {
                 assert_path!(parser, *path, "Comparable");
             });
         });
+    }
+
+    /// Ensure where clauses record main and type spans.
+    #[test]
+    fn test_where_clause_spans() {
+        let mut test = TestParser::new("where T: Numeric");
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+        let clause_id = clauses[0];
+
+        // main span
+        let main_span = parser
+            .tree
+            .get_main_span(clause_id)
+            .expect("expected main span");
+        assert_eq!(parser.get_span_str(main_span), "T");
+
+        // type span
+        let type_span = parser
+            .tree
+            .get_side_span(clause_id, NodeSpanType::Type)
+            .expect("expected type span");
+        assert_eq!(parser.get_span_str(type_span), ": Numeric");
     }
 }

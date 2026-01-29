@@ -5,6 +5,7 @@ use destack_ast::{
     Declaration, DeclarationDescriptor, Generics, Heritage, Keyword, LocalNodeId, NodeType,
     TokenType,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat an extension (incl. `extension` keyword).
@@ -59,10 +60,18 @@ impl Parser {
         self.eat_keyword(Keyword::For)?;
 
         // target type
+        let target_start = self.mark();
         let target_type = self.with_options(
             self.options.nested().in_super_type().in_before_block(),
             |parser| parser.eat_expression(),
         )?;
+
+        // record the full type span for the target type
+        self.tree.set_side_span(
+            target_type,
+            NodeSpanType::Type,
+            self.get_span_from(target_start),
+        );
 
         // implements types
         let implements_types = self.eat_implements_types_maybe()?;
@@ -106,6 +115,7 @@ mod tests {
         Argument, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType,
         Parameter, TypeLiteral, WhereClause,
     };
+    use destack_source::NodeSpanType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -133,6 +143,26 @@ extension for Foo {
             assert_node!(parser.tree, *target_type, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "Foo");
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_extension_target_type_span() {
+        let mut test = TestParser::new("extension for Foo.Bar {}");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let extension_id = parser
+            .eat_extension(start, DeclarationDescriptor::default())
+            .unwrap();
+
+        // target type span
+        assert_node!(parser.tree, extension_id, Declaration::Extension { target_type, .. } => {
+            let span = parser
+                .tree
+                .get_side_span(*target_type, NodeSpanType::Type)
+                .expect("expected target type span");
+            assert_eq!(parser.get_span_str(span), "Foo.Bar");
         });
     }
 

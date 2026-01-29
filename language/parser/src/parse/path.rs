@@ -50,6 +50,46 @@ impl Parser {
         let span = self.get_span_from(start);
         Ok((path, span))
     }
+
+    /// Eat a path and return the span of its last segment.
+    pub fn eat_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+
+        // first identifier
+        let (first, first_span) = self.eat_identifier_with_span()?;
+        segments.push(first);
+        let mut last_span = first_span;
+
+        // zero or more `.identifier` (ignoring newlines)
+        while self.peek().is_ok() {
+            // dot followed by identifier
+            if self.peek_token(TokenType::Dot).is_ok()
+                && let Ok(after_dot) = self.peek_next()
+                && after_dot.token.ty == TokenType::Identifier
+            {
+                self.eat_token(TokenType::Dot)?;
+                let (seg, seg_span) = self.eat_identifier_with_span()?;
+                segments.push(seg);
+                last_span = seg_span;
+            }
+            // newline followed by dot
+            else if self.peek_token(TokenType::Newline).is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                    .is_ok()
+            {
+                self.eat_newlines_maybe()?;
+            }
+            // end of path
+            else {
+                break;
+            }
+        }
+
+        // build the path
+        let path = Path { segments };
+        Ok((path, last_span))
+    }
 }
 
 #[cfg(test)]

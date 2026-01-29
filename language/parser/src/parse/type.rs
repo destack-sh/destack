@@ -6,6 +6,7 @@ use destack_ast::{
     TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
+use destack_source::NodeSpanType;
 
 impl Parser {
     /// Eat a variance bound maybe.
@@ -353,7 +354,7 @@ impl Parser {
         // parse infer name
         let start = self.mark();
         self.eat_keyword(Keyword::Infer)?;
-        let name = self.eat_identifier()?;
+        let (name, name_span) = self.eat_identifier_with_span()?;
 
         // constraint (e.g., infer T extends U)
         let mut constraint_options = self.options.not_in_position().in_type();
@@ -367,10 +368,12 @@ impl Parser {
         } else {
             None
         };
-        Ok(self.tree.insert(
+        let expr_id = self.tree.insert(
             Expression::TypeInfer { name, constraint },
             self.get_span_from(start),
-        ))
+        );
+        self.tree.set_main_span(expr_id, name_span);
+        Ok(expr_id)
     }
 
     /// Eat a type import expression.
@@ -383,7 +386,7 @@ impl Parser {
         // target
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
-        let (target, _span) = self.eat_string_literal_with_span()?;
+        let (target, target_span) = self.eat_string_literal_with_span()?;
         self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
 
@@ -402,14 +405,16 @@ impl Parser {
             (None, None)
         };
 
-        Ok(self.tree.insert(
+        let expr_id = self.tree.insert(
             Expression::TypeImport {
                 target,
                 qualifier,
                 static_arguments,
             },
             self.get_span_from(start),
-        ))
+        );
+        self.tree.set_main_span(expr_id, target_span);
+        Ok(expr_id)
     }
 
     pub fn eat_type_predicate_asserts(&mut self) -> ParseResult<LocalNodeId<Expression>> {
@@ -418,12 +423,13 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // asserts this | asserts param
-        let subject = if self.peek_keyword(Keyword::This).is_ok() {
+        let (subject, subject_span) = if self.peek_keyword(Keyword::This).is_ok() {
+            let token = *self.peek()?;
             self.bump(); // eat this
-            TypePredicateSubject::This
+            (TypePredicateSubject::This, token.span)
         } else {
-            let name = self.eat_identifier()?;
-            TypePredicateSubject::Identifier(name)
+            let (name, span) = self.eat_identifier_with_span()?;
+            (TypePredicateSubject::Identifier(name), span)
         };
 
         // optional target: asserts x is T
@@ -439,14 +445,16 @@ impl Parser {
             None
         };
 
-        Ok(self.tree.insert(
+        let expr_id = self.tree.insert(
             Expression::TypePredicate {
                 asserts: true,
                 subject,
                 target,
             },
             self.get_span_from(start),
-        ))
+        );
+        self.tree.set_main_span(expr_id, subject_span);
+        Ok(expr_id)
     }
 
     /// Get the type predicate subject from an expression.
@@ -679,7 +687,10 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        // super type list
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
+
+        // collect super types until a terminator is seen
         while self.peek().is_ok() {
             // eat until open brace or close parenthesis
             if self.peek_token(TokenType::OpenBrace).is_ok()
@@ -712,12 +723,21 @@ impl Parser {
             }
             // keep eating super types
             else {
+                // parse the super type expression
+                let type_start = self.mark();
                 let ty = self.with_options(self.options.in_before_block(), |parser| {
                     parser.eat_expression()
                 })?;
+
+                // record the full type span for super types
+                self.tree
+                    .set_side_span(ty, NodeSpanType::Type, self.get_span_from(type_start));
+
+                // record the parsed type
                 types.push(ty);
             }
         }
+
         Ok(types)
     }
 }
@@ -2196,11 +2216,253 @@ mod tests {
         // type T = value is string
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let predicate_id = *value;
                 assert_node!(parser.tree, *value, Expression::TypePredicate { asserts, subject, target } => {
                     assert!(!asserts);
                     assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
                     assert_node!(parser.tree, target.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                 });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(predicate_id)
+                    .expect("expected predicate main span");
+                assert_eq!(parser.get_span_str(main_span), "value");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_infer_span() {
+        let mut test = TestParser::new("type T = infer Value");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let infer_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeInfer { name, constraint } => {
+                    assert_string!(parser, *name, "Value");
+                    assert!(constraint.is_none());
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(infer_id)
+                    .expect("expected infer main span");
+                assert_eq!(parser.get_span_str(main_span), "Value");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_import_span() {
+        let mut test = TestParser::new(r#"type T = import("foo").Bar"#);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let import_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, .. } => {
+                    assert_string!(parser, *target, "foo");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(import_id)
+                    .expect("expected import main span");
+                assert_eq!(parser.get_span_str(main_span), "\"foo\"");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_unary_prefix_operator_span() {
+        let mut test = TestParser::new("type T = keyof Value");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let unary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::Keyof);
+                    assert_expression_path!(parser, parser.tree.get(*right), "Value");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(unary_id)
+                    .expect("expected type unary operator span");
+                assert_eq!(parser.get_span_str(main_span), "keyof");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_unary_postfix_operator_span() {
+        let mut test = TestParser::new("type T = Value as const");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let unary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeUnary { operator, right } => {
+                    assert_eq!(*operator, TypeUnaryOperator::AsConst);
+                    assert_expression_path!(parser, parser.tree.get(*right), "Value");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(unary_id)
+                    .expect("expected type unary postfix operator span");
+                assert_eq!(parser.get_span_str(main_span), "as const");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_operator_span() {
+        let mut test = TestParser::new("type T = Value as Other");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Value");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Other");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "as");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_extends_operator_span() {
+        let mut test = TestParser::new("type T = Left extends Right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Extends);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Left");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Right");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "extends");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_satisfies_operator_span() {
+        let mut test = TestParser::new("type T = Value satisfies Constraint");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Satisfies);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Value");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Constraint");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "satisfies");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_implements_operator_span() {
+        let mut test = TestParser::new("type T = Value implements Trait");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::Implements);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Value");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Trait");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "implements");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_in_operator_span() {
+        let mut test = TestParser::new("type T = Key in Record");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::In);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Key");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Record");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "in");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_binary_instanceof_operator_span() {
+        let mut test = TestParser::new("type T = Value instanceof Other");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                let binary_id = *value;
+                assert_node!(parser.tree, *value, Expression::TypeBinary { operator, left, right } => {
+                    assert_eq!(*operator, TypeBinaryOperator::InstanceOf);
+                    assert_expression_path!(parser, parser.tree.get(*left), "Value");
+                    assert_expression_path!(parser, parser.tree.get(*right), "Other");
+                });
+
+                let main_span = parser
+                    .tree
+                    .get_main_span(binary_id)
+                    .expect("expected type binary operator span");
+                assert_eq!(parser.get_span_str(main_span), "instanceof");
             });
         });
     }
