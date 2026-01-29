@@ -273,3 +273,54 @@ test: function [declaration]
 void: type
 MyClass: class
 ```
+
+### Parameters and local bindings
+
+Parameters and local bindings should be tokenized with declaration modifiers.
+
+```ds
+function sum(left: int32): int32 {
+    const total = left;
+    return total;
+}
+```
+
+```query semantic_tokens $0
+sum: function [declaration]
+left: parameter [declaration]
+int32: type
+int32: type
+total: variable [declaration]
+left: variable
+total: variable
+```
+
+## Range Queries
+
+### Range queries should filter tokens
+
+Semantic tokens range should only include tokens inside the requested span.
+
+```ds
+function foo(): void {}
+function bar(): void {}
+//       ^^^ range:bar
+```
+
+```query semantic_tokens_range range:bar
+bar: function [declaration]
+```
+
+### Range queries can include multiple tokens
+
+Semantic tokens range should include every token inside the span.
+
+```ds
+function baz(): void {}
+// ^^^^^^^^^^^^^^^^^ range:baz_line
+```
+
+```query semantic_tokens_range range:baz_line
+baz: function [declaration]
+void: type
+```

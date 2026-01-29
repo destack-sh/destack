@@ -1,8 +1,10 @@
-use destack_ast::{DependencyKind, DependencyMode, Expression};
-use destack_source::{Edit, FileId, PathExt};
+use std::path::Path;
+
+use destack_ast::{DependencyKind, DependencyMode, Expression, TokenType};
+use destack_source::{Edit, FileId, PathExt, Span};
 
 use crate::Session;
-use crate::query::common::relative_path;
+use crate::query::common::{QueryContext, relative_path};
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -21,6 +23,59 @@ pub struct ExistingImport {
     pub is_namespace: bool,
     /// Existing specifier names.
     pub specifiers: Vec<String>,
+}
+
+/// Resolve the brace span for an import clause.
+pub(crate) fn import_clause_brace_span(
+    ctx: &QueryContext<'_>,
+    import_span: Span,
+    target_span: Option<Span>,
+) -> Option<(Span, Span)> {
+    // resolve the limit before the target string
+    let target_limit = target_span
+        .map(|span| span.start)
+        .unwrap_or(import_span.end);
+
+    // track the last brace pair before the target
+    let mut open_brace = None;
+    let mut close_brace = None;
+
+    // scan tokens inside the import span
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+
+        if token.span.start < import_span.start {
+            continue;
+        }
+
+        if token.span.start >= target_limit {
+            break;
+        }
+
+        match token.token.ty {
+            TokenType::OpenBrace => {
+                open_brace = Some(token.span);
+                close_brace = None;
+            }
+            TokenType::CloseBrace => {
+                if open_brace.is_some() {
+                    close_brace = Some(token.span);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let open_brace = open_brace?;
+    let close_brace = close_brace?;
+
+    if open_brace.start >= close_brace.start {
+        return None;
+    }
+
+    Some((open_brace, close_brace))
 }
 
 /// The mode for a new import edit.
@@ -72,10 +127,6 @@ impl ImportGroup {
 
 /// Collect existing imports from a file's AST.
 pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<ExistingImport> {
-    // resolve the source file content
-    let source_file = session.files.get(file_id);
-    let source = source_file.text();
-
     // get module for this file
     let Some(module) = crate::query::common::get_module_by_file_id(session, file_id) else {
         return Vec::new();
@@ -125,11 +176,12 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
                 })
                 .collect();
 
-            // find closing brace position by scanning source
-            let closing_brace_pos = if !is_namespace && !items.is_empty() {
-                find_closing_brace(source, span.start as usize, span.end as usize)
-            } else {
+            // find closing brace position by scanning tokens
+            let target_span = ctx.ast.tree.source_map.get_main(node_id.id);
+            let closing_brace_pos = if is_namespace {
                 None
+            } else {
+                import_clause_brace_span(&ctx, span, target_span).map(|(_, close)| close.start)
             };
 
             imports.push(ExistingImport {
@@ -149,24 +201,6 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
 
     // return collected imports
     imports
-}
-
-/// Find the position of the closing brace `}` in an import statement.
-fn find_closing_brace(source: &str, start: usize, end: usize) -> Option<u32> {
-    // slice the statement text
-    let segment = source.get(start..end)?;
-
-    // find `from` keyword and look backwards for `}`
-    if let Some(from_pos) = segment.find(" from ") {
-        // scan backwards from `from` to find `}`
-        let before_from = &segment[..from_pos];
-        if let Some(brace_pos) = before_from.rfind('}') {
-            return Some((start + brace_pos) as u32);
-        }
-    }
-
-    // return none when no brace is found
-    None
 }
 
 /// Build edit(s) to add an import for a symbol.
@@ -278,11 +312,7 @@ pub(crate) fn build_import_display_path(
     }
 
     // strip common source extensions
-    for extension in [".ds", ".ts"] {
-        if display_path.ends_with(extension) {
-            display_path.truncate(display_path.len().saturating_sub(extension.len()));
-        }
-    }
+    display_path = strip_module_extension(&display_path);
 
     // return the normalized display path
     display_path
@@ -291,6 +321,32 @@ pub(crate) fn build_import_display_path(
 /// Normalize path separators to forward slashes.
 fn normalize_separators(path: &str) -> String {
     path.replace('\\', "/")
+}
+
+/// Resolve a module name from a file path.
+pub(crate) fn module_name_from_path(path: &Path) -> Option<String> {
+    // read the file name
+    let file_name = path.file_name()?.to_string_lossy();
+
+    // strip known module extensions
+    Some(strip_module_extension(file_name.as_ref()))
+}
+
+/// Strip a code module extension from an import path.
+fn strip_module_extension(path: &str) -> String {
+    // prefer compound extensions before simple ones
+    let extensions = [
+        ".d.ts", ".d.mts", ".d.cts", ".d.ds", ".tsx", ".ts", ".mts", ".cts", ".jsx", ".js", ".mjs",
+        ".cjs", ".ds",
+    ];
+
+    for extension in extensions {
+        if let Some(stripped) = path.strip_suffix(extension) {
+            return stripped.to_string();
+        }
+    }
+
+    path.to_string()
 }
 
 /// Build an edit to insert a new import statement.

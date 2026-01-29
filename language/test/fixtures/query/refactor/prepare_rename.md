@@ -105,6 +105,29 @@ Preparing rename at `counter.inc` should return `inc`.
 inc
 ```
 
+### Prepare rename on member definition
+
+Prepare rename should resolve member definitions.
+
+```ds
+class Task {
+    title: string;
+//   ^^^^^ def:title
+    done(): bool {
+//  ^^^^ def:done
+        return false;
+    }
+}
+```
+
+```query prepare_rename def:title
+title
+```
+
+```query prepare_rename def:done
+done
+```
+
 ### Prepare rename on enum member
 
 Prepare rename should resolve enum member references.

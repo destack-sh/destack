@@ -2,18 +2,20 @@ use std::collections::HashSet;
 use std::env;
 use std::sync::OnceLock;
 
-use destack_dir::{self as dir, SymbolSpace, SymbolType};
-use destack_source::{Edit, FileId, ModuleId, PackageId, PathExt, Uri};
+use destack_ast::Keyword;
+use destack_dir::{self as dir, FloatType, IntType, SymbolSpace, SymbolType};
+use destack_source::{Edit, FileId, FileType, ModuleId, PackageId, PathExt, Uri};
 use serde::{Deserialize, Serialize};
 
 use super::context::{CompletionContext, ContextResult, detect_completion_context};
 use crate::format::format_local_type;
+use crate::program::Loader;
 use crate::query::common::{
     ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
     build_import_edits_with_mode, dynamic_parameter_names, ensure_program_export_index,
     get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
-    owned_scope_for_symbol, path_component_count, path_distance, program_for_file,
-    resolve_extension_members_for_symbol, resolve_type_members, score_completion,
+    module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
+    program_for_file, resolve_extension_members_for_symbol, resolve_type_members, score_completion,
     search_importable_symbols_for_program, visible_symbols,
 };
 use crate::{Session, TokenAtCursor};
@@ -21,7 +23,6 @@ use crate::{Session, TokenAtCursor};
 // sort order priorities (lower = higher priority in completion list)
 const SORT_LOCAL_SYMBOL: u32 = 10;
 const SORT_BUILTIN: u32 = 20;
-const SORT_IMPORT_STARTER: u32 = 50;
 const SORT_DEFAULT: u32 = 100;
 const SORT_KEYWORD: u32 = 700;
 const SORT_AUTO_IMPORT: u32 = 500;
@@ -241,6 +242,9 @@ pub struct Completion {
     pub deprecated: bool,
     /// Additional text edits to apply (e.g., auto import).
     pub additional_text_edits: Vec<Edit>,
+    /// Whether this completion inserts an auto import.
+    #[serde(default)]
+    pub is_auto_import: bool,
     /// Matched character positions in the label (for UI highlighting).
     pub match_positions: Vec<usize>,
 }
@@ -261,6 +265,7 @@ impl Completion {
             preselect: false,
             deprecated: false,
             additional_text_edits: Vec::new(),
+            is_auto_import: false,
             match_positions: Vec::new(),
         }
     }
@@ -286,6 +291,12 @@ impl Completion {
     /// Mark as a snippet.
     pub fn as_snippet(mut self) -> Self {
         self.is_snippet = true;
+        self
+    }
+
+    /// Mark as an auto import.
+    pub fn as_auto_import(mut self) -> Self {
+        self.is_auto_import = true;
         self
     }
 
@@ -727,7 +738,8 @@ fn push_auto_import_completion(
         .with_detail(detail)
         .with_sort_order(sort_order)
         .with_sort_text(sort_text)
-        .with_additional_edits(import_edits);
+        .with_additional_edits(import_edits)
+        .as_auto_import();
 
     results.push(completion);
 }
@@ -844,17 +856,7 @@ fn completion_group_rank(completion: &Completion) -> u8 {
 
 /// Check whether a completion entry represents an auto import.
 fn is_auto_import_completion(completion: &Completion) -> bool {
-    // require additional text edits for auto imports
-    if completion.additional_text_edits.is_empty() {
-        return false;
-    }
-
-    // match the auto import detail prefix
-    completion
-        .detail
-        .as_deref()
-        .map(|detail| detail.starts_with("Auto import from"))
-        .unwrap_or(false)
+    completion.is_auto_import
 }
 
 /// Get completions at the given position.
@@ -1054,11 +1056,11 @@ fn complete_members(
 
     // get the module for context
     let Some(module) = get_module_by_file_id(session, file) else {
-        return common_member_completions();
+        return Vec::new();
     };
     let module = module.read();
     let Some(ctx) = session.query_context(&module) else {
-        return common_member_completions();
+        return Vec::new();
     };
     let types = ctx.types();
     let symbols = ctx.symbols();
@@ -1093,7 +1095,7 @@ fn complete_members(
         let symbol_module = session.modules.get(symbol_id.module_id);
         let symbol_module = symbol_module.read();
         let Some(symbol_ctx) = session.query_context(&symbol_module) else {
-            return common_member_completions();
+            return Vec::new();
         };
         let symbols = symbol_ctx.symbols();
         let types = symbol_ctx.types();
@@ -1104,7 +1106,7 @@ fn complete_members(
 
             // add all named symbols in the scope as member completions
             for (key, member_id) in symbols.active_named_symbols(scope) {
-                if let destack_dir::StaticKey::Name(name_id) = key {
+                if let dir::StaticKey::Name(name_id) = key {
                     let member_symbol = symbols.get_symbol(member_id);
                     let name = session.strings.get(name_id).to_string();
                     let kind = CompletionKind::from(member_symbol.ty);
@@ -1163,26 +1165,8 @@ fn complete_members(
         }
     }
 
-    // if no results, fall back to common properties
-    if results.is_empty() {
-        results.extend(common_member_completions());
-    }
-
     // return the final member completions
     results
-}
-
-/// Common member completions (fallback).
-fn common_member_completions() -> Vec<Completion> {
-    // return the common fallback completions
-    vec![
-        Completion::new("toString", CompletionKind::Method)
-            .with_detail("(): string")
-            .with_sort_order(SORT_IMPORT_STARTER),
-        Completion::new("valueOf", CompletionKind::Method)
-            .with_detail("(): any")
-            .with_sort_order(SORT_IMPORT_STARTER),
-    ]
 }
 
 /// Complete fields inside an object literal.
@@ -1411,17 +1395,68 @@ fn complete_types(
 
 /// Primitive type completions.
 fn primitive_type_completions() -> Vec<Completion> {
-    // define the primitive type names
-    const PRIMITIVES: &[&str] = &[
-        "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64", "float32",
-        "float64", "bool", "string", "void", "never", "any", "unknown",
+    // base literal keywords
+    let mut names = vec![
+        "any".to_string(),
+        "unknown".to_string(),
+        "never".to_string(),
+        "void".to_string(),
+        "null".to_string(),
+        "undefined".to_string(),
+        "object".to_string(),
+        "boolean".to_string(),
+        "character".to_string(),
+        "string".to_string(),
+        "bigint".to_string(),
+        "number".to_string(),
+        "symbol".to_string(),
+        "unique symbol".to_string(),
+        "int".to_string(),
+        "uint".to_string(),
+        "float".to_string(),
     ];
 
-    // return the primitive completions
-    PRIMITIVES
-        .iter()
-        .map(|p| Completion::new(*p, CompletionKind::TypeParameter).with_sort_order(SORT_BUILTIN))
-        .collect()
+    // add integer type variants
+    let int_types = [
+        IntType::Int8,
+        IntType::Int16,
+        IntType::Int32,
+        IntType::Int64,
+        IntType::Int128,
+        IntType::Int256,
+        IntType::Isize,
+        IntType::Uint8,
+        IntType::Uint16,
+        IntType::Uint32,
+        IntType::Uint64,
+        IntType::Uint128,
+        IntType::Uint256,
+        IntType::Usize,
+    ];
+    for int_type in int_types {
+        names.push(int_type.as_str());
+    }
+
+    // add float type variants
+    let float_types = [FloatType::Float32, FloatType::Float64];
+    for float_type in float_types {
+        names.push(float_type.as_str());
+    }
+
+    // dedupe while preserving order
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut completions = Vec::new();
+    for name in names {
+        if !seen.insert(name.clone()) {
+            continue;
+        }
+
+        completions.push(
+            Completion::new(name, CompletionKind::TypeParameter).with_sort_order(SORT_BUILTIN),
+        );
+    }
+
+    completions
 }
 
 /// Complete values (in expression position).
@@ -1732,65 +1767,110 @@ fn complete_all(session: &Session, file: FileId, include_keywords: bool) -> Vec<
 /// Get keyword completions.
 fn keyword_completions() -> Vec<Completion> {
     // define the keyword list
-    const KEYWORDS: &[&str] = &[
-        "as",
-        "async",
-        "await",
-        "break",
-        "case",
-        "catch",
-        "class",
-        "const",
-        "continue",
-        "default",
-        "do",
-        "else",
-        "enum",
-        "export",
-        "extends",
-        "false",
-        "finally",
-        "for",
-        "function",
-        "if",
-        "implements",
-        "import",
-        "in",
-        "interface",
-        "is",
-        "let",
-        "match",
-        "namespace",
-        "new",
-        "null",
-        "of",
-        "private",
-        "protected",
-        "public",
-        "readonly",
-        "return",
-        "static",
-        "struct",
-        "super",
-        "switch",
-        "this",
-        "throw",
-        "true",
-        "try",
-        "type",
-        "typeof",
-        "var",
-        "void",
-        "where",
-        "while",
-        "yield",
+    let keywords = [
+        Keyword::Public,
+        Keyword::Protected,
+        Keyword::Private,
+        Keyword::Readonly,
+        Keyword::Mut,
+        Keyword::Static,
+        Keyword::Final,
+        Keyword::Accessor,
+        Keyword::Default,
+        Keyword::Self_,
+        Keyword::This,
+        Keyword::Super,
+        Keyword::Package,
+        Keyword::Import,
+        Keyword::Export,
+        Keyword::From,
+        Keyword::Const,
+        Keyword::Let,
+        Keyword::Var,
+        Keyword::Namespace,
+        Keyword::Type,
+        Keyword::Newtype,
+        Keyword::Struct,
+        Keyword::Class,
+        Keyword::Enum,
+        Keyword::Union,
+        Keyword::Interface,
+        Keyword::Function,
+        Keyword::Extension,
+        Keyword::Declare,
+        Keyword::New,
+        Keyword::Delete,
+        Keyword::Constructor,
+        Keyword::Asserts,
+        Keyword::Extends,
+        Keyword::Implements,
+        Keyword::Satisfies,
+        Keyword::Abstract,
+        Keyword::Override,
+        Keyword::InstanceOf,
+        Keyword::Where,
+        Keyword::Typeof,
+        Keyword::Keyof,
+        Keyword::Infer,
+        Keyword::Any,
+        Keyword::Never,
+        Keyword::As,
+        Keyword::Is,
+        Keyword::In,
+        Keyword::Of,
+        Keyword::Using,
+        Keyword::Provides,
+        Keyword::Comptime,
+        Keyword::If,
+        Keyword::Else,
+        Keyword::Match,
+        Keyword::Switch,
+        Keyword::Case,
+        Keyword::Do,
+        Keyword::While,
+        Keyword::For,
+        Keyword::Loop,
+        Keyword::Assert,
+        Keyword::Break,
+        Keyword::Continue,
+        Keyword::Debugger,
+        Keyword::Return,
+        Keyword::Yield,
+        Keyword::Goto,
+        Keyword::Try,
+        Keyword::Catch,
+        Keyword::Throw,
+        Keyword::Finally,
+        Keyword::Async,
+        Keyword::Await,
+        Keyword::Get,
+        Keyword::Set,
+        Keyword::Move,
+        Keyword::With,
     ];
 
-    // return keyword completion items
-    KEYWORDS
-        .iter()
-        .map(|kw| Completion::new(*kw, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD))
-        .collect()
+    // add keyword completions
+    let mut seen = HashSet::new();
+    let mut completions = Vec::new();
+    for keyword in keywords {
+        let label = keyword.as_str();
+        if !seen.insert(label) {
+            continue;
+        }
+        completions
+            .push(Completion::new(label, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD));
+    }
+
+    // add literal keywords that are not in the enum
+    for literal in ["true", "false", "null", "undefined"] {
+        if !seen.insert(literal) {
+            continue;
+        }
+        completions
+            .push(Completion::new(literal, CompletionKind::Keyword).with_sort_order(SORT_KEYWORD));
+    }
+
+    completions
 }
 
 /// Complete import paths (relative paths or package names).
@@ -1872,8 +1952,13 @@ fn complete_relative_path(
                     Completion::new(format!("{name}/"), CompletionKind::Folder)
                         .with_sort_order(SORT_LOCAL_SYMBOL),
                 )
-            } else if name.ends_with(".ds") {
-                let module_name = name.strip_suffix(".ds")?;
+            } else if let Some(file_type) = FileType::from_path(entry) {
+                let loader = Loader::from_file_type(file_type);
+                if !loader.is_code() {
+                    return None;
+                }
+
+                let module_name = module_name_from_path(entry)?;
                 Some(
                     Completion::new(module_name, CompletionKind::Module)
                         .with_sort_order(SORT_LOCAL_SYMBOL),
@@ -1885,6 +1970,7 @@ fn complete_relative_path(
         .collect()
 }
 
+/// Resolve a module specifier for an importable file path.
 /// Complete package names from the registry.
 fn complete_package_names(session: &Session, prefix: &str) -> Vec<Completion> {
     // prepare the completion buffer

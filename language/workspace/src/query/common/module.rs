@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use std::sync::Arc;
 
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolType};
@@ -14,11 +15,11 @@ pub struct ExportedSymbol {
     /// The kind of symbol.
     pub kind: SymbolType,
     /// The symbol space.
-    pub space: destack_dir::SymbolSpace,
+    pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
     pub module_id: ModuleId,
     /// The local symbol id within the module.
-    pub local_id: destack_dir::LocalSymbolId,
+    pub local_id: dir::LocalSymbolId,
     /// The module path (for import statement generation).
     pub module_path: Option<String>,
 }
@@ -125,7 +126,7 @@ pub fn get_module_exports_maybe(
             };
 
             let name = session.strings.get(string_id).to_string();
-            let local_id = destack_dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
+            let local_id = dir::LocalSymbolId::new_typed(idx as u32, symbol.ty);
 
             // record the export entry
             exports.push(ExportedSymbol {

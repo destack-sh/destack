@@ -58,7 +58,7 @@ const x: $0
 ```query completion $0
 - int32: type_parameter
 - string: type_parameter
-- bool: type_parameter
+- boolean: type_parameter
 ! function: keyword
 ! const: keyword
 ```

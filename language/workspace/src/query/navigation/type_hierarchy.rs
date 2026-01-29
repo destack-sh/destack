@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::common::{
     find_symbol_at_offset, get_canonical_symbol, get_symbol_declaration_span,
-    get_symbol_definition_span,
+    get_symbol_definition_span, resolve_symbol_name,
 };
 
 /// An item in the type hierarchy.
@@ -117,9 +117,7 @@ pub fn prepare_type_hierarchy(
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
 
     // get the name
-    let name = symbol
-        .name()
-        .map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = resolve_symbol_name(session, canonical_id)?;
 
     drop(symbols);
     drop(module);
@@ -226,24 +224,23 @@ pub fn type_hierarchy_item_from_symbol(
     session: &Session,
     symbol_id: GlobalSymbolId,
 ) -> Option<TypeHierarchyItem> {
-    let module = session.modules.get(symbol_id.module_id);
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let symbol = symbols.get_symbol(canonical_id.local_id);
     let kind = TypeHierarchyKind::from_symbol_type(symbol.ty)?;
-    let name = symbol
-        .name()
-        .map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = resolve_symbol_name(session, canonical_id)?;
 
     drop(symbols);
     drop(module);
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(session, symbol_id)?;
+    let selection_range = get_symbol_definition_span(session, canonical_id)?;
 
     // resolve the full declaration range, fall back to the selection range
-    let range = get_symbol_declaration_span(session, symbol_id).unwrap_or(selection_range);
+    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
 
     Some(TypeHierarchyItem {
         name,
@@ -252,6 +249,6 @@ pub fn type_hierarchy_item_from_symbol(
         file: selection_range.file,
         range,
         selection_range,
-        symbol_id,
+        symbol_id: canonical_id,
     })
 }

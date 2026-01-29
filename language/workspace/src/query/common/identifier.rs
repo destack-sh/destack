@@ -1,6 +1,9 @@
+use destack_ast as ast;
+use destack_ast::TokenType;
 use destack_source::{FileContent, FileId};
 
 use crate::Session;
+use crate::query::common::{QueryContext, get_module_by_file_id};
 
 /// Check whether a character can start an identifier.
 pub(crate) fn is_identifier_start(ch: char) -> bool {
@@ -12,53 +15,19 @@ pub(crate) fn is_identifier_continue(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
 }
 
-/// Check whether a byte is a simple identifier character.
-pub(crate) fn is_identifier_byte(byte: u8) -> bool {
-    byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'$'
-}
-
-/// Extract the identifier that contains the given offset.
-pub(crate) fn identifier_at_offset(source: &str, offset: u32) -> Option<String> {
-    // guard against out of bounds offsets
-    let offset = offset as usize;
-    if offset > source.len() {
-        return None;
-    }
-
-    let bytes = source.as_bytes();
-    let mut start = offset;
-    let mut end = offset;
-
-    // walk left to the start of the identifier
-    while start > 0 {
-        let byte = bytes[start.saturating_sub(1)] as char;
-        if is_identifier_continue(byte) {
-            start = start.saturating_sub(1);
-        } else {
-            break;
-        }
-    }
-
-    // walk right to the end of the identifier
-    while end < bytes.len() {
-        let byte = bytes[end] as char;
-        if is_identifier_continue(byte) {
-            end = end.saturating_add(1);
-        } else {
-            break;
-        }
-    }
-
-    let name = source.get(start..end)?;
-    if !is_simple_identifier(name) {
-        return None;
-    }
-
-    Some(name.to_string())
-}
-
 /// Extract the identifier token at a given offset.
 pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -> Option<String> {
+    // resolve query context for token lookup
+    let module = get_module_by_file_id(session, file_id)?;
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    // find the token at the cursor
+    let token = token_span_at_offset(&ctx, offset)?;
+    if token.token.ty != TokenType::Identifier {
+        return None;
+    }
+
     // read the source content
     let file = session.files.get(file_id);
     let content = match &file.content {
@@ -67,33 +36,60 @@ pub(crate) fn token_at_offset(session: &Session, file_id: FileId, offset: u32) -
         _ => return None,
     };
 
-    // clamp the offset to the file length
-    let bytes = content.as_bytes();
-    let mut index = offset as usize;
-    if index >= bytes.len() {
-        index = bytes.len().saturating_sub(1);
+    // slice the token text from the source
+    let span = token.span;
+    let text = content.get(span.start as usize..span.end as usize)?;
+
+    Some(text.to_string())
+}
+
+/// Find the token span that contains the offset.
+fn token_span_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    // track the last token starting before the offset
+    let mut candidate = None;
+
+    // walk tokens in order to find the containing span
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+
+        if is_trivia_token(token.token.ty) {
+            continue;
+        }
+
+        if token.span.contains(offset) {
+            return Some(*token);
+        }
+
+        if token.span.start > offset {
+            break;
+        }
+
+        candidate = Some(*token);
     }
 
-    // require the cursor to be on an identifier byte
-    let current = *bytes.get(index)?;
-    if !is_identifier_byte(current) {
-        return None;
+    // allow cursor at the end of a token span
+    let candidate = candidate?;
+    if candidate.span.end == offset {
+        return Some(candidate);
     }
 
-    // scan left to the start of the token
-    let mut start = index;
-    while start > 0 && is_identifier_byte(bytes[start - 1]) {
-        start -= 1;
-    }
+    None
+}
 
-    // scan right to the end of the token
-    let mut end = index + 1;
-    while end < bytes.len() && is_identifier_byte(bytes[end]) {
-        end += 1;
-    }
-
-    let slice = content.get(start..end)?;
-    Some(slice.to_string())
+/// Check whether a token type is trivia.
+fn is_trivia_token(token: TokenType) -> bool {
+    matches!(
+        token,
+        TokenType::Whitespace
+            | TokenType::Newline
+            | TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment
+            | TokenType::End
+    )
 }
 
 /// Extract the first identifier from a string.

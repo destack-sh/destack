@@ -1,13 +1,14 @@
+use destack_dir as dir;
 use destack_dir::{Argument, Declaration, Expression, GlobalSymbolId, Member, NodeType};
 use destack_source::{FileId, Uri};
 use serde::{Deserialize, Serialize};
 
+use crate::Session;
 use crate::format::format_call_signature;
 use crate::query::common::{
-    ParameterData, QueryContext, doc_strings_for_node, line_doc_strings_before_span,
-    parameter_data_for_symbol, resolve_call_target, span_for_dir_node, with_query_context_for_file,
+    ParameterData, QueryContext, doc_text_for_node_without_tags, parameter_data_for_symbol,
+    resolve_call_target, span_for_dir_node, with_query_context_for_file,
 };
-use crate::{ModuleAst, Session};
 
 /// A parameter in a signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -257,7 +258,12 @@ fn signature_info_for_symbol(
                 return None;
             };
             let ast_node_id = dir_tree.get_source(declaration_id.id);
-            let doc_text = signature_doc_for_node(ctx.ast, source, ast_node_id);
+            let doc_text = doc_text_for_node_without_tags(
+                ctx.ast,
+                source,
+                ast_node_id,
+                &["@param", "@return", "@returns"],
+            );
             (signature, doc_text)
         }
         // handle method members
@@ -268,7 +274,12 @@ fn signature_info_for_symbol(
                 return None;
             };
             let ast_node_id = dir_tree.get_source(member_id.id);
-            let doc_text = signature_doc_for_node(ctx.ast, source, ast_node_id);
+            let doc_text = doc_text_for_node_without_tags(
+                ctx.ast,
+                source,
+                ast_node_id,
+                &["@param", "@return", "@returns"],
+            );
             (signature, doc_text)
         }
         _ => return None,
@@ -311,49 +322,6 @@ fn signature_info_for_symbol(
     Some(signature)
 }
 
-/// Collect documentation attached to a declaration or member node.
-fn signature_doc_for_node(ast: &ModuleAst, source: &str, node_id: u32) -> Option<String> {
-    // collect doc strings from AST docs
-    let mut doc_strings = doc_strings_for_node(ast, node_id);
-
-    // fall back to line docs when AST docs are missing
-    if doc_strings.is_empty() {
-        let span = ast.tree.source_map.get_main_or_enclosing(node_id);
-        doc_strings = line_doc_strings_before_span(source, span.start);
-    }
-
-    // return none when no docs are present
-    if doc_strings.is_empty() {
-        return None;
-    }
-
-    // filter out tag lines like @param and @returns
-    let mut lines = Vec::new();
-    for doc in doc_strings {
-        for raw_line in doc.lines() {
-            let mut line = raw_line.trim();
-            if let Some(stripped) = line.strip_prefix('*') {
-                line = stripped.trim();
-            }
-            if let Some(stripped) = line.strip_prefix("///") {
-                line = stripped.trim();
-            }
-            if line.is_empty() || line.starts_with("@param") || line.starts_with("@returns") {
-                continue;
-            }
-            lines.push(line.to_string());
-        }
-    }
-
-    // return none when no content remains
-    if lines.is_empty() {
-        return None;
-    }
-
-    // join the remaining lines
-    Some(lines.join("\n"))
-}
-
 /// Build parameter infos from shared parameter data.
 fn parameter_infos_from_data(labels: &[String], data: &ParameterData) -> Vec<ParameterInfo> {
     // map parameter labels to infos and attach docs by position
@@ -391,9 +359,9 @@ fn fallback_params(argument_count: usize) -> Vec<ParameterInfo> {
 /// Counts how many arguments come before the cursor position.
 fn determine_active_parameter(
     ctx: &QueryContext<'_>,
-    dir_tree: &destack_dir::NodeTree,
-    call_expression_id: destack_dir::LocalNodeId<Expression>,
-    arguments: &[destack_dir::LocalNodeId<Argument>],
+    dir_tree: &dir::NodeTree,
+    call_expression_id: dir::LocalNodeId<Expression>,
+    arguments: &[dir::LocalNodeId<Argument>],
     cursor_offset: u32,
     source: &str,
 ) -> usize {
@@ -408,7 +376,7 @@ fn determine_active_parameter(
 
     for (idx, arg_id) in arguments.iter().enumerate() {
         // get the argument's source span
-        let arg_node_id: destack_dir::LocalNodeIdAny = (*arg_id).into();
+        let arg_node_id: dir::LocalNodeIdAny = (*arg_id).into();
         let span = span_for_dir_node(ctx, dir_tree, arg_node_id);
         last_span_end = Some(span.end);
 

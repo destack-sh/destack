@@ -1,10 +1,10 @@
 use destack_dir::{
     self as dir, DependencyItem, DependencyKind, DependencyMode, Expression, GlobalSymbolId,
 };
-use destack_source::{FileId, ModuleId, Span};
+use destack_source::{FileId, ModuleId, NodeSpanType, Span};
 
 use super::QueryContext;
-use super::span::{find_identifier_span_in_span, get_dir_node_main_span, get_dir_node_span};
+use super::span::{get_dir_node_main_span, get_dir_node_span};
 use super::symbol::{
     get_canonical_symbol, get_member_access_name_span, is_dependency_alias_for_target,
     resolve_member_access_symbol,
@@ -187,8 +187,7 @@ fn collect_member_reference_spans(
             }
 
             let member_name = session.strings.get(*name).to_string();
-            let Some(span) = get_member_access_name_span(session, ctx, expression_id, &member_name)
-            else {
+            let Some(span) = get_member_access_name_span(ctx, expression_id, &member_name) else {
                 continue;
             };
 
@@ -228,8 +227,7 @@ fn collect_member_reference_spans(
             continue;
         }
 
-        let Some(span) = get_member_access_name_span(session, ctx, expression_id, &member_name)
-        else {
+        let Some(span) = get_member_access_name_span(ctx, expression_id, &member_name) else {
             continue;
         };
 
@@ -302,16 +300,48 @@ fn dependency_item_name_span(
     item_id: dir::LocalNodeId<DependencyItem>,
     target_name: Option<&str>,
 ) -> Option<Span> {
-    // resolve the full dependency item span
-    let full_span = get_dir_node_span(ctx.ast, ctx.dir, item_id.into())?;
-
-    // fall back to the full span when no name was provided
+    // fall back to the main span when no name was provided
     let Some(target_name) = target_name else {
-        return Some(full_span);
+        return get_dir_node_main_span(ctx.ast, ctx.dir, item_id.into());
     };
 
-    // find the name span inside the dependency item
-    find_identifier_span_in_span(session, full_span, target_name)
+    // resolve name + alias for matching
+    let dir_tree = ctx.tree();
+    let item = dir_tree.get::<DependencyItem>(item_id);
+    let (name_id, alias_id) = match item {
+        DependencyItem::Remote { name, alias, .. }
+        | DependencyItem::Local { name, alias, .. }
+        | DependencyItem::UnresolvedRemote { name, alias, .. }
+        | DependencyItem::UnresolvedLocal { name, alias, .. } => (*name, *alias),
+        DependencyItem::Value { .. } => (None, None),
+    };
+
+    // resolve the ast node id for span lookup
+    let ast_node_id = dir_tree.get_source(item_id.id);
+
+    // match the remote/local item name first
+    if let Some(name_id) = name_id
+        && session.strings.get(name_id) == target_name
+    {
+        let span = ctx
+            .ast
+            .tree
+            .get_side_span_by_id(ast_node_id, NodeSpanType::Type)?;
+        return Some(Span::new(ctx.file_id, span.start, span.end));
+    }
+
+    // fall back to alias when present
+    if let Some(alias_id) = alias_id
+        && session.strings.get(alias_id) == target_name
+    {
+        let span = ctx
+            .ast
+            .tree
+            .get_side_span_by_id(ast_node_id, NodeSpanType::Main)?;
+        return Some(Span::new(ctx.file_id, span.start, span.end));
+    }
+
+    None
 }
 
 /// Collect namespace import aliases that target a module.

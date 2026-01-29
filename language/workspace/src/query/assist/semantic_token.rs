@@ -210,9 +210,42 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
     }
 
     // collect local variable bindings (Pattern::Binding)
+    let mut saw_pattern_bindings = false;
     for (pattern_id, pattern) in dir_tree.iter_nodes_of_type::<dir::Pattern>() {
         if let dir::Pattern::Binding { mutability, .. } = pattern {
+            saw_pattern_bindings = true;
             let ast_node_id = dir_tree.get_source(pattern_id.id);
+            let Some(main_span) = ctx
+                .ast
+                .tree
+                .get_side_span_by_id(ast_node_id, NodeSpanType::Main)
+            else {
+                continue;
+            };
+
+            let mut modifiers = SemanticTokenModifiers::DECLARATION;
+            if *mutability == Some(dir::Mutability::Immutable) {
+                modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
+            } else if *mutability == Some(dir::Mutability::Mutable) {
+                modifiers = modifiers.union(SemanticTokenModifiers::MUTABLE);
+            }
+
+            tokens.push(
+                SemanticToken::new(main_span, SemanticTokenType::Variable)
+                    .with_modifiers(modifiers),
+            );
+        }
+    }
+
+    // collect declarator bindings when pattern nodes are absent
+    if !saw_pattern_bindings {
+        for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
+            let pattern = dir_tree.get::<dir::Pattern>(declarator.pattern);
+            let dir::Pattern::Binding { mutability, .. } = pattern else {
+                continue;
+            };
+
+            let ast_node_id = dir_tree.get_source(declarator.pattern.id);
             let Some(main_span) = ctx
                 .ast
                 .tree

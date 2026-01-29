@@ -1,15 +1,15 @@
-use destack_dir::{
-    self as dir, DynamicKey, EnumField, GlobalNodeIdAny, LocalNodeId, Member, NodeType, Parameter,
-    SymbolType,
-};
+use destack_dir::{self as dir, EnumField, Member, NodeType, Parameter};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::format::{
-    format_call_signature, format_hover_markdown, format_local_type, format_symbol_signature,
+    format_enum_field_hover, format_hover_markdown, format_local_type, format_local_variable_hover,
+    format_member_hover, format_parameter_hover, format_simple_signature, format_symbol_signature,
 };
-use crate::query::common::{doc_text_for_node, find_symbol_at_offset, get_canonical_symbol};
+use crate::query::common::{
+    container_name_for_symbol, doc_text_for_node, find_symbol_at_offset, get_canonical_symbol,
+};
 
 /// Hover information for a symbol.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -150,7 +150,7 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
     }
 
     // get container name for members
-    let container_name = get_container_name(session, symbol_at.symbol_id);
+    let container_name = container_name_for_symbol(session, symbol_at.symbol_id);
 
     // resolve shared dir data for formatting
     let dir_tree = ctx.tree();
@@ -164,7 +164,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format member hover with full signature
                 let member = dir_tree.get::<Member>(member_id);
                 format_member_hover(
-                    session,
+                    &session.strings,
+                    &session.modules,
                     member,
                     member_id,
                     module_id,
@@ -181,7 +182,8 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
                 // format enum field hover
                 let field = dir_tree.get::<EnumField>(field_id);
                 format_enum_field_hover(
-                    session,
+                    &session.strings,
+                    &session.modules,
                     field,
                     field_id,
                     module_id,
@@ -196,7 +198,14 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
             if let Ok(param_id) = hover_node_id.try_into() {
                 // format parameter hover
                 let param = dir_tree.get::<Parameter>(param_id);
-                format_parameter_hover(session, param, param_id, module_id, &types)
+                format_parameter_hover(
+                    &session.strings,
+                    &session.modules,
+                    param,
+                    param_id,
+                    module_id,
+                    &types,
+                )
             } else {
                 format_simple_signature(symbol.ty, name.as_deref())
             }
@@ -204,11 +213,12 @@ pub fn hover(session: &Session, file: FileId, offset: u32) -> Option<HoverInfo> 
         NodeType::Pattern => {
             // local variable or destructuring pattern
             format_local_variable_hover(
-                session,
                 name.as_deref(),
                 symbol_at.symbol_id,
                 &symbols,
                 &types,
+                &session.modules,
+                &session.strings,
             )
         }
         _ => format_simple_signature(symbol.ty, name.as_deref()),
@@ -275,224 +285,6 @@ fn get_symbol_documentation(session: &Session, symbol_id: dir::GlobalSymbolId) -
     }
 
     None
-}
-
-/// Get the name of the container (class/struct/interface) for a member.
-fn get_container_name(session: &Session, symbol_id: dir::GlobalSymbolId) -> Option<String> {
-    // resolve the base dir for the module
-    let module = session.modules.get(symbol_id.module_id);
-    let module = module.read();
-    let dir = module.dir_base_maybe()?;
-    let symbols = dir.symbols.read();
-
-    // resolve the symbol and owning scope
-    let symbol = symbols.get_symbol(symbol_id.into_local());
-    let scope = symbols.get_scope_by_id(symbol.scope.0);
-
-    // get the owner of the scope (the containing type)
-    let owner_id = scope.owner_id?;
-    let owner = symbols.get_symbol(owner_id);
-    let name_id = owner.name()?;
-
-    // return the container name
-    Some(session.strings.get(name_id).to_string())
-}
-
-/// Format hover for a member (field, method, etc).
-fn format_member_hover(
-    session: &Session,
-    member: &Member,
-    member_id: LocalNodeId<Member>,
-    module_id: destack_source::ModuleId,
-    dir_tree: &dir::NodeTree,
-    types: &dir::TypeTable,
-    container: Option<&str>,
-) -> String {
-    // resolve the member name from its key
-    let member_name = member
-        .key()
-        .and_then(|key| match key {
-            DynamicKey::Name(string_id) => Some(session.strings.get(*string_id).to_string()),
-            DynamicKey::Number(string_id) => Some(session.strings.get(*string_id).to_string()),
-            DynamicKey::NamedExpression { name, .. } => {
-                Some(session.strings.get(*name).to_string())
-            }
-            DynamicKey::Expression(_) => None,
-        })
-        .unwrap_or_else(|| "<anonymous>".to_string());
-
-    // get type if available
-    let node_id = GlobalNodeIdAny {
-        module_id,
-        local_id: member_id.into(),
-    };
-    let type_str = types
-        .get_declared_or_inferred_type_id(node_id)
-        .map(|type_id| format_local_type(type_id, types, &session.modules, &session.strings));
-
-    // format with container prefix
-    let qualified_name = match container {
-        Some(c) => format!("{c}.{member_name}"),
-        None => member_name,
-    };
-
-    // format the hover text by member kind
-    match member {
-        Member::Type { .. } => {
-            if let Some(ty) = type_str {
-                format!("(type member) {qualified_name} = {ty}")
-            } else {
-                format!("(type member) {qualified_name}")
-            }
-        }
-        Member::Field { .. } => {
-            if let Some(ty) = type_str {
-                format!("(property) {qualified_name}: {ty}")
-            } else {
-                format!("(property) {qualified_name}")
-            }
-        }
-        Member::Method { signature, .. } => format_method_hover(
-            &qualified_name,
-            signature,
-            module_id,
-            dir_tree,
-            types,
-            session,
-        ),
-        Member::Embed { .. } => format!("(embed) {qualified_name}"),
-        Member::StaticBlock { .. } => "(static block)".to_string(),
-        Member::ComptimeBlock { .. } => "(comptime block)".to_string(),
-    }
-}
-
-/// Format hover for a method with full signature.
-fn format_method_hover(
-    qualified_name: &str,
-    signature: &dir::FunctionSignature,
-    module_id: destack_source::ModuleId,
-    dir_tree: &dir::NodeTree,
-    types: &dir::TypeTable,
-    session: &Session,
-) -> String {
-    // format a call signature label for the method
-    let formatted = format_call_signature(
-        qualified_name,
-        signature,
-        module_id,
-        dir_tree,
-        types,
-        &session.modules,
-        &session.strings,
-        false,
-    );
-
-    // prefix the label with the member kind
-    format!("(method) {}", formatted.label)
-}
-
-/// Format hover for an enum field.
-fn format_enum_field_hover(
-    session: &Session,
-    field: &EnumField,
-    field_id: LocalNodeId<EnumField>,
-    module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
-    container: Option<&str>,
-) -> String {
-    // resolve the enum field name
-    let field_name = session.strings.get(field.name).to_string();
-
-    // build a qualified name when a container is available
-    let qualified_name = match container {
-        Some(c) => format!("{c}.{field_name}"),
-        None => field_name,
-    };
-
-    // try to get the value or discriminant
-    let node_id = GlobalNodeIdAny {
-        module_id,
-        local_id: field_id.into(),
-    };
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        // format the enum field with its value type
-        let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
-        format!("(enum member) {qualified_name} = {type_text}")
-    } else {
-        // format the enum field without a value
-        format!("(enum member) {qualified_name}")
-    }
-}
-
-/// Format hover for a parameter.
-fn format_parameter_hover(
-    session: &Session,
-    param: &Parameter,
-    param_id: LocalNodeId<Parameter>,
-    module_id: destack_source::ModuleId,
-    types: &dir::TypeTable,
-) -> String {
-    // derive a display name for the parameter
-    let name = match param {
-        Parameter::Named { name, .. } => session.strings.get(*name).to_string(),
-        Parameter::Pattern { .. } => "_".to_string(),
-        Parameter::Variadic { name, .. } => format!("...{}", session.strings.get(*name).as_str()),
-    };
-
-    // resolve the parameter node id for type lookup
-    let node_id = GlobalNodeIdAny {
-        module_id,
-        local_id: param_id.into(),
-    };
-    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
-        // format the parameter with its type
-        let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
-        format!("(parameter) {name}: {type_text}")
-    } else {
-        // format the parameter without a type
-        format!("(parameter) {name}")
-    }
-}
-
-/// Format hover for a local variable.
-fn format_local_variable_hover(
-    session: &Session,
-    name: Option<&str>,
-    symbol_id: dir::GlobalSymbolId,
-    symbols: &dir::SymbolTable,
-    types: &dir::TypeTable,
-) -> String {
-    // resolve the display name
-    let name = name.unwrap_or("<anonymous>");
-
-    // local variable types are stored as value types on the symbol, not on the node
-    if let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) {
-        // format the local binding with its inferred type
-        let type_text = format_local_type(type_id, types, &session.modules, &session.strings);
-        format!("let {name}: {type_text}")
-    } else {
-        // format the local binding without a type
-        format!("let {name}")
-    }
-}
-
-/// Simple signature formatting for symbols without richer context.
-fn format_simple_signature(symbol_type: SymbolType, name: Option<&str>) -> String {
-    // resolve the display name
-    let name = name.unwrap_or("<anonymous>");
-
-    // map the symbol type to a simple signature
-    match symbol_type {
-        SymbolType::Void => format!("let {name}"),
-        SymbolType::Class => format!("class {name}"),
-        SymbolType::Struct => format!("struct {name}"),
-        SymbolType::Interface => format!("interface {name}"),
-        SymbolType::Enum => format!("enum {name}"),
-        SymbolType::Function => format!("function {name}"),
-        SymbolType::Extension => format!("extension {name}"),
-        SymbolType::TypeAlias => format!("type {name}"),
-        SymbolType::Newtype => format!("newtype {name}"),
-    }
 }
 
 /// Resolve a type string for a hover target when available.

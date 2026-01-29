@@ -131,8 +131,15 @@ fn infer_test_type(queries: &[QueryExpectation], expected: &[MdTestFile]) -> Que
 
     if let Some(query) = queries.first() {
         return match query.kind.as_str() {
-            "completion" | "hover" | "signature" | "inlay_hints" | "folding"
-            | "semantic_tokens" | "code_lens" => QueryTestType::Assist,
+            "completion"
+            | "hover"
+            | "signature"
+            | "inlay_hints"
+            | "folding"
+            | "semantic_tokens"
+            | "semantic_tokens_range"
+            | "code_lens"
+            | "resolve_code_lens" => QueryTestType::Assist,
             "rename" | "prepare_rename" => QueryTestType::Refactor,
             _ => QueryTestType::Navigation,
         };
@@ -608,6 +615,9 @@ fn dispatch_query(
         "goto_definition" | "definition" => {
             runner::navigation::definition::run(session, expectation)
         }
+        "goto_declaration" | "declaration" => {
+            runner::navigation::definition::run_declaration(session, expectation)
+        }
         "goto_type_definition" | "type_definition" => {
             runner::navigation::definition::run_type_definition(session, expectation)
         }
@@ -629,10 +639,17 @@ fn dispatch_query(
         "workspace_symbols" | "workspace" => {
             runner::navigation::workspace_symbol::run(session, expectation)
         }
-        "selection_range" => runner::navigation::selection_range::run(session, expectation),
+        "selection_range" | "selection_ranges" => {
+            runner::navigation::selection_range::run(session, expectation)
+        }
         "call_hierarchy" => runner::navigation::call_hierarchy::run(session, expectation),
         "type_hierarchy" => runner::navigation::type_hierarchy::run(session, expectation),
-        "document_link" | "link" => runner::navigation::document_link::run(session, expectation),
+        "document_link" | "document_links" | "link" => {
+            runner::navigation::document_link::run(session, expectation)
+        }
+        "resolve_document_link" | "document_link/resolve" => {
+            runner::navigation::document_link::run_resolve(session, expectation)
+        }
 
         // refactor
         "rename" => runner::refactor::rename::run(session, expectation),
@@ -645,7 +662,11 @@ fn dispatch_query(
         "inlay_hints" | "inlay" => runner::assist::inlay_hint::run(session, expectation),
         "folding_ranges" | "folding" => runner::assist::folding::run(session, expectation),
         "semantic_tokens" | "semantic" => runner::assist::semantic_token::run(session, expectation),
+        "semantic_tokens_range" => runner::assist::semantic_token::run_range(session, expectation),
         "code_lens" => runner::assist::code_lens::run(session, expectation),
+        "resolve_code_lens" | "code_lens/resolve" => {
+            runner::assist::code_lens::run_resolve(session, expectation)
+        }
 
         // diagnostic
         "code_actions" | "code_action" => {

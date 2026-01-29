@@ -159,7 +159,7 @@ fn run_outgoing_expectation(
     let calls = query::outgoing_calls(&session.session, item);
 
     // validate invariants before comparisons
-    if let Err(message) = validate_outgoing_invariants(session, &calls) {
+    if let Err(message) = validate_outgoing_invariants(session, item, &calls) {
         return TestResult::Failed { message };
     }
 
@@ -354,6 +354,7 @@ fn validate_incoming_invariants(
 /// Validate outgoing call invariants.
 fn validate_outgoing_invariants(
     session: &QueryTestSession,
+    item: &CallHierarchyItem,
     calls: &[CallHierarchyOutgoingCall],
 ) -> Result<(), String> {
     let mut errors = Vec::new();
@@ -363,7 +364,7 @@ fn validate_outgoing_invariants(
         validate_item_collect_errors(session, &call.to, &mut errors);
         validate_call_ranges(
             session,
-            call.to.file,
+            item.file,
             &call.to.name,
             &call.from_ranges,
             &mut errors,

@@ -111,6 +111,42 @@ class Registration {
 }
 ```
 
+## Interfaces
+
+### Rename interface references
+
+Renaming an interface should update implements clauses and type annotations.
+
+```ds
+interface Drawable {
+//         ^^^^^^^ target
+    function draw(): void;
+}
+
+class Sprite implements Drawable {
+//                        ^^^^^^^ ref1
+    function draw(): void {}
+}
+
+const sprite: Drawable = new Sprite();
+//             ^^^^^^^ ref2
+```
+
+```query rename target "Renderable"
+```
+
+```expected:main
+interface Renderable {
+    function draw(): void;
+}
+
+class Sprite implements Renderable {
+    function draw(): void {}
+}
+
+const sprite: Renderable = new Sprite();
+```
+
 ## Cross-Module
 
 ### Rename exported function across imports
@@ -214,6 +250,42 @@ struct Point {
 
 function length(p: Point): int32 {
     return p.z + p.z;
+}
+```
+
+### Rename class field
+
+Renaming a class field should update the definition and member accesses.
+
+```ds
+class Counter {
+    value: int32;
+//  ^^^^^ target
+    inc(): int32 {
+        return this.value + 1;
+    }
+}
+
+function main() {
+    const counter = new Counter();
+    const total = counter.value + counter.value;
+}
+```
+
+```query rename target "total"
+```
+
+```expected:main
+class Counter {
+    total: int32;
+    inc(): int32 {
+        return this.total + 1;
+    }
+}
+
+function main() {
+    const counter = new Counter();
+    const total = counter.total + counter.total;
 }
 ```
 

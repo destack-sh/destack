@@ -184,6 +184,119 @@ pub fn run_type_definition(
     run_type_definition_with_expectation(session, exp)
 }
 
+/// Run a goto_declaration test.
+pub fn run_declaration(
+    session: &QueryTestSession,
+    expectation: Option<&QueryExpectation>,
+) -> TestResult {
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no expectation for goto_declaration".to_string(),
+        };
+    };
+
+    run_declaration_with_expectation(session, exp)
+}
+
+/// Run declaration with markdown expectation.
+fn run_declaration_with_expectation(
+    session: &QueryTestSession,
+    exp: &QueryExpectation,
+) -> TestResult {
+    // resolve the query position from the expectation target
+    let (file_id, offset) = match resolve_query_position(session, &exp.target) {
+        Ok(position) => position,
+        Err(message) => return TestResult::Failed { message },
+    };
+
+    // normalize the expected content for comparison
+    let expected_content = exp.content.trim();
+
+    // empty expectation is an error
+    if expected_content.is_empty() {
+        return TestResult::Failed {
+            message: format!("goto_declaration expectation at '{}' is empty", exp.target),
+        };
+    }
+
+    // run goto declaration at the resolved position
+    let result = query::goto_declaration(&session.session, file_id, offset);
+
+    // "<none>" means we expect no result
+    if expected_content == "<none>" {
+        return match result {
+            None => TestResult::Passed,
+            Some(def_result) if def_result.locations.is_empty() => TestResult::Passed,
+            Some(def_result) => TestResult::Failed {
+                message: format!(
+                    "goto_declaration at '{}' expected no results, got {} locations",
+                    exp.target,
+                    def_result.locations.len()
+                ),
+            },
+        };
+    }
+
+    let Some(def_result) = result else {
+        return TestResult::Failed {
+            message: format!("goto_declaration at '{}' returned None", exp.target),
+        };
+    };
+
+    // require at least one declaration location
+    if def_result.locations.is_empty() {
+        return TestResult::Failed {
+            message: format!("goto_declaration at '{}' returned empty result", exp.target),
+        };
+    }
+
+    // validate invariants before comparisons
+    if let Err(message) = validate_definition_invariants(session, &def_result.locations) {
+        return TestResult::Failed { message };
+    }
+
+    // compare against protocol shaped snapshots when structured
+    if is_snapshot_expectation(expected_content) {
+        let actual_snapshot = snapshot_locations(session, &def_result.locations);
+        let expected_snapshot = normalize_expected_snapshot(expected_content);
+
+        if actual_snapshot != expected_snapshot {
+            return TestResult::Failed {
+                message: format!(
+                    "goto_declaration snapshot mismatch at '{}'\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}",
+                    exp.target
+                ),
+            };
+        }
+
+        return TestResult::Passed;
+    }
+
+    // resolve the expected declaration marker
+    let Some(expected_def) = session.markers.range(expected_content) else {
+        return TestResult::Failed {
+            message: format!("expected marker '{expected_content}' not found"),
+        };
+    };
+
+    // check that the expected target span is present
+    let found_match = def_result
+        .locations
+        .iter()
+        .any(|loc| loc.start == expected_def.span.start && loc.end == expected_def.span.end);
+
+    if !found_match {
+        return TestResult::Failed {
+            message: format!(
+                "goto_declaration at '{}' returned wrong location: expected {:?}, got {:?}",
+                exp.target, expected_def.span, def_result.locations[0]
+            ),
+        };
+    }
+
+    TestResult::Passed
+}
+
 /// Run type definition with markdown expectation.
 fn run_type_definition_with_expectation(
     session: &QueryTestSession,
