@@ -39,12 +39,9 @@ pub const LIB_ES2023_ARRAY: BuiltinLib =
 pub const LIB_ES2023_COLLECTION: BuiltinLib =
     BuiltinLib::ambient_lib("es2023.collection", &[LIB_ES_ES2023_COLLECTION_D_DS], &[])
         .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2023_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2023.full",
-    &[LIB_ES_ES2023_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2023_DECLARED_SYMBOLS);
+pub const LIB_ES2023_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2023.full", &[LIB_ES_ES2023_FULL_D_DS], &[])
+        .with_declared_symbols(ES2023_DECLARED_SYMBOLS);
 pub const LIB_ES2023_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2023.intl", &[LIB_ES_ES2023_INTL_D_DS], &[])
         .with_declared_symbols(ES2023_EMPTY_DECLARED_SYMBOLS);

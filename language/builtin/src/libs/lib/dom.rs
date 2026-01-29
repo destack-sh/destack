@@ -62,13 +62,7 @@ const DOM_DECLARED_SYMBOLS: &[&str] = &[
 
 pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient_lib("dom", &[LIB_DOM_INDEX_D_DS], &[])
     .with_declared_symbols(DOM_DECLARED_SYMBOLS);
-pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
-    "dom.asynciterable",
-    &[LIB_DOM_ASYNCITERABLE_D_DS],
-    &[],
-);
-pub const LIB_DOM_ITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
-    "dom.iterable",
-    &[LIB_DOM_ITERABLE_D_DS],
-    &[],
-);
+pub const LIB_DOM_ASYNCITERABLE: BuiltinLib =
+    BuiltinLib::ambient_lib("dom.asynciterable", &[LIB_DOM_ASYNCITERABLE_D_DS], &[]);
+pub const LIB_DOM_ITERABLE: BuiltinLib =
+    BuiltinLib::ambient_lib("dom.iterable", &[LIB_DOM_ITERABLE_D_DS], &[]);

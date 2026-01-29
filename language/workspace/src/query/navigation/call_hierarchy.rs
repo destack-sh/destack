@@ -170,23 +170,50 @@ pub fn incoming_calls(
         // collect call sites and their containing functions
         let mut call_sites_by_function: HashMap<GlobalSymbolId, Vec<Span>> = HashMap::new();
 
-        // check expressions with direct target_symbol references
+        // check call expressions for direct and resolved targets
+        let resolution_matches = |expression_id: LocalNodeId<Expression>| {
+            let node_id = GlobalNodeIdAny {
+                module_id,
+                local_id: expression_id.into(),
+            };
+            let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+                return false;
+            };
+            let resolution = types.get_resolution(resolution_id);
+            let candidates = match resolution {
+                Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
+                Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
+                _ => return false,
+            };
+            candidates.iter().any(|candidate| {
+                get_canonical_symbol(session, candidate.target_symbol) == canonical_id
+            })
+        };
+
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
-            // check if this is a reference to our target function
-            let Some(target) = expr.target_symbol() else {
+            let Expression::Call { left, .. } = expr else {
                 continue;
             };
-            let target_canonical = get_canonical_symbol(session, target);
-            if target_canonical != canonical_id {
+
+            let mut matches = false;
+            let left_expr = dir_tree.get::<Expression>(*left);
+            if let Some(target) = left_expr.target_symbol() {
+                let target_canonical = get_canonical_symbol(session, target);
+                matches = target_canonical == canonical_id;
+            }
+
+            if !matches && (resolution_matches(expr_id) || resolution_matches(*left)) {
+                matches = true;
+            }
+
+            if !matches {
                 continue;
             }
 
-            // get the span of this reference
             let Some(call_span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) else {
                 continue;
             };
 
-            // find the containing function for this call site
             if let Some(containing_fn) =
                 find_containing_function(&dir_tree, module_id, expr_id.into())
             {
@@ -194,49 +221,6 @@ pub fn incoming_calls(
                     .entry(containing_fn)
                     .or_default()
                     .push(call_span);
-            }
-        }
-
-        // check resolutions for method calls and dispatch
-        for (expr_id, _) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let node_id = GlobalNodeIdAny {
-                module_id,
-                local_id: expr_id.into(),
-            };
-
-            // check if this node has a resolution
-            let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
-                continue;
-            };
-            let resolution = types.get_resolution(resolution_id);
-
-            // check if any resolution candidate targets our function
-            let candidates = match resolution {
-                Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
-                Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
-                _ => continue,
-            };
-
-            for candidate in candidates {
-                let target_canonical = get_canonical_symbol(session, candidate.target_symbol);
-                if target_canonical != canonical_id {
-                    continue;
-                }
-
-                // get the span of this call site
-                let Some(call_span) = get_dir_node_span(ctx.ast, ctx.dir, expr_id.into()) else {
-                    continue;
-                };
-
-                // find the containing function for this call site
-                if let Some(containing_fn) =
-                    find_containing_function(&dir_tree, module_id, expr_id.into())
-                {
-                    call_sites_by_function
-                        .entry(containing_fn)
-                        .or_default()
-                        .push(call_span);
-                }
             }
         }
 

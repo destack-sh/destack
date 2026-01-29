@@ -86,12 +86,9 @@ pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     &[],
 )
 .with_declared_symbols(ES2018_ASYNCITERABLE_DECLARED_SYMBOLS);
-pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2018.full",
-    &[LIB_ES_ES2018_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2018_DECLARED_SYMBOLS);
+pub const LIB_ES2018_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2018.full", &[LIB_ES_ES2018_FULL_D_DS], &[])
+        .with_declared_symbols(ES2018_DECLARED_SYMBOLS);
 pub const LIB_ES2018_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2018.intl", &[LIB_ES_ES2018_INTL_D_DS], &[])
         .with_declared_symbols(ES2018_EMPTY_DECLARED_SYMBOLS);

@@ -19,7 +19,7 @@ function caller(): void {
 ```
 
 ```query call_hierarchy use:callee incoming
-main.ds:4:1-6:2 name=caller kind=function selection=main.ds:4:10-4:16 calls=main.ds:5:5-5:11|main.ds:5:11-5:13
+main.ds:4:1-6:2 name=caller kind=function selection=main.ds:4:10-4:16 calls=main.ds:5:5-5:13
 ```
 
 ### Incoming calls from multiple functions
@@ -63,7 +63,7 @@ function caller(): void {
 ```
 
 ```query call_hierarchy def:target incoming
-main.ds:4:1-7:2 name=caller kind=function selection=main.ds:4:10-4:16 calls=main.ds:5:5-5:11|main.ds:5:11-5:13|main.ds:6:5-6:11|main.ds:6:11-6:13
+main.ds:4:1-7:2 name=caller kind=function selection=main.ds:4:10-4:16 calls=main.ds:5:5-5:13|main.ds:6:5-6:13
 ```
 
 ## Outgoing Calls
@@ -85,7 +85,7 @@ function root(): void {
 ```
 
 ```query call_hierarchy def:root outgoing
-main.ds:1:1-2:2 name=leaf kind=function selection=main.ds:1:10-1:14 calls=main.ds:5:9-5:11
+main.ds:1:1-2:2 name=leaf kind=function selection=main.ds:1:10-1:14 calls=main.ds:5:5-5:11
 ```
 
 ### Outgoing calls to multiple functions
@@ -124,8 +124,8 @@ function root(): void {
 ```
 
 ```query call_hierarchy def:root outgoing
-main.ds:1:1-1:25 name=left kind=function selection=main.ds:1:10-1:14 calls=main.ds:5:9-5:11
-main.ds:2:1-2:26 name=right kind=function selection=main.ds:2:10-2:15 calls=main.ds:6:10-6:12
+main.ds:1:1-1:25 name=left kind=function selection=main.ds:1:10-1:14 calls=main.ds:5:5-5:11
+main.ds:2:1-2:26 name=right kind=function selection=main.ds:2:10-2:15 calls=main.ds:6:5-6:12
 ```
 
 ## Cross Module

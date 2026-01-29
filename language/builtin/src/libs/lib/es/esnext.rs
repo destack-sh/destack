@@ -46,20 +46,14 @@ pub const LIB_ESNEXT_ARRAY: BuiltinLib =
     BuiltinLib::ambient_lib("esnext.array", &[LIB_ES_ESNEXT_ARRAY_D_DS], &[]);
 pub const LIB_ESNEXT_COLLECTION: BuiltinLib =
     BuiltinLib::ambient_lib("esnext.collection", &[LIB_ES_ESNEXT_COLLECTION_D_DS], &[]);
-pub const LIB_ESNEXT_DECORATORS: BuiltinLib = BuiltinLib::ambient_lib(
-    "esnext.decorators",
-    &[LIB_ES_ESNEXT_DECORATORS_D_DS],
-    &[],
-);
+pub const LIB_ESNEXT_DECORATORS: BuiltinLib =
+    BuiltinLib::ambient_lib("esnext.decorators", &[LIB_ES_ESNEXT_DECORATORS_D_DS], &[]);
 pub const LIB_ESNEXT_DISPOSABLE: BuiltinLib =
     BuiltinLib::ambient_lib("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_DS], &[]);
 pub const LIB_ESNEXT_ERROR: BuiltinLib =
     BuiltinLib::ambient_lib("esnext.error", &[LIB_ES_ESNEXT_ERROR_D_DS], &[]);
-pub const LIB_ESNEXT_FLOAT16: BuiltinLib = BuiltinLib::ambient_lib(
-    "esnext.float16",
-    &[LIB_ES_ESNEXT_FLOAT16_D_DS],
-    &[],
-);
+pub const LIB_ESNEXT_FLOAT16: BuiltinLib =
+    BuiltinLib::ambient_lib("esnext.float16", &[LIB_ES_ESNEXT_FLOAT16_D_DS], &[]);
 pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.full",
     &[LIB_ES_ESNEXT_FULL_D_DS],

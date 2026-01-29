@@ -86,7 +86,7 @@ The snapshot captures the selection chain for the member access.
 
 ```query selection_range $0
 main.ds:6:11-6:20
-main.ds:6:10-6:21
+main.ds:6:5-6:21
 main.ds:6:5-6:22
 main.ds:5:34-7:2
 main.ds:5:1-7:2
