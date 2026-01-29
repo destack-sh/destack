@@ -162,7 +162,7 @@ getPet().speak(volume);
 ```ds
 struct Cat {
     speak(volume: string | int32): string {
-        volume
+        "meow"
     }
 }
 

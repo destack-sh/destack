@@ -4,10 +4,10 @@ use indexmap::IndexMap;
 
 use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard,
-    FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, Pattern,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    BinaryOperator, DynamicKey, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph,
+    FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, Pattern,
+    PatternField, ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -796,8 +796,86 @@ impl Compiler {
                 };
                 Ok(Some(target_type_id))
             }
+            Pattern::Object { fields } => {
+                let mut type_fields = Vec::new();
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    let (key, pattern) = match field {
+                        PatternField::Named { name, pattern, .. } => {
+                            (Some(StaticKey::Name(*name)), *pattern)
+                        }
+                        PatternField::Alias { name, .. } => (Some(StaticKey::Name(*name)), None),
+                        PatternField::Computed { key, pattern, .. } => (
+                            self.static_key_from_dynamic_key(
+                                profile,
+                                DynamicKey::Expression(*key),
+                                tree,
+                                symbols,
+                                types,
+                            ),
+                            *pattern,
+                        ),
+                        PatternField::Positional { .. }
+                        | PatternField::Spread { .. }
+                        | PatternField::Elision => (None, None),
+                    };
+                    let Some(key) = key else {
+                        continue;
+                    };
+                    let field_type_id = if let Some(pattern_id) = pattern {
+                        self.pattern_guard_field_type(
+                            module, profile, pattern_id, tree, symbols, types,
+                        )?
+                    } else {
+                        types.insert_type_from_any(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            },
+                            field_id.into_any(),
+                        )
+                    };
+                    type_fields.push(TypeField {
+                        key,
+                        ty: field_type_id,
+                        is_optional: false,
+                        is_readonly: false,
+                    });
+                }
+                if type_fields.is_empty() {
+                    return Ok(None);
+                }
+                let target_type = Type::Object {
+                    fields: type_fields,
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_signatures: Vec::new(),
+                };
+                Ok(Some(types.insert_type_from(target_type, pattern_id)))
+            }
             _ => Ok(None),
         }
+    }
+
+    fn pattern_guard_field_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        pattern_id: LocalNodeId<Pattern>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if let Some(target_type_id) =
+            self.pattern_guard_target_type(module, profile, pattern_id, tree, symbols, types)?
+        {
+            return Ok(target_type_id);
+        }
+        Ok(types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            pattern_id.into_any(),
+        ))
     }
 
     /// Split the environment based on a nullish equality guard.
@@ -1003,9 +1081,11 @@ impl Compiler {
 
         // identify the discriminant access and literal
         let (symbol, key, literal) = match (
-            self.discriminant_access_for_expression(module, left_id, tree, symbols, context),
+            self.discriminant_access_for_expression(module, left_id, tree, symbols, types, context),
             self.scalar_literal_for_expression(tree, right_id),
-            self.discriminant_access_for_expression(module, right_id, tree, symbols, context),
+            self.discriminant_access_for_expression(
+                module, right_id, tree, symbols, types, context,
+            ),
             self.scalar_literal_for_expression(tree, left_id),
         ) {
             (Some((symbol, key)), Some(literal), _, _) => (symbol, key, literal),
@@ -1826,6 +1906,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &TypeTable,
         context: &InferContext,
     ) -> Option<(GlobalSymbolId, StaticKey)> {
         match tree.get(expression_id) {
@@ -1843,7 +1924,13 @@ impl Compiler {
             Expression::Index { left, right, .. } => {
                 let right_id = right.as_ref()?;
                 let right_id = self.unwrap_parenthesized_expression(*right_id, tree);
-                let key = self.string_literal_id(tree, right_id)?;
+                let key = self.static_key_from_dynamic_key(
+                    context.profile,
+                    DynamicKey::Expression(right_id),
+                    tree,
+                    symbols,
+                    types,
+                )?;
                 let left_id = self.unwrap_parenthesized_expression(*left, tree);
                 let symbol = self.reference_symbol_for_expression(
                     module,
@@ -1852,7 +1939,7 @@ impl Compiler {
                     tree,
                     symbols,
                 )?;
-                Some((symbol, StaticKey::Name(key)))
+                Some((symbol, key))
             }
             _ => None,
         }

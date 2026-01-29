@@ -57,7 +57,7 @@ pub enum ResolveError {
     },
 
     /// Cyclic symbol reference (re-export chain forms a cycle).
-    #[error(code = "ER103", message = "cyclic reference to '{symbol}'")]
+    #[error(code = "ER103", message = "cyclic reference (recursive) to '{symbol}'")]
     CyclicSymbol {
         node: AnchoredGlobalNodeId,
         symbol: GlobalSymbolId,

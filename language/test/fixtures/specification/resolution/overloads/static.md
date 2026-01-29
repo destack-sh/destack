@@ -18,7 +18,7 @@ function make(value: uint8[]): "dynamic" {
     return "dynamic";
 }
 
-let data = [1, 2, 3, 4];
+let data: uint8[] = [1, 2, 3, 4];
 
 const selected = make(data);
 selected satisfies "dynamic";

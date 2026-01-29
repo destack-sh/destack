@@ -4698,6 +4698,33 @@ impl Compiler {
             return None;
         }
 
+        // resolve unevaluated promise arguments when possible
+        let static_arguments = if let Some(static_arguments) = static_arguments.as_ref()
+            && static_arguments
+                .iter()
+                .any(|arg| matches!(arg, StaticArgument::Unevaluated { .. }))
+        {
+            let options = self.analyze_context_options_for_module(module.id);
+            let tree = module.dir(profile).tree.read();
+            self.resolve_type_reference_static_arguments(
+                module,
+                profile,
+                types.get_type_source(type_id),
+                symbol,
+                Some(static_arguments),
+                true,
+                &options,
+                &tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten()
+            .or_else(|| Some(static_arguments.clone()))
+        } else {
+            static_arguments
+        };
+
         let Some(first_argument) = static_arguments
             .as_ref()
             .and_then(|arguments| arguments.first())
@@ -4708,11 +4735,19 @@ impl Compiler {
             return Some(types.insert_type_from_type(ty, type_id));
         };
 
-        Some(self.convert_static_argument_type(
-            first_argument,
-            types.get_type_source(type_id),
-            types,
-        ))
+        // evaluate remaining unevaluated arguments as types when possible
+        let mut argument = first_argument.clone();
+        if let StaticArgument::Unevaluated { node } = argument {
+            let tree = module.dir(profile).tree.read();
+            let symbols = module.dir(profile).symbols.read();
+            if let Ok(Some(evaluated)) =
+                self.evaluate_static_argument_as_type(module, profile, node, &tree, &symbols, types)
+            {
+                argument = evaluated;
+            }
+        }
+
+        Some(self.convert_static_argument_type(&argument, types.get_type_source(type_id), types))
     }
 
     /// Resolve the awaited type for a value.

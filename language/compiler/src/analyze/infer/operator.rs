@@ -981,6 +981,24 @@ impl Compiler {
             return Ok(builtin_ty_id);
         }
 
+        // treat indexed access with a literal key as a property lookup
+        if let Some(static_key) = static_key.as_ref() {
+            let mut visited = Vec::new();
+            if let Some(member_ty_id) = self.infer_member_of_type(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                symbols,
+                &receiver_ty,
+                static_key,
+                MemberLookupMode::Any,
+                types,
+                &mut visited,
+            )? {
+                return Ok(member_ty_id);
+            }
+        }
+
         // guard non indexable receivers
         if !self.is_interface_implemented(
             module,

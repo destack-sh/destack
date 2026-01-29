@@ -1329,7 +1329,7 @@ impl Compiler {
         // infer template literal spans as string-compatible for `any`
         if let Type::TemplateLiteral { spans, .. } = types.get_type(right) {
             let spans = spans.clone();
-            let substitutions = self.infer_template_literal_substitutions_for_never(
+            let substitutions = self.infer_template_literal_substitutions_for_any(
                 module, profile, &spans, source_id, symbols, types,
             );
             return Some(substitutions);
@@ -1345,16 +1345,16 @@ impl Compiler {
             return Some(InferSubstitutions::default());
         }
 
-        // map infer bindings to unknown for `any` patterns
-        let unknown_type = types.insert_type_from_any(
+        // map infer bindings to any for `any` patterns
+        let any_type = types.insert_type_from_any(
             Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
+                value: TypeLiteral::Any,
             },
             source_id,
         );
         let mut substitutions = InferSubstitutions::default();
         for name in names {
-            substitutions.by_name.insert(name, unknown_type);
+            substitutions.by_name.insert(name, any_type);
         }
 
         Some(substitutions)
@@ -1647,9 +1647,8 @@ impl Compiler {
 
         // infer defaults for template literal spans
         if let Type::TemplateLiteral { spans, .. } = right_type {
-            let substitutions = self.infer_template_literal_substitutions_for_never(
-                module, profile, &spans, source_id, symbols, types,
-            );
+            let substitutions =
+                self.infer_template_literal_substitutions_for_never(&spans, source_id, types);
             return Some(substitutions);
         }
 
@@ -1796,8 +1795,8 @@ impl Compiler {
         Some(substitutions)
     }
 
-    /// Infer substitutions for template literals when the input is never.
-    fn infer_template_literal_substitutions_for_never(
+    /// Infer substitutions for template literals when the input is any.
+    fn infer_template_literal_substitutions_for_any(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1841,6 +1840,33 @@ impl Compiler {
             } else {
                 substitutions.by_name.insert(name, inferred_ty);
             }
+        }
+
+        substitutions
+    }
+
+    /// Infer substitutions for template literals when the input is never.
+    fn infer_template_literal_substitutions_for_never(
+        &self,
+        spans: &[LocalTypeId],
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> InferSubstitutions {
+        let never_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            },
+            source_id,
+        );
+
+        let mut substitutions = InferSubstitutions::default();
+        for span_ty_id in spans {
+            let span_ty = types.get_type(*span_ty_id).clone();
+            let Type::Infer { name, .. } = span_ty else {
+                continue;
+            };
+
+            substitutions.by_name.insert(name, never_id);
         }
 
         substitutions

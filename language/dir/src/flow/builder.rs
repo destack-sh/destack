@@ -1168,7 +1168,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         // build each match case
         for case_id in cases {
             let case_block_id = self.create_block();
-            let guard = self.guard_for_match_case(*case_id);
+            let guard = self.guard_for_match_case(value_id, *case_id);
             self.connect_blocks(
                 match_value_block_id,
                 case_block_id,
@@ -1521,8 +1521,12 @@ impl<'tree> FlowGraphBuilder<'tree> {
         None
     }
 
-    /// Resolve the guard expression for a match case.
-    fn guard_for_match_case(&self, case_id: LocalNodeId<MatchCase>) -> Option<FlowGuard> {
+    /// Resolve the guard for a match case.
+    fn guard_for_match_case(
+        &self,
+        value_id: LocalNodeId<Expression>,
+        case_id: LocalNodeId<MatchCase>,
+    ) -> Option<FlowGuard> {
         let match_case = self.tree.get(case_id);
         let selector = match match_case {
             MatchCase::Expression { selector, .. } => selector,
@@ -1530,7 +1534,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
         };
 
         match selector {
-            MatchSelector::Pattern { guard, .. } => guard.map(FlowGuard::Expression),
+            MatchSelector::Pattern { pattern, .. } => Some(FlowGuard::Pattern {
+                value: value_id,
+                pattern: *pattern,
+            }),
             MatchSelector::Default => None,
         }
     }

@@ -164,6 +164,10 @@ pub enum AnalyzeError {
     #[error(code = "EA120", message = "cannot assign through immutable reference")]
     ImmutableReferenceAssignment { node: AnchoredGlobalNodeId },
 
+    /// Recursive type instantiation.
+    #[error(code = "EA121", message = "recursive type instantiation")]
+    RecursiveTypeInstantiation { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

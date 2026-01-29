@@ -7,8 +7,8 @@ use destack_dir::{
     Declarator, DependencyItem, DependencyMode, DynamicKey, Expression, FunctionCardinality,
     FunctionKind, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
     InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget,
-    Mutability, NodeTree, NodeType, Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace,
-    SymbolTable, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    Mutability, NodeTree, NodeType, NormalizationMode, Parameter, Pattern, PrimitiveType,
+    StaticKey, SymbolSpace, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -1043,8 +1043,9 @@ impl Compiler {
                 ctx,
             )?;
 
-            types.set_value_type(param_symbol, param_ty_id);
-            dynamic_param_types.push(param_ty_id);
+            let resolved_param_ty_id = types.get_value_type_id(param_symbol).unwrap_or(param_ty_id);
+            types.set_value_type(param_symbol, resolved_param_ty_id);
+            dynamic_param_types.push(resolved_param_ty_id);
         }
 
         // return type
@@ -1262,6 +1263,16 @@ impl Compiler {
                 if let Some(default) = default {
                     let default_ty_id =
                         self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                    let binding_ty_id = if let Some(binding_ty_id) = binding_ty_id
+                        && self.is_infer_var_type(binding_ty_id, types)
+                    {
+                        let committed_ty_id =
+                            self.commit_binding_type(module, ctx, default_ty_id, types, false);
+                        types.set_value_type(symbol.into_global(module.id), committed_ty_id);
+                        Some(committed_ty_id)
+                    } else {
+                        binding_ty_id
+                    };
                     if let Some(binding_ty_id) = binding_ty_id {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: default_ty_id,
@@ -1289,6 +1300,17 @@ impl Compiler {
                     None
                 };
                 let binding_ty_id = binding_ty_id.or(default_ty_id);
+                let binding_ty_id = if let Some(binding_ty_id) = binding_ty_id
+                    && let Some(default_ty_id) = default_ty_id
+                    && self.is_infer_var_type(binding_ty_id, types)
+                {
+                    let committed_ty_id =
+                        self.commit_binding_type(module, ctx, default_ty_id, types, false);
+                    types.set_value_type(symbol.into_global(module.id), committed_ty_id);
+                    Some(committed_ty_id)
+                } else {
+                    binding_ty_id
+                };
 
                 // constrain default to the binding type
                 if let (Some(default_ty_id), Some(binding_ty_id)) = (default_ty_id, binding_ty_id) {
@@ -1618,6 +1640,15 @@ impl Compiler {
                 declared_ty_id,
                 types,
             )?;
+            // normalize to surface recursive instantiations in declared types
+            let _ = self.normalize_type(
+                module,
+                ctx.profile,
+                declared_ty_id,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+            );
         }
 
         let inferred_ty_id = if let Some(value) = value {

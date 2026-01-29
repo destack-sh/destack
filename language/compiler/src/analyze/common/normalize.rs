@@ -8,8 +8,8 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::{CanonicalSymbolMode, RelationMode};
-use crate::Compiler;
 use crate::analyze::infer::Assignability;
+use crate::{AnalyzeError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -1069,9 +1069,27 @@ impl Compiler {
             return Some(normalized);
         }
 
-        // skip alias expansion when already resolving the same alias
+        // report recursion when already resolving the same alias
         if types.is_normalization_alias_in_progress(symbol) {
-            return None;
+            let alias_target_id = self.alias_target_type_id_for_symbol(
+                module, profile, symbol, source_id, symbols, types,
+            );
+            let is_direct_self_reference = alias_target_id.is_some_and(|alias_target_id| {
+                matches!(
+                    types.get_type(alias_target_id),
+                    Type::Reference { symbol: target_symbol, .. } if *target_symbol == symbol
+                )
+            });
+            if is_direct_self_reference {
+                return None;
+            }
+
+            let node = source_id
+                .into_global(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::RecursiveTypeInstantiation { node });
+            let error_id = types.insert_type_from_any(Type::Error, source_id);
+            return Some(error_id);
         }
         types.mark_normalization_alias_in_progress(symbol);
 
@@ -1858,36 +1876,20 @@ impl Compiler {
     /// Resolve the apparent type for assignability checks.
     pub(crate) fn apparent_type_for_assignability(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        _module: &Module,
+        _profile: ProfileId,
         type_id: LocalTypeId,
-        symbols: &SymbolTable,
+        _symbols: &SymbolTable,
         types: &mut TypeTable,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
-        // start with the original type id
-        let mut apparent_id = type_id;
-
-        // substitute static parameter constraints when the relation mode allows it
-        if relation_mode.flags.substitute_constraints_in_apparent_type
-            && let Type::Reference { symbol, .. } = types.get_type(apparent_id)
-        {
-            let source_id = types.get_type_source(apparent_id);
-            if let Some(constraint_id) = self.static_parameter_constraint_type(
-                module, profile, *symbol, source_id, symbols, types,
-            ) && !matches!(
-                types.get_type(constraint_id),
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown
-                }
-            ) && constraint_id != apparent_id
-            {
-                apparent_id = constraint_id;
-            }
+        // skip apparent type expansion when the relation mode says so
+        if !relation_mode.flags.use_apparent_type {
+            return type_id;
         }
 
-        // unwrap cached alias instances
-        self.unwrap_normalization_alias_reference(apparent_id, types)
+        // unwrap cached alias instances only
+        self.unwrap_normalization_alias_reference(type_id, types)
     }
 
     /// Normalize and resolve the apparent type.

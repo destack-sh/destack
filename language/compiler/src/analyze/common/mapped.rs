@@ -50,9 +50,12 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        relation_mode: RelationMode,
+        _relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // key queries should always use type operations semantics
+        let key_relation_mode = RelationMode::TYPE_OPS;
+
         // normalize the operand before extracting keys
         let normalized_right = self.normalize_type_inner(
             module,
@@ -61,7 +64,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            relation_mode,
+            key_relation_mode,
             visited,
         );
 
@@ -97,7 +100,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            relation_mode,
+            key_relation_mode,
             visited,
             &mut visited_keys,
         );
@@ -111,7 +114,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            relation_mode,
+            key_relation_mode,
             visited,
         )
     }
@@ -726,6 +729,54 @@ impl Compiler {
                 module,
                 profile,
                 else_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
+        }
+
+        // any yields the union of both branches
+        if matches!(
+            types.get_type(left),
+            Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            }
+        ) {
+            let normalized_then = self.normalize_type_inner(
+                module,
+                profile,
+                then_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
+            let normalized_else = self.normalize_type_inner(
+                module,
+                profile,
+                else_type,
+                symbols,
+                types,
+                mode,
+                relation_mode,
+                visited,
+            );
+            if normalized_then == normalized_else {
+                return normalized_then;
+            }
+            let union_id = types.insert_type_from_any(
+                Type::Union {
+                    elements: vec![normalized_then, normalized_else],
+                },
+                source_id,
+            );
+            return self.normalize_type_inner(
+                module,
+                profile,
+                union_id,
                 symbols,
                 types,
                 mode,
@@ -1610,6 +1661,9 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // mapped key queries should use type operations semantics
+        let key_relation_mode = RelationMode::TYPE_OPS;
+
         let TypeMappedParameter {
             name,
             symbol,
@@ -1689,7 +1743,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            relation_mode,
+            key_relation_mode,
             visited,
         );
         let normalized_key_remap = key_remap.map(|key_remap| {
@@ -1700,7 +1754,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
-                relation_mode,
+                key_relation_mode,
                 visited,
             )
         });
@@ -1713,7 +1767,7 @@ impl Compiler {
             normalized_constraint,
             symbols,
             types,
-            relation_mode,
+            key_relation_mode,
             &mut keys,
         );
         if keys.is_empty() {
@@ -1762,7 +1816,7 @@ impl Compiler {
                 key_remap,
                 symbols,
                 types,
-                relation_mode,
+                key_relation_mode,
                 &mut remapped,
             );
             Some(remapped)
@@ -1841,7 +1895,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
-                    relation_mode,
+                    key_relation_mode,
                     visited,
                 );
                 let mut remapped = Vec::new();
@@ -1851,7 +1905,7 @@ impl Compiler {
                     normalized_remap,
                     symbols,
                     types,
-                    relation_mode,
+                    key_relation_mode,
                     &mut remapped,
                 );
                 remapped

@@ -66,3 +66,34 @@ outer.id satisfies int32;
 outer.name satisfies string;
 outer.active satisfies boolean;
 ```
+
+### struct embedding supports deeper chains
+
+> Deep embed chains continue to surface embedded fields.
+
+```ds
+struct Root {
+    id: int32
+}
+
+struct Branch {
+    ...Root
+    label: string
+}
+
+struct Trunk {
+    ...Branch
+    active: boolean
+}
+
+struct Canopy {
+    ...Trunk
+    count: int32
+}
+
+const canopy = Canopy { id: 1, label: "ok", active: true, count: 2 };
+canopy.id satisfies int32;
+canopy.label satisfies string;
+canopy.active satisfies boolean;
+canopy.count satisfies int32;
+```

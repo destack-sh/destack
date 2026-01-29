@@ -2307,6 +2307,7 @@ impl Compiler {
         let mut substitutions = HashMap::new();
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
         let mut has_missing_value_argument = false;
+        let mut has_value_substitution = false;
         for (index, static_parameter) in static_parameters.iter().enumerate() {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
             let inferred_argument = if assigned_argument.is_none() {
@@ -2417,6 +2418,7 @@ impl Compiler {
                 if static_parameter.kind == StaticParameterKind::Value
                     && !matches!(types.get_type(substitution_ty_id), Type::Error)
                 {
+                    has_value_substitution = true;
                     let argument_name = match &resolved_argument {
                         StaticArgument::Evaluated { name, .. } => *name,
                         StaticArgument::Unevaluated { .. } => None,
@@ -2485,6 +2487,39 @@ impl Compiler {
                     &mut substitute_cache,
                 )
             })
+        };
+
+        // normalize substituted value arguments for downstream assignability
+        let (resolved_dynamic_parameters, resolved_return_type) = if has_value_substitution {
+            let mut normalize_cache = HashMap::new();
+            let normalized_dynamic_parameters = resolved_dynamic_parameters
+                .iter()
+                .map(|parameter| {
+                    self.materialize_static_arguments_in_type(
+                        module,
+                        profile,
+                        *parameter,
+                        tree,
+                        symbols,
+                        types,
+                        &mut normalize_cache,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let normalized_return_type = resolved_return_type.map(|return_type| {
+                self.materialize_static_arguments_in_type(
+                    module,
+                    profile,
+                    return_type,
+                    tree,
+                    symbols,
+                    types,
+                    &mut normalize_cache,
+                )
+            });
+            (normalized_dynamic_parameters, normalized_return_type)
+        } else {
+            (resolved_dynamic_parameters, resolved_return_type)
         };
 
         Ok(Some(ResolvedSignature {

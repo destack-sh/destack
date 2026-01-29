@@ -344,13 +344,23 @@ impl Compiler {
         let mut declared_field_keys = Vec::new();
         for member_id in member_ids {
             let member = tree.get(*member_id);
-            let Member::Field { key: Some(key), .. } = member else {
-                continue;
-            };
-            if let Some(static_key) =
-                self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
-            {
-                declared_field_keys.push(static_key);
+            match member {
+                Member::Field { key: Some(key), .. } => {
+                    if let Some(static_key) =
+                        self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+                    {
+                        declared_field_keys.push(static_key);
+                    }
+                }
+                Member::Embed { value, .. } => {
+                    // include embedded fields in tagged literal filtering
+                    let embed_shape =
+                        self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
+                    for field in embed_shape.fields {
+                        declared_field_keys.push(field.key);
+                    }
+                }
+                _ => {}
             }
         }
         if declared_field_keys.is_empty() {

@@ -2117,15 +2117,15 @@ function greet(name = "hi") {
         // one parameter inferred from default value
         assert_eq!(dynamic_parameters.len(), 1);
 
-        // parameter uses the default string literal type
+        // parameter widens the default literal
         assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            value: TypeLiteral::Primitive(PrimitiveType::String)
         });
 
         // return type follows the parameter type
         let return_type = return_type.expect("expected return type");
         assert_type!(view.types(), return_type, Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+            value: TypeLiteral::Primitive(PrimitiveType::String)
         });
     });
 }
