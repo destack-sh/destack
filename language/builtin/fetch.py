@@ -27,6 +27,32 @@ REFERENCE_PATH_PATTERN = re.compile(
     flags=re.M,
 )
 
+TYPESCRIPT_REFERENCE_OVERRIDES = {
+    # typescript ships dom/webworker without explicit reference libs, so we inject them here
+    "lib.dom.d.ts": ["es2015", "es2018.asynciterable", "es2020"],
+    "lib.webworker.d.ts": ["es2015", "es2018.asynciterable", "es2020"],
+}
+
+DENO_LIB_FILES = [
+    ("lib.deno.ns.d.ts", ["deno", "deno.ns"]),
+    ("lib.deno.shared_globals.d.ts", ["deno.shared_globals"]),
+    ("lib.deno.unstable.d.ts", ["deno.unstable"]),
+    ("lib.deno.window.d.ts", ["deno.window"]),
+    ("lib.deno.worker.d.ts", ["deno.worker"]),
+    ("lib.deno_broadcast_channel.d.ts", ["deno.broadcast_channel"]),
+    ("lib.deno_cache.d.ts", ["deno.cache"]),
+    ("lib.deno_canvas.d.ts", ["deno.canvas"]),
+    ("lib.deno_console.d.ts", ["deno.console"]),
+    ("lib.deno_crypto.d.ts", ["deno.crypto"]),
+    ("lib.deno_fetch.d.ts", ["deno.fetch"]),
+    ("lib.deno_net.d.ts", ["deno.net"]),
+    ("lib.deno_url.d.ts", ["deno.url"]),
+    ("lib.deno_web.d.ts", ["deno.web"]),
+    ("lib.deno_webgpu.d.ts", ["deno.webgpu"]),
+    ("lib.deno_websocket.d.ts", ["deno.websocket"]),
+    ("lib.deno_webstorage.d.ts", ["deno.webstorage"]),
+]
+
 def _resolve_reference_path(source_path: str, reference: str) -> str:
     """Resolve a reference path relative to the current source path."""
     # normalize path separators
@@ -93,6 +119,45 @@ def _fetch_reference_tree(base_url: str, entry_path: str) -> str:
         raise RuntimeError("unresolved reference path in fetched types")
 
     return combined + "\n"
+
+def _inject_reference_libs(content: str, libs: list[str]) -> str:
+    """Inject reference lib directives into content."""
+    # return early when no extra libs are needed
+    if not libs:
+        return content
+
+    # scan for existing references
+    existing = set(
+        match.group(1)
+        for match in re.finditer(r'^\s*///\s*<reference\s+lib="([^"]+)"\s*/>\s*$', content, re.M)
+    )
+    missing = [lib for lib in libs if lib not in existing]
+    if not missing:
+        return content
+
+    # build inserted lines
+    insert_lines = [f'/// <reference lib="{lib}" />' for lib in missing]
+
+    # insert after the header references
+    lines = content.splitlines()
+    insert_after = None
+    seen_reference = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("/// <reference"):
+            insert_after = index
+            seen_reference = True
+            continue
+        if seen_reference:
+            if stripped == "":
+                continue
+            break
+
+    if insert_after is None:
+        return "\n".join(insert_lines + lines) + ("\n" if content.endswith("\n") else "")
+
+    updated_lines = lines[: insert_after + 1] + insert_lines + lines[insert_after + 1 :]
+    return "\n".join(updated_lines) + ("\n" if content.endswith("\n") else "")
 
 def _fetch_git_tree_paths(tree_url: str, prefix: str, suffix: str) -> list[str]:
     """Fetch file paths from a git tree listing."""
@@ -237,6 +302,8 @@ def _fetch_typescript_library(base_url: str, source_name: str, destination_path:
 
     # fetch and write the source
     content = _fetch_remote_text(url)
+    overrides = TYPESCRIPT_REFERENCE_OVERRIDES.get(source_name, [])
+    content = _inject_reference_libs(content, overrides)
     _write_text(destination_path, content)
 
 def _fetch_typescript_es_libs(library_directory: Path, base_url: str) -> None:
@@ -495,9 +562,13 @@ def fetch_deno_libs(library_directory: Path) -> None:
 
         # fetch deno definitions
         print(f"  - deno.v{library_version} {deno_version}")
-        content = _fetch_reference_tree(base_url, "lib.deno.ns.d.ts")
-        destination_path = library_directory / "deno" / f"v{library_version}" / "index.d.ts"
-        _write_text(destination_path, content)
+        for source_path, local_names in DENO_LIB_FILES:
+            content = _fetch_reference_tree(base_url, source_path)
+            for local_name in local_names:
+                destination_path = (
+                    library_directory / local_name / f"v{library_version}" / "index.d.ts"
+                )
+                _write_text(destination_path, content)
 
 def fetch_bun_libs(library_directory: Path) -> None:
     """Fetch the Bun library definitions."""

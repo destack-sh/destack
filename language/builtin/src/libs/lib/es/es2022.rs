@@ -35,7 +35,7 @@ pub const LIB_ES2022: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2022_REGEXP_D_DS,
         LIB_ES_ES2022_STRING_D_DS,
     ],
-    &["es2021"],
+    &[],
 )
 .with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 
@@ -48,14 +48,7 @@ pub const LIB_ES2022_ERROR: BuiltinLib =
 pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2022.full",
     &[LIB_ES_ES2022_FULL_D_DS],
-    &[
-        "es2022",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-        "dom.asynciterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 pub const LIB_ES2022_INTL: BuiltinLib =

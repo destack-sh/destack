@@ -74,7 +74,7 @@ pub const LIB_ES2021: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2021_STRING_D_DS,
         LIB_ES_ES2021_WEAKREF_D_DS,
     ],
-    &["es2020"],
+    &[],
 )
 .with_declared_symbols(ES2021_DECLARED_SYMBOLS);
 
@@ -84,14 +84,7 @@ pub const LIB_ES2021_INTL: BuiltinLib =
 pub const LIB_ES2021_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2021.full",
     &[LIB_ES_ES2021_FULL_D_DS],
-    &[
-        "es2021",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-        "dom.asynciterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2021_DECLARED_SYMBOLS);
 pub const LIB_ES2021_PROMISE: BuiltinLib =

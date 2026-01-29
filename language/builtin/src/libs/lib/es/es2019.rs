@@ -33,7 +33,7 @@ pub const LIB_ES2019: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2019_STRING_D_DS,
         LIB_ES_ES2019_SYMBOL_D_DS,
     ],
-    &["es2018"],
+    &[],
 )
 .with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 
@@ -43,14 +43,7 @@ pub const LIB_ES2019_ARRAY: BuiltinLib =
 pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2019.full",
     &[LIB_ES_ES2019_FULL_D_DS],
-    &[
-        "es2019",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-        "dom.asynciterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 pub const LIB_ES2019_INTL: BuiltinLib =

@@ -2,6 +2,7 @@ mod bun;
 mod deno;
 mod dom;
 mod es;
+mod globals;
 mod js;
 mod native;
 mod node;
@@ -15,6 +16,7 @@ pub use bun::*;
 pub use deno::*;
 pub use dom::*;
 pub use es::*;
+pub use globals::*;
 pub use js::*;
 pub use native::*;
 pub use node::*;
@@ -23,6 +25,7 @@ pub use undici_types::*;
 pub use worker::*;
 
 pub const LIBS: &[BuiltinLib] = &[
+    LIB_GLOBALS,
     LIB_BUN,
     LIB_BUN_V1_3,
     LIB_BUN_V1_2,
@@ -190,4 +193,8 @@ pub const LIBS: &[BuiltinLib] = &[
     LIB_WORKER_ASYNCITERABLE,
     LIB_WORKER_IMPORTSCRIPTS,
     LIB_WORKER_ITERABLE,
+    LIB_WEBWORKER,
+    LIB_WEBWORKER_ASYNCITERABLE,
+    LIB_WEBWORKER_IMPORTSCRIPTS,
+    LIB_WEBWORKER_ITERABLE,
 ];

@@ -81,7 +81,7 @@ pub const LIB_ES2015: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2015_SYMBOL_D_DS,
         LIB_ES_ES2015_SYMBOL_WELLKNOWN_D_DS,
     ],
-    &["es5"],
+    &[],
 )
 .with_declared_symbols(ES2015_DECLARED_SYMBOLS);
 

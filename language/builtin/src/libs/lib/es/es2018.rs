@@ -70,7 +70,7 @@ pub const LIB_ES2018: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2018_PROMISE_D_DS,
         LIB_ES_ES2018_REGEXP_D_DS,
     ],
-    &["es2017"],
+    &[],
 )
 .with_declared_symbols(ES2018_DECLARED_SYMBOLS);
 
@@ -89,14 +89,7 @@ pub const LIB_ES2018_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
 pub const LIB_ES2018_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2018.full",
     &[LIB_ES_ES2018_FULL_D_DS],
-    &[
-        "es2018",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-        "dom.asynciterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2018_DECLARED_SYMBOLS);
 pub const LIB_ES2018_INTL: BuiltinLib =

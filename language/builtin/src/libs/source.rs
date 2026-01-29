@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 /// The kind of builtin library, corresponding to the three layers:
@@ -191,4 +192,79 @@ impl BuiltinLib {
         self.specifier_aliases = specifier_aliases;
         self
     }
+
+    /// Return reference lib dependencies declared in the builtin sources.
+    pub fn reference_libs(&self) -> Vec<&'static str> {
+        // track reference libs in source order
+        let mut references = Vec::new();
+        let mut seen = HashSet::new();
+
+        // collect references from each source file
+        for source in self.sources {
+            for reference in reference_libs_from_source(source.content) {
+                if seen.insert(reference) {
+                    references.push(reference);
+                }
+            }
+        }
+
+        references
+    }
+}
+
+fn reference_libs_from_source(content: &str) -> Vec<&str> {
+    // collect reference directives
+    let mut references = Vec::new();
+
+    // scan directive lines for reference lib declarations
+    for line in content.lines() {
+        // skip non directive lines
+        let line = line.trim_start();
+        if !line.starts_with("///") {
+            continue;
+        }
+
+        // skip non reference directives
+        let line = line.trim_start_matches("///").trim_start();
+        if !line.starts_with("<reference") {
+            continue;
+        }
+
+        // parse the lib name and record it
+        if let Some(name) = parse_reference_lib(line) {
+            references.push(name);
+        }
+    }
+
+    references
+}
+
+fn parse_reference_lib(line: &str) -> Option<&str> {
+    // locate the lib attribute
+    let mut parts = line.split_whitespace();
+    let head = parts.next()?;
+    if !head.starts_with("<reference") {
+        return None;
+    }
+
+    // scan attributes for a lib entry
+    for part in parts {
+        let Some(rest) = part.strip_prefix("lib=") else {
+            continue;
+        };
+
+        // slice out the lib name between quotes
+        let rest = rest.trim_start();
+        let (value, quote) = if let Some(value) = rest.strip_prefix('"') {
+            (value, '"')
+        } else if let Some(value) = rest.strip_prefix('\'') {
+            (value, '\'')
+        } else {
+            continue;
+        };
+        let end = value.find(quote)?;
+        return Some(&value[..end]);
+    }
+
+    None
 }

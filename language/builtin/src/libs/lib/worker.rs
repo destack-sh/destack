@@ -38,20 +38,37 @@ const WORKER_DECLARED_SYMBOLS: &[&str] = &[
     "setTimeout",
 ];
 pub const LIB_WORKER: BuiltinLib =
-    BuiltinLib::ambient_lib("worker", &[LIB_WORKER_INDEX_D_DS], &["es2020"])
+    BuiltinLib::ambient_lib("worker", &[LIB_WORKER_INDEX_D_DS], &[])
         .with_declared_symbols(WORKER_DECLARED_SYMBOLS);
+pub const LIB_WEBWORKER: BuiltinLib =
+    BuiltinLib::ambient_lib("webworker", &[LIB_WORKER_INDEX_D_DS], &[]);
 pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.asynciterable",
     &[LIB_WORKER_ASYNCITERABLE_D_DS],
-    &["worker", "es2018.asynciterable"],
+    &[],
+);
+pub const LIB_WEBWORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
+    "webworker.asynciterable",
+    &[LIB_WORKER_ASYNCITERABLE_D_DS],
+    &[],
 );
 pub const LIB_WORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.importscripts",
     &[LIB_WORKER_IMPORTSCRIPTS_D_DS],
-    &["worker"],
+    &[],
+);
+pub const LIB_WEBWORKER_IMPORTSCRIPTS: BuiltinLib = BuiltinLib::ambient_lib(
+    "webworker.importscripts",
+    &[LIB_WORKER_IMPORTSCRIPTS_D_DS],
+    &[],
 );
 pub const LIB_WORKER_ITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.iterable",
     &[LIB_WORKER_ITERABLE_D_DS],
-    &["worker", "es2015.iterable"],
+    &[],
+);
+pub const LIB_WEBWORKER_ITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
+    "webworker.iterable",
+    &[LIB_WORKER_ITERABLE_D_DS],
+    &[],
 );

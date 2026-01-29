@@ -39,7 +39,7 @@ pub const LIB_ESNEXT: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ESNEXT_PROMISE_D_DS,
         LIB_ES_ESNEXT_SHAREDMEMORY_D_DS,
     ],
-    &["es2024", "decorators", "es2015.iterable", "es2015.symbol"],
+    &[],
 );
 
 pub const LIB_ESNEXT_ARRAY: BuiltinLib =
@@ -49,7 +49,7 @@ pub const LIB_ESNEXT_COLLECTION: BuiltinLib =
 pub const LIB_ESNEXT_DECORATORS: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.decorators",
     &[LIB_ES_ESNEXT_DECORATORS_D_DS],
-    &["decorators", "es2015.symbol"],
+    &[],
 );
 pub const LIB_ESNEXT_DISPOSABLE: BuiltinLib =
     BuiltinLib::ambient_lib("esnext.disposable", &[LIB_ES_ESNEXT_DISPOSABLE_D_DS], &[]);
@@ -58,7 +58,7 @@ pub const LIB_ESNEXT_ERROR: BuiltinLib =
 pub const LIB_ESNEXT_FLOAT16: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.float16",
     &[LIB_ES_ESNEXT_FLOAT16_D_DS],
-    &["es2015.symbol", "es2015.iterable"],
+    &[],
 );
 pub const LIB_ESNEXT_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "esnext.full",
