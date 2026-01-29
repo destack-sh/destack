@@ -137,7 +137,7 @@ impl Parser {
                 && self.peek_identifier().is_ok()
                 && self.peek_next_token(TokenType::Colon).is_ok()
             {
-                let (name, name_span) = self.eat_identifier_with_span()?;
+                let (name, name_span) = self.eat_binding_identifier_with_span()?;
                 self.bump(); // eat colon
                 let inner_pattern_id = self
                     .with_options(self.options.in_static().in_before_block(), |parser| {
@@ -373,7 +373,7 @@ impl Parser {
                         // named alias
                         if self.peek_identifier().is_ok() {
                             let (alias, alias_span) = self
-                                .eat_identifier_with_span()
+                                .eat_binding_identifier_with_span()
                                 .for_node_type(NodeType::Pattern)?;
                             name_span = Some(alias_span);
                             // default

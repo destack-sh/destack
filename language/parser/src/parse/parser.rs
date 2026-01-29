@@ -71,6 +71,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a generator function.
     /// Makes `yield` a keyword instead of an identifier.
     pub in_generator: bool = false,
+    /// Whether `yield` expressions are forbidden in this context.
+    /// Used to tag contexts where `yield` should be rejected during analysis.
+    pub forbid_yield: bool = false,
     /// Whether sequence expressions (comma operator) are allowed.
     pub allow_sequence_expression: bool = true,
     /// Whether private hash keys (`#name`) are allowed in key position.
@@ -115,6 +118,24 @@ impl ParserOptions {
         Self {
             in_type: true,
             in_super_type: true,
+            ..self
+        }
+    }
+
+    /// Set `in_generator` to the given value.
+    #[inline]
+    pub(crate) fn with_generator(self, in_generator: bool) -> Self {
+        Self {
+            in_generator,
+            ..self
+        }
+    }
+
+    /// Set `forbid_yield` to the given value.
+    #[inline]
+    pub(crate) fn with_forbid_yield(self, forbid_yield: bool) -> Self {
+        Self {
+            forbid_yield,
             ..self
         }
     }
@@ -315,6 +336,7 @@ impl ParserOptions {
         Self {
             in_generator: self.in_generator,
             in_comptime: self.in_comptime,
+            forbid_yield: self.forbid_yield,
             allow_sequence_expression: self.allow_sequence_expression,
             ..Self::default()
         }

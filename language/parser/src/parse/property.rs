@@ -192,7 +192,12 @@ impl Parser {
             let static_parameters = self.eat_static_parameters_maybe()?;
 
             // dynamic parameters
-            let dynamic_parameters = self.eat_dynamic_parameters()?;
+            let dynamic_parameters = self.with_options(
+                self.options
+                    .with_generator(is_generator)
+                    .with_forbid_yield(is_generator),
+                |parser| parser.eat_dynamic_parameters(),
+            )?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -222,14 +227,11 @@ impl Parser {
                 .is_ok()
             {
                 self.eat_newlines_maybe()?;
-                let options = if is_generator {
-                    self.options
-                        .not_in_position()
-                        .in_statement_position()
-                        .in_generator()
-                } else {
-                    self.options.not_in_position().in_statement_position()
-                };
+                let options = self
+                    .options
+                    .not_in_position()
+                    .in_statement_position()
+                    .with_generator(is_generator);
                 Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
                 None
@@ -620,7 +622,12 @@ impl Parser {
             let static_parameters = self.eat_static_parameters_maybe()?;
 
             // dynamic parameters
-            let dynamic_parameters = self.eat_dynamic_parameters()?;
+            let dynamic_parameters = self.with_options(
+                self.options
+                    .with_generator(is_generator)
+                    .with_forbid_yield(is_generator),
+                |parser| parser.eat_dynamic_parameters(),
+            )?;
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -650,14 +657,11 @@ impl Parser {
                 .is_ok()
             {
                 self.eat_newlines_maybe()?;
-                let options = if is_generator {
-                    self.options
-                        .not_in_position()
-                        .in_statement_position()
-                        .in_generator()
-                } else {
-                    self.options.not_in_position().in_statement_position()
-                };
+                let options = self
+                    .options
+                    .not_in_position()
+                    .in_statement_position()
+                    .with_generator(is_generator);
                 Some(self.with_options(options, |parser| parser.eat_expression())?)
             } else {
                 None

@@ -48,6 +48,8 @@ Conformance suites are parser-first unless a suite explicitly marks early-error 
 
 We do not attempt to match external error messages or error codes.
 We only require that an error is surfaced in the relevant category.
+The parser is intentionally lenient for binding identifiers, including reserved words like `yield`.
+Reserved binding diagnostics belong in analysis, not parse errors, so parser suites should not expect failures here.
 
 ## Support Boundaries
 
