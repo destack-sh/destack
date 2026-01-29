@@ -9,6 +9,8 @@ use destack_workspace::Module;
 use super::ObjectShape;
 use crate::{AnalyzeResult, Compiler, InferContext};
 
+// allow wide signature for globalThis synthesis
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Build the globalThis value type from global symbol bindings.
     pub(crate) fn infer_global_this_value_type(

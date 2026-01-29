@@ -126,7 +126,7 @@ impl Compiler {
         }
 
         // select the first global match
-        for candidate in candidates {
+        if let Some(candidate) = candidates.into_iter().next() {
             let candidate_module = self.program.modules.get(candidate.module_id);
             let candidate_module = candidate_module.read();
             let candidate_symbols = candidate_module.dir_base().symbols.read();

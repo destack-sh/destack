@@ -3653,7 +3653,13 @@ impl Compiler {
                     *symbol,
                     CanonicalSymbolMode::FollowAliases,
                 );
-                self.is_type_lineage_assignable(canonical_symbol, interface_symbol, types)
+                self.is_type_lineage_assignable(
+                    module,
+                    profile,
+                    canonical_symbol,
+                    interface_symbol,
+                    types,
+                )
             }
             Type::Union { elements } => elements.iter().all(|element_id| {
                 let element_ty = types.get_type(*element_id);
@@ -4865,7 +4871,7 @@ impl Compiler {
             .flatten();
         let arguments = resolved_arguments
             .as_ref()
-            .or_else(|| static_arguments.as_ref())
+            .or(static_arguments.as_ref())
             .map(|arguments| arguments.as_slice())
             .unwrap_or(&[]);
 
@@ -4877,7 +4883,7 @@ impl Compiler {
         );
 
         let yield_ty_id = arguments
-            .get(0)
+            .first()
             .map(|argument| self.convert_static_argument_type(argument, source_id, types))
             .unwrap_or(unknown_ty_id);
         let return_ty_id = arguments

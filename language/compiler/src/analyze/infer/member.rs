@@ -1233,7 +1233,13 @@ impl Compiler {
         // protected members require a subclass context
         if context.visibility == Visibility::Protected
             && current_class != context.owner_symbol
-            && !self.is_type_lineage_assignable(current_class, context.owner_symbol, types)
+            && !self.is_type_lineage_assignable(
+                module,
+                profile,
+                current_class,
+                context.owner_symbol,
+                types,
+            )
         {
             self.error(AnalyzeError::InaccessibleSymbol {
                 node: expression_id
@@ -1250,7 +1256,13 @@ impl Compiler {
             let receiver_symbol = self.receiver_symbol_for_visibility(receiver_ty_id, types);
             if let Some(receiver_symbol) = receiver_symbol
                 && receiver_symbol != current_class
-                && !self.is_type_lineage_assignable(receiver_symbol, current_class, types)
+                && !self.is_type_lineage_assignable(
+                    module,
+                    profile,
+                    receiver_symbol,
+                    current_class,
+                    types,
+                )
             {
                 self.error(AnalyzeError::InaccessibleSymbol {
                     node: expression_id
