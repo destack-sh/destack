@@ -303,6 +303,103 @@ impl Parser {
         )
     }
 
+    /// Promote expression targets to their statement wrapper when required.
+    fn annotation_promote_statement(&self, start_token: TokenSpan, target_node_id: u32) -> u32 {
+        if start_token.token.ty == TokenType::Newline
+            && self.tree.get_node_type(target_node_id) == NodeType::Expression
+            && let Some(statement_id) = self.statement_wrapper_for_expression(target_node_id)
+        {
+            return statement_id;
+        }
+
+        target_node_id
+    }
+
+    /// Return whether a block comment stays on a single line.
+    fn annotation_is_single_line_block_comment(&self, start_token: TokenSpan) -> bool {
+        let raw = self.get_span_str(start_token.span);
+        let trimmed = raw.trim_end_matches(|c: char| c.is_whitespace());
+        let body = trimmed
+            .strip_prefix("/*")
+            .and_then(|slice| slice.strip_suffix("*/"))
+            .unwrap_or(trimmed);
+
+        !body.contains('\n') && !body.contains('\r')
+    }
+
+    /// Find the previous targetable token within the enclosing span.
+    fn annotation_prev_token(
+        &self,
+        token_idx: u32,
+        tokens: &[TokenSpan],
+        ignore_span: &MultiSpan,
+        enclosing_span: Option<Span>,
+    ) -> Option<TokenSpan> {
+        if token_idx == 0 {
+            return None;
+        }
+
+        let mut prev_token_idx = token_idx as usize;
+        while prev_token_idx > 0 {
+            prev_token_idx -= 1;
+            let Some(prev_token) = tokens.get(prev_token_idx) else {
+                return None;
+            };
+            #[cfg(debug_assertions)]
+            let _prev_token_str = self.get_span_str(prev_token.span);
+
+            if ignore_span.contains(&prev_token.span)
+                || prev_token.token.ty == TokenType::Whitespace
+            {
+                continue;
+            }
+
+            if let Some(enclosing_span) = enclosing_span
+                && !enclosing_span.intersects(prev_token.span)
+            {
+                return None;
+            }
+
+            return Some(*prev_token);
+        }
+
+        None
+    }
+
+    /// Find the next targetable token within the enclosing span.
+    fn annotation_next_token(
+        &self,
+        token_idx: u32,
+        group_len: usize,
+        tokens: &[TokenSpan],
+        ignore_span: &MultiSpan,
+        enclosing_span: Option<Span>,
+    ) -> Option<TokenSpan> {
+        let mut next_token_idx = token_idx as usize + group_len;
+        loop {
+            let Some(next_token) = tokens.get(next_token_idx) else {
+                return None;
+            };
+            #[cfg(debug_assertions)]
+            let _next_token_str = self.get_span_str(next_token.span);
+
+            if ignore_span.contains(&next_token.span)
+                || next_token.token.ty == TokenType::Whitespace
+            {
+                next_token_idx += 1;
+                continue;
+            }
+
+            if let Some(enclosing_span) = enclosing_span
+                && !enclosing_span.intersects(next_token.span)
+            {
+                return None;
+            }
+
+            return Some(*next_token);
+        }
+    }
+
     /// Find the annotation position for a given token index and group.
     fn find_annotation_target(
         &self,
@@ -324,13 +421,7 @@ impl Parser {
             TokenType::BlockComment | TokenType::DocBlockComment
         );
         let is_block_comment_single_line = if is_block_comment {
-            let raw = self.get_span_str(start_token.span);
-            let trimmed = raw.trim_end_matches(|c: char| c.is_whitespace());
-            let body = trimmed
-                .strip_prefix("/*")
-                .and_then(|slice| slice.strip_suffix("*/"))
-                .unwrap_or(trimmed);
-            !body.contains('\n') && !body.contains('\r')
+            self.annotation_is_single_line_block_comment(start_token)
         } else {
             false
         };
@@ -355,58 +446,16 @@ impl Parser {
 
         // line prefix or postfix
         if !is_block_prefix_only && is_one_line {
-            // find previous token not in ignore span
-            let prev_token = if token_idx > 0 {
-                let mut prev_token_idx = token_idx as usize;
-                loop {
-                    if prev_token_idx == 0 {
-                        break None; // stop at the start of the tokens
-                    }
-                    prev_token_idx -= 1;
-                    let Some(prev_token) = tokens.get(prev_token_idx) else {
-                        break None; // stop at the start of the tokens
-                    };
-                    #[cfg(debug_assertions)]
-                    let _prev_token_str = self.get_span_str(prev_token.span);
-                    if ignore_span.contains(&prev_token.span)
-                        || prev_token.token.ty == TokenType::Whitespace
-                    {
-                        continue; // ignore non-targetable tokens
-                    }
-                    if let Some(enclosing_span) = enclosing_span
-                        && !enclosing_span.intersects(prev_token.span)
-                    {
-                        break None; // stop outside the enclosing scope
-                    }
-                    break Some(prev_token);
-                }
-            } else {
-                None
-            };
-
-            // find next token not in ignore span
-            let next_token = {
-                let mut next_token_idx = token_idx as usize + group_len;
-                loop {
-                    let Some(next_token) = tokens.get(next_token_idx) else {
-                        break None; // stop at the end of the tokens
-                    };
-                    #[cfg(debug_assertions)]
-                    let _next_token_str = self.get_span_str(next_token.span);
-                    if ignore_span.contains(&next_token.span)
-                        || next_token.token.ty == TokenType::Whitespace
-                    {
-                        next_token_idx += 1;
-                        continue; // ignore non-targetable tokens
-                    }
-                    if let Some(enclosing_span) = enclosing_span
-                        && !enclosing_span.intersects(next_token.span)
-                    {
-                        break None; // stop outside the enclosing scope
-                    }
-                    break Some(next_token);
-                }
-            };
+            // find surrounding tokens
+            let prev_token =
+                self.annotation_prev_token(token_idx, tokens, ignore_span, enclosing_span);
+            let next_token = self.annotation_next_token(
+                token_idx,
+                group_len,
+                tokens,
+                ignore_span,
+                enclosing_span,
+            );
 
             // inline member split: keep comments between receiver and dot on their own line
             if let (Some(prev_token), Some(next_token), Some(enclosing_scope)) =
@@ -517,7 +566,10 @@ impl Parser {
                     .map(|span| span.idx);
 
                 if let Some(target_node_id) = target_node_id {
-                    return Some((AnnotationPosition::LinePrefix, target_node_id));
+                    return Some((
+                        AnnotationPosition::LinePrefix,
+                        self.annotation_promote_statement(start_token, target_node_id),
+                    ));
                 }
             }
             // special case: inline comment between path segments attaches to the path as postfix
@@ -530,7 +582,10 @@ impl Parser {
                     && path.segments.len() > 1
                     && enclosing_scope.span.end > prev_token.span.end
                 {
-                    return Some((AnnotationPosition::LinePostfixBoundary, expression_id.id));
+                    return Some((
+                        AnnotationPosition::LinePostfixBoundary,
+                        self.annotation_promote_statement(start_token, expression_id.id),
+                    ));
                 }
             }
             // line prefix: check for directly following node that starts at the end token
@@ -561,7 +616,10 @@ impl Parser {
                     .map(|span| span.idx);
 
                 if let Some(target_node_id) = target_node_id {
-                    return Some((AnnotationPosition::LinePrefix, target_node_id));
+                    return Some((
+                        AnnotationPosition::LinePrefix,
+                        self.annotation_promote_statement(start_token, target_node_id),
+                    ));
                 }
             }
         }
@@ -581,12 +639,35 @@ impl Parser {
             if let Some(enclosing_span) = enclosing_span
                 && !enclosing_span.intersects(next_token.span)
             {
-                break; // stop outside the enclosing scope
+                if start_token.token.ty != TokenType::Newline {
+                    break; // stop outside the enclosing scope
+                }
             }
             if let Some(next_node) =
                 self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
             {
-                return Some((AnnotationPosition::BlockPrefix, next_node.idx));
+                return Some((
+                    AnnotationPosition::BlockPrefix,
+                    self.annotation_promote_statement(start_token, next_node.idx),
+                ));
+            }
+            if next_token.token.ty == TokenType::Dot {
+                let target_node_id = self
+                    .find_node_enclosing_at(
+                        &next_token.span,
+                        NodeSearchMode::SmallestOutermost,
+                        |span| {
+                            !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
+                                && !ignore_span.contains(&span.span)
+                        },
+                    )
+                    .map(|span| span.idx);
+                if let Some(target_node_id) = target_node_id {
+                    return Some((
+                        AnnotationPosition::BlockPrefix,
+                        self.annotation_promote_statement(start_token, target_node_id),
+                    ));
+                }
             }
             next_token_idx += 1;
         }
@@ -615,17 +696,41 @@ impl Parser {
                 if let Some(prev_node) =
                     self.find_node_ending_at(&prev_token.span, NodeSearchMode::BiggestOutermost)
                 {
-                    return Some((AnnotationPosition::BlockPostfix, prev_node.idx));
+                    return Some((
+                        AnnotationPosition::BlockPostfix,
+                        self.annotation_promote_statement(start_token, prev_node.idx),
+                    ));
                 }
             }
         }
 
         // find inner enclosing node (block infix)
         if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
-            return Some((AnnotationPosition::BlockInfix, enclosing_node.idx));
+            return Some((
+                AnnotationPosition::BlockInfix,
+                self.annotation_promote_statement(start_token, enclosing_node.idx),
+            ));
         }
 
         // nothing to attach to
+        None
+    }
+
+    /// Find the statement wrapper that owns an expression.
+    fn statement_wrapper_for_expression(&self, expression_id: u32) -> Option<u32> {
+        let mut node_id = 0;
+        let total_nodes = self.tree.next_id();
+        while node_id < total_nodes {
+            if self.tree.get_node_type(node_id) == NodeType::Expression {
+                let expression = self.tree.get(LocalNodeId::<Expression>::new(node_id));
+                if let Expression::Statement(inner_id) = expression
+                    && inner_id.id == expression_id
+                {
+                    return Some(node_id);
+                }
+            }
+            node_id += 1;
+        }
         None
     }
 
@@ -982,7 +1087,10 @@ let y;
     /// Decorator annotations should be parsed around any block.
     #[test]
     fn test_attach_decorator_to_function() {
-        let mut test = TestParser::new("@foo\nfunction foo() { }");
+        let mut test = TestParser::new(
+            r"@foo
+function foo() { }",
+        );
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -1156,7 +1264,11 @@ export enum EventStatus {
     /// Trailing comments on chained paths attach to the path expression.
     #[test]
     fn test_attach_trailing_comment_to_chain_path() {
-        let mut test = TestParser::new("foo\n  .getParameters /* trailing comment */\n  ?.();");
+        let mut test = TestParser::new(
+            r"foo
+  .getParameters /* trailing comment */
+  ?.();",
+        );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         parser.finish();
@@ -1195,10 +1307,93 @@ export enum EventStatus {
         );
     }
 
+    /// Line comments between chain segments attach to the following member.
+    #[test]
+    fn test_attach_line_comment_before_chain_member() {
+        let mut test = TestParser::new(
+            r"Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry())",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        parser.finish();
+
+        let mut current = expr_id;
+        let mut member_id = None;
+        loop {
+            match parser.tree.get(current) {
+                Expression::Member { name, left, .. } => {
+                    let name_str = parser.strings.get(*name);
+                    if name_str == "then" {
+                        member_id = Some(current);
+                        break;
+                    }
+                    current = *left;
+                }
+                Expression::Call { left, .. }
+                | Expression::Index { left, .. }
+                | Expression::Maybe { left, .. }
+                | Expression::Must { left, .. } => current = *left,
+                _ => break,
+            }
+        }
+
+        let member_id = member_id.expect("expected .then member");
+        let annotations = parser.tree.get_annotations(member_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(
+            parser.tree,
+            annotations[0],
+            Annotation::Comment { node, position } => {
+                assert_eq!(*position, AnnotationPosition::BlockPrefix);
+                assert_node!(parser.tree, *node, Comment { string, style } => {
+                    assert_string!(parser, *string, "TO DO -- END");
+                    assert_eq!(*style, CommentStyle::Slash);
+                });
+            }
+        );
+    }
+
+    /// Blank lines after a chained statement attach to the next statement.
+    #[test]
+    fn test_attach_blank_after_chained_statement() {
+        let mut test = TestParser::new(
+            r"Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry())
+
+Promise.all(writeIconFiles)",
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        parser.finish();
+
+        assert_eq!(expressions.len(), 2);
+        let mut blank_parent = None;
+        for (node_id, annotations) in parser.tree.get_all_annotations() {
+            let has_blank = annotations.iter().any(|annotation_id| {
+                matches!(
+                    parser.tree.get::<Annotation>(*annotation_id),
+                    Annotation::Blank { .. }
+                )
+            });
+            if has_blank {
+                blank_parent = Some(*node_id);
+                break;
+            }
+        }
+        let blank_parent_id = blank_parent.expect("expected blank annotation");
+        assert_eq!(blank_parent_id, expressions[1].id);
+    }
+
     /// Inline comments between path segments attach as line postfix boundaries.
     #[test]
     fn test_attach_inline_comment_between_path_segments() {
-        let mut test = TestParser::new("wow /* inline comment */\n  .omg!");
+        let mut test = TestParser::new(
+            r"wow /* inline comment */
+  .omg!",
+        );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         parser.finish();
@@ -1244,23 +1439,18 @@ export enum EventStatus {
         parser.finish();
 
         let mut current = expr_id;
-        let mut path_id = None;
         loop {
             match parser.tree.get(current) {
-                Expression::Path { .. } => {
-                    path_id = Some(current);
-                    break;
-                }
+                Expression::Path { .. } => break,
                 Expression::Call { left, .. }
                 | Expression::Index { left, .. }
                 | Expression::Maybe { left, .. }
                 | Expression::Must { left, .. } => current = *left,
-                _ => break,
+                _ => panic!("expected a path expression"),
             }
         }
 
-        let path_id = path_id.expect("expected a path expression");
-        let annotations = parser.tree.get_annotations(path_id.id);
+        let annotations = parser.tree.get_annotations(current.id);
         assert_eq!(annotations.len(), 1);
         assert_node!(
             parser.tree,
@@ -1316,7 +1506,7 @@ export enum EventStatus {
             assert_eq!(dynamic_arguments.len(), 1);
             let argument_id = dynamic_arguments[0];
             let annotations = parser.tree.get_annotations(argument_id.id);
-            if annotations.is_empty() {
+            let annotation_owner_id = if annotations.is_empty() {
                 let argument = parser.tree.get(argument_id);
                 let value_id = match argument {
                     Argument::Named { value, .. }
@@ -1324,33 +1514,24 @@ export enum EventStatus {
                     | Argument::Positional { value, .. }
                     | Argument::Spread { value, .. } => *value,
                 };
-                let annotations = parser.tree.get_annotations(value_id.id);
-                assert_eq!(annotations.len(), 1);
-                assert_node!(
-                    parser.tree,
-                    annotations[0],
-                    Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePrefix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "first");
-                            assert_eq!(*style, CommentStyle::Star);
-                        });
-                    }
-                );
+                value_id.id
             } else {
-                assert_eq!(annotations.len(), 1);
-                assert_node!(
-                    parser.tree,
-                    annotations[0],
-                    Annotation::Comment { node, position } => {
-                        assert_eq!(*position, AnnotationPosition::LinePrefix);
-                        assert_node!(parser.tree, *node, Comment { string, style } => {
-                            assert_string!(parser, *string, "first");
-                            assert_eq!(*style, CommentStyle::Star);
-                        });
-                    }
-                );
-            }
+                argument_id.id
+            };
+
+            let annotations = parser.tree.get_annotations(annotation_owner_id);
+            assert_eq!(annotations.len(), 1);
+            assert_node!(
+                parser.tree,
+                annotations[0],
+                Annotation::Comment { node, position } => {
+                    assert_eq!(*position, AnnotationPosition::LinePrefix);
+                    assert_node!(parser.tree, *node, Comment { string, style } => {
+                        assert_string!(parser, *string, "first");
+                        assert_eq!(*style, CommentStyle::Star);
+                    });
+                }
+            );
         });
     }
 
@@ -1358,7 +1539,7 @@ export enum EventStatus {
     #[test]
     fn test_attach_multi_line_postfix_to_expression() {
         let mut test = TestParser::new(
-            "let A = 1 /* line comment
+            r"let A = 1 /* line comment
 over multiple lines with trailing space    */",
         );
         let mut parser = test.prepare();
@@ -1382,7 +1563,7 @@ over multiple lines with trailing space    */",
     #[test]
     fn test_clean_multiline_block_doc() {
         let mut test = TestParser::new(
-            "{
+            r"{
     /** some multiline
      * block comment
      * over multiple lines */
@@ -1648,7 +1829,15 @@ let A = 1 // line suffix comment
     /// Like any other annotation, if no next or containing node is found, attach to previous node as suffix.
     #[test]
     fn test_attach_blanks_to_expressions() {
-        let mut test = TestParser::new("\n\nlet A = 1\n\nlet B = 2\n\n");
+        let mut test = TestParser::new(
+            r"
+
+let A = 1
+
+let B = 2
+
+",
+        );
         let mut parser = test.prepare();
         let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
         parser.finish();
