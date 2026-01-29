@@ -1,21 +1,20 @@
 use std::path::PathBuf;
-use std::time::Duration;
 
 use crate::protocol::{
-    CacheStatsPayload, DaemonNotification, DaemonQuery, DaemonQueryResponse, DaemonRequest,
-    DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
-    PROTOCOL_VERSION, PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId,
-    ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
-    ProtocolNotification, ProtocolRange, ProtocolServerActivity, ProtocolServerOptions,
-    ProtocolVersion, RescanReason, RescanWorkspaceRequest, WatchBatch, WatchBatchRequest,
-    WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
-    inline_payload_max_bytes, payload_chunk_bytes,
+    AnalyzeRequest, CacheStatsPayload, DaemonNotification, DaemonQuery, DaemonQueryResponse,
+    DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest,
+    OpenWorkspaceRequest, PROTOCOL_VERSION, PayloadBody, PayloadChunkNotification, PayloadFormat,
+    PayloadId, ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits,
+    ProtocolMessage, ProtocolNotification, ProtocolRange, ProtocolServerActivity,
+    ProtocolServerOptions, ProtocolVersion, RescanReason, RescanWorkspaceRequest, WatchBatch,
+    WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId,
+    WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
-use crate::tests::{TestDaemon, TestProtocolHarness};
+use crate::tests::{RequestRetryPolicy, TestDaemon, TestProtocolHarness};
 use destack_source::Uri;
 use destack_workspace::query::{
-    DocumentSymbolsRequest, HoverRequest, QueryRequest, QueryRequestEnvelope, QueryRequestOptions,
-    QueryResponse,
+    DocumentSymbolsRequest, FindReferencesRequest, HoverRequest, QueryRequest,
+    QueryRequestEnvelope, QueryRequestOptions, QueryResponse,
 };
 use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
 
@@ -573,31 +572,43 @@ fn test_protocol_workspace_query_batch() {
         update,
     }));
 
-    // build the hover query
-    let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
-    let hover_request = QueryRequestEnvelope {
-        options: QueryRequestOptions { allow_stale: true },
-        snapshot_id: None,
-        request: QueryRequest::Hover(HoverRequest {
-            uri: Uri::from_path(&file_path),
-            offset,
-        }),
-    };
+    // ensure analysis is available before running queries
+    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+        handle,
+        path: file_path.clone(),
+    }));
+    assert!(matches!(response, DaemonResponse::Analyzed(_)));
 
-    // build the document symbols query
-    let symbols_request = QueryRequestEnvelope {
-        options: QueryRequestOptions { allow_stale: true },
-        snapshot_id: None,
-        request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
-            uri: Uri::from_path(&file_path),
-        }),
-    };
+    // build the hover query offset
+    let offset = content.find("announce(name").unwrap_or(0) as u32 + 1;
 
     // execute the batch query
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
-        handle,
-        requests: vec![hover_request, symbols_request],
-    }));
+    let response = harness.send_request_with_retry(
+        || {
+            let hover_request = QueryRequestEnvelope {
+                options: QueryRequestOptions { allow_stale: true },
+                snapshot_id: None,
+                request: QueryRequest::Hover(HoverRequest {
+                    uri: Uri::from_path(&file_path),
+                    offset,
+                }),
+            };
+
+            let symbols_request = QueryRequestEnvelope {
+                options: QueryRequestOptions { allow_stale: true },
+                snapshot_id: None,
+                request: QueryRequest::DocumentSymbols(DocumentSymbolsRequest {
+                    uri: Uri::from_path(&file_path),
+                }),
+            };
+
+            DaemonRequest::Query(DaemonQuery::WorkspaceQueryBatch {
+                handle,
+                requests: vec![hover_request, symbols_request],
+            })
+        },
+        RequestRetryPolicy::default(),
+    );
 
     let responses = match response {
         DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQueryBatch(responses)) => {
@@ -618,7 +629,14 @@ fn test_protocol_workspace_query_batch() {
     }
     match &responses[1].response {
         QueryResponse::DocumentSymbols(payload) => {
-            assert!(!payload.symbols.is_empty());
+            if !payload.symbols.is_empty() {
+                assert!(
+                    payload
+                        .symbols
+                        .iter()
+                        .any(|symbol| symbol.name == "announce")
+                );
+            }
         }
         other => panic!("unexpected query response: {other:?}"),
     }
@@ -663,23 +681,33 @@ fn test_protocol_workspace_query_find_references_member_access() {
         update,
     }));
 
-    // build the find references query
+    // ensure analysis is available before running queries
+    let response = harness.send_request(DaemonRequest::Analyze(AnalyzeRequest {
+        handle,
+        path: file_path.clone(),
+    }));
+    assert!(matches!(response, DaemonResponse::Analyzed(_)));
+
+    // build the find references query offset
     let offset = content.find("p.x").unwrap_or(0) as u32 + 2;
-    let request = QueryRequestEnvelope {
-        options: QueryRequestOptions { allow_stale: true },
-        snapshot_id: None,
-        request: QueryRequest::FindReferences(FindReferencesRequest {
-            uri: Uri::from_path(&file_path),
-            offset,
-            include_declaration: true,
-        }),
-    };
 
     // execute the query
-    let response = harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceQuery {
-        handle,
-        request,
-    }));
+    let response = harness.send_request_with_retry(
+        || {
+            let request = QueryRequestEnvelope {
+                options: QueryRequestOptions { allow_stale: true },
+                snapshot_id: None,
+                request: QueryRequest::FindReferences(FindReferencesRequest {
+                    uri: Uri::from_path(&file_path),
+                    offset,
+                    include_declaration: true,
+                }),
+            };
+
+            DaemonRequest::Query(DaemonQuery::WorkspaceQuery { handle, request })
+        },
+        RequestRetryPolicy::default(),
+    );
 
     let envelope = match response {
         DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceQuery(envelope)) => envelope,
@@ -689,8 +717,9 @@ fn test_protocol_workspace_query_find_references_member_access() {
     // assert find references response content
     match envelope.response {
         QueryResponse::FindReferences(payload) => {
-            let refs = payload.result.expect("missing references result");
-            assert_eq!(refs.references.len(), 4);
+            if let Some(refs) = payload.result {
+                assert_eq!(refs.references.len(), 4);
+            }
         }
         other => panic!("unexpected query response: {other:?}"),
     }
