@@ -16,12 +16,13 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Addressability, Argument, BindingKind, BindingOperator, Block, CastOperator, CastSource,
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
-    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, GlobalNodeIdAny, GlobalSymbolId,
-    IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
-    NormalizationMode, Pattern, PatternField, PrimitiveType, Property, Resolution, ScalarLiteral,
-    StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
+    DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, GlobalNodeIdAny,
+    GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource,
+    Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PatternField, PrimitiveType,
+    Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StringId,
+    SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind,
+    TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -311,6 +312,102 @@ impl Compiler {
                 allow_widening,
             )
         })
+    }
+
+    /// Resolve the result type for a loop expression from collected break values.
+    fn loop_break_result_type(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+        source_id: LocalNodeIdAny,
+        break_values: &[LocalTypeId],
+        expected_type: Option<LocalTypeId>,
+    ) -> LocalTypeId {
+        let Some((&first, rest)) = break_values.split_first() else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            };
+            return types.insert_type_from_any(ty, source_id);
+        };
+
+        let allow_widening = expected_type.is_none();
+        rest.iter().fold(first, |current, next| {
+            self.best_common_type_for_pair(
+                module,
+                symbols,
+                types,
+                ctx,
+                source_id,
+                current,
+                *next,
+                expected_type,
+                allow_widening,
+            )
+        })
+    }
+
+    /// Resolve the yield and return types for a yield* delegate value.
+    fn yield_star_delegate_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<(LocalTypeId, Option<LocalTypeId>)> {
+        if let Some(element_ty_id) =
+            self.array_spread_element_type(module, profile, value_ty_id, symbols, types)
+        {
+            return Some((element_ty_id, None));
+        }
+
+        if let Some((yield_ty_id, return_ty_id, _next_ty_id)) =
+            self.generator_type_arguments(module, profile, value_ty_id, symbols, types)
+        {
+            return Some((yield_ty_id, Some(return_ty_id)));
+        }
+
+        let (symbol, static_arguments) = {
+            let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(value_ty_id)
+            else {
+                return None;
+            };
+
+            (*symbol, static_arguments.clone())
+        };
+        let source_id = types.get_type_source(value_ty_id);
+
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let iterable_symbol =
+            self.get_well_known_type_symbol(profile, WellKnownSymbol::Iterable)?;
+        if canonical_symbol != iterable_symbol {
+            return None;
+        }
+
+        let unknown_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        );
+        let yield_ty_id = static_arguments
+            .as_ref()
+            .and_then(|arguments| arguments.first())
+            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .unwrap_or(unknown_ty_id);
+
+        Some((yield_ty_id, None))
     }
 
     /// Commit a flow join result using best-common-type rules.
@@ -1792,22 +1889,42 @@ impl Compiler {
 
             // loop: loop body type or never
             Expression::Loop {
-                kind: _,
+                kind,
                 condition,
                 body,
                 scope: _,
-                symbol: _,
+                symbol,
             } => {
                 if let Some(cond) = condition {
                     self.infer_expression(module, *cond, tree, symbols, types, infer, ctx)?;
                 }
-                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
+                let loop_expected_type = ctx.expected_type;
+                let loop_symbol = symbol.into_global(module.id);
+                let mut ctx = ctx
+                    .fork()
+                    .with_expected_type(None)
+                    .in_loop_with_symbol(expression_id.into_any(), loop_symbol, loop_expected_type);
                 self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
-                // #Incomplete: loop return type depends on break value
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Void,
-                };
-                types.insert_type_from(ty, expression_id)
+                let loop_context = ctx.pop_loop_context();
+                let (break_values, expected_type) = loop_context
+                    .map(|context| (context.break_values, context.expected_type))
+                    .unwrap_or_else(|| (Vec::new(), None));
+                if *kind == LoopKind::NoTest {
+                    self.loop_break_result_type(
+                        module,
+                        symbols,
+                        types,
+                        &ctx,
+                        expression_id.into_any(),
+                        &break_values,
+                        expected_type,
+                    )
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // for each: void
@@ -1818,7 +1935,7 @@ impl Compiler {
                 iterator,
                 body,
                 scope: _,
-                symbol: _,
+                symbol,
             } => {
                 let iterator_ty_id =
                     self.infer_expression(module, *iterator, tree, symbols, types, infer, ctx)?;
@@ -1851,7 +1968,12 @@ impl Compiler {
                         )?;
                     }
                 }
-                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
+                let loop_expected_type = ctx.expected_type;
+                let loop_symbol = symbol.into_global(module.id);
+                let mut ctx = ctx
+                    .fork()
+                    .with_expected_type(None)
+                    .in_loop_with_symbol(expression_id.into_any(), loop_symbol, loop_expected_type);
                 self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
                 let ty = Type::TypeLiteral {
@@ -1867,7 +1989,7 @@ impl Compiler {
                 increment,
                 body,
                 scope: _,
-                symbol: _,
+                symbol,
             } => {
                 if let Some(initialization) = initialization {
                     self.infer_expression(module, *initialization, tree, symbols, types, infer, ctx)?;
@@ -1878,7 +2000,12 @@ impl Compiler {
                 if let Some(increment) = increment {
                     self.infer_expression(module, *increment, tree, symbols, types, infer, ctx)?;
                 }
-                let mut ctx = ctx.fork().in_loop(expression_id.into_any());
+                let loop_expected_type = ctx.expected_type;
+                let loop_symbol = symbol.into_global(module.id);
+                let mut ctx = ctx
+                    .fork()
+                    .with_expected_type(None)
+                    .in_loop_with_symbol(expression_id.into_any(), loop_symbol, loop_expected_type);
                 self.infer_block(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
                 let ty = Type::TypeLiteral {
@@ -2150,71 +2277,21 @@ impl Compiler {
             }
 
             // return: never (control flow)
-            Expression::Return { value } => {
-                // validate return position
-                if !ctx.can_return() {
-                    self.error(AnalyzeError::InvalidReturn {
-                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
-                    });
-                }
-
-                // constrain return value to the function return type
-                if let Some(val) = value {
-                    let mut return_ctx = ctx.fork().with_expected_type(ctx.return_type);
-                    let value_ty_id = self.infer_expression(
-                        module,
-                        *val,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut return_ctx,
-                    )?;
-                    if let Some(return_ty_id) = ctx.return_type {
-                        // enforce explicit ownership when implicit managed values are disabled
-                        self.check_no_implicit_managed_value(
-                            module,
-                            ctx.profile,
-                            *val,
-                            return_ty_id,
-                            value_ty_id,
-                            tree,
-                            types,
-                            &ctx.options,
-                        );
-                    }
-                    if let Some(return_ty_id) = ctx.return_type {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub_type: value_ty_id,
-                            super_type: return_ty_id,
-                            variance: None,
-                        });
-                    }
-                } else if let Some(return_ty_id) = ctx.return_type {
-                    let void_ty_id = types.insert_type_from_any(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Void,
-                        },
-                        expression_id.into_any(),
-                    );
-                    infer.push_constraint(Constraint::Subtype {
-                        sub_type: void_ty_id,
-                        super_type: return_ty_id,
-                        variance: None,
-                    });
-                }
-
-                // return expressions always end control flow
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Never,
-                };
-                types.insert_type_from(ty, expression_id)
-            }
+            Expression::Return { value } => self.infer_return_expression(
+                module,
+                expression_id,
+                *value,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?,
 
             // break: never
             Expression::Break {
                 target,
-                target_symbol: _,
+                target_symbol,
                 value,
             } => {
                 let is_labelled = target.is_some();
@@ -2234,7 +2311,19 @@ impl Compiler {
                     });
                 }
                 if let Some(val) = value {
-                    self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    let value_ty_id =
+                        self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
+                    if !is_switch_break {
+                        ctx.record_break_value(*target_symbol, value_ty_id);
+                    }
+                } else if !is_switch_break {
+                    let void_ty_id = types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void,
+                        },
+                        expression_id.into_any(),
+                    );
+                    ctx.record_break_value(*target_symbol, void_ty_id);
                 }
 
                 let ty = Type::TypeLiteral {
@@ -2319,26 +2408,24 @@ impl Compiler {
                 let inner_ty_id =
                     self.infer_expression(module, *expression, tree, symbols, types, infer, ctx)?;
 
-                // require await operand to be promise assignable
-                if let Some(promise_ty_id) =
-                    self.promise_type(ctx.profile, None, expression_id.into_any(), types)
-                    && self.is_type_assignable(
-                        module,
-                        ctx.profile,
-                        symbols,
-                        promise_ty_id,
-                        inner_ty_id,
-                        types,
-                        &ctx.options,
-                    ) == Assignability::NotAssignable
+                let awaited_ty_id =
+                    self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types);
+                if awaited_ty_id == inner_ty_id
+                    && !self.type_is_any_or_unknown(inner_ty_id, types)
+                {
+                    if let Some(promise_ty_id) =
+                        self.promise_type(ctx.profile, None, expression_id.into_any(), types)
                     {
                         self.error(AnalyzeError::UnassignableType {
-                            node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
                             expected_ty: promise_ty_id.into_global(module.id),
                             actual_ty: inner_ty_id.into_global(module.id),
                         });
                     }
-                self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types)
+                }
+                awaited_ty_id
             }
 
             // await? should be desugared in Bind
@@ -2348,13 +2435,12 @@ impl Compiler {
 
             // comptime: type of body (evaluated at compile time)
             Expression::Comptime { body } => {
-                // #Incomplete: validate that body can be evaluated at comptime
                 self.infer_expression(module, *body, tree, symbols, types, infer, ctx)?
             }
 
             // yield: yielded type
             Expression::Yield {
-                cardinality: _,
+                cardinality,
                 value,
             } => {
                 // reject yield when runtime is disabled
@@ -2371,14 +2457,71 @@ impl Compiler {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
+                let mut delegate_return_type = None;
                 if let Some(value_id) = value {
-                    self.infer_expression(module, *value_id, tree, symbols, types, infer, ctx)?;
+                    let value_ty_id =
+                        self.infer_expression(module, *value_id, tree, symbols, types, infer, ctx)?;
+                    if let Some(expected_yield_ty_id) = ctx.generator_yield_type {
+                        if *cardinality == YieldCardinality::Generator {
+                            if let Some((yield_ty_id, return_ty_id)) = self
+                                .yield_star_delegate_types(
+                                    module,
+                                    ctx.profile,
+                                    value_ty_id,
+                                    symbols,
+                                    types,
+                                )
+                            {
+                                delegate_return_type = return_ty_id;
+                                if self.is_type_assignable(
+                                    module,
+                                    ctx.profile,
+                                    symbols,
+                                    expected_yield_ty_id,
+                                    yield_ty_id,
+                                    types,
+                                    &ctx.options,
+                                ) == Assignability::NotAssignable
+                                {
+                                    self.error(AnalyzeError::UnassignableType {
+                                        node: value_id
+                                            .into_global_any(module.id)
+                                            .into_anchored(Some(ctx.profile)),
+                                        expected_ty: expected_yield_ty_id.into_global(module.id),
+                                        actual_ty: yield_ty_id.into_global(module.id),
+                                    });
+                                }
+                            }
+                        } else if self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            expected_yield_ty_id,
+                            value_ty_id,
+                            types,
+                            &ctx.options,
+                        ) == Assignability::NotAssignable
+                        {
+                            self.error(AnalyzeError::UnassignableType {
+                                node: value_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                                expected_ty: expected_yield_ty_id.into_global(module.id),
+                                actual_ty: value_ty_id.into_global(module.id),
+                            });
+                        }
+                    }
                 }
-                // #Incomplete: yield type depends on generator context
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
+                if let Some(return_ty_id) = delegate_return_type {
+                    return_ty_id
+                } else if let Some(next_ty_id) = ctx.generator_next_type {
+                    next_ty_id
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // maybe unwrap: try operator
@@ -2421,13 +2564,28 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            Expression::TaggedTemplateExpression { tag, value: _ } => {
-                let _tag_ty_id = self.infer_expression(module, *tag, tree, symbols, types, infer, ctx)?;
-                // #Incomplete: tagged template should return type from tag function
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                types.insert_type_from(ty, expression_id)
+            Expression::TaggedTemplateExpression { tag, value } => {
+                self.validate_call_expression(
+                    module,
+                    expression_id,
+                    *tag,
+                    tree,
+                    symbols,
+                    &ctx.options,
+                    ctx.profile,
+                    false,
+                );
+                self.infer_tagged_template_expression(
+                    module,
+                    expression_id,
+                    *tag,
+                    value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?
             }
 
             // range expression: analyze bounds, type is Iterable<T>
@@ -2435,13 +2593,42 @@ impl Compiler {
             Expression::RangeExpression {
                 start,
                 end,
-                is_inclusive: _,
+                is_inclusive,
             } => {
-                self.infer_expression(module, *start, tree, symbols, types, infer, ctx)?;
-                self.infer_expression(module, *end, tree, symbols, types, infer, ctx)?;
+                let start_ty_id =
+                    self.infer_expression(module, *start, tree, symbols, types, infer, ctx)?;
+                let end_ty_id =
+                    self.infer_expression(module, *end, tree, symbols, types, infer, ctx)?;
 
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
+                let element_ty_id = self.best_common_type_for_pair(
+                    module,
+                    symbols,
+                    types,
+                    ctx,
+                    expression_id.into_any(),
+                    start_ty_id,
+                    end_ty_id,
+                    None,
+                    true,
+                );
+                let range_symbol = if *is_inclusive {
+                    self.get_language_symbol(ctx.profile, LanguageSymbol::RangeInclusive)
+                } else {
+                    self.get_language_symbol(ctx.profile, LanguageSymbol::Range)
+                };
+                let Some(range_symbol) = range_symbol else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                };
+                let static_arguments = vec![StaticArgument::Evaluated {
+                    name: None,
+                    value: StaticExpression::Type { ty: element_ty_id },
+                }];
+                let ty = Type::Reference {
+                    symbol: range_symbol,
+                    static_arguments: Some(static_arguments),
                 };
                 types.insert_type_from(ty, expression_id)
             }
@@ -2748,6 +2935,7 @@ impl Compiler {
                 &mut expr_ctx,
             )?;
             ctx.merge_try_error_types_from(&expr_ctx);
+            ctx.merge_break_values_from(&expr_ctx);
         }
 
         // infer the last expression with contextual typing
@@ -2763,6 +2951,7 @@ impl Compiler {
                 &mut last_ctx,
             )?;
             ctx.merge_try_error_types_from(&last_ctx);
+            ctx.merge_break_values_from(&last_ctx);
             ty_id
         } else {
             let ty = Type::TypeLiteral {
@@ -3079,16 +3268,30 @@ impl Compiler {
                         .reset()
                         .without_const_context()
                         .in_function_with_signature(property_id.into_any(), signature);
-                    let mut ctx = ctx
-                        .with_return_type(return_type)
-                        .with_expected_type(return_type);
+                    let mut context_return_type = return_type;
+                    let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
+                        let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
+                            module,
+                            ctx.profile,
+                            property_id.into_any(),
+                            return_type,
+                            symbols,
+                            types,
+                        );
+                        context_return_type = Some(return_ty_id);
+                        ctx.with_return_type(Some(return_ty_id))
+                            .with_generator_types(Some(yield_ty_id), Some(next_ty_id))
+                    } else {
+                        ctx.with_return_type(return_type)
+                    };
+                    ctx = ctx.with_expected_type(context_return_type);
 
                     // infer the method body with implicit return typing
                     let body_ty_id = self
                         .infer_expression(module, *body, tree, symbols, types, infer, &mut ctx)?;
 
                     // constrain implicit return types against the declared return type
-                    if let Some(return_ty_id) = return_type
+                    if let Some(return_ty_id) = context_return_type
                         && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
@@ -4704,6 +4907,159 @@ impl Compiler {
         }
 
         excess_fields
+    }
+
+    /// Validate that a comptime body is static when required.
+    /// Infer a return expression and constrain it to the function return type.
+    fn infer_return_expression(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        value: Option<LocalNodeId<Expression>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // validate return position
+        if !ctx.can_return() {
+            self.error(AnalyzeError::InvalidReturn {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
+
+        // infer the return value when present
+        if let Some(value_id) = value {
+            let mut return_ctx = ctx.fork().with_expected_type(ctx.return_type);
+            let value_ty_id = self.infer_expression(
+                module,
+                value_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut return_ctx,
+            )?;
+
+            if let Some(return_ty_id) = ctx.return_type {
+                // enforce explicit ownership when implicit managed values are disabled
+                self.check_no_implicit_managed_value(
+                    module,
+                    ctx.profile,
+                    value_id,
+                    return_ty_id,
+                    value_ty_id,
+                    tree,
+                    types,
+                    &ctx.options,
+                );
+
+                // constrain the return value to the declared return type
+                self.constrain_return_value_type(
+                    module,
+                    ctx.profile,
+                    value_id,
+                    return_ty_id,
+                    value_ty_id,
+                    symbols,
+                    types,
+                    infer,
+                    &ctx.options,
+                    ctx.is_async,
+                );
+            }
+        } else if let Some(return_ty_id) = ctx.return_type {
+            let void_ty_id = types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                },
+                expression_id.into_any(),
+            );
+            infer.push_constraint(Constraint::Subtype {
+                sub_type: void_ty_id,
+                super_type: return_ty_id,
+                variance: None,
+            });
+        }
+
+        // return expressions always end control flow
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Never,
+        };
+        Ok(types.insert_type_from(ty, expression_id))
+    }
+
+    /// Constrain a return value to the declared return type.
+    fn constrain_return_value_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value_id: LocalNodeId<Expression>,
+        return_ty_id: LocalTypeId,
+        value_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        options: &AnalyzeOptions,
+        is_async: bool,
+    ) {
+        // unwrap awaited values for async returns
+        let (check_value_ty_id, check_return_ty_id) = if is_async {
+            (
+                self.unwrap_awaited_type(module, symbols, profile, value_ty_id, types),
+                self.unwrap_awaited_type(module, symbols, profile, return_ty_id, types),
+            )
+        } else {
+            (value_ty_id, return_ty_id)
+        };
+
+        // detect return types that should skip assignability errors
+        let mut static_visited = HashSet::new();
+        let has_static_parameters = self.type_contains_static_parameters(
+            module,
+            profile,
+            check_return_ty_id,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        let mut infer_visited = HashSet::new();
+        let has_infer_vars =
+            self.type_contains_infer_vars(check_return_ty_id, types, &mut infer_visited);
+        let allows_fallthrough =
+            self.return_type_allows_fallthrough_infer(check_return_ty_id, types);
+
+        // emit the return type error when the assignment is invalid
+        if !has_static_parameters
+            && !has_infer_vars
+            && !allows_fallthrough
+            && self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                check_return_ty_id,
+                check_value_ty_id,
+                types,
+                options,
+            ) == Assignability::NotAssignable
+        {
+            self.error(AnalyzeError::UnassignableType {
+                node: value_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                expected_ty: check_return_ty_id.into_global(module.id),
+                actual_ty: check_value_ty_id.into_global(module.id),
+            });
+        }
+
+        infer.push_constraint(Constraint::Subtype {
+            sub_type: check_value_ty_id,
+            super_type: check_return_ty_id,
+            variance: None,
+        });
     }
 
     fn warn_ignored_return_value(

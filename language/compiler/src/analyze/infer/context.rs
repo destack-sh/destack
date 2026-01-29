@@ -33,12 +33,18 @@ pub struct InferContext {
     pub in_switch: Option<LocalNodeIdAny>,
     /// Stack of active break targets (innermost last).
     pub break_stack: Vec<BreakTargetKind>,
+    /// Stack of active loop contexts for break value typing.
+    loop_stack: Vec<LoopContext>,
     /// The enclosing function node (if any) (enables return).
     pub in_function: Option<LocalNodeIdAny>,
     /// Whether the enclosing function is async (enables await).
     pub is_async: bool,
     /// Whether the enclosing function is a generator (enables yield).
     pub is_generator: bool,
+    /// The generator yield type when available.
+    pub generator_yield_type: Option<LocalTypeId>,
+    /// The generator next type when available.
+    pub generator_next_type: Option<LocalTypeId>,
     /// Whether we're in an abstract class/struct (abstract methods allowed).
     pub in_abstract_class: bool,
     /// The enclosing nominal type symbol, if any.
@@ -81,6 +87,28 @@ pub enum BreakTargetKind {
     Switch,
 }
 
+/// Track break values for a loop expression.
+#[derive(Debug, Clone)]
+pub(super) struct LoopContext {
+    /// The loop symbol for labeled breaks.
+    pub symbol: GlobalSymbolId,
+    /// The expected loop type when contextualized.
+    pub expected_type: Option<LocalTypeId>,
+    /// Collected break value types.
+    pub break_values: Vec<LocalTypeId>,
+}
+
+impl LoopContext {
+    /// Create a loop context for break value typing.
+    pub(super) fn new(symbol: GlobalSymbolId, expected_type: Option<LocalTypeId>) -> Self {
+        Self {
+            symbol,
+            expected_type,
+            break_values: Vec::new(),
+        }
+    }
+}
+
 /// Track try catch state during inference.
 #[derive(Debug, Clone)]
 pub struct TryContextFrame {
@@ -104,9 +132,12 @@ impl InferContext {
             in_match: None,
             in_switch: None,
             break_stack: Vec::new(),
+            loop_stack: Vec::new(),
             in_function: None,
             is_async: false,
             is_generator: false,
+            generator_yield_type: None,
+            generator_next_type: None,
             in_abstract_class: false,
             in_nominal_symbol: None,
             try_stack: Vec::new(),
@@ -133,9 +164,12 @@ impl InferContext {
             in_match: self.in_match,
             in_switch: self.in_switch,
             break_stack: self.break_stack.clone(),
+            loop_stack: self.loop_stack.clone(),
             in_function: self.in_function,
             is_async: self.is_async,
             is_generator: self.is_generator,
+            generator_yield_type: self.generator_yield_type,
+            generator_next_type: self.generator_next_type,
             in_abstract_class: self.in_abstract_class,
             in_nominal_symbol: self.in_nominal_symbol,
             try_stack: self.try_stack.clone(),
@@ -162,9 +196,12 @@ impl InferContext {
             in_match: None,
             in_switch: None,
             break_stack: Vec::new(),
+            loop_stack: Vec::new(),
             in_function: None,
             is_async: false,
             is_generator: false,
+            generator_yield_type: None,
+            generator_next_type: None,
             in_abstract_class: false,
             in_nominal_symbol: self.in_nominal_symbol,
             try_stack: Vec::new(),
@@ -322,11 +359,18 @@ impl InferContext {
         self
     }
 
-    /// Enter a loop context.
-    pub fn in_loop(mut self, loop_id: LocalNodeIdAny) -> Self {
+    /// Enter a loop context with the target symbol and expected type.
+    pub fn in_loop_with_symbol(
+        mut self,
+        loop_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        expected_type: Option<LocalTypeId>,
+    ) -> Self {
         // record loop as the innermost break target
         self.in_loop = Some(loop_id);
         self.break_stack.push(BreakTargetKind::Loop);
+        self.loop_stack
+            .push(LoopContext::new(symbol, expected_type));
 
         self
     }
@@ -353,6 +397,17 @@ impl InferContext {
     /// Set generator context conditionally.
     pub fn is_generator_maybe(mut self, is_generator: bool) -> Self {
         self.is_generator = is_generator;
+        self
+    }
+
+    /// Attach generator typing info to this context.
+    pub fn with_generator_types(
+        mut self,
+        yield_type: Option<LocalTypeId>,
+        next_type: Option<LocalTypeId>,
+    ) -> Self {
+        self.generator_yield_type = yield_type;
+        self.generator_next_type = next_type;
         self
     }
 
@@ -419,6 +474,21 @@ impl InferContext {
         }
     }
 
+    /// Merge break value tracking from a forked context.
+    pub fn merge_break_values_from(&mut self, other: &InferContext) {
+        for other_context in &other.loop_stack {
+            if let Some(context) = self
+                .loop_stack
+                .iter_mut()
+                .find(|context| context.symbol == other_context.symbol)
+            {
+                context
+                    .break_values
+                    .extend_from_slice(&other_context.break_values);
+            }
+        }
+    }
+
     /// Check if we can break (in loop or switch).
     pub fn can_break(&self) -> bool {
         !self.break_stack.is_empty()
@@ -427,6 +497,31 @@ impl InferContext {
     /// Check if we can continue (in loop only).
     pub fn can_continue(&self) -> bool {
         self.in_loop.is_some()
+    }
+
+    /// Record a break value for the targeted loop, when any.
+    pub fn record_break_value(
+        &mut self,
+        target_symbol: Option<GlobalSymbolId>,
+        value_type: LocalTypeId,
+    ) {
+        let target_symbol =
+            target_symbol.or_else(|| self.loop_stack.last().map(|context| context.symbol));
+        let Some(target_symbol) = target_symbol else {
+            return;
+        };
+
+        for context in self.loop_stack.iter_mut().rev() {
+            if context.symbol == target_symbol {
+                context.break_values.push(value_type);
+                break;
+            }
+        }
+    }
+
+    /// Pop the innermost loop context.
+    pub(super) fn pop_loop_context(&mut self) -> Option<LoopContext> {
+        self.loop_stack.pop()
     }
 
     /// Check if we can return (in function).

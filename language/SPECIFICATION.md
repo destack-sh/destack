@@ -46,6 +46,7 @@ html`<div>${content}</div>`       // another tagged template
 ```
 
 Tagged templates call a function with the string parts and interpolated values, enabling DSLs for SQL, HTML, CSS, GraphQL, and more.
+Tagged template expressions evaluate to the tag function return type.
 
 ### Regex Literals
 
@@ -82,6 +83,7 @@ Destack supports range literals for iteration and slicing:
 1..=10               // inclusive range [1, 10]
 start..end           // variable ranges
 ```
+Range expressions evaluate to `Range<T>` or `RangeInclusive<T>` values based on the inclusive flag.
 
 ### Tree Literals
 
@@ -1066,6 +1068,7 @@ const TABLE: uint8[] = comptime {
 Comptime expressions infer their result type like any other expression.
 Explicit annotations are recommended when the resulting type must be stable or obvious.
 Comptime does not change the rules for static expressions, so static parameters still require static expressions.
+Comptime expressions must be statically evaluable, otherwise they are errors.
 
 The result is embedded as a constant in the compiled output.
 
@@ -2003,6 +2006,8 @@ function* fibonacci(): Generator<int32> {
     }
 }
 ```
+Yielded values must satisfy the `Generator<TYield, TReturn, TNext>` yield type, and yield expressions evaluate to `TNext`.
+Return statements inside generator functions must satisfy `TReturn`.
 
 #### Lambda Expressions
 
@@ -2475,6 +2480,8 @@ loop {
     process(input);
 }
 ```
+`loop` expressions can return a value when exited with `break value`, and the result type is the union of break value types.
+Bare `break` contributes `void` to the loop result type.
 
 #### Traditional For
 
