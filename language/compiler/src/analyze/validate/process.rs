@@ -96,6 +96,9 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let types = dir.types.read();
 
+        // validate binding identifiers
+        self.validate_binding_names(&module, profile, &tree, &symbols);
+
         // validate declarations
         for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
             let symbol = symbols.get_symbol(declaration.symbol());

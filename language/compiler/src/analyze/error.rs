@@ -270,6 +270,13 @@ pub enum AnalyzeError {
     #[error(code = "EA213", message = "multiple constructor implementations")]
     MultipleConstructorImplementations { node: AnchoredGlobalNodeId },
 
+    /// Reserved identifier used as a binding name.
+    #[error(code = "EA214", message = "reserved identifier '{name}'")]
+    ReservedIdentifier {
+        node: AnchoredGlobalNodeId,
+        name: StringId,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
