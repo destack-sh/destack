@@ -59,3 +59,108 @@ const value = new Box<Thing>(item)
 ```ts expected
 const value = new Box<Thing>(item);
 ```
+
+## JSX Arguments
+
+### new with jsx argument removes extra parentheses
+
+JSX arguments do not keep extra parentheses.
+
+```tsx:main.tsx
+return new ImageResponse(
+  (
+    <div>
+    </div>
+  ),
+)
+```
+
+```tsx expected
+return new ImageResponse(<div></div>);
+```
+
+## Computed Members
+
+### new with computed member keeps grouping
+
+Computed member expressions keep parentheses for `new`.
+
+```ts:main.ts
+new (get(win))[ty](xxx)
+```
+
+```ts expected
+new (get(win)[ty])(xxx);
+```
+
+### new with member expression keeps grouping
+
+Member expressions keep parentheses for `new`.
+
+```ts:main.ts
+new (Foo.bar)(value)
+```
+
+```ts expected
+new (Foo.bar)(value);
+```
+
+### new with chained member call
+
+Chains after `new` stay on the same line when short.
+
+```ts:main.ts
+new Foo().bar()
+```
+
+```ts expected
+new Foo().bar();
+```
+
+### new with nested computed members keeps grouping
+
+Computed member chains keep their parentheses for `new`.
+
+```ts:main.ts
+new (get(win))[ty][ty](xxx)
+```
+
+```ts expected
+new (get(win)[ty][ty])(xxx);
+```
+
+### new with optional chain computed member keeps grouping
+
+Optional chain computed access keeps its parentheses for `new`.
+
+```ts:main.ts
+new (A?.[ty])(xxx)
+```
+
+```ts expected
+new (A?.[ty])(xxx);
+```
+
+### new with optional chain member computed keeps grouping
+
+Optional chain member access stays parenthesized for `new`.
+
+```ts:main.ts
+new (A?.B[ty])(xxx)
+```
+
+```ts expected
+new (A?.B[ty])(xxx);
+```
+
+### new with quoted member normalizes quotes
+
+Quoted member keys follow quote style.
+
+```ts:main.ts
+new window['TouchEvent'](xxx)
+```
+
+```ts expected
+new window["TouchEvent"](xxx);
+```

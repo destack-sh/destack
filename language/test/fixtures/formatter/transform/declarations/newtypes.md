@@ -1,0 +1,69 @@
+# Newtype Declarations
+
+Tests for newtype and nominal interface formatting.
+
+## Newtype Aliases
+
+### newtype scalar
+
+Newtype aliases format like type aliases with the `newtype` keyword.
+
+```ds
+newtype UserId = int64
+```
+
+```ds expected
+newtype UserId = int64;
+```
+
+### newtype tuple
+
+Newtype tuples keep tuple formatting.
+
+```ds
+newtype Point = (float32, float32)
+```
+
+```ds expected
+newtype Point = (float32, float32,);
+```
+
+### newtype object
+
+Newtype object values keep object literal formatting.
+
+```ds
+newtype Config = { debug: boolean }
+```
+
+```ds expected
+newtype Config = { debug: boolean };
+```
+
+## Nominal Interfaces
+
+### newtype interface
+
+Nominal interfaces use the `newtype interface` header.
+
+```ds
+newtype interface Add<T, R = this> { add(other: T): R }
+```
+
+```ds expected
+newtype interface Add<T, R = this> {
+    add(other: T): R
+}
+```
+
+### newtype marker interface
+
+Marker interfaces can be empty.
+
+```ds
+newtype interface Send { }
+```
+
+```ds expected
+newtype interface Send { }
+```

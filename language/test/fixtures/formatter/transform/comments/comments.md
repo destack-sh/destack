@@ -51,3 +51,59 @@ const x = 1
 // XOXO: something something this later
 const x = 1;
 ```
+
+## Formatter Directives
+
+### format-ignore keeps the next statement
+
+Formatter ignore directives preserve the original statement formatting.
+
+```ts:main.ts
+// format-ignore
+call(   a, b)
+```
+
+```ts expected
+// format-ignore
+call(   a, b)
+```
+
+### format-ignore range keeps multiple statements
+
+Ignore ranges preserve the original formatting between the start and end markers.
+
+```ts:main.ts
+// format-ignore-start
+const value  =   call(  1,2)
+const other =    value +  1
+// format-ignore-end
+const ok = 1
+```
+
+```ts expected
+// format-ignore-start
+const value  =   call(  1,2)
+const other =    value +  1
+// format-ignore-end
+const ok = 1;
+```
+
+### typescript directive comments do not disable formatting
+
+TypeScript diagnostic directives preserve the comment but still format code.
+
+```ts:main.ts
+// @ts-expect-error keep spacing
+call(   a, b)
+
+// @ts-ignore
+value   =   compute(  1,  2)
+```
+
+```ts expected
+// @ts-expect-error keep spacing
+call(a, b);
+
+// @ts-ignore
+value = compute(1, 2);
+```

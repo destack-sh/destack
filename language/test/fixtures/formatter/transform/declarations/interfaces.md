@@ -250,7 +250,7 @@ interface Constructor { new(x: number): Foo }
 
 ```ds expected
 interface Constructor {
-    new(x: number): Foo
+    new (x: number): Foo
 }
 ```
 
@@ -326,5 +326,35 @@ interface Point { x: number; y: number }
 interface Point {
     x: number,
     y: number,
+}
+```
+
+## TypeScript Signatures
+
+### new signature in interface
+
+TypeScript `new` signatures keep a space before parameter lists.
+
+```ts:main.ts
+interface Creator { new(...args): Foo }
+```
+
+```ts expected
+interface Creator {
+    new (...args): Foo;
+}
+```
+
+### call signature in interface
+
+Call signatures format without a name and include semicolons.
+
+```ts:main.ts
+interface Callable { (...args): Foo }
+```
+
+```ts expected
+interface Callable {
+    (...args): Foo;
 }
 ```

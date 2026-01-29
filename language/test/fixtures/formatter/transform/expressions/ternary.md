@@ -70,6 +70,21 @@ const x = condition
     : longAlternateValue;
 ```
 
+### ternary with nullish coalescing branch
+
+Nullish coalescing branches keep their parentheses and indentation.
+
+```ts:main.ts line-width=60
+const value = options.singleRun ? "Infinity" : (options.cacheLifetime?.glob ?? DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS)
+```
+
+```ts expected
+const value = options.singleRun
+    ? "Infinity"
+    : (options.cacheLifetime?.glob ??
+        DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS);
+```
+
 ## Nested Ternary
 
 ### nested ternary in assignment
@@ -112,6 +127,36 @@ const result = valid ? process(data) : handleError(err)
 
 ```ds expected
 const result = valid ? process(data) : handleError(err);
+```
+
+### ternary with chained call in branch
+
+Chained calls in ternary branches keep their indentation.
+
+```ts:main.ts line-width=80
+const result = id === null
+  ? null
+  : internal.getSuspenseCache(client).getFragmentRef(
+      [id, options.fragment, cache.canonicalStringify(variables)],
+      client,
+      tslib.__assign(tslib.__assign({}, options), {
+        variables: variables,
+        from: id,
+      }),
+    )
+```
+
+```ts expected
+const result = id === null
+    ? null
+    : internal.getSuspenseCache(client).getFragmentRef(
+        [id, options.fragment, cache.canonicalStringify(variables)],
+        client,
+        tslib.__assign(tslib.__assign({}, options), {
+            variables: variables,
+            from: id,
+        }),
+    );
 ```
 
 ### ternary with object literals

@@ -64,6 +64,11 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     {
         formatter_options = formatter_options.with_organize_imports(value);
     }
+    if let Some(quote_props) = input_file.options.get("quote-props")
+        && let Some(value) = destack_workspace::QuoteProperty::parse(quote_props)
+    {
+        formatter_options = formatter_options.with_quote_props(value);
+    }
 
     // set up program context
     let cwd = std::env::current_dir().unwrap_or_default();

@@ -31,3 +31,47 @@ Generic type arguments have no internal spacing.
 ```ds expected
 extension for Vector2 implements Add<Vector2> { }
 ```
+
+## Named Extensions
+
+### named extension
+
+Named extensions include the name before `for`.
+
+```ds
+extension  MathUtils  for  int32  { }
+```
+
+```ds expected
+extension MathUtils for int32 { }
+```
+
+## Generic Extensions
+
+### generic extension with methods
+
+Generic extensions keep static parameters and format member bodies.
+
+```ds
+extension<T> for Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(this.value) } } }
+```
+
+```ds expected
+extension<T> for Box<T> {
+    map<U>(f: (T) => U): Box<U> {
+        return Box { value: f(this.value) }
+    }
+}
+```
+
+### extension with implements and where clause
+
+Extensions can include implements and where constraints.
+
+```ds
+extension<T> for Buffer<T> implements Iterable<T> where T: Copy { }
+```
+
+```ds expected
+extension<T> for Buffer<T> implements Iterable<T> where T: Copy { }
+```

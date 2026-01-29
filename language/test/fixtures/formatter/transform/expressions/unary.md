@@ -78,6 +78,56 @@ await fetchData()
 await fetchData();
 ```
 
+## Destack Reference Operators
+
+### reference operator
+
+References keep the `&` tight to the operand.
+
+```ds
+const view = &value
+```
+
+```ds expected
+const view = &value;
+```
+
+### mutable reference operator
+
+Mutable references keep `&mut` tight to the operand.
+
+```ds
+const view = &mut value
+```
+
+```ds expected
+const view = &mut value;
+```
+
+### owned reference operator
+
+Owned references keep `^` tight to the operand.
+
+```ds
+const owned = ^value
+```
+
+```ds expected
+const owned = ^value;
+```
+
+### pointer operator
+
+Pointers keep `*` tight to the operand.
+
+```ds
+const ptr = *value
+```
+
+```ds expected
+const ptr = *value;
+```
+
 ## Increment and Decrement
 
 ### prefix increment

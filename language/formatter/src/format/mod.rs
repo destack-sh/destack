@@ -4,6 +4,7 @@ pub mod block;
 pub mod context;
 pub mod declaration;
 pub mod dependency;
+pub mod directive;
 pub mod r#enum;
 pub mod expression;
 pub mod extension;

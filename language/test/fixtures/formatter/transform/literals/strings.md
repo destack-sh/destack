@@ -204,6 +204,26 @@ const x = `status: ${active ? "on" : "off"}`
 const x = `status: ${active ? "on" : "off"}`;
 ```
 
+### template literal with chained expression breaks
+
+Long chained expressions inside template literals break cleanly.
+
+```ts:main.ts line-width=80
+const A = {
+  "--theme-primary": `hsl(${theme?.activeColor[
+    mode === "dark" ? "dark" : "light"
+  ]})`,
+};
+```
+
+```ts expected
+const A = {
+    "--theme-primary": `hsl(${
+        theme?.activeColor[mode === "dark" ? "dark" : "light"]
+    })`,
+};
+```
+
 ## Tagged Templates
 
 ### tagged template

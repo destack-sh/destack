@@ -1,0 +1,541 @@
+use std::borrow::Cow;
+
+use destack_ast::{
+    Annotation, AnnotationPosition, Comment, LocalNodeId, Node, NodeTree, NodeTreeImpl, TokenSpan,
+    TokenType,
+};
+use destack_fir::format::{FormatResult, text};
+use destack_fir::prelude::*;
+use destack_fir::write;
+use destack_source::Span;
+
+use crate::{DestackFormatContext, DestackFormatter};
+
+/// The formatter directives supported via comments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormatterDirectiveKind {
+    /// Ignore formatting for the next node.
+    IgnoreFormat,
+}
+
+/// The position of a formatter directive relative to a node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FormatterDirectivePosition {
+    /// The directive appears before the node.
+    Prefix,
+    /// The directive appears after the node.
+    Postfix { comment_span: Span },
+}
+
+/// A formatter directive attached to a node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FormatterDirective {
+    /// The directive kind.
+    pub kind: FormatterDirectiveKind,
+    /// The position of the directive.
+    pub position: FormatterDirectivePosition,
+}
+
+/// The directive tokens parsed from comment text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FormatterDirectiveToken {
+    /// Ignore formatting for the next node.
+    Ignore,
+    /// Begin ignoring formatting until the matching end token.
+    IgnoreStart,
+    /// End the current ignore range.
+    IgnoreEnd,
+}
+
+/// Resolve the formatter directive for a node, if any.
+pub fn directive_for_node<T: Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+) -> Option<FormatterDirective>
+where
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+{
+    let is_javascript_like = context.options.language_type.is_javascript()
+        || context.options.language_type.is_typescript();
+    if !is_javascript_like {
+        return None;
+    }
+
+    let annotations = context.get_annotations(node_id).unwrap_or_default();
+
+    let mut max_postfix_comment_span: Option<Span> = None;
+    let mut postfix_ignore_span: Option<Span> = None;
+    for annotation_id in annotations {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+        let comment = context.tree.get::<Comment>(*node);
+        let content = context.strings.get(comment.string);
+        let span = context.get_span(*node);
+        let raw_comment = context.get_span_str(span);
+        let Some(token) =
+            parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment))
+        else {
+            if matches!(
+                position,
+                AnnotationPosition::LinePostfix
+                    | AnnotationPosition::LinePostfixBoundary
+                    | AnnotationPosition::BlockPostfix
+            ) {
+                max_postfix_comment_span = Some(match max_postfix_comment_span {
+                    Some(previous) if previous.end >= span.end => previous,
+                    _ => span,
+                });
+            }
+            continue;
+        };
+
+        let kind = match token {
+            FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart => {
+                FormatterDirectiveKind::IgnoreFormat
+            }
+            FormatterDirectiveToken::IgnoreEnd => {
+                continue;
+            }
+        };
+
+        match position {
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix => {
+                return Some(FormatterDirective {
+                    kind,
+                    position: FormatterDirectivePosition::Prefix,
+                });
+            }
+            AnnotationPosition::LinePostfix
+            | AnnotationPosition::LinePostfixBoundary
+            | AnnotationPosition::BlockPostfix => {
+                max_postfix_comment_span = Some(match max_postfix_comment_span {
+                    Some(previous) if previous.end >= span.end => previous,
+                    _ => span,
+                });
+                postfix_ignore_span = Some(span);
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(ignore_span) = postfix_ignore_span {
+        return Some(FormatterDirective {
+            kind: FormatterDirectiveKind::IgnoreFormat,
+            position: FormatterDirectivePosition::Postfix {
+                comment_span: max_postfix_comment_span.unwrap_or(ignore_span),
+            },
+        });
+    }
+
+    let node_span = context.get_span(node_id);
+    let comment_tokens = collect_comment_tokens(context);
+    let mut last_prefix_token: Option<TokenSpan> = None;
+    for token in comment_tokens {
+        if token.span.start <= node_span.start {
+            last_prefix_token = Some(token);
+        } else {
+            break;
+        }
+    }
+
+    if let Some(token) = last_prefix_token {
+        let raw = context.get_token_str(token);
+        let (between, newlines) = if token.span.end > node_span.start {
+            ("", 0)
+        } else {
+            let between_span = Span::new(node_span.file, token.span.end, node_span.start);
+            let between = context.get_span_str(between_span);
+            let newlines = between.chars().filter(|ch| *ch == '\n').count();
+            (between, newlines)
+        };
+        if between.trim().is_empty() && newlines <= 1 {
+            let token = parse_directive_token_from_raw(raw);
+            let kind = match token {
+                Some(FormatterDirectiveToken::Ignore | FormatterDirectiveToken::IgnoreStart) => {
+                    Some(FormatterDirectiveKind::IgnoreFormat)
+                }
+                _ => None,
+            };
+            if let Some(kind) = kind {
+                return Some(FormatterDirective {
+                    kind,
+                    position: FormatterDirectivePosition::Prefix,
+                });
+            }
+        }
+    }
+
+    let (line_index, _) = context.file.get_position(node_span.start)?;
+    if line_index == 0 {
+        return None;
+    }
+    let prev_line_span = context.file.get_line_span(line_index - 1)?;
+    let prev_line = context
+        .file
+        .get_span_str(prev_line_span)
+        .unwrap_or_default();
+    let comment_start = prev_line.find("//").or_else(|| prev_line.find("/*"));
+    if let Some(comment_start) = comment_start {
+        let comment = &prev_line[comment_start..];
+        if matches!(
+            parse_directive_token_from_raw(comment),
+            Some(FormatterDirectiveToken::Ignore)
+        ) {
+            return Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Prefix,
+            });
+        }
+    }
+
+    None
+}
+
+/// Resolve an ignore range directive for a node.
+pub fn ignore_range_for_node<T: Node + Clone>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    comment_tokens: &[TokenSpan],
+) -> Option<Span>
+where
+    NodeTree: NodeTreeImpl<T> + NodeTreeImpl<Annotation> + NodeTreeImpl<Comment>,
+{
+    let is_javascript_like = context.options.language_type.is_javascript()
+        || context.options.language_type.is_typescript();
+    if !is_javascript_like {
+        return None;
+    }
+
+    let annotations = context.get_annotations(node_id).unwrap_or_default();
+    let node_span = context.get_span(node_id);
+
+    for annotation_id in annotations {
+        let Annotation::Comment { node, position } = context.tree.get::<Annotation>(annotation_id)
+        else {
+            continue;
+        };
+        if !matches!(
+            position,
+            AnnotationPosition::BlockPrefix | AnnotationPosition::LinePrefix
+        ) {
+            continue;
+        }
+
+        let comment = context.tree.get::<Comment>(*node);
+        let content = context.strings.get(comment.string);
+        let start_span = context.get_span(*node);
+        let raw_comment = context.get_span_str(start_span);
+        let token =
+            parse_directive_token(content).or_else(|| parse_directive_token_from_raw(raw_comment));
+        if matches!(token, Some(FormatterDirectiveToken::Ignore)) {
+            let range_span = Span::new(start_span.file, start_span.start, node_span.end);
+            return Some(extend_span_with_trailing_tokens(context, range_span));
+        }
+        if matches!(token, Some(FormatterDirectiveToken::IgnoreStart)) {
+            let Some(end_span) = find_ignore_range_end(context, comment_tokens, start_span.end)
+            else {
+                continue;
+            };
+            let range_span = Span::new(start_span.file, start_span.start, end_span.start);
+            return Some(range_span);
+        }
+    }
+
+    let mut last_prefix_token: Option<TokenSpan> = None;
+    for token in comment_tokens {
+        if token.span.start <= node_span.start {
+            last_prefix_token = Some(*token);
+        } else {
+            break;
+        }
+    }
+
+    if let Some(token) = last_prefix_token {
+        let raw = context.get_token_str(token);
+        let comment_line = context
+            .file
+            .get_position(token.span.start)
+            .map(|(line, _)| line);
+        let node_line = context
+            .file
+            .get_position(node_span.start)
+            .map(|(line, _)| line);
+        let is_adjacent = comment_line
+            .zip(node_line)
+            .is_some_and(|(comment_line, node_line)| node_line == comment_line + 1);
+        if is_adjacent {
+            match parse_directive_token_from_raw(raw) {
+                Some(FormatterDirectiveToken::Ignore) => {
+                    let range_span = Span::new(node_span.file, token.span.start, node_span.end);
+                    return Some(extend_span_with_trailing_tokens(context, range_span));
+                }
+                Some(FormatterDirectiveToken::IgnoreStart) => {
+                    let end_span = find_ignore_range_end(context, comment_tokens, token.span.end)?;
+                    return Some(Span::new(token.span.file, token.span.start, end_span.start));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    None
+}
+
+/// Extend an ignored span to include trailing separators and comments on the same line.
+fn extend_span_with_trailing_tokens(context: &DestackFormatContext<'_>, span: Span) -> Span {
+    let mut tokens: Vec<TokenSpan> = context
+        .tokens
+        .iter()
+        .copied()
+        .chain(context.side_tokens.iter().copied())
+        .collect();
+    tokens.sort_by_key(|token| token.span.start);
+
+    let mut end = span.end;
+    for token in tokens {
+        if token.span.start < span.end {
+            continue;
+        }
+
+        match token.token.ty {
+            TokenType::Whitespace => {
+                continue;
+            }
+            TokenType::Newline => {
+                break;
+            }
+            TokenType::LineComment
+            | TokenType::BlockComment
+            | TokenType::DocLineComment
+            | TokenType::DocBlockComment => {
+                end = token.span.end;
+                let raw = context.get_token_str(token);
+                if raw.contains(['\n', '\r']) {
+                    break;
+                }
+            }
+            TokenType::Comma | TokenType::Semicolon => {
+                end = token.span.end;
+            }
+            _ => {
+                break;
+            }
+        }
+    }
+
+    if end > span.end {
+        Span::new(span.file, span.start, end)
+    } else {
+        span
+    }
+}
+
+/// Collect comment tokens sorted by source position.
+pub fn collect_comment_tokens(context: &DestackFormatContext<'_>) -> Vec<TokenSpan> {
+    let mut tokens: Vec<TokenSpan> = context
+        .tokens
+        .iter()
+        .copied()
+        .chain(context.side_tokens.iter().copied())
+        .filter(|token| {
+            matches!(
+                token.token.ty,
+                TokenType::LineComment
+                    | TokenType::BlockComment
+                    | TokenType::DocLineComment
+                    | TokenType::DocBlockComment
+            )
+        })
+        .collect();
+
+    tokens.sort_by_key(|token| token.span.start);
+    tokens
+}
+
+/// Extract the source for an ignored span, removing its leading indentation.
+pub fn ignored_span_source(context: &DestackFormatContext<'_>, span: Span) -> String {
+    let raw = context.get_span_str(span);
+    let Some((line_index, column)) = context.file.get_position(span.start) else {
+        return raw.to_owned();
+    };
+    let Some(line_span) = context.file.get_line_span(line_index) else {
+        return raw.to_owned();
+    };
+    let line_str = context.file.get_span_str(line_span).unwrap_or_default();
+    let Some(prefix) = line_str.get(..column as usize) else {
+        return raw.to_owned();
+    };
+    if prefix.is_empty() {
+        return raw.to_owned();
+    }
+
+    raw.split('\n')
+        .map(|line| line.strip_prefix(prefix).unwrap_or(line).to_owned())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Write a raw ignored span with formatter-managed indentation.
+pub fn write_ignored_span<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    span: Span,
+) -> FormatResult<()> {
+    let mut raw = ignored_span_source(f.context(), span);
+    if raw.ends_with('\n') {
+        raw.pop();
+        if raw.ends_with('\r') {
+            raw.pop();
+        }
+    }
+
+    let mut lines = raw.split('\n');
+    if let Some(first) = lines.next() {
+        write!(f, [text(first)])?;
+    }
+    for line in lines {
+        write!(f, [hard_line_break(), text(line)])?;
+    }
+
+    Ok(())
+}
+
+/// Extract the source for an ignored node, removing its leading indentation.
+pub fn ignored_node_source<T: Node>(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<T>,
+    directive: FormatterDirective,
+) -> String
+where
+    NodeTree: NodeTreeImpl<T>,
+{
+    let span = context.get_span(node_id);
+    let end = match directive.position {
+        FormatterDirectivePosition::Prefix => span.end,
+        FormatterDirectivePosition::Postfix { comment_span } => comment_span.end.max(span.end),
+    };
+    ignored_span_source(context, Span::new(span.file, span.start, end))
+}
+
+/// Find the matching ignore range end comment following a start offset.
+fn find_ignore_range_end(
+    context: &DestackFormatContext<'_>,
+    comment_tokens: &[TokenSpan],
+    start_offset: u32,
+) -> Option<Span> {
+    comment_tokens
+        .iter()
+        .filter(|token| token.span.start >= start_offset)
+        .find_map(|token| {
+            let raw_comment = context.get_token_str(*token);
+            if parse_directive_token_from_raw(raw_comment)
+                == Some(FormatterDirectiveToken::IgnoreEnd)
+            {
+                Some(token.span)
+            } else {
+                None
+            }
+        })
+}
+
+/// Parse a directive token from a raw comment string (including markers).
+fn parse_directive_token_from_raw(raw: &str) -> Option<FormatterDirectiveToken> {
+    let content = strip_comment_markers(raw);
+    parse_directive_token(content.as_ref())
+}
+
+/// Strip comment markers from a raw comment string.
+fn strip_comment_markers(raw: &str) -> Cow<'_, str> {
+    let trimmed = raw.trim();
+    if let Some(rest) = trimmed.strip_prefix("//") {
+        return Cow::Owned(rest.trim_start_matches('/').trim().to_owned());
+    }
+    if let Some(rest) = trimmed.strip_prefix("/*") {
+        let rest = rest.strip_suffix("*/").unwrap_or(rest);
+        return Cow::Owned(rest.trim().trim_start_matches('*').trim().to_owned());
+    }
+    Cow::Borrowed(trimmed)
+}
+
+/// Parse a directive token from comment content.
+fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
+    comment.lines().find_map(|line| {
+        let trimmed = line.trim().trim_start_matches('*').trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+
+        if matches!(
+            trimmed,
+            "prettier-ignore" | "oxfmt-ignore" | "deno-fmt-ignore" | "fmt-ignore" | "format-ignore"
+        ) {
+            return Some(FormatterDirectiveToken::Ignore);
+        }
+        if matches!(trimmed, "fmt-ignore-start" | "format-ignore-start") {
+            return Some(FormatterDirectiveToken::IgnoreStart);
+        }
+        if matches!(trimmed, "fmt-ignore-end" | "format-ignore-end") {
+            return Some(FormatterDirectiveToken::IgnoreEnd);
+        }
+        if trimmed.starts_with("biome-ignore") && trimmed.contains("format") {
+            return Some(FormatterDirectiveToken::Ignore);
+        }
+        None
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use destack_ast::NodeParentIndex;
+    use destack_parser::Parser;
+    use destack_source::{File, FileId, FileType, LanguageType, Uri};
+    use destack_workspace::FormatterOptions;
+
+    use super::{collect_comment_tokens, ignore_range_for_node};
+    use crate::{DestackFormatContext, DestackFormatOptions};
+
+    #[test]
+    fn test_format_ignore_range_for_statement() {
+        let source = "// format-ignore\ncall(   a, b)";
+        let file = Arc::new(File::from_text(
+            FileId::new(0),
+            "main.ts".to_string(),
+            Uri::from_string("file://main.ts"),
+            None,
+            FileType::TypeScript,
+            source.to_string(),
+        ));
+
+        let mut parser = Parser::lex_file(file.clone(), LanguageType::TypeScript);
+        let expressions = parser.parse();
+        parser.finish();
+
+        let side_span = parser.compute_side_span();
+        let strings = parser.strings.into_immutable();
+        let parents = NodeParentIndex::from_tree(&parser.tree);
+        let options = DestackFormatOptions::from_formatter_options(
+            FormatterOptions::default(),
+            LanguageType::TypeScript,
+        );
+        let context = DestackFormatContext {
+            options,
+            file: &file,
+            tree: &parser.tree,
+            source_map: &parser.tree.source_map,
+            parents,
+            tokens: &parser.tokens,
+            side_tokens: &parser.side_tokens,
+            side_span: &side_span,
+            strings: &strings,
+            current_argument_group_id: None,
+        };
+
+        let comment_tokens = collect_comment_tokens(&context);
+        assert!(!comment_tokens.is_empty());
+        let range = ignore_range_for_node(&context, expressions[0], &comment_tokens);
+        assert!(range.is_some());
+    }
+}

@@ -1,14 +1,23 @@
+use std::collections::HashMap;
+
 use crate::argument::list_like;
+use crate::directive::{
+    FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens, directive_for_node,
+    ignore_range_for_node, ignored_node_source, write_ignored_span,
+};
+use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    FunctionAbstraction, FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
-    Timing,
+    Declaration, Expression, FunctionAbstraction, FunctionCardinality, FunctionMode, Key, Keyword,
+    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_source::Span;
+use destack_workspace::QuoteProperty;
 
 #[inline]
 pub(crate) fn format_binding_modifiers_prefix<'ast>(
@@ -76,40 +85,94 @@ pub(crate) fn format_binding_modifiers_postfix_maybe<'ast>(
     Ok(())
 }
 
-/// Format a block of properties (with appropriate empty annotations)
+/// Format a block of properties with appropriate empty annotations.
 #[allow(unused)]
 pub(crate) fn format_block_of_properties<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     properties: &[LocalNodeId<Property>],
+    separator: &'static str,
 ) -> FormatResult<()> {
+    let comment_tokens = collect_comment_tokens(f.context());
+    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
+    for &property_id in properties {
+        if let Some(range_span) = ignore_range_for_node(f.context(), property_id, &comment_tokens) {
+            ignore_ranges.insert(property_id.id, range_span);
+        }
+    }
+
+    let mut skip_until: Option<u32> = None;
     for (i, &property_id) in properties.iter().enumerate() {
         let property = f.context().tree.get(property_id);
+        let property_span = f.context().get_span(property_id);
+
+        if let Some(skip_end) = skip_until {
+            if property_span.start < skip_end {
+                continue;
+            }
+            skip_until = None;
+        }
+
         // blank line between properties
         if i > 0 {
             write!(f, [hard_line_break()])?;
         }
+
+        if let Some(range_span) = ignore_ranges.get(&property_id.id) {
+            write_ignored_span(f, *range_span)?;
+            skip_until = Some(range_span.end);
+            continue;
+        }
+
         property_id.format(f)?;
         // comma after field properties
-        if matches!(property, Property::Field { .. }) {
-            write!(f, [token(",")])?;
+        if matches!(
+            property,
+            Property::Field { .. } | Property::Method { .. } | Property::Spread { .. }
+        ) {
+            write!(f, [token(separator)])?;
         }
     }
     Ok(())
 }
 
-/// Format a block of members (with appropriate empty annotations)
+/// Format a block of members with appropriate empty annotations.
 #[allow(unused)]
 pub(crate) fn format_block_of_members<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
     let is_typescript = f.context().options.language_type.is_typescript();
+    let comment_tokens = collect_comment_tokens(f.context());
+    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
+    for &member_id in members {
+        if let Some(range_span) = ignore_range_for_node(f.context(), member_id, &comment_tokens) {
+            ignore_ranges.insert(member_id.id, range_span);
+        }
+    }
+
+    let mut skip_until: Option<u32> = None;
     for (i, &member_id) in members.iter().enumerate() {
         let member = f.context().tree.get(member_id);
+        let member_span = f.context().get_span(member_id);
+
+        if let Some(skip_end) = skip_until {
+            if member_span.start < skip_end {
+                continue;
+            }
+            skip_until = None;
+        }
+
         // blank line between members
         if i > 0 {
             write!(f, [hard_line_break()])?;
         }
+
+        if let Some(range_span) = ignore_ranges.get(&member_id.id) {
+            write_ignored_span(f, *range_span)?;
+            skip_until = Some(range_span.end);
+            continue;
+        }
+
         member_id.format(f)?;
         if is_typescript {
             let needs_semicolon = matches!(
@@ -129,13 +192,141 @@ pub(crate) fn format_block_of_members<'ast>(
     Ok(())
 }
 
+/// Check whether a key requires quotes under identifier rules.
+#[inline]
+fn key_requires_quotes<'ast>(f: &DestackFormatter<'ast, '_>, key: Key) -> bool {
+    let strings = f.context().strings;
+    match key {
+        Key::Name(Name::String(string_id)) => {
+            let content = strings.get(string_id);
+            !is_identifier_for_quotes(content)
+        }
+        _ => false,
+    }
+}
+
+/// Check whether any object key forces consistent quoting.
+#[inline]
+fn force_quote_keys_for_object<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    properties: &[LocalNodeId<Property>],
+) -> bool {
+    properties.iter().any(|property_id| {
+        let property = f.context().tree.get(*property_id);
+        match property {
+            Property::Field { key, .. } | Property::Method { key, .. } => {
+                key.is_some_and(|key| key_requires_quotes(f, key))
+            }
+            Property::Spread { .. } => false,
+        }
+    })
+}
+
+/// Check whether any type member key forces consistent quoting.
+#[inline]
+fn force_quote_keys_for_members<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    members: &[LocalNodeId<Member>],
+) -> bool {
+    members.iter().any(|member_id| {
+        let member = f.context().tree.get(*member_id);
+        match member {
+            Member::Field { key, .. } | Member::Method { key, .. } => {
+                key.is_some_and(|key| key_requires_quotes(f, key))
+            }
+            _ => false,
+        }
+    })
+}
+
+/// Decide whether this property should force consistent key quoting.
+#[inline]
+fn should_force_quote_keys_for_property<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Property>,
+) -> bool {
+    if f.context().options.quote_props != QuoteProperty::Consistent {
+        return false;
+    }
+
+    if f.context().options.language_type.is_destack() {
+        return false;
+    }
+
+    let Some((parent_id, parent_type)) = f.context().get_parent(node_id) else {
+        return false;
+    };
+
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Expression>::new(parent_id);
+    let Expression::ObjectExpression { properties, .. } = f.context().tree.get(parent_id) else {
+        return false;
+    };
+
+    force_quote_keys_for_object(f, properties)
+}
+
+/// Decide whether this member should force consistent key quoting.
+#[inline]
+fn should_force_quote_keys_for_member<'ast>(
+    f: &DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Member>,
+) -> bool {
+    if f.context().options.quote_props != QuoteProperty::Consistent {
+        return false;
+    }
+
+    if f.context().options.language_type.is_destack() {
+        return false;
+    }
+
+    let Some((parent_id, parent_type)) = f.context().get_parent(node_id) else {
+        return false;
+    };
+
+    if parent_type != NodeType::Declaration {
+        return false;
+    }
+
+    let parent_id = LocalNodeId::<Declaration>::new(parent_id);
+    let Declaration::Class { members, .. } = f.context().tree.get(parent_id) else {
+        return false;
+    };
+
+    force_quote_keys_for_members(f, members)
+}
+
 impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         node_id: LocalNodeId<Property>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        // ignore formatting when requested
+        let directive = directive_for_node(f.context(), node_id);
+
+        // prefix annotations
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        // raw node formatting for ignore directives
+        if let Some(directive) = directive
+            && directive.kind == FormatterDirectiveKind::IgnoreFormat
+        {
+            let raw_property = ignored_node_source(f.context(), node_id, directive);
+            write!(f, [text(&raw_property)])?;
+
+            if !matches!(
+                directive.position,
+                FormatterDirectivePosition::Postfix { .. }
+            ) {
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            }
+
+            return Ok(());
+        }
 
         match self {
             Property::Field {
@@ -144,10 +335,14 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 value,
                 default,
             } => {
+                let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
+
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // key
-                write!(f, [key])?;
+                if let Some(key) = key {
+                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
+                }
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
@@ -166,7 +361,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 body,
             } => {
                 let generics = signature.generics.as_ref();
-
+                let force_quote_keys = should_force_quote_keys_for_property(f, node_id);
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
 
@@ -195,7 +390,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     if let Some(keyword) = mode.to_keyword() {
                         write!(f, [keyword])?;
                     }
-                    if key.is_some() {
+                    if key.is_some() || matches!(mode, FunctionMode::New) {
                         write!(f, [space()])?;
                     }
                 }
@@ -206,7 +401,9 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 }
 
                 // key
-                write!(f, [key])?;
+                if let Some(key) = key {
+                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
+                }
 
                 // static parameters
                 if let Some(static_parameters) =
@@ -252,6 +449,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
             }
         }
 
+        // postfix annotations
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())
@@ -264,7 +462,28 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         node_id: LocalNodeId<Member>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
+        // ignore formatting when requested
+        let directive = directive_for_node(f.context(), node_id);
+
+        // prefix annotations
         write!(f, [f.context().any_prefix_annotations(node_id)])?;
+
+        // raw node formatting for ignore directives
+        if let Some(directive) = directive
+            && directive.kind == FormatterDirectiveKind::IgnoreFormat
+        {
+            let raw_member = ignored_node_source(f.context(), node_id, directive);
+            write!(f, [text(&raw_member)])?;
+
+            if !matches!(
+                directive.position,
+                FormatterDirectivePosition::Postfix { .. }
+            ) {
+                write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
+            }
+
+            return Ok(());
+        }
 
         match self {
             Member::Type {
@@ -294,10 +513,14 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 value,
                 default,
             } => {
+                let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
+
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
                 // key
-                write!(f, [key])?;
+                if let Some(key) = key {
+                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
+                }
                 // modifiers
                 format_binding_modifiers_postfix_maybe(f, *modifiers)?;
                 // value
@@ -316,6 +539,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 body,
             } => {
                 let generics = signature.generics.as_ref();
+                let force_quote_keys = should_force_quote_keys_for_member(f, node_id);
 
                 // modifiers
                 format_binding_modifiers_prefix_maybe(f, *modifiers)?;
@@ -345,7 +569,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     if let Some(keyword) = mode.to_keyword() {
                         write!(f, [keyword])?;
                     }
-                    if key.is_some() {
+                    if key.is_some() || matches!(mode, FunctionMode::New) {
                         write!(f, [space()])?;
                     }
                 }
@@ -356,7 +580,9 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 }
 
                 // key
-                write!(f, [key])?;
+                if let Some(key) = key {
+                    format_key_with_quote_policy(f, *key, force_quote_keys)?;
+                }
 
                 // static parameters
                 if let Some(static_parameters) =
@@ -408,7 +634,10 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             }
             Member::ComptimeBlock { modifiers, body } => {
                 // modifiers prefix
-                format_binding_modifiers_prefix_maybe(f, *modifiers)?;
+                if let Some(mut modifiers) = *modifiers {
+                    modifiers.timing = None;
+                    format_binding_modifiers_prefix(f, modifiers)?;
+                }
                 // keyword
                 write!(f, [Keyword::Comptime, space()])?;
                 // body
@@ -416,6 +645,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             }
         }
 
+        // postfix annotations
         write!(f, [f.context().any_infix_or_postfix_annotations(node_id)])?;
 
         Ok(())

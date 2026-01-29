@@ -49,6 +49,22 @@ match (x) {
 }
 ```
 
+### match with annotated arm
+
+Annotations can appear on match arms.
+
+```ds
+match (result) { @cold Err(e) => handle(e); Ok(v) => v }
+```
+
+```ds expected
+match (result) {
+    @cold
+    Err(e) => handle(e)
+    Ok(v) => v
+}
+```
+
 ### match with block body
 
 Match cases can have block bodies.

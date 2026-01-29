@@ -32,14 +32,14 @@ Point { x: 1, ...other };
 
 ### empty struct literal
 
-Empty structs preserve internal spacing.
+Empty structs stay compact.
 
 ```ds
 Empty {  }
 ```
 
 ```ds expected
-Empty { };
+Empty {};
 ```
 
 ### single field struct

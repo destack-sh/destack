@@ -531,3 +531,17 @@ Nested arrays also hug when single element expands.
     6,
 ]];
 ```
+
+## Type Assertions
+
+### array as const
+
+Const assertions stay on the same line as the array literal.
+
+```ts:main.ts
+const values = [1, 2, 3] as const
+```
+
+```ts expected
+const values = [1, 2, 3] as const;
+```

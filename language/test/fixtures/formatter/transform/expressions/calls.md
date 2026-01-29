@@ -40,6 +40,28 @@ foo(   )
 foo();
 ```
 
+### blank lines between callee and arguments
+
+Blank lines between the callee and argument list are removed.
+
+```ts:main.ts
+gen
+
+    ("a");
+
+gen
+
+    (
+      
+      "b");
+```
+
+```ts expected
+gen("a");
+
+gen("b");
+```
+
 ### single argument call
 
 Single arguments have internal spacing removed.
@@ -129,6 +151,125 @@ array.map((item) => { return item.value })
 array.map((item) => {
     return item.value
 });
+```
+
+## TypeScript Call Grouping
+
+### multiple arrow arguments break
+
+Arrow callbacks break to multiple lines when there are several.
+
+```ts:main.ts
+call(() => foo, () => bar)
+```
+
+```ts expected
+call(
+    () => foo,
+    () => bar,
+);
+```
+
+### block callback with extra arguments breaks
+
+Block-bodied callbacks expand when paired with other arguments.
+
+```ts:main.ts
+setTimeout(
+    () => {
+        // ...
+    },
+    timeout * Math.pow(1)
+)
+```
+
+```ts expected
+setTimeout(
+    () => {
+        // ...
+    },
+    timeout * Math.pow(1),
+);
+```
+
+### blank lines between arguments
+
+Blank lines between arguments are preserved.
+
+```ts:main.ts
+call(
+  () => {
+    // ...
+  },
+
+  "good"
+)
+```
+
+```ts expected
+call(
+    () => {
+        // ...
+    },
+
+    "good",
+);
+```
+
+### trailing comment on last argument
+
+Trailing comments stay attached to their argument.
+
+```ts:main.ts
+call(
+  () => {
+    // ...
+  },
+  "good" // trailing
+)
+```
+
+```ts expected
+call(
+    () => {
+        // ...
+    },
+    "good", // trailing
+);
+```
+
+### template literal argument
+
+Template literal arguments keep their indentation.
+
+```ts:main.ts
+expect(genCode(createVNodeCall(null, "`div`", mockProps)))
+  .toMatchInlineSnapshot(`
+  `)
+```
+
+```ts expected
+expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
+  `);
+```
+
+### multiple function expressions break
+
+Function expressions break to multiple lines when repeated.
+
+```ts:main.ts
+call(function () { return foo; }, function () { return bar; })
+```
+
+```ts expected
+call(
+    function () {
+        return foo;
+    },
+    function () {
+        return bar;
+    },
+);
 ```
 
 ## Method Chains

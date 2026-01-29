@@ -81,7 +81,7 @@ Text nodes collapse whitespace to single spaces.
 ```
 
 ```ds expected
-<Text>Hello World</Text>;
+<Text> Hello World </Text>;
 ```
 
 ### whitespace-only text is ignored

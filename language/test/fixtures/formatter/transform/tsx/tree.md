@@ -16,6 +16,18 @@ const node = <div>Hello</div>
 const node = <div>Hello</div>;
 ```
 
+### member expression element
+
+Member expression tags keep the dotted path.
+
+```tsx:main.tsx
+const node = <UI.Button label="Ok" />
+```
+
+```tsx expected
+const node = <UI.Button label="Ok" />;
+```
+
 ### text whitespace normalizes
 
 Whitespace in JSX text collapses to single spaces.
@@ -25,7 +37,7 @@ const node = <div>  Hello   World </div>
 ```
 
 ```tsx expected
-const node = <div>Hello World</div>;
+const node = <div> Hello World </div>;
 ```
 
 ### whitespace expression containers are preserved
@@ -37,7 +49,7 @@ const node = <div>{" "}Hello{" "}World{" "}</div>
 ```
 
 ```tsx expected
-const node = <div>{' '}Hello{' '}World{' '}</div>;
+const node = <div>{" "}Hello{" "}World{" "}</div>;
 ```
 
 ## Attributes

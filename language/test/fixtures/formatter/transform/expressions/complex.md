@@ -312,7 +312,7 @@ const [first, second, ...remaining] = items;
 
 ### empty structures
 
-Empty objects keep internal spacing, arrays and calls are compact.
+Empty objects stay compact, arrays and calls are compact.
 
 ```ds
 const empty = { }
@@ -321,7 +321,7 @@ const call = foo(   )
 ```
 
 ```ds expected
-const empty = { };
+const empty = {};
 const arr = [];
 const call = foo();
 ```
@@ -657,6 +657,18 @@ very.long.deeply.nested.property.access
 very.long.deeply.nested.property.access;
 ```
 
+### private member access
+
+Private member access keeps the `#` prefix.
+
+```ts:main.ts
+const value = foo . #bar . baz
+```
+
+```ts expected
+const value = foo.#bar.baz;
+```
+
 ### method chain with arguments
 
 Method chains with various argument lengths.
@@ -875,7 +887,7 @@ const { a: { b = 1, c: { d = 2 } = {} } = {} } = obj
 
 ```ds expected
 const {
-    a: { b = 1, c: { d = 2 } = { } } = { },
+    a: { b = 1, c: { d = 2 } = {} } = {},
 } = obj;
 ```
 
@@ -958,4 +970,28 @@ const { name, age }: { name: string, age: number } = person
 
 ```ds expected
 const { name, age }: { name: string, age: number } = person;
+```
+
+### unicode sequence in computed index (TypeScript)
+
+Sequence expressions inside computed indices are parenthesized.
+
+```ts:main.ts
+x = y['x・', 'x･']
+```
+
+```ts expected
+x = y[("x・", "x･")];
+```
+
+### sequence expression statement (TypeScript)
+
+Sequence expressions format without extra parentheses in statements.
+
+```ts:main.ts
+a, b
+```
+
+```ts expected
+a, b;
 ```

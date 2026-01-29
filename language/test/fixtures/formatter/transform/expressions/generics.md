@@ -27,3 +27,15 @@ const x: Map< string , number > = new Map()
 ```ds expected
 const x: Map<string, number> = new Map();
 ```
+
+### generic with comments
+
+Comments inside type arguments are preserved.
+
+```ds
+const x: Map</* key */ string, /* value */ number> = new Map()
+```
+
+```ds expected
+const x: Map</* key */ string, /* value */ number> = new Map();
+```

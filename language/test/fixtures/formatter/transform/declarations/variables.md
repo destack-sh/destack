@@ -30,6 +30,20 @@ const   x  :  number   =   1
 const x: number = 1;
 ```
 
+### const with annotated type
+
+Type annotations can be prefixed with decorators.
+
+```ds
+const buffer: @addrspace("shared") &Buffer = value
+```
+
+```ds expected
+const buffer:
+@addrspace("shared")
+&Buffer = value;
+```
+
 ### const with object destructuring
 
 Object patterns keep brace spacing and commas.
@@ -40,6 +54,18 @@ const {a,b} = value
 
 ```ds expected
 const { a, b } = value;
+```
+
+### const with computed object destructuring
+
+Computed keys in patterns use brackets.
+
+```ds
+const { [key]: value, ...rest } = obj
+```
+
+```ds expected
+const { [key]: value, ...rest } = obj;
 ```
 
 ### const with array destructuring
@@ -54,6 +80,18 @@ const [a, b] = tuple
 const [a, b] = tuple;
 ```
 
+### const with array rest destructuring (TypeScript)
+
+Array rest patterns keep tight brackets.
+
+```ts:main.ts
+const [...rest] = arr
+```
+
+```ts expected
+const [...rest] = arr;
+```
+
 ### const with rest destructuring
 
 Rest patterns keep tight spacing.
@@ -64,6 +102,30 @@ const { a, ...rest } = value
 
 ```ds expected
 const { a, ...rest } = value;
+```
+
+### const with default destructuring
+
+Default values in patterns keep spacing around `=`.
+
+```ds
+const { a = 1, b: { c = 2 } } = value
+```
+
+```ds expected
+const { a = 1, b: { c = 2 } } = value;
+```
+
+### const with array defaults and holes
+
+Array patterns keep empty slots and default values.
+
+```ds
+const [a, , b = 3] = values
+```
+
+```ds expected
+const [a, , b = 3] = values;
 ```
 
 ## let
@@ -104,4 +166,18 @@ var   x   =   1
 
 ```ds expected
 var x = 1;
+```
+
+## TypeScript Declarations
+
+### declare const
+
+Declaration files keep the `declare` keyword.
+
+```ts:main.d.ts
+declare const PAGE_PATH: string;
+```
+
+```ts expected
+declare const PAGE_PATH: string;
 ```

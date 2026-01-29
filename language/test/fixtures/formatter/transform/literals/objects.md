@@ -44,14 +44,14 @@ const x = { a: 1, b: 2 };
 
 ### empty object
 
-Empty objects preserve internal spacing.
+Empty objects stay compact.
 
 ```ds
 const x = {  }
 ```
 
 ```ds expected
-const x = { };
+const x = {};
 ```
 
 ### single property object
@@ -171,6 +171,42 @@ const x = { normal: 1, "needs-quotes": 2 }
 
 ```ds expected
 const x = { normal: 1, "needs-quotes": 2 };
+```
+
+### typescript quote props as needed
+
+TypeScript removes quotes when they are not required.
+
+```ts:main.ts
+const x = { "data-id": 1, "default": 2, "normal": 3 }
+```
+
+```ts expected
+const x = { "data-id": 1, default: 2, normal: 3 };
+```
+
+### typescript quote props consistent
+
+Consistent quote props quotes all keys when any require quotes.
+
+```ts:main.ts quote-props=consistent
+const x = { a: 1, "needs-quotes": 2, "default": 3 }
+```
+
+```ts expected
+const x = { "a": 1, "needs-quotes": 2, "default": 3 };
+```
+
+### typescript quote props preserve
+
+Preserve keeps original quoting.
+
+```ts:main.ts quote-props=preserve
+const x = { "normal": 1, "needs-quotes": 2, default: 3 }
+```
+
+```ts expected
+const x = { "normal": 1, "needs-quotes": 2, default: 3 };
 ```
 
 ## Methods
@@ -433,4 +469,32 @@ const x = { a: 1 } satisfies Record<string, number>
 
 ```ds expected
 const x = { a: 1 } satisfies Record<string, number>;
+```
+
+## As Const
+
+### object as const
+
+`as const` keeps the object literal inline when it fits.
+
+```ts:main.ts
+const settings = { retries: 3, verbose: false } as const
+```
+
+```ts expected
+const settings = { retries: 3, verbose: false } as const;
+```
+
+## Unicode Keys (TypeScript)
+
+### object with unicode keys
+
+Unicode keys that are not identifiers stay quoted and normalize quotes.
+
+```ts:main.ts
+x = { 'x・': 0, 'x･': 1 }
+```
+
+```ts expected
+x = { "x・": 0, "x･": 1 };
 ```
