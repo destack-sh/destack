@@ -58,9 +58,12 @@ impl<'a> StaticArgumentMaterializer<'a> {
         mode: MaterializationMode,
         cache: TypeRewriteCache,
     ) -> Self {
+        // derive rewrite options from the materialization mode
         let walk_context = TypeWalkContext::for_materialization(mode);
         let rewrite_options = walk_context.rewriter_options();
         let cache_key = rewrite_options.cache_key();
+
+        // seed the materializer state
         Self {
             compiler,
             argument_module,
@@ -85,6 +88,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
         types: &mut TypeTable,
         arguments: &[StaticArgument],
     ) -> (Vec<StaticArgument>, bool) {
+        // rewrite each argument and track changes
         let mut changed = false;
         let mut mapped = Vec::with_capacity(arguments.len());
         for argument in arguments {
@@ -104,10 +108,12 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
     }
 
     fn rewrite_type_id(&mut self, types: &mut TypeTable, id: LocalTypeId) -> LocalTypeId {
+        // return cached rewrites when available
         if let Some(mapped) = self.cache.get(&(self.cache_key, id)).copied() {
             return mapped;
         }
 
+        // evaluate unevaluated types before rewriting
         if matches!(types.get_type(id), Type::Unevaluated(_)) {
             let _ = self.compiler.evaluate_type(
                 self.argument_module,
@@ -119,11 +125,13 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             );
         }
 
+        // stop when evaluation still yields an unevaluated type
         if matches!(types.get_type(id), Type::Unevaluated(_)) {
             self.cache.insert((self.cache_key, id), id);
             return id;
         }
 
+        // rewrite using the cached walker
         let mut cache = std::mem::take(&mut self.cache);
         let mapped = rewrite_type_with_cache(self, types, &mut cache, self.cache_key, id);
         self.cache = cache;
@@ -131,6 +139,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
     }
 
     fn rewrite_type(&mut self, types: &mut TypeTable, id: LocalTypeId, ty: &Type) -> LocalTypeId {
+        // allow non surface modes to rewrite immediately
         match self.mode {
             MaterializationMode::Surface => {}
             MaterializationMode::Shape | MaterializationMode::Validation => {
@@ -138,6 +147,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             }
         }
 
+        // only materialize references with static arguments
         let Type::Reference {
             symbol,
             static_arguments,
@@ -146,16 +156,25 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             return rewrite_type(self, types, id, ty);
         };
 
+        // normalize to the type space symbol for the reference
+        let symbol = self.compiler.normalize_reference_symbol_id(
+            self.argument_module,
+            self.profile,
+            *symbol,
+        );
+
+        // skip when no static arguments exist
         let Some(static_arguments) = static_arguments.as_ref() else {
             return id;
         };
 
+        // resolve static arguments in the reference owner module
         let fallback_source_id = types.get_type_source(id);
         let resolved_arguments = if symbol.module_id == self.argument_module.id {
             self.compiler.materialize_static_arguments_for_reference(
                 self.argument_module,
                 self.profile,
-                *symbol,
+                symbol,
                 fallback_source_id,
                 static_arguments,
                 self.argument_tree,
@@ -170,7 +189,7 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             self.compiler.materialize_static_arguments_for_reference(
                 &reference_module,
                 self.profile,
-                *symbol,
+                symbol,
                 fallback_source_id,
                 static_arguments,
                 &reference_tree,
@@ -179,22 +198,26 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
             )
         };
 
+        // rewrite nested static arguments
         let (mapped_arguments, nested_changed) =
             self.rewrite_static_arguments(types, &resolved_arguments);
         let changed = nested_changed || resolved_arguments != *static_arguments;
 
+        // return the original type when nothing changed
         if !changed {
             return id;
         }
 
+        // register instances for materialized static arguments
         if !mapped_arguments.is_empty() {
             self.compiler
-                .register_instance_for_symbol(*symbol, mapped_arguments.clone(), types);
+                .register_instance_for_symbol(symbol, mapped_arguments.clone(), types);
         }
 
+        // return a rewritten reference type
         types.insert_type_from_type(
             Type::Reference {
-                symbol: *symbol,
+                symbol,
                 static_arguments: Some(mapped_arguments),
             },
             id,

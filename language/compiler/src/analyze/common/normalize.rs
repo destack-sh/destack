@@ -2,8 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticParameterKind, SymbolTable, SymbolType, Type, TypeBinaryOperator,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
+    StaticArgument, StaticParameterKind, SymbolSpace, SymbolTable, SymbolType, Type,
+    TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    TypeUnaryOperator, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -13,6 +14,132 @@ use crate::{AnalyzeError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Normalize a reference symbol id to a type space symbol when possible.
+    pub(crate) fn normalize_reference_symbol_id(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        if symbol.module_id == module.id {
+            let symbols = module.dir_base().symbols.read();
+            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+            return self.normalize_reference_symbol_id_with_symbols(
+                module,
+                profile,
+                module,
+                symbol,
+                &symbols,
+                symbol_entry,
+            );
+        }
+
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let symbols = remote_module.dir_base().symbols.read();
+        let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+        self.normalize_reference_symbol_id_with_symbols(
+            module,
+            profile,
+            &remote_module,
+            symbol,
+            &symbols,
+            symbol_entry,
+        )
+    }
+
+    /// Normalize a reference symbol id using a symbol table snapshot.
+    fn normalize_reference_symbol_id_with_symbols(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        owner_module: &Module,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        symbol_entry: destack_dir::Symbol,
+    ) -> GlobalSymbolId {
+        // normalize to the declared symbol type
+        let normalized =
+            GlobalSymbolId::new(owner_module.id, symbol.local_id.with_type(symbol_entry.ty));
+        if matches!(
+            symbol_entry.space,
+            SymbolSpace::Type | SymbolSpace::TypeValue
+        ) {
+            return normalized;
+        }
+
+        // map well known values to their type symbols
+        for well_known in WellKnownSymbol::all() {
+            if self.is_well_known_symbol(profile, symbol, well_known)
+                && let Some(type_symbol) = self.get_well_known_type_symbol(profile, well_known)
+            {
+                return type_symbol;
+            }
+        }
+
+        // skip when the symbol has no name key
+        let Some(key) = symbol_entry.key else {
+            return normalized;
+        };
+
+        // prefer type space symbols from the same scope
+        let scope = symbols.get_scope_by_id(symbol_entry.scope.0);
+        for (candidate_key, candidate_id) in symbols.active_named_symbols(scope) {
+            if candidate_key != key {
+                continue;
+            }
+            let candidate_entry = symbols.get_symbol(candidate_id);
+            if !matches!(
+                candidate_entry.space,
+                SymbolSpace::Type | SymbolSpace::TypeValue
+            ) {
+                continue;
+            }
+
+            return GlobalSymbolId::new(
+                owner_module.id,
+                candidate_id.with_type(candidate_entry.ty),
+            );
+        }
+
+        // gather global and ambient type symbols by key
+        let mut candidates = Vec::new();
+        if let Some(group) =
+            self.get_global_symbol_group(module.id, profile, key, SymbolSpace::Type)
+        {
+            candidates.extend(group);
+        }
+        if let Some(group) =
+            self.get_global_symbol_group(module.id, profile, key, SymbolSpace::TypeValue)
+        {
+            candidates.extend(group);
+        }
+        if let Some(ambient) =
+            self.get_ambient_lib_symbol_sources_for_merge(profile, key, SymbolSpace::Type)
+        {
+            candidates.extend(ambient);
+        }
+        if let Some(ambient) =
+            self.get_ambient_lib_symbol_sources_for_merge(profile, key, SymbolSpace::TypeValue)
+        {
+            candidates.extend(ambient);
+        }
+
+        // select the first global match
+        for candidate in candidates {
+            let candidate_module = self.program.modules.get(candidate.module_id);
+            let candidate_module = candidate_module.read();
+            let candidate_symbols = candidate_module.dir_base().symbols.read();
+            let candidate_entry = candidate_symbols.get_symbol(candidate.local_id);
+            return GlobalSymbolId::new(
+                candidate.module_id,
+                candidate.local_id.with_type(candidate_entry.ty),
+            );
+        }
+
+        normalized
+    }
+
     /// Normalize a type id for the given mode.
     pub(crate) fn normalize_type(
         &self,
@@ -213,6 +340,27 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
+                // normalize reference symbols to their declared type
+                let normalized_symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+                if normalized_symbol != symbol {
+                    let normalized = Type::Reference {
+                        symbol: normalized_symbol,
+                        static_arguments,
+                    };
+                    let normalized_id = types.insert_type_from_any(normalized, source_id);
+                    return self.normalize_type_inner(
+                        module,
+                        profile,
+                        normalized_id,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
+                    );
+                }
+                let symbol = normalized_symbol;
+
                 // follow import targets while preserving alias identity
                 let symbol = self.canonical_symbol_id(
                     module,
@@ -1060,6 +1208,9 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
+        // normalize reference symbols to their declared type
+        let symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+
         // return cached normalization results when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()
@@ -1242,6 +1393,14 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<StaticArgument> {
+        // prefer resolved instance arguments when no arguments are present
+        if arguments.is_empty()
+            && let Some(resolved) =
+                self.resolved_static_arguments_for_reference(module, source_id, symbol, types)
+        {
+            return resolved;
+        }
+
         // prefer resolved instance arguments when unevaluated arguments are present
         if arguments
             .iter()
@@ -1357,10 +1516,17 @@ impl Compiler {
         instance_type_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        // check for unevaluated targets or static value arguments
+        // check for unevaluated targets or static arguments
         let tree = module.dir(profile).tree.read();
         let symbols = module.dir(profile).symbols.read();
         if matches!(types.get_type(instance_type_id), Type::Unevaluated(_)) {
+            return true;
+        }
+        if self.type_contains_unevaluated_static_arguments(
+            instance_type_id,
+            types,
+            &mut HashSet::new(),
+        ) {
             return true;
         }
 

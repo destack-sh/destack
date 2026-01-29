@@ -4639,7 +4639,7 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        let promise_symbol = self.get_well_known_symbol(profile, WellKnownSymbol::Promise)?;
+        let promise_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Promise)?;
 
         // default missing type arguments to unknown
         let value_type = value_type.unwrap_or_else(|| {
@@ -4691,9 +4691,8 @@ impl Compiler {
             symbol,
             CanonicalSymbolMode::FollowAliases,
         );
-        let is_promise_symbol = self
-            .get_well_known_symbol(profile, WellKnownSymbol::Promise)
-            .is_some_and(|promise_symbol| promise_symbol == canonical_symbol);
+        let is_promise_symbol =
+            self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::Promise);
         if !is_promise_symbol {
             return None;
         }
@@ -4778,6 +4777,80 @@ impl Compiler {
             return type_id;
         }
         visited.push(type_id);
+
+        // expand alias references so await sees concrete promise targets
+        let mut expanded_id = type_id;
+        let mut visited_aliases = HashSet::new();
+        loop {
+            let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(expanded_id).clone()
+            else {
+                break;
+            };
+            let symbol = self.normalize_reference_symbol_id(module, profile, symbol);
+            if symbol.ty() != SymbolType::TypeAlias {
+                break;
+            }
+            if !visited_aliases.insert(symbol) {
+                break;
+            }
+
+            let arguments = static_arguments.as_deref().unwrap_or(&[]);
+            let mut normalize_visited = Vec::new();
+            let Some(next_id) = self.normalize_type_alias_reference_with_arguments(
+                module,
+                profile,
+                types.get_type_source(expanded_id),
+                symbol,
+                arguments,
+                symbols,
+                types,
+                NormalizationMode::Assign,
+                RelationMode::TYPE_OPS,
+                &mut normalize_visited,
+            ) else {
+                break;
+            };
+            if next_id == expanded_id {
+                break;
+            }
+            expanded_id = next_id;
+        }
+        let type_id = expanded_id;
+
+        // materialize static arguments before awaiting promise targets
+        let tree = module.dir(profile).tree.read();
+        let mut materialize_cache = TypeRewriteCache::new();
+        let type_id = self.materialize_static_arguments_in_type(
+            module,
+            profile,
+            type_id,
+            &tree,
+            symbols,
+            types,
+            &mut materialize_cache,
+        );
+
+        // normalize after alias expansion to avoid cached alias results
+        let normalized_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        let type_id = if normalized_id != type_id {
+            normalized_id
+        } else {
+            type_id
+        };
+        if !visited.contains(&type_id) {
+            visited.push(type_id);
+        }
 
         // keep any/unknown as-is
         if self.type_is_any_or_unknown(type_id, types) {

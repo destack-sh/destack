@@ -415,9 +415,33 @@ impl Builtins {
         loading.insert(name.to_string());
 
         // recursively load dependencies
+        let mut dependencies = Vec::new();
+        let mut seen_dependencies = HashSet::new();
+
+        // seed dependencies from lib metadata
         for &dependency in lib.dependencies {
+            if seen_dependencies.insert(dependency.to_string()) {
+                dependencies.push(dependency.to_string());
+            }
+        }
+
+        // extend dependencies with reference lib directives
+        for reference in lib.reference_libs() {
+            if seen_dependencies.insert(reference.to_string()) {
+                dependencies.push(reference.to_string());
+            }
+        }
+
+        // load each dependency in order
+        for dependency in dependencies {
+            // skip self references
+            if dependency == lib.name {
+                continue;
+            }
+
+            // load each dependency or exit early
             if self
-                .load_lib_inner(dependency, files.clone(), modules.clone(), loading)
+                .load_lib_inner(&dependency, files.clone(), modules.clone(), loading)
                 .is_none()
             {
                 self.lib_loading_by_name.remove(name);

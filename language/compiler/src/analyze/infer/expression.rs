@@ -360,7 +360,7 @@ impl Compiler {
     }
 
     /// Infer a direct binding value type when none is cached yet.
-    fn infer_direct_binding_value_type(
+    pub(crate) fn infer_direct_binding_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -4307,9 +4307,28 @@ impl Compiler {
             }
         }
 
+        // synthesize a globalThis object type on demand
+        let global_this_name = self.program.strings.intern("globalThis");
+        let is_global_this =
+            self.symbol_name_for_global(module, ctx.profile, canonical_symbol, symbols)
+                == Some(global_this_name);
+
         // pick the base type for the symbol by applying narrowing and inference
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
             narrowed_ty_id
+        } else if is_global_this
+            && let Some(global_this_ty_id) = self.infer_global_this_value_type(
+                module,
+                expression_id,
+                canonical_symbol,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?
+        {
+            global_this_ty_id
         } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
         } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(

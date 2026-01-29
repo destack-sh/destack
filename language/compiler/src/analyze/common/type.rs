@@ -971,6 +971,17 @@ impl Compiler {
         visitor.found
     }
 
+    pub(crate) fn type_contains_unevaluated_static_arguments(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        let mut visitor = TypeContainmentVisitor::new_unevaluated_static(visited);
+        visitor.visit_type_id(types, ty_id);
+        visitor.found
+    }
+
     pub(crate) fn type_contains_unevaluated_value_static_arguments(
         &self,
         module: &Module,

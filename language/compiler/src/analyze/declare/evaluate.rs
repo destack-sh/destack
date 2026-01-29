@@ -2455,6 +2455,10 @@ impl Compiler {
                     }
                 }
 
+                // normalize the symbol id to the stored symbol type
+                let target_symbol =
+                    self.normalize_reference_symbol_id(module, profile, target_symbol);
+
                 // resolve import targets without collapsing type aliases
                 let target_symbol = self.canonical_symbol_id(
                     module,
