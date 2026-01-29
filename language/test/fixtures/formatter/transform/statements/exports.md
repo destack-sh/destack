@@ -78,6 +78,18 @@ export * from "module"
 export * from "module";
 ```
 
+### export namespace from module
+
+Namespace re-exports keep spacing and semicolons.
+
+```ts:main.ts
+export * as Utils from "module"
+```
+
+```ts expected
+export * as Utils from "module";
+```
+
 ## Namespace Exports
 
 ### export as namespace

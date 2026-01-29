@@ -466,21 +466,38 @@ fn parse_directive_token(comment: &str) -> Option<FormatterDirectiveToken> {
             return None;
         }
 
+        // check for single-line ignore directives
         if matches!(
             trimmed,
             "prettier-ignore" | "oxfmt-ignore" | "deno-fmt-ignore" | "fmt-ignore" | "format-ignore"
         ) {
             return Some(FormatterDirectiveToken::Ignore);
         }
-        if matches!(trimmed, "fmt-ignore-start" | "format-ignore-start") {
+
+        // check for range start directives
+        if matches!(
+            trimmed,
+            "prettier-ignore-start"
+                | "fmt-ignore-start"
+                | "format-ignore-start"
+                | "biome-ignore-start"
+        ) {
             return Some(FormatterDirectiveToken::IgnoreStart);
         }
-        if matches!(trimmed, "fmt-ignore-end" | "format-ignore-end") {
+
+        // check for range end directives
+        if matches!(
+            trimmed,
+            "prettier-ignore-end" | "fmt-ignore-end" | "format-ignore-end" | "biome-ignore-end"
+        ) {
             return Some(FormatterDirectiveToken::IgnoreEnd);
         }
+
+        // check for biome-ignore with format specifier
         if trimmed.starts_with("biome-ignore") && trimmed.contains("format") {
             return Some(FormatterDirectiveToken::Ignore);
         }
+
         None
     })
 }

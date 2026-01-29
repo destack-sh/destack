@@ -68,6 +68,20 @@ call(   a, b)
 call(   a, b)
 ```
 
+### prettier-ignore keeps the next statement
+
+Prettier ignore directives preserve the original statement formatting.
+
+```ts:main.ts
+// prettier-ignore
+call(   a, b)
+```
+
+```ts expected
+// prettier-ignore
+call(   a, b)
+```
+
 ### format-ignore range keeps multiple statements
 
 Ignore ranges preserve the original formatting between the start and end markers.
@@ -86,6 +100,40 @@ const value  =   call(  1,2)
 const other =    value +  1
 // format-ignore-end
 const ok = 1;
+```
+
+### prettier-ignore range keeps multiple statements
+
+Prettier ignore ranges preserve the original formatting between the start and end markers.
+
+```ts:main.ts
+// prettier-ignore-start
+const value  =   call(  1,2)
+const other =    value +  1
+// prettier-ignore-end
+const ok = 1
+```
+
+```ts expected
+// prettier-ignore-start
+const value  =   call(  1,2)
+const other =    value +  1
+// prettier-ignore-end
+const ok = 1;
+```
+
+### biome-ignore format keeps the next statement
+
+Biome format ignore directives preserve the original statement formatting.
+
+```ts:main.ts
+// biome-ignore format
+call(   a, b)
+```
+
+```ts expected
+// biome-ignore format
+call(   a, b)
 ```
 
 ### typescript directive comments do not disable formatting
