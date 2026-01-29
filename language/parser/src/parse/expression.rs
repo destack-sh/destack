@@ -392,14 +392,31 @@ impl Parser {
             Ok(2)
         }
         // member access across newline
-        else if self.peek_token(TokenType::Newline).is_ok()
-            && self.peek_next_token(TokenType::Dot).is_ok()
-            && self.peek_next_next_token(token_type).is_ok()
-        {
-            Ok(3)
-        }
-        // nothing
         else {
+            let base = self.pos() as usize;
+            let mut offset = 0;
+            let mut newline_count = 0;
+            while let Some(token) = self.tokens.get(base + offset)
+                && token.token.ty == TokenType::Newline
+            {
+                newline_count += 1;
+                offset += 1;
+            }
+            let is_member = newline_count > 0
+                && matches!(
+                    self.tokens.get(base + offset),
+                    Some(token) if token.token.ty == TokenType::Dot
+                )
+                && matches!(
+                    self.tokens.get(base + offset + 1),
+                    Some(token) if token.token.ty == token_type
+                );
+            if is_member {
+                let distance = newline_count + 2;
+                let distance = u8::try_from(distance).unwrap_or(u8::MAX);
+                return Ok(distance);
+            }
+
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }
@@ -415,17 +432,35 @@ impl Parser {
             Ok(3)
         }
         // private member access across newline
-        else if self.peek_token(TokenType::Newline).is_ok()
-            && self.peek_next_token(TokenType::Dot).is_ok()
-            && self.peek_next_next_token(TokenType::Hash).is_ok()
-            && self
-                .peek_next_next_next_token(TokenType::Identifier)
-                .is_ok()
-        {
-            Ok(4)
-        }
-        // nothing
         else {
+            let base = self.pos() as usize;
+            let mut offset = 0;
+            let mut newline_count = 0;
+            while let Some(token) = self.tokens.get(base + offset)
+                && token.token.ty == TokenType::Newline
+            {
+                newline_count += 1;
+                offset += 1;
+            }
+            let is_member = newline_count > 0
+                && matches!(
+                    self.tokens.get(base + offset),
+                    Some(token) if token.token.ty == TokenType::Dot
+                )
+                && matches!(
+                    self.tokens.get(base + offset + 1),
+                    Some(token) if token.token.ty == TokenType::Hash
+                )
+                && matches!(
+                    self.tokens.get(base + offset + 2),
+                    Some(token) if token.token.ty == TokenType::Identifier
+                );
+            if is_member {
+                let distance = newline_count + 3;
+                let distance = u8::try_from(distance).unwrap_or(u8::MAX);
+                return Ok(distance);
+            }
+
             Err(ParseError::unexpected(self.peek()?.span))
         }
     }
@@ -589,6 +624,15 @@ impl Parser {
             } else {
                 Some(DependencyMode::Item)
             };
+
+            // export namespace
+            let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
+                && self.peek_next_keyword(Keyword::Namespace).is_ok();
+            if is_export_namespace {
+                self.rewind(start);
+                let export = self.eat_export()?;
+                return Ok(export);
+            }
 
             // just parse the export if followed by dependency items or module export
             let keyword = self.peek_any_keyword().ok();
@@ -1505,6 +1549,18 @@ impl Parser {
             {
                 break;
             }
+
+            let has_direct_call = self.peek_token(TokenType::OpenParenthesis).is_ok();
+            let has_direct_call_after_newlines = self.peek_newline().is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_ok();
+            let has_indirect_call = self.peek_token(TokenType::Dot).is_ok()
+                && self.peek_next_token(TokenType::OpenParenthesis).is_ok();
+            let can_direct_call = (has_direct_call || has_direct_call_after_newlines)
+                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+                && !self.options.in_new_receiver;
+            let should_parse_call = can_direct_call || has_indirect_call;
             // unary postfix operations
             if let Ok(operator) = self.peek_unary_postfix_operator() {
                 let operator_start = self.mark();
@@ -1632,12 +1688,14 @@ impl Parser {
                 left_expression_id = self.eat_index(left_expression_id, position)?;
             }
             // call (like `()`)
-            else if self.peek_token(TokenType::OpenParenthesis).is_ok()
-                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
-                && !self.options.in_new_receiver
-                || self.peek_token(TokenType::Dot).is_ok()
-                    && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
-            {
+            else if should_parse_call {
+                if self.peek_newline().is_ok()
+                    && self
+                        .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                        .is_ok()
+                {
+                    self.eat_newlines_maybe()?; // eat newlines
+                }
                 let position = if self.peek_token(TokenType::Dot).is_ok() {
                     self.bump(); // eat .
                     PostfixPosition::Indirect
