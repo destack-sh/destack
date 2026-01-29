@@ -69,7 +69,49 @@ values satisfies number[];
 const values: number[] = [1, "two"];
 ```
 
-- contains: not assignable to type number[]
+- contains: type (number | string)[] is not assignable to type number[]
+
+### contextual array literal via alias
+
+> Contextual array element types flow through aliases.
+
+```ds
+type Numbers = number[];
+
+const values: Numbers = [1, 2, 3];
+values satisfies number[];
+```
+
+### contextual array literal alias mismatch
+
+> Alias contextual element types still enforce element constraints.
+
+```ds
+type Numbers = number[];
+
+const values: Numbers = [1, "two"];
+```
+
+- contains: type (number | string)[] is not assignable to type Numbers
+
+### contextual array spread literal
+
+> Spread arrays use contextual element types for the resulting array.
+
+```ds
+const values: number[] = [...[1, 2]];
+values satisfies number[];
+```
+
+### contextual array spread literal mismatch
+
+> Spread arrays still enforce contextual element constraints.
+
+```ds
+const values: number[] = [...[1, "two"]];
+```
+
+- contains: type (int32 | string)[] is not assignable to type number[]
 
 ## Named Array Types
 
@@ -87,6 +129,18 @@ values satisfies number[];
 ```ds libs=es5
 const values: number[] = [1, 2, 3];
 values satisfies Array<number>;
+```
+
+## Array Spreads
+
+### array spread preserves element types
+
+> Array spreads keep element types for the merged literal.
+
+```ds
+const base = [1, 2];
+const values = [...base, 3];
+values satisfies number[];
 ```
 
 ## index access

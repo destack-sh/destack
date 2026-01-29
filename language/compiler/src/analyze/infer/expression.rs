@@ -81,6 +81,72 @@ impl Compiler {
         types.insert_type_from_any(widened, source_id)
     }
 
+    /// Resolve the element type produced by spreading a value in an array literal.
+    pub(super) fn array_spread_element_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // apparent types determine array literal spread shapes
+        let type_id = self.normalize_type_with_relation(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        match types.get_type(type_id) {
+            Type::Array { element, .. } => *element,
+            Type::ArraySized { element, .. } => Some(*element),
+            Type::Tuple { elements, .. } => {
+                let elements = elements.clone();
+                let mut element_type_ids = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mut element_ty_id = element.ty;
+                    if element.is_rest
+                        && let Some(rest_element_ty_id) = self.array_spread_element_type(
+                            module,
+                            profile,
+                            element_ty_id,
+                            symbols,
+                            types,
+                        )
+                    {
+                        element_ty_id = rest_element_ty_id;
+                    }
+                    element_type_ids.push(element_ty_id);
+                }
+                if element_type_ids.is_empty() {
+                    None
+                } else {
+                    let source_type_id = element_type_ids[0];
+                    Some(self.union_type_from_list(element_type_ids, source_type_id, types))
+                }
+            }
+            Type::Union { elements } => {
+                let elements = elements.clone();
+                let mut element_type_ids = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let element_type_id = self
+                        .array_spread_element_type(module, profile, element_id, symbols, types)?;
+                    element_type_ids.push(element_type_id);
+                }
+                if element_type_ids.is_empty() {
+                    None
+                } else {
+                    let source_type_id = element_type_ids[0];
+                    Some(self.union_type_from_list(element_type_ids, source_type_id, types))
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Select the best common type for a pair of branch results.
     fn best_common_type_for_pair(
         &self,
@@ -1122,13 +1188,14 @@ impl Compiler {
                 let expected_ty_id = self
                     .expected_value_type(ctx.expected_type, types)
                     .map(|expected_ty_id| {
-                        self.normalize_type(
+                        self.normalize_type_with_relation(
                             module,
                             ctx.profile,
                             expected_ty_id,
                             symbols,
                             types,
                             NormalizationMode::Assign,
+                            RelationMode::TYPE_OPS,
                         )
                     });
                 let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
@@ -1200,8 +1267,8 @@ impl Compiler {
                         infer,
                         &mut element_ctx,
                     )?;
-                    let element = tree.get(*element_id);
-                    let value_id = element.value();
+                    let argument = tree.get(*element_id);
+                    let value_id = argument.value();
                     let ty_id = if let Some(ty_id) =
                         types.get_inferred_type_id(value_id.into_global_any(module.id))
                     {
@@ -1217,6 +1284,18 @@ impl Compiler {
                             &mut element_ctx,
                         )?
                     };
+                    if matches!(argument, Argument::Spread { .. })
+                        && let Some(spread_element_type_id) = self.array_spread_element_type(
+                            module,
+                            ctx.profile,
+                            ty_id,
+                            symbols,
+                            types,
+                        )
+                    {
+                        element_type_ids.push(spread_element_type_id);
+                        continue;
+                    }
                     element_type_ids.push(ty_id);
                 }
 
@@ -1285,8 +1364,21 @@ impl Compiler {
             // tuple expression: preserve positional element types
             Expression::TupleExpression { elements } => {
                 // infer element types using any contextual type
+                let expected_ty_id = self
+                    .expected_value_type(ctx.expected_type, types)
+                    .map(|expected_ty_id| {
+                        self.normalize_type_with_relation(
+                            module,
+                            ctx.profile,
+                            expected_ty_id,
+                            symbols,
+                            types,
+                            NormalizationMode::Assign,
+                            RelationMode::TYPE_OPS,
+                        )
+                    });
                 let expected_element_types =
-                    self.expected_element_types(ctx.expected_type, elements.len(), types);
+                    self.expected_element_types(expected_ty_id, elements.len(), types);
 
                 // infer element types and collect their contextualized types
                 let mut element_tys = Vec::with_capacity(elements.len());
