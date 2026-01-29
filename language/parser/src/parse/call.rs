@@ -1,6 +1,7 @@
 //! Parse calls, static calls, dynamic calls, etc.
 
 use destack_ast::{Argument, Expression, Keyword, LocalNodeId, PostfixPosition, TokenType};
+use destack_source::Span;
 
 use crate::{ParseResult, Parser};
 
@@ -21,6 +22,7 @@ impl Parser {
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
+        let receiver_span = self.tree.get_span(receiver_id);
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
@@ -29,13 +31,15 @@ impl Parser {
         // bare index
         if self.peek_token(TokenType::CloseBracket).is_ok() {
             self.bump(); // eat close bracket
+            let index_span = self.get_span_from(start);
+            let span = Span::new(index_span.file, receiver_span.start, index_span.end);
             let index_id = self.tree.insert(
                 Expression::Index {
                     position,
                     left: receiver_id,
                     index: None,
                 },
-                self.get_span_from(start),
+                span,
             );
             return Ok(index_id);
         }
@@ -65,9 +69,9 @@ impl Parser {
                 index: Some(index),
             }
         };
-        let index_id = self
-            .tree
-            .insert(index_expression, self.get_span_from(start));
+        let index_span = self.get_span_from(start);
+        let span = Span::new(index_span.file, receiver_span.start, index_span.end);
+        let index_id = self.tree.insert(index_expression, span);
         Ok(index_id)
     }
 
@@ -153,6 +157,7 @@ impl Parser {
         position: PostfixPosition,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
+        let receiver_span = self.tree.get_span(receiver_id);
 
         // static arguments (may be empty)
         let static_arguments = match static_arguments {
@@ -171,7 +176,10 @@ impl Parser {
                 static_arguments,
                 dynamic_arguments,
             },
-            self.get_span_from(start),
+            {
+                let call_span = self.get_span_from(start);
+                Span::new(call_span.file, receiver_span.start, call_span.end)
+            },
         );
         Ok(call_id)
     }

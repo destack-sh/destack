@@ -342,9 +342,7 @@ impl Parser {
         let mut prev_token_idx = token_idx as usize;
         while prev_token_idx > 0 {
             prev_token_idx -= 1;
-            let Some(prev_token) = tokens.get(prev_token_idx) else {
-                return None;
-            };
+            let prev_token = tokens.get(prev_token_idx)?;
             #[cfg(debug_assertions)]
             let _prev_token_str = self.get_span_str(prev_token.span);
 
@@ -377,9 +375,7 @@ impl Parser {
     ) -> Option<TokenSpan> {
         let mut next_token_idx = token_idx as usize + group_len;
         loop {
-            let Some(next_token) = tokens.get(next_token_idx) else {
-                return None;
-            };
+            let next_token = tokens.get(next_token_idx)?;
             #[cfg(debug_assertions)]
             let _next_token_str = self.get_span_str(next_token.span);
 
@@ -638,10 +634,9 @@ impl Parser {
             }
             if let Some(enclosing_span) = enclosing_span
                 && !enclosing_span.intersects(next_token.span)
+                && start_token.token.ty != TokenType::Newline
             {
-                if start_token.token.ty != TokenType::Newline {
-                    break; // stop outside the enclosing scope
-                }
+                break; // stop outside the enclosing scope
             }
             if let Some(next_node) =
                 self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
