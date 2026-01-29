@@ -882,9 +882,9 @@ mod tests {
     use std::collections::HashSet;
     use std::time::{Duration, Instant};
 
-    use destack_builtin::{BuiltinLibKind, LIBS, LanguageSymbol, STD_LIB};
+    use destack_builtin::{BuiltinLib, BuiltinLibKind, LIBS, LanguageSymbol, STD_LIB};
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
-    use destack_source::DiagnosticSeverity;
+    use destack_source::{DiagnosticSeverity, ModuleId};
 
     use crate::{TaskPhase, TestProgram, assert_string};
 
@@ -1001,7 +1001,7 @@ mod tests {
     }
 
     /// Analyze all builtin libs (without errors).
-    /// NOTE: we include some additional timings for some mild performance debugging.
+    /// We include additional timings for mild performance debugging.
     #[test]
     #[ignore = "slow"]
     fn test_analyze_all_builtin_libs() {
@@ -1017,56 +1017,20 @@ mod tests {
 
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let lib_start = Instant::now();
-
-            // include a baseline es lib for runtime libraries that require them
-            let mut libs = Vec::new();
-            if lib.kind == BuiltinLibKind::Lib
-                && !lib.name.starts_with("es")
-                && !lib.name.starts_with("decorators")
-            {
-                libs.push("es2020");
-            }
-            libs.push(lib.name);
+            let libs = libs_for_builtin(lib);
 
             let test =
                 TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&libs);
 
+            let (import_modules, import_duration) = import_lib_modules(&test, &libs, timeout);
+
             // resolve builtins and libs
-            let resolve_start = Instant::now();
-            test.resolve_builtins();
-            test.resolve_libs();
-            test.compile_with_timeout(timeout);
-            test.check_no_diagnostic(DiagnosticSeverity::Note);
-            let resolve_duration = resolve_start.elapsed();
-
-            let builtins = test.program.builtins.as_ref().unwrap();
-            let mut lib_modules = Vec::new();
-
-            // analyze all libs loaded for this profile
-            for lib_name in libs {
-                let module_ids = builtins
-                    .load_lib(
-                        lib_name,
-                        test.program.files.clone(),
-                        test.program.modules.clone(),
-                    )
-                    .unwrap();
-                lib_modules.extend(module_ids);
-            }
-
-            let mut seen_modules = HashSet::new();
-            let analyze_start = Instant::now();
-            for module_id in lib_modules {
-                if seen_modules.insert(module_id) {
-                    test.analyze_module(module_id);
-                }
-            }
-            test.compile_with_timeout(timeout);
-            test.check_no_diagnostic(DiagnosticSeverity::Note);
-            let analyze_duration = analyze_start.elapsed();
+            let resolve_duration = resolve_builtins_and_libs(&test, timeout);
+            let analyze_duration = analyze_lib_modules(&test, &import_modules, timeout);
 
             timings.push(LibTiming {
-                name: lib.name,
+                name: lib.name.to_string(),
+                import: import_duration,
                 resolve: resolve_duration,
                 analyze: analyze_duration,
                 total: lib_start.elapsed(),
@@ -1074,8 +1038,9 @@ mod tests {
 
             if report_timings {
                 eprintln!(
-                    "builtin lib {}: resolve={} analyze={} total={}",
+                    "builtin lib {}: import={} resolve={} analyze={} total={}",
                     lib.name,
+                    format_duration(import_duration),
                     format_duration(resolve_duration),
                     format_duration(analyze_duration),
                     format_duration(lib_start.elapsed())
@@ -1094,11 +1059,96 @@ mod tests {
         }
     }
 
+    /// Analyze a combined lib set in a single program.
+    #[test]
+    #[ignore = "slow"]
+    fn test_analyze_builtin_libs_combined() {
+        // timings
+        let report_timings = std::env::var("DESTACK_TIMINGS").is_ok();
+        let csv_path = std::env::var("DESTACK_TIMINGS_CSV").ok();
+        let timeout = Duration::from_secs(60);
+
+        // resolve the combined lib list
+        let mut libs: Vec<String> = std::env::var("DESTACK_TIMINGS_LIBS")
+            .ok()
+            .map(|value| {
+                value
+                    .split(',')
+                    .filter_map(|entry| {
+                        let trimmed = entry.trim();
+                        if trimmed.is_empty() {
+                            return None;
+                        }
+                        Some(trimmed.to_string())
+                    })
+                    .collect()
+            })
+            .filter(|value: &Vec<String>| !value.is_empty())
+            .unwrap_or_else(|| vec!["dom".to_string(), "esnext".to_string()]);
+
+        // ensure std and globals are always present
+        if !libs.iter().any(|name| name == "std") {
+            libs.push("std".to_string());
+        }
+        if !libs.iter().any(|name| name == "globals") {
+            libs.push("globals".to_string());
+        }
+
+        // include a baseline es lib for runtime libraries that require them
+        let has_es = libs.iter().any(|name| name.starts_with("es"));
+        let has_decorators = libs.iter().any(|name| name.starts_with("decorators"));
+        if !has_es && !has_decorators {
+            libs.push("es2020".to_string());
+        }
+
+        let lib_refs: Vec<&str> = libs.iter().map(|name| name.as_str()).collect();
+        let test =
+            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&lib_refs);
+
+        let (import_modules, import_duration) = import_lib_modules(&test, &lib_refs, timeout);
+
+        // resolve builtins and libs
+        let resolve_duration = resolve_builtins_and_libs(&test, timeout);
+        let analyze_duration = analyze_lib_modules(&test, &import_modules, timeout);
+
+        let label = format!("combined({})", libs.join(","));
+        let timing = LibTiming {
+            name: label,
+            import: import_duration,
+            resolve: resolve_duration,
+            analyze: analyze_duration,
+            total: import_duration + resolve_duration + analyze_duration,
+        };
+
+        if report_timings {
+            eprintln!(
+                "builtin libs combined {}: import={} resolve={} analyze={} total={}",
+                timing.name,
+                format_duration(timing.import),
+                format_duration(timing.resolve),
+                format_duration(timing.analyze),
+                format_duration(timing.total)
+            );
+        }
+
+        if report_timings {
+            report_timing_summary(&[timing.clone()], 1);
+        }
+
+        if let Some(path) = csv_path
+            && let Err(error) = write_timings_csv(&[timing], &path)
+        {
+            eprintln!("timings: failed to write csv to {path}: {error}");
+        }
+    }
+
     /// Capture timing data for a builtin lib run.
     #[derive(Debug, Clone)]
     struct LibTiming {
         /// The builtin lib name.
-        name: &'static str,
+        name: String,
+        /// Time spent importing sources.
+        import: Duration,
         /// Time spent resolving builtins and libs.
         resolve: Duration,
         /// Time spent analyzing the lib modules.
@@ -1114,6 +1164,9 @@ mod tests {
         sorted.sort_by_key(|entry| std::cmp::Reverse(entry.total));
 
         // aggregate total time by phase
+        let total_import = timings
+            .iter()
+            .fold(Duration::ZERO, |acc, entry| acc + entry.import);
         let total_resolve = timings
             .iter()
             .fold(Duration::ZERO, |acc, entry| acc + entry.resolve);
@@ -1125,7 +1178,8 @@ mod tests {
             .fold(Duration::ZERO, |acc, entry| acc + entry.total);
 
         eprintln!(
-            "builtin lib timings: total resolve={} analyze={} total={}",
+            "builtin lib timings: total import={} resolve={} analyze={} total={}",
+            format_duration(total_import),
             format_duration(total_resolve),
             format_duration(total_analyze),
             format_duration(total_all)
@@ -1140,8 +1194,9 @@ mod tests {
         eprintln!("builtin lib timings: top {sample_count} by total");
         for entry in sorted.iter().take(sample_count) {
             eprintln!(
-                "  {:<24} resolve={} analyze={} total={}",
+                "  {:<24} import={} resolve={} analyze={} total={}",
                 entry.name,
+                format_duration(entry.import),
                 format_duration(entry.resolve),
                 format_duration(entry.analyze),
                 format_duration(entry.total)
@@ -1153,11 +1208,12 @@ mod tests {
     fn write_timings_csv(timings: &[LibTiming], path: &str) -> std::io::Result<()> {
         // build CSV output in memory
         let mut output = String::new();
-        output.push_str("lib,resolve_ms,analyze_ms,total_ms\n");
+        output.push_str("lib,import_ms,resolve_ms,analyze_ms,total_ms\n");
         for entry in timings {
             output.push_str(&format!(
-                "{},{:.3},{:.3},{:.3}\n",
+                "{},{:.3},{:.3},{:.3},{:.3}\n",
                 entry.name,
+                entry.import.as_secs_f64() * 1000.0,
                 entry.resolve.as_secs_f64() * 1000.0,
                 entry.analyze.as_secs_f64() * 1000.0,
                 entry.total.as_secs_f64() * 1000.0
@@ -1177,5 +1233,83 @@ mod tests {
         }
 
         format!("{ms:.3}ms")
+    }
+
+    /// Build the lib list for a builtin lib run.
+    fn libs_for_builtin(lib: &BuiltinLib) -> Vec<&'static str> {
+        // include a baseline es lib for runtime libraries that require them
+        let mut libs = Vec::new();
+        if lib.kind == BuiltinLibKind::Lib
+            && !lib.name.starts_with("es")
+            && !lib.name.starts_with("decorators")
+        {
+            libs.push("es2020");
+        }
+        libs.push(lib.name);
+
+        libs
+    }
+
+    /// Import lib modules and return module ids plus elapsed time.
+    fn import_lib_modules(
+        test: &TestProgram,
+        libs: &[&str],
+        timeout: Duration,
+    ) -> (Vec<ModuleId>, Duration) {
+        // collect and import lib modules
+        let import_start = Instant::now();
+        let mut import_modules = Vec::new();
+        let mut seen_imports = HashSet::new();
+        for lib_name in libs {
+            let Some(module_ids) = test.session.load_lib(lib_name) else {
+                continue;
+            };
+            for module_id in module_ids {
+                if seen_imports.insert(module_id) {
+                    import_modules.push(module_id);
+                }
+            }
+        }
+        for module_id in &import_modules {
+            test.import_module(*module_id);
+        }
+        compile_and_check(test, timeout);
+
+        (import_modules, import_start.elapsed())
+    }
+
+    /// Resolve builtins and libs for a test program.
+    fn resolve_builtins_and_libs(test: &TestProgram, timeout: Duration) -> Duration {
+        // resolve builtins and libs with timing
+        let resolve_start = Instant::now();
+        test.resolve_builtins();
+        test.resolve_libs();
+        compile_and_check(test, timeout);
+        resolve_start.elapsed()
+    }
+
+    /// Analyze imported lib modules for a test program.
+    fn analyze_lib_modules(
+        test: &TestProgram,
+        modules: &[ModuleId],
+        timeout: Duration,
+    ) -> Duration {
+        // analyze each module once
+        let analyze_start = Instant::now();
+        let mut seen_modules = HashSet::new();
+        for module_id in modules {
+            if seen_modules.insert(*module_id) {
+                test.analyze_module(*module_id);
+            }
+        }
+        compile_and_check(test, timeout);
+        analyze_start.elapsed()
+    }
+
+    /// Compile queued tasks and assert no diagnostics.
+    fn compile_and_check(test: &TestProgram, timeout: Duration) {
+        // compile with timeout then verify diagnostics
+        test.compile_with_timeout(timeout);
+        test.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 }
