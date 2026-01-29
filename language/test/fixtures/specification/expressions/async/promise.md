@@ -7,7 +7,7 @@ Tests for Promise<T> and await expressions.
 ### await unwraps promise value type
 
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 declare const value: Promise<number>;
 
 async function read(): Promise<number> {
@@ -20,7 +20,7 @@ async function read(): Promise<number> {
 ### await rejects non promise values
 
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 async function read(): Promise<string> {
     const value = await "hello";
     value satisfies string;
@@ -33,7 +33,7 @@ async function read(): Promise<string> {
 ### await distributes over unions
 
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 declare const value: Promise<number> | Promise<string>;
 
 async function read(): Promise<number | string> {
@@ -46,7 +46,7 @@ async function read(): Promise<number | string> {
 ### await unwraps nested promises
 
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 declare const value: Promise<Promise<number>>;
 
 async function read(): Promise<number> {
@@ -63,7 +63,7 @@ async function read(): Promise<number> {
 { "compilerOptions": { "noAny": false } }
 ```
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 declare const value: any;
 
 async function read(): Promise<any> {
@@ -76,7 +76,7 @@ async function read(): Promise<any> {
 ### await preserves unknown promise values
 
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 declare const value: Promise<unknown>;
 
 async function read(): Promise<unknown> {
@@ -88,13 +88,29 @@ async function read(): Promise<unknown> {
 
 ### await unwraps promise aliases
 
-```ds libs=es2015.promise
+```ds libs=es5,es2015.promise
 type Box<T> = Promise<T>;
 declare const value: Box<int32>;
 
 async function read(): Promise<int32> {
     const inner = await value;
     inner satisfies int32;
+    return inner;
+}
+```
+
+### await unwraps unevaluated promise arguments
+
+> Await should unwrap Promise arguments even when the static argument is an unevaluated alias.
+
+```ds libs=es5,es2015.promise
+type Box<T> = Promise<T>;
+type Alias = Box<string>;
+declare const value: Alias;
+
+async function read(): Promise<string> {
+    const inner = await value;
+    inner satisfies string;
     return inner;
 }
 ```
