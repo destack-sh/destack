@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, TaskDependencyError, TaskResultCollector,
 };
@@ -37,6 +38,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::ANALYZE_MODULE_EXPORT);
 
         // ensure local declarations are ready
         self.require_analyze_module_declare(module_id, profile)?;
@@ -62,72 +64,84 @@ impl Compiler {
         let binding_exports = dir.module_binding_exports.read();
         let mut collector = TaskResultCollector::new();
 
-        // declare exported value types with local-only inference
-        self.collect(
-            &mut collector,
-            self.declare_exported_value_types(
-                &module,
-                profile,
-                &exported_symbols,
-                &tree,
-                &symbols,
-                &mut types,
-            ),
-        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_EXPORT_VALUES);
 
-        // declare exported value types for module bindings
-        for binding in binding_exports.values() {
+            // declare exported value types with local-only inference
             self.collect(
                 &mut collector,
                 self.declare_exported_value_types(
                     &module,
                     profile,
-                    &binding.exports,
+                    &exported_symbols,
                     &tree,
                     &symbols,
                     &mut types,
                 ),
             );
+
+            // declare exported value types for module bindings
+            for binding in binding_exports.values() {
+                self.collect(
+                    &mut collector,
+                    self.declare_exported_value_types(
+                        &module,
+                        profile,
+                        &binding.exports,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                    ),
+                );
+            }
         }
 
-        // materialize alias targets for exported type symbols
-        self.collect(
-            &mut collector,
-            self.materialize_exported_alias_targets(
-                &module,
-                profile,
-                &exported_symbols,
-                &tree,
-                &symbols,
-                &mut types,
-            ),
-        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_EXPORT_ALIASES);
 
-        for binding in binding_exports.values() {
+            // materialize alias targets for exported type symbols
             self.collect(
                 &mut collector,
                 self.materialize_exported_alias_targets(
                     &module,
                     profile,
-                    &binding.exports,
+                    &exported_symbols,
                     &tree,
                     &symbols,
                     &mut types,
                 ),
             );
+
+            for binding in binding_exports.values() {
+                self.collect(
+                    &mut collector,
+                    self.materialize_exported_alias_targets(
+                        &module,
+                        profile,
+                        &binding.exports,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                    ),
+                );
+            }
         }
 
-        // declare the module namespace value type from exports
-        self.collect(
-            &mut collector,
-            self.declare_module_namespace_value_type(
-                &module,
-                profile,
-                &exported_symbols,
-                &tree,
-                &mut types,
-            ),
-        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_EXPORT_NAMESPACE);
+
+            // declare the module namespace value type from exports
+            self.collect(
+                &mut collector,
+                self.declare_module_namespace_value_type(
+                    &module,
+                    profile,
+                    &exported_symbols,
+                    &tree,
+                    &mut types,
+                ),
+            );
+        }
 
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {

@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, ExecuteError, ExecuteResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
@@ -53,6 +54,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::EXECUTE_MODULE_PREPARE);
                 self.execute_module_prepare(
                     module.id,
                     profile.id,
@@ -67,6 +69,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::EXECUTE_MODULE_PATCH);
                 self.execute_module_patch(module.id, profile.id, module.version, profile.version)?;
                 if self.is_code_module(module.id) {
                     self.stats.record_execute();
@@ -83,6 +86,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::EXECUTE_EXPRESSION);
                 self.execute_expression(
                     module.id,
                     profile.id,

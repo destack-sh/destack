@@ -1,8 +1,8 @@
 use crate::common::format::{DiagnosticFormat, FormatOptions, format_diagnostics_with_writer};
 use crate::common::{
     CommandReport, DiagnosticArgs, InputArgs, InputSource, ProgramArgs, ProgressMode,
-    ProgressReporter, ReportArgs, StatsSummary, WatchCompileReason, collect_diagnostics_json,
-    is_tty, print_command_stats_summary, print_report, report_error,
+    ProgressReporter, ReportArgs, StatsSummary, TimingOutputOptions, WatchCompileReason,
+    collect_diagnostics_json, is_tty, print_command_stats_summary, print_report, report_error,
 };
 use crate::console;
 use crate::error::CliResult;
@@ -297,7 +297,7 @@ fn run_check_via_daemon(
             CommandReport::failure(command_name, format_result.exit_code())
         };
         if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats));
+            report.stats = Some(command_stats_from_protocol(stats, args.program.timings));
         }
         report.diagnostics = Some(output);
         print_report(&report, args.report.format());
@@ -329,8 +329,13 @@ fn run_check_via_daemon(
             errors: output_result.error_count,
             warnings: output_result.warning_count,
         };
-        let stats = command_stats_from_protocol(stats);
-        print_command_stats_summary(&summary, &stats, line_writer.as_ref());
+        let timing_options = TimingOutputOptions {
+            enabled: args.program.timings,
+            top: args.report.timings_top,
+            min_ms: args.report.timings_min_ms,
+        };
+        let stats = command_stats_from_protocol(stats, timing_options.enabled);
+        print_command_stats_summary(&summary, &stats, timing_options, line_writer.as_ref());
     }
 
     // enforce max warning threshold when configured
@@ -491,7 +496,7 @@ where
                     .response
                     .stats
                     .as_ref()
-                    .map(command_stats_from_protocol);
+                    .map(|stats| command_stats_from_protocol(stats, args.program.timings));
                 emit_watch_compile_report(
                     &mut reporter,
                     WatchCompileContext {
@@ -593,7 +598,7 @@ where
                 .response
                 .stats
                 .as_ref()
-                .map(command_stats_from_protocol);
+                .map(|stats| command_stats_from_protocol(stats, args.program.timings));
             let next_exit_code = emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {

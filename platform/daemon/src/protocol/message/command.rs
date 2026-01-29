@@ -136,4 +136,17 @@ pub struct CommandStats {
     pub slow_tasks: u64,
     /// Cache statistics when available.
     pub cache: Option<CommandCacheStats>,
+    /// Timing tag statistics when available.
+    pub timings: Option<Vec<CommandTimingTagStats>>,
+}
+
+/// Timing tag statistics for command payloads.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CommandTimingTagStats {
+    /// Timing tag name.
+    pub name: String,
+    /// Total time spent in this tag (milliseconds).
+    pub duration_ms: u64,
+    /// Number of samples recorded.
+    pub sample_count: u64,
 }

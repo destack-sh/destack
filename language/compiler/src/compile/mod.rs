@@ -9,6 +9,7 @@ mod process;
 mod queue;
 mod stats;
 mod task;
+pub mod timing;
 mod version;
 mod warning;
 
@@ -21,4 +22,5 @@ pub use format::*;
 pub use queue::*;
 pub use stats::*;
 pub use task::*;
+pub use timing::*;
 pub use warning::*;

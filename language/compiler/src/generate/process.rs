@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, GenerateError, GenerateResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
@@ -35,6 +36,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::GENERATE_MODULE);
                 self.generate_module(
                     module.id,
                     profile.id,

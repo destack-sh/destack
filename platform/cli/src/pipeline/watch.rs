@@ -149,6 +149,7 @@ pub fn build_daemon_options(
         load_libs: !program.no_libs,
         inject_prelude: !program.no_prelude,
         follow_imports: !program.no_follow_imports,
+        timings: program.timings,
         event_handler,
         ..Default::default()
     }

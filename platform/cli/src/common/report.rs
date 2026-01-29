@@ -43,6 +43,14 @@ pub struct ReportArgs {
     /// Emit JSON output (shorthand for --output-format json).
     #[arg(long)]
     pub json: bool,
+
+    /// Maximum timing tags to display in text output.
+    #[arg(long = "timings-top", default_value_t = 15)]
+    pub timings_top: usize,
+
+    /// Minimum timing tag duration in milliseconds.
+    #[arg(long = "timings-min-ms", default_value_t = 1)]
+    pub timings_min_ms: u64,
 }
 
 impl ReportArgs {
@@ -96,6 +104,9 @@ pub struct CommandStats {
     /// Cache statistics for the command.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache: Option<CommandCacheStats>,
+    /// Timing tag statistics for the command.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timings: Option<Vec<CommandTimingTagStats>>,
 }
 
 impl CommandStats {
@@ -114,8 +125,32 @@ impl CommandStats {
             lines_processed: snapshot.modules.lines_processed,
             slow_tasks: snapshot.slow_tasks,
             cache,
+            timings: None,
         }
     }
+}
+
+/// Timing tag statistics for command output.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct CommandTimingTagStats {
+    /// Timing tag name.
+    pub name: String,
+    /// Total time spent in this tag (milliseconds).
+    pub duration_ms: u64,
+    /// Number of samples recorded.
+    pub sample_count: u64,
+}
+
+/// Options for reporting timing tags.
+#[derive(Debug, Clone, Copy)]
+pub struct TimingOutputOptions {
+    /// Whether timing output is enabled.
+    pub enabled: bool,
+    /// Maximum number of entries to display.
+    pub top: usize,
+    /// Minimum duration in milliseconds to display.
+    pub min_ms: u64,
 }
 
 /// Cache statistics for command output.
@@ -471,6 +506,7 @@ pub struct StatsSummary<'a> {
 pub fn print_stats_summary(
     summary: &StatsSummary<'_>,
     stats: &StatsSnapshot,
+    timing_options: TimingOutputOptions,
     line_writer: Option<&LineWriter>,
 ) {
     // compute elapsed seconds for throughput calculations
@@ -688,12 +724,19 @@ pub fn print_stats_summary(
         let sep = console::dim(" · ");
         write_line(line_writer, &format!("    {}", phase_parts.join(&sep)));
     }
+
+    // show timing tag summary when requested
+    if timing_options.enabled {
+        let timing_entries = timing_entries_from_snapshot(stats, timing_options);
+        write_timing_summary(line_writer, &timing_entries, timing_options);
+    }
 }
 
 /// Print a stats summary line for daemon command payloads.
 pub fn print_command_stats_summary(
     summary: &StatsSummary<'_>,
     stats: &CommandStats,
+    timing_options: TimingOutputOptions,
     line_writer: Option<&LineWriter>,
 ) {
     // compute elapsed seconds for throughput calculations
@@ -770,6 +813,93 @@ pub fn print_command_stats_summary(
             hit_rate,
         );
         write_line(line_writer, &console::dim(&cache_line));
+    }
+
+    // show timing tag summary when requested
+    if timing_options.enabled {
+        let timing_entries = timing_entries_from_command_stats(stats, timing_options);
+        write_timing_summary(line_writer, &timing_entries, timing_options);
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TimingEntry {
+    name: String,
+    duration: Duration,
+    sample_count: u64,
+}
+
+fn timing_entries_from_snapshot(
+    stats: &StatsSnapshot,
+    timing_options: TimingOutputOptions,
+) -> Vec<TimingEntry> {
+    let min_ms = timing_options.min_ms as u128;
+    let mut entries: Vec<TimingEntry> = stats
+        .timings
+        .iter()
+        .filter(|entry| entry.duration.as_millis() >= min_ms)
+        .map(|entry| TimingEntry {
+            name: entry.name.clone(),
+            duration: entry.duration,
+            sample_count: entry.sample_count as u64,
+        })
+        .collect();
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+    if timing_options.top > 0 && entries.len() > timing_options.top {
+        entries.truncate(timing_options.top);
+    }
+    entries
+}
+
+fn timing_entries_from_command_stats(
+    stats: &CommandStats,
+    timing_options: TimingOutputOptions,
+) -> Vec<TimingEntry> {
+    let Some(timings) = stats.timings.as_ref() else {
+        return Vec::new();
+    };
+    let min_ms = timing_options.min_ms;
+    let mut entries: Vec<TimingEntry> = timings
+        .iter()
+        .filter(|entry| entry.duration_ms >= min_ms)
+        .map(|entry| TimingEntry {
+            name: entry.name.clone(),
+            duration: Duration::from_millis(entry.duration_ms),
+            sample_count: entry.sample_count,
+        })
+        .collect();
+    entries.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+    if timing_options.top > 0 && entries.len() > timing_options.top {
+        entries.truncate(timing_options.top);
+    }
+    entries
+}
+
+fn write_timing_summary(
+    line_writer: Option<&LineWriter>,
+    timing_entries: &[TimingEntry],
+    timing_options: TimingOutputOptions,
+) {
+    if timing_entries.is_empty() {
+        return;
+    }
+
+    let top_label = if timing_options.top == 0 {
+        "all".to_string()
+    } else {
+        timing_options.top.to_string()
+    };
+    let header = format!(
+        "timing tags: top {} (min {}ms)",
+        top_label, timing_options.min_ms
+    );
+    write_line(line_writer, &console::dim(&header));
+
+    for entry in timing_entries {
+        let name = console::dim(&entry.name);
+        let duration = console::cyan(&console::format_duration(entry.duration));
+        let count = console::dim(&format!("{}x", entry.sample_count));
+        write_line(line_writer, &format!("    {name} {duration} · {count}"));
     }
 }
 

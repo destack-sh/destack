@@ -2,6 +2,7 @@ use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleId, ModuleStamp, ProfileStamp};
 use destack_workspace::ProfileId;
 
+use crate::timing::tags;
 use crate::{Compiler, ElaborateError, ElaborateResult, TaskDependencyError};
 
 /// Task to elaborate a module: post-analysis transforms that need type information
@@ -62,6 +63,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::ELABORATE_MODULE_TRANSFORM);
                 self.elaborate_module_transform(
                     module.id,
                     profile.id,
@@ -76,6 +78,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::ELABORATE_MODULE_REIFY);
                 self.elaborate_module_reify(
                     module.id,
                     profile.id,

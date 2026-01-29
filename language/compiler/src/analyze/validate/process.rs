@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 use destack_dir::{Declaration, Member, Parameter};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
@@ -43,6 +44,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::ANALYZE_MODULE_VALIDATE);
 
         // update signature for non-code modules and skip validation
         if !self.is_code_module(module_id) {

@@ -9,6 +9,7 @@ use destack_workspace::{
 };
 use indexmap::IndexMap;
 
+use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 
 /// Loaded builtin lib modules collected during resolve.
@@ -31,6 +32,7 @@ impl Compiler {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(());
         };
+        let _timing = self.timing_scope(tags::RESOLVE_LIBS);
 
         self.require_resolve_builtins(profile_id)?;
 
@@ -466,6 +468,7 @@ impl Compiler {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(());
         };
+        let _timing = self.timing_scope(tags::RESOLVE_BUILTINS);
 
         // resolve prelude/core modules
         self.require_resolve_module(builtins.prelude_module_id, profile)?;
@@ -886,7 +889,7 @@ mod tests {
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
     use destack_source::{DiagnosticSeverity, ModuleId};
 
-    use crate::{TaskPhase, TestProgram, assert_string};
+    use crate::{StatsSnapshot, TaskPhase, TestProgram, assert_string};
 
     /// Test that language item modules can be looked up correctly.
     #[test]
@@ -1006,7 +1009,10 @@ mod tests {
     #[ignore = "slow"]
     fn test_analyze_all_builtin_libs() {
         // timings
-        let report_timings = std::env::var("DESTACK_TIMINGS").is_ok();
+        let report_timings = std::env::var("DESTACK_TIMINGS")
+            .ok()
+            .map(|value| value != "0")
+            .unwrap_or(true);
         let report_top_n = std::env::var("DESTACK_TIMINGS_TOP")
             .ok()
             .and_then(|value| value.parse::<usize>().ok())
@@ -1045,6 +1051,12 @@ mod tests {
                     format_duration(analyze_duration),
                     format_duration(lib_start.elapsed())
                 );
+
+                let snapshot = test
+                    .compiler
+                    .stats
+                    .snapshot_with_program(test.program.modules.len(), Some(&test.program));
+                report_timing_tag_summary(&snapshot, report_top_n);
             }
         }
 
@@ -1065,6 +1077,10 @@ mod tests {
     fn test_analyze_builtin_libs_combined() {
         // timings
         let report_timings = std::env::var("DESTACK_TIMINGS").is_ok();
+        let report_top_n = std::env::var("DESTACK_TIMINGS_TOP")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(15);
         let csv_path = std::env::var("DESTACK_TIMINGS_CSV").ok();
         let timeout = Duration::from_secs(60);
 
@@ -1132,7 +1148,16 @@ mod tests {
         }
 
         if report_timings {
-            report_timing_summary(&[timing.clone()], 1);
+            report_timing_summary(std::slice::from_ref(&timing), 1);
+        }
+
+        if report_timings {
+            let snapshot = test
+                .compiler
+                .stats
+                .snapshot_with_program(test.program.modules.len(), Some(&test.program));
+            report_task_name_summary(&snapshot, report_top_n);
+            report_timing_tag_summary(&snapshot, report_top_n);
         }
 
         if let Some(path) = csv_path
@@ -1233,6 +1258,44 @@ mod tests {
         }
 
         format!("{ms:.3}ms")
+    }
+
+    /// Report per-task timing results for quick debugging.
+    fn report_task_name_summary(snapshot: &StatsSnapshot, top_n: usize) {
+        // report the slowest tasks by total time
+        let sample_count = top_n.min(snapshot.task_names.len());
+        if sample_count == 0 {
+            return;
+        }
+
+        eprintln!("builtin lib task timings: top {sample_count} by total");
+        for entry in snapshot.task_names.iter().take(sample_count) {
+            eprintln!(
+                "  {:<32} total={} count={}",
+                entry.name,
+                format_duration(entry.duration),
+                entry.task_count
+            );
+        }
+    }
+
+    /// Report per-timing tag results for quick debugging.
+    fn report_timing_tag_summary(snapshot: &StatsSnapshot, top_n: usize) {
+        // report the slowest timing tags by total time
+        let sample_count = top_n.min(snapshot.timings.len());
+        if sample_count == 0 {
+            return;
+        }
+
+        eprintln!("builtin lib timing tags: top {sample_count} by total");
+        for entry in snapshot.timings.iter().take(sample_count) {
+            eprintln!(
+                "  {:<32} total={} count={}",
+                entry.name,
+                format_duration(entry.duration),
+                entry.sample_count
+            );
+        }
     }
 
     /// Build the lib list for a builtin lib run.

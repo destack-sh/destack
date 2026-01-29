@@ -73,6 +73,9 @@ pub struct CompilerOptions {
     /// Optional event handler for progress reporting.
     /// Called for task start/complete/fail events during compilation.
     pub event_handler: Option<CompilerEventHandler>,
+
+    /// Whether to collect detailed timing tags.
+    pub timings: bool,
 }
 
 impl Default for CompilerOptions {
@@ -102,6 +105,7 @@ impl Default for CompilerOptions {
             emit_dry_run: false,
 
             event_handler: None,
+            timings: false,
         }
     }
 }
@@ -136,6 +140,7 @@ impl std::fmt::Debug for CompilerOptions {
             .field("emit_create_dirs", &self.emit_create_dirs)
             .field("emit_dry_run", &self.emit_dry_run)
             .field("event_handler", &self.event_handler.is_some())
+            .field("timings", &self.timings)
             .finish()
     }
 }
@@ -199,6 +204,7 @@ impl Compiler {
     /// Create a new Compiler.
     pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompilerOptions) -> Self {
         let comptime_target = destack_workspace::Target::comptime("comptime");
+        let timings = options.timings;
 
         let compiler = Self {
             session,
@@ -210,7 +216,7 @@ impl Compiler {
             comptime_target,
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
-            stats: Arc::new(CompilerStats::new()),
+            stats: Arc::new(CompilerStats::new_with_timings(timings)),
             cache: CacheRegistry::new(),
             signature_strings: Mutex::new(None),
         };

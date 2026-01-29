@@ -156,6 +156,7 @@ impl CompilerContext {
                 load_libs: !program_args.no_libs,
                 inject_prelude: !program_args.no_prelude,
                 follow_imports: !program_args.no_follow_imports,
+                timings: program_args.timings,
                 event_handler,
                 ..Default::default()
             },
