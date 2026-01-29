@@ -468,13 +468,13 @@ impl Parser {
         // spread argument
         if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat spread
-            let (label, value) = if self.options.in_type
+            let (label, label_span, value) = if self.options.in_type
                 && self.peek_token(TokenType::Identifier).is_ok()
                 && (self.peek_next_token(TokenType::Colon).is_ok()
                     || self.peek_next_token(TokenType::Maybe).is_ok()
                         && self.peek_next_next_token(TokenType::Colon).is_ok())
             {
-                let label = self.eat_identifier()?;
+                let (label, label_span) = self.eat_identifier_with_span()?;
                 if self.peek_token(TokenType::Maybe).is_ok() {
                     self.bump(); // eat ?
                     if modifiers.is_none() {
@@ -484,13 +484,13 @@ impl Parser {
                 }
                 self.bump(); // eat colon
                 let value = self.eat_expression()?;
-                (Some(label), value)
+                (Some(label), Some(label_span), value)
             } else {
                 let value = self.with_options(
                     self.options.not_in_position().not_in_sequence_expression(),
                     |parser| parser.eat_expression(),
                 )?;
-                (None, value)
+                (None, None, value)
             };
             let argument_id = self.tree.insert(
                 Argument::Spread {
@@ -500,6 +500,9 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+            if let Some(label_span) = label_span {
+                self.tree.set_main_span(argument_id, label_span);
+            }
             Ok(argument_id)
         }
         // labeled tuple element (only in type context): label: type
@@ -509,7 +512,7 @@ impl Parser {
                 || self.peek_next_token(TokenType::Maybe).is_ok()
                     && self.peek_next_next_token(TokenType::Colon).is_ok())
         {
-            let label = self.eat_identifier()?;
+            let (label, label_span) = self.eat_identifier_with_span()?;
             if self.peek_token(TokenType::Maybe).is_ok() {
                 self.bump(); // eat ?
                 if modifiers.is_none() {
@@ -529,6 +532,7 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+            self.tree.set_main_span(argument_id, label_span);
             Ok(argument_id)
         }
         // positional argument
@@ -588,7 +592,9 @@ impl Parser {
         let start = self.mark();
         // named argument (name: value)
         if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
-            let name = self.eat_name().for_node_type(NodeType::Argument)?;
+            let (name, name_span) = self
+                .eat_name_with_span()
+                .for_node_type(NodeType::Argument)?;
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             // value
@@ -604,6 +610,7 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+            self.tree.set_main_span(argument_id, name_span);
             Ok(argument_id)
         }
         // spread argument (...expr)
@@ -1111,6 +1118,29 @@ mod tests {
             // 1
             assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });
+
+        let main_span = parser
+            .tree
+            .get_main_span(argument_id)
+            .expect("expected argument name span");
+        assert_eq!(parser.get_span_str(main_span), "x");
+    }
+
+    #[test]
+    fn test_parse_named_argument_string_span() {
+        let mut test = TestParser::new("\"Content-Type\": 1");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_tree_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::String(name), value } => {
+            assert_string!(parser, *name, "Content-Type");
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(argument_id)
+            .expect("expected argument name span");
+        assert_eq!(parser.get_span_str(main_span), "\"Content-Type\"");
     }
 
     // positional arguments (for dynamic args, static args, tuples)
@@ -1154,5 +1184,29 @@ mod tests {
             assert_string!(parser, label.unwrap(), "args");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
         });
+
+        let main_span = parser
+            .tree
+            .get_main_span(argument_id)
+            .expect("expected spread label span");
+        assert_eq!(parser.get_span_str(main_span), "args");
+    }
+
+    #[test]
+    fn test_parse_tuple_label_argument_span() {
+        let mut test = TestParser::new("label: number");
+        let mut parser = test.prepare();
+        parser.options.in_type = true;
+        let argument_id = parser.eat_positional_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Labeled { modifiers: _, label, value } => {
+            assert_string!(parser, *label, "label");
+            assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(argument_id)
+            .expect("expected label span");
+        assert_eq!(parser.get_span_str(main_span), "label");
     }
 }

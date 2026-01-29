@@ -137,25 +137,29 @@ impl Parser {
                 && self.peek_identifier().is_ok()
                 && self.peek_next_token(TokenType::Colon).is_ok()
             {
-                let name = self.eat_identifier()?;
+                let (name, name_span) = self.eat_identifier_with_span()?;
                 self.bump(); // eat colon
                 let inner_pattern_id = self
                     .with_options(self.options.in_static().in_before_block(), |parser| {
                         parser.eat_pattern()
                     })
                     .for_node_type(NodeType::Pattern)?;
-                self.tree.insert(
+                let pattern_id = self.tree.insert(
                     Pattern::Binding {
                         mutability,
                         name,
                         pattern: Some(inner_pattern_id),
                     },
                     self.get_span_from(start),
-                )
+                );
+                self.tree.set_main_span(pattern_id, name_span);
+                pattern_id
             }
             // path or identifier
             else {
-                let path = self.eat_path().for_node_type(NodeType::Pattern)?;
+                let (path, name_span) = self
+                    .eat_path_with_last_span()
+                    .for_node_type(NodeType::Pattern)?;
                 // tuple with path
                 if self.peek_token(TokenType::OpenParenthesis).is_ok() {
                     self.bump(); // eat open parenthesis
@@ -170,6 +174,7 @@ impl Parser {
                         },
                         self.get_span_from(start),
                     );
+                    self.tree.set_main_span(expression_id, name_span);
                     let pattern = Pattern::TaggedTuple {
                         ty: expression_id,
                         fields,
@@ -193,6 +198,7 @@ impl Parser {
                         },
                         self.get_span_from(start),
                     );
+                    self.tree.set_main_span(ty_id, name_span);
                     let pattern = Pattern::TaggedObject { ty: ty_id, fields };
                     self.eat_token(TokenType::CloseBrace)?;
                     self.tree.insert(pattern, self.get_span_from(start))
@@ -206,6 +212,7 @@ impl Parser {
                         },
                         self.get_span_from(start),
                     );
+                    self.tree.set_main_span(expression_id, name_span);
                     self.tree.insert(
                         Pattern::Expression {
                             value: expression_id,
@@ -215,14 +222,16 @@ impl Parser {
                 }
                 // identifier
                 else {
-                    self.tree.insert(
+                    let pattern_id = self.tree.insert(
                         Pattern::Binding {
                             mutability,
                             name: path.segments[0],
                             pattern: None,
                         },
                         self.get_span_from(start),
-                    )
+                    );
+                    self.tree.set_main_span(pattern_id, name_span);
+                    pattern_id
                 }
             }
         };
@@ -289,6 +298,7 @@ impl Parser {
 
             // field
             let field_start = self.mark();
+            let mut name_span = None;
             let pattern_field = {
                 // elision: empty slot before separator (like `[,a]` or `[,,b]`)
                 if self.peek_token(seperator).is_ok() {
@@ -346,7 +356,9 @@ impl Parser {
                     if self.peek_token(TokenType::Spread).is_ok() {
                         self.bump(); // eat spread
                         let name = if self.peek_name().is_ok() {
-                            Some(self.eat_name()?)
+                            let (name, span) = self.eat_name_with_span()?;
+                            name_span = Some(span);
+                            Some(name)
                         } else {
                             None
                         };
@@ -356,11 +368,14 @@ impl Parser {
                     else if self.peek_name().is_ok()
                         && self.peek_next_token(TokenType::Colon).is_ok()
                     {
-                        let name = self.eat_name()?;
+                        let (name, _name_span) = self.eat_name_with_span()?;
                         self.bump(); // eat colon
                         // named alias
                         if self.peek_identifier().is_ok() {
-                            let alias = self.eat_identifier().for_node_type(NodeType::Pattern)?;
+                            let (alias, alias_span) = self
+                                .eat_identifier_with_span()
+                                .for_node_type(NodeType::Pattern)?;
+                            name_span = Some(alias_span);
                             // default
                             let default = if self.peek_token(TokenType::Assign).is_ok() {
                                 self.bump(); // eat assign
@@ -403,7 +418,8 @@ impl Parser {
                     }
                     // named without pattern
                     else {
-                        let name = self.eat_name()?;
+                        let (name, span) = self.eat_name_with_span()?;
+                        name_span = Some(span);
                         // default
                         let default = if self.peek_token(TokenType::Assign).is_ok() {
                             self.bump(); // eat assign
@@ -432,6 +448,9 @@ impl Parser {
             let pattern_field_id = self
                 .tree
                 .insert(pattern_field, self.get_span_from(field_start));
+            if let Some(name_span) = name_span {
+                self.tree.set_main_span(pattern_field_id, name_span);
+            }
             fields.push(pattern_field_id);
 
             // separator or newline

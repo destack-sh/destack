@@ -593,13 +593,14 @@ impl Parser {
             let can_parse_label =
                 is_labelled_expression || (self.options.in_statement_position && is_labelled_block);
             if can_parse_label {
-                let label = self.eat_identifier()?;
+                let (label, label_span) = self.eat_identifier_with_span()?;
                 self.eat_colon()?;
                 let body = self.eat_expression()?;
                 let labelled_id = self.tree.insert(
                     Expression::Labelled { label, body },
                     self.get_span_from(start),
                 );
+                self.tree.set_main_span(labelled_id, label_span);
                 return Ok(labelled_id);
             }
         }
@@ -1448,7 +1449,9 @@ impl Parser {
             }
             // alias / path / statically parameterized call
             else if token_type == TokenType::Identifier {
-                let path = self.eat_path().for_node_type(NodeType::Expression)?;
+                let (path, last_span) = self
+                    .eat_path_with_last_span()
+                    .for_node_type(NodeType::Expression)?;
 
                 // speculatively unwrap postfix static parameterisation with `<` or `<<`
                 //  (might also be just a comparison operator)
@@ -1480,13 +1483,16 @@ impl Parser {
                         static_arguments: None,
                     };
                     let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                    self.tree.set_main_span(receiver_id, last_span);
                     self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
                 } else {
                     let expression = Expression::Path {
                         path,
                         static_arguments,
                     };
-                    self.tree.insert(expression, self.get_span_from(start))
+                    let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                    self.tree.set_main_span(expression_id, last_span);
+                    expression_id
                 }
             }
             //
@@ -1954,6 +1960,7 @@ impl Parser {
             self.eat_newlines_maybe()?; // allow newlines after infix operator
 
             // eat right expression
+            let subject_id = left_expression_id;
             let mut right_options = self
                 .options
                 .not_in_position()
@@ -1980,7 +1987,19 @@ impl Parser {
             left_expression_id = self.tree.insert(left_expression, self.get_span_from(start));
 
             // set main span to the operator
-            self.tree.set_main_span(left_expression_id, operator_span)
+            self.tree.set_main_span(left_expression_id, operator_span);
+
+            // use the subject identifier for type predicate spans
+            if matches!(
+                self.tree.get(left_expression_id),
+                Expression::TypePredicate { .. }
+            ) {
+                let subject_span = self
+                    .tree
+                    .get_main_span(subject_id)
+                    .unwrap_or_else(|| self.tree.get_span(subject_id));
+                self.tree.set_main_span(left_expression_id, subject_span);
+            }
         }
 
         // value ternary after infix to keep lowest precedence
@@ -4057,6 +4076,139 @@ self
         );
     }
 
+    /// Unary operator spans point at the operator token.
+    #[test]
+    fn test_parse_unary_operator_span() {
+        let mut test = TestParser::new("-value");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Negate);
+            assert_expression_path!(parser, parser.tree.get(*right), "value");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected unary operator span");
+        assert_eq!(parser.get_span_str(main_span), "-");
+    }
+
+    #[test]
+    fn test_parse_unary_postfix_operator_span() {
+        let mut test = TestParser::new("value++");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::PostIncrement);
+            assert_expression_path!(parser, parser.tree.get(*right), "value");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected unary postfix operator span");
+        assert_eq!(parser.get_span_str(main_span), "++");
+    }
+
+    /// Binary operator spans point at the operator token.
+    #[test]
+    fn test_parse_binary_operator_span() {
+        let mut test = TestParser::new("left + right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Binary { operator, left, right } => {
+            assert_eq!(*operator, BinaryOperator::Add);
+            assert_expression_path!(parser, parser.tree.get(*left), "left");
+            assert_expression_path!(parser, parser.tree.get(*right), "right");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected binary operator span");
+        assert_eq!(parser.get_span_str(main_span), "+");
+    }
+
+    #[test]
+    fn test_parse_binary_operator_multichar_span() {
+        let mut test = TestParser::new("left === right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Binary { operator, left, right } => {
+            assert_eq!(*operator, BinaryOperator::EqualStrict);
+            assert_expression_path!(parser, parser.tree.get(*left), "left");
+            assert_expression_path!(parser, parser.tree.get(*right), "right");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected binary operator span");
+        assert_eq!(parser.get_span_str(main_span), "===");
+    }
+
+    #[test]
+    fn test_parse_binary_operator_logical_span() {
+        let mut test = TestParser::new("left && right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Binary { operator, left, right } => {
+            assert_eq!(*operator, BinaryOperator::And);
+            assert_expression_path!(parser, parser.tree.get(*left), "left");
+            assert_expression_path!(parser, parser.tree.get(*right), "right");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected binary operator span");
+        assert_eq!(parser.get_span_str(main_span), "&&");
+    }
+
+    #[test]
+    fn test_parse_binary_operator_coalesce_span() {
+        let mut test = TestParser::new("left ?? right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Binary { operator, left, right } => {
+            assert_eq!(*operator, BinaryOperator::Coalesce);
+            assert_expression_path!(parser, parser.tree.get(*left), "left");
+            assert_expression_path!(parser, parser.tree.get(*right), "right");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected binary operator span");
+        assert_eq!(parser.get_span_str(main_span), "??");
+    }
+
+    #[test]
+    fn test_parse_assign_operator_span() {
+        let mut test = TestParser::new("left += right");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Assign { operator, left, right } => {
+            assert_eq!(*operator, AssignOperator::AddAssign);
+            assert_expression_path!(parser, parser.tree.get(*left), "left");
+            assert_expression_path!(parser, parser.tree.get(*right), "right");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected assign operator span");
+        assert_eq!(parser.get_span_str(main_span), "+=");
+    }
+
     /// Postfix call has higher precedence than addition.
     #[test]
     fn test_parse_precedence_postfix_call_before_add() {
@@ -4195,8 +4347,33 @@ function isStringy(value: any): asserts value is string {
                     assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
                     assert_node!(parser.tree, target.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                 });
+
+                let predicate_id = signature.return_type.unwrap();
+                let main_span = parser
+                    .tree
+                    .get_main_span(predicate_id)
+                    .expect("expected predicate main span");
+                assert_eq!(parser.get_span_str(main_span), "value");
             });
         });
+    }
+
+    /// Parse labelled statements with a label span.
+    #[test]
+    fn test_parse_labelled_statement_span() {
+        let mut test = TestParser::new("label: loop {}");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Labelled { label, .. } => {
+            assert_string!(parser, *label, "label");
+        });
+
+        let main_span = parser
+            .tree
+            .get_main_span(expr_id)
+            .expect("expected label main span");
+        assert_eq!(parser.get_span_str(main_span), "label");
     }
 
     /// Parse a leading elementwise operator in a type expression.

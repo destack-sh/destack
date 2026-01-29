@@ -461,7 +461,9 @@ impl Parser {
         {
             self.bump(); // eat type keyword
             // name is just an identifier (path)
-            let (path, path_span) = self.eat_path_with_span()?;
+            let path_start = self.mark();
+            let (path, name_span) = self.eat_path_with_last_span()?;
+            let path_span = self.get_span_from(path_start);
             let name = self.tree.insert(
                 Expression::Path {
                     path,
@@ -469,6 +471,7 @@ impl Parser {
                 },
                 path_span,
             );
+            self.tree.set_main_span(name, name_span);
             // optional type bound: `: Bound`
             let ty = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon

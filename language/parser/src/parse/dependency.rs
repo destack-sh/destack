@@ -6,6 +6,7 @@ use destack_ast::{
     ImportSource, Keyword, LetKind, LocalNodeId, Mutability, Pattern, TokenType,
 };
 use destack_base::StringId;
+use destack_source::NodeSpanType;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
@@ -74,11 +75,13 @@ impl Parser {
         if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Assign).is_ok()
         {
-            let name = self.eat_identifier()?;
+            let (name, name_span) = self.eat_identifier_with_span()?;
             self.bump(); // eat =
 
             // require import equals
-            if let Some(import_id) = self.try_eat_import_equals_require(start, kind, name)? {
+            if let Some(import_id) =
+                self.try_eat_import_equals_require(start, kind, name, name_span)?
+            {
                 return Ok(import_id);
             }
 
@@ -141,6 +144,7 @@ impl Parser {
         start: ParserMark,
         kind: Option<DependencyKind>,
         name: StringId,
+        name_span: destack_source::Span,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if !(self.peek_identifier_str("require").is_ok()
             && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
@@ -166,6 +170,7 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+        self.tree.set_main_span(item, name_span);
         let import_id = self.tree.insert(
             Expression::Import {
                 source: ImportSource::ImportEquals,
@@ -468,7 +473,7 @@ impl Parser {
                 || self.peek_next_keyword(Keyword::From).is_ok())
         {
             let start = self.mark();
-            let alias = self.eat_identifier()?;
+            let (alias, alias_span) = self.eat_identifier_with_span()?;
             if self.peek_token(TokenType::Comma).is_ok() {
                 self.bump(); // eat comma (leave from)
             }
@@ -480,6 +485,7 @@ impl Parser {
                 value: None,
             };
             let item_id = self.tree.insert(item, self.get_span_from(start));
+            self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
 
@@ -490,7 +496,7 @@ impl Parser {
             let start = self.mark();
             self.bump(); // eat *
             self.bump(); // eat as
-            let alias = self.eat_identifier()?;
+            let (alias, alias_span) = self.eat_identifier_with_span()?;
             let item = DependencyItem {
                 mode: DependencyMode::Namespace,
                 kind: None,
@@ -499,6 +505,7 @@ impl Parser {
                 value: None,
             };
             let item_id = self.tree.insert(item, self.get_span_from(start));
+            self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
 
@@ -545,13 +552,14 @@ impl Parser {
             self.bump(); // eat default
 
             // alias
-            let alias = if self.peek_keyword(Keyword::As).is_ok()
+            let (alias, alias_span) = if self.peek_keyword(Keyword::As).is_ok()
                 || self.peek_token(TokenType::Colon).is_ok()
             {
                 self.bump(); // eat `as` or `:`
-                Some(self.eat_identifier()?)
+                let (alias, alias_span) = self.eat_identifier_with_span()?;
+                (Some(alias), Some(alias_span))
             } else {
-                None
+                (None, None)
             };
 
             // item
@@ -565,23 +573,25 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+            if let Some(alias_span) = alias_span {
+                self.tree.set_main_span(item, alias_span);
+            }
             Ok(item)
         }
         // item
         else {
             // name
-            let name = self.eat_identifier()?;
+            let (name, name_span) = self.eat_identifier_with_span()?;
 
             // alias
-            let alias = {
-                if self.peek_keyword(Keyword::As).is_ok()
-                    || self.peek_token(TokenType::Colon).is_ok()
-                {
-                    self.bump(); // eat `as` or `:`
-                    Some(self.eat_identifier()?)
-                } else {
-                    None
-                }
+            let (alias, alias_span) = if self.peek_keyword(Keyword::As).is_ok()
+                || self.peek_token(TokenType::Colon).is_ok()
+            {
+                self.bump(); // eat `as` or `:`
+                let (alias, alias_span) = self.eat_identifier_with_span()?;
+                (Some(alias), Some(alias_span))
+            } else {
+                (None, None)
             };
 
             // item
@@ -595,6 +605,9 @@ impl Parser {
                 },
                 self.get_span_from(start),
             );
+            self.tree.set_side_span(item, NodeSpanType::Type, name_span);
+            let main_span = alias_span.unwrap_or(name_span);
+            self.tree.set_main_span(item, main_span);
             Ok(item)
         }
     }
@@ -922,6 +935,23 @@ export type { CreateUIMessage, UIMessage }
             assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
                 assert_eq!(*kind, Some(DependencyKind::Type));
+                assert_string!(parser, *name, "Options");
+            });
+            assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_export_type_reexport_block() {
+        let mut test = TestParser::new("export type { Options } from 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, kind, name: Some(name), alias: None, .. } => {
+                assert_eq!(*mode, DependencyMode::Item);
+                assert_eq!(*kind, None);
                 assert_string!(parser, *name, "Options");
             });
             assert_string!(parser, *target, "foo");

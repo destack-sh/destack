@@ -142,6 +142,7 @@ mod tests {
         BindingKind, Declaration, DeclarationDescriptor, DeclarationKind, Expression, IntType, Key,
         Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility, WhereClause,
     };
+    use destack_source::NodeSpanType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -340,6 +341,34 @@ struct Foo {
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
             assert_eq!(members.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_struct_heritage_type_spans() {
+        let mut test = TestParser::new("struct Foo extends Bar.Baz implements Qux {}");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let struct_id = parser
+            .eat_struct_or_class(start, DeclarationDescriptor::default())
+            .unwrap();
+
+        // spans on extends and implements types
+        assert_node!(parser.tree, struct_id, Declaration::Struct { heritage, .. } => {
+            let extends_types = heritage.extends_types.as_ref().expect("expected extends types");
+            let extends_span = parser
+                .tree
+                .get_side_span(extends_types[0], NodeSpanType::Type)
+                .expect("expected extends type span");
+            assert_eq!(parser.get_span_str(extends_span), "Bar.Baz");
+
+            let implements_types = heritage.implements_types.as_ref().expect("expected implements types");
+            let implements_span = parser
+                .tree
+                .get_side_span(implements_types[0], NodeSpanType::Type)
+                .expect("expected implements type span");
+            assert_eq!(parser.get_span_str(implements_span), "Qux");
         });
     }
 }

@@ -221,10 +221,10 @@ impl Parser {
         // 1. `:identifier` → Destack style label, optionally followed by value
         // 2. `identifier` at statement stop → JS style label (no value)
         // 3. Otherwise → value expression (Destack extension, no label)
-        let (label, value_id) = if self.peek_token(TokenType::Colon).is_ok() {
+        let (label, label_span, value_id) = if self.peek_token(TokenType::Colon).is_ok() {
             // Destack style: break :label [value]
             self.bump(); // eat colon
-            let label = Some(self.eat_identifier()?);
+            let (label, label_span) = self.eat_identifier_with_span()?;
             let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
                 let value_id = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_expression()
@@ -233,7 +233,7 @@ impl Parser {
             } else {
                 None
             };
-            (label, value_id)
+            (Some(label), Some(label_span), value_id)
         } else if self.peek_token(TokenType::Identifier).is_ok()
             && self
                 .peek_next_token_in(&[
@@ -245,16 +245,16 @@ impl Parser {
                 .is_ok()
         {
             // JS style: break label (identifier followed by statement stop)
-            let label = Some(self.eat_identifier()?);
-            (label, None)
+            let (label, label_span) = self.eat_identifier_with_span()?;
+            (Some(label), Some(label_span), None)
         } else if self.peek().is_ok() && self.peek_statement_stop().is_err() {
             // Destack extension: break value (no label)
             let value_id = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
-            (None, Some(value_id))
+            (None, None, Some(value_id))
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         // break
@@ -265,6 +265,9 @@ impl Parser {
             },
             self.get_span_from(start),
         );
+        if let Some(label_span) = label_span {
+            self.tree.set_main_span(break_id, label_span);
+        }
         Ok(break_id)
     }
 
@@ -283,10 +286,11 @@ impl Parser {
         // label parsing:
         // 1. `:identifier` → Destack style label
         // 2. `identifier` at statement stop → JS style label
-        let label = if self.peek_token(TokenType::Colon).is_ok() {
+        let (label, label_span) = if self.peek_token(TokenType::Colon).is_ok() {
             // Destack style: continue :label
             self.bump(); // eat colon
-            Some(self.eat_identifier()?)
+            let (label, label_span) = self.eat_identifier_with_span()?;
+            (Some(label), Some(label_span))
         } else if self.peek_token(TokenType::Identifier).is_ok()
             && self
                 .peek_next_token_in(&[
@@ -298,15 +302,19 @@ impl Parser {
                 .is_ok()
         {
             // JS style: continue label
-            Some(self.eat_identifier()?)
+            let (label, label_span) = self.eat_identifier_with_span()?;
+            (Some(label), Some(label_span))
         } else {
-            None
+            (None, None)
         };
 
         // continue
         let continue_id = self
             .tree
             .insert(Expression::Continue { label }, self.get_span_from(start));
+        if let Some(label_span) = label_span {
+            self.tree.set_main_span(continue_id, label_span);
+        }
         Ok(continue_id)
     }
 
@@ -536,6 +544,12 @@ mod tests {
             assert_string!(parser, label.unwrap(), "label");
             assert!(value.is_none());
         });
+
+        let main_span = parser
+            .tree
+            .get_main_span(break_id)
+            .expect("expected break label span");
+        assert_eq!(parser.get_span_str(main_span), "label");
     }
 
     #[test]
@@ -578,6 +592,12 @@ mod tests {
         assert_node!(parser.tree, continue_id, Expression::Continue { label } => {
             assert_string!(parser, label.unwrap(), "label");
         });
+
+        let main_span = parser
+            .tree
+            .get_main_span(continue_id)
+            .expect("expected continue label span");
+        assert_eq!(parser.get_span_str(main_span), "label");
     }
 
     #[test]
