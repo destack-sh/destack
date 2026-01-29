@@ -6,7 +6,7 @@
 
 > Exclusive ranges are valid expressions.
 
-```ds
+```ds libs=std
 let range = 0..10;
 range;
 ```
@@ -17,7 +17,7 @@ range;
 
 > Inclusive ranges are valid expressions.
 
-```ds
+```ds libs=std
 let range = 0..=10;
 range;
 ```
@@ -28,7 +28,7 @@ range;
 
 > Range bounds can be arbitrary expressions.
 
-```ds
+```ds libs=std
 let start = 1;
 let end = 5;
 let range = start..end;
@@ -41,7 +41,7 @@ range;
 
 > Exclusive ranges produce `Range<T>` values.
 
-```ds
+```ds libs=std
 let start: int32 = 0;
 let end: int32 = 10;
 let range: Range<int32> = start..end;
@@ -52,7 +52,7 @@ range;
 
 > Inclusive ranges produce `RangeInclusive<T>` values.
 
-```ds
+```ds libs=std
 let start: int32 = 0;
 let end: int32 = 10;
 let range: RangeInclusive<int32> = start..=end;
@@ -63,7 +63,7 @@ range;
 
 > Range element types must satisfy the target type.
 
-```ds
+```ds libs=std
 let range: Range<string> = 0..10;
 range;
 ```
@@ -76,8 +76,28 @@ range;
 
 > Range expressions can appear in for-of loops.
 
-```ds
+```ds libs=std
 for (const i of 0..10) {
     i;
 }
+```
+
+### range expressions are assignable to iterable
+
+> Range expressions should be assignable to `Iterable<T>`.
+
+```ds libs=std
+let range = 0..10;
+let iter: Iterable<int32, unknown, unknown> = range;
+iter;
+```
+
+### inclusive ranges implement RangeBounds
+
+> Range expressions should satisfy `RangeBounds<T>`.
+
+```ds libs=std
+let range = 1..=3;
+let bounds: RangeBounds<int32> = range;
+bounds;
 ```

@@ -1,7 +1,7 @@
 use destack_dir::{
-    Expression, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType,
-    ScalarLiteral, StaticArgument, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature,
-    TypeLiteral, TypeTable,
+    Expression, GlobalSymbolId, IntType, Lineage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    PrimitiveType, ScalarLiteral, StaticArgument, SymbolTable, SymbolType, Type, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -1341,7 +1341,13 @@ impl Compiler {
                     }
                     return Assignability::NotAssignable;
                 }
-                if self.is_type_lineage_assignable(source_symbol, target_symbol, types) {
+                if self.is_type_lineage_assignable(
+                    module,
+                    profile,
+                    source_symbol,
+                    target_symbol,
+                    types,
+                ) {
                     return Assignability::Assignable;
                 }
 
@@ -2816,18 +2822,53 @@ impl Compiler {
     /// (This also checks visible extensions that add `implements` clauses to the source type.)
     pub fn is_type_lineage_assignable(
         &self,
+        module: &Module,
+        profile: ProfileId,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
         types: &TypeTable,
     ) -> bool {
+        let mut visited = HashSet::new();
+        self.is_type_lineage_assignable_inner(
+            module,
+            profile,
+            source_symbol,
+            target_symbol,
+            types,
+            &mut visited,
+        )
+    }
+
+    /// Check if source_symbol is a subtype of target_symbol via lineage (follows inheritance chain).
+    fn is_type_lineage_assignable_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
+        types: &TypeTable,
+        visited: &mut HashSet<GlobalSymbolId>,
+    ) -> bool {
+        // avoid cycles across inheritance graphs
+        if !visited.insert(source_symbol) {
+            return false;
+        }
+
         // step 1: check the type's own lineage
-        if let Some(lineage) = types.get_lineage_for_symbol(source_symbol) {
+        if let Some(lineage) = self.lineage_for_symbol(module, profile, source_symbol, types) {
             // check direct extends
             if let Some(extends) = lineage.extends {
                 if extends == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable(extends, target_symbol, types) {
+                if self.is_type_lineage_assignable_inner(
+                    module,
+                    profile,
+                    extends,
+                    target_symbol,
+                    types,
+                    visited,
+                ) {
                     return true;
                 }
             }
@@ -2837,7 +2878,14 @@ impl Compiler {
                 if implements == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable(implements, target_symbol, types) {
+                if self.is_type_lineage_assignable_inner(
+                    module,
+                    profile,
+                    implements,
+                    target_symbol,
+                    types,
+                    visited,
+                ) {
                     return true;
                 }
             }
@@ -2847,7 +2895,14 @@ impl Compiler {
                 if embedded == target_symbol {
                     return true;
                 }
-                if self.is_type_lineage_assignable(embedded, target_symbol, types) {
+                if self.is_type_lineage_assignable_inner(
+                    module,
+                    profile,
+                    embedded,
+                    target_symbol,
+                    types,
+                    visited,
+                ) {
                     return true;
                 }
             }
@@ -2855,14 +2910,14 @@ impl Compiler {
 
         // step 2: check visible extensions that add implements clauses
         if let Some(extension_ids) = types.get_extensions_for_target(source_symbol) {
-            let module = self.program.modules.get(types.module_id);
-            let module = module.read();
+            let types_module = self.program.modules.get(types.module_id);
+            let types_module = types_module.read();
 
             for extension_id in extension_ids {
                 let extension = types.get_extension(*extension_id);
 
                 // check visibility (reuses the same function as member lookup)
-                if !self.is_extension_visible(&module, extension) {
+                if !self.is_extension_visible(&types_module, extension) {
                     continue;
                 }
 
@@ -2875,7 +2930,14 @@ impl Compiler {
                         if implements == target_symbol {
                             return true;
                         }
-                        if self.is_type_lineage_assignable(implements, target_symbol, types) {
+                        if self.is_type_lineage_assignable_inner(
+                            module,
+                            profile,
+                            implements,
+                            target_symbol,
+                            types,
+                            visited,
+                        ) {
                             return true;
                         }
                     }
@@ -2884,6 +2946,38 @@ impl Compiler {
         }
 
         false
+    }
+
+    /// Return the lineage for a symbol.
+    fn lineage_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        types: &TypeTable,
+    ) -> Option<Lineage> {
+        if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
+            return Some(lineage.clone());
+        }
+
+        // bail when the symbol is in the same module (lineage above is already cached)
+        if symbol.module_id == module.id {
+            return None;
+        }
+
+        // bail when the symbol is not declared in the remote module
+        if self
+            .require_analyze_module_declare(symbol.module_id, profile)
+            .is_err()
+        {
+            return None;
+        }
+
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_types = remote_dir.types.read();
+        remote_types.get_lineage_for_symbol(symbol).cloned()
     }
 
     /// Normalize a conditional type for assignability when it resolves in flow mode.

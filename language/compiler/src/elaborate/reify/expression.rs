@@ -45,7 +45,7 @@ impl Compiler {
 
         // lock the dir tables
         let mut tree = dir.tree.write();
-        let symbols = dir.symbols.read();
+        let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
 
         // collect member expressions used as call or new callees
@@ -85,7 +85,7 @@ impl Compiler {
                 profile,
                 expression_id,
                 &mut tree,
-                &symbols,
+                &mut symbols,
                 &mut types,
                 &module,
                 &member_callees,
@@ -110,7 +110,7 @@ impl Compiler {
         profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
+        symbols: &mut SymbolTable,
         types: &mut TypeTable,
         module: &Module,
         member_callees: &HashSet<u32>,
@@ -262,13 +262,14 @@ impl Compiler {
                 is_inclusive,
             } => {
                 self.reify_range_expression(
+                    module_id,
+                    profile,
                     expression_id,
                     start,
                     end,
                     is_inclusive,
                     tree,
                     symbols,
-                    types,
                 )?;
             }
 

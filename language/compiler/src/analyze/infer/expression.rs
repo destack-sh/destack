@@ -2412,18 +2412,16 @@ impl Compiler {
                     self.unwrap_awaited_type(module, symbols, ctx.profile, inner_ty_id, types);
                 if awaited_ty_id == inner_ty_id
                     && !self.type_is_any_or_unknown(inner_ty_id, types)
-                {
-                    if let Some(promise_ty_id) =
+                    && let Some(promise_ty_id) =
                         self.promise_type(ctx.profile, None, expression_id.into_any(), types)
-                    {
-                        self.error(AnalyzeError::UnassignableType {
-                            node: expression_id
-                                .into_global_any(module.id)
-                                .into_anchored(Some(ctx.profile)),
-                            expected_ty: promise_ty_id.into_global(module.id),
-                            actual_ty: inner_ty_id.into_global(module.id),
-                        });
-                    }
+                {
+                    self.error(AnalyzeError::UnassignableType {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        expected_ty: promise_ty_id.into_global(module.id),
+                        actual_ty: inner_ty_id.into_global(module.id),
+                    });
                 }
                 awaited_ty_id
             }
@@ -2588,8 +2586,7 @@ impl Compiler {
                 )?
             }
 
-            // range expression: analyze bounds, type is Iterable<T>
-            // #Incomplete: range should satisfy Iterable<T> where T is the element type
+            // range expression: analyze bounds, type is Range<T> or RangeInclusive<T>
             Expression::RangeExpression {
                 start,
                 end,
