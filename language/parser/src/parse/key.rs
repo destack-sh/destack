@@ -12,9 +12,7 @@ impl Parser {
     /// Eat an identifier.
     #[inline]
     pub fn eat_identifier(&mut self) -> ParseResult<StringId> {
-        let token = *self.eat_token(TokenType::Identifier)?;
-        let s = self.file.span_str(token.span);
-        let string_id = self.strings.intern(s);
+        let (string_id, _) = self.eat_identifier_with_span()?;
         Ok(string_id)
     }
 
@@ -25,6 +23,21 @@ impl Parser {
         let s = self.file.span_str(token.span);
         let string_id = self.strings.intern(s);
         Ok((string_id, token.span))
+    }
+
+    /// Eat a binding identifier.
+    #[inline]
+    pub fn eat_binding_identifier(&mut self) -> ParseResult<StringId> {
+        let (string_id, _) = self.eat_binding_identifier_with_span()?;
+        Ok(string_id)
+    }
+
+    /// Eat a binding identifier and return both the identifier and its span.
+    #[inline]
+    pub fn eat_binding_identifier_with_span(
+        &mut self,
+    ) -> ParseResult<(StringId, destack_source::Span)> {
+        self.eat_identifier_with_span()
     }
 
     /// Eat a string literal and return both the content and its span.
@@ -209,10 +222,8 @@ impl Parser {
     pub fn eat_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
         // regular identifier
         if self.peek_token(TokenType::Identifier).is_ok() {
-            let token = *self.eat_token(TokenType::Identifier)?;
-            let s = self.file.span_str(token.span);
-            let string_id = self.strings.intern(s);
-            Ok((Name::Identifier(string_id), token.span))
+            let (name, span) = self.eat_identifier_with_span()?;
+            Ok((Name::Identifier(name), span))
         }
         // string identifier
         else if self.peek_string_literal().is_ok() {

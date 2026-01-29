@@ -8,7 +8,6 @@ use destack_ast::{
 use destack_base::StringId;
 use destack_source::NodeSpanType;
 
-#[allow(clippy::type_complexity)]
 impl Parser {
     /// Eat a dynamic import call expression (`import("foo")`).
     pub fn eat_import_call_expression(
@@ -98,7 +97,8 @@ impl Parser {
 
         // binding
         let items = if self.peek_dependency_binding().is_ok() {
-            self.eat_dependency_items_block()?
+            let allow_type_modifier = kind != Some(DependencyKind::Type);
+            self.eat_dependency_items_block(allow_type_modifier)?
         } else {
             vec![]
         };
@@ -390,7 +390,8 @@ impl Parser {
         }
 
         // binding
-        let items = self.eat_dependency_items_block()?;
+        let allow_type_modifier = kind != Some(DependencyKind::Type);
+        let items = self.eat_dependency_items_block(allow_type_modifier)?;
         let (target, target_span) = if self.peek_keyword(Keyword::From).is_ok() {
             self.bump(); // eat from
             let (target, span) = self.eat_dependency_target_with_span()?;
@@ -464,7 +465,10 @@ impl Parser {
     /// Default, { a, b }
     /// { a, b }
     /// ```
-    fn eat_dependency_items_block(&mut self) -> ParseResult<Vec<LocalNodeId<DependencyItem>>> {
+    fn eat_dependency_items_block(
+        &mut self,
+        allow_type_modifier: bool,
+    ) -> ParseResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
         // `Default,` or `foo from`
@@ -514,7 +518,7 @@ impl Parser {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
             while self.peek_token(TokenType::CloseBrace).is_err() {
-                let item = self.eat_dependency_item()?;
+                let item = self.eat_dependency_item(allow_type_modifier)?;
                 items.push(item);
                 if self.peek_comma().is_ok() {
                     self.eat_item_stop_with_newlines()?;
@@ -536,11 +540,18 @@ impl Parser {
     /// geometry
     /// geometry as geom
     /// ```
-    pub(crate) fn eat_dependency_item(&mut self) -> ParseResult<LocalNodeId<DependencyItem>> {
+    pub(crate) fn eat_dependency_item(
+        &mut self,
+        allow_type_modifier: bool,
+    ) -> ParseResult<LocalNodeId<DependencyItem>> {
         let start = self.mark();
 
         // kind
-        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
+        let kind = if self.should_parse_dependency_type_modifier() {
+            if !allow_type_modifier {
+                let span = self.peek()?.span;
+                return Err(ParseError::unexpected(span));
+            }
             self.bump(); // eat type
             Some(DependencyKind::Type)
         } else {
@@ -610,6 +621,36 @@ impl Parser {
             self.tree.set_main_span(item, main_span);
             Ok(item)
         }
+    }
+
+    /// Decide whether `type` should be parsed as a dependency item modifier.
+    fn should_parse_dependency_type_modifier(&self) -> bool {
+        // require `type` keyword
+        if self.peek_keyword(Keyword::Type).is_err() {
+            return false;
+        }
+
+        // require an identifier after `type`
+        if self.peek_next_token(TokenType::Identifier).is_err() {
+            return false;
+        }
+
+        // handle `type as` disambiguation
+        if self.peek_next_keyword(Keyword::As).is_ok() {
+            if self.peek_next_next_token(TokenType::Identifier).is_err() {
+                return true;
+            }
+
+            if self.peek_next_next_keyword(Keyword::As).is_ok() {
+                return self
+                    .peek_next_next_next_token(TokenType::Identifier)
+                    .is_ok();
+            }
+
+            return true;
+        }
+
+        true
     }
 }
 
@@ -780,6 +821,82 @@ import {
             });
             // `foo`
             assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_identifier_name() {
+        // treat type as a value name in named imports
+        let mut test = TestParser::new("import { type } from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+                assert_eq!(*kind, None);
+                assert_string!(parser, *name, "type");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_as_value_alias() {
+        // treat type as a value name when followed by as as
+        let mut test = TestParser::new("import { type as as } from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias: Some(alias), .. } => {
+                assert_eq!(*kind, None);
+                assert_string!(parser, *name, "type");
+                assert_string!(parser, *alias, "as");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_only_named_as() {
+        // treat type as a modifier when followed by as then close brace
+        let mut test = TestParser::new("import { type as } from 'foo'");
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { items, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+                assert_eq!(*kind, Some(DependencyKind::Type));
+                assert_string!(parser, *name, "as");
+                assert!(alias.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_in_import_type_error() {
+        // reject type modifiers inside import type blocks
+        let mut test = TestParser::new("import type { type Foo } from 'foo'");
+        let mut parser = test.prepare();
+        assert!(parser.eat_import().is_err());
+    }
+
+    #[test]
+    fn test_parse_export_type_identifier_name() {
+        // treat type as a value name in named exports
+        let mut test = TestParser::new("export { type } from 'foo'");
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+
+        assert_node!(parser.tree, export_id, Expression::Export { items, .. } => {
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { kind, name: Some(name), alias, .. } => {
+                assert_eq!(*kind, None);
+                assert_string!(parser, *name, "type");
+                assert!(alias.is_none());
+            });
         });
     }
 
