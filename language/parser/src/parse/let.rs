@@ -216,9 +216,10 @@ impl Parser {
         let value = if self.peek_token(TokenType::Assign).is_ok() {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
-            Some(self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?)
+            Some(self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?)
         } else if require_value {
             return Err(ParseError::expected(self.peek()?.span, TokenType::Assign));
         } else {

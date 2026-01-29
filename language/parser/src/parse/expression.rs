@@ -1072,7 +1072,16 @@ impl Parser {
                     .insert(Expression::This, self.get_span_from(start))
             }
             // new
-            else if keyword == Some(Keyword::New) && next_token_type == TokenType::Identifier {
+            else if keyword == Some(Keyword::New)
+                && !self.options.in_type
+                && [
+                    TokenType::Identifier,
+                    TokenType::OpenParenthesis,
+                    TokenType::OpenBrace,
+                    TokenType::LessThan,
+                ]
+                .contains(&next_token_type)
+            {
                 self.eat_new()?
             }
             // delete
@@ -1344,6 +1353,14 @@ impl Parser {
                     Expression::Declaration(function_id),
                     self.get_span_from(start),
                 )
+            }
+            // typescript type assertion: <T>expr
+            else if token_type == TokenType::LessThan
+                && self.language.is_typescript()
+                && !self.language.supports_jsx()
+                && !self.options.in_type
+            {
+                self.eat_type_assertion(start)?
             }
             // tree literal
             else if self.language.supports_jsx()
@@ -1919,16 +1936,19 @@ impl Parser {
             self.bump(); // eat ?
             self.eat_newlines_maybe()?;
             let then_expression_id = self.with_options(
-                self.options.not_in_position().in_ternary_condition(),
+                self.options
+                    .not_in_position()
+                    .in_ternary_condition()
+                    .not_in_sequence_expression(),
                 |parser| parser.eat_expression(),
             )?;
             self.eat_newlines_maybe()?;
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let else_expression_id = self
-                .with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+            let else_expression_id = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let expression = Expression::If {
                 kind: IfKind::Ternary,
                 condition: IfCondition::Expression {
@@ -1937,6 +1957,34 @@ impl Parser {
                 then_expression: then_expression_id,
                 else_expression: Some(else_expression_id),
             };
+            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
+        }
+
+        // sequence expression (comma operator) in JS/TS
+        if !self.options.in_type
+            && self.options.left_precedence.is_none()
+            && self.options.allow_sequence_expression
+            && self.language.is_typescript()
+            && (self.peek_token(TokenType::Comma).is_ok()
+                || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Comma).is_ok())
+        {
+            let mut expressions = vec![left_expression_id];
+            loop {
+                self.eat_newlines_maybe()?;
+                if self.peek_token(TokenType::Comma).is_err() {
+                    break;
+                }
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+                let expression_id = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
+                expressions.push(expression_id);
+                self.eat_newlines_maybe()?;
+            }
+
+            let expression = Expression::SequenceExpression { expressions };
             left_expression_id = self.tree.insert(expression, self.get_span_from(start));
         }
 
@@ -2001,6 +2049,42 @@ impl Parser {
         }
 
         Ok(left_expression_id)
+    }
+
+    /// Eat a TypeScript type assertion expression (`<T>expr`).
+    fn eat_type_assertion(&mut self, start: ParserMark) -> ParseResult<LocalNodeId<Expression>> {
+        let static_arguments = self.with_options(self.options.in_type(), |parser| {
+            parser.eat_static_arguments()
+        })?;
+
+        let type_expression = if static_arguments.len() == 1 {
+            let argument_id = static_arguments[0];
+            match self.tree.get(argument_id) {
+                Argument::Positional { value, .. } => *value,
+                _ => {
+                    return Err(ParseError::expected(
+                        self.get_span_from(start),
+                        TokenType::Identifier,
+                    ));
+                }
+            }
+        } else {
+            return Err(ParseError::expected(
+                self.get_span_from(start),
+                TokenType::Identifier,
+            ));
+        };
+
+        let value = self.with_options(self.options.not_in_position(), |parser| {
+            parser.eat_expression()
+        })?;
+
+        let expression = Expression::TypeBinary {
+            left: value,
+            operator: TypeBinaryOperator::Cast,
+            right: type_expression,
+        };
+        Ok(self.tree.insert(expression, self.get_span_from(start)))
     }
 }
 #[cfg(test)]
@@ -2897,7 +2981,7 @@ const shapes = (
 
     /// Parse a TypeScript call with string literal type arguments.
     #[test]
-    fn test_parse_typescript_call_with_string_literal_type_arguments() {
+    fn test_parse_call_with_string_literal_type_arguments() {
         let mut test = TestParser::new_with_options(
             "accessor.getValue<\"auto\" | \"always\" | \"never\">(\"long\")",
             LanguageType::TypeScript,
@@ -2919,6 +3003,59 @@ const shapes = (
             assert_node!(parser.tree, static_args[0], Argument::Positional { modifiers: _, value } => {
                 assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
+                });
+            });
+        });
+    }
+
+    /// Parse a TypeScript type assertion expression.
+    #[test]
+    fn test_parse_type_assertion() {
+        let mut test = TestParser::new_with_options("<Foo>bar", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "bar");
+            assert_expression_path!(parser, parser.tree.get(*right), "Foo");
+        });
+    }
+
+    /// Parse a TypeScript arrow function parameter named `accessor`.
+    #[test]
+    fn test_parse_arrow_parameter_accessor_name() {
+        let mut test = TestParser::new_with_options(
+            "(accessor: ServicesAccessor) => accessor.get()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "accessor");
+                    assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "ServicesAccessor");
+                });
+            });
+        });
+    }
+
+    /// Parse a TypeScript class expression with implements.
+    #[test]
+    fn test_parse_class_expression_with_implements() {
+        let mut test = TestParser::new_with_options(
+            "new (class implements Foo {})()",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::New { left, .. } => {
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Class { heritage, .. } => {
+                        assert!(heritage.implements_types.is_some());
+                    });
                 });
             });
         });
@@ -4151,6 +4288,23 @@ const value =
             assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
             // c
             assert_expression_path!(parser, parser.tree.get(expressions[2]), "c");
+        });
+    }
+
+    /// Comma operator parses as sequence expression in JS/TS.
+    #[test]
+    fn test_parse_sequence_expression_without_parens() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options("a, b", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a, b
+        assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 2);
+            // a
+            assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
+            // b
+            assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
         });
     }
 

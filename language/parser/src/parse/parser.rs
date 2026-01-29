@@ -71,6 +71,10 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing inside a generator function.
     /// Makes `yield` a keyword instead of an identifier.
     pub in_generator: bool = false,
+    /// Whether sequence expressions (comma operator) are allowed.
+    pub allow_sequence_expression: bool = true,
+    /// Whether private hash keys (`#name`) are allowed in key position.
+    pub allow_private_hash_key: bool = false,
     /// The left precedence preceding (i.e. before) the expression.
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
@@ -250,6 +254,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `allow_private_hash_key=true`.
+    #[inline]
+    pub(crate) fn allow_private_hash_key(self) -> Self {
+        Self {
+            allow_private_hash_key: true,
+            ..self
+        }
+    }
+
     /// Set `in_generator=true`.
     #[inline]
     pub(crate) fn in_generator(self) -> Self {
@@ -277,6 +290,15 @@ impl ParserOptions {
         }
     }
 
+    /// Disallow sequence expressions (comma operator).
+    #[inline]
+    pub(crate) fn not_in_sequence_expression(self) -> Self {
+        Self {
+            allow_sequence_expression: false,
+            ..self
+        }
+    }
+
     /// Not previous position.
     #[inline]
     pub(crate) fn not_in_position(self) -> Self {
@@ -293,6 +315,7 @@ impl ParserOptions {
         Self {
             in_generator: self.in_generator,
             in_comptime: self.in_comptime,
+            allow_sequence_expression: self.allow_sequence_expression,
             ..Self::default()
         }
     }

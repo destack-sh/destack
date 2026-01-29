@@ -231,9 +231,24 @@ impl Parser {
     /// Peek a name or a dynamic key.
     #[inline]
     pub fn peek_key(&self) -> ParseResult<()> {
-        if self.peek_name().is_ok()
+        if self.peek_private_hash_key().is_ok()
+            || self.peek_name().is_ok()
             || self.peek_token(TokenType::OpenBracket).is_ok()
             || self.peek_numeric_literal().is_ok()
+        {
+            Ok(())
+        } else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
+    /// Peek a private hash key like `#x` in JS/TS.
+    #[inline]
+    fn peek_private_hash_key(&self) -> ParseResult<()> {
+        if self.options.allow_private_hash_key
+            && (self.language.is_javascript() || self.language.is_typescript())
+            && self.peek_token(TokenType::Hash).is_ok()
+            && self.peek_next_token(TokenType::Identifier).is_ok()
         {
             Ok(())
         } else {
@@ -244,7 +259,16 @@ impl Parser {
     /// Eat a name or a dynamic key.
     #[inline]
     pub fn eat_key(&mut self) -> ParseResult<Key> {
-        if self.peek_name().is_ok() {
+        if self.peek_private_hash_key().is_ok() {
+            self.bump(); // eat #
+            let name = self.eat_identifier()?;
+            let name_str = self.strings.get(name);
+            let mut full = String::with_capacity(name_str.len() + 1);
+            full.push('#');
+            full.push_str(name_str);
+            let string_id = self.strings.intern(&full);
+            Ok(Key::Name(Name::Identifier(string_id)))
+        } else if self.peek_name().is_ok() {
             Ok(Key::Name(self.eat_name()?))
         } else if self.peek_numeric_literal().is_ok() {
             // numeric key (like `{123: value}` or `{2e308: value}`)
@@ -292,7 +316,17 @@ impl Parser {
     /// Eat a name or a dynamic key, returning both the key and its span.
     pub fn eat_key_with_span(&mut self) -> ParseResult<(Key, destack_source::Span)> {
         let start = self.mark();
-        if self.peek_name().is_ok() {
+        if self.peek_private_hash_key().is_ok() {
+            self.bump(); // eat #
+            let name = self.eat_identifier()?;
+            let name_str = self.strings.get(name);
+            let mut full = String::with_capacity(name_str.len() + 1);
+            full.push('#');
+            full.push_str(name_str);
+            let string_id = self.strings.intern(&full);
+            let span = self.get_span_from(start);
+            Ok((Key::Name(Name::Identifier(string_id)), span))
+        } else if self.peek_name().is_ok() {
             let (name, span) = self.eat_name_with_span()?;
             Ok((Key::Name(name), span))
         } else if self.peek_numeric_literal().is_ok() {

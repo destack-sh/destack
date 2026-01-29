@@ -320,7 +320,6 @@ impl Lexer<'_> {
                 // ??
                 if self.peek() == '?' {
                     self.eat();
-                    self.eat();
                     // ??=
                     if self.peek() == '=' {
                         self.eat();
