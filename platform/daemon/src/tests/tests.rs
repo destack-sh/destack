@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
@@ -10,8 +11,8 @@ use destack_workspace::{MemoryCacheStore, Program, Session};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,
-    ProtocolServer, ProtocolServerError, ProtocolServerOptions, WorkspaceHandleId,
-    WorkspaceOpenOptions, loopback_transport_pair,
+    ProtocolErrorCode, ProtocolServer, ProtocolServerError, ProtocolServerOptions,
+    WorkspaceHandleId, WorkspaceOpenOptions, loopback_transport_pair,
 };
 use crate::{
     Daemon, DaemonUpdate, DaemonWatchBatchResult, WatchBatch, WatchCoordinator, WatchPolicy,
@@ -61,6 +62,28 @@ pub struct TestProtocolHarness {
     server_error: Arc<Mutex<Option<String>>>,
     /// Server thread handle.
     server_handle: Option<JoinHandle<Result<(), ProtocolServerError>>>,
+}
+
+/// Describe retry behavior for protocol requests.
+#[derive(Debug, Clone, Copy)]
+pub struct RequestRetryPolicy {
+    /// The maximum number of attempts.
+    pub max_attempts: usize,
+    /// The initial delay in milliseconds.
+    pub base_delay_ms: u64,
+    /// The incremental delay added per attempt in milliseconds.
+    pub backoff_step_ms: u64,
+}
+
+impl Default for RequestRetryPolicy {
+    /// Return a default retry policy for protocol requests.
+    fn default() -> Self {
+        Self {
+            max_attempts: 25,
+            base_delay_ms: 10,
+            backoff_step_ms: 5,
+        }
+    }
 }
 
 impl TestDaemon {
@@ -362,6 +385,36 @@ impl TestProtocolHarness {
                 panic!("{message}");
             }
         }
+    }
+
+    /// Send a daemon request, retrying on NotReady responses.
+    pub fn send_request_with_retry<F>(
+        &self,
+        mut build: F,
+        policy: RequestRetryPolicy,
+    ) -> DaemonResponse
+    where
+        F: FnMut() -> DaemonRequest,
+    {
+        for attempt in 0..policy.max_attempts {
+            let response = self.send_request(build());
+            let should_retry = match &response {
+                DaemonResponse::Error(error) => error.code == ProtocolErrorCode::NotReady,
+                _ => false,
+            };
+
+            if !should_retry {
+                return response;
+            }
+
+            let delay_ms = policy.base_delay_ms + (attempt as u64 * policy.backoff_step_ms);
+            thread::sleep(Duration::from_millis(delay_ms));
+        }
+
+        panic!(
+            "query context did not become ready after {max_attempts} attempts",
+            max_attempts = policy.max_attempts
+        );
     }
 
     /// Open the default workspace and return the handle id.

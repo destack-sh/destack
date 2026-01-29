@@ -1,17 +1,16 @@
-use destack_ast as ast;
 use destack_base::StringId;
-use destack_dir as dir;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DynamicKey, EnumField, Expression,
     GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern, SymbolSpace,
 };
 use destack_source::{FileId, Span};
 use std::collections::HashSet;
+use {destack_ast as ast, destack_dir as dir};
 
 use super::resolve::{global_symbol, resolve_module_id_for_import_target};
 use super::{QueryContext, get_dir_node_main_span, get_dir_node_span, get_module_by_file_id};
-use crate::program::{ModuleAst, ModuleDir};
 use crate::Session;
+use crate::program::{ModuleAst, ModuleDir};
 
 pub(crate) use super::resolve::{
     dependency_item_matches_name, matches_symbol_space_filter, owned_scope_for_symbol,
