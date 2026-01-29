@@ -1,6 +1,7 @@
 use crate::{
     AccessorKind, BindingAnchor, BindingKind, BindingModifier, BindingOperator, CodegenJsError,
     CodegenJsResult, CodegenJsResultExt, Expression, LocalNodeId, Member, ModuleLowerer, Property,
+    VarianceModifier,
 };
 use destack_dir as dir;
 
@@ -13,6 +14,10 @@ impl ModuleLowerer<'_> {
         let kind = modifier.kind.map(|kind| match kind {
             dir::BindingKind::Must => BindingKind::Must,
             dir::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let variance = modifier.variance.map(|variance| match variance {
+            dir::VarianceModifier::In => VarianceModifier::In,
+            dir::VarianceModifier::Out => VarianceModifier::Out,
         });
         let anchor = modifier.anchor.map(|anchor| match anchor {
             dir::BindingAnchor::Static => BindingAnchor::Static,
@@ -32,6 +37,7 @@ impl ModuleLowerer<'_> {
         });
         Ok(BindingModifier {
             kind,
+            variance,
             anchor,
             mutability,
             visibility,

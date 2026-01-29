@@ -13,6 +13,7 @@ Own your software, build it anywhere and run it everywhere in one integrated ope
 **Destack is designed as an integrated system**, **but you *can* pick and choose any pieces you like.**
 You are free to use plain TypeScript, pick any of the libraries, or plug into the platform from a different system entirely.
 
+<sub>*Compatibility expectations are defined in `language/INTEROPERABILITY.md`.</sub>
 <sub>*A few obscure syntax patterns (comma operator, generic arrows in TSX context) work differently in `.ds` files. See [Compatibility](language/DESIGN.md#compatibility).</sub>
 
 ## Examples

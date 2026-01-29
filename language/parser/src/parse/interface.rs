@@ -116,7 +116,7 @@ mod tests {
     use destack_ast::{
         BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
         Expression, FunctionMode, IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral,
-        TypeKind, TypeLiteral, WhereClause,
+        TypeKind, TypeLiteral, VarianceModifier, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -301,6 +301,38 @@ interface Foo extends Baz {
                 .as_ref()
                 .expect("expected static params");
             assert_eq!(params.len(), 1);
+        });
+    }
+
+    #[test]
+    fn test_parse_interface_with_variance_parameters() {
+        let mut test = TestParser::new("interface Baz<in T, out U> {}");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Baz");
+            let params = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static params");
+            assert_eq!(params.len(), 2);
+            assert_node!(parser.tree, params[0], Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+                assert_string!(parser, *name, "T");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::In));
+            });
+            assert_node!(parser.tree, params[1], Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+                assert_string!(parser, *name, "U");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::Out));
+            });
         });
     }
 

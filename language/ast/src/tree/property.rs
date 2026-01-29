@@ -14,6 +14,25 @@ pub enum BindingKind {
     Maybe,
 }
 
+/// Variance annotation for type parameters.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum VarianceModifier {
+    /// Contravariant type parameter.
+    In,
+    /// Covariant type parameter.
+    Out,
+}
+
+impl VarianceModifier {
+    /// Return the keyword string for the variance modifier.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            VarianceModifier::In => "in",
+            VarianceModifier::Out => "out",
+        }
+    }
+}
+
 /// The anchor of a binding (static or instance).
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum BindingAnchor {
@@ -50,6 +69,8 @@ pub enum Timing {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
+    /// The variance of a type parameter.
+    pub variance: Option<VarianceModifier>,
     /// The anchor of the binding.
     pub anchor: Option<BindingAnchor>,
     /// The mutability of the binding.
@@ -77,6 +98,14 @@ impl BindingModifier {
     pub fn with_anchor(self, anchor: BindingAnchor) -> Self {
         Self {
             anchor: Some(anchor),
+            ..self
+        }
+    }
+
+    /// Create a new binding modifiers with the given variance.
+    pub fn with_variance(self, variance: VarianceModifier) -> Self {
+        Self {
+            variance: Some(variance),
             ..self
         }
     }

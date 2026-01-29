@@ -1,6 +1,7 @@
 use crate::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     FunctionAbstraction, FunctionCardinality, Keyword, LocalNodeId, Member, Mutability, Property,
+    VarianceModifier,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -14,6 +15,13 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     f: &mut CodegenJsFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
+    // variance
+    if let Some(variance) = modifiers.variance {
+        match variance {
+            VarianceModifier::In => write!(f, [token("in"), space()])?,
+            VarianceModifier::Out => write!(f, [token("out"), space()])?,
+        }
+    }
     // visibility
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;

@@ -164,6 +164,21 @@ interface Container<T: Comparable> {
 }
 ```
 
+### variance parameters
+
+Variance modifiers precede type parameter names.
+
+```ds
+interface   Box< in  T , out U > { get(): U; set(value: T): void }
+```
+
+```ds expected
+interface Box<in T, out U> {
+    get(): U
+    set(value: T): void
+}
+```
+
 ### multiple type parameters
 
 Multiple type parameters are separated by commas.

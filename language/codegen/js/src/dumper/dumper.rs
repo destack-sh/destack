@@ -486,6 +486,7 @@ impl_dump_display! {
     TypeBinaryOperator,
     TypeUnaryOperator,
     UnaryOperator,
+    VarianceModifier,
     Visibility,
 }
 
@@ -600,6 +601,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
+            .field_optional("variance", &self.variance)
             .field_optional("anchor", &self.anchor)
             .field_optional("mutability", &self.mutability)
             .field_optional("visibility", &self.visibility)

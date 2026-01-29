@@ -1,7 +1,7 @@
 use destack_ast::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
-    PostfixPosition, ScalarLiteral, StringId, Timing, TokenType,
+    PostfixPosition, ScalarLiteral, StringId, Timing, TokenType, VarianceModifier,
 };
 use destack_source::NodeSpanType;
 
@@ -17,6 +17,19 @@ impl Parser {
     ) -> ParseResult<Option<BindingModifier>> {
         let mut modifiers = BindingModifier::default();
         let mut has_modifiers = false;
+
+        // variance for static parameters
+        if self.options.in_static {
+            if self.peek_keyword(Keyword::In).is_ok() {
+                self.bump(); // eat in
+                modifiers.variance = Some(VarianceModifier::In);
+                has_modifiers = true;
+            } else if self.peek_identifier_str("out").is_ok() {
+                self.bump(); // eat out
+                modifiers.variance = Some(VarianceModifier::Out);
+                has_modifiers = true;
+            }
+        }
 
         // visibility
         if let Ok(Some(visibility)) = self.peek_visibility() {
@@ -164,7 +177,7 @@ impl Parser {
             {
                 self.bump(); // eat [
                 self.eat_newlines_maybe()?;
-                let (name, span) = self.eat_identifier_with_span()?;
+                let (name, span) = self.eat_binding_identifier_with_span()?;
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseBracket)?;
                 (None, Some(name), Some(span))
@@ -186,7 +199,7 @@ impl Parser {
             }
             // name
             else {
-                let (name, span) = self.eat_identifier_with_span()?;
+                let (name, span) = self.eat_binding_identifier_with_span()?;
                 (None, Some(name), Some(span))
             }
         };
@@ -322,6 +335,7 @@ impl Parser {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
         self.eat_newlines_maybe()?;
         while self.peek_token(TokenType::Identifier).is_ok()
+            || (self.options.in_static && self.peek_keyword(Keyword::In).is_ok())
             // spread
             || self.peek_token(TokenType::Spread).is_ok()
             // pattern
