@@ -319,32 +319,134 @@ impl Compiler {
             module, profile, value, tree, symbols, types, true, true,
         )?;
 
-        // prefer instance types for nominal references
-        let embed_ty_id = match types.get_type(embed_ty_id) {
-            Type::Reference { symbol, .. } => self
-                .apparent_instance_type(module, profile, value.into_any(), *symbol, symbols, types)
-                .unwrap_or(embed_ty_id),
-            Type::Value { value } => *value,
-            _ => embed_ty_id,
-        };
+        // unwrap value types and resolve nominal references when possible
+        let mut embed_ty_id = embed_ty_id;
+        let mut embed_symbol = None;
+        match types.get_type(embed_ty_id) {
+            Type::Reference { symbol, .. } => {
+                embed_symbol = Some(*symbol);
+            }
+            Type::Value { value } => {
+                embed_ty_id = *value;
+                if let Type::Reference { symbol, .. } = types.get_type(*value) {
+                    embed_symbol = Some(*symbol);
+                }
+            }
+            _ => {}
+        }
 
         // collect field-like members from the embedded type
         let mut embed_shape = ObjectShape::default();
         let mut extras = Vec::new();
         let mut visited = Vec::new();
-        self.collect_value_shape_from_type(
-            embed_ty_id,
-            types,
-            &mut embed_shape,
-            &mut extras,
-            &mut visited,
-        );
+        let mut visited_symbols = Vec::new();
+        if let Some(symbol) = embed_symbol {
+            self.collect_embed_shape_for_symbol(
+                module,
+                profile,
+                value.into_any(),
+                symbol,
+                symbols,
+                types,
+                &mut embed_shape,
+                &mut extras,
+                &mut visited,
+                &mut visited_symbols,
+            )?;
+        } else {
+            self.collect_value_shape_from_type(
+                embed_ty_id,
+                types,
+                &mut embed_shape,
+                &mut extras,
+                &mut visited,
+            );
+        }
 
         // embedding only contributes fields and index signatures
         embed_shape.call_signatures.clear();
         embed_shape.construct_signatures.clear();
 
         Ok(embed_shape)
+    }
+
+    /// Collect embedded shape data for a nominal symbol, including lineage.
+    fn collect_embed_shape_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        shape: &mut ObjectShape,
+        extras: &mut Vec<LocalTypeId>,
+        visited_types: &mut Vec<LocalTypeId>,
+        visited_symbols: &mut Vec<GlobalSymbolId>,
+    ) -> AnalyzeResult<()> {
+        // avoid cycles in embedding chains
+        if visited_symbols.contains(&symbol) {
+            return Ok(());
+        }
+        visited_symbols.push(symbol);
+
+        // collect fields from the apparent instance type
+        if let Some(instance_id) =
+            self.apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+        {
+            self.collect_value_shape_from_type(instance_id, types, shape, extras, visited_types);
+        }
+
+        // traverse lineage to collect inherited or embedded fields
+        let lineage = types.get_lineage_for_symbol(symbol).cloned();
+        if let Some(lineage) = lineage {
+            if let Some(extends) = lineage.extends {
+                self.collect_embed_shape_for_symbol(
+                    module,
+                    profile,
+                    source_id,
+                    extends,
+                    symbols,
+                    types,
+                    shape,
+                    extras,
+                    visited_types,
+                    visited_symbols,
+                )?;
+            }
+
+            for implements in lineage.implements {
+                self.collect_embed_shape_for_symbol(
+                    module,
+                    profile,
+                    source_id,
+                    implements,
+                    symbols,
+                    types,
+                    shape,
+                    extras,
+                    visited_types,
+                    visited_symbols,
+                )?;
+            }
+
+            for embedded in lineage.embedded {
+                self.collect_embed_shape_for_symbol(
+                    module,
+                    profile,
+                    source_id,
+                    embedded,
+                    symbols,
+                    types,
+                    shape,
+                    extras,
+                    visited_types,
+                    visited_symbols,
+                )?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Merge value shape into a symbol value type.

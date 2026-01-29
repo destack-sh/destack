@@ -1690,7 +1690,7 @@ impl Compiler {
         let remote_types = remote_dir.types.read();
         let allow_merge = remote_module.language_type.supports_declaration_merging();
 
-        self.resolve_member_symbol_in_module(
+        let resolved = self.resolve_member_symbol_in_module(
             module,
             symbol,
             member_key,
@@ -1701,6 +1701,21 @@ impl Compiler {
             &remote_types,
             allow_merge,
             visited,
+        )?;
+        if resolved.is_some() {
+            return Ok(resolved);
+        }
+
+        // check locally visible extensions for remote targets
+        self.resolve_member_symbol_in_extensions(
+            module,
+            symbol,
+            member_key,
+            lookup_mode,
+            profile,
+            tree,
+            symbols,
+            types,
         )
     }
 
@@ -1842,6 +1857,31 @@ impl Compiler {
             }
         }
 
+        // check extensions
+        self.resolve_member_symbol_in_extensions(
+            module,
+            symbol,
+            member_key,
+            lookup_mode,
+            profile,
+            tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Resolve members from extensions visible in the current module.
+    fn resolve_member_symbol_in_extensions(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // resolve the canonical symbol for extension lookup
         let canonical_symbol = self.canonical_symbol_id(
             module,

@@ -19,8 +19,6 @@ pub(crate) enum RelationKind {
 pub(crate) struct RelationFlags {
     /// Whether apparent types should be resolved.
     pub use_apparent_type: bool,
-    /// Whether static parameter constraints may substitute apparent shapes.
-    pub substitute_constraints_in_apparent_type: bool,
     /// Whether fresh literals should be preserved.
     pub allow_fresh_literals: bool,
     /// Whether widening should be avoided.
@@ -33,7 +31,6 @@ impl RelationFlags {
     /// Relation flags for assignability style relations.
     pub(crate) const ASSIGN: Self = Self {
         use_apparent_type: true,
-        substitute_constraints_in_apparent_type: false,
         allow_fresh_literals: false,
         prefer_non_widening: false,
         use_contextual_type: false,
@@ -42,7 +39,6 @@ impl RelationFlags {
     /// Relation flags for type operations that query keys and shapes.
     pub(crate) const TYPE_OPS: Self = Self {
         use_apparent_type: true,
-        substitute_constraints_in_apparent_type: false,
         allow_fresh_literals: false,
         prefer_non_widening: false,
         use_contextual_type: false,
@@ -88,10 +84,9 @@ impl RelationMode {
         // build a compact bitset for flags and kind
         let mut key = kind_key;
         key |= (self.flags.use_apparent_type as u64) << 8;
-        key |= (self.flags.substitute_constraints_in_apparent_type as u64) << 9;
-        key |= (self.flags.allow_fresh_literals as u64) << 10;
-        key |= (self.flags.prefer_non_widening as u64) << 11;
-        key |= (self.flags.use_contextual_type as u64) << 12;
+        key |= (self.flags.allow_fresh_literals as u64) << 9;
+        key |= (self.flags.prefer_non_widening as u64) << 10;
+        key |= (self.flags.use_contextual_type as u64) << 11;
         key
     }
 

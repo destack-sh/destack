@@ -115,6 +115,13 @@ impl Compiler {
     ) -> Option<StaticKey> {
         let expression = tree.get(expression_id);
 
+        if let Expression::ScalarLiteral {
+            value: ScalarLiteral::String(name),
+        } = expression
+        {
+            return Some(StaticKey::Name(*name));
+        }
+
         // helpers for well-known symbol resolution across ambient libs
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
             if symbol.module_id == symbols.module_id {
@@ -207,7 +214,7 @@ impl Compiler {
             return Some(StaticKey::Symbol(SymbolKey::Registry(*name)));
         }
 
-        // resolve unique symbol references
+        // resolve unique symbol keys from inferred or declared types
         if let Some(symbol) = expression.target_symbol() {
             // detect unique symbols without forcing a full evaluation
             let is_unique_symbol_type =

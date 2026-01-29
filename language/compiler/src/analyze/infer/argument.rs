@@ -8,8 +8,8 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DynamicKey,
     EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
-    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
+    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Mutability,
+    NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
     StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
     TypeField, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions, TypeTable,
     rewrite_type,
@@ -792,26 +792,13 @@ impl Compiler {
             StaticArgument::Evaluated {
                 name,
                 value: StaticExpression::Type { ty },
-            } => match types.get_type(ty) {
-                Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(value),
-                } => StaticArgument::Evaluated {
-                    name,
-                    value: StaticExpression::ScalarLiteral {
-                        value: value.clone(),
-                    },
-                },
-                Type::TypeLiteral { value } => StaticArgument::Evaluated {
-                    name,
-                    value: StaticExpression::TypeLiteral {
-                        value: value.clone(),
-                    },
-                },
-                _ => StaticArgument::Evaluated {
+            } => self
+                .static_expression_from_value_type(ty, types)
+                .map(|value| StaticArgument::Evaluated { name, value })
+                .unwrap_or(StaticArgument::Evaluated {
                     name,
                     value: StaticExpression::Type { ty },
-                },
-            },
+                }),
             StaticArgument::Evaluated {
                 name,
                 value:
@@ -826,6 +813,71 @@ impl Compiler {
             },
             _ => argument,
         }
+    }
+
+    /// Build a static value expression from a literal value type.
+    fn static_expression_from_value_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<StaticExpression> {
+        // unwrap value wrappers before matching
+        let ty_id = self.unwrap_type_value(ty_id, types);
+        let ty = types.get_type(ty_id);
+
+        // map scalar and type literals directly
+        match ty {
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value),
+            } => Some(StaticExpression::ScalarLiteral {
+                value: value.clone(),
+            }),
+            Type::TypeLiteral { value } => Some(StaticExpression::TypeLiteral {
+                value: value.clone(),
+            }),
+            _ => self.static_expression_from_value_shape(ty_id, types),
+        }
+    }
+
+    /// Build a static value expression from tuple or object literal types.
+    fn static_expression_from_value_shape(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<StaticExpression> {
+        // convert tuple element types into static expressions
+        if let Type::Tuple { elements, .. } = types.get_type(ty_id) {
+            let mut mapped = Vec::with_capacity(elements.len());
+            for element in elements {
+                let value = self.static_expression_from_value_type(element.ty, types)?;
+                mapped.push(value);
+            }
+            return Some(StaticExpression::TupleExpression { elements: mapped });
+        }
+
+        // convert object fields into static expressions when keys are static
+        if let Type::Object { fields, .. } = types.get_type(ty_id) {
+            let mut properties = Vec::with_capacity(fields.len());
+            for field in fields {
+                let key = match field.key {
+                    StaticKey::Name(name) => Some(DynamicKey::Name(name)),
+                    StaticKey::Number(value) => Some(DynamicKey::Number(value)),
+                    _ => None,
+                }?;
+
+                let value = self.static_expression_from_value_type(field.ty, types)?;
+                properties.push(StaticProperty::Field {
+                    modifiers: None,
+                    key: Some(key),
+                    value,
+                    default: None,
+                    symbol: LocalSymbolId::new(0),
+                });
+            }
+            return Some(StaticExpression::ObjectExpression { properties });
+        }
+
+        None
     }
 
     /// Replace value defaults that reference earlier value parameters.
@@ -2650,6 +2702,7 @@ impl Compiler {
             let param_ty_id = self.unwrap_type_value(*param_ty_id, types);
             let param_ty = types.get_type(param_ty_id).clone();
 
+            // evaluate literal argument values when possible
             let expression_id = tree.get(*argument_id).value();
             let value = self.evaluate_static_expression_value(
                 module,
@@ -2697,8 +2750,15 @@ impl Compiler {
 
             // infer array sizes from literal arguments
             if let Type::ArraySized { count, .. } = &param_ty
-                && let Some(target_symbol) =
-                    self.reference_symbol_for_expression(module, *count, profile, tree, symbols)
+                && let Some(target_symbol) = types
+                    .get_inferred_type_id(count.into_global_any(types.module_id))
+                    .and_then(|type_id| match types.get_type(type_id) {
+                        Type::Reference { symbol, .. } => Some(*symbol),
+                        _ => None,
+                    })
+                    .or_else(|| {
+                        self.reference_symbol_for_expression(module, *count, profile, tree, symbols)
+                    })
                 && target_symbol == static_parameter.symbol
             {
                 let elements = match &value {
@@ -2714,9 +2774,234 @@ impl Compiler {
                     value: count_value,
                 }));
             }
+
+            // infer array sizes when indexed access types reference the static parameter
+            if let Type::Index { index, .. } = &param_ty
+                && let Type::Reference { symbol, .. } = types.get_type(*index)
+                && *symbol == static_parameter.symbol
+            {
+                let elements = match &value {
+                    StaticExpression::ArrayExpression { elements }
+                    | StaticExpression::TupleExpression { elements } => elements,
+                    _ => continue,
+                };
+                let count_value = StaticExpression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(elements.len() as i64),
+                };
+                return Ok(Some(StaticArgument::Evaluated {
+                    name: static_parameter.name,
+                    value: count_value,
+                }));
+            }
+
+            // fall through when the literal did not match the parameter shape
+        }
+
+        // infer from argument reference types that carry explicit static arguments
+        for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
+            let Some(argument_ty_id) =
+                self.argument_type_for_static_inference(module, *argument_id, tree, symbols, types)
+            else {
+                continue;
+            };
+
+            if let Some(argument) = self.infer_static_argument_from_argument_type(
+                module,
+                profile,
+                static_parameter,
+                *param_ty_id,
+                argument_ty_id,
+                tree,
+                symbols,
+                types,
+            )? {
+                return Ok(Some(argument));
+            }
         }
 
         Ok(None)
+    }
+
+    /// Resolve a value static argument from argument type metadata.
+    fn infer_static_argument_from_argument_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        static_parameter: &StaticParameter,
+        param_ty_id: LocalTypeId,
+        argument_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<StaticArgument>> {
+        // unwrap any value wrappers before matching
+        let param_ty_id = self.unwrap_type_value(param_ty_id, types);
+        let argument_ty_id = self.unwrap_type_value(argument_ty_id, types);
+
+        // extract reference arguments without holding immutable borrows
+        let (param_symbol, param_arguments) = match types.get_type(param_ty_id) {
+            Type::Reference {
+                symbol,
+                static_arguments: Some(arguments),
+            } => (*symbol, arguments.clone()),
+            _ => return Ok(None),
+        };
+        let (argument_symbol, argument_arguments) = match types.get_type(argument_ty_id) {
+            Type::Reference {
+                symbol,
+                static_arguments: Some(arguments),
+            } => (*symbol, arguments.clone()),
+            _ => return Ok(None),
+        };
+        if param_symbol != argument_symbol {
+            return Ok(None);
+        }
+
+        // materialize referenced static arguments with the owning module
+        let resolved_arguments = if argument_symbol.module_id == module.id {
+            self.materialize_static_arguments_for_reference(
+                module,
+                profile,
+                argument_symbol,
+                types.get_type_source(argument_ty_id),
+                &argument_arguments,
+                tree,
+                symbols,
+                types,
+            )
+        } else {
+            let argument_module = self.program.modules.get(argument_symbol.module_id);
+            let argument_module = argument_module.read();
+            let argument_tree = argument_module.dir(profile).tree.read();
+            let argument_symbols = argument_module.dir(profile).symbols.read();
+            self.materialize_static_arguments_for_reference(
+                &argument_module,
+                profile,
+                argument_symbol,
+                types.get_type_source(argument_ty_id),
+                &argument_arguments,
+                &argument_tree,
+                &argument_symbols,
+                types,
+            )
+        };
+
+        // map explicit static arguments when the parameter and argument share a reference
+        for (index, param_argument) in param_arguments.iter().enumerate() {
+            if !self.static_argument_references_symbol(
+                module,
+                profile,
+                param_argument,
+                static_parameter.symbol,
+                tree,
+                symbols,
+                types,
+            ) {
+                continue;
+            }
+
+            let Some(argument) = resolved_arguments.get(index) else {
+                continue;
+            };
+            let StaticArgument::Evaluated { value, .. } = argument else {
+                continue;
+            };
+            if !self.static_value_argument_is_static(value, types) {
+                continue;
+            }
+
+            return Ok(Some(StaticArgument::Evaluated {
+                name: static_parameter.name,
+                value: value.clone(),
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve a candidate argument type for static value inference.
+    fn argument_type_for_static_inference(
+        &self,
+        module: &Module,
+        argument_id: LocalNodeId<Argument>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // prefer declared types for direct references
+        let argument = tree.get(argument_id);
+        let value_id = argument.value();
+        if let Some(symbol) = tree.get(value_id).target_symbol()
+            && symbol.module_id == module.id
+        {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            if let Some(primary_declaration) = symbol_entry.primary_declaration
+                && let Some(type_id) = types.get_declared_or_inferred_type_id(primary_declaration)
+            {
+                return Some(type_id);
+            }
+        }
+
+        // fall back to inferred types for the argument expression
+        if let Some(type_id) = types.get_inferred_type_id(value_id.into_global_any(module.id)) {
+            return Some(type_id);
+        }
+
+        // fall back to symbol types for direct references
+        let symbol = tree.get(value_id).target_symbol()?;
+        types.get_type_id_for_symbol(symbols, symbol)
+    }
+
+    /// Check whether a static argument expression references a target symbol.
+    fn static_argument_references_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        argument: &StaticArgument,
+        target_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // accept evaluated references to the target symbol
+        if let StaticArgument::Evaluated {
+            value: StaticExpression::Type { ty },
+            ..
+        } = argument
+            && let Type::Reference { symbol, .. } = types.get_type(*ty)
+        {
+            return *symbol == target_symbol;
+        }
+
+        // only unevaluated arguments carry expression nodes
+        let StaticArgument::Unevaluated { node } = argument else {
+            return false;
+        };
+
+        // resolve the owning tree before checking the argument expression
+        let mut matches = false;
+        let _ = self.with_static_argument_owner(
+            profile,
+            *node,
+            module,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols, argument_id| {
+                let expression_id = owner_tree.get(argument_id).value();
+                if let Some(symbol) = self.reference_symbol_for_expression(
+                    owner_module,
+                    expression_id,
+                    profile,
+                    owner_tree,
+                    owner_symbols,
+                ) {
+                    matches = symbol == target_symbol;
+                }
+                Ok(())
+            },
+        );
+
+        matches
     }
 
     /// Check whether a constraint satisfies a declared bound.
@@ -3667,14 +3952,6 @@ impl Compiler {
         argument_symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Vec<StaticArgument> {
-        // skip when no arguments need evaluation
-        if !static_arguments
-            .iter()
-            .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
-        {
-            return static_arguments.to_vec();
-        }
-
         // collect parameter symbols for the reference
         let Some(parameter_symbols) = self.collect_static_parameter_symbols(
             argument_module,
@@ -3759,7 +4036,12 @@ impl Compiler {
             };
 
             let Some(argument_node) = argument_node else {
-                resolved_arguments.push(argument.clone());
+                let resolved = if parameter_kind == StaticParameterKind::Value {
+                    self.normalize_value_static_argument(argument.clone(), types)
+                } else {
+                    argument.clone()
+                };
+                resolved_arguments.push(resolved);
                 continue;
             };
 
@@ -3813,16 +4095,22 @@ impl Compiler {
                 },
             );
 
-            if let Some(value) = evaluated {
-                resolved_arguments.push(StaticArgument::Evaluated {
+            let resolved = if let Some(value) = evaluated {
+                StaticArgument::Evaluated {
                     name: evaluated_name,
                     value,
-                });
+                }
             } else {
-                resolved_arguments.push(StaticArgument::Unevaluated {
+                StaticArgument::Unevaluated {
                     node: argument_node,
-                });
-            }
+                }
+            };
+            let resolved = if parameter_kind == StaticParameterKind::Value {
+                self.normalize_value_static_argument(resolved, types)
+            } else {
+                resolved
+            };
+            resolved_arguments.push(resolved);
         }
 
         resolved_arguments

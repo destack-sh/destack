@@ -1900,17 +1900,18 @@ impl Compiler {
                     self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
 
                 // match and switch set different break contexts
-                let mut ctx = ctx.fork();
+                let mut base_ctx = ctx.fork();
                 if *source == MatchSource::Match {
                     if *kind == MatchKind::Match {
-                        ctx = ctx.in_match(expression_id.into_any());
+                        base_ctx = base_ctx.in_match(expression_id.into_any());
                     } else {
-                        ctx = ctx.in_switch(expression_id.into_any());
+                        base_ctx = base_ctx.in_switch(expression_id.into_any());
                     }
                 }
                 let is_switch = *kind == MatchKind::Switch;
                 let mut case_type_ids = Vec::new();
                 for case_id in cases {
+                    let mut case_ctx = base_ctx.fork();
                     let case = tree.get(*case_id);
                     let (selector, body_expr, block_body) = match case {
                         MatchCase::Expression {
@@ -1953,7 +1954,7 @@ impl Compiler {
                                 symbols,
                                 types,
                                 infer,
-                                &mut ctx,
+                                &mut case_ctx,
                             )?;
                         }
                         if let Some(guard_expr) = guard
@@ -1966,18 +1967,18 @@ impl Compiler {
                                 symbols,
                                 types,
                                 infer,
-                                &mut ctx,
+                                &mut case_ctx,
                             )?;
                         }
                     }
 
                     // apply contextual typing to the case body
                     let expected_type = if *kind == MatchKind::Match {
-                        ctx.expected_type
+                        base_ctx.expected_type
                     } else {
                         None
                     };
-                    let mut case_ctx = ctx.fork().with_expected_type(expected_type);
+                    let mut case_ctx = case_ctx.with_expected_type(expected_type);
 
                     // infer the case body and collect types for matches
                     let case_ty_id = if let Some(expr) = body_expr {
@@ -2027,7 +2028,7 @@ impl Compiler {
                             module,
                             symbols,
                             types,
-                            &ctx,
+                            ctx,
                             expression_id.into_any(),
                             &case_type_ids,
                         ),
@@ -3763,8 +3764,60 @@ impl Compiler {
             &mut visited,
         )?;
 
+        // allow match patterns to bind fields from matching union variants
+        let match_union_field =
+            if field_ty_id.is_none() && (ctx.in_match.is_some() || ctx.in_switch.is_some()) {
+                let union_receiver_ty = match receiver_ty {
+                    Type::Reference { symbol, .. } => self
+                        .apparent_instance_type(
+                            module,
+                            ctx.profile,
+                            field_id.into_any(),
+                            symbol,
+                            &symbols,
+                            types,
+                        )
+                        .map(|type_id| types.get_type(type_id).clone())
+                        .unwrap_or(receiver_ty.clone()),
+                    Type::Value { value } => types.get_type(value).clone(),
+                    _ => receiver_ty.clone(),
+                };
+                if let Type::Union { elements } = union_receiver_ty {
+                    let mut field_types = Vec::new();
+                    for element_id in elements {
+                        let element_ty = types.get_type(element_id).clone();
+                        if let Some(field_ty) = self.infer_member_of_type(
+                            module,
+                            ctx.profile,
+                            field_id.into_any(),
+                            &symbols,
+                            &element_ty,
+                            &field_key,
+                            MemberLookupMode::Any,
+                            types,
+                            &mut visited,
+                        )? {
+                            field_types.push(field_ty);
+                        }
+                    }
+                    if field_types.is_empty() {
+                        None
+                    } else if field_types.len() == 1 {
+                        Some(field_types[0])
+                    } else {
+                        Some(self.union_type_from_list(field_types, binding_ty_id, types))
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
         // fall back to the binding type for non-object patterns
-        Ok(Some(field_ty_id.unwrap_or(binding_ty_id)))
+        Ok(Some(
+            match_union_field.unwrap_or_else(|| field_ty_id.unwrap_or(binding_ty_id)),
+        ))
     }
 
     /// Resolve a tagged pattern target type from an expression.
