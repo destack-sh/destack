@@ -1,0 +1,79 @@
+# Namespace Declarations
+
+Tests for namespace and module declaration formatting.
+
+## Basic Namespaces
+
+### simple namespace
+
+Namespaces format like other declaration blocks.
+
+```ts:main.ts
+namespace   Foo{const x=1}
+```
+
+```ts expected
+namespace Foo {
+    const x = 1
+}
+```
+
+### exported namespace
+
+Exported namespaces keep the export keyword.
+
+```ts:main.ts
+export   namespace  Foo { }
+```
+
+```ts expected
+export namespace Foo { }
+```
+
+### declared namespace
+
+Declared namespaces keep the declare keyword.
+
+```ts:main.d.ts
+declare namespace Foo {
+    export const version: string
+}
+```
+
+```ts expected
+declare namespace Foo {
+    export const version: string
+}
+```
+
+## Module Alias
+
+### module keyword normalizes to namespace
+
+Module declarations format like namespaces.
+
+```ts:main.ts
+module   "Bar" { export const value:number }
+```
+
+```ts expected
+namespace "Bar" {
+    export const value: number
+}
+```
+
+## Where Clauses
+
+### namespace with where clause
+
+Where clauses stay attached to the namespace header.
+
+```ds
+namespace Foo where Guard: Limit { const x = 1 }
+```
+
+```ds expected
+namespace Foo where Guard: Limit {
+    const x = 1
+}
+```

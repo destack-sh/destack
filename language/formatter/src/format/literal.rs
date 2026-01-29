@@ -1,15 +1,18 @@
 use std::borrow::Cow;
 
+use crate::expression::{is_expression_breakable, is_trivial_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, FloatType, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral, TypeLiteral,
+    Argument, Expression, FloatType, IntType, LocalNodeId, ScalarLiteral, TemplateLiteral,
+    TypeLiteral,
 };
 use destack_base::StringId;
 use destack_fir::format::{Format, FormatResult, text, token};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 use destack_source::Span;
+use destack_workspace::QuoteStyle;
 
 /// Format a scalar literal.
 /// (This is a separate function because it's not a node but we need the span for normalization.)
@@ -49,13 +52,32 @@ pub(crate) fn format_scalar_literal<'ast>(
             }
         }
         ScalarLiteral::Character(value) => {
-            write!(
-                f,
-                [token("'"), text(value.to_string().as_str()), token("'")]
-            )?;
+            if f.context().options.language_type.is_destack() {
+                write!(
+                    f,
+                    [token("'"), text(value.to_string().as_str()), token("'")]
+                )?;
+            } else {
+                let mut quote_style = f.context().options.quote_style;
+                if quote_style == QuoteStyle::Semantic {
+                    quote_style = QuoteStyle::Double;
+                }
+                let content = value.to_string();
+                let quote_char = quote_style.char_for(content.as_str());
+                let quote_str = if quote_char == '"' { "\"" } else { "'" };
+                write!(
+                    f,
+                    [token(quote_str), text(content.as_str()), token(quote_str)]
+                )?;
+            }
         }
         ScalarLiteral::String(string_id) => {
-            let quote_style = f.context().options.quote_style;
+            let mut quote_style = f.context().options.quote_style;
+            if quote_style == QuoteStyle::Semantic
+                && !f.context().options.language_type.is_destack()
+            {
+                quote_style = QuoteStyle::Double;
+            }
             let content = f.context().strings.get(*string_id);
             let quote_char = quote_style.char_for(content);
 
@@ -114,21 +136,165 @@ fn format_interpolated_template_literal<'ast>(
     }
 
     for (argument, segment) in arguments.iter().zip(string_segments) {
-        write!(
-            f,
-            [
-                group(&format_args![
-                    token("${"),
-                    indent(&format_args![soft_line_break(), argument]),
-                    soft_line_break(),
-                    token("}")
-                ]),
-                *segment,
-            ]
-        )?;
+        let should_expand = template_argument_should_expand(f.context(), *argument);
+
+        if should_expand {
+            write!(
+                f,
+                [
+                    group(&format_args![
+                        token("${"),
+                        indent(&format_args![hard_line_break(), argument]),
+                        hard_line_break(),
+                        token("}")
+                    ])
+                    .should_expand(true),
+                    *segment,
+                ]
+            )?;
+        } else {
+            write!(
+                f,
+                [
+                    group(&format_args![
+                        token("${"),
+                        indent(&format_args![soft_line_break(), argument]),
+                        soft_line_break(),
+                        token("}")
+                    ]),
+                    *segment,
+                ]
+            )?;
+        }
     }
 
     write!(f, [token("`")])
+}
+
+/// Decide whether a template literal interpolation should break across lines.
+fn template_argument_should_expand(
+    context: &DestackFormatContext<'_>,
+    argument_id: LocalNodeId<Argument>,
+) -> bool {
+    let value = match context.tree.get(argument_id) {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+
+    let expression_id = unwrap_template_expression(context, value);
+    let expression = context.tree.get(expression_id);
+    if is_trivial_expression(context.tree, expression) {
+        return false;
+    }
+
+    if template_expression_is_complex(context, expression_id) {
+        return true;
+    }
+
+    if !is_expression_breakable(context.tree, expression) {
+        return false;
+    }
+
+    match expression {
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => {
+            if dynamic_arguments.len() > 2 {
+                return true;
+            }
+        }
+        _ => {}
+    }
+
+    let span = context.get_span(expression_id);
+    let span_str = context.get_span_str(span);
+    let expression_len = span_str.chars().count();
+    let line_width = usize::from(context.options.line_width);
+
+    expression_len.saturating_add(4) > line_width
+}
+
+/// Check whether a template literal interpolation is complex enough to force expansion.
+fn template_expression_is_complex(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let expression = context.tree.get(expression_id);
+    match expression {
+        Expression::TypeBinary { .. }
+        | Expression::TypeConditional { .. }
+        | Expression::TypeMapped { .. }
+        | Expression::TypeTemplateLiteral { .. } => true,
+        Expression::Maybe { .. } | Expression::Must { .. } => true,
+        Expression::TreeExpression { .. } => true,
+        Expression::ObjectExpression { properties, .. } => properties.len() > 2,
+        Expression::Call {
+            dynamic_arguments, ..
+        }
+        | Expression::New {
+            dynamic_arguments, ..
+        } => {
+            dynamic_arguments.len() > 2
+                || dynamic_arguments.iter().any(|argument_id| {
+                    let argument = context.tree.get(*argument_id);
+                    !is_trivial_expression(
+                        context.tree,
+                        argument_value_expression(context, argument),
+                    )
+                })
+        }
+        Expression::Index { left, index, .. } => {
+            index.is_some_and(|index_id| {
+                let index_expression = context.tree.get(index_id);
+                !is_trivial_expression(context.tree, index_expression)
+            }) || template_expression_is_complex(context, *left)
+        }
+        Expression::Member { left, .. } => template_expression_is_complex(context, *left),
+        Expression::Statement(inner_id) => template_expression_is_complex(context, *inner_id),
+        Expression::Parenthesized { expression } => {
+            template_expression_is_complex(context, *expression)
+        }
+        _ => false,
+    }
+}
+
+/// Extract the expression value from an argument node.
+fn argument_value_expression<'ast>(
+    context: &DestackFormatContext<'ast>,
+    argument: &Argument,
+) -> &'ast Expression {
+    let value_id = match argument {
+        Argument::Named { value, .. }
+        | Argument::Labeled { value, .. }
+        | Argument::Positional { value, .. }
+        | Argument::Spread { value, .. } => *value,
+    };
+    context.tree.get(value_id)
+}
+
+/// Unwrap a template interpolation argument into its underlying expression.
+fn unwrap_template_expression(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> LocalNodeId<Expression> {
+    let mut current = expression_id;
+
+    loop {
+        match context.tree.get(current) {
+            Expression::Statement(inner_id) => {
+                current = *inner_id;
+            }
+            Expression::Parenthesized { expression } => {
+                current = *expression;
+            }
+            _ => return current,
+        }
+    }
 }
 
 /// Format a template literal.
@@ -149,7 +315,7 @@ pub(crate) fn format_template_literal<'ast>(
     Ok(())
 }
 
-/// Normalize jsx text by collapsing whitespace to single spaces and trimming edges.
+/// Normalize jsx text by collapsing whitespace to single spaces and preserving edges.
 fn normalize_jsx_text(text: &str) -> String {
     let mut parts = text.split_whitespace();
     let Some(first) = parts.next() else {
@@ -162,7 +328,38 @@ fn normalize_jsx_text(text: &str) -> String {
         normalized.push_str(part);
     }
 
+    let (has_leading_space, has_trailing_space) = jsx_boundary_spaces(text);
+    if has_leading_space {
+        normalized.insert(0, ' ');
+    }
+    if has_trailing_space {
+        normalized.push(' ');
+    }
+
     normalized
+}
+
+/// Check for inline boundary spaces in jsx text.
+fn jsx_boundary_spaces(text: &str) -> (bool, bool) {
+    let leading_end = text
+        .char_indices()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(text.len(), |(index, _)| index);
+    let trailing_start = text
+        .char_indices()
+        .rev()
+        .find(|(_, c)| !c.is_whitespace())
+        .map_or(0, |(index, c)| index + c.len_utf8());
+
+    let leading_whitespace = &text[..leading_end];
+    let trailing_whitespace = &text[trailing_start..];
+
+    let has_leading_space =
+        !leading_whitespace.is_empty() && !leading_whitespace.contains(['\n', '\r']);
+    let has_trailing_space =
+        !trailing_whitespace.is_empty() && !trailing_whitespace.contains(['\n', '\r']);
+
+    (has_leading_space, has_trailing_space)
 }
 
 impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {

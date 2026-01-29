@@ -116,6 +116,20 @@ class Foo {
 }
 ```
 
+### constructor with parameter properties
+
+Parameter properties keep visibility and readonly modifiers.
+
+```ts:main.ts
+class Foo { constructor(public x: number, private readonly y: string) { } }
+```
+
+```ts expected
+class Foo {
+    constructor(public x: number, private readonly y: string) { }
+}
+```
+
 ## Field Modifiers
 
 ### public field
@@ -233,6 +247,83 @@ class Foo {
 }
 ```
 
+### typescript accessor field
+
+Accessor fields keep the `accessor` keyword and use semicolons.
+
+```ts:main.ts
+class Box { accessor value = 1 }
+```
+
+```ts expected
+class Box {
+    accessor value = 1;
+}
+```
+
+### typescript private hash members
+
+Private hash members keep the `#` prefix and use semicolons.
+
+```ts:main.ts
+class Foo { #count: number; #reset() { } static #value = 1 }
+```
+
+```ts expected
+class Foo {
+    #count: number;
+    #reset() { }
+    static #value = 1;
+}
+```
+
+### typescript class quoted keys
+
+Quoted keys are removed when they are valid identifiers.
+
+```ts:main.ts
+class Config { "normal" = 1; "data-id" = 2; "default"() { } }
+```
+
+```ts expected
+class Config {
+    normal = 1;
+    "data-id" = 2;
+    default() { }
+}
+```
+
+### typescript class quote props consistent
+
+Consistent quote props quotes all keys when any require quotes.
+
+```ts:main.ts quote-props=consistent
+class Options { normal = 1; "data-id" = 2; "default"() { } }
+```
+
+```ts expected
+class Options {
+    "normal" = 1;
+    "data-id" = 2;
+    "default"() { }
+}
+```
+
+### typescript class unicode methods
+
+Unicode method names stay quoted and normalize quote style.
+
+```ts:main.ts
+class A { 'x・'() {} 'x･'() {} }
+```
+
+```ts expected
+class A {
+    "x・"() { }
+    "x･"() { }
+}
+```
+
 ### typescript abstract class preserves keyword
 
 Abstract classes keep the `abstract` modifier.
@@ -244,6 +335,44 @@ abstract class Foo { abstract bar(): void }
 ```ts expected
 abstract class Foo {
     abstract bar(): void;
+}
+```
+
+### typescript override method preserves keyword
+
+Override methods keep the `override` modifier.
+
+```ts:main.ts
+class Base { greet(): void { } }
+class Child extends Base { override greet(): void { } }
+```
+
+```ts expected
+class Base {
+    greet(): void { }
+}
+
+class Child extends Base {
+    override greet(): void { }
+}
+```
+
+### typescript abstract override method preserves keywords
+
+Abstract override methods keep both modifiers.
+
+```ts:main.ts
+abstract class Base { abstract greet(): void }
+abstract class Child extends Base { abstract override greet(): void }
+```
+
+```ts expected
+abstract class Base {
+    abstract greet(): void;
+}
+
+abstract class Child extends Base {
+    abstract override greet(): void;
 }
 ```
 

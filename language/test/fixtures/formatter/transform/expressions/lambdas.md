@@ -486,3 +486,21 @@ const handler = (event) =>
         timestamp: Date.now(),
     });
 ```
+
+### arrow function with chained return breaks
+
+Chain returns in arrow bodies keep each chain segment on its own line.
+
+```ts:main.ts line-width=60
+const normalize = (id) =>
+  id
+    .replace('@', resolve(__dirname, './mods/'))
+    .replace('#', resolve(__dirname, '../../'))
+```
+
+```ts expected
+const normalize = (id) =>
+    id
+        .replace("@", resolve(__dirname, "./mods/"))
+        .replace("#", resolve(__dirname, "../../"));
+```

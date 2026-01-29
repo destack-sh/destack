@@ -186,6 +186,62 @@ for (let i = 0; i < 10; i++) {
 
 ### for of loop
 
+For-of loops space the `of` keyword and expand their bodies.
+
+```ds
+for (item of items) { handle(item) }
+```
+
+```ds expected
+for (item of items) {
+    handle(item)
+}
+```
+
+### for in loop
+
+For-in loops space the `in` keyword and expand their bodies.
+
+```ds
+for (key in object) { handle(key) }
+```
+
+```ds expected
+for (key in object) {
+    handle(key)
+}
+```
+
+### for of with using binding
+
+Using bindings stay attached to for-of headers.
+
+```ds
+for (using handle of handles) { handle.use() }
+```
+
+```ds expected
+for (using handle of handles) {
+    handle.use()
+}
+```
+
+### annotated for loop
+
+Annotations can prefix loop statements.
+
+```ds
+@unroll
+for(let i=0;i<4;i++){process(i)}
+```
+
+```ds expected
+@unroll
+for (let i = 0; i < 4; i++) { process(i) }
+```
+
+### for of loop
+
 For-of loops iterate over iterables.
 
 ```ds

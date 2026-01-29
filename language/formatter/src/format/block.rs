@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use destack_ast::{
     Block, Declaration, Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
     ScalarLiteral,
@@ -5,8 +7,13 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_source::Span;
 
 use super::imports;
+use crate::directive::{
+    FormatterDirective, FormatterDirectiveKind, FormatterDirectivePosition, collect_comment_tokens,
+    directive_for_node, ignore_range_for_node, write_ignored_span,
+};
 use crate::expression::format_expression;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 
@@ -174,6 +181,16 @@ pub(crate) fn format_block_of_statements<'ast>(
     let organize = f.context().options.organize_imports.is_enabled();
     let tree = f.context().tree;
     let strings = f.context().strings;
+    let comment_tokens = collect_comment_tokens(f.context());
+
+    let mut ignore_ranges: HashMap<u32, Span> = HashMap::new();
+    for &expression_id in expressions {
+        if let Some(range_span) = ignore_range_for_node(f.context(), expression_id, &comment_tokens)
+        {
+            ignore_ranges.insert(expression_id.id, range_span);
+        }
+    }
+    let has_ignore_ranges = !ignore_ranges.is_empty();
 
     // find contiguous import section at the start
     let import_count = expressions
@@ -183,16 +200,17 @@ pub(crate) fn format_block_of_statements<'ast>(
 
     // prepare the expression list (potentially with sorted imports)
     let sorted_imports: Vec<LocalNodeId<Expression>>;
-    let effective_expressions: Vec<LocalNodeId<Expression>> = if organize && import_count > 1 {
-        sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
-        sorted_imports
-            .iter()
-            .copied()
-            .chain(expressions[import_count..].iter().copied())
-            .collect()
-    } else {
-        expressions.to_vec()
-    };
+    let effective_expressions: Vec<LocalNodeId<Expression>> =
+        if organize && import_count > 1 && !has_ignore_ranges {
+            sorted_imports = imports::sort_imports(&expressions[..import_count], tree, strings);
+            sorted_imports
+                .iter()
+                .copied()
+                .chain(expressions[import_count..].iter().copied())
+                .collect()
+        } else {
+            expressions.to_vec()
+        };
 
     let directive_count = effective_expressions
         .iter()
@@ -201,6 +219,7 @@ pub(crate) fn format_block_of_statements<'ast>(
 
     let mut prev_was_import = false;
     let mut prev_import_id: Option<LocalNodeId<Expression>> = None;
+    let mut skip_until: Option<u32> = None;
 
     for (i, &expression_id) in effective_expressions.iter().enumerate() {
         let expression = f.context().tree.get(expression_id);
@@ -210,6 +229,15 @@ pub(crate) fn format_block_of_statements<'ast>(
         } else {
             None
         };
+
+        let expression_span = f.context().get_span(expression_id);
+
+        if let Some(skip_end) = skip_until {
+            if expression_span.start < skip_end {
+                continue;
+            }
+            skip_until = None;
+        }
 
         // blank line between expressions
         if i > 0 {
@@ -252,9 +280,19 @@ pub(crate) fn format_block_of_statements<'ast>(
             }
         }
 
+        if let Some(range_span) = ignore_ranges.get(&expression_id.id) {
+            write_ignored_span(f, *range_span)?;
+            skip_until = Some(range_span.end);
+            prev_was_import = false;
+            prev_import_id = None;
+            continue;
+        }
+
+        let directive = directive_for_node(f.context(), expression_id);
+
         // expression itself (with prefix annotations)
         write!(f, [f.context().any_prefix_annotations(expression_id)])?;
-        format_expression(f, expression_id, expression)?;
+        format_expression(f, expression_id, expression, directive)?;
 
         // add semicolon for bare Import if not last expression (when sorting moved it)
         let is_last = i == effective_expressions.len() - 1;
@@ -264,10 +302,18 @@ pub(crate) fn format_block_of_statements<'ast>(
         }
 
         // postfix annotations
-        write!(
-            f,
-            [f.context().any_infix_or_postfix_annotations(expression_id)]
-        )?;
+        if !matches!(
+            directive,
+            Some(FormatterDirective {
+                kind: FormatterDirectiveKind::IgnoreFormat,
+                position: FormatterDirectivePosition::Postfix { .. },
+            })
+        ) {
+            write!(
+                f,
+                [f.context().any_infix_or_postfix_annotations(expression_id)]
+            )?;
+        }
 
         prev_was_import = is_import_expr;
         if is_import_expr {

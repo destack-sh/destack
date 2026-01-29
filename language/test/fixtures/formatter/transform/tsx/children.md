@@ -37,7 +37,7 @@ const node = <div>  Hello   World </div>
 ```
 
 ```tsx expected
-const node = <div>Hello World</div>;
+const node = <div> Hello World </div>;
 ```
 
 ### text with embedded expression wraps
@@ -106,8 +106,38 @@ const node = <T>
 
 ```tsx expected
 const node = <T>
-    Pro tip: See more{' '}<Link href="https://example.com">Docs</Link>{' '}for details.
+    Pro tip: See more{" "}<Link href="https://example.com">Docs</Link>{" "}for details.
 </T>;
+```
+
+### text with inline elements breaks into lines
+
+Inline elements inside text blocks break into readable lines.
+
+```tsx:main.tsx
+export default function ProTip() {
+  return (
+    <T>
+      <X />
+      Pro tip: See more <Link href="https://mui.com/getting-started/templates/">
+        BREAK THIS
+      </Link> on
+      the MUI documentation.
+    </T>
+  );
+}
+```
+
+```tsx expected
+export default function ProTip() {
+    return (
+        <T>
+            <X /> Pro tip: See more <Link href="https://mui.com/getting-started/templates/">
+                BREAK THIS
+            </Link> on the MUI documentation.
+        </T>
+    );
+}
 ```
 
 ## Expression Children
@@ -144,6 +174,24 @@ const node = <div>
             : <Pending />
     }
 </div>;
+```
+
+### logical expression with jsx child
+
+Logical expressions keep JSX children grouped with comments.
+
+```tsx:main.tsx line-width=80
+xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
+  // test
+  <div></div>
+)
+```
+
+```tsx expected
+xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
+    // test
+    <div></div>
+);
 ```
 
 ## Fragments

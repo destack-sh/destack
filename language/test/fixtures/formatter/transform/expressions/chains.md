@@ -150,3 +150,39 @@ wow /* do something weird here */
     .filter((x) => x.length > 3)
     .sort((a, b) => a.length - b.length);
 ```
+
+### chain preserves blank lines
+
+Blank lines between chain segments are preserved.
+
+```ts:main.ts
+Promise.all(writeIconFiles)
+  // TO DO -- END
+  .then(() => writeRegistry())
+
+Promise.all(writeIconFiles)
+
+  // TO DO -- END
+  .then(() => writeRegistry())
+
+Promise.all(writeIconFiles)
+  // TO DO -- END
+
+  .then(() => writeRegistry())
+```
+
+```ts expected
+Promise.all(writeIconFiles)
+    // TO DO -- END
+    .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+
+    // TO DO -- END
+    .then(() => writeRegistry());
+
+Promise.all(writeIconFiles)
+    // TO DO -- END
+
+    .then(() => writeRegistry());
+```

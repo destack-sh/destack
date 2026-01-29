@@ -258,6 +258,20 @@ function create<T = any>(): T[] {
 }
 ```
 
+### generic with comptime parameter
+
+Comptime static parameters keep the keyword in the parameter list.
+
+```ds
+function repeat<comptime N: int>(value: string): string { return value }
+```
+
+```ds expected
+function repeat<comptime N: int>(value: string): string {
+    return value
+}
+```
+
 ## Parameters
 
 ### optional parameter
@@ -302,6 +316,20 @@ function sum(...numbers: number[]): number {
 }
 ```
 
+### function with this parameter
+
+Explicit `this` parameters stay first in the list.
+
+```ts:main.ts
+function bind(this: Handler, event: Event) { this.handle(event) }
+```
+
+```ts expected
+function bind(this: Handler, event: Event) {
+    this.handle(event)
+}
+```
+
 ### destructured parameter
 
 Object destructuring in parameters preserves the pattern structure.
@@ -327,6 +355,23 @@ function first([head]: number[]): number { return head }
 ```ds expected
 function first([head]: number[]): number {
     return head
+}
+```
+
+### parameter annotations
+
+Annotated parameters keep the `@` prefix before the name.
+
+```ds
+function process(@nonempty input: string) { return input }
+```
+
+```ds expected
+function process(
+    @nonempty
+    input: string,
+) {
+    return input
 }
 ```
 
@@ -484,6 +529,50 @@ function parse(x: string): number
 function parse(x: number): number
 function parse(x: string | number): number {
     return typeof x === "string" ? parseInt(x) : x
+}
+```
+
+## Type Predicates (TypeScript)
+
+### type predicate return type
+
+Type predicate return types keep `is` spacing.
+
+```ts:main.ts
+function isFoo(value: unknown): value is Foo { return value instanceof Foo }
+```
+
+```ts expected
+function isFoo(value: unknown): value is Foo {
+    return value instanceof Foo
+}
+```
+
+### asserts type predicate return type
+
+Asserted type predicates keep `asserts` and `is` spacing.
+
+```ts:main.ts
+function assertFoo(value: Foo): asserts value is Foo { return value !== null }
+```
+
+```ts expected
+function assertFoo(value: Foo): asserts value is Foo {
+    return value !== null
+}
+```
+
+### asserts subject without predicate
+
+Asserted subjects without predicates keep the `asserts` keyword.
+
+```ts:main.ts
+function assertDefined(value: Foo | null): asserts value { if (value === null) throw new Error() }
+```
+
+```ts expected
+function assertDefined(value: Foo | null): asserts value {
+    if (value === null) { throw new Error() }
 }
 ```
 

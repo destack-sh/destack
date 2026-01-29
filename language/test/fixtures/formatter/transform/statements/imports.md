@@ -130,6 +130,20 @@ import   *   as   mod   from   "module"
 import * as mod from "module";
 ```
 
+## TypeScript Legacy Imports
+
+### import equals require
+
+Import equals require keeps the `=` spacing and uses `require(...)`.
+
+```ts:main.ts
+import foo=require("module")
+```
+
+```ts expected
+import foo = require("module");
+```
+
 ## Side Effect Imports
 
 ### side effect import

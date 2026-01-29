@@ -56,6 +56,48 @@ type Maybe<T> = T extends string ? T | null : T
 type Maybe<T> = T extends string ? T | null : T;
 ```
 
+## Type Template Literals
+
+### typescript template literal type stays inline
+
+Template literal types keep the header inline and use double quotes.
+
+```ts:main.ts
+type templateLiteralType = `${
+  TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+    ? "_"
+    : ""
+}`;
+```
+
+```ts expected
+type templateLiteralType = `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+    ? "_"
+    : ""}`;
+```
+
+### typescript template literal type with nested conditionals
+
+Nested template literal types break with readable indentation.
+
+```ts:main.ts line-width=80
+type CamelToSnakeCase<TCamelCaseString extends string> =
+  TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
+    ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+        ? "_"
+        : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+    : TCamelCaseString
+```
+
+```ts expected
+type CamelToSnakeCase<TCamelCaseString extends string> =
+    TCamelCaseString extends `${infer TStringConvertedSoFar}${infer TStringYetToConvert}`
+        ? `${TStringConvertedSoFar extends Capitalize<TStringConvertedSoFar>
+            ? "_"
+            : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
+        : TCamelCaseString;
+```
+
 ## Type Operators
 
 ### keyof typeof chain
@@ -158,4 +200,79 @@ type Combined = A | (B & C)
 
 ```ds expected
 type Combined = A | (B & C);
+```
+
+## Mapped Types (TypeScript)
+
+### mapped type keeps bracket spacing
+
+Mapped types include spaces when bracket spacing is enabled.
+
+```ts:main.ts
+export type Bar<T> = {[P in keyof T]: string}
+```
+
+```ts expected
+export type Bar<T> = { [P in keyof T]: string };
+```
+
+### mapped type modifiers
+
+Mapped type modifiers keep their prefixes and suffixes.
+
+```ts:main.ts
+type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] }
+type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
+```
+
+```ts expected
+type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] };
+
+type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
+```
+
+### mapped type key remap
+
+Mapped type key remaps keep `as` spacing.
+
+```ts:main.ts
+type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] }
+```
+
+```ts expected
+type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
+```
+
+## Conditional Types (TypeScript)
+
+### conditional type with nested parentheses
+
+Conditional types keep parentheses and break cleanly.
+
+```ts:main.ts line-width=80
+type IsUnion<T> = (
+  Testtttttttttttttttttttttttttttttttttt extends any ? false : never
+) extends false
+  ? false
+  : true
+```
+
+```ts expected
+type IsUnion<T> = (
+    Testtttttttttttttttttttttttttttttttttt extends any ? false : never
+) extends false
+    ? false
+    : true;
+```
+
+### conditional type with infer
+
+Infer types stay inline with the `extends` clause.
+
+```ts:main.ts
+type Unpacked<T> = T extends (infer U)[] ? U : T
+```
+
+```ts expected
+type Unpacked<T> = T extends (infer U)[] ? U : T;
 ```

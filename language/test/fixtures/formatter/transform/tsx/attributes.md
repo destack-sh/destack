@@ -49,7 +49,7 @@ const node = <div className={cx("a", { b: cond })} />
 ```
 
 ```tsx expected
-const node = <div className={cx('a', { b: cond })} />;
+const node = <div className={cx("a", { b: cond })} />;
 ```
 
 ## Spread Attributes

@@ -1,6 +1,7 @@
 use crate::argument::list_like;
 use crate::block::format_block_of_statements;
 use crate::expression::{is_expression_breakable, lambda_expression_should_break};
+use crate::key::format_key_with_quote_policy;
 use crate::property::format_block_of_members;
 use crate::r#where::format_where_clause_with_break;
 use crate::{
@@ -8,8 +9,8 @@ use crate::{
 };
 use destack_ast::{
     Asynchrony, Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode, EnumKind,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Keyword,
-    LocalNodeId, Mutability, Parameter, TypeKind, Visibility,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Key, Keyword,
+    LocalNodeId, Mutability, Name, Parameter, TypeKind, Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -132,7 +133,12 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
 
                 // name / key
                 if let Some(name) = descriptor.name {
-                    write!(f, [space(), name])?;
+                    write!(f, [space()])?;
+                    if matches!(name, Name::String(_)) {
+                        format_key_with_quote_policy(f, Key::Name(name), true)?;
+                    } else {
+                        write!(f, [name])?;
+                    }
                 }
 
                 // where
@@ -204,6 +210,17 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                     write!(f, [header, space(), token("="), space(), *value_id])?;
                     Ok(())
                 });
+                let format_soft_break = format_with(|f| {
+                    write!(
+                        f,
+                        [group(&format_args![
+                            header,
+                            space(),
+                            token("="),
+                            indent(&format_args![soft_line_break_or_space(), *value_id])
+                        ])]
+                    )
+                });
                 // expand inline if breakable (like let x = [\n ... ])
                 let format_inline_expanded = format_with(|f| {
                     write!(
@@ -229,7 +246,17 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                 });
 
                 let tree = f.context().tree;
-                if is_expression_breakable(tree, tree.get(*value_id)) {
+                let value_expression = tree.get(*value_id);
+                let should_break_after_equals = match value_expression {
+                    Expression::TypeConditional { left, .. } => {
+                        !matches!(tree.get(*left), Expression::Parenthesized { .. })
+                    }
+                    _ => false,
+                };
+
+                if should_break_after_equals {
+                    format_soft_break.format(f)?;
+                } else if is_expression_breakable(tree, tree.get(*value_id)) {
                     best_fitting![format_inline, format_inline_expanded, format_indented]
                         .with_mode(BestFittingMode::AllLines)
                         .format(f)?;
