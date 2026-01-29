@@ -180,18 +180,28 @@ type Readonly<T> = { [K in keyof T]: T[K] }
 type Readonly<T> = { [K in keyof T]: T[K] };
 ```
 
-### mapped type with modifier
+### mapped type with modifiers
 
-NOTE #Incomplete: support mapped type modifier removal syntax
- (`-readonly`, `+readonly`, `-?`, `+?`, 
-  special tokens in TS mapped types, not regular binding modifiers.)
+Mapped types support readonly and optional modifiers, including removal.
 
 ```ds
-type Mutable<T> = { -readonly [K in keyof T]: T[K] }
+type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
 ```
 
 ```ds expected
-type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
+```
+
+### mapped type with explicit add modifiers
+
+Explicit add modifiers normalize to the default `readonly` and `?` forms.
+
+```ds
+type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
+```
+
+```ds expected
+type Explicit<T> = { readonly [K in keyof T]?: T[K] };
 ```
 
 ### mapped type with optional modifier
