@@ -70,7 +70,7 @@ pub const LIB_ES2017: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2017_STRING_D_DS,
         LIB_ES_ES2017_TYPEDARRAYS_D_DS,
     ],
-    &["es2016"],
+    &[],
 )
 .with_declared_symbols(ES2017_DECLARED_SYMBOLS);
 
@@ -83,13 +83,7 @@ pub const LIB_ES2017_ARRAYBUFFER: BuiltinLib =
 pub const LIB_ES2017_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2017.full",
     &[LIB_ES_ES2017_FULL_D_DS],
-    &[
-        "es2017",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2017_DECLARED_SYMBOLS);
 pub const LIB_ES2017_INTL: BuiltinLib =

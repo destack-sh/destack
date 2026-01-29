@@ -37,7 +37,7 @@ pub const LIB_ES2024: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_ES_ES2024_SHAREDMEMORY_D_DS,
         LIB_ES_ES2024_STRING_D_DS,
     ],
-    &["es2023"],
+    &[],
 )
 .with_declared_symbols(ES2024_DECLARED_SYMBOLS);
 
@@ -50,14 +50,7 @@ pub const LIB_ES2024_COLLECTION: BuiltinLib =
 pub const LIB_ES2024_FULL: BuiltinLib = BuiltinLib::ambient_lib(
     "es2024.full",
     &[LIB_ES_ES2024_FULL_D_DS],
-    &[
-        "es2024",
-        "dom",
-        "worker.importscripts",
-        "scripthost",
-        "dom.iterable",
-        "dom.asynciterable",
-    ],
+    &[],
 )
 .with_declared_symbols(ES2024_DECLARED_SYMBOLS);
 pub const LIB_ES2024_OBJECT: BuiltinLib =

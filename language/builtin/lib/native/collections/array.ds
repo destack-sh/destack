@@ -100,13 +100,13 @@ extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iter
     /// Map each element to a new value.
     map<U>(f: (value: T, index: number) => U): Array<U> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *U }
     }
 
     /// Filter elements by predicate.
     filter(predicate: (value: T, index: number) => boolean): Array<T> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *T }
     }
 
     /// Reduce array to single value.
@@ -177,13 +177,13 @@ extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iter
     /// Get a slice of the array.
     slice(start?: number, end?: number): Array<T> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *T }
     }
 
     /// Splice elements.
     splice(start: number, deleteCount?: number, ...items: T[]): Array<T> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *T }
     }
 
     /// Concatenate arrays.
@@ -195,24 +195,24 @@ extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iter
     /// Flatten nested arrays.
     flat<D extends number = 1>(depth?: D): Array<unknown> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *unknown }
     }
 
     /// Map and flatten.
     flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
         // #Incomplete
-        []
+        Array { length: 0, capacity: 0, data: null as *U }
     }
 }
 
 /// Create an array with the given elements.
 export function arrayOf<T>(...elements: T[]): Array<T> {
     // #Incomplete
-    []
+    Array { length: 0, capacity: 0, data: null as *T }
 }
 
 /// Create an array with the given length, filled with a value.
 export function arrayFill<T>(length: uint32, value: T): Array<T> {
     // #Incomplete
-    []
+    Array { length: 0, capacity: 0, data: null as *T }
 }
