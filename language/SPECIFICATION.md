@@ -4,7 +4,9 @@
 
 The Destack language is "TypeScript++" for building optimal, correct, integrated full-stack software systems.
 This document describes the syntax and semantics of **`.ds` files**.
-`.ts` and `.js` files work the same as before (for modern strict mode, with minor caveats depending in options and targets).
+`.ts` and `.tsx` files are fully supported as modern strict modules.
+`.js` and `.jsx` files parse as strict modules and reject TS-only syntax by default.
+See `INTEROPERABILITY.md` for the full file type matrix and exclusions.
 
 ## Literals
 
@@ -971,6 +973,30 @@ type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<4>;
 value satisfies uint8[4];
+```
+
+### Variance Annotations
+
+Type parameters may be annotated with `in` or `out` to declare variance.
+`out` marks a parameter as covariant and `in` marks a parameter as contravariant.
+Variance annotations are validated against usage, and invalid positions are compile errors.
+Annotations are allowed on type parameters for type aliases, interfaces, classes, and functions.
+Unannotated parameters use inferred variance based on their usage.
+
+```
+interface Producer<out T> {
+    get(): T;
+}
+
+interface Consumer<in T> {
+    put(value: T): void;
+}
+
+type Mapper<in T, out U> = (value: T) => U;
+
+class Box<out T> {
+    value: T;
+}
 ```
 
 ### Where Clauses

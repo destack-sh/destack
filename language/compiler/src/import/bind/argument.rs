@@ -4,7 +4,7 @@ use destack_dir::{
     AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
     Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
-    TypeTable, Visibility,
+    TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -20,6 +20,10 @@ impl Compiler {
         let kind = modifiers.kind.map(|kind| match kind {
             ast::BindingKind::Must => BindingKind::Must,
             ast::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let variance = modifiers.variance.map(|variance| match variance {
+            ast::VarianceModifier::In => VarianceModifier::In,
+            ast::VarianceModifier::Out => VarianceModifier::Out,
         });
         let anchor = modifiers.anchor.map(|anchor| match anchor {
             ast::BindingAnchor::Static => BindingAnchor::Static,
@@ -45,6 +49,7 @@ impl Compiler {
         });
         BindingModifier {
             kind,
+            variance,
             anchor,
             mutability,
             visibility,

@@ -11,7 +11,7 @@ use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
     AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
     Declaration, Expression, FunctionAbstraction, FunctionCardinality, FunctionMode, Key, Keyword,
-    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing,
+    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing, VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -24,6 +24,13 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     modifiers: BindingModifier,
 ) -> FormatResult<()> {
+    // variance
+    if let Some(variance) = modifiers.variance {
+        match variance {
+            VarianceModifier::In => write!(f, [token("in"), space()])?,
+            VarianceModifier::Out => write!(f, [token("out"), space()])?,
+        }
+    }
     // visibility
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;

@@ -1001,9 +1001,12 @@ The same file with different loaders produces different modules.
 
 ## Compatibility
 
-**Destack aims for 100% compatibility with modern TypeScript.**
+**Destack aims for 100% compatibility with modern strict TypeScript modules.**
 
-For `.ts`, `.tsx`, `.js`, and `.jsx` files, Destack parses with full compatibility—your existing code works unchanged.
+For `.ts` and `.tsx` files, Destack parses with full modern strict compatibility.
+For `.js` and `.jsx` files, Destack parses as strict modules and rejects TS-only syntax by default.
+Decorators are only enabled in `.ts`, `.tsx`, and `.ds`, import attributes and `using` are supported across file types, etc. - see `INTEROPERABILITY.md` for the full compatibility matrix and non-goals.
+
 For `.ds` files, a few obscure syntax patterns work differently due to built-in TSX support and additional typing features:
 
 | Pattern | `.ts` | `.tsx` | `.ds` |

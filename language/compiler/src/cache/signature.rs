@@ -13,7 +13,7 @@ use destack_dir::{
     SymbolKind, SymbolSpace, SymbolTable, SymbolType, Timing, Type, TypeBinaryOperator,
     TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedModifiers,
     TypeMappedParameter, TypeModifier, TypePredicateSubject, TypeTable, TypeUnaryOperator,
-    VarianceBound, WhereClause,
+    VarianceBound, VarianceModifier, WhereClause,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
@@ -1516,6 +1516,10 @@ impl<'a> SignatureHasher<'a> {
             .map(|value| self.hash_binding_kind(value))
             .hash(&mut hasher);
         modifier
+            .variance
+            .map(|value| self.hash_variance_modifier(value))
+            .hash(&mut hasher);
+        modifier
             .anchor
             .map(|value| self.hash_binding_anchor(value))
             .hash(&mut hasher);
@@ -1547,6 +1551,14 @@ impl<'a> SignatureHasher<'a> {
     fn hash_binding_kind(&mut self, kind: BindingKind) -> u64 {
         let mut hasher = FxHasher::default();
         std::mem::discriminant(&kind).hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    /// Hash a variance modifier into a stable fingerprint.
+    fn hash_variance_modifier(&mut self, variance: VarianceModifier) -> u64 {
+        let mut hasher = FxHasher::default();
+        std::mem::discriminant(&variance).hash(&mut hasher);
 
         hasher.finish()
     }

@@ -11,6 +11,15 @@ pub enum BindingKind {
     Maybe,
 }
 
+/// Variance annotation for type parameters.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum VarianceModifier {
+    /// Contravariant type parameter.
+    In,
+    /// Covariant type parameter.
+    Out,
+}
+
 /// The scope of a binding (dynamic or static).
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum BindingAnchor {
@@ -39,6 +48,8 @@ pub enum AccessorKind {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind> = None,
+    /// The variance of a type parameter.
+    pub variance: Option<VarianceModifier> = None,
     /// The scope of the binding.
     pub anchor: Option<BindingAnchor> = None,
     /// The mutability of the field.

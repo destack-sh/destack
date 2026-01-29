@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserMark};
+use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, FunctionAbstraction,
@@ -161,7 +161,11 @@ impl Parser {
                 let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                     vec![]
                 } else {
-                    self.eat_parameters_body()?
+                    let parameter_options = self
+                        .options
+                        .with_generator(is_generator)
+                        .with_forbid_yield(is_generator);
+                    self.with_options(parameter_options, |parser| parser.eat_parameters_body())?
                 };
                 self.eat_newlines_maybe()?;
                 self.eat_token(TokenType::CloseParenthesis)?;
@@ -170,6 +174,9 @@ impl Parser {
             }
             // simple no-parentheses `x => y` lambda value
             else {
+                if is_generator && self.peek_keyword(Keyword::Yield).is_ok() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
                 let parameter_name = self.eat_identifier()?;
                 let parameter_id = self.tree.insert(
                     Parameter::Named {
@@ -259,14 +266,11 @@ impl Parser {
             }
             // function with body
             if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                let options = if is_generator {
-                    self.options
-                        .in_statement_position()
-                        .in_before_block()
-                        .in_generator()
-                } else {
-                    self.options.in_statement_position().in_before_block()
-                };
+                let options = self
+                    .options
+                    .in_statement_position()
+                    .in_before_block()
+                    .with_generator(is_generator);
                 let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             }
@@ -277,14 +281,11 @@ impl Parser {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let options = if is_generator {
-                    self.options
-                        .in_statement_position()
-                        .in_before_block()
-                        .in_generator()
-                } else {
-                    self.options.in_statement_position().in_before_block()
-                };
+                let options = self
+                    .options
+                    .in_statement_position()
+                    .in_before_block()
+                    .with_generator(is_generator);
                 let body = self.with_options(options, |parser| parser.eat_expression())?;
                 Some(body)
             }
@@ -354,7 +355,7 @@ mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
-        WhereClause,
+        VarianceModifier, WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -571,6 +572,41 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
             assert_eq!(signature.dynamic_parameters.len(), 1);
             assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "data");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_function_with_variance_parameters() {
+        let mut test = TestParser::new(
+            r"
+function transform<in T, out U>(value: T): U {
+    value as U
+}
+        ",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "transform");
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 2);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, modifiers: Some(modifiers), .. } => {
+                assert_string!(parser, *name, "T");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::In));
+            });
+            assert_node!(parser.tree, static_parameters[1], Parameter::Named { name, modifiers: Some(modifiers), .. } => {
+                assert_string!(parser, *name, "U");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::Out));
             });
         });
     }

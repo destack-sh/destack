@@ -18,6 +18,10 @@ impl Compiler {
             dir::BindingKind::Must => ast::BindingKind::Must,
             dir::BindingKind::Maybe => ast::BindingKind::Maybe,
         });
+        let variance = modifiers.variance.map(|variance| match variance {
+            dir::VarianceModifier::In => ast::VarianceModifier::In,
+            dir::VarianceModifier::Out => ast::VarianceModifier::Out,
+        });
         let anchor = modifiers.anchor.map(|anchor| match anchor {
             dir::BindingAnchor::Static => ast::BindingAnchor::Static,
             dir::BindingAnchor::Instance => ast::BindingAnchor::Instance,
@@ -42,6 +46,7 @@ impl Compiler {
         });
         ast::BindingModifier {
             kind,
+            variance,
             anchor,
             mutability,
             visibility,
