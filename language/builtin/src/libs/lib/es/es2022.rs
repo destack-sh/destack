@@ -45,12 +45,9 @@ pub const LIB_ES2022_ARRAY: BuiltinLib =
 pub const LIB_ES2022_ERROR: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.error", &[LIB_ES_ES2022_ERROR_D_DS], &[])
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2022_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2022.full",
-    &[LIB_ES_ES2022_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2022_DECLARED_SYMBOLS);
+pub const LIB_ES2022_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2022.full", &[LIB_ES_ES2022_FULL_D_DS], &[])
+        .with_declared_symbols(ES2022_DECLARED_SYMBOLS);
 pub const LIB_ES2022_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2022.intl", &[LIB_ES_ES2022_INTL_D_DS], &[])
         .with_declared_symbols(ES2022_EMPTY_DECLARED_SYMBOLS);

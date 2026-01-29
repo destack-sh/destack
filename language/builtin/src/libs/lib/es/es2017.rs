@@ -80,12 +80,9 @@ pub const LIB_ES2017_DATE: BuiltinLib =
 pub const LIB_ES2017_ARRAYBUFFER: BuiltinLib =
     BuiltinLib::ambient_lib("es2017.arraybuffer", &[LIB_ES_ES2017_ARRAYBUFFER_D_DS], &[])
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2017_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2017.full",
-    &[LIB_ES_ES2017_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2017_DECLARED_SYMBOLS);
+pub const LIB_ES2017_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2017.full", &[LIB_ES_ES2017_FULL_D_DS], &[])
+        .with_declared_symbols(ES2017_DECLARED_SYMBOLS);
 pub const LIB_ES2017_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2017.intl", &[LIB_ES_ES2017_INTL_D_DS], &[])
         .with_declared_symbols(ES2017_EMPTY_DECLARED_SYMBOLS);

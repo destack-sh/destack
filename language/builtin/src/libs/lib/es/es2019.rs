@@ -40,12 +40,9 @@ pub const LIB_ES2019: BuiltinLib = BuiltinLib::ambient_lib(
 pub const LIB_ES2019_ARRAY: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.array", &[LIB_ES_ES2019_ARRAY_D_DS], &[])
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2019_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2019.full",
-    &[LIB_ES_ES2019_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2019_DECLARED_SYMBOLS);
+pub const LIB_ES2019_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2019.full", &[LIB_ES_ES2019_FULL_D_DS], &[])
+        .with_declared_symbols(ES2019_DECLARED_SYMBOLS);
 pub const LIB_ES2019_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2019.intl", &[LIB_ES_ES2019_INTL_D_DS], &[])
         .with_declared_symbols(ES2019_EMPTY_DECLARED_SYMBOLS);

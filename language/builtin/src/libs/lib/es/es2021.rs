@@ -81,12 +81,9 @@ pub const LIB_ES2021: BuiltinLib = BuiltinLib::ambient_lib(
 pub const LIB_ES2021_INTL: BuiltinLib =
     BuiltinLib::ambient_lib("es2021.intl", &[LIB_ES_ES2021_INTL_D_DS], &[])
         .with_declared_symbols(ES2021_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2021_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2021.full",
-    &[LIB_ES_ES2021_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2021_DECLARED_SYMBOLS);
+pub const LIB_ES2021_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2021.full", &[LIB_ES_ES2021_FULL_D_DS], &[])
+        .with_declared_symbols(ES2021_DECLARED_SYMBOLS);
 pub const LIB_ES2021_PROMISE: BuiltinLib =
     BuiltinLib::ambient_lib("es2021.promise", &[LIB_ES_ES2021_PROMISE_D_DS], &[])
         .with_declared_symbols(ES2021_PROMISE_DECLARED_SYMBOLS);

@@ -47,12 +47,9 @@ pub const LIB_ES2024_ARRAYBUFFER: BuiltinLib =
 pub const LIB_ES2024_COLLECTION: BuiltinLib =
     BuiltinLib::ambient_lib("es2024.collection", &[LIB_ES_ES2024_COLLECTION_D_DS], &[])
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
-pub const LIB_ES2024_FULL: BuiltinLib = BuiltinLib::ambient_lib(
-    "es2024.full",
-    &[LIB_ES_ES2024_FULL_D_DS],
-    &[],
-)
-.with_declared_symbols(ES2024_DECLARED_SYMBOLS);
+pub const LIB_ES2024_FULL: BuiltinLib =
+    BuiltinLib::ambient_lib("es2024.full", &[LIB_ES_ES2024_FULL_D_DS], &[])
+        .with_declared_symbols(ES2024_DECLARED_SYMBOLS);
 pub const LIB_ES2024_OBJECT: BuiltinLib =
     BuiltinLib::ambient_lib("es2024.object", &[LIB_ES_ES2024_OBJECT_D_DS], &[])
         .with_declared_symbols(ES2024_EMPTY_DECLARED_SYMBOLS);
