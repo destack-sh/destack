@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType, StaticArgument,
     StaticExpression, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeVisitor, TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
+    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, walk_static_argument,
+    walk_static_expression, walk_type,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -74,10 +75,34 @@ enum TypeContainmentKind<'a> {
     InferBinding,
     /// Detect inference variables.
     InferVar,
+    /// Detect forbidden literal usage.
+    ForbiddenLiteral {
+        /// The compiler instance.
+        compiler: &'a Compiler,
+        /// The current module.
+        module: &'a Module,
+        /// The type table for the current module.
+        types: &'a TypeTable,
+        /// The literal predicate used for filtering.
+        predicate: fn(&TypeLiteral) -> bool,
+        /// Whether imported types should be skipped.
+        skip_imported_types: bool,
+    },
+    /// Detect managed defaults.
+    ManagedType {
+        /// The compiler instance.
+        compiler: &'a Compiler,
+        /// The current module.
+        module: &'a Module,
+        /// The active profile.
+        profile: ProfileId,
+        /// The type table for the current module.
+        types: &'a TypeTable,
+    },
 }
 
 /// Walk types to detect containment queries.
-struct TypeContainmentVisitor<'a> {
+pub(super) struct TypeContainmentVisitor<'a> {
     /// The visited type ids.
     visited: &'a mut HashSet<LocalTypeId>,
     /// Whether a match was found.
@@ -86,6 +111,8 @@ struct TypeContainmentVisitor<'a> {
     in_static_argument: bool,
     /// The bound static parameter symbols for free parameter checks.
     free_static_bound: Option<HashSet<GlobalSymbolId>>,
+    /// The visited symbols for reference traversal.
+    visited_symbols: Option<&'a mut HashSet<GlobalSymbolId>>,
     /// The containment kind to detect.
     kind: TypeContainmentKind<'a>,
     /// The visitor options.
@@ -95,12 +122,16 @@ struct TypeContainmentVisitor<'a> {
 impl<'a> TypeContainmentVisitor<'a> {
     /// Create a visitor for error type detection.
     fn new_error(visited: &'a mut HashSet<LocalTypeId>) -> Self {
-        Self::new(TypeContainmentKind::ErrorType, visited)
+        Self::new(TypeContainmentKind::ErrorType, visited, None)
     }
 
     /// Create a visitor for unevaluated static arguments.
     fn new_unevaluated_static(visited: &'a mut HashSet<LocalTypeId>) -> Self {
-        Self::new(TypeContainmentKind::UnevaluatedStaticArgument, visited)
+        Self::new(
+            TypeContainmentKind::UnevaluatedStaticArgument,
+            visited,
+            None,
+        )
     }
 
     /// Create a visitor for unevaluated value static arguments.
@@ -123,6 +154,7 @@ impl<'a> TypeContainmentVisitor<'a> {
                 types,
             },
             visited,
+            None,
         )
     }
 
@@ -144,6 +176,7 @@ impl<'a> TypeContainmentVisitor<'a> {
                 types,
             },
             visited,
+            None,
         )
     }
 
@@ -166,27 +199,83 @@ impl<'a> TypeContainmentVisitor<'a> {
                 types,
             },
             visited,
+            None,
         )
         .with_free_static_bound(bound.clone())
     }
 
     /// Create a visitor for conditional infer bindings.
     fn new_infer_binding(visited: &'a mut HashSet<LocalTypeId>) -> Self {
-        Self::new(TypeContainmentKind::InferBinding, visited)
+        Self::new(TypeContainmentKind::InferBinding, visited, None)
     }
 
     /// Create a visitor for inference variable containment.
     fn new_infer_var(visited: &'a mut HashSet<LocalTypeId>) -> Self {
-        Self::new(TypeContainmentKind::InferVar, visited)
+        Self::new(TypeContainmentKind::InferVar, visited, None)
+    }
+
+    /// Create a visitor for forbidden literal detection.
+    pub(super) fn new_forbidden_literal(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        types: &'a TypeTable,
+        predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
+        visited_types: &'a mut HashSet<LocalTypeId>,
+        visited_symbols: &'a mut HashSet<GlobalSymbolId>,
+    ) -> Self {
+        Self::new(
+            TypeContainmentKind::ForbiddenLiteral {
+                compiler,
+                module,
+                types,
+                predicate,
+                skip_imported_types,
+            },
+            visited_types,
+            Some(visited_symbols),
+        )
+    }
+
+    /// Create a visitor for managed default detection.
+    pub(super) fn new_managed_type(
+        compiler: &'a Compiler,
+        module: &'a Module,
+        profile: ProfileId,
+        types: &'a TypeTable,
+        visited_types: &'a mut HashSet<LocalTypeId>,
+        visited_symbols: &'a mut HashSet<GlobalSymbolId>,
+    ) -> Self {
+        Self::new(
+            TypeContainmentKind::ManagedType {
+                compiler,
+                module,
+                profile,
+                types,
+            },
+            visited_types,
+            Some(visited_symbols),
+        )
+    }
+
+    /// Run a containment query for the given type id.
+    pub(super) fn contains(mut self, types: &TypeTable, type_id: LocalTypeId) -> bool {
+        self.visit_type_id(types, type_id);
+        self.found
     }
 
     /// Create a containment visitor for the given kind.
-    fn new(kind: TypeContainmentKind<'a>, visited: &'a mut HashSet<LocalTypeId>) -> Self {
+    fn new(
+        kind: TypeContainmentKind<'a>,
+        visited: &'a mut HashSet<LocalTypeId>,
+        visited_symbols: Option<&'a mut HashSet<GlobalSymbolId>>,
+    ) -> Self {
         Self {
             visited,
             found: false,
             in_static_argument: false,
             free_static_bound: None,
+            visited_symbols,
             kind,
             options: base_visitor_options(),
         }
@@ -208,6 +297,19 @@ impl<'a> TypeContainmentVisitor<'a> {
             TypeContainmentKind::FreeStaticParameter { .. } => VisitedMode::Set,
             TypeContainmentKind::InferBinding => VisitedMode::Set,
             TypeContainmentKind::InferVar => VisitedMode::Set,
+            TypeContainmentKind::ForbiddenLiteral { .. } => VisitedMode::Set,
+            TypeContainmentKind::ManagedType { .. } => VisitedMode::Set,
+        }
+    }
+
+    /// Return true when this query should skip imported types.
+    fn skip_imported_types(&self) -> bool {
+        match self.kind {
+            TypeContainmentKind::ForbiddenLiteral {
+                skip_imported_types,
+                ..
+            } => skip_imported_types,
+            _ => false,
         }
     }
 
@@ -243,6 +345,9 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
 
     fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
         if self.found {
+            return;
+        }
+        if self.skip_imported_types() && types.is_imported_type(id) {
             return;
         }
         if !self.visited.insert(id) {
@@ -376,6 +481,84 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     return;
                 }
             }
+            TypeContainmentKind::ForbiddenLiteral {
+                compiler,
+                module,
+                types: type_table,
+                predicate,
+                ..
+            } => match ty {
+                Type::TypeLiteral { value } => {
+                    if (predicate)(value) {
+                        self.found = true;
+                        return;
+                    }
+                }
+                Type::Unary {
+                    operator: TypeUnaryOperator::Keyof,
+                    ..
+                } => {
+                    return;
+                }
+                Type::Reference { symbol, .. } => {
+                    let skip_imported_types = self.skip_imported_types();
+                    let visited_symbols = self
+                        .visited_symbols
+                        .as_deref_mut()
+                        .expect("visited symbols missing");
+                    if compiler.type_reference_contains_forbidden_literal(
+                        module,
+                        *symbol,
+                        type_table,
+                        *predicate,
+                        skip_imported_types,
+                        self.visited,
+                        visited_symbols,
+                    ) {
+                        self.found = true;
+                    }
+                    return;
+                }
+                _ => {}
+            },
+            TypeContainmentKind::ManagedType {
+                compiler,
+                module,
+                profile,
+                types: type_table,
+            } => match ty {
+                Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => {
+                    return;
+                }
+                Type::Reference { symbol, .. } => {
+                    let visited_symbols = self
+                        .visited_symbols
+                        .as_deref_mut()
+                        .expect("visited symbols missing");
+                    if compiler.symbol_is_managed_inner(
+                        module,
+                        *profile,
+                        *symbol,
+                        type_table,
+                        visited_symbols,
+                        false,
+                    ) {
+                        self.found = true;
+                    }
+                    return;
+                }
+                Type::Object { .. } | Type::Array { .. } | Type::Function { .. } | Type::This => {
+                    self.found = true;
+                    return;
+                }
+                Type::TypeLiteral { value } => {
+                    if compiler.type_literal_is_managed(value) {
+                        self.found = true;
+                        return;
+                    }
+                }
+                _ => {}
+            },
         }
 
         walk_type(self, types, id, ty);
@@ -426,6 +609,14 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
             | TypeContainmentKind::UnevaluatedValueStaticArgument { .. } => {
                 if matches!(expression, StaticExpression::Unevaluated { .. }) {
                     self.found = true;
+                    return;
+                }
+            }
+            TypeContainmentKind::ForbiddenLiteral { predicate, .. } => {
+                if let StaticExpression::TypeLiteral { value } = expression {
+                    if (predicate)(value) {
+                        self.found = true;
+                    }
                     return;
                 }
             }

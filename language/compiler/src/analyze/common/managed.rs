@@ -2,102 +2,12 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral,
-    SymbolType, Type, TypeLiteral, TypeTable, TypeVisitor, TypeVisitorOptions, walk_type,
+    SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
-use super::{TypeWalkContext, TypeWalkKey};
+use super::r#type::TypeContainmentVisitor;
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
-
-/// Walk types to detect managed defaults.
-struct ManagedTypeVisitor<'a, 'b> {
-    /// The compiler instance.
-    compiler: &'a Compiler,
-    /// The current module.
-    module: &'a Module,
-    /// The active profile.
-    profile: ProfileId,
-    /// The type table for the current module.
-    types: &'a TypeTable,
-    /// The visited type ids.
-    visited_types: HashSet<LocalTypeId>,
-    /// The visited symbol ids.
-    visited_symbols: &'b mut HashSet<GlobalSymbolId>,
-    /// Whether a managed type was found.
-    found: bool,
-    /// The visitor options.
-    options: TypeVisitorOptions,
-}
-
-impl<'a, 'b> ManagedTypeVisitor<'a, 'b> {
-    /// Create a visitor for managed type detection.
-    fn new(
-        compiler: &'a Compiler,
-        module: &'a Module,
-        profile: ProfileId,
-        types: &'a TypeTable,
-        visited_symbols: &'b mut HashSet<GlobalSymbolId>,
-    ) -> Self {
-        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
-        Self {
-            compiler,
-            module,
-            profile,
-            types,
-            visited_types: HashSet::new(),
-            visited_symbols,
-            found: false,
-            options: walk_context.visitor_options(),
-        }
-    }
-}
-
-impl TypeVisitor for ManagedTypeVisitor<'_, '_> {
-    fn options(&self) -> &TypeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
-        if self.found {
-            return;
-        }
-        if !self.visited_types.insert(id) {
-            return;
-        }
-        let ty = types.get_type(id);
-        self.visit_type(types, id, ty);
-    }
-
-    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
-        if self.found {
-            return;
-        }
-        match ty {
-            Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => {}
-            Type::Reference { symbol, .. } => {
-                if self.compiler.symbol_is_managed_inner(
-                    self.module,
-                    self.profile,
-                    *symbol,
-                    self.types,
-                    self.visited_symbols,
-                    false,
-                ) {
-                    self.found = true;
-                }
-            }
-            Type::Object { .. } | Type::Array { .. } | Type::Function { .. } | Type::This => {
-                self.found = true;
-            }
-            Type::TypeLiteral { value } => {
-                if self.compiler.type_literal_is_managed(value) {
-                    self.found = true;
-                }
-            }
-            _ => walk_type(self, types, id, ty),
-        }
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -143,9 +53,16 @@ impl Compiler {
         types: &TypeTable,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
-        let mut visitor = ManagedTypeVisitor::new(self, module, profile, types, visited_symbols);
-        visitor.visit_type_id(types, type_id);
-        visitor.found
+        let mut visited_types = HashSet::new();
+        let visitor = TypeContainmentVisitor::new_managed_type(
+            self,
+            module,
+            profile,
+            types,
+            &mut visited_types,
+            visited_symbols,
+        );
+        visitor.contains(types, type_id)
     }
 
     /// Check whether an expression makes ownership explicit.
@@ -293,7 +210,7 @@ impl Compiler {
 
     /// Walk a type for any managed usage.
     /// Walk a symbol definition to determine managed usage.
-    fn symbol_is_managed_inner(
+    pub(super) fn symbol_is_managed_inner(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -373,7 +290,7 @@ impl Compiler {
     }
 
     /// Decide whether a type literal implies managed defaults.
-    fn type_literal_is_managed(&self, value: &TypeLiteral) -> bool {
+    pub(super) fn type_literal_is_managed(&self, value: &TypeLiteral) -> bool {
         // object and string literals are managed by default
         match value {
             TypeLiteral::Object => true,
