@@ -51,7 +51,18 @@ impl Parser {
         let is_class = keyword == Keyword::Class;
 
         // optional name / key
-        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+        let has_heritage_keyword = self.peek_keyword(Keyword::Extends).is_ok()
+            || self.peek_keyword(Keyword::Implements).is_ok();
+        let name_span = if has_heritage_keyword {
+            if is_class {
+                None
+            } else {
+                return Err(ParseError::expected(
+                    self.peek()?.span,
+                    TokenType::Identifier,
+                ));
+            }
+        } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
             descriptor = descriptor.with_name(name);
             Some(span)
         } else if is_class {

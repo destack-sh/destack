@@ -262,7 +262,7 @@ impl Parser {
     /// ```
     pub fn eat_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
         let (strings, arguments) =
-            self.eat_template_literal_parts(|parser| parser.eat_positional_argument())?;
+            self.eat_template_literal_parts(|parser| parser.eat_template_literal_argument())?;
 
         if arguments.is_empty() && strings.len() == 1 {
             Ok(TemplateLiteral::String { string: strings[0] })
@@ -353,6 +353,31 @@ impl Parser {
         }
 
         Err(ParseError::unexpected(next.span))
+    }
+
+    /// Eat a template literal interpolation argument.
+    ///
+    /// Template literal interpolations parse as full expressions (no named args).
+    pub fn eat_template_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
+        let start = self.mark();
+
+        let value = self.with_options(
+            self.options
+                .not_in_position()
+                .not_in_tree_literal()
+                .not_in_left_precedence(),
+            |parser| parser.eat_expression(),
+        )?;
+
+        let argument_id = self.tree.insert(
+            Argument::Positional {
+                modifiers: None,
+                value,
+            },
+            self.get_span_from(start),
+        );
+
+        Ok(argument_id)
     }
 
     /// Eat an array literal (including the surrounding brackets).
@@ -1492,6 +1517,24 @@ mod tests {
     #[test]
     fn test_parse_template_literal_adjacent_interpolations() {
         let mut test = TestParser::new("`${a}${b}${c}`");
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Template literal interpolation should allow optional chaining.
+    #[test]
+    fn test_parse_template_literal_optional_chain() {
+        let mut test = TestParser::new(r#"`value ${theme?.activeColor}`"#);
+        let mut parser = test.prepare();
+        let result = parser.eat_template_literal();
+        assert!(result.is_ok());
+    }
+
+    /// Template literal interpolation should allow ternary expressions.
+    #[test]
+    fn test_parse_template_literal_ternary() {
+        let mut test = TestParser::new(r#"`value ${mode === "dark" ? "dark" : "light"}`"#);
         let mut parser = test.prepare();
         let result = parser.eat_template_literal();
         assert!(result.is_ok());

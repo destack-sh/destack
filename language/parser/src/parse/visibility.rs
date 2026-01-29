@@ -10,8 +10,7 @@ impl Parser {
         } else if self.peek_keyword(Keyword::Protected).is_ok() {
             Ok(Some(Visibility::Protected))
         } else if self.peek_keyword(Keyword::Private).is_ok()
-            // `#field` for private fields (TypeScript syntax)
-            || self.peek_token(TokenType::Hash).is_ok()
+            || self.language.is_destack() && self.peek_token(TokenType::Hash).is_ok()
         {
             Ok(Some(Visibility::Private))
         } else {

@@ -758,6 +758,16 @@ fn test_lex_logical_assignments() {
     );
 }
 
+#[test]
+fn test_lex_coalesce_assignment() {
+    assert_tokenize_eq_roundtrip!(
+        "a??=b",
+        Token::new(TokenType::Identifier, 1, None),
+        Token::new(TokenType::CoalesceAssign, 3, None),
+        Token::new(TokenType::Identifier, 1, None),
+    );
+}
+
 // tree literals (TSX-compatible)
 
 #[test]

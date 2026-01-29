@@ -13,6 +13,7 @@ impl Parser {
     pub fn eat_binding_modifiers_prefix_maybe(
         &mut self,
         allow_readonly_key: bool,
+        accessor_is_modifier: bool,
     ) -> ParseResult<Option<BindingModifier>> {
         let mut modifiers = BindingModifier::default();
         let mut has_modifiers = false;
@@ -60,7 +61,7 @@ impl Parser {
         }
 
         // accessor
-        if self.peek_keyword(Keyword::Accessor).is_ok() {
+        if accessor_is_modifier && self.peek_keyword(Keyword::Accessor).is_ok() {
             self.bump(); // eat accessor
             modifiers.accessor = Some(AccessorKind::Accessor);
             has_modifiers = true;
@@ -140,7 +141,7 @@ impl Parser {
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         let start = self.mark();
 
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(false)?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(false, false)?;
 
         // variadic
         let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {
@@ -485,9 +486,10 @@ impl Parser {
                 let value = self.eat_expression()?;
                 (Some(label), value)
             } else {
-                let value = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let value = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
                 (None, value)
             };
             let argument_id = self.tree.insert(
@@ -516,7 +518,9 @@ impl Parser {
                 modifiers.as_mut().unwrap().kind = Some(BindingKind::Maybe);
             }
             self.bump(); // eat colon
-            let value = self.eat_expression()?;
+            let value = self.with_options(self.options.not_in_sequence_expression(), |parser| {
+                parser.eat_expression()
+            })?;
             let argument_id = self.tree.insert(
                 Argument::Labeled {
                     modifiers,
@@ -529,7 +533,10 @@ impl Parser {
         }
         // positional argument
         else {
-            let mut value = self.eat_expression()?;
+            let mut value = self
+                .with_options(self.options.not_in_sequence_expression(), |parser| {
+                    parser.eat_expression()
+                })?;
             if self.options.in_type && self.peek_token(TokenType::Maybe).is_ok() {
                 let is_tuple_optional = self
                     .peek_token_after_newlines(self.pos(), TokenType::Comma)
@@ -585,9 +592,10 @@ impl Parser {
             self.bump(); // eat colon
             self.eat_newlines_maybe()?;
             // value
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let argument_id = self.tree.insert(
                 Argument::Named {
                     modifiers: None,
@@ -601,9 +609,10 @@ impl Parser {
         // spread argument (...expr)
         else if self.peek_token(TokenType::Spread).is_ok() {
             self.bump(); // eat spread
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let argument_id = self.tree.insert(
                 Argument::Spread {
                     modifiers: None,
@@ -638,7 +647,8 @@ impl Parser {
                 self.options
                     .not_in_position()
                     .not_in_tree_literal()
-                    .not_in_left_precedence(),
+                    .not_in_left_precedence()
+                    .not_in_sequence_expression(),
                 |parser| parser.eat_expression(),
             )?;
             self.eat_newlines_maybe()?;
@@ -654,9 +664,10 @@ impl Parser {
         }
         // positional argument (bare expression like nested <Element />)
         else {
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let argument_id = self.tree.insert(
                 Argument::Positional {
                     modifiers: None,

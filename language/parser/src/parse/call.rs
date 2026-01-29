@@ -24,6 +24,7 @@ impl Parser {
 
         // open bracket
         self.eat_token(TokenType::OpenBracket)?;
+        self.eat_newlines_maybe()?;
 
         // bare index
         if self.peek_token(TokenType::CloseBracket).is_ok() {
@@ -47,6 +48,7 @@ impl Parser {
         };
         let index = self.with_options(index_options, |parser| parser.eat_expression())?;
 
+        self.eat_newlines_maybe()?;
         // close bracket
         self.eat_token(TokenType::CloseBracket)?;
 
@@ -200,6 +202,23 @@ mod tests {
     fn test_parse_index_postfix_explicit() {
         // [1]
         let mut test = TestParser::new("[1]");
+        let mut parser = test.prepare();
+        let recv = make_receiver(&mut parser);
+
+        let index_id = parser.eat_index(recv, PostfixPosition::Direct).unwrap();
+        assert_node!(parser.tree, index_id, Expression::Index { position, left, index } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_eq!(*left, recv);
+            assert_node!(parser.tree, index.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    #[test]
+    fn test_parse_index_postfix_multiline() {
+        // [
+        //   1
+        // ]
+        let mut test = TestParser::new("[\n  1\n]");
         let mut parser = test.prepare();
         let recv = make_receiver(&mut parser);
 

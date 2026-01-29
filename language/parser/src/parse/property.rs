@@ -1,8 +1,9 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Asynchrony, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, Keyword, LocalNodeId, Member, NodeType, Property, TokenType,
+    Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction, FunctionCardinality,
+    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, Member,
+    NodeType, Property, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -61,9 +62,10 @@ impl Parser {
         if self.peek_token(TokenType::Spread).is_ok() {
             let start = self.mark();
             self.bump(); // eat spread
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let property = Property::Spread {
                 modifiers: None,
                 value,
@@ -72,7 +74,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true)?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
 
         // abstraction
         let abstract_is_abstraction = self.peek_keyword(Keyword::Abstract).is_ok()
@@ -155,6 +157,18 @@ impl Parser {
             (Some(key), Some(span))
         } else {
             (None, None)
+        };
+
+        // definite assignment assertion
+        let modifiers = if self.peek_token(TokenType::Not).is_ok() {
+            self.bump(); // eat !
+            let base = modifiers.unwrap_or_default();
+            Some(BindingModifier {
+                kind: Some(BindingKind::Must),
+                ..base
+            })
+        } else {
+            modifiers
         };
 
         // modifiers postfix
@@ -268,25 +282,24 @@ impl Parser {
         // field
         else {
             // value (type annotation)
-            let (value, type_span) = if self.peek_colon().is_ok() {
+            let (value, type_span): (
+                Option<LocalNodeId<Expression>>,
+                Option<destack_source::Span>,
+            ) = if self.peek_colon().is_ok() {
                 let type_start = self.mark();
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
-                // keep in type / in variant (for `type x = { .. }` expressions)
-                let value = if self.options.in_variant || self.options.in_type {
-                    self.with_options(
-                        self.options
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .in_type(),
-                        |parser| parser.eat_expression(),
-                    )?
-                } else {
-                    self.with_options(
-                        self.options.not_in_position().not_in_left_precedence(),
-                        |parser| parser.eat_expression(),
-                    )?
-                };
+
+                // parse type annotations in type or variant contexts
+                let mut type_options = self
+                    .options
+                    .not_in_position()
+                    .not_in_left_precedence()
+                    .not_in_sequence_expression();
+                if self.options.in_variant || self.options.in_type {
+                    type_options = type_options.in_type();
+                }
+                let value = self.with_options(type_options, |parser| parser.eat_expression())?;
                 (Some(value), Some(self.get_span_from(type_start)))
             } else {
                 (None, None)
@@ -296,9 +309,10 @@ impl Parser {
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let default = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
                 Some(default)
             } else {
                 None
@@ -408,9 +422,10 @@ impl Parser {
         if self.peek_token(TokenType::Spread).is_ok() {
             let start = self.mark();
             self.bump(); // eat spread
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let member = Member::Embed {
                 modifiers: None,
                 value,
@@ -419,7 +434,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true)?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
         // (must check *before* abstraction parsing since `static` is also a modifier)
@@ -572,7 +587,10 @@ impl Parser {
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
         // key
-        let (key, key_span) = if let Some((key, span)) = self.eat_key_maybe_with_span()? {
+        let (key, key_span) = if let Some((key, span)) = self
+            .with_options(self.options.allow_private_hash_key(), |parser| {
+                parser.eat_key_maybe_with_span()
+            })? {
             (Some(key), Some(span))
         } else {
             (None, None)
@@ -698,12 +716,16 @@ impl Parser {
                         self.options
                             .not_in_position()
                             .not_in_left_precedence()
+                            .not_in_sequence_expression()
                             .in_type(),
                         |parser| parser.eat_expression(),
                     )?
                 } else {
                     self.with_options(
-                        self.options.not_in_position().not_in_left_precedence(),
+                        self.options
+                            .not_in_position()
+                            .not_in_left_precedence()
+                            .not_in_sequence_expression(),
                         |parser| parser.eat_expression(),
                     )?
                 };
@@ -716,9 +738,10 @@ impl Parser {
             let default = if self.peek_token(TokenType::Assign).is_ok() {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
-                let default = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
+                let default = self.with_options(
+                    self.options.not_in_position().not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
                 Some(default)
             } else {
                 None
@@ -795,19 +818,14 @@ mod tests {
     use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
-    fn test_parse_property_with_es_visibility_modifier() {
+    fn test_parse_member_with_private_hash_name() {
         let mut test = TestParser::new_with_options(r#"#name: string"#, LanguageType::TypeScript);
         let mut parser = test.prepare();
-        parser.options.in_type = true;
 
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
-            // #name means private for #Compatibility
-            assert_eq!(modifiers.visibility.unwrap(), Visibility::Private);
-            // name
-            assert_string!(parser, *name, "name");
-            // string
-            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
+            assert_string!(parser, *name, "#name");
+            assert_expression_path!(parser, parser.tree.get(*ty), "string");
         });
     }
 
@@ -844,6 +862,21 @@ mod tests {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+        });
+    }
+
+    #[test]
+    fn test_parse_property_definite_assignment() {
+        let mut test = TestParser::new_with_options("prop!: LongType[]", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let property = parser.eat_property().unwrap();
+        assert_node!(parser.tree, property, Property::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_eq!(modifiers.kind, Some(BindingKind::Must));
+            assert_string!(parser, *name, "prop");
+            assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
+                assert!(index.is_none());
+                assert_expression_path!(parser, parser.tree.get(*left), "LongType");
+            });
         });
     }
 
