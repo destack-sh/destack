@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::common::{
     ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span, sort_and_dedup_spans,
+    get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name, sort_and_dedup_spans,
 };
 use destack_dir::GlobalSymbolId;
 
@@ -70,8 +70,16 @@ pub fn find_references(
     // get canonical symbol and resolve imports
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
+    // resolve the canonical symbol name for dependency spans
+    let target_name = resolve_symbol_name(session, canonical_id);
+
     // search all modules for references to that symbol
-    let references = find_references_to_symbol(session, canonical_id, include_declaration);
+    let references = find_references_to_symbol(
+        session,
+        canonical_id,
+        include_declaration,
+        target_name.as_deref(),
+    );
 
     Some(ReferencesResult {
         references,
@@ -84,6 +92,7 @@ fn find_references_to_symbol(
     session: &Session,
     canonical_id: GlobalSymbolId,
     include_declaration: bool,
+    target_name: Option<&str>,
 ) -> Vec<Span> {
     // initialize the reference list
     let mut references = Vec::new();
@@ -102,8 +111,8 @@ fn find_references_to_symbol(
         include_dependencies: true,
         include_namespace_members: false,
         skip_dependency_aliases: false,
-        use_dependency_name_spans: false,
-        target_name: None,
+        use_dependency_name_spans: true,
+        target_name,
         limit_to_file: None,
     };
 

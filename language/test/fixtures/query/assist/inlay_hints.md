@@ -80,6 +80,31 @@ main.ds:8:14 kind=type label=: string
 main.ds:8:31 kind=parameter label=name:
 ```
 
+### Parameter hints for imported calls
+
+Parameter hints should use DIR-resolved parameter names for imported symbols.
+
+```ds:lib.ds
+export function paint(color: string, coats: int32): void {}
+```
+
+```ds:main.ds
+import { paint } from "./lib.ds";
+
+const label = "red";
+paint("blue", 2);
+paint(label, 3);
+```
+
+Expect a type hint for `label`, plus parameter hints for literal arguments resolved from the import.
+
+```query inlay_hints $0
+main.ds:3:12 kind=type label=: string
+main.ds:4:7 kind=parameter label=color:
+main.ds:4:15 kind=parameter label=coats:
+main.ds:5:14 kind=parameter label=coats:
+```
+
 ### Skip hints that repeat argument names
 
 Parameter hints should not repeat obvious argument names.
@@ -305,6 +330,34 @@ Variables `x` and `y` should get type hints. With 0 function calls, only type hi
 ```query inlay_hints $0
 main.ds:1:8 kind=type label=: int32
 main.ds:2:8 kind=type label=: string
+```
+
+### Type hint for inferred class instantiation
+
+Type hints should show class types inferred from `new` expressions.
+
+```ds
+class Dog {}
+
+const pet = new Dog();
+```
+
+```query inlay_hints $0
+main.ds:3:10 kind=type label=: Dog
+```
+
+### Type hints for multiple bindings
+
+Type hints should cover multiple bindings in the same file.
+
+```ds
+const alpha = 1;
+const beta = "hi";
+```
+
+```query inlay_hints $0
+main.ds:1:12 kind=type label=: int32
+main.ds:2:11 kind=type label=: string
 ```
 
 ### Type hint for variable with explicit type

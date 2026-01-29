@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::format::format_type_for_inlay_hint;
 use crate::query::common::{
-    binding_name_span, dynamic_parameter_names, resolve_call_target, with_query_context_for_file,
+    dynamic_parameter_names, resolve_call_target, with_query_context_for_file,
 };
 
 /// Kind of inlay hint.
@@ -80,10 +81,6 @@ pub struct InlayHintsResponse {
 pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHint> {
     // resolve hints within the query context
     with_query_context_for_file(session, file, |ctx| {
-        // resolve the source file text
-        let source_file = session.files.get(ctx.file_id);
-        let source = source_file.text();
-
         // resolve shared dir data for hint generation
         let dir_tree = ctx.tree();
         let types = ctx.types();
@@ -170,12 +167,15 @@ pub fn inlay_hints(session: &Session, file: FileId, range: Span) -> Vec<InlayHin
             let pattern = dir_tree.get::<Pattern>(declarator.pattern);
 
             // only emit hints for binding patterns
-            if let Pattern::Binding { symbol, name, .. } = pattern {
+            if let Pattern::Binding {
+                symbol, name: _, ..
+            } = pattern
+            {
                 // get the span of the binding name
                 let ast_node_id = dir_tree.get_source(declarator.pattern.id);
-                let pattern_span = ctx.ast.tree.source_map.get(ast_node_id);
-                let name_text = ctx.ast.strings.get(*name);
-                let name_span = binding_name_span(source, pattern_span, name_text.as_str());
+                let Some(name_span) = ctx.ast.tree.source_map.get_main(ast_node_id) else {
+                    continue;
+                };
 
                 // skip if outside the requested range
                 if name_span.end < range.start || name_span.start > range.end {
@@ -255,7 +255,7 @@ fn get_parameter_names(session: &Session, target_symbol: Option<GlobalSymbolId>)
 /// Decide whether a parameter hint should be skipped for an argument.
 fn should_skip_parameter_hint(
     session: &Session,
-    dir_tree: &destack_dir::NodeTree,
+    dir_tree: &dir::NodeTree,
     argument: &Argument,
     param_name: &str,
     argument_is_literal: bool,
@@ -281,14 +281,15 @@ fn should_skip_parameter_hint(
     }
 
     // skip when the argument already repeats the parameter name
-    if let Some(argument_name) = argument_reference_name(session, dir_tree, argument) {
-        if argument_name == param_name && !parameter_name_hints_when_argument_matches_name() {
-            return true;
-        }
-
-        // skip common implicit receiver names
-        if argument_name == "this" {
-            return true;
+    if let Some(reference) = argument_reference(session, dir_tree, argument) {
+        match reference {
+            ArgumentReference::Name(argument_name) => {
+                if argument_name == param_name && !parameter_name_hints_when_argument_matches_name()
+                {
+                    return true;
+                }
+            }
+            ArgumentReference::This => return true,
         }
     }
 
@@ -296,11 +297,11 @@ fn should_skip_parameter_hint(
 }
 
 /// Extract a simple reference name from an argument value when available.
-fn argument_reference_name(
+fn argument_reference(
     session: &Session,
-    dir_tree: &destack_dir::NodeTree,
+    dir_tree: &dir::NodeTree,
     argument: &Argument,
-) -> Option<String> {
+) -> Option<ArgumentReference> {
     // resolve the argument expression
     let expr = dir_tree.get::<Expression>(argument.value());
 
@@ -310,14 +311,22 @@ fn argument_reference_name(
         | Expression::ModuleReference { path, .. }
         | Expression::GlobalReference { path, .. } => path
             .last_segment()
-            .map(|id| session.strings.get(id).to_string()),
-        Expression::This => Some("this".to_string()),
+            .map(|id| ArgumentReference::Name(session.strings.get(id).to_string())),
+        Expression::This => Some(ArgumentReference::This),
         _ => None,
     }
 }
 
+/// A simple reference extracted from an argument expression.
+enum ArgumentReference {
+    /// A named reference.
+    Name(String),
+    /// An explicit `this` reference.
+    This,
+}
+
 /// Check whether an argument is a literal value.
-fn argument_is_literal(dir_tree: &destack_dir::NodeTree, argument: &Argument) -> bool {
+fn argument_is_literal(dir_tree: &dir::NodeTree, argument: &Argument) -> bool {
     // resolve the argument expression
     let expr = dir_tree.get::<Expression>(argument.value());
 

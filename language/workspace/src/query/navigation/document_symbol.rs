@@ -4,41 +4,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::QueryContext;
+pub use crate::query::common::SymbolKind;
 use crate::query::common::{
-    is_synthetic_function_keyword_field, main_span_for_dir_node, member_key_name,
-    span_for_dir_node, with_query_context_for_file,
+    declaration_display_name, declaration_symbol_kind, is_synthetic_function_keyword_field,
+    main_span_for_dir_node, member_key_name, member_symbol_kind, span_for_dir_node,
+    with_query_context_for_file,
 };
-
-/// Kind of document symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SymbolKind {
-    File,
-    Module,
-    Namespace,
-    Package,
-    Class,
-    Method,
-    Property,
-    Field,
-    Constructor,
-    Enum,
-    Interface,
-    Function,
-    Variable,
-    Constant,
-    String,
-    Number,
-    Boolean,
-    Array,
-    Object,
-    Key,
-    Null,
-    EnumMember,
-    Struct,
-    Event,
-    Operator,
-    TypeParameter,
-}
 
 /// A symbol in a document (for outline view).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -114,15 +85,8 @@ pub fn document_symbols(session: &Session, file: FileId) -> Vec<DocumentSymbol> 
             // get the kind based on declaration type
             let kind = declaration_symbol_kind(declaration);
 
-            // get the declaration name using the descriptor method
-            let descriptor = declaration.descriptor();
-            let name = match declaration {
-                Declaration::Global { .. } => "global".to_string(),
-                _ => descriptor
-                    .name
-                    .map(|name| session.strings.get(name.string()).to_string())
-                    .unwrap_or_else(|| "<anonymous>".to_string()),
-            };
+            // get the declaration name
+            let name = declaration_display_name(&session.strings, declaration);
 
             // resolve the full range and the main selection range
             let range = span_for_dir_node(&ctx, &dir_tree, declaration_id.into());
@@ -213,31 +177,4 @@ fn enum_field_to_document_symbol(
         DocumentSymbol::new(name, SymbolKind::EnumMember, range)
             .with_selection_range(selection_range),
     )
-}
-
-/// Map a declaration to its document symbol kind.
-pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
-    match declaration {
-        Declaration::Global { .. } => SymbolKind::Namespace,
-        Declaration::Function { .. } => SymbolKind::Function,
-        Declaration::Struct { .. } => SymbolKind::Struct,
-        Declaration::Class { .. } => SymbolKind::Class,
-        Declaration::Interface { .. } => SymbolKind::Interface,
-        Declaration::Enum { .. } => SymbolKind::Enum,
-        Declaration::Namespace { .. } => SymbolKind::Namespace,
-        Declaration::Type { .. } => SymbolKind::TypeParameter,
-        Declaration::Extension { .. } => SymbolKind::Class,
-    }
-}
-
-/// Map a member to its document symbol kind.
-pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
-    match member {
-        Member::Type { .. } => Some(SymbolKind::TypeParameter),
-        Member::Field { .. } => Some(SymbolKind::Field),
-        Member::Method { .. } => Some(SymbolKind::Method),
-        Member::Embed { .. } => None,
-        Member::StaticBlock { .. } => None,
-        Member::ComptimeBlock { .. } => None,
-    }
 }

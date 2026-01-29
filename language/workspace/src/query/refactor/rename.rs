@@ -1,12 +1,16 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
+use destack_ast::Keyword;
+use destack_dir as dir;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
 use crate::Session;
 use crate::query::common::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_symbol_definition_span, sort_and_dedup_spans, token_at_offset,
+    QueryContext, ReferenceCollectionOptions, SymbolAtOffset, collect_symbol_references_in_context,
+    find_symbol_at_offset, get_canonical_symbol, get_symbol_definition_span, is_simple_identifier,
+    member_key_name, resolve_symbol_name, sort_and_dedup_spans, token_at_offset,
 };
 
 /// Result of a prepare rename query.
@@ -101,31 +105,11 @@ pub fn prepare_rename(session: &Session, file: FileId, offset: u32) -> Option<Pr
         return None;
     }
 
-    // get canonical symbol and check if it's in our workspace
+    // get canonical symbol
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
-    // get the symbol to check if it has a name
-    let module = session.modules.get(canonical_id.module_id);
-    let module = module.read();
-    let ctx = session.query_context(&module)?;
-
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(canonical_id.local_id);
-
-    let name = if let Some(name_string_id) = symbol.name() {
-        ctx.ast.strings.get(name_string_id).to_string()
-    } else {
-        let file = session.files.get(symbol_at.span.file);
-        let content = match &file.content {
-            destack_source::FileContent::Text { content } => content.as_str(),
-            destack_source::FileContent::Json { content, .. } => content.as_str(),
-            _ => return None,
-        };
-        let start = symbol_at.span.start as usize;
-        let end = symbol_at.span.end as usize;
-        let slice = content.get(start..end)?;
-        slice.to_string()
-    };
+    // resolve the rename placeholder name
+    let name = resolve_rename_name(session, canonical_id, &symbol_at)?;
 
     // return the range and current name
     Some(PrepareRenameResult {
@@ -153,7 +137,7 @@ pub fn rename(
     }
 
     // validate new_name is a valid identifier
-    if new_name.is_empty() || !is_valid_identifier(new_name) {
+    if !is_simple_identifier(new_name) {
         return None;
     }
 
@@ -161,7 +145,7 @@ pub fn rename(
     let canonical_id = get_canonical_symbol(session, symbol_at.symbol_id);
 
     // resolve the existing symbol name for span targeting
-    let old_name = symbol_name(session, canonical_id, symbol_at.span)?;
+    let old_name = resolve_rename_name(session, canonical_id, &symbol_at)?;
 
     // collect all spans to rename, grouped by file
     let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
@@ -219,96 +203,112 @@ pub fn rename(
     Some(RenameResult::from_edits(batch_edit))
 }
 
-/// Check if a string is a valid identifier.
-fn is_valid_identifier(name: &str) -> bool {
-    let mut chars = name.chars();
-
-    // first character must be letter or underscore
-    match chars.next() {
-        Some(c) if c.is_alphabetic() || c == '_' => {}
-        _ => return false,
-    }
-
-    // remaining characters must be alphanumeric or underscore
-    chars.all(|c| c.is_alphanumeric() || c == '_')
-}
-
-/// Resolve the symbol name to target within edits.
-fn symbol_name(
+fn resolve_rename_name(
     session: &Session,
-    symbol_id: destack_dir::GlobalSymbolId,
-    span: Span,
+    canonical_id: dir::GlobalSymbolId,
+    symbol_at: &SymbolAtOffset,
 ) -> Option<String> {
-    // extract an identifier from the source span when possible
-    let file = session.files.get(span.file);
-    let content = match &file.content {
-        destack_source::FileContent::Text { content } => content.as_str(),
-        destack_source::FileContent::Json { content, .. } => content.as_str(),
-        _ => "",
-    };
-
-    let start = span.start as usize;
-    let end = span.end as usize;
-    if let Some(slice) = content.get(start..end) {
-        // collect identifier like tokens from the slice
-        let tokens = slice
-            .split(|c: char| !(c.is_alphanumeric() || c == '_'))
-            .filter(|token| !token.is_empty());
-
-        // skip common keywords and return the first remaining token
-        for token in tokens {
-            if is_keyword(token) {
-                continue;
-            }
-
-            return Some(token.to_string());
-        }
+    // prefer the canonical symbol name when available
+    if let Some(name) = resolve_symbol_name(session, canonical_id) {
+        return Some(name);
     }
 
-    // fall back to the symbol name from the defining module
-    let module = session.modules.get(symbol_id.module_id);
+    // fall back to the local node name in the current module
+    let module = session.modules.get(symbol_at.symbol_id.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
-    let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
-    let name_id = symbol.name()?;
-
-    Some(ctx.ast.strings.get(name_id).to_string())
+    resolve_name_from_node(session, &ctx, symbol_at.node_id)
 }
 
-/// Check whether a token is a common declaration keyword.
-fn is_keyword(token: &str) -> bool {
-    matches!(
-        token,
-        "export"
-            | "function"
-            | "class"
-            | "struct"
-            | "enum"
-            | "interface"
-            | "type"
-            | "extension"
-            | "namespace"
-            | "const"
-            | "let"
-            | "var"
-            | "async"
-            | "static"
-            | "return"
-            | "if"
-            | "else"
-            | "for"
-            | "while"
-            | "match"
-            | "break"
-            | "continue"
-    )
+fn resolve_name_from_node(
+    session: &Session,
+    ctx: &QueryContext<'_>,
+    node_id: dir::LocalNodeIdAny,
+) -> Option<String> {
+    // resolve the dir tree for node lookup
+    let dir_tree = ctx.tree();
+
+    match node_id.ty {
+        dir::NodeType::Expression => {
+            let Ok(expr_id) = node_id.try_into() else {
+                return None;
+            };
+            let expr = dir_tree.get::<dir::Expression>(expr_id);
+            match expr {
+                dir::Expression::Member { name, .. } => {
+                    Some(session.strings.get(*name).to_string())
+                }
+                _ => None,
+            }
+        }
+        dir::NodeType::Member => {
+            let Ok(member_id) = node_id.try_into() else {
+                return None;
+            };
+            let member = dir_tree.get::<dir::Member>(member_id);
+            let key = member.key()?;
+            member_key_name(session, key)
+        }
+        dir::NodeType::EnumField => {
+            let Ok(field_id) = node_id.try_into() else {
+                return None;
+            };
+            let field = dir_tree.get::<dir::EnumField>(field_id);
+            Some(session.strings.get(field.name).to_string())
+        }
+        dir::NodeType::Parameter => {
+            let Ok(param_id) = node_id.try_into() else {
+                return None;
+            };
+            let param = dir_tree.get::<dir::Parameter>(param_id);
+            match param {
+                dir::Parameter::Named { name, .. } => Some(session.strings.get(*name).to_string()),
+                dir::Parameter::Variadic { name, .. } => {
+                    Some(session.strings.get(*name).to_string())
+                }
+                dir::Parameter::Pattern { .. } => None,
+            }
+        }
+        dir::NodeType::Declaration => {
+            let Ok(decl_id) = node_id.try_into() else {
+                return None;
+            };
+            let declaration = dir_tree.get::<dir::Declaration>(decl_id);
+            let descriptor = declaration.descriptor();
+            descriptor
+                .name
+                .map(|name| session.strings.get(name.string()).to_string())
+        }
+        _ => None,
+    }
 }
 
 /// Check whether a keyword is a declaration modifier.
 fn is_modifier_keyword(token: &str) -> bool {
+    let Ok(keyword) = Keyword::from_str(token) else {
+        return false;
+    };
+
     matches!(
-        token,
-        "export" | "declare" | "abstract" | "async" | "static"
+        keyword,
+        Keyword::Export
+            | Keyword::Declare
+            | Keyword::Abstract
+            | Keyword::Async
+            | Keyword::Static
+            | Keyword::Public
+            | Keyword::Protected
+            | Keyword::Private
+            | Keyword::Readonly
+            | Keyword::Mut
+            | Keyword::Final
+            | Keyword::Accessor
+            | Keyword::Default
+            | Keyword::Override
     )
+}
+
+/// Check whether a token is a keyword.
+fn is_keyword(token: &str) -> bool {
+    Keyword::from_str(token).is_ok()
 }

@@ -1,4 +1,5 @@
 use destack_ast::StringPool;
+use destack_dir as dir;
 use destack_dir::{
     Declaration, DynamicKey, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral,
     StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeTable, WellKnownSymbol,
@@ -495,7 +496,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
             let Some(ext_decl_id) = ext_symbol.primary_declaration else {
                 return false;
             };
-            let Ok(local_decl_id): Result<destack_dir::LocalNodeId<Declaration>, _> =
+            let Ok(local_decl_id): Result<dir::LocalNodeId<Declaration>, _> =
                 ext_decl_id.try_into()
             else {
                 return false;
@@ -584,16 +585,12 @@ fn array_members(
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {
     // resolve members from the Array well known symbol
-    resolve_well_known_members(
-        session,
-        destack_dir::WellKnownSymbol::Array,
-        current_module_id,
-    )
+    resolve_well_known_members(session, dir::WellKnownSymbol::Array, current_module_id)
 }
 
 /// Get members for primitive types by resolving the appropriate well known symbol.
 fn primitive_members(
-    value: &destack_dir::TypeLiteral,
+    value: &dir::TypeLiteral,
     session: &Session,
     current_module_id: ModuleId,
 ) -> Vec<MemberInfo> {

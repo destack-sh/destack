@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use destack_dir::Expression;
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
@@ -116,7 +117,7 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
                     ..
                 } => {
                     // skip module bindings for document links
-                    let destack_dir::ModuleTarget::Module(target_module_id) = target_module else {
+                    let dir::ModuleTarget::Module(target_module_id) = target_module else {
                         continue;
                     };
 

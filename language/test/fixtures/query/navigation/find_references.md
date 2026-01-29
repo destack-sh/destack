@@ -110,3 +110,56 @@ main.ds:7:17-7:18
 main.ds:8:17-8:18
 main.ds:8:23-8:24
 ```
+
+## Cross Module
+
+### Find references across modules
+
+Find references should include imports and call sites in other modules.
+
+```ds:lib.ds
+export function ping(): void {}
+//              ^^^^ def:ping
+```
+
+```ds:main.ds
+import { ping } from "./lib.ds";
+//       ^^^^ use:ping_import
+
+ping();
+// ^^^^ use:ping_call
+```
+
+```query find_references def:ping
+lib.ds:1:17-1:21
+main.ds:1:10-1:14
+main.ds:3:1-3:5
+```
+
+## Re-Exports
+
+### Find references through re-exported aliases
+
+Find references should include re-exported aliases and downstream imports.
+
+```ds:alias_base.ds
+export function ping(): void {}
+//              ^^^^ def:ping
+```
+
+```ds:alias_barrel.ds
+export { ping as pingAlias } from "./alias_base.ds";
+```
+
+```ds:alias_main.ds
+import { pingAlias } from "./alias_barrel.ds";
+
+pingAlias();
+```
+
+```query find_references def:ping
+alias_base.ds:1:17-1:21
+alias_barrel.ds:1:10-1:14
+alias_main.ds:1:10-1:19
+alias_main.ds:3:1-3:10
+```

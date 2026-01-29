@@ -45,6 +45,25 @@ main.ds:5:16-5:19 kind=read
 main.ds:5:28-5:31 kind=read
 ```
 
+## Parameters
+
+### Highlight parameter occurrences
+
+Document highlight should include parameter definitions and references.
+
+```ds
+function greet(name: string): string {
+//             ^^^^ def:name
+    return "hi " + name;
+//                 ^^^^ use:name
+}
+```
+
+```query document_highlight use:name
+main.ds:1:16-1:20 kind=write
+main.ds:2:20-2:24 kind=read
+```
+
 ## Struct Fields
 
 ### Highlight struct field occurrences

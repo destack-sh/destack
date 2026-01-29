@@ -2,6 +2,7 @@ use destack_source::Span;
 use destack_workspace::query::{self, SemanticTokenModifiers, SemanticTokenType};
 
 use crate::harness::TestResult;
+use crate::query::runner::position::resolve_query_span;
 use crate::query::runner::snapshot::normalize_expected_snapshot;
 use crate::query::runner::span::{format_span_line_col, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -28,6 +29,23 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     };
 
     let tokens = query::semantic_tokens(&session.session, session.file_id);
+    run_with_expectation(session, exp, &tokens)
+}
+
+/// Run a semantic_tokens_range test.
+pub fn run_range(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -> TestResult {
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no semantic_tokens_range expectation defined".to_string(),
+        };
+    };
+
+    let range = match resolve_query_span(session, &exp.target) {
+        Ok(range) => range,
+        Err(message) => return TestResult::Failed { message },
+    };
+
+    let tokens = query::semantic_tokens_range(&session.session, range.file, range);
     run_with_expectation(session, exp, &tokens)
 }
 

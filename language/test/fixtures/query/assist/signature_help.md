@@ -82,6 +82,30 @@ active_signature=0 active_parameter=0
 signature[0] label=add(x: int32, y: int32): int32 documentation=<none> parameters=x: int32|y: int32 param_docs=<none>|<none>
 ```
 
+### Show signature for imported call
+
+Signature help should resolve signatures and docs for imported functions.
+
+```ds:lib.ds
+/// Repeat a message.
+/// @param text The text to repeat
+/// @param times How many times to repeat
+export function repeat(text: string, times: int32): string {
+    return text;
+}
+```
+
+```ds:main.ds
+import { repeat } from "./lib.ds";
+
+const value = repeat("hi", $0);
+```
+
+```query signature_help $0
+active_signature=0 active_parameter=1
+signature[0] label=repeat(text: string, times: int32): string documentation=Repeat a message. parameters=text: string|times: int32 param_docs=The text to repeat|How many times to repeat
+```
+
 ### Fallback signature for unresolved calls
 
 Signature help should still return a placeholder signature when the call target is unresolved.

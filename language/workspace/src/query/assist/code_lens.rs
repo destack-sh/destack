@@ -1,9 +1,10 @@
+use destack_ast as ast;
 use destack_dir::{self as dir, Expression, GlobalSymbolId, SymbolType};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use serde::{Deserialize, Serialize};
 
-use crate::Session;
-use crate::query::common::{get_canonical_symbol, get_module_by_file_id};
+use crate::query::common::{get_canonical_symbol, get_module_by_file_id, resolve_symbol_name};
+use crate::{ModuleAst, Session};
 
 /// A code lens (inline annotation with optional command).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -151,23 +152,23 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
         .map(
             |(decl_id, decl): (dir::LocalNodeId<dir::Declaration>, &dir::Declaration)| {
                 let symbol_id = decl.symbol();
+                let global_symbol_id = GlobalSymbolId {
+                    module_id,
+                    local_id: symbol_id,
+                };
                 let ast_node_id = dir_tree.get_source(decl_id.id);
                 let main_span = ctx
                     .ast
                     .tree
                     .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
-                let name = symbols
-                    .get_symbol(symbol_id)
-                    .name()
-                    .map(|id| ctx.ast.strings.get(id).to_string());
+                let name = resolve_symbol_name(session, global_symbol_id);
+                let is_test = has_decorator_named(ctx.ast, ast_node_id, "test");
                 let symbol_type = symbols.get_symbol(symbol_id).ty;
                 (
                     decl.clone(),
-                    GlobalSymbolId {
-                        module_id,
-                        local_id: symbol_id,
-                    },
+                    global_symbol_id,
                     main_span,
+                    is_test,
                     name,
                     symbol_type,
                 )
@@ -179,7 +180,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
     drop(dir_tree);
     drop(module);
 
-    for (declaration, global_symbol_id, main_span, name, symbol_type) in declarations {
+    for (declaration, global_symbol_id, main_span, is_test, name, symbol_type) in declarations {
         let Some(span) = main_span else {
             continue;
         };
@@ -193,7 +194,7 @@ pub fn code_lenses(session: &Session, file: FileId) -> Vec<CodeLens> {
 
             // check if it's a test function
             if let Some(ref fn_name) = name
-                && is_test_function(fn_name)
+                && is_test
             {
                 lenses.push(CodeLens::run_test(span, fn_name.clone()));
             }
@@ -316,9 +317,54 @@ fn count_subclasses(session: &Session, symbol_id: GlobalSymbolId) -> usize {
     count
 }
 
-/// Check if a function name indicates it's a test.
-fn is_test_function(name: &str) -> bool {
-    name.starts_with("test_") || name.starts_with("test") || name == "test"
+/// Check whether a node has a decorator with the given name.
+fn has_decorator_named(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
+    // scan annotations attached to the node
+    if decorator_on_node(ast, node_id, name) {
+        return true;
+    }
+
+    // fall back to enclosing nodes for annotations attached higher up
+    let span = ast.tree.source_map.get_main_or_enclosing(node_id);
+    let mut enclosing = ast
+        .tree
+        .source_map
+        .get_enclosing_spans(span.start, span.end.saturating_sub(1));
+    enclosing.sort_by_key(|entry| entry.length);
+
+    for entry in enclosing {
+        if entry.idx == node_id {
+            continue;
+        }
+        if decorator_on_node(ast, entry.idx, name) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check whether a decorator is attached directly to a node.
+fn decorator_on_node(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
+    // scan annotations attached to the node
+    let annotations = ast.tree.get_annotations(node_id);
+    for annotation_id in annotations {
+        let annotation = ast.tree.get::<ast::Annotation>(annotation_id);
+        let ast::Annotation::Decorator { node, .. } = annotation else {
+            continue;
+        };
+
+        let decorator = ast.tree.get::<ast::Decorator>(*node);
+        let Some(last_segment) = decorator.left.segments.last() else {
+            continue;
+        };
+        let decorator_name = ast.strings.get(*last_segment);
+        if decorator_name.as_str() == name {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Resolve a code lens (compute its command if deferred).

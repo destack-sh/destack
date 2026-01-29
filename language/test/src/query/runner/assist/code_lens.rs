@@ -3,6 +3,7 @@ use destack_workspace::query;
 use destack_workspace::query::{CodeLens, CodeLensData};
 
 use crate::harness::TestResult;
+use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::normalize_expected_snapshot;
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -31,6 +32,94 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let lenses = query::code_lenses(&session.session, session.file_id);
 
     run_with_expectation(session, exp, &lenses)
+}
+
+/// Run a resolve_code_lens test.
+pub fn run_resolve(
+    session: &QueryTestSession,
+    expectation: Option<&QueryExpectation>,
+) -> TestResult {
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no resolve_code_lens expectation defined".to_string(),
+        };
+    };
+
+    let content = exp.content.trim();
+    if content.is_empty() {
+        return TestResult::Failed {
+            message: "resolve_code_lens expectation is empty".to_string(),
+        };
+    }
+
+    let lenses = query::code_lenses(&session.session, session.file_id);
+    if lenses.is_empty() {
+        return if content == "<none>" {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: "resolve_code_lens expected a lens, but none were returned".to_string(),
+            }
+        };
+    }
+
+    let (file_id, offset) = match resolve_query_position(session, &exp.target) {
+        Ok(position) => position,
+        Err(message) => return TestResult::Failed { message },
+    };
+    if file_id != session.file_id {
+        return TestResult::Failed {
+            message: "resolve_code_lens only supports the primary file".to_string(),
+        };
+    }
+
+    let index = exp.args.first().and_then(|arg| arg.parse::<usize>().ok());
+    let Some(lens) = select_lens(&lenses, Some(offset), index) else {
+        return TestResult::Failed {
+            message: "resolve_code_lens could not select a lens".to_string(),
+        };
+    };
+
+    let resolved = query::resolve_code_lens(&session.session, lens);
+    let actual_line = format_lens_line(session, &resolved);
+
+    if is_snapshot_expectation(content) {
+        let expected_snapshot = normalize_expected_snapshot(content);
+        let actual_snapshot = normalize_expected_snapshot(&actual_line);
+        return if expected_snapshot == actual_snapshot {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: format!(
+                    "resolve_code_lens snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
+                ),
+            }
+        };
+    }
+
+    if content == "<same>" {
+        let original_line = format_lens_line(session, lens);
+        return if original_line == actual_line {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: format!(
+                    "resolve_code_lens expected unchanged lens\n\nexpected:\n{original_line}\n\nactual:\n{actual_line}"
+                ),
+            }
+        };
+    }
+
+    if resolved.title() == content {
+        return TestResult::Passed;
+    }
+
+    TestResult::Failed {
+        message: format!(
+            "resolve_code_lens title mismatch: expected '{content}', got '{}'",
+            resolved.title()
+        ),
+    }
 }
 
 /// Run with markdown expectation.
@@ -211,6 +300,31 @@ fn format_lens_line(session: &QueryTestSession, lens: &CodeLens) -> String {
     let title = lens.title();
 
     format!("{range} kind={kind} title={title}")
+}
+
+/// Select a code lens by offset or index.
+fn select_lens(
+    lenses: &[CodeLens],
+    offset: Option<u32>,
+    index: Option<usize>,
+) -> Option<&CodeLens> {
+    if let Some(index) = index {
+        return lenses.get(index);
+    }
+
+    if let Some(offset) = offset
+        && let Some(lens) = lenses
+            .iter()
+            .find(|lens| lens.range.start <= offset && lens.range.end >= offset)
+    {
+        return Some(lens);
+    }
+
+    if lenses.len() == 1 {
+        return lenses.first();
+    }
+
+    None
 }
 
 /// Build a stable ordering key for a code lens.

@@ -1,3 +1,4 @@
+use destack_dir as dir;
 use std::collections::HashSet;
 
 use destack_ast as ast;
@@ -8,8 +9,8 @@ use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
     ImportEditMode, build_import_display_path, build_import_edits_with_mode, extract_identifier,
-    get_module_by_file_id, identifier_at_offset, is_simple_identifier, matches_symbol_space_filter,
-    program_for_file, search_importable_symbols_for_program,
+    get_module_by_file_id, is_simple_identifier, matches_symbol_space_filter, program_for_file,
+    search_importable_symbols_for_program, token_at_offset,
 };
 use destack_dir::SymbolSpace;
 
@@ -332,24 +333,22 @@ fn collect_auto_import_actions(
         }
     }
 
-    // fall back to a symbol scan when no diagnostics produced actions
-    if !added_any {
-        let source_file = session.files.get(file);
-        let source = source_file.text();
-        if let Some(symbol_name) = identifier_at_offset(source, range.start) {
-            let (import_mode, space_filter) =
-                auto_import_mode_for_offset(session, file, range.start);
-            collect_auto_import_actions_for_symbol(
-                session,
-                file,
-                &symbol_name,
-                exclude_module_id,
-                import_mode,
-                space_filter,
-                None,
-                actions,
-            );
-        }
+    // fall back to the token under the cursor when no diagnostics produced actions
+    if !added_any
+        && let Some(symbol_name) = token_at_offset(session, file, range.start)
+        && is_simple_identifier(&symbol_name)
+    {
+        let (import_mode, space_filter) = auto_import_mode_for_offset(session, file, range.start);
+        collect_auto_import_actions_for_symbol(
+            session,
+            file,
+            &symbol_name,
+            exclude_module_id,
+            import_mode,
+            space_filter,
+            None,
+            actions,
+        );
     }
 }
 
@@ -438,13 +437,13 @@ fn collect_auto_import_actions_for_symbol(
 }
 
 /// Rank export spaces for auto import actions.
-fn auto_import_space_rank(space: destack_dir::SymbolSpace) -> u8 {
+fn auto_import_space_rank(space: dir::SymbolSpace) -> u8 {
     // return the rank for the space ordering
     match space {
-        destack_dir::SymbolSpace::Value => 0,
-        destack_dir::SymbolSpace::TypeValue => 1,
-        destack_dir::SymbolSpace::Type => 2,
-        destack_dir::SymbolSpace::Label => 3,
+        dir::SymbolSpace::Value => 0,
+        dir::SymbolSpace::TypeValue => 1,
+        dir::SymbolSpace::Type => 2,
+        dir::SymbolSpace::Label => 3,
     }
 }
 

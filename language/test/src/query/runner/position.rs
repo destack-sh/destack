@@ -1,4 +1,4 @@
-use destack_source::FileId;
+use destack_source::{FileId, Span};
 
 use crate::query::QueryTestSession;
 
@@ -22,4 +22,20 @@ pub fn resolve_query_position(
     };
 
     Ok((marker.span.file, marker.span.start))
+}
+
+/// Resolve a query span from a cursor or marker target.
+pub fn resolve_query_span(session: &QueryTestSession, target: &str) -> Result<Span, String> {
+    // convert cursor targets into empty spans at the cursor
+    if target.starts_with('$') {
+        let (file_id, offset) = resolve_query_position(session, target)?;
+        return Ok(Span::new(file_id, offset, offset));
+    }
+
+    // resolve marker targets into their full span
+    let Some(marker) = session.markers.range(target) else {
+        return Err(format!("marker '{target}' not found"));
+    };
+
+    Ok(marker.span)
 }

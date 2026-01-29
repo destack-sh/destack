@@ -53,6 +53,27 @@ alphabet(function) file=rank.ds range=2:1-2:36
 megaAlpha(function) file=rank.ds range=3:1-3:37
 ```
 
+### Cross-module ranking with duplicates
+
+Workspace symbol search should rank identical names deterministically across files.
+
+```ds:dup_a.ds
+export class Widget {}
+export function WidgetFactory(): void {}
+```
+
+```ds:dup_b.ds
+export struct Widget {}
+export struct WidgetBox {}
+```
+
+```query workspace_symbols Widget
+Widget(class) file=dup_a.ds range=1:1-1:23
+Widget(struct) file=dup_b.ds range=1:1-1:24
+WidgetBox(struct) file=dup_b.ds range=2:1-2:27
+WidgetFactory(function) file=dup_a.ds range=2:1-2:41
+```
+
 ## Members and Containers
 
 ### Include member symbols with containers

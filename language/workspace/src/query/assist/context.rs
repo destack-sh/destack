@@ -6,9 +6,7 @@ use {destack_ast as ast, destack_dir as dir};
 use crate::Session;
 use crate::query::common::{
     QueryContext, enclosing_spans_with_previous, extract_string_literal_prefix,
-    find_import_statement, get_module_by_file_id, parse_import_clause_by_text,
-    parse_import_path_by_text, parse_import_target_by_text, sorted_enclosing_spans,
-    span_for_dir_node,
+    get_module_by_file_id, import_clause_brace_span, sorted_enclosing_spans, span_for_dir_node,
 };
 
 /// Describes the context for a completion request.
@@ -134,19 +132,111 @@ fn unknown_context() -> ContextResult {
     }
 }
 
-/// Check whether the cursor is immediately after a dot.
-fn is_after_dot(source: &str, offset: u32) -> bool {
-    // require a nonzero offset so we can read the previous byte
-    if offset == 0 {
+/// Find the previous non-trivia token before the offset.
+fn previous_significant_token(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    // track the last token ending before the offset
+    let mut candidate = None;
+
+    // scan tokens in order for the latest token ending before the offset
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+
+        if is_trivia_token(token.token.ty) {
+            continue;
+        }
+
+        if token.span.end <= offset {
+            candidate = Some(*token);
+            continue;
+        }
+
+        if token.span.start > offset {
+            break;
+        }
+    }
+
+    candidate
+}
+
+/// Find the token that contains the offset (or ends at it).
+fn token_at_offset(ctx: &QueryContext<'_>, offset: u32) -> Option<ast::TokenSpan> {
+    // track the last token starting before the offset
+    let mut candidate = None;
+
+    // scan tokens until we pass the offset
+    for token in &ctx.ast.tokens {
+        if token.span.file != ctx.file_id {
+            continue;
+        }
+
+        if is_trivia_token(token.token.ty) {
+            continue;
+        }
+
+        if token.span.contains(offset) {
+            return Some(*token);
+        }
+
+        if token.span.start > offset {
+            break;
+        }
+
+        candidate = Some(*token);
+    }
+
+    // allow cursor at the end of a token span
+    let candidate = candidate?;
+    if candidate.span.end == offset {
+        return Some(candidate);
+    }
+
+    None
+}
+
+/// Read the token text from the source slice.
+fn token_text(source: &str, span: Span) -> Option<&str> {
+    source.get(span.start as usize..span.end as usize)
+}
+
+/// Check whether a token type is trivia.
+fn is_trivia_token(token: ast::TokenType) -> bool {
+    matches!(
+        token,
+        ast::TokenType::Whitespace
+            | ast::TokenType::Newline
+            | ast::TokenType::LineComment
+            | ast::TokenType::BlockComment
+            | ast::TokenType::DocLineComment
+            | ast::TokenType::DocBlockComment
+            | ast::TokenType::End
+    )
+}
+
+/// Check whether the cursor is after a specific keyword token.
+fn is_after_keyword(ctx: &QueryContext<'_>, source: &str, offset: u32, keyword: &str) -> bool {
+    // resolve the previous token before the cursor
+    let Some(token) = previous_significant_token(ctx, offset) else {
+        return false;
+    };
+
+    // require an identifier token matching the keyword text
+    if token.token.ty != ast::TokenType::Identifier {
         return false;
     }
 
-    // check whether the previous byte is a dot
-    source
-        .as_bytes()
-        .get(offset as usize - 1)
-        .map(|&byte| byte == b'.')
-        .unwrap_or(false)
+    token_text(source, token.span) == Some(keyword)
+}
+
+/// Check whether the cursor is immediately after a dot.
+fn is_after_dot(ctx: &QueryContext<'_>, offset: u32) -> bool {
+    // resolve the previous token before the cursor
+    let Some(token) = previous_significant_token(ctx, offset) else {
+        return false;
+    };
+
+    token.token.ty == ast::TokenType::Dot
 }
 
 /// Build a value position context from an optional scope.
@@ -188,8 +278,8 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     let cursor_position = offset.saturating_sub(1);
 
     // resolve trigger state and token prefix
-    let after_dot = is_after_dot(source, offset);
-    let token = detect_partial_identifier(source, offset);
+    let after_dot = is_after_dot(&ctx, offset);
+    let token = detect_partial_identifier(&ctx, source, offset);
 
     // detect member access inside a member name span
     {
@@ -367,7 +457,7 @@ pub fn detect_completion_context(session: &Session, file_id: FileId, offset: u32
     }
 
     // check for statement position
-    if let Some(statement_context) = detect_statement_position(&ctx, source, offset) {
+    if let Some(statement_context) = detect_statement_position(&ctx, offset) {
         return ContextResult {
             context: statement_context,
             token,
@@ -444,43 +534,41 @@ fn unwrap_statement_expression<'a>(
 }
 
 /// Detect partial identifier at cursor position.
-fn detect_partial_identifier(source: &str, offset: u32) -> Option<TokenAtCursor> {
-    // convert the buffer to bytes for scanning
-    let bytes = source.as_bytes();
-    let offset = offset as usize;
+fn detect_partial_identifier(
+    ctx: &QueryContext<'_>,
+    source: &str,
+    offset: u32,
+) -> Option<TokenAtCursor> {
+    // find the token under the cursor or immediately before it
+    let token = match token_at_offset(ctx, offset) {
+        Some(token) if token.token.ty == ast::TokenType::Identifier => token,
+        _ => {
+            let token = previous_significant_token(ctx, offset)?;
+            if token.token.ty != ast::TokenType::Identifier {
+                return None;
+            }
 
-    // find start of identifier (scan backwards)
-    let mut start = offset;
-    while start > 0 {
-        let c = bytes[start - 1];
-        if c.is_ascii_alphanumeric() || c == b'_' {
-            start -= 1;
-        } else {
-            break;
+            if token.span.end != offset {
+                return None;
+            }
+
+            token
         }
-    }
+    };
 
-    // find end of identifier (scan forwards)
-    let mut end = offset;
-    while end < bytes.len() {
-        let c = bytes[end];
-        if c.is_ascii_alphanumeric() || c == b'_' {
-            end += 1;
-        } else {
-            break;
-        }
-    }
+    // resolve the token span and prefix end
+    let span = token.span;
+    let prefix_end = offset.saturating_sub(span.start) as usize;
 
-    // return a token span when one is found
-    if start < end {
-        Some(TokenAtCursor {
-            text: String::from_utf8_lossy(&bytes[start..end]).into_owned(),
-            start: start as u32,
-            end: end as u32,
-        })
-    } else {
-        None
-    }
+    // slice the token text from the source
+    let text = token_text(source, span)?;
+    let prefix_end = prefix_end.min(text.len());
+
+    Some(TokenAtCursor {
+        text: text[..prefix_end].to_string(),
+        start: span.start,
+        end: span.end,
+    })
 }
 
 /// Detect if the cursor is in a type position.
@@ -528,8 +616,30 @@ fn detect_type_position(ctx: &QueryContext<'_>, source: &str, offset: u32) -> bo
         return false;
     }
 
-    // fall back to textual heuristics when side spans are unavailable
-    detect_type_position_by_text(source, offset)
+    // use token heuristics when side spans are unavailable
+    let Some(token) = previous_significant_token(ctx, offset) else {
+        return false;
+    };
+
+    // check for type annotation delimiters
+    if matches!(
+        token.token.ty,
+        ast::TokenType::Colon | ast::TokenType::Comma | ast::TokenType::LessThan
+    ) {
+        return true;
+    }
+
+    // check for type-position keywords
+    if token.token.ty == ast::TokenType::Identifier
+        && matches!(
+            token_text(source, token.span),
+            Some("extends") | Some("implements") | Some("is") | Some("as")
+        )
+    {
+        return true;
+    }
+
+    false
 }
 
 /// Check whether the cursor is inside a type declaration value expression.
@@ -571,7 +681,7 @@ fn detect_import_context(
     offset: u32,
 ) -> Option<CompletionContext> {
     // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
+    let enclosing = enclosing_spans_with_previous(ctx, offset);
 
     // scan enclosing expressions for import nodes under the cursor
     for enc in &enclosing {
@@ -596,8 +706,13 @@ fn detect_import_context(
             return Some(CompletionContext::ImportPath { partial_path });
         }
 
+        if let Some(span) = import_path_span_from_tokens(ctx, import_span, offset) {
+            let partial_path = extract_string_literal_prefix(source, span, offset);
+            return Some(CompletionContext::ImportPath { partial_path });
+        }
+
         // resolve import clause info and type only context
-        if let Some(info) = import_clause_info(ctx, expr, offset, source, import_span) {
+        if let Some(info) = import_clause_info(ctx, expr, offset, source, import_span, main_span) {
             let ast::Expression::Import { target, .. } = expr else {
                 continue;
             };
@@ -606,119 +721,220 @@ fn detect_import_context(
             let target_specifier = ctx.ast.strings.get(*target).to_string();
             let target_module = resolve_import_target_module(session, ctx, &target_specifier);
 
-            // detect type only imports by span or line
-            let span_is_type_only = source
-                .get(import_span.start as usize..import_span.end as usize)
-                .map(|text| text.trim_start().starts_with("import type"))
-                .unwrap_or(false);
-            let line_start = (0..offset as usize)
-                .rev()
-                .find(|&i| source.as_bytes()[i] == b'\n')
-                .map(|i| i + 1)
-                .unwrap_or(0);
-            let line_end = (offset as usize..source.len())
-                .find(|&i| source.as_bytes()[i] == b'\n')
-                .unwrap_or(source.len());
-            let line_is_type_only = source[line_start..line_end]
-                .trim_start()
-                .starts_with("import type");
-            let is_type_only = span_is_type_only || line_is_type_only;
-
-            // enforce type space filtering inside type only imports
-            let space_filter = if info.space_filter.is_none() && is_type_only {
-                Some(dir::SymbolSpace::Type)
-            } else {
-                info.space_filter
-            };
-
             return Some(CompletionContext::ImportClause {
                 target_module,
                 existing_names: info.existing_names,
-                space_filter,
+                space_filter: info.space_filter,
             });
         }
     }
-
-    detect_import_context_by_text(session, ctx, source, offset)
+    detect_import_context_from_tokens(session, ctx, source, offset)
 }
 
-/// Detect type position from raw text as a fallback for incomplete parses.
-fn detect_type_position_by_text(source: &str, offset: u32) -> bool {
-    // resolve the byte buffer and cursor position
-    let bytes = source.as_bytes();
-    let mut pos = offset as usize;
+/// Resolve a string literal span for an import path at the cursor.
+fn import_path_span_from_tokens(
+    ctx: &QueryContext<'_>,
+    import_span: Span,
+    offset: u32,
+) -> Option<Span> {
+    // find the token under the cursor
+    let token = token_at_offset(ctx, offset)?;
 
-    // skip whitespace backwards
-    while pos > 0 && bytes[pos - 1].is_ascii_whitespace() {
-        pos -= 1;
+    // require the token to be inside the import statement span
+    if token.span.start < import_span.start || token.span.end > import_span.end {
+        return None;
     }
 
-    // check for type annotation indicators
-    if pos > 0 {
-        let c = bytes[pos - 1];
-        if c == b':' || c == b'<' || c == b',' {
-            return true;
-        }
+    // require a string literal token
+    if token.token.ty != ast::TokenType::Literal {
+        return None;
     }
 
-    // check for keyword patterns (extends, implements, is)
-    let prefix = &source[..pos.min(source.len())];
-    let trimmed = prefix.trim_end();
-    if trimmed.ends_with("extends")
-        || trimmed.ends_with("implements")
-        || trimmed.ends_with("is")
-        || trimmed.ends_with("as")
-    {
-        return true;
+    if !matches!(token.token.literal, Some(ast::LiteralType::String { .. })) {
+        return None;
     }
 
-    // return false when no type hint is detected
-    false
+    Some(token.span)
 }
 
-/// Detect import related context from raw text as a fallback.
-fn detect_import_context_by_text(
+/// Detect import context using tokens when AST spans are unavailable.
+fn detect_import_context_from_tokens(
     session: &Session,
     ctx: &QueryContext<'_>,
     source: &str,
     offset: u32,
 ) -> Option<CompletionContext> {
-    // resolve the cursor offset as a usize
-    let offset = offset as usize;
-    let (statement_start, statement_end) = find_import_statement(source, offset)?;
-    let statement = &source[statement_start..statement_end];
-    if !statement.trim_start().starts_with("import") {
+    // collect non-trivia tokens for this file
+    let tokens: Vec<ast::TokenSpan> = ctx
+        .ast
+        .tokens
+        .iter()
+        .filter(|token| token.span.file == ctx.file_id && !is_trivia_token(token.token.ty))
+        .copied()
+        .collect();
+
+    // require at least one token
+    if tokens.is_empty() {
         return None;
     }
 
-    let cursor_in_stmt = offset.saturating_sub(statement_start);
+    // find the cursor token index
+    let mut cursor_index = None;
+    for (index, token) in tokens.iter().enumerate() {
+        if token.span.contains(offset) || token.span.end == offset {
+            cursor_index = Some(index);
+            break;
+        }
 
-    if let Some(partial_path) = parse_import_path_by_text(statement, cursor_in_stmt) {
+        if token.span.start > offset {
+            cursor_index = index.checked_sub(1);
+            break;
+        }
+    }
+    let cursor_index = cursor_index?;
+
+    // compute statement bounds by semicolons
+    let mut statement_start = 0usize;
+    for (index, token) in tokens.iter().enumerate().take(cursor_index + 1).rev() {
+        if token.token.ty == ast::TokenType::Semicolon {
+            statement_start = index + 1;
+            break;
+        }
+    }
+
+    let mut statement_end = tokens.len();
+    for (index, token) in tokens.iter().enumerate().skip(cursor_index) {
+        if token.token.ty == ast::TokenType::Semicolon {
+            statement_end = index;
+            break;
+        }
+    }
+
+    // locate the import keyword inside the statement
+    let mut import_index = None;
+    for (index, token) in tokens
+        .iter()
+        .enumerate()
+        .take(statement_end)
+        .skip(statement_start)
+    {
+        if token_is_keyword(source, *token, "import") {
+            import_index = Some(index);
+            break;
+        }
+    }
+    let import_index = import_index?;
+
+    if import_index > cursor_index {
+        return None;
+    }
+
+    // locate the from keyword and target literal
+    let mut from_index = None;
+    let mut target_token = None;
+    for (index, token) in tokens
+        .iter()
+        .enumerate()
+        .take(statement_end)
+        .skip(import_index + 1)
+    {
+        if token_is_keyword(source, *token, "from") {
+            from_index = Some(index);
+            continue;
+        }
+
+        if from_index.is_some() && is_string_literal_token(*token) {
+            target_token = Some(*token);
+            break;
+        }
+    }
+
+    // resolve target module id when available
+    let target_module = target_token
+        .and_then(|token| string_literal_text(source, token.span))
+        .and_then(|text| resolve_import_target_module(session, ctx, &text));
+
+    // detect import path completions inside a string literal
+    if let Some(token) = token_at_offset(ctx, offset)
+        && is_string_literal_token(token)
+        && token.span.start >= tokens[import_index].span.start
+    {
+        let partial_path = extract_string_literal_prefix(source, token.span, offset);
         return Some(CompletionContext::ImportPath { partial_path });
     }
 
-    let target_module = parse_import_target_by_text(statement)
-        .and_then(|target| resolve_import_target_module(session, ctx, &target));
+    // find clause braces before the target literal
+    let mut open_brace = None;
+    let mut close_brace = None;
+    for (index, token) in tokens
+        .iter()
+        .enumerate()
+        .take(statement_end)
+        .skip(import_index + 1)
+    {
+        if let Some(from_index) = from_index
+            && index >= from_index
+        {
+            break;
+        }
 
-    let (existing_names, cursor_is_type, cursor_in_clause) =
-        parse_import_clause_by_text(statement, cursor_in_stmt);
-    if !cursor_in_clause {
+        match token.token.ty {
+            ast::TokenType::OpenBrace => open_brace = Some(token.span),
+            ast::TokenType::CloseBrace => close_brace = Some(token.span),
+            _ => {}
+        }
+    }
+
+    let open_brace = open_brace?;
+    let close_brace = close_brace?;
+
+    if offset < open_brace.end || offset > close_brace.start {
         return None;
     }
 
-    let is_type_only = statement.trim_start().starts_with("import type");
+    // detect type only statements and cursor segments
+    let is_type_only = tokens
+        .get(import_index + 1)
+        .is_some_and(|token| token_is_keyword(source, *token, "type"));
+    let cursor_is_type = previous_significant_token(ctx, offset)
+        .is_some_and(|token| token_is_keyword(source, token, "type"));
+
     let space_filter = if is_type_only || cursor_is_type {
         Some(dir::SymbolSpace::Type)
     } else {
         None
     };
 
-    // return the parsed import clause context
     Some(CompletionContext::ImportClause {
         target_module,
-        existing_names,
+        existing_names: Vec::new(),
         space_filter,
     })
+}
+
+/// Check whether a token is a string literal.
+fn is_string_literal_token(token: ast::TokenSpan) -> bool {
+    token.token.ty == ast::TokenType::Literal
+        && matches!(token.token.literal, Some(ast::LiteralType::String { .. }))
+}
+
+/// Check whether a token is a specific keyword.
+fn token_is_keyword(source: &str, token: ast::TokenSpan, keyword: &str) -> bool {
+    token.token.ty == ast::TokenType::Identifier && token_text(source, token.span) == Some(keyword)
+}
+
+/// Extract the unquoted string literal contents.
+fn string_literal_text(source: &str, span: Span) -> Option<String> {
+    let text = token_text(source, span)?;
+    let text = text
+        .strip_prefix('"')
+        .and_then(|text| text.strip_suffix('"'))
+        .or_else(|| {
+            text.strip_prefix('\'')
+                .and_then(|text| text.strip_suffix('\''))
+        })?;
+
+    Some(text.to_string())
 }
 
 /// Resolve a module id from a relative import target path.
@@ -1217,8 +1433,8 @@ fn detect_new_expression_context(
         }
     }
 
-    // fall back to new keyword text detection
-    if is_after_new_keyword(source, offset) {
+    // fall back to the nearest keyword token
+    if is_after_keyword(ctx, source, offset, "new") {
         return Some(CompletionContext::NewExpression {
             scope_id: None,
             scope_mark: None,
@@ -1365,18 +1581,25 @@ fn call_argument_context_for_span(
 }
 
 /// Detect whether the cursor is at a statement position.
-fn detect_statement_position(
-    ctx: &QueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<CompletionContext> {
+fn detect_statement_position(ctx: &QueryContext<'_>, offset: u32) -> Option<CompletionContext> {
+    // treat the start of the file as a statement position
+    if offset == 0 {
+        let scope = find_scope_at_offset(ctx, offset);
+        return Some(statement_context_from_scope(scope));
+    }
+
     // check block based statement gaps first
     if let Some(scope) = statement_position_from_block(ctx, offset) {
         return Some(statement_context_from_scope(Some(scope)));
     }
 
-    // fall back to text heuristics
-    if is_statement_position_by_text(source, offset) {
+    // fall back to token-based statement boundaries
+    if let Some(token) = previous_significant_token(ctx, offset)
+        && matches!(
+            token.token.ty,
+            ast::TokenType::Semicolon | ast::TokenType::OpenBrace | ast::TokenType::CloseBrace
+        )
+    {
         let scope = find_scope_at_offset(ctx, offset);
         return Some(statement_context_from_scope(scope));
     }
@@ -1471,41 +1694,6 @@ fn scope_from_block_span(
     })
 }
 
-/// Check statement position using text heuristics.
-fn is_statement_position_by_text(source: &str, offset: u32) -> bool {
-    // treat start of file as statement position
-    if offset == 0 {
-        return true;
-    }
-
-    // find the previous non whitespace byte
-    let prev = previous_non_whitespace(source, offset);
-    let Some(prev_char) = prev else {
-        return true;
-    };
-
-    matches!(prev_char, '{' | '}' | ';')
-}
-
-/// Find the previous non whitespace character before an offset.
-fn previous_non_whitespace(source: &str, offset: u32) -> Option<char> {
-    // scan backwards in the source bytes
-    let bytes = source.as_bytes();
-    let mut pos = offset as usize;
-
-    while pos > 0 {
-        let c = bytes[pos - 1];
-        if !c.is_ascii_whitespace() {
-            return Some(c as char);
-        }
-
-        pos -= 1;
-    }
-
-    // return none when no non whitespace character exists
-    None
-}
-
 /// Check whether the cursor is inside a call argument list.
 fn cursor_in_argument_list(
     ctx: &QueryContext<'_>,
@@ -1533,54 +1721,6 @@ fn cursor_in_argument_list(
     }
 
     offset > left_span.end && offset <= call_span.end
-}
-
-/// Check whether the cursor is positioned after a new keyword.
-fn is_after_new_keyword(source: &str, offset: u32) -> bool {
-    // validate the offset against the source bounds
-    let offset = offset as usize;
-    if offset == 0 || offset > source.len() {
-        return false;
-    }
-
-    // scan backward to the start of the current token
-    let bytes = source.as_bytes();
-    let mut start = offset;
-    while start > 0 {
-        let c = bytes[start - 1];
-        if c.is_ascii_alphanumeric() || c == b'_' {
-            start -= 1;
-        } else {
-            break;
-        }
-    }
-
-    // skip whitespace before the token
-    let mut pos = start;
-    while pos > 0 && bytes[pos - 1].is_ascii_whitespace() {
-        pos -= 1;
-    }
-
-    // ensure there is room for the keyword
-    if pos < 3 {
-        return false;
-    }
-
-    // match the keyword text
-    let keyword = &source[pos - 3..pos];
-    if keyword != "new" {
-        return false;
-    }
-
-    // ensure the keyword is not part of a larger identifier
-    if pos > 3 {
-        let prev = bytes[pos - 4];
-        if prev.is_ascii_alphanumeric() || prev == b'_' {
-            return false;
-        }
-    }
-
-    true
 }
 
 /// Resolve the scope mark at a cursor position within a scope.
@@ -1761,28 +1901,26 @@ fn import_clause_info(
     offset: u32,
     source: &str,
     import_span: Span,
+    target_span: Option<Span>,
 ) -> Option<ImportClauseInfo> {
     // require an import expression
     let ast::Expression::Import { items, kind, .. } = expr else {
         return None;
     };
 
-    // resolve the import text and cursor position
-    let import_text = source.get(import_span.start as usize..import_span.end as usize)?;
-    let cursor_in_span = offset.saturating_sub(import_span.start) as usize;
-    let (mut existing_names, cursor_is_type_text, cursor_in_clause_text) =
-        parse_import_clause_by_text(import_text, cursor_in_span);
+    // resolve the import clause braces before the target string
+    let (open_brace, close_brace) = import_clause_brace_span(ctx, import_span, target_span)?;
 
+    // detect cursor inside the clause braces
+    let cursor_in_clause = offset >= open_brace.end && offset <= close_brace.start;
+
+    // collect existing names and detect item kind under the cursor
+    let mut existing_names = Vec::new();
     let mut in_item_kind = None;
-    let mut min_start: Option<u32> = None;
-    let mut max_end: Option<u32> = None;
 
     for item_id in items {
         let item = ctx.ast.tree.get(*item_id);
         let span = ctx.ast.tree.source_map.get(item_id.id);
-
-        min_start = Some(min_start.map_or(span.start, |start| start.min(span.start)));
-        max_end = Some(max_end.map_or(span.end, |end| end.max(span.end)));
 
         if span.contains(offset) {
             in_item_kind = item.kind;
@@ -1797,22 +1935,31 @@ fn import_clause_info(
         }
     }
 
-    let cursor_in_items = if let (Some(start), Some(end)) = (min_start, max_end) {
-        offset >= start && offset <= end
-    } else {
-        false
-    };
-    let cursor_in_clause = cursor_in_clause_text || cursor_in_items;
     if !cursor_in_clause && in_item_kind.is_none() {
         return None;
     }
+
+    // detect cursor after a type keyword inside the clause
+    let cursor_is_type = if cursor_in_clause {
+        if let Some(token) = previous_significant_token(ctx, offset) {
+            let token_in_clause =
+                token.span.start >= open_brace.start && token.span.end <= close_brace.end;
+            token_in_clause
+                && token.token.ty == ast::TokenType::Identifier
+                && token_text(source, token.span) == Some("type")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
 
     let space_filter = match kind {
         ast::DependencyKind::Type => Some(dir::SymbolSpace::Type),
         ast::DependencyKind::Value => match in_item_kind {
             Some(ast::DependencyKind::Type) => Some(dir::SymbolSpace::Type),
             Some(ast::DependencyKind::Value) => Some(dir::SymbolSpace::Value),
-            None if cursor_is_type_text => Some(dir::SymbolSpace::Type),
+            None if cursor_is_type => Some(dir::SymbolSpace::Type),
             None => None,
         },
     };

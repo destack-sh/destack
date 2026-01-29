@@ -93,6 +93,31 @@ const id: UserId = 1;
 def:UserId
 ```
 
+### Re-exported type reference
+
+Go to type definition should follow re-export chains to the original type.
+
+```ds:types.ds
+export type Thing = string;
+//          ^^^^^ def:Thing_source
+```
+
+```ds:re_exports.ds
+export type { Thing } from "./types.ds";
+//            ^^^^^ def:Thing
+```
+
+```ds:main.ds
+import type { Thing } from "./re_exports.ds";
+
+const value: Thing = "ok";
+//           ^^^^^ use:Thing
+```
+
+```query goto_type_definition use:Thing
+def:Thing_source
+```
+
 ### Enum type
 
 Go to type definition should work with enum types.

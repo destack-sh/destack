@@ -1,7 +1,9 @@
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, SymbolType};
 
 use crate::Session;
-use crate::query::common::{QueryContext, is_identifier_byte, resolve_member_access_symbol};
+use crate::query::common::{
+    QueryContext, get_canonical_symbol, resolve_member_access_symbol, resolve_symbol_name,
+};
 
 /// Information about a resolved call target.
 #[derive(Debug, Clone)]
@@ -52,7 +54,14 @@ pub(crate) fn resolve_call_target(
                 path.last_segment()
                     .map(|name_id| session.strings.get(name_id).to_string())
             });
-            CallTarget::new(name, Some(symbol))
+
+            // prefer the canonical function symbol when possible
+            let canonical_symbol = get_canonical_symbol(session, symbol);
+            let resolved_symbol = symbol_is_function(session, canonical_symbol)
+                .then_some(canonical_symbol)
+                .or_else(|| symbol_is_function(session, symbol).then_some(symbol));
+
+            CallTarget::new(name, resolved_symbol)
         }
         Expression::Member { left, name, .. } => {
             // resolve the member name string
@@ -65,81 +74,26 @@ pub(crate) fn resolve_call_target(
             // return the member name and symbol
             CallTarget::new(Some(member_name), member_symbol)
         }
-        _ => {
-            // fall back to extracting a simple identifier from source
-            let name = fallback_call_target_name(session, ctx, left_expression_id);
+        Expression::UnresolvedPath { path, .. } => {
+            // resolve the unresolved path name
+            let name = path
+                .last_segment()
+                .map(|name_id| ctx.ast.strings.get(name_id).to_string());
             CallTarget::new(name, None)
         }
+        _ => CallTarget::new(None, None),
     }
 }
 
-/// Resolve a symbol name string when possible.
-fn resolve_symbol_name(session: &Session, symbol_id: GlobalSymbolId) -> Option<String> {
-    // read the target module and query context
+/// Check whether a symbol id refers to a function declaration.
+fn symbol_is_function(session: &Session, symbol_id: GlobalSymbolId) -> bool {
     let module = session.modules.get(symbol_id.module_id);
     let module = module.read();
-    let ctx = session.query_context(&module)?;
+    let Some(ctx) = session.query_context(&module) else {
+        return false;
+    };
 
-    // read the symbol name
     let symbols = ctx.symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    symbol
-        .name()
-        .map(|name_id| ctx.ast.strings.get(name_id).to_string())
-}
-
-/// Resolve a fallback call target name from source text.
-fn fallback_call_target_name(
-    session: &Session,
-    ctx: &QueryContext<'_>,
-    left_expression_id: LocalNodeId<Expression>,
-) -> Option<String> {
-    // resolve the left expression span
-    let ast_node_id = ctx.tree().get_source(left_expression_id.id);
-    let span = ctx.ast.tree.source_map.get(ast_node_id);
-
-    // read the source text for the span
-    let source_file = session.files.get(ctx.file_id);
-    let source = source_file.text();
-    let slice = source.get(span.start as usize..span.end as usize)?;
-
-    // extract a simple identifier when the slice contains exactly one
-    single_identifier_in_text(slice)
-}
-
-/// Extract the single identifier from a text slice when it is unambiguous.
-fn single_identifier_in_text(text: &str) -> Option<String> {
-    // initialize scan state
-    let bytes = text.as_bytes();
-    let mut found: Option<String> = None;
-    let mut index = 0;
-
-    // scan for identifier runs
-    while index < bytes.len() {
-        // skip non identifier bytes
-        while index < bytes.len() && !is_identifier_byte(bytes[index]) {
-            index += 1;
-        }
-
-        // capture the identifier run
-        let start = index;
-        while index < bytes.len() && is_identifier_byte(bytes[index]) {
-            index += 1;
-        }
-
-        if start == index {
-            continue;
-        }
-
-        let slice = text.get(start..index)?;
-
-        // allow only a single identifier in the slice
-        if found.is_some() {
-            return None;
-        }
-
-        found = Some(slice.to_string());
-    }
-
-    found
+    symbol.ty == SymbolType::Function
 }

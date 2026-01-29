@@ -1,8 +1,11 @@
+use std::path::Path;
+
 use destack_source::Span;
 use destack_workspace::query;
 use destack_workspace::query::{DocumentLink, DocumentLinkTarget};
 
 use crate::harness::TestResult;
+use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::normalize_expected_snapshot;
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -49,6 +52,90 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
         message: format!(
             "expected {expected_count} document links, found {}",
             links.len()
+        ),
+    }
+}
+
+/// Run a resolve_document_link test.
+pub fn run_resolve(
+    session: &QueryTestSession,
+    expectation: Option<&QueryExpectation>,
+) -> TestResult {
+    let Some(exp) = expectation else {
+        return TestResult::Skipped {
+            reason: "no resolve_document_link expectation provided".to_string(),
+        };
+    };
+
+    let content = exp.content.trim();
+    if content.is_empty() {
+        return TestResult::Failed {
+            message: "resolve_document_link expectation is empty".to_string(),
+        };
+    }
+
+    let links = query::document_links(&session.session, session.file_id);
+    if links.is_empty() {
+        return if content == "<none>" {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: "resolve_document_link expected a link, but none were returned"
+                    .to_string(),
+            }
+        };
+    }
+
+    let (file_id, offset) = match resolve_query_position(session, &exp.target) {
+        Ok(position) => position,
+        Err(message) => return TestResult::Failed { message },
+    };
+    if file_id != session.file_id {
+        return TestResult::Failed {
+            message: "resolve_document_link only supports the primary file".to_string(),
+        };
+    }
+
+    let index = exp.args.first().and_then(|arg| arg.parse::<usize>().ok());
+    let Some(link) = select_link(&links, Some(offset), index) else {
+        return TestResult::Failed {
+            message: "resolve_document_link could not select a link".to_string(),
+        };
+    };
+
+    let resolved = query::resolve_document_link(&session.session, link);
+    let actual_line = format_document_link_line(session, &resolved);
+
+    if is_snapshot_expectation(content) {
+        let expected_snapshot = normalize_expected_snapshot(content);
+        let actual_snapshot = normalize_expected_snapshot(&actual_line);
+        return if expected_snapshot == actual_snapshot {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: format!(
+                    "resolve_document_link snapshot mismatch\n\nexpected:\n{expected_snapshot}\n\nactual:\n{actual_snapshot}"
+                ),
+            }
+        };
+    }
+
+    if content == "<same>" {
+        let original_line = format_document_link_line(session, link);
+        return if original_line == actual_line {
+            TestResult::Passed
+        } else {
+            TestResult::Failed {
+                message: format!(
+                    "resolve_document_link expected unchanged link\n\nexpected:\n{original_line}\n\nactual:\n{actual_line}"
+                ),
+            }
+        };
+    }
+
+    TestResult::Failed {
+        message: format!(
+            "resolve_document_link expectation did not match\n\nactual:\n{actual_line}"
         ),
     }
 }
@@ -184,7 +271,7 @@ fn format_document_link_line(session: &QueryTestSession, link: &DocumentLink) ->
     let range = format_span_for_session(session, link.range);
 
     // format the target into a deterministic representation
-    let target = format_link_target(&link.target);
+    let target = format_link_target(session, &link.target);
     match &link.tooltip {
         Some(tooltip) if !tooltip.is_empty() => {
             format!("{range} target={target} tooltip={tooltip}")
@@ -193,17 +280,63 @@ fn format_document_link_line(session: &QueryTestSession, link: &DocumentLink) ->
     }
 }
 
+/// Select a document link by offset or index.
+fn select_link(
+    links: &[DocumentLink],
+    offset: Option<u32>,
+    index: Option<usize>,
+) -> Option<&DocumentLink> {
+    if let Some(index) = index {
+        return links.get(index);
+    }
+
+    if let Some(offset) = offset
+        && let Some(link) = links
+            .iter()
+            .find(|link| link.range.start <= offset && link.range.end >= offset)
+    {
+        return Some(link);
+    }
+
+    if links.len() == 1 {
+        return links.first();
+    }
+
+    None
+}
+
 /// Format a document link target for snapshot output.
-fn format_link_target(target: &DocumentLinkTarget) -> String {
+fn format_link_target(session: &QueryTestSession, target: &DocumentLinkTarget) -> String {
     match target {
-        DocumentLinkTarget::File { path } => format!("file:{path}"),
+        DocumentLinkTarget::File { path } => {
+            let normalized = normalize_link_path(session, path);
+            format!("file:{normalized}")
+        }
         DocumentLinkTarget::Url { url } => format!("url:{url}"),
         DocumentLinkTarget::Position { path, line, column } => {
             let line = line.saturating_add(1);
             let column = column.saturating_add(1);
-            format!("pos:{path}:{line}:{column}")
+            let normalized = normalize_link_path(session, path);
+            format!("pos:{normalized}:{line}:{column}")
         }
     }
+}
+
+/// Normalize a link path for stable snapshots.
+fn normalize_link_path(session: &QueryTestSession, path: &str) -> String {
+    let cwd = session.session.cwd.as_path();
+    let path = Path::new(path);
+
+    if let Ok(stripped) = path.strip_prefix(cwd) {
+        let mut components = stripped.components();
+        let _ = components.next();
+        let remainder = components.as_path();
+        let remainder = remainder.to_string_lossy().to_string();
+        let trimmed = remainder.trim_start_matches('/');
+        return trimmed.to_string();
+    }
+
+    path.to_string_lossy().to_string()
 }
 
 /// Provide a sortable key for a document link target.

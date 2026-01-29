@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::Session;
 use crate::query::common::{
     find_symbol_at_offset, get_canonical_symbol, get_dir_node_span, get_symbol_declaration_span,
-    get_symbol_definition_span, sort_and_dedup_spans,
+    get_symbol_definition_span, resolve_symbol_name, sort_and_dedup_spans,
 };
 
 /// An item in the call hierarchy.
@@ -125,9 +125,7 @@ pub fn prepare_call_hierarchy(
     }
 
     // get the name
-    let name = symbol
-        .name()
-        .map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = resolve_symbol_name(session, canonical_id)?;
 
     drop(symbols);
     drop(module);
@@ -455,28 +453,27 @@ pub fn call_hierarchy_item_from_symbol(
     session: &Session,
     symbol_id: GlobalSymbolId,
 ) -> Option<CallHierarchyItem> {
-    let module = session.modules.get(symbol_id.module_id);
+    let canonical_id = get_canonical_symbol(session, symbol_id);
+    let module = session.modules.get(canonical_id.module_id);
     let module = module.read();
     let ctx = session.query_context(&module)?;
     let symbols = ctx.symbols();
-    let symbol = symbols.get_symbol(symbol_id.local_id);
+    let symbol = symbols.get_symbol(canonical_id.local_id);
 
     if symbol.ty != SymbolType::Function {
         return None;
     }
 
-    let name = symbol
-        .name()
-        .map(|id| ctx.ast.strings.get(id).to_string())?;
+    let name = resolve_symbol_name(session, canonical_id)?;
 
     drop(symbols);
     drop(module);
 
     // resolve the selection range at the symbol name
-    let selection_range = get_symbol_definition_span(session, symbol_id)?;
+    let selection_range = get_symbol_definition_span(session, canonical_id)?;
 
     // resolve the full declaration range, fall back to the selection range
-    let range = get_symbol_declaration_span(session, symbol_id).unwrap_or(selection_range);
+    let range = get_symbol_declaration_span(session, canonical_id).unwrap_or(selection_range);
 
     Some(CallHierarchyItem {
         name,
@@ -485,6 +482,6 @@ pub fn call_hierarchy_item_from_symbol(
         file: selection_range.file,
         range,
         selection_range,
-        symbol_id,
+        symbol_id: canonical_id,
     })
 }

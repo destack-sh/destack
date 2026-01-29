@@ -104,3 +104,72 @@ const _square = Square {};
 impl.ds:3:14-3:20
 impl.ds:7:15-7:21
 ```
+
+### Find implementations through re-exported interfaces
+
+Implementations should resolve through re-exported interface aliases across modules.
+
+```ds:alias_lib.ds
+export interface Renderable {
+//              ^^^^^^^^^ def:Renderable
+    render(): void;
+}
+```
+
+```ds:alias_barrel.ds
+export type { Renderable } from "./alias_lib.ds";
+```
+
+```ds:alias_impl.ds
+import type { Renderable } from "./alias_barrel.ds";
+
+export class Sprite implements Renderable {
+    render(): void {}
+}
+
+export struct Icon implements Renderable {
+    render(): void {}
+}
+```
+
+```ds:alias_main.ds
+import type { Renderable } from "./alias_barrel.ds";
+
+function draw(item: Renderable): void {
+//                  ^^^^^^^^^^ use:Renderable
+    item.render();
+}
+```
+
+```query implementation use:Renderable
+alias_impl.ds:3:14-3:20
+alias_impl.ds:7:15-7:19
+```
+
+## Cross module classes
+
+### Find subclasses across modules
+
+Implementations should include subclasses in other modules.
+
+```ds:lib.ds
+export class Base {}
+//           ^^^^ def:Base
+```
+
+```ds:impl.ds
+import { Base } from "./lib.ds";
+
+export class Derived extends Base {}
+```
+
+```ds:main.ds
+import { Base } from "./lib.ds";
+import { Derived } from "./impl.ds";
+
+const _value: Base = new Derived();
+```
+
+```query implementation def:Base
+impl.ds:3:14-3:21
+```

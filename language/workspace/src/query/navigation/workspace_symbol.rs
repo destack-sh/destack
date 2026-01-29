@@ -1,12 +1,11 @@
-use destack_base::StringPool;
 use destack_dir as dir;
 use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
 
-use super::document_symbol::{SymbolKind, declaration_symbol_kind, member_symbol_kind};
 use crate::query::common::{
-    QueryContext, is_synthetic_function_keyword_field, member_key_name, score_completion,
-    span_for_dir_node_safe,
+    QueryContext, SymbolKind, container_name_for_node, declaration_display_name,
+    declaration_symbol_kind, is_synthetic_function_keyword_field, member_key_name,
+    member_symbol_kind, score_completion, span_for_dir_node_safe,
 };
 use crate::{ModuleSource, Session};
 
@@ -74,20 +73,13 @@ pub fn workspace_symbols(
         // iterate through all declarations
         for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
             // get the declaration name
-            let descriptor = declaration.descriptor();
-            let name = match declaration {
-                dir::Declaration::Global { .. } => "global".to_string(),
-                _ => descriptor
-                    .name
-                    .map(|name| session.strings.get(name.string()).to_string())
-                    .unwrap_or_else(|| "<anonymous>".to_string()),
-            };
+            let name = declaration_display_name(&session.strings, declaration);
 
             // get the declaration kind
             let kind = declaration_symbol_kind(declaration);
 
             // resolve container by walking up the parent chain
-            let container = find_container_name(&dir_tree, &session.strings, declaration_id.id);
+            let container = container_name_for_node(&dir_tree, &session.strings, declaration_id.id);
 
             // resolve the declaration span
             let Some(range) = span_for_dir_node_safe(&ctx, &dir_tree, declaration_id.id) else {
@@ -255,34 +247,4 @@ fn enum_field_to_workspace_symbol(
         range,
         container: Some(container_name.to_string()),
     })
-}
-
-/// Find the container name for a node by walking up the parent tree.
-fn find_container_name(
-    dir_tree: &dir::NodeTree,
-    strings: &StringPool,
-    node_id: u32,
-) -> Option<String> {
-    // start at the current node id
-    let mut current_id = node_id;
-
-    // walk up parent chain
-    while let Some(parent) = dir_tree.get_parent(current_id) {
-        if parent.ty == dir::NodeType::Declaration {
-            // found a parent declaration, get its name
-            let Ok(decl_id) = dir::LocalNodeId::<dir::Declaration>::try_from(parent) else {
-                current_id = parent.id;
-                continue;
-            };
-            let parent_decl = dir_tree.get(decl_id);
-            let descriptor = parent_decl.descriptor();
-            if let Some(name) = descriptor.name {
-                return Some(strings.get(name.string()).to_string());
-            }
-        }
-        current_id = parent.id;
-    }
-
-    // return none when no container is found
-    None
 }
