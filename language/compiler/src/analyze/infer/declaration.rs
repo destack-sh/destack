@@ -1144,11 +1144,7 @@ impl Compiler {
         };
         let ty_id = if let Some(declared_ty_id) = declared_signature_ty_id {
             // update the declared signature type in place
-            let declared_ty = types.get_type_mut(declared_ty_id);
-            *declared_ty = ty;
-
-            // invalidate normalization cache after mutating the type table
-            types.invalidate_normalization_cache();
+            types.update_type(declared_ty_id, ty);
             declared_ty_id
         } else {
             types.insert_type_from_any(ty, node_id)

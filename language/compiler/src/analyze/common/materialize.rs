@@ -2,7 +2,9 @@ use destack_dir::{
     LocalNodeIdAny, LocalTypeId, Type, TypeRewriter, TypeRewriterOptions, TypeTable,
 };
 
-use super::{TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache};
+use super::{
+    REWRITER_TAG_READONLY, TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+};
 /// The mode used when materializing types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MaterializationMode {
@@ -32,7 +34,9 @@ pub(crate) struct ReadonlyMaterializer {
 impl ReadonlyMaterializer {
     /// Create a readonly materializer for the given source.
     pub(crate) fn new(source_id: LocalNodeIdAny) -> Self {
-        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
+        let walk_context =
+            TypeWalkContext::new(TypeWalkKey::BASE).with_rewriter_tag(REWRITER_TAG_READONLY);
+        let walk_context = walk_context.with_context_key(source_id.cache_key());
         let rewrite_options = walk_context.rewriter_options();
         let cache_key = rewrite_options.cache_key();
         Self {

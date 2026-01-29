@@ -803,6 +803,7 @@ impl Compiler {
                         current.module_id,
                         current.local_id.with_type(symbol_entry.ty),
                     );
+                    types.record_normalization_symbol_dependency(typed_symbol);
                     if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
                         return Some(target);
                     }
@@ -839,6 +840,7 @@ impl Compiler {
                 current.module_id,
                 current.local_id.with_type(symbol_entry.ty),
             );
+            types.record_normalization_symbol_dependency(typed_symbol);
 
             // import remote alias targets from the export summary
             let mut remote_types = remote_dir.types.write();
@@ -911,6 +913,7 @@ impl Compiler {
         };
 
         // reuse local instance types when already available
+        types.record_normalization_symbol_dependency(symbol);
         if let Some(instance_id) = types.get_instance_type_id(symbol) {
             return Some(instance_id);
         }

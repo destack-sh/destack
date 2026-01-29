@@ -11,6 +11,7 @@ pub fn is_strict_boolean_type(types: &dir::TypeTable, type_id: dir::LocalTypeId)
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -33,6 +34,7 @@ pub fn is_array_type(
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -55,6 +57,7 @@ pub fn is_string_type(
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -73,6 +76,7 @@ pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bo
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -91,6 +95,7 @@ pub fn is_async_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId)
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles
@@ -269,6 +274,7 @@ pub fn is_float_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bool 
             DEFAULT_RELATION_CACHE_KEY,
             type_id,
         )
+        .map(|entry| entry.normalized_type)
         .unwrap_or(type_id);
 
     // track visited nodes to avoid recursion cycles

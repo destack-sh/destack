@@ -96,6 +96,60 @@ impl AnalyzeOptions {
 
         self
     }
+
+    /// Return a stable cache key for these options.
+    pub fn cache_key(&self) -> u64 {
+        // pack boolean flags into a stable cache key
+        let mut key = 0u64;
+
+        // strictness and typing flags
+        key |= (self.strict as u64) << 0;
+        key |= (self.always_strict as u64) << 1;
+        key |= (self.no_implicit_any as u64) << 2;
+        key |= (self.strict_null_checks as u64) << 3;
+        key |= (self.no_implicit_this as u64) << 4;
+        key |= (self.strict_function_types as u64) << 5;
+        key |= (self.strict_bind_call_apply as u64) << 6;
+        key |= (self.strict_builtin_iterator_return as u64) << 7;
+
+        // property and optionality flags
+        key |= (self.strict_property_initialization as u64) << 8;
+        key |= (self.use_unknown_in_catch_variables as u64) << 9;
+        key |= (self.no_unused_locals as u64) << 10;
+        key |= (self.no_unused_parameters as u64) << 11;
+        key |= (self.no_implicit_returns as u64) << 12;
+        key |= (self.exact_optional_property_types as u64) << 13;
+        key |= (self.no_unchecked_indexed_access as u64) << 14;
+        key |= (self.no_property_access_from_index_signature as u64) << 15;
+
+        // diagnostics and control flow flags
+        key |= (self.allow_unreachable_code as u64) << 16;
+        key |= (self.allow_unused_labels as u64) << 17;
+        key |= (self.no_implicit_override as u64) << 18;
+        key |= (self.no_fallthrough_cases_in_switch as u64) << 19;
+        key |= (self.no_exceptions as u64) << 20;
+        key |= (self.no_any as u64) << 21;
+        key |= (self.no_unknown as u64) << 22;
+        key |= (self.no_imprecise_primitives as u64) << 23;
+
+        // type system restriction flags
+        key |= (self.no_implicit_conversions as u64) << 24;
+        key |= (self.no_unsafe_type_assertions as u64) << 25;
+        key |= (self.no_implicit_managed as u64) << 26;
+        key |= (self.no_managed as u64) << 27;
+        key |= (self.no_runtime as u64) << 28;
+        key |= (self.no_referential_equality as u64) << 29;
+        key |= (self.no_dynamic_evaluation as u64) << 30;
+        key |= (self.no_global_this as u64) << 31;
+
+        // runtime and dispatch flags
+        key |= (self.no_dynamic_import as u64) << 32;
+        key |= (self.no_dynamic_shapes as u64) << 33;
+        key |= (self.no_computed_property_access as u64) << 34;
+        key |= (self.no_proxy as u64) << 35;
+        key |= (self.no_implicit_dynamic_dispatch as u64) << 36;
+        key
+    }
 }
 
 /// Language compatibility options for a module.

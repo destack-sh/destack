@@ -5,8 +5,9 @@ use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{
-    CanonicalSymbolMode, ConstContext, ReadonlyMaterializer, RelationMode, TypeRewriteCache,
-    TypeWalkContext, TypeWalkKey, WideningMode, rewrite_type_with_cache,
+    CanonicalSymbolMode, ConstContext, REWRITER_TAG_LITERAL_WIDENING, ReadonlyMaterializer,
+    RelationMode, TypeRewriteCache, TypeWalkContext, TypeWalkKey, WideningMode,
+    rewrite_type_with_cache,
 };
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
@@ -137,7 +138,9 @@ impl Compiler {
 
         // regularize fresh literals before widening
         let regularized_ctx = ctx.for_widening_commit();
-        let walk_ctx = TypeWalkContext::new(TypeWalkKey::BASE);
+        let walk_ctx = TypeWalkContext::new(TypeWalkKey::BASE)
+            .with_rewriter_tag(REWRITER_TAG_LITERAL_WIDENING);
+        let walk_ctx = walk_ctx.with_context_key(ctx.widening_cache_key());
         let options = walk_ctx.rewriter_options();
         let cache_key = options.cache_key();
         let mut cache = TypeRewriteCache::new();

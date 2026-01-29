@@ -21,6 +21,15 @@ pub enum NormalizationMode {
     Flow,
 }
 
+/// Versions captured during normalization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NormalizationDependencyVersions {
+    /// The type versions captured during normalization.
+    pub type_versions: Vec<(LocalTypeId, u64)>,
+    /// The symbol versions captured during normalization.
+    pub symbol_versions: Vec<(GlobalSymbolId, u64)>,
+}
+
 /// Cache entry for alias normalization with static arguments.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AliasNormalizationEntry {
@@ -32,8 +41,37 @@ pub struct AliasNormalizationEntry {
     pub relation_key: u64,
     /// The static arguments applied to the alias.
     pub arguments: Vec<StaticArgument>,
+    /// The dependency versions captured during normalization.
+    pub dependency_versions: NormalizationDependencyVersions,
     /// The normalized type id.
     pub normalized_type: LocalTypeId,
+}
+
+/// Cache entry for normalized types keyed by relation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NormalizationCacheEntry {
+    /// The normalized type id.
+    pub normalized_type: LocalTypeId,
+    /// The dependency versions captured during normalization.
+    pub dependency_versions: NormalizationDependencyVersions,
+}
+
+/// Cache entry for shared type rewrites.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RewriteCacheEntry {
+    /// The rewritten type id.
+    pub mapped_type: LocalTypeId,
+    /// The dependency versions captured during rewriting.
+    pub dependency_versions: NormalizationDependencyVersions,
+}
+
+/// Dependency tracking scope for normalization.
+#[derive(Debug, Default, Clone)]
+pub struct NormalizationDependencyScope {
+    /// The types touched during normalization.
+    pub type_ids: HashSet<LocalTypeId>,
+    /// The symbols touched during normalization.
+    pub symbol_ids: HashSet<GlobalSymbolId>,
 }
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
@@ -48,26 +86,35 @@ pub struct TypeTable {
     pub(crate) next_type_id: u32,
     /// The types.
     pub(crate) types: Arena<Type>,
+    /// The version number for each type id.
+    pub(crate) type_version_by_id: Vec<u64>,
+    /// The version number for symbol to type mappings.
+    pub(crate) symbol_version_by_id: IndexMap<GlobalSymbolId, u64>,
     /// The source ids of all types. Index is the type id.
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
     /// Whether a type originates from an imported module.
     pub(crate) imported_type_by_id: Vec<bool>,
     /// Cached normalization results for assignability.
-    pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, LocalTypeId>>,
-    /// Cache epoch for assignability normalization results.
-    pub(crate) normalized_assignability_epoch_by_id: Vec<u64>,
+    pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, NormalizationCacheEntry>>,
     /// Cached normalization results for flow.
-    pub(crate) normalized_flow_type_by_id: Vec<IndexMap<u64, LocalTypeId>>,
-    /// Cache epoch for flow normalization results.
-    pub(crate) normalized_flow_epoch_by_id: Vec<u64>,
+    pub(crate) normalized_flow_type_by_id: Vec<IndexMap<u64, NormalizationCacheEntry>>,
     /// Cached alias normalization results.
     pub(crate) normalized_alias_by_symbol: Vec<AliasNormalizationEntry>,
-    /// Epoch for invalidating normalization caches.
-    pub(crate) normalization_epoch: u64,
+    /// Cached rewrite results by cache key.
+    pub(crate) rewrite_cache_by_key: IndexMap<u64, IndexMap<LocalTypeId, RewriteCacheEntry>>,
     /// Alias normalization currently in progress.
     pub(crate) normalization_alias_in_progress: HashSet<GlobalSymbolId>,
     /// Assignability pairs currently in progress.
     pub(crate) assignability_in_progress: HashSet<(LocalTypeId, LocalTypeId)>,
+    /// Active dependency tracking scopes for normalization.
+    #[serde(skip)]
+    pub(crate) normalization_dependency_stack: Vec<NormalizationDependencyScope>,
+    /// Interned union type ids by element list.
+    #[serde(skip)]
+    pub(crate) interned_union_by_elements: IndexMap<Vec<LocalTypeId>, LocalTypeId>,
+    /// Interned intersection type ids by element list.
+    #[serde(skip)]
+    pub(crate) interned_intersection_by_elements: IndexMap<Vec<LocalTypeId>, LocalTypeId>,
 
     // static parameter constraints
     /// Cached constraint types by static parameter symbol.
@@ -149,16 +196,19 @@ impl TypeTable {
             // types
             next_type_id: 0,
             types: Arena::new(),
+            type_version_by_id: Vec::new(),
+            symbol_version_by_id: IndexMap::new(),
             source_id_by_type_id: Vec::new(),
             imported_type_by_id: Vec::new(),
             normalized_assignability_type_by_id: Vec::new(),
-            normalized_assignability_epoch_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
-            normalized_flow_epoch_by_id: Vec::new(),
             normalized_alias_by_symbol: Vec::new(),
-            normalization_epoch: 0,
+            rewrite_cache_by_key: IndexMap::new(),
             normalization_alias_in_progress: HashSet::new(),
             assignability_in_progress: HashSet::new(),
+            normalization_dependency_stack: Vec::new(),
+            interned_union_by_elements: IndexMap::new(),
+            interned_intersection_by_elements: IndexMap::new(),
 
             // static parameter constraints
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
@@ -204,6 +254,7 @@ impl TypeTable {
         let type_id = LocalTypeId::new(self.next_type_id);
         self.next_type_id += 1;
         self.types.allocate(ty);
+        self.type_version_by_id.push(1);
         self.source_id_by_type_id.push(node_id.into_any());
         self.imported_type_by_id.push(false);
         self.normalized_assignability_type_by_id
@@ -217,15 +268,12 @@ impl TypeTable {
         let type_id = LocalTypeId::new(self.next_type_id);
         self.next_type_id += 1;
         self.types.allocate(ty);
+        self.type_version_by_id.push(1);
         self.source_id_by_type_id.push(node_id);
         self.imported_type_by_id.push(false);
         self.normalized_assignability_type_by_id
             .push(IndexMap::new());
-        self.normalized_assignability_epoch_by_id
-            .push(self.normalization_epoch);
         self.normalized_flow_type_by_id.push(IndexMap::new());
-        self.normalized_flow_epoch_by_id
-            .push(self.normalization_epoch);
         type_id
     }
 
@@ -238,15 +286,12 @@ impl TypeTable {
         let type_id = LocalTypeId::new(self.next_type_id);
         self.next_type_id += 1;
         self.types.allocate(ty);
+        self.type_version_by_id.push(1);
         self.source_id_by_type_id.push(node_id);
         self.imported_type_by_id.push(true);
         self.normalized_assignability_type_by_id
             .push(IndexMap::new());
-        self.normalized_assignability_epoch_by_id
-            .push(self.normalization_epoch);
         self.normalized_flow_type_by_id.push(IndexMap::new());
-        self.normalized_flow_epoch_by_id
-            .push(self.normalization_epoch);
         type_id
     }
 
@@ -266,9 +311,41 @@ impl TypeTable {
         (0..self.types.len()).map(|id| LocalTypeId::new(id as u32))
     }
 
-    /// Get a mutable type by its id.
+    /// Get a mutable type by its id without bumping its version.
     pub fn get_type_mut(&mut self, type_id: LocalTypeId) -> &mut Type {
         self.types.get_mut(type_id.0)
+    }
+
+    /// Update a type and bump its version.
+    pub fn update_type(&mut self, type_id: LocalTypeId, ty: Type) {
+        *self.types.get_mut(type_id.0) = ty;
+        self.bump_type_version(type_id);
+    }
+
+    /// Return the current version for a type id.
+    pub fn type_version(&self, type_id: LocalTypeId) -> u64 {
+        self.type_version_by_id[type_id.0 as usize]
+    }
+
+    /// Bump the version for a type id.
+    pub fn bump_type_version(&mut self, type_id: LocalTypeId) {
+        if let Some(version) = self.type_version_by_id.get_mut(type_id.0 as usize) {
+            *version = version.wrapping_add(1);
+        }
+    }
+
+    /// Return the current version for a symbol mapping.
+    pub fn symbol_version(&self, symbol_id: GlobalSymbolId) -> u64 {
+        self.symbol_version_by_id
+            .get(&symbol_id)
+            .copied()
+            .unwrap_or(0)
+    }
+
+    /// Bump the version for a symbol mapping.
+    pub fn bump_symbol_version(&mut self, symbol_id: GlobalSymbolId) {
+        let version = self.symbol_version_by_id.entry(symbol_id).or_insert(0);
+        *version = version.wrapping_add(1);
     }
 
     /// Get the source id for a type.
@@ -287,31 +364,18 @@ impl TypeTable {
         mode: NormalizationMode,
         relation_key: u64,
         type_id: LocalTypeId,
-    ) -> Option<LocalTypeId> {
+    ) -> Option<NormalizationCacheEntry> {
         let cache_index = type_id.0 as usize;
-        match mode {
+        let cache = match mode {
             NormalizationMode::Assign => {
-                let cache_epoch = self
-                    .normalized_assignability_epoch_by_id
-                    .get(cache_index)
-                    .copied()?;
-                if cache_epoch != self.normalization_epoch {
-                    return None;
-                }
-                self.normalized_assignability_type_by_id
-                    .get(cache_index)
-                    .and_then(|cache| cache.get(&relation_key).copied())
+                self.normalized_assignability_type_by_id.get(cache_index)?
             }
-            NormalizationMode::Flow => {
-                let cache_epoch = self.normalized_flow_epoch_by_id.get(cache_index).copied()?;
-                if cache_epoch != self.normalization_epoch {
-                    return None;
-                }
-                self.normalized_flow_type_by_id
-                    .get(cache_index)
-                    .and_then(|cache| cache.get(&relation_key).copied())
-            }
-        }
+            NormalizationMode::Flow => self.normalized_flow_type_by_id.get(cache_index)?,
+        };
+
+        let entry = cache.get(&relation_key).cloned()?;
+        self.dependency_versions_are_valid(&entry.dependency_versions)
+            .then_some(entry)
     }
 
     /// Cache a normalized type for the chosen mode.
@@ -321,6 +385,7 @@ impl TypeTable {
         relation_key: u64,
         type_id: LocalTypeId,
         normalized_type: LocalTypeId,
+        dependency_versions: NormalizationDependencyVersions,
     ) {
         let cache_index = type_id.0 as usize;
         match mode {
@@ -329,34 +394,181 @@ impl TypeTable {
                     self.normalized_assignability_type_by_id
                         .resize_with(cache_index + 1, IndexMap::new);
                 }
-                if self.normalized_assignability_epoch_by_id.len() <= cache_index {
-                    self.normalized_assignability_epoch_by_id
-                        .resize(cache_index + 1, self.normalization_epoch);
-                }
-                self.normalized_assignability_type_by_id[cache_index]
-                    .insert(relation_key, normalized_type);
-                self.normalized_assignability_epoch_by_id[cache_index] = self.normalization_epoch;
+                self.normalized_assignability_type_by_id[cache_index].insert(
+                    relation_key,
+                    NormalizationCacheEntry {
+                        normalized_type,
+                        dependency_versions,
+                    },
+                );
             }
             NormalizationMode::Flow => {
                 if self.normalized_flow_type_by_id.len() <= cache_index {
                     self.normalized_flow_type_by_id
                         .resize_with(cache_index + 1, IndexMap::new);
                 }
-                if self.normalized_flow_epoch_by_id.len() <= cache_index {
-                    self.normalized_flow_epoch_by_id
-                        .resize(cache_index + 1, self.normalization_epoch);
-                }
-                self.normalized_flow_type_by_id[cache_index].insert(relation_key, normalized_type);
-                self.normalized_flow_epoch_by_id[cache_index] = self.normalization_epoch;
+                self.normalized_flow_type_by_id[cache_index].insert(
+                    relation_key,
+                    NormalizationCacheEntry {
+                        normalized_type,
+                        dependency_versions,
+                    },
+                );
             }
         }
     }
 
-    /// Clear cached normalization results.
-    pub fn invalidate_normalization_cache(&mut self) {
-        // bump the cache epoch to invalidate existing entries
-        self.normalization_epoch = self.normalization_epoch.wrapping_add(1);
-        self.normalized_alias_by_symbol.clear();
+    /// Start a dependency tracking scope for normalization.
+    pub fn push_normalization_dependency_scope(&mut self) {
+        self.normalization_dependency_stack
+            .push(NormalizationDependencyScope::default());
+    }
+
+    /// Finish a dependency tracking scope for normalization.
+    pub fn pop_normalization_dependency_scope(&mut self) -> NormalizationDependencyScope {
+        self.normalization_dependency_stack
+            .pop()
+            .unwrap_or_default()
+    }
+
+    /// Record a dependency on a type for all active normalization scopes.
+    pub fn record_normalization_dependency(&mut self, type_id: LocalTypeId) {
+        for scope in &mut self.normalization_dependency_stack {
+            scope.type_ids.insert(type_id);
+        }
+    }
+
+    /// Capture dependency versions for normalization caches.
+    pub fn collect_dependency_versions(
+        &self,
+        dependencies: NormalizationDependencyScope,
+    ) -> NormalizationDependencyVersions {
+        let mut type_versions: Vec<(LocalTypeId, u64)> = dependencies
+            .type_ids
+            .into_iter()
+            .map(|type_id| (type_id, self.type_version(type_id)))
+            .collect();
+        type_versions.sort_by_key(|(type_id, _)| type_id.0);
+
+        let mut symbol_versions: Vec<(GlobalSymbolId, u64)> = dependencies
+            .symbol_ids
+            .into_iter()
+            .map(|symbol_id| (symbol_id, self.symbol_version(symbol_id)))
+            .collect();
+        symbol_versions.sort_by_key(|(symbol_id, _)| *symbol_id);
+
+        NormalizationDependencyVersions {
+            type_versions,
+            symbol_versions,
+        }
+    }
+
+    /// Record a dependency on a symbol mapping for all active normalization scopes.
+    pub fn record_normalization_symbol_dependency(&mut self, symbol_id: GlobalSymbolId) {
+        for scope in &mut self.normalization_dependency_stack {
+            scope.symbol_ids.insert(symbol_id);
+        }
+    }
+
+    /// Return a cached rewrite entry when dependencies still match.
+    pub fn rewrite_cached_type(
+        &mut self,
+        cache_key: u64,
+        type_id: LocalTypeId,
+    ) -> Option<RewriteCacheEntry> {
+        let entry = self
+            .rewrite_cache_by_key
+            .get(&cache_key)?
+            .get(&type_id)?
+            .clone();
+        if self.dependency_versions_are_valid(&entry.dependency_versions) {
+            return Some(entry);
+        }
+
+        if let Some(cache) = self.rewrite_cache_by_key.get_mut(&cache_key) {
+            cache.swap_remove(&type_id);
+        }
+        None
+    }
+
+    /// Cache a rewritten type for reuse.
+    pub fn set_rewrite_cached_type(
+        &mut self,
+        cache_key: u64,
+        type_id: LocalTypeId,
+        mapped_type: LocalTypeId,
+        dependency_versions: NormalizationDependencyVersions,
+    ) {
+        self.rewrite_cache_by_key
+            .entry(cache_key)
+            .or_default()
+            .insert(
+                type_id,
+                RewriteCacheEntry {
+                    mapped_type,
+                    dependency_versions,
+                },
+            );
+    }
+
+    /// Intern a union type by its element list.
+    pub fn intern_union_type(
+        &mut self,
+        elements: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
+    ) -> LocalTypeId {
+        if let Some(type_id) = self.interned_union_by_elements.get(&elements).copied() {
+            return type_id;
+        }
+
+        let type_id = self.insert_type_from_any(
+            Type::Union {
+                elements: elements.clone(),
+            },
+            self.get_type_source(source_type_id),
+        );
+        self.interned_union_by_elements.insert(elements, type_id);
+        type_id
+    }
+
+    /// Intern an intersection type by its element list.
+    pub fn intern_intersection_type(
+        &mut self,
+        elements: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
+    ) -> LocalTypeId {
+        if let Some(type_id) = self
+            .interned_intersection_by_elements
+            .get(&elements)
+            .copied()
+        {
+            return type_id;
+        }
+
+        let type_id = self.insert_type_from_any(
+            Type::Intersection {
+                elements: elements.clone(),
+            },
+            self.get_type_source(source_type_id),
+        );
+        self.interned_intersection_by_elements
+            .insert(elements, type_id);
+        type_id
+    }
+
+    /// Validate dependency versions against current table state.
+    fn dependency_versions_are_valid(
+        &self,
+        dependencies: &NormalizationDependencyVersions,
+    ) -> bool {
+        dependencies.type_versions.iter().all(|(type_id, version)| {
+            self.type_version_by_id
+                .get(type_id.0 as usize)
+                .is_some_and(|current| current == version)
+        }) && dependencies
+            .symbol_versions
+            .iter()
+            .all(|(symbol_id, version)| self.symbol_version(*symbol_id) == *version)
     }
 
     /// Mark an alias normalization as in progress.
@@ -376,21 +588,25 @@ impl TypeTable {
 
     /// Get a cached normalized alias reference.
     pub fn normalized_alias_reference(
-        &self,
+        &mut self,
         symbol_id: GlobalSymbolId,
         mode: NormalizationMode,
         relation_key: u64,
         arguments: &[StaticArgument],
-    ) -> Option<LocalTypeId> {
-        self.normalized_alias_by_symbol
-            .iter()
-            .find(|entry| {
-                entry.symbol == symbol_id
-                    && entry.mode == mode
-                    && entry.relation_key == relation_key
-                    && entry.arguments == arguments
-            })
-            .map(|entry| entry.normalized_type)
+    ) -> Option<AliasNormalizationEntry> {
+        let entry_index = self.normalized_alias_by_symbol.iter().position(|entry| {
+            entry.symbol == symbol_id
+                && entry.mode == mode
+                && entry.relation_key == relation_key
+                && entry.arguments == arguments
+        })?;
+        let entry = self.normalized_alias_by_symbol[entry_index].clone();
+        if self.dependency_versions_are_valid(&entry.dependency_versions) {
+            return Some(entry);
+        }
+
+        self.normalized_alias_by_symbol.swap_remove(entry_index);
+        None
     }
 
     /// Cache a normalized alias reference.
@@ -401,6 +617,7 @@ impl TypeTable {
         relation_key: u64,
         arguments: Vec<StaticArgument>,
         normalized_type: LocalTypeId,
+        dependency_versions: NormalizationDependencyVersions,
     ) {
         if self.normalized_alias_by_symbol.iter().any(|entry| {
             entry.symbol == symbol_id
@@ -416,6 +633,7 @@ impl TypeTable {
                 mode,
                 relation_key,
                 arguments,
+                dependency_versions,
                 normalized_type,
             });
     }
@@ -590,7 +808,7 @@ impl TypeTable {
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
-        self.invalidate_normalization_cache();
+        self.bump_symbol_version(symbol_id);
     }
 
     /// Get the instance type for a symbol.
@@ -759,6 +977,7 @@ impl TypeTable {
     /// Set the value type for a symbol (what type this symbol has when used as a value).
     pub fn set_value_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.value_type_by_symbol_id.insert(symbol_id, ty);
+        self.bump_symbol_version(symbol_id);
     }
 
     /// Get the value type for a symbol.
@@ -798,6 +1017,7 @@ impl TypeTable {
     /// Set the declared target type id for an alias symbol.
     pub fn set_alias_target_type_id(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.alias_target_type_by_symbol_id.insert(symbol_id, ty);
+        self.bump_symbol_version(symbol_id);
     }
 
     /// Get the declared target type id for an alias symbol.
