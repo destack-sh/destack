@@ -139,6 +139,48 @@ const value: { a: number, b: string } = { a: 1, b: 2 };
 
 - contains: type { a: number, b: int32 } is not assignable to type { a: number, b: string }
 
+### contextual object literal via alias
+
+> Contextual object types flow through aliases.
+
+```ds
+type Point = { x: number, y: number };
+
+const value: Point = { x: 1, y: 2 };
+value satisfies { x: number, y: number };
+```
+
+### contextual object literal alias mismatch
+
+> Alias contextual types still enforce property constraints.
+
+```ds
+type Point = { x: number, y: number };
+
+const value: Point = { x: 1, y: "hi" };
+```
+
+- contains: type { x: number, y: string } is not assignable to type Point
+
+### contextual object spread literal
+
+> Object spreads still respect contextual object types.
+
+```ds
+const value: { a: number } = { ...{ a: 1 } };
+value satisfies { a: number };
+```
+
+### contextual object spread literal mismatch
+
+> Object spreads reject fields that violate contextual types.
+
+```ds
+const value: { a: number } = { ...{ a: "hi" } };
+```
+
+- contains: not assignable to type { a: number }
+
 ## Object Members
 
 ### object toString resolves

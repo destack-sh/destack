@@ -5,7 +5,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::super::common::{NormalizationMode, ObjectShape};
+use super::super::common::{NormalizationMode, ObjectShape, RelationMode};
 use super::expression::ObjectLiteralField;
 
 #[allow(clippy::too_many_arguments)]
@@ -47,13 +47,14 @@ impl Compiler {
                         &mut spread_ctx,
                     )?;
                     // normalize spreads before extracting shapes
-                    let spread_type = self.normalize_type(
+                    let spread_type = self.normalize_type_with_relation(
                         module,
                         ctx.profile,
                         spread_type,
                         symbols,
                         types,
                         NormalizationMode::Assign,
+                        RelationMode::TYPE_OPS,
                     );
 
                     // short circuit on any or unknown spreads
@@ -194,13 +195,14 @@ impl Compiler {
         visited.push(type_id);
 
         // normalize before inspecting the spread shape
-        let normalized_type = self.normalize_type(
+        let normalized_type = self.normalize_type_with_relation(
             module,
             profile,
             type_id,
             symbols,
             types,
             NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
         );
 
         // derive shapes based on the normalized type
@@ -213,12 +215,9 @@ impl Compiler {
                 vec![shape]
             }
             Type::Reference { symbol, .. } => {
-                // follow instance types when available
-                let instance_id = if let Some(instance_id) = types.get_instance_type_id(symbol) {
-                    Some(instance_id)
-                } else {
-                    self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?
-                };
+                // use apparent types for spreads to match shape behavior
+                let instance_id =
+                    self.apparent_instance_type(module, profile, node_id, symbol, symbols, types);
 
                 if let Some(instance_id) = instance_id {
                     self.collect_object_spread_shapes_inner(
