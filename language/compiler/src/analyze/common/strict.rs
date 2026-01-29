@@ -1,125 +1,10 @@
 use std::collections::HashSet;
 
-use destack_dir::{
-    GlobalSymbolId, LocalTypeId, PrimitiveType, StaticExpression, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, TypeVisitor, TypeVisitorOptions, walk_static_expression, walk_type,
-};
+use destack_dir::{GlobalSymbolId, LocalTypeId, PrimitiveType, TypeLiteral, TypeTable};
 use destack_workspace::Module;
 
-use super::{TypeWalkContext, TypeWalkKey};
+use super::r#type::TypeContainmentVisitor;
 use crate::Compiler;
-
-/// Walk types to detect forbidden type literals.
-struct ForbiddenLiteralVisitor<'a> {
-    /// The compiler instance.
-    compiler: &'a Compiler,
-    /// The current module.
-    module: &'a Module,
-    /// The type table for the current module.
-    types: &'a TypeTable,
-    /// The literal predicate used for filtering.
-    predicate: fn(&TypeLiteral) -> bool,
-    /// Whether imported types should be skipped.
-    skip_imported_types: bool,
-    /// The visited type ids.
-    visited_types: &'a mut HashSet<LocalTypeId>,
-    /// The visited symbols.
-    visited_symbols: &'a mut HashSet<GlobalSymbolId>,
-    /// Whether a forbidden literal was found.
-    found: bool,
-    /// The visitor options.
-    options: TypeVisitorOptions,
-}
-
-impl<'a> ForbiddenLiteralVisitor<'a> {
-    /// Create a visitor for forbidden literal detection.
-    fn new(
-        compiler: &'a Compiler,
-        module: &'a Module,
-        types: &'a TypeTable,
-        predicate: fn(&TypeLiteral) -> bool,
-        skip_imported_types: bool,
-        visited_types: &'a mut HashSet<LocalTypeId>,
-        visited_symbols: &'a mut HashSet<GlobalSymbolId>,
-    ) -> Self {
-        let walk_context = TypeWalkContext::new(TypeWalkKey::BASE);
-        Self {
-            compiler,
-            module,
-            types,
-            predicate,
-            skip_imported_types,
-            visited_types,
-            visited_symbols,
-            found: false,
-            options: walk_context.visitor_options(),
-        }
-    }
-}
-
-impl TypeVisitor for ForbiddenLiteralVisitor<'_> {
-    fn options(&self) -> &TypeVisitorOptions {
-        &self.options
-    }
-
-    fn visit_type_id(&mut self, types: &TypeTable, id: LocalTypeId) {
-        if self.found {
-            return;
-        }
-        if self.skip_imported_types && types.is_imported_type(id) {
-            return;
-        }
-        if !self.visited_types.insert(id) {
-            return;
-        }
-        let ty = types.get_type(id);
-        self.visit_type(types, id, ty);
-    }
-
-    fn visit_type(&mut self, types: &TypeTable, id: LocalTypeId, ty: &Type) {
-        if self.found {
-            return;
-        }
-        match ty {
-            Type::TypeLiteral { value } => {
-                if (self.predicate)(value) {
-                    self.found = true;
-                }
-            }
-            Type::Unary {
-                operator: TypeUnaryOperator::Keyof,
-                ..
-            } => {}
-            Type::Reference { symbol, .. } => {
-                if self.compiler.type_reference_contains_forbidden_literal(
-                    self.module,
-                    *symbol,
-                    self.types,
-                    self.predicate,
-                    self.skip_imported_types,
-                    self.visited_types,
-                    self.visited_symbols,
-                ) {
-                    self.found = true;
-                }
-            }
-            _ => walk_type(self, types, id, ty),
-        }
-    }
-
-    fn visit_static_expression(&mut self, types: &TypeTable, expression: &StaticExpression) {
-        if self.found {
-            return;
-        }
-        if let StaticExpression::TypeLiteral { value } = expression {
-            if (self.predicate)(value) {
-                self.found = true;
-            }
-            return;
-        }
-        walk_static_expression(self, types, expression);
-    }
-}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -195,7 +80,7 @@ impl Compiler {
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
-        let mut visitor = ForbiddenLiteralVisitor::new(
+        let visitor = TypeContainmentVisitor::new_forbidden_literal(
             self,
             module,
             types,
@@ -204,12 +89,11 @@ impl Compiler {
             visited_types,
             visited_symbols,
         );
-        visitor.visit_type_id(types, ty_id);
-        visitor.found
+        visitor.contains(types, ty_id)
     }
 
     /// Check whether a reference symbol uses a forbidden literal.
-    fn type_reference_contains_forbidden_literal(
+    pub(super) fn type_reference_contains_forbidden_literal(
         &self,
         module: &Module,
         symbol_id: GlobalSymbolId,
