@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use super::parse::{ParseOptions, ParseOutcome, parse_file};
+use super::parse::{ParseOptions, ParseOutcome, TestArea, parse_file};
 use super::runner::{ConformanceSuite, SuiteResult, Test, TestOutcome, run_conformance_suite};
 use crate::harness::{TestOptions, fixtures_dir};
 
@@ -101,7 +101,9 @@ impl ConformanceSuite for BiomeSuite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions::default());
+        // parse-only conformance checks
+        let area = TestArea::Parse;
+        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions { area });
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,
