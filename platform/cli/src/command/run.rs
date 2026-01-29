@@ -218,7 +218,7 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
         if format_result.exit_code() != 0 {
             let mut report = CommandReport::failure(command_name, format_result.exit_code());
             if let Some(stats) = result.response.stats.as_ref() {
-                report.stats = Some(command_stats_from_protocol(stats));
+                report.stats = Some(command_stats_from_protocol(stats, request.program.timings));
             }
             report.diagnostics = Some(output);
             print_report(&report, request.report.format());
@@ -263,7 +263,7 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
             CommandReport::failure(command_name, exit_code)
         };
         if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats));
+            report.stats = Some(command_stats_from_protocol(stats, request.program.timings));
         }
         if let Some((payload, value)) = payload {
             report.data = Some(value);
@@ -637,7 +637,7 @@ fn compile_and_run_daemon(
         .response
         .stats
         .as_ref()
-        .map(command_stats_from_protocol);
+        .map(|stats| command_stats_from_protocol(stats, request.program.timings));
     let diagnostic_exit = emit_watch_compile_report(
         watch_reporter,
         WatchCompileContext {

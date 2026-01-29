@@ -1,6 +1,7 @@
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
+use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 
 impl Compiler {
@@ -31,6 +32,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::ANALYZE_MODULE_CAPTURE);
 
         // ensure dependencies are ready
         self.require_analyze_module_infer(module_id, profile)?;

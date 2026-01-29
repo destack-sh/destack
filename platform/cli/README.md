@@ -61,6 +61,8 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `--watch` | Watch mode for supported commands. |
 | `--dev` | Dev mode (not yet implemented). |
 | `--timings` | Emit timing diagnostics when supported. |
+| `--timings-top <n>` | Limit timing tag output to the top N entries. |
+| `--timings-min-ms <ms>` | Filter timing tags shorter than the threshold. |
 | `--profile` | Emit profiling diagnostics when supported. |
 | `--color <auto|always|never>` | Override ANSI color output. |
 | `--log <error|warn|info|debug|trace>` | Enable tracing logs. |

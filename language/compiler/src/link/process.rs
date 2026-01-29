@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, LinkResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
@@ -26,6 +27,7 @@ impl Compiler {
                 if !self.package_version_matches(package.id, package.version) {
                     return Ok(());
                 }
+                let _timing = self.timing_scope(tags::LINK_TARGET);
                 self.link_target(package.id, &target)
             }
         }

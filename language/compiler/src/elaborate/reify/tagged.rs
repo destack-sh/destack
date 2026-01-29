@@ -308,7 +308,7 @@ let value = UserId(42);
         test.assert_elaborated(
             module_id,
             r#"
-newtype UserId = int64;;
+newtype UserId = int64;
 
 let value = UserId(42);
 "#,
@@ -360,7 +360,7 @@ let value = Point(1.0, 2.0);
         test.assert_elaborated(
             module_id,
             r#"
-newtype Point = (float32, float32,);;
+newtype Point = (float32, float32,);
 
 let value = Point(1, 2);
 "#,
@@ -413,7 +413,7 @@ let value = Box<int32>(1);
         test.assert_elaborated(
             module_id,
             r#"
-newtype Box<T> = (T,);;
+newtype Box<T> = (T,);
 
 let value = Box<int32>(1);
 "#,

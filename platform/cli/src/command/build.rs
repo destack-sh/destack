@@ -3,7 +3,7 @@ use destack_source::DiagnosticOptions;
 
 use crate::common::{
     CommandReport, DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource,
-    ProgramArgs, ReportArgs, StatsSummary, TargetArgs, WatchCompileReason,
+    ProgramArgs, ReportArgs, StatsSummary, TargetArgs, TimingOutputOptions, WatchCompileReason,
     collect_diagnostics_json, format_diagnostics, print_command_stats_summary, print_report,
     report_error,
 };
@@ -154,7 +154,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
             CommandReport::failure("build", format_result.exit_code())
         };
         if let Some(stats) = result.response.stats.as_ref() {
-            report.stats = Some(command_stats_from_protocol(stats));
+            report.stats = Some(command_stats_from_protocol(stats, args.program.timings));
         }
         if let Some(payload) = result.response.data.as_ref() {
             match payload.to_json_value() {
@@ -194,8 +194,13 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
             errors: format_result.error_count,
             warnings: format_result.warning_count,
         };
-        let stats = command_stats_from_protocol(stats);
-        print_command_stats_summary(&summary, &stats, None);
+        let timing_options = TimingOutputOptions {
+            enabled: args.program.timings,
+            top: args.report.timings_top,
+            min_ms: args.report.timings_min_ms,
+        };
+        let stats = command_stats_from_protocol(stats, timing_options.enabled);
+        print_command_stats_summary(&summary, &stats, timing_options, None);
     }
 
     format_result.exit_code()
@@ -322,7 +327,7 @@ where
                     .response
                     .stats
                     .as_ref()
-                    .map(command_stats_from_protocol);
+                    .map(|stats| command_stats_from_protocol(stats, args.program.timings));
                 emit_watch_compile_report(
                     &mut reporter,
                     WatchCompileContext {
@@ -431,7 +436,7 @@ where
                 .response
                 .stats
                 .as_ref()
-                .map(command_stats_from_protocol);
+                .map(|stats| command_stats_from_protocol(stats, args.program.timings));
             let next_exit_code = emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {

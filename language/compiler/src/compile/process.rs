@@ -265,6 +265,10 @@ impl Compiler {
         elapsed: Duration,
         description: String,
     ) {
+        // record per-task timing
+        let task_name = format!("{}.{}", handle.phase().name(), handle.task.name());
+        self.stats.record_task_name_time(&task_name, elapsed);
+
         let mut requeued = false;
         match &outcome {
             // complete and wake waiters

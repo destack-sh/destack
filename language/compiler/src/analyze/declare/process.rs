@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
     TaskResultCollector,
@@ -44,6 +45,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::ANALYZE_MODULE_DECLARE);
 
         self.require_resolve_module_canonical(module_id, profile)?;
         if !self.is_code_module(module_id) {
@@ -99,51 +101,55 @@ impl Compiler {
         let mut collector = TaskResultCollector::new();
         let mut has_dependency = false;
 
-        // evaluate unevaluated types to a fixed point
-        let mut did_change = true;
-        while did_change {
-            did_change = false;
-            let type_count = types.type_count();
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
-            // attempt evaluation for each unevaluated type
-            for i in 0..type_count {
-                let ty_id = LocalTypeId::new(i);
-                let was_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
-                if !was_unevaluated {
-                    continue;
+            // evaluate unevaluated types to a fixed point
+            let mut did_change = true;
+            while did_change {
+                did_change = false;
+                let type_count = types.type_count();
+
+                // attempt evaluation for each unevaluated type
+                for i in 0..type_count {
+                    let ty_id = LocalTypeId::new(i);
+                    let was_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
+                    if !was_unevaluated {
+                        continue;
+                    }
+
+                    // evaluate the type and track progress
+                    self.collect(
+                        &mut collector,
+                        self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
+                    );
+
+                    // stop early once a dependency yield is detected
+                    if collector.has_dependencies() {
+                        has_dependency = true;
+                        break;
+                    }
+                    // record progress on any resolved types
+                    let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
+                    if was_unevaluated && !is_unevaluated {
+                        did_change = true;
+                    }
                 }
 
-                // evaluate the type and track progress
-                self.collect(
-                    &mut collector,
-                    self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
-                );
-
-                // stop early once a dependency yield is detected
-                if collector.has_dependencies() {
-                    has_dependency = true;
+                // stop after dependency detection
+                if has_dependency {
                     break;
                 }
-                // record progress on any resolved types
-                let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
-                if was_unevaluated && !is_unevaluated {
-                    did_change = true;
-                }
-            }
 
-            // stop after dependency detection
-            if has_dependency {
-                break;
-            }
-
-            // repeat when new unevaluated types were added
-            let new_type_count = types.type_count();
-            if new_type_count != type_count {
-                for i in type_count..new_type_count {
-                    let ty_id = LocalTypeId::new(i);
-                    if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-                        did_change = true;
-                        break;
+                // repeat when new unevaluated types were added
+                let new_type_count = types.type_count();
+                if new_type_count != type_count {
+                    for i in type_count..new_type_count {
+                        let ty_id = LocalTypeId::new(i);
+                        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                            did_change = true;
+                            break;
+                        }
                     }
                 }
             }
@@ -161,24 +167,38 @@ impl Compiler {
         // reset collector for declaration steps
         let mut collector = TaskResultCollector::new();
 
-        // declare type-level declarations and shapes
-        self.collect(
-            &mut collector,
-            self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
-        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
+
+            // declare type-level declarations and shapes
+            self.collect(
+                &mut collector,
+                self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
+            );
+        }
 
         // drop the read guard before taking a mutable lock for decorators
         drop(symbols);
 
-        // attach well known decorator metadata to symbols
-        let mut symbols = dir.symbols.write();
-        let mut captures = dir.captures.write();
-        self.collect(
-            &mut collector,
-            self.register_symbol_decorators(&module, profile, &tree, &mut symbols, &mut captures),
-        );
-        drop(symbols);
-        drop(captures);
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECORATORS);
+
+            // attach well known decorator metadata to symbols
+            let mut symbols = dir.symbols.write();
+            let mut captures = dir.captures.write();
+            self.collect(
+                &mut collector,
+                self.register_symbol_decorators(
+                    &module,
+                    profile,
+                    &tree,
+                    &mut symbols,
+                    &mut captures,
+                ),
+            );
+            drop(symbols);
+            drop(captures);
+        }
 
         // register visible extensions from imported symbols
         let symbols = dir.symbols.read();

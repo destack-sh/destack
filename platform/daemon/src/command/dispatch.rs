@@ -9,7 +9,7 @@ use crate::command::context::CommandContext;
 use crate::command::payload::CommandPayload;
 use crate::protocol::{
     BinaryPayload, CommandCacheStats, CommandOutputChunk, CommandRequest, CommandStats,
-    OutputStream,
+    CommandTimingTagStats, OutputStream,
 };
 
 /// Result of executing a daemon command.
@@ -197,6 +197,21 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> C
         errors: cache_totals.errors as u64,
         hit_rate: snapshot.cache_hit_rate(),
     };
+    let timings = if snapshot.timings.is_empty() {
+        None
+    } else {
+        Some(
+            snapshot
+                .timings
+                .iter()
+                .map(|entry| CommandTimingTagStats {
+                    name: entry.name.clone(),
+                    duration_ms: entry.duration.as_millis() as u64,
+                    sample_count: entry.sample_count as u64,
+                })
+                .collect(),
+        )
+    };
 
     // build stats payload
     CommandStats {
@@ -208,5 +223,6 @@ fn command_stats_from_snapshot(snapshot: &StatsSnapshot, elapsed: Duration) -> C
         lines_processed: snapshot.modules.lines_processed as u64,
         slow_tasks: snapshot.slow_tasks as u64,
         cache: Some(cache),
+        timings,
     }
 }

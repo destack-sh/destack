@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::timing::tags;
 use crate::{Compiler, ImportError, ResolveError, ResolveResult, TaskResultCollector};
 use destack_builtin::builtin_lib;
 use destack_dir::{
@@ -32,6 +33,7 @@ impl Compiler {
             profile_id,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE);
 
         self.require_import_module_validate(module_id)?;
 
@@ -392,6 +394,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::RESOLVE_MODULE_DIRECT);
 
         self.require_resolve_module_prepare(module_id, profile)?;
         if !self.is_code_module(module_id) {
@@ -403,45 +406,52 @@ impl Compiler {
         let module = module.read();
         let dir = module.dir(profile);
 
-        // resolve module dependency expressions
         {
-            let mut tree = dir.tree.write();
-            let mut symbols = dir.symbols.write();
-            let mut collector = TaskResultCollector::new();
-            for expression_id in tree.iter_node_ids_of_type::<Expression>() {
-                if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
-                    continue;
-                }
-                match tree.get(expression_id) {
-                    Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
-                        self.collect(
-                            &mut collector,
-                            self.resolve_expression(
-                                &module,
-                                dir,
-                                profile,
-                                expression_id,
-                                &mut tree,
-                                &mut symbols,
-                            ),
-                        );
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_DEPENDENCIES);
+
+            // resolve module dependency expressions
+            {
+                let mut tree = dir.tree.write();
+                let mut symbols = dir.symbols.write();
+                let mut collector = TaskResultCollector::new();
+                for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                    if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                        continue;
                     }
-                    _ => {}
+                    match tree.get(expression_id) {
+                        Expression::UnresolvedImport { .. }
+                        | Expression::UnresolvedReExport { .. } => {
+                            self.collect(
+                                &mut collector,
+                                self.resolve_expression(
+                                    &module,
+                                    dir,
+                                    profile,
+                                    expression_id,
+                                    &mut tree,
+                                    &mut symbols,
+                                ),
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+                if let Some(dependency) = collector.try_into_yield_any() {
+                    return Err(ResolveError::Yield { dependency });
                 }
             }
-            if let Some(dependency) = collector.try_into_yield_any() {
-                return Err(ResolveError::Yield { dependency });
-            }
+
+            // resolve dependencies
+            self.resolve_dependency_items(module_id, profile)?;
+
+            // build the global symbol table (after dependency resolution)
+            self.require_global_symbol_table(module.id, profile)?;
         }
 
-        // resolve dependencies
-        self.resolve_dependency_items(module_id, profile)?;
-
-        // build the global symbol table (after dependency resolution)
-        self.require_global_symbol_table(module.id, profile)?;
-
-        // resolve expressions
         {
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPRESSIONS);
+
+            // resolve expressions
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
@@ -466,8 +476,10 @@ impl Compiler {
             }
         }
 
-        // resolve declarations (e.g., extensions, types/aliases)
         {
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_DECLARATIONS);
+
+            // resolve declarations (e.g., extensions, types/aliases)
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
@@ -485,8 +497,10 @@ impl Compiler {
             }
         }
 
-        // finalize export targets (after dependency resolution)
         {
+            let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
+
+            // finalize export targets (after dependency resolution)
             let tree = dir.tree.read();
             let mut symbols = dir.symbols.write();
             self.finalize_module_exports(dir, &tree, &mut symbols);
@@ -1758,6 +1772,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::RESOLVE_MODULE_CANONICAL);
 
         self.require_resolve_module_direct(module_id, profile)?;
         if !self.is_code_module(module_id) {

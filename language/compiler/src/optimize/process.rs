@@ -3,6 +3,7 @@ use std::mem;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::timing::tags;
 use crate::{
     Compiler, OptimizeError, OptimizeResult, TargetDiscoveryIssue, TaskDependencyError,
     TaskResultCollector,
@@ -84,6 +85,7 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::OPTIMIZE_MODULE);
                 // require lowering for this module and target
                 self.require_lower_module(module.id, profile.id, &target)?;
 
@@ -98,6 +100,7 @@ impl Compiler {
             }
             OptimizeTask::OptimizePackage { package, target } => {
                 self.ensure_package_version_matches::<OptimizeError>(package.id, package.version)?;
+                let _timing = self.timing_scope(tags::OPTIMIZE_PACKAGE);
                 // optimize the package for this target
                 self.optimize_package(package.id, &target)?;
             }
@@ -106,6 +109,7 @@ impl Compiler {
                 program_stamp,
             } => {
                 self.ensure_program_stamp_matches::<OptimizeError>(program_stamp)?;
+                let _timing = self.timing_scope(tags::OPTIMIZE_PROGRAM);
                 // optimize all packages that define the target
                 self.optimize_program(&target_name)?;
             }

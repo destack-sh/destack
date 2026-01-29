@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferContext, TaskDependencyError,
     TaskResultCollector,
@@ -41,6 +42,7 @@ impl Compiler {
             profile,
             profile_version,
         )?;
+        let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
 
         self.require_analyze_module_declare(module_id, profile)?;
         self.require_analyze_module_export(module_id, profile)?;
@@ -106,10 +108,16 @@ impl Compiler {
         let mut ctx = InferContext::new(profile, options);
 
         // build a module level flow graph and flow table
-        let graph = FlowGraphBuilder::new(module.id, &tree).build_roots(&dir.roots);
-        let flow = self.compute_flow_table_for_graph(
-            &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
-        )?;
+        let graph = {
+            let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
+            FlowGraphBuilder::new(module.id, &tree).build_roots(&dir.roots)
+        };
+        let flow = {
+            let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
+            self.compute_flow_table_for_graph(
+                &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
+            )?
+        };
         ctx.flow = Some(FlowContext {
             module_id: module.id,
             graph: Arc::new(graph),
@@ -117,20 +125,26 @@ impl Compiler {
         });
 
         // infer each root expression
-        for root_id in dir.roots.iter() {
-            self.collect(
-                &mut collector,
-                self.infer_expression(
-                    &module, *root_id, &tree, &symbols, &mut types, &mut infer, &mut ctx,
-                ),
-            );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
+            for root_id in dir.roots.iter() {
+                self.collect(
+                    &mut collector,
+                    self.infer_expression(
+                        &module, *root_id, &tree, &symbols, &mut types, &mut infer, &mut ctx,
+                    ),
+                );
+            }
         }
 
         // register instances
-        self.collect(
-            &mut collector,
-            self.register_instances(&module, profile, &tree, &symbols, &mut types),
-        );
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_INFER_REGISTER_INSTANCES);
+            self.collect(
+                &mut collector,
+                self.register_instances(&module, profile, &tree, &symbols, &mut types),
+            );
+        }
 
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
@@ -138,7 +152,10 @@ impl Compiler {
         }
 
         // solve constraints (and commit inferred types)
-        self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_INFER_SOLVE_CONSTRAINTS);
+            self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
+        }
 
         Ok(())
     }

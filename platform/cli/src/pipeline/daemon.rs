@@ -680,7 +680,7 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
 }
 
 /// Convert a daemon command stats payload into CLI stats.
-pub fn command_stats_from_protocol(stats: &CommandStats) -> CliCommandStats {
+pub fn command_stats_from_protocol(stats: &CommandStats, include_timings: bool) -> CliCommandStats {
     // map cache stats when present
     let cache = stats.cache.as_ref().map(|cache| CommandCacheStats {
         hits_memory: saturating_usize(cache.hits_memory),
@@ -690,6 +690,20 @@ pub fn command_stats_from_protocol(stats: &CommandStats) -> CliCommandStats {
         writes_disk: saturating_usize(cache.writes_disk),
         errors: saturating_usize(cache.errors),
         hit_rate: cache.hit_rate,
+    });
+    let timings = stats.timings.as_ref().and_then(|entries| {
+        if !include_timings {
+            return None;
+        }
+        let mapped = entries
+            .iter()
+            .map(|entry| crate::common::CommandTimingTagStats {
+                name: entry.name.clone(),
+                duration_ms: entry.duration_ms,
+                sample_count: entry.sample_count,
+            })
+            .collect::<Vec<_>>();
+        Some(mapped)
     });
 
     CliCommandStats {
@@ -701,6 +715,7 @@ pub fn command_stats_from_protocol(stats: &CommandStats) -> CliCommandStats {
         lines_processed: saturating_usize(stats.lines_processed),
         slow_tasks: saturating_usize(stats.slow_tasks),
         cache,
+        timings,
     }
 }
 

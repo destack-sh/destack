@@ -5,6 +5,7 @@ use destack_source::{
 };
 use destack_workspace::ProfileId;
 
+use crate::timing::tags;
 use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultCollector};
 
 /// Task to lint something.
@@ -34,10 +35,12 @@ impl Compiler {
                     profile.id,
                     profile.version,
                 )?;
+                let _timing = self.timing_scope(tags::LINT_MODULE);
                 self.lint_module(module.id, profile.id, module.version, profile.version)?;
             }
             LintTask::LintPackage { package } => {
                 self.ensure_package_version_matches::<LintError>(package.id, package.version)?;
+                let _timing = self.timing_scope(tags::LINT_PACKAGE);
                 self.lint_package(package.id)?;
             }
         };

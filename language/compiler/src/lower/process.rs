@@ -1,6 +1,7 @@
 use std::mem;
 use std::str::FromStr;
 
+use crate::timing::tags;
 use crate::{Compiler, LowerError, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
@@ -75,6 +76,7 @@ impl Compiler {
         if resolved_profile != profile {
             return Ok(());
         }
+        let _timing = self.timing_scope(tags::LOWER_MODULE);
 
         // try to load MIR from cache
         let cache_handle = self.cache_handle_for_module(

@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 use destack_source::{CacheKind, ModuleId, ModuleVersion};
 use destack_workspace::ModuleDir;
@@ -11,6 +12,7 @@ impl Compiler {
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
+        let _timing = self.timing_scope(tags::IMPORT_MODULE_BIND);
 
         // require module to be parsed
         self.require_import_module_parse(module_id)?;

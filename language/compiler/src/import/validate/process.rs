@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 use destack_source::{ModuleId, ModuleVersion};
 
@@ -10,6 +11,7 @@ impl Compiler {
     ) -> ImportResult<()> {
         // skip stale tasks
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
+        let _timing = self.timing_scope(tags::IMPORT_MODULE_VALIDATE);
 
         self.require_import_module_desugar(module_id)?;
         if !self.is_code_module(module_id) {

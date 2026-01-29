@@ -27,6 +27,24 @@ pub struct PhaseStats {
     pub task_count: AtomicUsize,
 }
 
+/// Per-task timing statistics keyed by task name.
+#[derive(Debug, Default)]
+pub struct TaskNameStats {
+    /// Total time spent in this task (nanoseconds).
+    pub duration_ns: AtomicU64,
+    /// Number of tasks processed for this name.
+    pub task_count: AtomicUsize,
+}
+
+/// Per timing tag statistics.
+#[derive(Debug, Default)]
+pub struct TimingStats {
+    /// Total time spent in this timing tag (nanoseconds).
+    pub duration_ns: AtomicU64,
+    /// Number of times this timing tag was recorded.
+    pub sample_count: AtomicUsize,
+}
+
 /// Task statistics.
 #[derive(Debug, Default)]
 pub struct TaskStats {
@@ -140,6 +158,12 @@ pub struct CompilerStats {
     package_stats: DashMap<PackageId, PackageStats>,
     /// Per-phase timing statistics.
     phase_stats: DashMap<TaskPhase, PhaseStats>,
+    /// Per-task timing statistics.
+    task_name_stats: DashMap<String, TaskNameStats>,
+    /// Per timing tag statistics.
+    timing_stats: DashMap<&'static str, TimingStats>,
+    /// Whether timing tags are enabled.
+    timings_enabled: bool,
     /// Number of slow tasks detected.
     pub slow_tasks: AtomicUsize,
 }
@@ -153,6 +177,11 @@ impl Default for CompilerStats {
 impl CompilerStats {
     /// Create a new stats tracker.
     pub fn new() -> Self {
+        Self::new_with_timings(false)
+    }
+
+    /// Create a new stats tracker with explicit timing enablement.
+    pub fn new_with_timings(timings_enabled: bool) -> Self {
         Self {
             started_at: Mutex::new(None),
             tasks: TaskStats::default(),
@@ -161,6 +190,9 @@ impl CompilerStats {
             cache: CacheStats::default(),
             package_stats: DashMap::new(),
             phase_stats: DashMap::new(),
+            task_name_stats: DashMap::new(),
+            timing_stats: DashMap::new(),
+            timings_enabled: timings_enabled || timings_enabled_from_env(),
             slow_tasks: AtomicUsize::new(0),
         }
     }
@@ -448,6 +480,32 @@ impl CompilerStats {
         entry.task_count.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record time spent in a named task.
+    #[inline]
+    pub fn record_task_name_time(&self, name: &str, duration: Duration) {
+        let entry = self.task_name_stats.entry(name.to_string()).or_default();
+        entry
+            .duration_ns
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+        entry.task_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record time spent in a timing tag.
+    #[inline]
+    pub fn record_timing(&self, name: &'static str, duration: Duration) {
+        let entry = self.timing_stats.entry(name).or_default();
+        entry
+            .duration_ns
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+        entry.sample_count.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Check whether timing tags are enabled.
+    #[inline]
+    pub fn timings_enabled(&self) -> bool {
+        self.timings_enabled
+    }
+
     /// Get a snapshot of current statistics.
     pub fn snapshot(&self) -> StatsSnapshot {
         self.snapshot_with_modules(0)
@@ -502,6 +560,36 @@ impl CompilerStats {
             .collect();
         phases.sort_by_key(|p| p.phase.code());
 
+        // collect per-task stats, sorted by duration descending
+        let mut task_names: Vec<TaskNameStatsSnapshot> = self
+            .task_name_stats
+            .iter()
+            .map(|entry| {
+                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
+                TaskNameStatsSnapshot {
+                    name: entry.key().clone(),
+                    duration: Duration::from_nanos(duration_ns),
+                    task_count: entry.value().task_count.load(Ordering::Relaxed),
+                }
+            })
+            .collect();
+        task_names.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+
+        // collect per-timing stats, sorted by duration descending
+        let mut timings: Vec<TimingStatsSnapshot> = self
+            .timing_stats
+            .iter()
+            .map(|entry| {
+                let duration_ns = entry.value().duration_ns.load(Ordering::Relaxed);
+                TimingStatsSnapshot {
+                    name: (*entry.key()).to_string(),
+                    duration: Duration::from_nanos(duration_ns),
+                    sample_count: entry.value().sample_count.load(Ordering::Relaxed),
+                }
+            })
+            .collect();
+        timings.sort_by_key(|entry| std::cmp::Reverse(entry.duration));
+
         StatsSnapshot {
             elapsed: self.elapsed(),
             tasks: TaskStatsSnapshot {
@@ -553,6 +641,8 @@ impl CompilerStats {
             module_count,
             packages,
             phases,
+            task_names,
+            timings,
             slow_tasks: self.slow_tasks.load(Ordering::Relaxed),
         }
     }
@@ -582,6 +672,28 @@ pub struct PhaseStatsSnapshot {
     pub duration: Duration,
     /// Number of tasks completed in this phase.
     pub task_count: usize,
+}
+
+/// Snapshot of per-task timing statistics.
+#[derive(Debug, Clone)]
+pub struct TaskNameStatsSnapshot {
+    /// The task name.
+    pub name: String,
+    /// Total time spent in this task.
+    pub duration: Duration,
+    /// Number of tasks processed for this name.
+    pub task_count: usize,
+}
+
+/// Snapshot of timing tag statistics.
+#[derive(Debug, Clone)]
+pub struct TimingStatsSnapshot {
+    /// The timing tag name.
+    pub name: String,
+    /// Total time spent in this timing tag.
+    pub duration: Duration,
+    /// Number of samples recorded for this timing tag.
+    pub sample_count: usize,
 }
 
 /// Snapshot of task statistics.
@@ -699,6 +811,10 @@ pub struct StatsSnapshot {
     pub packages: Vec<PackageStatsSnapshot>,
     /// Per-phase timing statistics.
     pub phases: Vec<PhaseStatsSnapshot>,
+    /// Per-task timing statistics.
+    pub task_names: Vec<TaskNameStatsSnapshot>,
+    /// Per timing tag statistics.
+    pub timings: Vec<TimingStatsSnapshot>,
     /// Slow tasks detected.
     pub slow_tasks: usize,
 }
@@ -787,6 +903,15 @@ impl StatsSnapshot {
             hits as f32 / total as f32
         }
     }
+}
+
+fn timings_enabled_from_env() -> bool {
+    // honor DESTACK_TIMINGS when set to a truthy value
+    std::env::var("DESTACK_TIMINGS")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .unwrap_or(false)
 }
 
 /// Aggregated cache totals.

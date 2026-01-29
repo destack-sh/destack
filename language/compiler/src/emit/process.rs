@@ -1,3 +1,4 @@
+use crate::timing::tags;
 use crate::{Compiler, EmitError, EmitResult};
 
 use destack_compiler_macros::DefineTask;
@@ -51,10 +52,12 @@ impl Compiler {
                     return Ok(());
                 }
                 self.ensure_package_version_matches::<EmitError>(package.id, package.version)?;
+                let _timing = self.timing_scope(tags::EMIT_MODULE);
                 self.emit_module(module.id, &target)
             }
             EmitTask::EmitPackage { package, target } => {
                 self.ensure_package_version_matches::<EmitError>(package.id, package.version)?;
+                let _timing = self.timing_scope(tags::EMIT_PACKAGE);
                 self.emit_package(package.id, &target)
             }
             EmitTask::EmitProgram {
@@ -62,6 +65,7 @@ impl Compiler {
                 program_stamp,
             } => {
                 self.ensure_program_stamp_matches::<EmitError>(program_stamp)?;
+                let _timing = self.timing_scope(tags::EMIT_PROGRAM);
                 self.emit_program(&target)
             }
         }
