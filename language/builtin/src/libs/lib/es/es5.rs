@@ -19,6 +19,7 @@ pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "String",
     "SyntaxError",
     "TypeError",
+    "TemplateStringsArray",
 ];
 
 const LIB_ES_ES5_INDEX_D_DS: BuiltinLibSource = BuiltinLibSource::new(

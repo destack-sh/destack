@@ -4,10 +4,10 @@ use destack_base::StringId;
 use destack_dir::{
     BindingAnchor, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
     DeclarationKind, DependencyItem, DynamicKey, Expression, FlowGraphBuilder, FunctionAbstraction,
-    FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchKind, Member, Mutability, NodeTree, NodeType, Parameter, Pattern, PatternField,
-    ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
+    LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree, NodeType, Parameter, Pattern,
+    PatternField, ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -247,10 +247,17 @@ impl Compiler {
             return;
         };
 
-        let return_ty_id = match types.get_type(signature_ty_id) {
-            Type::Function { return_type, .. } => *return_type,
-            _ => None,
+        let (cardinality, return_ty_id) = match types.get_type(signature_ty_id) {
+            Type::Function {
+                cardinality,
+                return_type,
+                ..
+            } => (*cardinality, *return_type),
+            _ => return,
         };
+        if cardinality == FunctionCardinality::Generator {
+            return;
+        }
         let Some(return_ty_id) = return_ty_id else {
             return;
         };

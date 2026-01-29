@@ -1,9 +1,10 @@
 use destack_dir::{
-    Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    Expression, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType,
+    ScalarLiteral, StaticArgument, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::super::common::{NormalizationMode, RelationMode};
 use super::{
@@ -1311,22 +1312,36 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
-            // references: same symbol OR source is subtype of target via lineage OR structurally compatible
-            // NOTE #Incomplete: should also check type arguments
+            // references: same symbol or lineage or structural compatibility
             (
                 Type::Reference {
                     symbol: target_symbol,
-                    ..
+                    static_arguments: target_arguments,
                 },
                 Type::Reference {
                     symbol: source_symbol,
-                    ..
+                    static_arguments: source_arguments,
                 },
             ) => {
                 // nominal check: same symbol or lineage
-                if target_symbol == source_symbol
-                    || self.is_type_lineage_assignable(source_symbol, target_symbol, types)
-                {
+                if target_symbol == source_symbol {
+                    if self.reference_static_arguments_assignable(
+                        module,
+                        profile,
+                        target_id,
+                        source_id,
+                        target_symbol,
+                        target_arguments.as_ref(),
+                        source_arguments.as_ref(),
+                        symbols,
+                        types,
+                        options,
+                    ) {
+                        return Assignability::Assignable;
+                    }
+                    return Assignability::NotAssignable;
+                }
+                if self.is_type_lineage_assignable(source_symbol, target_symbol, types) {
                     return Assignability::Assignable;
                 }
 
@@ -2038,6 +2053,168 @@ impl Compiler {
         };
 
         *value == length as i64
+    }
+
+    /// Check assignability of static arguments on the same reference symbol.
+    fn reference_static_arguments_assignable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+        symbol: GlobalSymbolId,
+        target_arguments: Option<&Vec<StaticArgument>>,
+        source_arguments: Option<&Vec<StaticArgument>>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        let target_has_arguments = target_arguments.is_some_and(|args| !args.is_empty());
+        let source_has_arguments = source_arguments.is_some_and(|args| !args.is_empty());
+        if !target_has_arguments && !source_has_arguments {
+            return true;
+        }
+
+        let target_arguments = self.resolved_reference_static_arguments_for_assignability(
+            module,
+            profile,
+            types.get_type_source(target_id),
+            symbol,
+            target_arguments,
+            source_has_arguments,
+            symbols,
+            types,
+            options,
+        );
+        let source_arguments = self.resolved_reference_static_arguments_for_assignability(
+            module,
+            profile,
+            types.get_type_source(source_id),
+            symbol,
+            source_arguments,
+            target_has_arguments,
+            symbols,
+            types,
+            options,
+        );
+
+        if target_arguments.is_empty() && source_arguments.is_empty() {
+            return true;
+        }
+        if target_arguments.len() != source_arguments.len() {
+            return false;
+        }
+
+        let target_source_id = types.get_type_source(target_id);
+        let source_source_id = types.get_type_source(source_id);
+        for (target_argument, source_argument) in
+            target_arguments.iter().zip(source_arguments.iter())
+        {
+            let target_ty_id =
+                self.convert_static_argument_type(target_argument, target_source_id, types);
+            let source_ty_id =
+                self.convert_static_argument_type(source_argument, source_source_id, types);
+            if matches!(types.get_type(target_ty_id), Type::Error)
+                || matches!(types.get_type(source_ty_id), Type::Error)
+            {
+                continue;
+            }
+
+            let mut static_visited = HashSet::new();
+            let target_has_static = self.type_contains_static_parameters(
+                module,
+                profile,
+                target_ty_id,
+                symbols,
+                types,
+                &mut static_visited,
+            );
+            let mut static_visited = HashSet::new();
+            let source_has_static = self.type_contains_static_parameters(
+                module,
+                profile,
+                source_ty_id,
+                symbols,
+                types,
+                &mut static_visited,
+            );
+            let mut infer_visited = HashSet::new();
+            let target_has_infer =
+                self.type_contains_infer_vars(target_ty_id, types, &mut infer_visited);
+            let mut infer_visited = HashSet::new();
+            let source_has_infer =
+                self.type_contains_infer_vars(source_ty_id, types, &mut infer_visited);
+            if target_has_static || source_has_static || target_has_infer || source_has_infer {
+                continue;
+            }
+
+            if self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_ty_id,
+                source_ty_id,
+                types,
+                options,
+            ) != Assignability::Assignable
+            {
+                return false;
+            }
+            if self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                source_ty_id,
+                target_ty_id,
+                types,
+                options,
+            ) != Assignability::Assignable
+            {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Resolve static arguments for assignability comparisons.
+    fn resolved_reference_static_arguments_for_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&Vec<StaticArgument>>,
+        resolve_defaults: bool,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Vec<StaticArgument> {
+        let has_arguments = static_arguments.is_some_and(|args| !args.is_empty());
+        if !has_arguments && !resolve_defaults {
+            return Vec::new();
+        }
+
+        let tree = module.dir(profile).tree.read();
+        let resolved = self
+            .resolve_type_reference_static_arguments(
+                module,
+                profile,
+                node_id,
+                symbol,
+                static_arguments.map(|args| args.as_slice()),
+                false,
+                options,
+                &tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten();
+
+        resolved
+            .or_else(|| static_arguments.cloned())
+            .unwrap_or_default()
     }
 
     /// Expand type alias references that include static arguments.

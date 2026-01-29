@@ -18,8 +18,8 @@ use destack_dir::{
     Extension, ExtensionKind, FloatType, FunctionCardinality, GlobalSymbolId, InferTable, IntType,
     LocalNodeId, LocalNodeIdAny, LocalTypeId, ModuleTarget, Mutability, NodeTree, NodeType,
     NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
-    StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter,
+    StaticProperty, StringId, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeBinaryOperator,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeRewriter,
     TypeRewriterOptions, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
     WellKnownSymbol,
 };
@@ -3758,6 +3758,30 @@ impl Compiler {
         }
     }
 
+    /// Decide whether a return type allows implicit fallthrough.
+    pub(super) fn return_type_allows_fallthrough_infer(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        match types.get_type(ty_id) {
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::Void
+                    | TypeLiteral::Undefined
+                    | TypeLiteral::Any
+                    | TypeLiteral::Unknown
+                    | TypeLiteral::Infer,
+            } => true,
+            Type::Union { elements } => elements
+                .iter()
+                .any(|element| self.return_type_allows_fallthrough_infer(*element, types)),
+            Type::InferVar { .. } => true,
+            Type::Error => true,
+            _ => false,
+        }
+    }
+
     /// Substitute `this` types with a concrete receiver type.
     pub(super) fn substitute_this_type(
         &self,
@@ -4665,6 +4689,35 @@ impl Compiler {
         ))
     }
 
+    /// Resolve generator context types from a declared return type.
+    pub(super) fn generator_context_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        return_type: Option<LocalTypeId>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> (LocalTypeId, LocalTypeId, LocalTypeId) {
+        let unknown_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        );
+        let Some(return_type_id) = return_type else {
+            return (unknown_ty_id, unknown_ty_id, unknown_ty_id);
+        };
+
+        if let Some((yield_ty_id, return_ty_id, next_ty_id)) =
+            self.generator_type_arguments(module, profile, return_type_id, symbols, types)
+        {
+            return (yield_ty_id, return_ty_id, next_ty_id);
+        }
+
+        (unknown_ty_id, return_type_id, unknown_ty_id)
+    }
+
     /// Unwrap a Promise reference into its value type when possible.
     pub(super) fn unwrap_promise_type(
         &self,
@@ -4747,6 +4800,96 @@ impl Compiler {
         }
 
         Some(self.convert_static_argument_type(&argument, types.get_type_source(type_id), types))
+    }
+
+    /// Extract generator type arguments from a reference when possible.
+    pub(super) fn generator_type_arguments(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<(LocalTypeId, LocalTypeId, LocalTypeId)> {
+        let (symbol, static_arguments) = {
+            let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(type_id)
+            else {
+                return None;
+            };
+
+            (*symbol, static_arguments.clone())
+        };
+        let source_id = types.get_type_source(type_id);
+
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+
+        let generator_name = self.program.strings.intern("Generator");
+        let generator_symbol = self.get_declared_lib_symbol_for_space_order(
+            profile,
+            generator_name,
+            SymbolSpaceOrder::TypeThenValue,
+        );
+        let iterator_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Iterator);
+
+        let is_generator = generator_symbol.is_some_and(|symbol| symbol == canonical_symbol)
+            || iterator_symbol.is_some_and(|symbol| symbol == canonical_symbol);
+        if !is_generator {
+            return None;
+        }
+
+        let options = self.analyze_context_options_for_module(module.id);
+        let tree = module.dir(profile).tree.read();
+        let resolved_arguments = self
+            .resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                symbol,
+                static_arguments.as_deref(),
+                true,
+                &options,
+                &tree,
+                symbols,
+                types,
+            )
+            .ok()
+            .flatten();
+        let arguments = resolved_arguments
+            .as_ref()
+            .or_else(|| static_arguments.as_ref())
+            .map(|arguments| arguments.as_slice())
+            .unwrap_or(&[]);
+
+        let unknown_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        );
+
+        let yield_ty_id = arguments
+            .get(0)
+            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .unwrap_or(unknown_ty_id);
+        let return_ty_id = arguments
+            .get(1)
+            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .unwrap_or(unknown_ty_id);
+        let next_ty_id = arguments
+            .get(2)
+            .map(|argument| self.convert_static_argument_type(argument, source_id, types))
+            .unwrap_or(unknown_ty_id);
+
+        Some((yield_ty_id, return_ty_id, next_ty_id))
     }
 
     /// Resolve the awaited type for a value.

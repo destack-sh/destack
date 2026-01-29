@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
-use crate::{AnalyzeError, AnalyzeOptions, Assignability, Compiler};
+use super::SignatureResolutionMode;
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, ScalarLiteral, StringId, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Expression, InferOrigin, InferScope, InferTable, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, NodeTree, PrimitiveType, ResolvedSignature, ScalarLiteral,
+    StringId, SymbolSpaceOrder, SymbolTable, TemplateLiteral, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -34,6 +36,386 @@ impl Compiler {
             expected_ty: param_ty_id.into_global(module.id),
             actual_ty: argument_ty_id.into_global(module.id),
         });
+    }
+
+    /// Infer a tagged template expression.
+    pub(super) fn infer_tagged_template_expression(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tag_id: LocalNodeId<Expression>,
+        template: &TemplateLiteral,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // infer the tag expression type
+        let tag_ty_id = self.infer_expression(module, tag_id, tree, symbols, types, infer, ctx)?;
+
+        // assemble template arguments for call resolution
+        let template_strings_ty_id =
+            self.template_strings_argument_type(ctx.profile, expression_id.into_any(), types);
+        let template_arguments = match template {
+            TemplateLiteral::String { .. } => &[][..],
+            TemplateLiteral::InterpolatedString { arguments, .. } => arguments.as_slice(),
+        };
+
+        // require callable signatures on the tag
+        let call_signatures = self.call_signatures_for_type(tag_ty_id, types);
+        if call_signatures.is_empty() {
+            self.error(AnalyzeError::NonCallable {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+
+            for argument_id in template_arguments {
+                self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+            }
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
+
+        // prepare callee metadata for overload resolution
+        let callee_symbol =
+            self.reference_symbol_for_expression(module, tag_id, ctx.profile, tree, symbols);
+        let static_arguments = match tree.get(tag_id) {
+            Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            }
+            | Expression::Member {
+                static_arguments, ..
+            } => static_arguments.as_deref(),
+            _ => None,
+        };
+
+        // resolve the applicable tagged template overload
+        let mut resolved_signature = None;
+        if call_signatures.len() > 1 {
+            let mut candidates = Vec::new();
+            for signature_ty_id in call_signatures.iter() {
+                let Some(resolved) = self.resolve_call_signature(
+                    module,
+                    expression_id,
+                    callee_symbol,
+                    static_arguments,
+                    None,
+                    *signature_ty_id,
+                    None,
+                    SignatureResolutionMode::Inference,
+                    false,
+                    ctx.profile,
+                    &ctx.options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?
+                else {
+                    continue;
+                };
+
+                let Some(resolved) = self.slice_tagged_template_signature(
+                    module,
+                    ctx.profile,
+                    template_strings_ty_id,
+                    resolved,
+                    symbols,
+                    types,
+                    &ctx.options,
+                    true,
+                )?
+                else {
+                    continue;
+                };
+
+                if !self.is_signature_applicable(
+                    module,
+                    ctx.profile,
+                    &resolved,
+                    template_arguments,
+                    tree,
+                    symbols,
+                    types,
+                    &ctx.options,
+                )? {
+                    continue;
+                }
+
+                candidates.push((*signature_ty_id, resolved));
+            }
+
+            let mut candidates = self.dedupe_signature_candidates(
+                module,
+                ctx.profile,
+                candidates,
+                symbols,
+                types,
+                &ctx.options,
+            );
+            if candidates.is_empty() {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: tag_ty_id.into_global(module.id),
+                });
+
+                for argument_id in template_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            }
+
+            resolved_signature = Some(candidates.remove(0).1);
+        } else if let Some(signature_ty_id) = call_signatures.first().copied() {
+            let resolved = self.resolve_call_signature(
+                module,
+                expression_id,
+                callee_symbol,
+                static_arguments,
+                None,
+                signature_ty_id,
+                None,
+                SignatureResolutionMode::Inference,
+                false,
+                ctx.profile,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?;
+            if let Some(resolved) = resolved {
+                resolved_signature = self.slice_tagged_template_signature(
+                    module,
+                    ctx.profile,
+                    template_strings_ty_id,
+                    resolved,
+                    symbols,
+                    types,
+                    &ctx.options,
+                    false,
+                )?;
+            }
+        }
+
+        let Some(resolved) = resolved_signature else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        };
+
+        // infer argument types and add constraints
+        let parameter_types = resolved.dynamic_parameters.clone();
+        let argument_ty_ids = self.infer_invocation_argument_types(
+            module,
+            template_arguments,
+            &parameter_types,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
+
+        self.add_invocation_argument_constraints(
+            module,
+            template_arguments,
+            &argument_ty_ids,
+            &parameter_types,
+            None,
+            &ctx.options,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        );
+        self.add_template_literal_inference_constraints(
+            module,
+            ctx.profile,
+            template_arguments,
+            &argument_ty_ids,
+            &parameter_types,
+            tree,
+            symbols,
+            types,
+            infer,
+            &ctx.options,
+        );
+
+        // emit assignability errors for the tag parameters
+        for ((argument_id, argument_ty_id), param_ty_id) in template_arguments
+            .iter()
+            .zip(argument_ty_ids.iter())
+            .zip(parameter_types.iter())
+        {
+            let argument = tree.get(*argument_id);
+            if matches!(argument, Argument::Spread { .. }) {
+                continue;
+            }
+
+            if self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                *param_ty_id,
+                *argument_ty_id,
+                types,
+                &ctx.options,
+            ) == Assignability::NotAssignable
+            {
+                let argument_node = argument
+                    .value()
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile));
+                self.error(AnalyzeError::UnassignableType {
+                    node: argument_node,
+                    expected_ty: param_ty_id.into_global(module.id),
+                    actual_ty: argument_ty_id.into_global(module.id),
+                });
+            }
+        }
+
+        Ok(resolved.return_type.unwrap_or_else(|| {
+            types.insert_type_from(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                expression_id,
+            )
+        }))
+    }
+
+    /// Build the template strings argument type for tagged templates.
+    fn template_strings_argument_type(
+        &self,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // prefer the builtin template strings array type when available
+        let name = self.program.strings.intern("TemplateStringsArray");
+        if let Some(symbol) = self.get_declared_lib_symbol_for_space_order(
+            profile,
+            name,
+            SymbolSpaceOrder::TypeThenValue,
+        ) {
+            return types.insert_type_from_any(
+                Type::Reference {
+                    symbol,
+                    static_arguments: None,
+                },
+                source_id,
+            );
+        }
+
+        // fall back to readonly string arrays when no lib type exists
+        let string_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+            source_id,
+        );
+        types.insert_type_from_any(
+            Type::Array {
+                element: Some(string_ty_id),
+                is_readonly: true,
+            },
+            source_id,
+        )
+    }
+
+    /// Drop the template strings parameter when resolving tagged template signatures.
+    fn slice_tagged_template_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        template_strings_ty_id: LocalTypeId,
+        resolved: ResolvedSignature,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+        require_assignable: bool,
+    ) -> AnalyzeResult<Option<ResolvedSignature>> {
+        // read the template strings parameter when present
+        let Some(strings_param_ty_id) = resolved.dynamic_parameters.first().copied() else {
+            return Ok(None);
+        };
+
+        // ensure instance types are materialized for the template parameter
+        self.ensure_reference_instance_types_for_type(
+            module,
+            profile,
+            types.get_type_source(strings_param_ty_id),
+            strings_param_ty_id,
+            types,
+        )?;
+
+        // reject template strings arguments that are not assignable
+        if self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            strings_param_ty_id,
+            template_strings_ty_id,
+            types,
+            options,
+        ) == Assignability::NotAssignable
+        {
+            if require_assignable {
+                return Ok(None);
+            }
+
+            self.error(AnalyzeError::UnassignableType {
+                node: types
+                    .get_type_source(strings_param_ty_id)
+                    .into_global(module.id)
+                    .into_anchored(Some(profile)),
+                expected_ty: strings_param_ty_id.into_global(module.id),
+                actual_ty: template_strings_ty_id.into_global(module.id),
+            });
+        }
+
+        // drop the template strings parameter and normalize the signature
+        let parameters = resolved
+            .dynamic_parameters
+            .iter()
+            .skip(1)
+            .copied()
+            .collect();
+        Ok(Some(ResolvedSignature {
+            dynamic_parameters: parameters,
+            return_type: resolved.return_type,
+            static_arguments: resolved.static_arguments,
+        }))
     }
 
     /// Infer template spans from a string literal argument.

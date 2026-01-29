@@ -168,6 +168,13 @@ pub enum AnalyzeError {
     #[error(code = "EA121", message = "recursive type instantiation")]
     RecursiveTypeInstantiation { node: AnchoredGlobalNodeId },
 
+    /// Comptime expressions must be static expressions.
+    #[error(
+        code = "EA122",
+        message = "comptime expression must be a static expression"
+    )]
+    InvalidComptimeExpression { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

@@ -56,7 +56,11 @@ struct MemberCallContext {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Collect all callable signatures for a type.
-    fn call_signatures_for_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> Vec<LocalTypeId> {
+    pub(super) fn call_signatures_for_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Vec<LocalTypeId> {
         let mut visited = HashSet::new();
         self.call_signatures_for_type_inner(ty_id, types, &mut visited)
     }
@@ -193,7 +197,7 @@ impl Compiler {
     }
 
     /// Resolve a function signature and apply `this` substitutions when needed.
-    fn resolve_call_signature(
+    pub(super) fn resolve_call_signature(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -407,7 +411,7 @@ impl Compiler {
     }
 
     /// Drop duplicate overloads that resolve to equivalent shapes.
-    fn dedupe_signature_candidates(
+    pub(super) fn dedupe_signature_candidates(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -569,7 +573,7 @@ impl Compiler {
     }
 
     /// Infer argument types with contextual parameter expectations.
-    fn infer_invocation_argument_types(
+    pub(super) fn infer_invocation_argument_types(
         &self,
         module: &Module,
         dynamic_arguments: &[LocalNodeId<Argument>],
@@ -640,7 +644,7 @@ impl Compiler {
     }
 
     /// Add argument constraints and static parameter bounds for an invocation.
-    fn add_invocation_argument_constraints(
+    pub(super) fn add_invocation_argument_constraints(
         &self,
         module: &Module,
         dynamic_arguments: &[LocalNodeId<Argument>],
@@ -853,7 +857,7 @@ impl Compiler {
     }
 
     /// Check if a resolved signature is applicable to the argument list.
-    fn is_signature_applicable(
+    pub(super) fn is_signature_applicable(
         &self,
         module: &Module,
         profile: ProfileId,

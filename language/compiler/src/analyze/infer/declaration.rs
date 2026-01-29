@@ -407,12 +407,27 @@ impl Compiler {
                         .without_const_context()
                         .with_options(function_options)
                         .in_function_with_signature(declaration_id.into_any(), signature);
-                    let mut ctx = ctx.with_return_type(return_type);
+                    let mut context_return_type = return_type;
+                    let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
+                        let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
+                            module,
+                            ctx.profile,
+                            declaration_id.into_any(),
+                            return_type,
+                            symbols,
+                            types,
+                        );
+                        context_return_type = Some(return_ty_id);
+                        ctx.with_return_type(Some(return_ty_id))
+                            .with_generator_types(Some(yield_ty_id), Some(next_ty_id))
+                    } else {
+                        ctx.with_return_type(return_type)
+                    };
 
                     // only propagate return type expectations into expression bodies
                     let body_expression = !matches!(tree.get(*body), Expression::Block { .. });
                     if body_expression {
-                        ctx = ctx.with_expected_type(return_type);
+                        ctx = ctx.with_expected_type(context_return_type);
                     } else {
                         ctx = ctx.with_expected_type(None);
                     }
@@ -425,13 +440,13 @@ impl Compiler {
                     let committed_body_ty_id = self.commit_inferred_return_type(
                         module,
                         &ctx,
-                        return_type,
+                        context_return_type,
                         body_ty_id,
                         types,
                     );
 
                     // constrain implicit return types against the declared return type
-                    if let Some(return_ty_id) = return_type
+                    if let Some(return_ty_id) = context_return_type
                         && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
@@ -763,9 +778,23 @@ impl Compiler {
                         .without_const_context()
                         .with_options(method_options)
                         .in_function_with_signature(member_id.into_any(), signature);
-                    let mut ctx = ctx
-                        .with_return_type(return_type)
-                        .with_expected_type(return_type);
+                    let mut context_return_type = return_type;
+                    let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
+                        let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
+                            module,
+                            ctx.profile,
+                            member_id.into_any(),
+                            return_type,
+                            symbols,
+                            types,
+                        );
+                        context_return_type = Some(return_ty_id);
+                        ctx.with_return_type(Some(return_ty_id))
+                            .with_generator_types(Some(yield_ty_id), Some(next_ty_id))
+                    } else {
+                        ctx.with_return_type(return_type)
+                    };
+                    ctx = ctx.with_expected_type(context_return_type);
 
                     // infer the method body with implicit return typing
                     let body_ty_id = self
@@ -775,13 +804,13 @@ impl Compiler {
                     let committed_body_ty_id = self.commit_inferred_return_type(
                         module,
                         &ctx,
-                        return_type,
+                        context_return_type,
                         body_ty_id,
                         types,
                     );
 
                     // constrain implicit return types against the declared return type
-                    if let Some(return_ty_id) = return_type
+                    if let Some(return_ty_id) = context_return_type
                         && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {

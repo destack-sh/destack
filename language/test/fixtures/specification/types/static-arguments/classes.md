@@ -95,3 +95,35 @@ declare function makeBuffer(): Buffer<string>;
 let buffer: Buffer<string> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
+
+### static type arguments affect assignability
+
+> Class type references with different static type arguments are not assignable.
+
+```ds
+class Box<T> {
+    value?: T
+}
+
+declare let numberBox: Box<number>;
+
+let stringBox: Box<string> = numberBox;
+```
+
+- contains: not assignable
+
+### static value arguments affect assignability
+
+> Class references with different value arguments are not assignable.
+
+```ds
+class Buffer<T, comptime N: number> {
+    value?: T
+}
+
+declare let buffer4: Buffer<string, 4>;
+
+let buffer8: Buffer<string, 8> = buffer4;
+```
+
+- contains: not assignable
