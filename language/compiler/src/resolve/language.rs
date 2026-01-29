@@ -44,6 +44,11 @@ impl Compiler {
             libs.push("std".to_string());
         }
 
+        // always include globals
+        if !libs.contains(&"globals".to_string()) {
+            libs.push("globals".to_string());
+        }
+
         // build lib load order with dependencies first
         let version_overrides = collect_lib_version_overrides(&libs)?;
         let ordered_libs = {
@@ -441,6 +446,12 @@ impl Compiler {
 
         // collect dependencies
         for &dependency in lib.dependencies {
+            let dependency = resolve_lib_dependency_name(dependency, version_overrides);
+            self.collect_lib_dependencies(&dependency, ordered, seen, version_overrides)?;
+        }
+
+        // collect reference lib dependencies
+        for dependency in lib.reference_libs() {
             let dependency = resolve_lib_dependency_name(dependency, version_overrides);
             self.collect_lib_dependencies(&dependency, ordered, seen, version_overrides)?;
         }
@@ -868,9 +879,10 @@ fn resolve_lib_dependency_name(name: &str, version_overrides: &HashMap<String, S
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::collections::HashSet;
+    use std::time::{Duration, Instant};
 
-    use destack_builtin::{LIBS, LanguageSymbol, STD_LIB};
+    use destack_builtin::{BuiltinLibKind, LIBS, LanguageSymbol, STD_LIB};
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
     use destack_source::DiagnosticSeverity;
 
@@ -989,35 +1001,181 @@ mod tests {
     }
 
     /// Analyze all builtin libs (without errors).
+    /// NOTE: we include some additional timings for some mild performance debugging.
     #[test]
     #[ignore = "slow"]
     fn test_analyze_all_builtin_libs() {
+        // timings
+        let report_timings = std::env::var("DESTACK_TIMINGS").is_ok();
+        let report_top_n = std::env::var("DESTACK_TIMINGS_TOP")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(15);
+        let csv_path = std::env::var("DESTACK_TIMINGS_CSV").ok();
+        let timeout = Duration::from_secs(60);
+        let mut timings = Vec::new();
+
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
-            let test = TestProgram::memory_sequential_with_prelude_and_libs()
-                .with_profile_libs(&[lib.name]);
+            let lib_start = Instant::now();
+
+            // include a baseline es lib for runtime libraries that require them
+            let mut libs = Vec::new();
+            if lib.kind == BuiltinLibKind::Lib
+                && !lib.name.starts_with("es")
+                && !lib.name.starts_with("decorators")
+            {
+                libs.push("es2020");
+            }
+            libs.push(lib.name);
+
+            let test =
+                TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&libs);
 
             // resolve builtins and libs
+            let resolve_start = Instant::now();
             test.resolve_builtins();
             test.resolve_libs();
-            let timeout = Duration::from_secs(60);
             test.compile_with_timeout(timeout);
             test.check_no_diagnostic(DiagnosticSeverity::Note);
+            let resolve_duration = resolve_start.elapsed();
 
             let builtins = test.program.builtins.as_ref().unwrap();
-            let lib_modules = builtins
-                .load_lib(
-                    lib.name,
-                    test.program.files.clone(),
-                    test.program.modules.clone(),
-                )
-                .unwrap();
+            let mut lib_modules = Vec::new();
 
-            // analyze the lib modules
+            // analyze all libs loaded for this profile
+            for lib_name in libs {
+                let module_ids = builtins
+                    .load_lib(
+                        lib_name,
+                        test.program.files.clone(),
+                        test.program.modules.clone(),
+                    )
+                    .unwrap();
+                lib_modules.extend(module_ids);
+            }
+
+            let mut seen_modules = HashSet::new();
+            let analyze_start = Instant::now();
             for module_id in lib_modules {
-                test.analyze_module(module_id);
+                if seen_modules.insert(module_id) {
+                    test.analyze_module(module_id);
+                }
             }
             test.compile_with_timeout(timeout);
             test.check_no_diagnostic(DiagnosticSeverity::Note);
+            let analyze_duration = analyze_start.elapsed();
+
+            timings.push(LibTiming {
+                name: lib.name,
+                resolve: resolve_duration,
+                analyze: analyze_duration,
+                total: lib_start.elapsed(),
+            });
+
+            if report_timings {
+                eprintln!(
+                    "builtin lib {}: resolve={} analyze={} total={}",
+                    lib.name,
+                    format_duration(resolve_duration),
+                    format_duration(analyze_duration),
+                    format_duration(lib_start.elapsed())
+                );
+            }
         }
+
+        if report_timings {
+            report_timing_summary(&timings, report_top_n);
+        }
+
+        if let Some(path) = csv_path
+            && let Err(error) = write_timings_csv(&timings, &path)
+        {
+            eprintln!("timings: failed to write csv to {path}: {error}");
+        }
+    }
+
+    /// Capture timing data for a builtin lib run.
+    #[derive(Debug, Clone)]
+    struct LibTiming {
+        /// The builtin lib name.
+        name: &'static str,
+        /// Time spent resolving builtins and libs.
+        resolve: Duration,
+        /// Time spent analyzing the lib modules.
+        analyze: Duration,
+        /// Total elapsed time for the lib run.
+        total: Duration,
+    }
+
+    /// Report timing summary information to stderr.
+    fn report_timing_summary(timings: &[LibTiming], top_n: usize) {
+        // sort by total time to find the slowest libs
+        let mut sorted = timings.to_vec();
+        sorted.sort_by_key(|entry| std::cmp::Reverse(entry.total));
+
+        // aggregate total time by phase
+        let total_resolve = timings
+            .iter()
+            .fold(Duration::ZERO, |acc, entry| acc + entry.resolve);
+        let total_analyze = timings
+            .iter()
+            .fold(Duration::ZERO, |acc, entry| acc + entry.analyze);
+        let total_all = timings
+            .iter()
+            .fold(Duration::ZERO, |acc, entry| acc + entry.total);
+
+        eprintln!(
+            "builtin lib timings: total resolve={} analyze={} total={}",
+            format_duration(total_resolve),
+            format_duration(total_analyze),
+            format_duration(total_all)
+        );
+
+        // report the slowest libs by total time
+        let sample_count = top_n.min(sorted.len());
+        if sample_count == 0 {
+            return;
+        }
+
+        eprintln!("builtin lib timings: top {sample_count} by total");
+        for entry in sorted.iter().take(sample_count) {
+            eprintln!(
+                "  {:<24} resolve={} analyze={} total={}",
+                entry.name,
+                format_duration(entry.resolve),
+                format_duration(entry.analyze),
+                format_duration(entry.total)
+            );
+        }
+    }
+
+    /// Write timing results to a CSV file.
+    fn write_timings_csv(timings: &[LibTiming], path: &str) -> std::io::Result<()> {
+        // build CSV output in memory
+        let mut output = String::new();
+        output.push_str("lib,resolve_ms,analyze_ms,total_ms\n");
+        for entry in timings {
+            output.push_str(&format!(
+                "{},{:.3},{:.3},{:.3}\n",
+                entry.name,
+                entry.resolve.as_secs_f64() * 1000.0,
+                entry.analyze.as_secs_f64() * 1000.0,
+                entry.total.as_secs_f64() * 1000.0
+            ));
+        }
+
+        // write CSV output to disk
+        std::fs::write(path, output)
+    }
+
+    /// Format a duration for readable timing output.
+    fn format_duration(duration: Duration) -> String {
+        // pick a human readable unit
+        let ms = duration.as_secs_f64() * 1000.0;
+        if ms >= 1000.0 {
+            return format!("{:.3}s", ms / 1000.0);
+        }
+
+        format!("{ms:.3}ms")
     }
 }
