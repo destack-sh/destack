@@ -112,6 +112,26 @@ mod tests {
     }
 
     #[test]
+    fn test_format_import_type_equals_require() {
+        assert_format!(
+            r#"import type React = require("react")"#,
+            r#"import type React = require("react")"#,
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
+    fn test_format_export_import_type_equals_require() {
+        assert_format!(
+            r#"export import type React = require("react")"#,
+            r#"export import type React = require("react")"#,
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    #[test]
     fn test_format_export_with_default_and_block() {
         assert_format!(
             "export { default, default as bar, foo } from \"foo\"",

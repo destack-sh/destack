@@ -1157,10 +1157,7 @@ impl Parser {
                 .contains(&next_token_type)
             {
                 // export import equals binding
-                if descriptor.export.is_some()
-                    && next_token_type == TokenType::Identifier
-                    && self.peek_next_next_token(TokenType::Assign).is_ok()
-                {
+                if descriptor.export.is_some() && self.peek_import_equals_after_import() {
                     self.eat_export_import_equals(start, descriptor)?
                 } else {
                     self.eat_import()?
@@ -2500,6 +2497,35 @@ type = type * 2
                     assert_string!(parser, *name, "atob");
                 });
                 assert_expression_path!(parser, parser.tree.get(*value), "globalThis.atob");
+            });
+        });
+    }
+
+    /// Parse `export import type React = require("react")`.
+    #[test]
+    fn test_parse_export_import_type_equals_require() {
+        let mut test = TestParser::new(r#"export import type React = require("react")"#);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, mutability, declarators, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert!(descriptor.export.is_some());
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "React");
+                });
+                assert_node!(parser.tree, *value, Expression::Import { source, kind, target, items, .. } => {
+                    assert_eq!(*source, ImportSource::ImportEquals);
+                    assert_eq!(*kind, DependencyKind::Type);
+                    assert_eq!(items.len(), 1);
+                    assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+                        assert_eq!(*mode, DependencyMode::Namespace);
+                        assert_string!(parser, *alias, "React");
+                    });
+                    assert_string!(parser, *target, "react");
+                });
             });
         });
     }

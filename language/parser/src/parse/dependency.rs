@@ -74,8 +74,8 @@ impl Parser {
         if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Assign).is_ok()
         {
-            let (name, name_span) = self.eat_identifier_with_span()?;
-            self.bump(); // eat =
+            let (name, name_span) = self.eat_import_equals_name_with_span()?;
+            self.eat_token(TokenType::Assign)?;
 
             // require import equals
             if let Some(import_id) =
@@ -84,11 +84,6 @@ impl Parser {
                 return Ok(import_id);
             }
 
-            // qualified import equals
-            if kind == Some(DependencyKind::Type) {
-                let span = self.peek()?.span;
-                return Err(ParseError::unexpected(span));
-            }
             let value = self.eat_expression()?;
             let descriptor = DeclarationDescriptor::default();
             let let_id = self.build_import_equals_let(start, descriptor, name, value);
@@ -136,6 +131,35 @@ impl Parser {
         self.tree.set_main_span(import_id, target_span);
 
         Ok(import_id)
+    }
+
+    /// Check whether the tokens after the current `import` keyword form an import equals clause.
+    pub(crate) fn peek_import_equals_after_import(&self) -> bool {
+        // type modifier with name
+        if self.peek_next_keyword(Keyword::Type).is_ok() {
+            return self.peek_next_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_next_next_token(TokenType::Assign).is_ok();
+        }
+
+        // plain identifier alias
+        self.peek_next_token(TokenType::Identifier).is_ok()
+            && self.peek_next_next_token(TokenType::Assign).is_ok()
+    }
+
+    /// Eat an import equals binding name and return its span.
+    fn eat_import_equals_name_with_span(
+        &mut self,
+    ) -> ParseResult<(StringId, destack_source::Span)> {
+        // identifier alias
+        if self.peek_token(TokenType::Identifier).is_ok() {
+            return self.eat_identifier_with_span();
+        }
+
+        // unexpected token
+        Err(ParseError::expected(
+            self.peek()?.span,
+            TokenType::Identifier,
+        ))
     }
 
     /// Eat `import a = require("a")` and build an import expression.
@@ -203,13 +227,18 @@ impl Parser {
         };
 
         // name and assignment
-        let name = self.eat_identifier()?;
+        let (name, name_span) = self.eat_import_equals_name_with_span()?;
         self.eat_token(TokenType::Assign)?;
 
-        // export import uses value bindings only
-        if kind == Some(DependencyKind::Type) {
-            let span = self.peek()?.span;
-            return Err(ParseError::unexpected(span));
+        // require import equals
+        if let Some(import_id) = self.try_eat_import_equals_require(start, kind, name, name_span)? {
+            // normalize descriptor export mode
+            if descriptor.export.is_none() {
+                descriptor.export = Some(DependencyMode::Item);
+            }
+
+            let let_id = self.build_import_equals_let(start, descriptor, name, import_id);
+            return Ok(let_id);
         }
 
         // value expression
@@ -974,6 +1003,24 @@ import {
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
                 assert_string!(parser, *alias, "MyType");
+            });
+            assert_string!(parser, *target, "pkg");
+        });
+    }
+
+    #[test]
+    fn test_parse_import_type_modifier_equals_require() {
+        let mut test = TestParser::new(r#"import type React = require("pkg")"#);
+        let mut parser = test.prepare();
+        let import_id = parser.eat_import().unwrap();
+
+        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
+            assert_eq!(*source, ImportSource::ImportEquals);
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Namespace);
+                assert_string!(parser, *alias, "React");
             });
             assert_string!(parser, *target, "pkg");
         });
