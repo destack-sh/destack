@@ -73,6 +73,12 @@ pub mod tags {
 
     // import
     pub const IMPORT_MODULE_PARSE: TimingTag = TimingTag::new("import.module.parse");
+    pub const IMPORT_MODULE_PARSE_CACHE_READ: TimingTag =
+        TimingTag::new("import.module.parse.cache.read");
+    pub const IMPORT_MODULE_PARSE_CACHE_WRITE: TimingTag =
+        TimingTag::new("import.module.parse.cache.write");
+    pub const IMPORT_MODULE_PARSE_LEX: TimingTag = TimingTag::new("import.module.parse.lex");
+    pub const IMPORT_MODULE_PARSE_TREE: TimingTag = TimingTag::new("import.module.parse.tree");
     pub const IMPORT_MODULE_BIND: TimingTag = TimingTag::new("import.module.bind");
     pub const IMPORT_MODULE_DESUGAR: TimingTag = TimingTag::new("import.module.desugar");
     pub const IMPORT_MODULE_VALIDATE: TimingTag = TimingTag::new("import.module.validate");
@@ -80,6 +86,21 @@ pub mod tags {
     // resolve
     pub const RESOLVE_BUILTINS: TimingTag = TimingTag::new("resolve.builtins");
     pub const RESOLVE_LIBS: TimingTag = TimingTag::new("resolve.libs");
+    pub const RESOLVE_LIBS_DEPENDENCIES: TimingTag = TimingTag::new("resolve.libs.dependencies");
+    pub const RESOLVE_LIBS_CONFLICTS: TimingTag = TimingTag::new("resolve.libs.conflicts");
+    pub const RESOLVE_LIBS_LOAD_MODULES: TimingTag = TimingTag::new("resolve.libs.load");
+    pub const RESOLVE_LIBS_DEPENDENCY_ITEMS: TimingTag =
+        TimingTag::new("resolve.libs.dependencies.items");
+    pub const RESOLVE_LIBS_GLOBAL_CACHE: TimingTag = TimingTag::new("resolve.libs.cache.global");
+    pub const RESOLVE_LIBS_DECLARED_NAMES: TimingTag =
+        TimingTag::new("resolve.libs.declared.names");
+    pub const RESOLVE_LIBS_DECLARED_SYMBOLS: TimingTag =
+        TimingTag::new("resolve.libs.declared.symbols");
+    pub const RESOLVE_LIBS_AMBIENT_SYMBOLS: TimingTag =
+        TimingTag::new("resolve.libs.ambient.symbols");
+    pub const RESOLVE_LIBS_AMBIENT_SOURCES: TimingTag =
+        TimingTag::new("resolve.libs.ambient.sources");
+    pub const RESOLVE_LIBS_WELL_KNOWN: TimingTag = TimingTag::new("resolve.libs.well_known");
     pub const RESOLVE_MODULE_PREPARE: TimingTag = TimingTag::new("resolve.module.prepare");
     pub const RESOLVE_MODULE_DIRECT: TimingTag = TimingTag::new("resolve.module.direct");
     pub const RESOLVE_MODULE_DEPENDENCIES: TimingTag =
