@@ -4357,28 +4357,11 @@ impl Compiler {
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_REFERENCE);
+        let mut allow_type_only_reference = false;
 
         // validate local references against type-only exports
         if target_symbol.module_id == module.id {
             let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-
-            // reject type-only symbols used as values
-            if !self.symbol_is_value_capable(ctx.profile, target_symbol) {
-                let ty_id =
-                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
-                return Ok(ty_id);
-            }
-
-            // reject aliases that resolve to type-only symbols
-            if let Some(target) = symbol_entry.target_symbol
-                && !self.symbol_is_value_capable(ctx.profile, target)
-            {
-                let ty_id =
-                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
-                return Ok(ty_id);
-            }
-
-            // resolve the dependency item that introduced this symbol
             let dependency_id = symbol_entry
                 .primary_declaration
                 .and_then(|primary_declaration| {
@@ -4388,7 +4371,29 @@ impl Compiler {
                         target_symbol.local_id,
                     )
                 });
+            allow_type_only_reference =
+                module.language_type.is_declaration() && dependency_id.is_some();
 
+            // reject type-only symbols used as values
+            if !self.symbol_is_value_capable(ctx.profile, target_symbol)
+                && !allow_type_only_reference
+            {
+                let ty_id =
+                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                return Ok(ty_id);
+            }
+
+            // reject aliases that resolve to type-only symbols
+            if let Some(target) = symbol_entry.target_symbol
+                && !self.symbol_is_value_capable(ctx.profile, target)
+                && !allow_type_only_reference
+            {
+                let ty_id =
+                    self.type_only_value_error_type(module, ctx.profile, expression_id, types);
+                return Ok(ty_id);
+            }
+
+            // resolve the dependency item that introduced this symbol
             if let Some(dependency_id) = dependency_id {
                 let dependency = tree.get(dependency_id);
                 let dependency_kind = match dependency {
@@ -4407,7 +4412,7 @@ impl Compiler {
                         .is_some_and(|target| !self.symbol_is_value_capable(ctx.profile, target)),
                     None => false,
                 };
-                if is_type_only_dependency {
+                if is_type_only_dependency && !allow_type_only_reference {
                     let ty_id =
                         self.type_only_value_error_type(module, ctx.profile, expression_id, types);
                     return Ok(ty_id);
@@ -4446,6 +4451,7 @@ impl Compiler {
                     if let Some(export_name) = export_name
                         && let Some(target_module_id) = target_module_id
                         && self.is_type_only_export_name(target_module_id, ctx.profile, export_name)
+                        && !allow_type_only_reference
                     {
                         let is_value_capable = dependency.target_symbol().is_some_and(|target| {
                             self.symbol_is_value_capable(ctx.profile, target)
@@ -4492,6 +4498,7 @@ impl Compiler {
                 && let Some(target_symbol) = symbol_entry.target_symbol
                 && let Some(StaticKey::Name(name)) = symbol_entry.key
                 && self.is_type_only_export_name(target_symbol.module_id, ctx.profile, name)
+                && !allow_type_only_reference
             {
                 let ty_id =
                     self.type_only_value_error_type(module, ctx.profile, expression_id, types);
@@ -4509,7 +4516,9 @@ impl Compiler {
         );
 
         // reject type-only symbols in value positions
-        if !self.symbol_is_value_capable(ctx.profile, canonical_symbol) {
+        if !self.symbol_is_value_capable(ctx.profile, canonical_symbol)
+            && !allow_type_only_reference
+        {
             let ty_id = self.type_only_value_error_type(module, ctx.profile, expression_id, types);
             return Ok(ty_id);
         }
