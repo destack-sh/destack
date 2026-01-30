@@ -1,0 +1,95 @@
+
+function @fanout_add(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 1i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @fanout_mul(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iconst 3i64
+    v3: i64 = imul v0, v2
+    v4: i64 = iadd v3, v1
+    return v4
+}
+
+function @fanout_mix(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = bxor v0, v1
+    v3: i64 = iconst 7i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @fanout_helper(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    return v2
+}
+
+function @callgraph_fanout(v0: i64, v1: i64, v2: fn(i64, i64) -> i64) -> i64 {
+block0(v0: i64, v1: i64, v2: fn(i64, i64) -> i64):
+    v3: i64 = iconst 0i64
+    v4: i64 = iadd v1, v3
+    jump block1(v3, v4, v2)
+
+// loop condition, check limit
+block1(v5: i64, v6: i64, v7: fn(i64, i64) -> i64):
+    v8: bool = icmp_sge v5, v0
+    branch v8, block5(v6), block2
+
+// select a target
+block2:
+    v9: i64 = iconst 3i64
+    v10: i64 = srem v5, v9
+    switch v10, block4, 0 => block3, 1 => block6, 2 => block4
+
+// direct call add
+block3:
+    v11: i64 = call @fanout_add(v5, v6) -> fn(i64, i64) -> i64
+    jump block7(v11)
+
+// direct call mix
+block4:
+    v12: i64 = call @fanout_mix(v5, v6) -> fn(i64, i64) -> i64
+    jump block7(v12)
+
+// direct call multiply
+block6:
+    v13: i64 = call @fanout_mul(v5, v6) -> fn(i64, i64) -> i64
+    jump block7(v13)
+
+// indirect call, advance loop
+block7(v14: i64):
+    v15: i64 = call.indirect v7(v14, v5) -> fn(i64, i64) -> i64
+    v16: i64 = iconst 1i64
+    v17: i64 = iadd v5, v16
+    jump block1(v17, v15, v7)
+
+// return result
+block5(v18: i64):
+    v19: i64 = iconst 7i64
+    v20: i64 = imul v0, v19
+    v21: i64 = iadd v18, v20
+    v22: i64 = iconst 3i64
+    v23: i64 = iadd v21, v22
+    v24: i64 = iconst 3i64
+    v25: i64 = sshr v18, v24
+    v26: i64 = bxor v23, v25
+    v27: i64 = iconst 33i64
+    v28: i64 = imul v26, v27
+    v29: i64 = iconst 255i64
+    v30: i64 = band v0, v29
+    v31: i64 = iadd v28, v30
+    return v31
+}

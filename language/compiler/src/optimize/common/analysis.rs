@@ -6,10 +6,10 @@ use std::sync::Arc;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, AvailableExpressions, BorrowAnalysis, CallGraph, ConstantPropagation,
-    ControlFlowGraph, DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, MemorySSA,
-    OwnershipAnalysis, PackageCallGraph, PostDominatorTree, ProgramCallGraph, RangeAnalysis,
-    ReachingDefinitions, ScalarEvolution,
+    AliasAnalysis, AvailableExpressions, BorrowAnalysis, CallGraph, CallTargetAnalysis,
+    ConstantPropagation, ControlFlowGraph, DominatorTree, LifetimeAnalysis, LivenessAnalysis,
+    LoopAnalysis, MemorySSA, OwnershipAnalysis, PackageCallGraph, PostDominatorTree,
+    ProgramCallGraph, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
 };
 
 use crate::optimize::{PackageWorkset, PipelineOptions, ProgramWorkset, TypeContext};
@@ -268,6 +268,7 @@ impl<'a> ModuleAnalyses<'a> {
     fn register_all(graph: &mut DependencyGraph) {
         register_analysis::<LifetimeAnalysis>(graph);
         register_analysis::<CallGraph>(graph);
+        register_analysis::<CallTargetAnalysis>(graph);
     }
 
     /// Get the node tree.

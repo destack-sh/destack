@@ -1,0 +1,114 @@
+function @csv_scan(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    v6: i64 = iconst 0i64
+    jump block1(v1, v2, v3, v4, v5, v6)
+
+// loop condition, check limit
+block1(v7: i64, v8: i64, v9: i64, v10: i64, v11: i64, v12: i64):
+    v13: bool = icmp_sge v7, v0
+    branch v13, block16(v8, v9, v10, v11), block2(v7, v8, v9, v10, v11, v12)
+
+// compute token
+block2(v14: i64, v15: i64, v16: i64, v17: i64, v18: i64, v19: i64):
+    v20: i64 = iconst 1664525i64
+    v21: i64 = imul v14, v20
+    v22: i64 = iconst 1013904223i64
+    v23: i64 = iadd v21, v22
+    v24: i64 = iconst 7i64
+    v25: i64 = srem v23, v24
+    switch v25, block10(v14, v15, v16, v17, v18, v19, v25), 0 => block4(v14, v15, v16, v17, v18, v19), 1 => block3(v14, v15, v16, v17, v18, v19), 2 => block6(v14, v15, v16, v17, v18, v19)
+
+// quote token
+block3(v26: i64, v27: i64, v28: i64, v29: i64, v30: i64, v31: i64):
+    v32: i64 = iconst 1i64
+    v33: i64 = bxor v31, v32
+    v34: i64 = iadd v27, v32
+    jump block15(v26, v34, v28, v29, v30, v33)
+
+// comma token
+block4(v35: i64, v36: i64, v37: i64, v38: i64, v39: i64, v40: i64):
+    v41: i64 = iconst 0i64
+    v42: bool = icmp_eq v40, v41
+    branch v42, block5(v35, v36, v37, v38, v39, v40), block9(v35, v36, v37, v38, v39, v40)
+
+// comma, split field
+block5(v43: i64, v44: i64, v45: i64, v46: i64, v47: i64, v48: i64):
+    v49: i64 = iconst 1i64
+    v50: i64 = iadd v46, v49
+    v51: i64 = iadd v44, v45
+    v52: i64 = iconst 0i64
+    jump block15(v43, v51, v52, v50, v47, v48)
+
+// newline token
+block6(v53: i64, v54: i64, v55: i64, v56: i64, v57: i64, v58: i64):
+    v59: i64 = iconst 0i64
+    v60: bool = icmp_eq v58, v59
+    branch v60, block7(v53, v54, v55, v56, v57, v58), block9(v53, v54, v55, v56, v57, v58)
+
+// newline, split field
+block7(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64):
+    v67: i64 = iconst 1i64
+    v68: i64 = iadd v65, v67
+    v69: i64 = iadd v64, v67
+    v70: i64 = iadd v62, v63
+    v71: i64 = iconst 0i64
+    jump block15(v61, v70, v71, v69, v68, v66)
+
+// comma/newline inside quotes
+block9(v72: i64, v73: i64, v74: i64, v75: i64, v76: i64, v77: i64):
+    v78: i64 = iconst 1i64
+    v79: i64 = iadd v74, v78
+    jump block15(v72, v73, v79, v75, v76, v77)
+
+// regular character
+block10(v80: i64, v81: i64, v82: i64, v83: i64, v84: i64, v85: i64, v86: i64):
+    v87: i64 = iconst 1i64
+    v88: i64 = iadd v82, v87
+    v89: i64 = iadd v81, v86
+    jump block15(v80, v89, v88, v83, v84, v85)
+
+// advance loop
+block15(v90: i64, v91: i64, v92: i64, v93: i64, v94: i64, v95: i64):
+    v96: i64 = iconst 1i64
+    v97: i64 = iadd v90, v96
+    jump block1(v97, v91, v92, v93, v94, v95)
+
+// finalize trailing field
+block16(v98: i64, v99: i64, v100: i64, v101: i64):
+    v102: i64 = iconst 0i64
+    v103: bool = icmp_eq v99, v102
+    branch v103, block18(v98, v100, v101), block17(v98, v99, v100, v101)
+
+// add trailing field
+block17(v104: i64, v105: i64, v106: i64, v107: i64):
+    v108: i64 = iconst 1i64
+    v109: i64 = iadd v106, v108
+    v110: i64 = iadd v104, v105
+    jump block18(v110, v109, v107)
+
+// return result
+block18(v111: i64, v112: i64, v113: i64):
+    v114: i64 = iadd v111, v112
+    v115: i64 = iadd v114, v113
+    v116: i64 = iconst 7i64
+    v117: i64 = imul v0, v116
+    v118: i64 = iadd v115, v117
+    v119: i64 = iconst 3i64
+    v120: i64 = iadd v118, v119
+    v121: i64 = iconst 3i64
+    v122: i64 = sshr v115, v121
+    v123: i64 = bxor v120, v122
+    v124: i64 = iconst 33i64
+    v125: i64 = imul v123, v124
+    v126: i64 = iconst 255i64
+    v127: i64 = band v0, v126
+    v128: i64 = iadd v125, v127
+    return v128
+}

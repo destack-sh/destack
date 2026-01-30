@@ -1,0 +1,111 @@
+function @object_pool(v0: i64) -> i64 {
+
+// entry, init buffers
+block0(v0: i64):
+    v1: i64 = iconst 32i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: ref<managed i64> = managed.alloc_array i64, v1
+    v4: i64 = iconst 0i64
+    jump block1(v4, v1, v2, v3)
+
+// loop condition, init free list
+block1(v5: i64, v6: i64, v7: ref<managed i64>, v8: ref<managed i64>):
+    v9: bool = icmp_sge v5, v6
+    branch v9, block3(v6, v7, v8), block2
+
+// init slots
+block2:
+    v10: i64 = iconst 1i64
+    v11: i64 = iadd v5, v10
+    v12: ref<borrowed i64> = element.addr v7, v5
+    store v12, v11
+    v13: ref<borrowed i64> = element.addr v8, v5
+    store v13, v5
+    v14: i64 = iconst 1i64
+    v15: i64 = iadd v5, v14
+    jump block1(v15, v6, v7, v8)
+
+// finalize free list
+block3(v16: i64, v17: ref<managed i64>, v18: ref<managed i64>):
+    v19: i64 = iconst 1i64
+    v20: i64 = isub v16, v19
+    v21: ref<borrowed i64> = element.addr v17, v20
+    v22: i64 = iconst -1i64
+    store v21, v22
+    v23: i64 = iconst 0i64
+    v24: i64 = iconst 0i64
+    jump block4(v23, v23, v24, v17, v18, v16)
+
+// loop condition, run pool ops
+block4(v25: i64, v26: i64, v27: i64, v28: ref<managed i64>, v29: ref<managed i64>, v30: i64):
+    v31: bool = icmp_sge v25, v0
+    branch v31, block12(v27, v26, v25), block5
+
+// compute token
+block5:
+    v32: i64 = iconst 1103515245i64
+    v33: i64 = imul v25, v32
+    v34: i64 = iconst 12345i64
+    v35: i64 = iadd v33, v34
+    v36: i64 = iconst 3i64
+    v37: i64 = band v35, v36
+    switch v37, block10(v25, v26, v27, v28, v29, v30), 0 => block6(v25, v26, v27, v28, v29, v30), 1 => block8(v25, v26, v27, v28, v29, v30)
+
+// allocate from free list
+block6(v38: i64, v39: i64, v40: i64, v41: ref<managed i64>, v42: ref<managed i64>, v43: i64):
+    v44: i64 = iconst -1i64
+    v45: bool = icmp_eq v39, v44
+    branch v45, block11(v38, v39, v40, v41, v42, v43), block7(v38, v39, v40, v41, v42, v43)
+
+// pop and write value
+block7(v46: i64, v47: i64, v48: i64, v49: ref<managed i64>, v50: ref<managed i64>, v51: i64):
+    v52: ref<borrowed i64> = element.addr v49, v47
+    v53: i64 = load v52
+    v54: i64 = iconst 7i64
+    v55: i64 = iadd v46, v54
+    v56: ref<borrowed i64> = element.addr v50, v47
+    store v56, v55
+    v57: i64 = iadd v48, v55
+    jump block11(v46, v53, v57, v49, v50, v51)
+
+// free slot back to list
+block8(v58: i64, v59: i64, v60: i64, v61: ref<managed i64>, v62: ref<managed i64>, v63: i64):
+    v64: i64 = srem v58, v63
+    v65: ref<borrowed i64> = element.addr v61, v64
+    store v65, v59
+    v66: i64 = iadd v60, v64
+    jump block11(v58, v64, v66, v61, v62, v63)
+
+// read slot
+block10(v67: i64, v68: i64, v69: i64, v70: ref<managed i64>, v71: ref<managed i64>, v72: i64):
+    v73: i64 = srem v67, v72
+    v74: ref<borrowed i64> = element.addr v71, v73
+    v75: i64 = load v74
+    v76: i64 = iadd v69, v75
+    jump block11(v67, v68, v76, v70, v71, v72)
+
+// advance loop
+block11(v77: i64, v78: i64, v79: i64, v80: ref<managed i64>, v81: ref<managed i64>, v82: i64):
+    v83: i64 = iconst 1i64
+    v84: i64 = iadd v77, v83
+    jump block4(v84, v78, v79, v80, v81, v82)
+
+// return result
+block12(v85: i64, v86: i64, v87: i64):
+    v88: i64 = iadd v85, v86
+    v89: i64 = iadd v88, v87
+    v90: i64 = iconst 7i64
+    v91: i64 = imul v0, v90
+    v92: i64 = iadd v89, v91
+    v93: i64 = iconst 3i64
+    v94: i64 = iadd v92, v93
+    v95: i64 = iconst 3i64
+    v96: i64 = sshr v89, v95
+    v97: i64 = bxor v94, v96
+    v98: i64 = iconst 33i64
+    v99: i64 = imul v97, v98
+    v100: i64 = iconst 255i64
+    v101: i64 = band v0, v100
+    v102: i64 = iadd v99, v101
+    return v102
+}

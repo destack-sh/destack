@@ -1,0 +1,61 @@
+
+function @memset_scrub(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: ref<managed i64> = managed.alloc_array i64, v1
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    jump block1(v4, v5, v2, v3)
+
+// loop condition, scrub buffers
+block1(v6: i64, v7: i64, v8: ref<managed i64>, v9: ref<managed i64>):
+    v10: bool = icmp_sge v6, v0
+    branch v10, block4(v7), block2
+
+// scrub branch
+block2:
+    v11: i64 = iconst 1i64
+    v12: i64 = band v6, v11
+    v13: i64 = iconst 0i64
+    v14: bool = icmp_eq v12, v13
+    branch v14, block3(v6, v7, v8, v9), block5(v6, v7, v8, v9)
+
+// memset buffer a
+block3(v15: i64, v16: i64, v17: ref<managed i64>, v18: ref<managed i64>):
+    intrinsic.memset(v17, v15, v1)
+    v19: i64 = iadd v16, v15
+    v20: i64 = iconst 1i64
+    v21: i64 = iadd v15, v20
+    jump block1(v21, v19, v17, v18)
+
+// memset buffer b and copy
+block5(v22: i64, v23: i64, v24: ref<managed i64>, v25: ref<managed i64>):
+    v26: i64 = iconst 1i64
+    v27: i64 = iadd v22, v26
+    intrinsic.memset(v25, v27, v1)
+    intrinsic.memcpy(v24, v25, v1)
+    v28: i64 = iadd v23, v22
+    v29: i64 = iconst 1i64
+    v30: i64 = iadd v22, v29
+    jump block1(v30, v28, v24, v25)
+
+// return result
+block4(v31: i64):
+    v32: i64 = bxor v0, v1
+    v33: i64 = iconst 7i64
+    v34: i64 = imul v32, v33
+    v35: i64 = iadd v31, v34
+    v36: i64 = iconst 3i64
+    v37: i64 = iadd v35, v36
+    v38: i64 = iconst 3i64
+    v39: i64 = sshr v31, v38
+    v40: i64 = bxor v37, v39
+    v41: i64 = iconst 33i64
+    v42: i64 = imul v40, v41
+    v43: i64 = iconst 255i64
+    v44: i64 = band v32, v43
+    v45: i64 = iadd v42, v44
+    return v45
+}

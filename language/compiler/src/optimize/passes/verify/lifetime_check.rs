@@ -9,9 +9,9 @@ use mir::{Instruction, Terminator, Type, Value};
 
 use crate::optimize::common::{ValueTypeMap, terminator_arguments_for_successor};
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, FunctionPass, Lattice, LifetimeAnalysis,
-    PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature, forward_dataflow,
-    signature_return_contains_borrowed_refs, type_contains_borrowed_refs,
+    AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, FunctionPass, Lattice,
+    LifetimeAnalysis, PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature,
+    forward_dataflow, signature_return_contains_borrowed_refs, type_contains_borrowed_refs,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -161,7 +161,9 @@ impl FunctionPass for LifetimeCheck {
         // prepare analyses for dataflow
         let analyses = ctx.function_analyses(function, tree);
         let cfg = analyses.get::<ControlFlowGraph>();
-        let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>();
+        let module_analyses = ctx.module_analyses(tree);
+        let lifetime_analysis = module_analyses.get::<LifetimeAnalysis>();
+        let call_targets = module_analyses.get::<CallTargetAnalysis>();
 
         // run forward dataflow to collect origins
         let entry_state = build_entry_state(function, tree);
@@ -188,10 +190,12 @@ impl FunctionPass for LifetimeCheck {
                     let inst = tree.get(inst_id);
                     apply_instruction_effects(
                         &mut state,
+                        inst_id,
                         inst,
                         tree,
                         &value_types,
                         lifetime_analysis.as_ref(),
+                        call_targets.as_ref(),
                     );
                 }
 
@@ -350,10 +354,12 @@ fn assign_origin_if_borrowed(
 
 fn apply_instruction_effects(
     state: &mut BorrowOriginMap,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &Instruction,
     tree: &mir::NodeTree,
     types: &ValueTypeMap,
     lifetime_analysis: &LifetimeAnalysis,
+    call_targets: &CallTargetAnalysis,
 ) {
     match instruction {
         // constants and arithmetic results do not borrow
@@ -846,23 +852,32 @@ fn apply_instruction_effects(
             let signature_type = tree.get(*signature);
             let return_contains_borrow =
                 signature_return_contains_borrowed_refs(signature_type, tree);
-            let origins = if let Some(function_id) = declared_target {
-                origins_for_call(
-                    *function_id,
-                    tree.get_arguments(*arguments),
-                    state,
-                    lifetime_analysis,
-                    return_contains_borrow,
-                )
-            } else {
-                origins_for_signature(
-                    signature_type,
-                    tree,
-                    tree.get_arguments(*arguments),
-                    state,
-                    return_contains_borrow,
-                )
-            };
+            let origins =
+                if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
+                    origins_for_targets(
+                        targets,
+                        tree.get_arguments(*arguments),
+                        state,
+                        lifetime_analysis,
+                        return_contains_borrow,
+                    )
+                } else if let Some(function_id) = declared_target {
+                    origins_for_call(
+                        *function_id,
+                        tree.get_arguments(*arguments),
+                        state,
+                        lifetime_analysis,
+                        return_contains_borrow,
+                    )
+                } else {
+                    origins_for_signature(
+                        signature_type,
+                        tree,
+                        tree.get_arguments(*arguments),
+                        state,
+                        return_contains_borrow,
+                    )
+                };
 
             assign_origin_if_borrowed(state, *dest, origins, tree, types);
         }
@@ -877,13 +892,24 @@ fn apply_instruction_effects(
             let signature_type = tree.get(*signature);
             let return_contains_borrow =
                 signature_return_contains_borrowed_refs(signature_type, tree);
-            let origins = origins_for_signature(
-                signature_type,
-                tree,
-                tree.get_arguments(*arguments),
-                state,
-                return_contains_borrow,
-            );
+            let origins =
+                if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
+                    origins_for_targets(
+                        targets,
+                        tree.get_arguments(*arguments),
+                        state,
+                        lifetime_analysis,
+                        return_contains_borrow,
+                    )
+                } else {
+                    origins_for_signature(
+                        signature_type,
+                        tree,
+                        tree.get_arguments(*arguments),
+                        state,
+                        return_contains_borrow,
+                    )
+                };
 
             assign_origin_if_borrowed(state, *dest, origins, tree, types);
         }
@@ -968,6 +994,29 @@ fn origins_for_call(
             origins
         }
     }
+}
+
+fn origins_for_targets(
+    targets: &[mir::LocalNodeId<mir::Function>],
+    arguments: &[Value],
+    state: &BorrowOriginMap,
+    lifetime_analysis: &LifetimeAnalysis,
+    return_contains_borrow: bool,
+) -> BorrowOriginSet {
+    let mut origins = BorrowOriginSet::default();
+
+    for target in targets {
+        let target_origins = origins_for_call(
+            *target,
+            arguments,
+            state,
+            lifetime_analysis,
+            return_contains_borrow,
+        );
+        origins.union_with(&target_origins);
+    }
+
+    origins
 }
 
 fn origins_for_signature(

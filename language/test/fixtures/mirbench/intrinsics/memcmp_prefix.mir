@@ -1,0 +1,109 @@
+
+function @memcmp_prefix(v0: i64) -> i64 {
+
+// entry, clamp length
+block0(v0: i64):
+    v1: i64 = iconst 1i64
+    v2: bool = icmp_slt v0, v1
+    branch v2, block1, block2
+
+// merge branch, continue
+block1:
+    jump block3(v1)
+
+// merge branch, continue
+block2:
+    jump block3(v0)
+
+// entry, init state
+block3(v3: i64):
+    v4: ref<managed u8> = managed.alloc_array u8, v3
+    v5: ref<managed u8> = managed.alloc_array u8, v3
+    v6: i64 = iconst 0i64
+    jump block4(v6, v3, v4, v5)
+
+// loop condition, fill arrays
+block4(v7: i64, v8: i64, v9: ref<managed u8>, v10: ref<managed u8>):
+    v11: bool = icmp_sge v7, v8
+    branch v11, block9(v8, v9, v10), block5
+
+// fill arrays
+block5:
+    v12: i64 = iconst 3i64
+    v13: i64 = imul v7, v12
+    v14: i64 = iconst 1i64
+    v15: i64 = iadd v13, v14
+    v16: i64 = iconst 255i64
+    v17: i64 = band v15, v16
+    v18: u8 = trunc v17 -> u8
+    v19: ref<borrowed u8> = element.addr v9, v7
+    store v19, v18
+    v20: i64 = iconst 3i64
+    v21: i64 = band v7, v20
+    v22: i64 = iconst 0i64
+    v23: bool = icmp_eq v21, v22
+    branch v23, block6(v17, v7, v8, v9, v10), block7(v18, v7, v8, v9, v10)
+
+// fill array b with offset
+block6(v24: i64, v25: i64, v26: i64, v27: ref<managed u8>, v28: ref<managed u8>):
+    v29: i64 = iconst 1i64
+    v30: i64 = iadd v24, v29
+    v31: i64 = iconst 255i64
+    v32: i64 = band v30, v31
+    v33: u8 = trunc v32 -> u8
+    v34: ref<borrowed u8> = element.addr v28, v25
+    store v34, v33
+    jump block8(v25, v26, v27, v28)
+
+// fill array b without offset
+block7(v35: u8, v36: i64, v37: i64, v38: ref<managed u8>, v39: ref<managed u8>):
+    v40: ref<borrowed u8> = element.addr v39, v36
+    store v40, v35
+    jump block8(v36, v37, v38, v39)
+
+// advance fill loop
+block8(v41: i64, v42: i64, v43: ref<managed u8>, v44: ref<managed u8>):
+    v45: i64 = iconst 1i64
+    v46: i64 = iadd v41, v45
+    jump block4(v46, v42, v43, v44)
+
+// init compare loop
+block9(v47: i64, v48: ref<managed u8>, v49: ref<managed u8>):
+    v50: i64 = iconst 0i64
+    v51: i64 = iconst 0i64
+    jump block10(v50, v51, v47, v48, v49)
+
+// loop condition, compare prefixes
+block10(v52: i64, v53: i64, v54: i64, v55: ref<managed u8>, v56: ref<managed u8>):
+    v57: bool = icmp_sge v52, v54
+    branch v57, block12(v53), block11
+
+// compare prefix
+block11:
+    v58: ref<borrowed u8> = element.addr v55, v52
+    v59: ref<borrowed u8> = element.addr v56, v52
+    v60: i64 = isub v54, v52
+    v61: i32 = intrinsic.memcmp(v58, v59, v60)
+    v62: i64 = sextend v61 -> i64
+    v63: i64 = iadd v53, v62
+    v64: i64 = iconst 1i64
+    v65: i64 = iadd v52, v64
+    jump block10(v65, v63, v54, v55, v56)
+
+// return result
+block12(v66: i64):
+    v67: i64 = iconst 7i64
+    v68: i64 = imul v54, v67
+    v69: i64 = iadd v66, v68
+    v70: i64 = iconst 3i64
+    v71: i64 = iadd v69, v70
+    v72: i64 = iconst 3i64
+    v73: i64 = sshr v66, v72
+    v74: i64 = bxor v71, v73
+    v75: i64 = iconst 33i64
+    v76: i64 = imul v74, v75
+    v77: i64 = iconst 255i64
+    v78: i64 = band v54, v77
+    v79: i64 = iadd v76, v78
+    return v79
+}

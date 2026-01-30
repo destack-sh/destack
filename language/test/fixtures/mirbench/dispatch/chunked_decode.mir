@@ -1,0 +1,133 @@
+function @chunked_decode(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    v6: i64 = iconst 0i64
+    jump block1(v1, v2, v3, v4, v5, v6)
+
+// loop condition, check limit
+block1(v7: i64, v8: i64, v9: i64, v10: i64, v11: i64, v12: i64):
+    v13: bool = icmp_sge v7, v0
+    branch v13, block20(v8, v10, v11, v12), block2(v7, v8, v9, v10, v11, v12)
+
+// compute token
+block2(v14: i64, v15: i64, v16: i64, v17: i64, v18: i64, v19: i64):
+    v20: i64 = iconst 1103515245i64
+    v21: i64 = imul v14, v20
+    v22: i64 = iconst 12345i64
+    v23: i64 = iadd v21, v22
+    v24: i64 = iconst 16i64
+    v25: i64 = sshr v23, v24
+    v26: i64 = iconst 15i64
+    v27: i64 = band v25, v26
+    switch v16, block3(v14, v15, v16, v17, v18, v19, v27), 0 => block3(v14, v15, v16, v17, v18, v19, v27), 1 => block6(v14, v15, v16, v17, v18, v19, v27), 2 => block9(v14, v15, v16, v17, v18, v19, v27), 3 => block12(v14, v15, v16, v17, v18, v19, v27), 4 => block14(v14, v15, v16, v17, v18, v19, v27)
+
+// size parse state
+block3(v28: i64, v29: i64, v30: i64, v31: i64, v32: i64, v33: i64, v34: i64):
+    v35: i64 = iconst 9i64
+    v36: bool = icmp_sle v34, v35
+    branch v36, block4(v28, v29, v30, v31, v32, v33, v34), block5(v28, v29, v30, v31, v32, v33, v34)
+
+// size digit
+block4(v37: i64, v38: i64, v39: i64, v40: i64, v41: i64, v42: i64, v43: i64):
+    v44: i64 = iconst 10i64
+    v45: i64 = imul v40, v44
+    v46: i64 = iadd v45, v43
+    jump block18(v37, v38, v39, v46, v41, v42)
+
+// size delimiter
+block5(v47: i64, v48: i64, v49: i64, v50: i64, v51: i64, v52: i64, v53: i64):
+    v54: i64 = iconst 10i64
+    v55: bool = icmp_eq v53, v54
+    branch v55, block15(v47, v48, v50, v51, v52), block18(v47, v48, v49, v50, v51, v52)
+
+// expect lf state
+block6(v56: i64, v57: i64, v58: i64, v59: i64, v60: i64, v61: i64, v62: i64):
+    v63: i64 = iconst 11i64
+    v64: bool = icmp_eq v62, v63
+    branch v64, block7(v56, v57, v59, v60, v61), block18(v56, v57, v58, v59, v60, v61)
+
+// begin data
+block7(v65: i64, v66: i64, v67: i64, v68: i64, v69: i64):
+    v70: i64 = iconst 0i64
+    v71: i64 = iconst 2i64
+    jump block18(v65, v66, v71, v70, v67, v69)
+
+// data state
+block9(v72: i64, v73: i64, v74: i64, v75: i64, v76: i64, v77: i64, v78: i64):
+    v79: i64 = iconst 0i64
+    v80: bool = icmp_sgt v76, v79
+    branch v80, block10(v72, v73, v74, v75, v76, v77, v78), block11(v72, v73, v75, v76, v77)
+
+// consume data
+block10(v81: i64, v82: i64, v83: i64, v84: i64, v85: i64, v86: i64, v87: i64):
+    v88: i64 = iadd v82, v87
+    v89: i64 = iconst 1i64
+    v90: i64 = isub v85, v89
+    jump block18(v81, v88, v83, v84, v90, v86)
+
+// data done
+block11(v91: i64, v92: i64, v93: i64, v94: i64, v95: i64):
+    v96: i64 = iconst 3i64
+    jump block18(v91, v92, v96, v93, v94, v95)
+
+// expect cr state
+block12(v97: i64, v98: i64, v99: i64, v100: i64, v101: i64, v102: i64, v103: i64):
+    v104: i64 = iconst 10i64
+    v105: bool = icmp_eq v103, v104
+    branch v105, block13(v97, v98, v100, v101, v102), block18(v97, v98, v99, v100, v101, v102)
+
+// expect lf state
+block13(v106: i64, v107: i64, v108: i64, v109: i64, v110: i64):
+    v111: i64 = iconst 4i64
+    jump block18(v106, v107, v111, v108, v109, v110)
+
+// finalize chunk
+block14(v112: i64, v113: i64, v114: i64, v115: i64, v116: i64, v117: i64, v118: i64):
+    v119: i64 = iconst 11i64
+    v120: bool = icmp_eq v118, v119
+    branch v120, block16(v112, v113, v115, v116, v117), block18(v112, v113, v114, v115, v116, v117)
+
+// move to lf state
+block15(v121: i64, v122: i64, v123: i64, v124: i64, v125: i64):
+    v126: i64 = iconst 1i64
+    jump block18(v121, v122, v126, v123, v124, v125)
+
+// chunk complete
+block16(v127: i64, v128: i64, v129: i64, v130: i64, v131: i64):
+    v132: i64 = iconst 1i64
+    v133: i64 = iadd v131, v132
+    v134: i64 = iconst 0i64
+    jump block18(v127, v128, v134, v129, v130, v133)
+
+// advance loop
+block18(v135: i64, v136: i64, v137: i64, v138: i64, v139: i64, v140: i64):
+    v141: i64 = iconst 1i64
+    v142: i64 = iadd v135, v141
+    jump block1(v142, v136, v137, v138, v139, v140)
+
+// return result
+block20(v143: i64, v144: i64, v145: i64, v146: i64):
+    v147: i64 = iadd v143, v144
+    v148: i64 = iadd v147, v145
+    v149: i64 = iadd v148, v146
+    v150: i64 = iconst 7i64
+    v151: i64 = imul v0, v150
+    v152: i64 = iadd v149, v151
+    v153: i64 = iconst 3i64
+    v154: i64 = iadd v152, v153
+    v155: i64 = iconst 3i64
+    v156: i64 = sshr v149, v155
+    v157: i64 = bxor v154, v156
+    v158: i64 = iconst 33i64
+    v159: i64 = imul v157, v158
+    v160: i64 = iconst 255i64
+    v161: i64 = band v0, v160
+    v162: i64 = iadd v159, v161
+    return v162
+}

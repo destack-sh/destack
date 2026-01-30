@@ -1,0 +1,90 @@
+
+function @queue_parse(v0: i64, v1: i64) -> i64 {
+
+// entry, parse payload
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 7i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @queue_exec(v0: i64, v1: i64) -> i64 {
+
+// entry, execute task
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 3i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @yield_task_queue(v0: i64) -> i64 {
+
+// entry, init buffer
+block0(v0: i64):
+    v1: ref<managed i64> = managed.alloc_array i64, v0
+    v2: i64 = iconst 0i64
+    jump block1(v2, v1)
+
+// loop condition, fill buffer
+block1(v3: i64, v4: ref<managed i64>):
+    v5: bool = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+
+// fill buffer values
+block2:
+    v6: i64 = iconst 5i64
+    v7: i64 = imul v3, v6
+    v8: i64 = iconst 7i64
+    v9: i64 = iadd v7, v8
+    v10: ref<borrowed i64> = element.addr v4, v3
+    store v10, v9
+    v11: i64 = iconst 1i64
+    v12: i64 = iadd v3, v11
+    jump block1(v12, v4)
+
+// init queue processing
+block3(v13: ref<managed i64>):
+    v14: i64 = iconst 0i64
+    v15: i64 = iconst 0i64
+    jump block4(v14, v15, v13)
+
+// loop condition, process queue
+block4(v16: i64, v17: i64, v18: ref<managed i64>):
+    v19: bool = icmp_sge v16, v0
+    branch v19, block7(v17), block5
+
+// yield processed task
+block5:
+    v20: ref<borrowed i64> = element.addr v18, v16
+    v21: i64 = load v20
+    v22: i64 = call @queue_parse(v21, v17)
+    v23: i64 = call @queue_exec(v22, v16)
+    v24: i64 = iconst 1i64
+    v25: i64 = iadd v16, v24
+    yield v23, block6(v25, v17, v18, v23)
+
+// resume, accumulate result
+block6(v26: i64, v27: i64, v28: ref<managed i64>, v29: i64, v30: i64):
+    v31: i64 = iadd v27, v29
+    v32: i64 = iadd v31, v30
+    jump block4(v26, v32, v28)
+
+// return result
+block7(v33: i64):
+    v34: i64 = iconst 7i64
+    v35: i64 = imul v0, v34
+    v36: i64 = iadd v33, v35
+    v37: i64 = iconst 3i64
+    v38: i64 = iadd v36, v37
+    v39: i64 = iconst 3i64
+    v40: i64 = sshr v33, v39
+    v41: i64 = bxor v38, v40
+    v42: i64 = iconst 33i64
+    v43: i64 = imul v41, v42
+    v44: i64 = iconst 255i64
+    v45: i64 = band v0, v44
+    v46: i64 = iadd v43, v45
+    return v46
+}

@@ -1,0 +1,108 @@
+
+function @stage_parse(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 7i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @stage_auth(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 11i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @stage_exec(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 5i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @stage_log(v0: i64, v1: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 13i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @task_pipeline(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 64i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    jump block1(v3, v4, v2, v4)
+
+// loop condition, check limit
+block1(v5: i64, v6: i64, v7: ref<managed i64>, v8: i64):
+    v9: bool = icmp_sge v5, v0
+    branch v9, block5(v6), block2
+
+// run pipeline
+block2:
+    v10: i64 = iconst 1103515245i64
+    v11: i64 = imul v5, v10
+    v12: i64 = iconst 12345i64
+    v13: i64 = iadd v11, v12
+    v14: i64 = iconst 1i64
+    v15: i64 = band v13, v14
+    v16: i64 = call @stage_parse(v5, v6)
+    v17: i64 = call @stage_auth(v16, v5)
+    v18: i64 = iconst 0i64
+    v19: bool = icmp_eq v15, v18
+    branch v19, block3(v17, v5, v6, v7, v15), block4(v17, v5, v6, v7, v15)
+
+// execute stage
+block3(v20: i64, v21: i64, v22: i64, v23: ref<managed i64>, v24: i64):
+    v25: i64 = call @stage_exec(v20, v21)
+    jump block6(v25, v21, v22, v23, v24)
+
+// skip exec stage
+block4(v26: i64, v27: i64, v28: i64, v29: ref<managed i64>, v30: i64):
+    jump block6(v26, v27, v28, v29, v30)
+
+// merge pipeline, advance loop
+block6(v31: i64, v32: i64, v33: i64, v34: ref<managed i64>, v35: i64):
+    v36: i64 = call @stage_log(v31, v33)
+    v37: i64 = iconst 63i64
+    v38: i64 = band v32, v37
+    v39: ref<borrowed i64> = element.addr v34, v38
+    store v39, v36
+    v40: i64 = iadd v33, v36
+    v41: i64 = iconst 1i64
+    v42: i64 = iadd v32, v41
+    jump block1(v42, v40, v34, v40)
+
+// return result
+block5(v43: i64):
+    v44: i64 = iconst 7i64
+    v45: i64 = imul v0, v44
+    v46: i64 = iadd v43, v45
+    v47: i64 = iconst 3i64
+    v48: i64 = iadd v46, v47
+    v49: i64 = iconst 3i64
+    v50: i64 = sshr v43, v49
+    v51: i64 = bxor v48, v50
+    v52: i64 = iconst 33i64
+    v53: i64 = imul v51, v52
+    v54: i64 = iconst 255i64
+    v55: i64 = band v0, v54
+    v56: i64 = iadd v53, v55
+    return v56
+}

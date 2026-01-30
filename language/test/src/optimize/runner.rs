@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::Instant;
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_compiler::{
@@ -53,6 +55,29 @@ impl OptimizeRunOptions {
             None => true,
         }
     }
+}
+
+/// Perf sample data captured for a single program and level.
+#[derive(Debug, Clone)]
+struct PerfSample {
+    /// Program name.
+    name: String,
+    /// Optimization level.
+    level: OptimizationLevel,
+    /// Compile time in milliseconds.
+    compile_ms: f64,
+    /// Runtime in milliseconds.
+    runtime_ms: f64,
+    /// Baseline runtime in milliseconds.
+    baseline_runtime_ms: f64,
+    /// MIR instruction count after optimization.
+    mir_instructions: u64,
+    /// Baseline MIR instruction count.
+    baseline_mir_instructions: u64,
+    /// Threaded instructions executed by the VM.
+    threaded_instructions: u64,
+    /// Baseline threaded instructions executed by the VM.
+    baseline_threaded_instructions: u64,
 }
 
 /// Allowed diagnostics for a bench fixture.
@@ -467,6 +492,239 @@ impl Suite for OptimizeExecuteSuite {
     }
 }
 
+/// Optimizer bench suite for perf runs.
+#[derive(Debug)]
+pub struct OptimizePerfSuite {
+    /// Shared run options.
+    options: OptimizeRunOptions,
+    /// Root path for the fixtures.
+    root: PathBuf,
+    /// Discovered test cases.
+    cases: Vec<TestCase>,
+    /// Program lookup by name.
+    programs: HashMap<String, &'static program::Program>,
+    /// Collected perf samples.
+    samples: Mutex<Vec<PerfSample>>,
+}
+
+impl OptimizePerfSuite {
+    /// Load the perf suite with the provided options.
+    pub fn load(options: OptimizeRunOptions) -> Self {
+        // locate fixture root
+        let root = program::fixtures_root();
+
+        // prepare program containers
+        let mut cases = Vec::new();
+        let mut programs = HashMap::new();
+
+        // build program cases
+        for entry in program::all_programs() {
+            let path = root.join(format!("{}.mir", entry.name));
+            let case = TestCase::file(entry.name, path, "destack_test::optimize::perf");
+            cases.push(case);
+            programs.insert(entry.name.to_string(), entry);
+        }
+
+        Self {
+            options,
+            root,
+            cases,
+            programs,
+            samples: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl Suite for OptimizePerfSuite {
+    fn name(&self) -> &'static str {
+        "optimize_perf"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        self.cases.clone()
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        // resolve the program metadata
+        let program = match self.programs.get(&case.name) {
+            Some(program) => *program,
+            None => {
+                return TestResult::Failed {
+                    message: format!("program '{}' not found", case.name),
+                };
+            }
+        };
+
+        // parse allow list directives
+        let allow_list = BenchAllowList::from_source(program.source);
+        if allow_list.has_expectations() {
+            return TestResult::Skipped {
+                reason: "skipped by allow list directives".to_string(),
+            };
+        }
+
+        // parse baseline tree to count MIR instructions
+        let (baseline_tree, baseline_strings) = match parse_mir_source(program.source) {
+            Ok(output) => output,
+            Err(message) => return TestResult::Failed { message },
+        };
+        let baseline_mir_instructions = count_mir_instructions(&baseline_tree);
+
+        // run baseline program for correctness and baseline metrics
+        let baseline_start = Instant::now();
+        let baseline_output = match run_program_with_tree_result(
+            program,
+            baseline_tree,
+            baseline_strings,
+            self.options.max_instruction_limit,
+        ) {
+            Ok(output) => output,
+            Err(error) => {
+                return TestResult::Failed {
+                    message: format!("bench '{}' baseline failed: {error}", program.name),
+                };
+            }
+        };
+        let baseline_runtime_ms = baseline_start.elapsed().as_secs_f64() * 1000.0;
+        let baseline_threaded_instructions =
+            baseline_output.statistics.threaded_instructions_executed;
+
+        // prepare shared configuration
+        let package_id = PackageId::from_synthetic_path(&self.root);
+        let target_id = TargetId::new(package_id, "native");
+        let options = PipelineOptions::default();
+
+        // optimize and execute each configured level
+        let mut ran_any = false;
+        for level in OPTIMIZATION_LEVELS {
+            if !self.options.allows_level(level) {
+                continue;
+            }
+
+            // emit trace output when requested
+            if self.options.trace {
+                eprintln!("perf bench {} {level:?}", program.name);
+            }
+
+            ran_any = true;
+            let pipeline = default_pipeline(level);
+            let module_id = module_id_for_program(package_id, program.name);
+
+            // optimize with compile timing
+            let compile_start = Instant::now();
+            let (tree, strings) = match optimize_source(
+                program.source,
+                module_id,
+                &target_id,
+                &pipeline,
+                options.clone(),
+                &allow_list,
+            ) {
+                Ok(output) => output,
+                Err(message) => return TestResult::Failed { message },
+            };
+            let compile_ms = compile_start.elapsed().as_secs_f64() * 1000.0;
+
+            // compute MIR instruction count after optimization
+            let mir_instructions = count_mir_instructions(&tree);
+
+            // execute the optimized program with runtime timing
+            let runtime_start = Instant::now();
+            let output = run_program_with_tree_result(
+                program,
+                tree,
+                strings,
+                self.options.max_instruction_limit,
+            );
+            let runtime_ms = runtime_start.elapsed().as_secs_f64() * 1000.0;
+            let output = match output {
+                Ok(output) => output,
+                Err(error) => {
+                    return TestResult::Failed {
+                        message: format!("bench '{}' ({level:?}) failed: {error}", program.name),
+                    };
+                }
+            };
+
+            // compare outputs against the baseline
+            if output.value != baseline_output.value {
+                return TestResult::Failed {
+                    message: format!(
+                        "'{}' ({level:?}): expected {:?}, got {:?}",
+                        program.name, baseline_output.value, output.value
+                    ),
+                };
+            }
+
+            let sample = PerfSample {
+                name: program.name.to_string(),
+                level,
+                compile_ms,
+                runtime_ms,
+                baseline_runtime_ms,
+                mir_instructions,
+                baseline_mir_instructions,
+                threaded_instructions: output.statistics.threaded_instructions_executed,
+                baseline_threaded_instructions,
+            };
+
+            self.samples
+                .lock()
+                .expect("perf samples lock poisoned")
+                .push(sample);
+        }
+
+        // skip if no levels matched the filter
+        if !ran_any {
+            return TestResult::Skipped {
+                reason: "filtered out by optimization level".to_string(),
+            };
+        }
+
+        TestResult::Passed
+    }
+
+    fn report(&self, _results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {
+        let mut samples = self
+            .samples
+            .lock()
+            .expect("perf samples lock poisoned")
+            .clone();
+
+        samples.sort_by(|a, b| match a.name.cmp(&b.name) {
+            std::cmp::Ordering::Equal => level_index(a.level).cmp(&level_index(b.level)),
+            order => order,
+        });
+
+        if samples.is_empty() {
+            return;
+        }
+
+        println!();
+        println!("perf summary (ms, threaded inst, mir inst)");
+        for sample in samples {
+            let runtime_delta = sample.runtime_ms - sample.baseline_runtime_ms;
+            let mir_delta =
+                sample.mir_instructions as i64 - sample.baseline_mir_instructions as i64;
+            let threaded_delta =
+                sample.threaded_instructions as i64 - sample.baseline_threaded_instructions as i64;
+
+            println!(
+                "{} {level:?} compile={compile:.2} runtime={runtime:.2} (delta={runtime_delta:+.2}) threaded={threaded} (delta={threaded_delta:+}) mir={mir} (delta={mir_delta:+})",
+                sample.name,
+                level = sample.level,
+                compile = sample.compile_ms,
+                runtime = sample.runtime_ms,
+                runtime_delta = runtime_delta,
+                threaded = sample.threaded_instructions,
+                threaded_delta = threaded_delta,
+                mir = sample.mir_instructions,
+                mir_delta = mir_delta,
+            );
+        }
+    }
+}
+
 /// Collect all MIR bench fixtures under the root.
 fn collect_mir_files(root: &Path) -> Vec<PathBuf> {
     // collect files with a depth first walk
@@ -526,6 +784,42 @@ fn module_id_for_program(package_id: PackageId, name: &str) -> ModuleId {
     ModuleId::from_relative_path(package_id, &relative)
 }
 
+/// Parse a MIR source string into a tree and string pool.
+fn parse_mir_source(source: &str) -> Result<(mir::NodeTree, ImmutableStringPool), String> {
+    // parse the source program
+    mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .map_err(|error| format!("failed to parse mir: {error}"))
+}
+
+/// Count MIR instructions across all function bodies.
+fn count_mir_instructions(tree: &mir::NodeTree) -> u64 {
+    let mut count = 0u64;
+
+    for (_, function) in tree.iter_nodes::<mir::Function>() {
+        if function.entry.is_none() {
+            continue;
+        }
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            count += block.instructions.len() as u64 + 1;
+        }
+    }
+
+    count
+}
+
+/// Map optimization levels to a stable sort index.
+fn level_index(level: OptimizationLevel) -> u8 {
+    match level {
+        OptimizationLevel::O0 => 0,
+        OptimizationLevel::O1 => 1,
+        OptimizationLevel::O2 => 2,
+        OptimizationLevel::O3 => 3,
+        OptimizationLevel::O4 => 4,
+    }
+}
+
 /// Optimize a source program and return the optimized tree and strings.
 fn optimize_source(
     source: &str,
@@ -536,9 +830,7 @@ fn optimize_source(
     allow_list: &BenchAllowList,
 ) -> Result<(mir::NodeTree, ImmutableStringPool), String> {
     // parse the source program
-    let (mut tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-            .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (mut tree, strings) = parse_mir_source(source)?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -577,9 +869,7 @@ fn baseline_output_for_program(
     max_instruction_limit: Option<u64>,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
-    let (tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
-            .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (tree, strings) = parse_mir_source(program.source)?;
 
     // run the baseline program with quick profile args
     run_program_with_tree_result(program, tree, strings, max_instruction_limit)
@@ -592,9 +882,7 @@ fn baseline_output_for_program_default_args(
     max_instruction_limit: Option<u64>,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
-    let (tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
-            .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (tree, strings) = parse_mir_source(program.source)?;
 
     // run the baseline program with default args
     run_program_with_tree_result_default_args(program, tree, strings, max_instruction_limit)

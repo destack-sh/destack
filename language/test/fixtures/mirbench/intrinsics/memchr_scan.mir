@@ -1,0 +1,83 @@
+
+function @memchr_scan(v0: i64) -> i64 {
+
+// entry, init buffer
+block0(v0: i64):
+    v1: ref<managed i64> = managed.alloc_array i64, v0
+    v2: i64 = iconst 0i64
+    jump block1(v2, v1)
+
+// loop condition, fill buffer
+block1(v3: i64, v4: ref<managed i64>):
+    v5: bool = icmp_sge v3, v0
+    branch v5, block3(v4), block2
+
+// fill buffer values
+block2:
+    v6: i64 = iconst 37i64
+    v7: i64 = imul v3, v6
+    v8: i64 = iconst 11i64
+    v9: i64 = iadd v7, v8
+    v10: i64 = iconst 255i64
+    v11: i64 = band v9, v10
+    v12: ref<borrowed i64> = element.addr v4, v3
+    store v12, v11
+    v13: i64 = iconst 1i64
+    v14: i64 = iadd v3, v13
+    jump block1(v14, v4)
+
+// init scan
+block3(v15: ref<managed i64>):
+    v16: i64 = iconst 0i64
+    v17: i64 = iconst 0i64
+    v18: i64 = iconst 0i64
+    jump block4(v16, v17, v18, v15)
+
+// loop condition, scan buffer
+block4(v19: i64, v20: i64, v21: i64, v22: ref<managed i64>):
+    v23: bool = icmp_sge v19, v0
+    branch v23, block6(v20, v21), block5
+
+// scan and compare
+block5:
+    v24: ref<borrowed i64> = element.addr v22, v19
+    v25: i64 = load v24
+    v26: i64 = iconst 42i64
+    v27: bool = icmp_eq v25, v26
+    branch v27, block7(v19, v20, v21, v22), block8(v19, v20, v21, v22)
+
+// match found
+block7(v28: i64, v29: i64, v30: i64, v31: ref<managed i64>):
+    v32: i64 = iconst 1i64
+    v33: i64 = iadd v29, v32
+    v34: i64 = iadd v30, v28
+    jump block9(v28, v33, v34, v31)
+
+// no match
+block8(v35: i64, v36: i64, v37: i64, v38: ref<managed i64>):
+    jump block9(v35, v36, v37, v38)
+
+// advance loop
+block9(v39: i64, v40: i64, v41: i64, v42: ref<managed i64>):
+    v43: i64 = iconst 1i64
+    v44: i64 = iadd v39, v43
+    jump block4(v44, v40, v41, v42)
+
+// return result
+block6(v45: i64, v46: i64):
+    v47: i64 = iadd v45, v46
+    v48: i64 = iconst 7i64
+    v49: i64 = imul v0, v48
+    v50: i64 = iadd v47, v49
+    v51: i64 = iconst 3i64
+    v52: i64 = iadd v50, v51
+    v53: i64 = iconst 3i64
+    v54: i64 = sshr v47, v53
+    v55: i64 = bxor v52, v54
+    v56: i64 = iconst 33i64
+    v57: i64 = imul v55, v56
+    v58: i64 = iconst 255i64
+    v59: i64 = band v0, v58
+    v60: i64 = iadd v57, v59
+    return v60
+}

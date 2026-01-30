@@ -1,0 +1,76 @@
+
+function @ring_buffer(v0: i64) -> i64 {
+
+// entry, clamp length
+block0(v0: i64):
+    v1: i64 = iconst 1i64
+    v2: bool = icmp_slt v0, v1
+    branch v2, block1, block2
+
+// merge branch, continue
+block1:
+    jump block3(v1)
+
+// merge branch, continue
+block2:
+    jump block3(v0)
+
+// entry, init state
+block3(v3: i64):
+    v4: ref<managed i64> = managed.alloc_array i64, v3
+    v5: i64 = iconst 0i64
+    jump block4(v5, v3, v4)
+
+// loop condition, fill buffer
+block4(v6: i64, v7: i64, v8: ref<managed i64>):
+    v9: bool = icmp_sge v6, v7
+    branch v9, block6(v7, v8), block5
+
+// fill buffer values
+block5:
+    v10: ref<borrowed i64> = element.addr v8, v6
+    store v10, v6
+    v11: i64 = iconst 1i64
+    v12: i64 = iadd v6, v11
+    jump block4(v12, v7, v8)
+
+// init ring loop
+block6(v13: i64, v14: ref<managed i64>):
+    v15: i64 = iconst 0i64
+    v16: i64 = iconst 0i64
+    jump block7(v15, v16, v13, v14)
+
+// loop condition, update ring
+block7(v17: i64, v18: i64, v19: i64, v20: ref<managed i64>):
+    v21: bool = icmp_sge v17, v19
+    branch v21, block9(v18), block8
+
+// update ring buffer
+block8:
+    v22: i64 = srem v17, v19
+    v23: ref<borrowed i64> = element.addr v20, v22
+    v24: i64 = load v23
+    v25: i64 = iadd v24, v17
+    store v23, v25
+    v26: i64 = iadd v18, v25
+    v27: i64 = iconst 1i64
+    v28: i64 = iadd v17, v27
+    jump block7(v28, v26, v19, v20)
+
+// return result
+block9(v29: i64):
+    v30: i64 = iconst 7i64
+    v31: i64 = imul v19, v30
+    v32: i64 = iadd v29, v31
+    v33: i64 = iconst 3i64
+    v34: i64 = iadd v32, v33
+    v35: i64 = iconst 3i64
+    v36: i64 = sshr v29, v35
+    v37: i64 = bxor v34, v36
+    v38: i64 = iconst 33i64
+    v39: i64 = imul v37, v38
+    v40: i64 = iconst 255i64
+    v41: i64 = band v19, v40
+    v42: i64 = iadd v39, v41
+    return v42
+}

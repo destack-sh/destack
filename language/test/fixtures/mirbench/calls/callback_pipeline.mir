@@ -1,0 +1,70 @@
+
+function @stage_add(v0: i64) -> i64 {
+
+// entry, apply add
+block0(v0: i64):
+    v1: i64 = iconst 2i64
+    v2: i64 = iadd v0, v1
+    return v2
+}
+
+function @stage_mul(v0: i64) -> i64 {
+
+// entry, apply multiply
+block0(v0: i64):
+    v1: i64 = iconst 3i64
+    v2: i64 = imul v0, v1
+    v3: i64 = iconst 1i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @stage_mix(v0: i64) -> i64 {
+
+// entry, apply mix
+block0(v0: i64):
+    v1: i64 = iconst 7i64
+    v2: i64 = bxor v0, v1
+    v3: i64 = iconst 5i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @callback_pipeline(v0: i64, v1: fn(i64) -> i64) -> i64 {
+block0(v0: i64, v1: fn(i64) -> i64):
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    jump block1(v2, v3, v1)
+
+// loop condition, check limit
+block1(v4: i64, v5: i64, v6: fn(i64) -> i64):
+    v7: bool = icmp_sge v4, v0
+    branch v7, block3(v5), block2
+
+// loop body, call pipeline
+block2:
+    v8: i64 = call @stage_add(v4) -> fn(i64) -> i64
+    v9: i64 = call.indirect v6(v8) -> fn(i64) -> i64
+    v10: i64 = call @stage_mul(v9) -> fn(i64) -> i64
+    v11: i64 = iadd v5, v10
+    v12: i64 = iconst 1i64
+    v13: i64 = iadd v4, v12
+    jump block1(v13, v11, v6)
+
+// return result
+block3(v14: i64):
+    v15: i64 = iconst 7i64
+    v16: i64 = imul v0, v15
+    v17: i64 = iadd v14, v16
+    v18: i64 = iconst 3i64
+    v19: i64 = iadd v17, v18
+    v20: i64 = iconst 3i64
+    v21: i64 = sshr v14, v20
+    v22: i64 = bxor v19, v21
+    v23: i64 = iconst 33i64
+    v24: i64 = imul v22, v23
+    v25: i64 = iconst 255i64
+    v26: i64 = band v0, v25
+    v27: i64 = iadd v24, v26
+    return v27
+}

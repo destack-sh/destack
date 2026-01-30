@@ -1,0 +1,53 @@
+
+function @rolling_hash(v0: i64) -> i64 {
+
+// entry, init ring buffer
+block0(v0: i64):
+    v1: i64 = iconst 8i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    v6: i64 = iconst 0i64
+    jump block1(v3, v4, v5, v6, v2)
+
+// loop condition, check limit
+block1(v7: i64, v8: i64, v9: i64, v10: i64, v11: ref<managed i64>):
+    v12: bool = icmp_sge v7, v0
+    branch v12, block3(v9, v10), block2
+
+// loop body, update hashes
+block2:
+    v13: i64 = iconst 1103515245i64
+    v14: i64 = imul v7, v13
+    v15: i64 = iconst 12345i64
+    v16: i64 = iadd v14, v15
+    v17: i64 = iconst 255i64
+    v18: i64 = band v16, v17
+    v19: ref<borrowed i64> = element.addr v11, v8
+    v20: i64 = load v19
+    store v19, v18
+    v21: i64 = iadd v9, v18
+    v22: i64 = isub v21, v20
+    v23: i64 = iconst 1i64
+    v24: i64 = iadd v8, v23
+    v25: i64 = iconst 7i64
+    v26: i64 = band v24, v25
+    v27: i64 = iconst 16777619i64
+    v28: i64 = imul v10, v27
+    v29: i64 = band v22, v17
+    v30: i64 = bxor v18, v29
+    v31: i64 = iadd v28, v30
+    v32: i64 = band v7, v25
+    v33: i64 = iconst 0i64
+    v34: bool = icmp_eq v32, v33
+    v35: i64 = bxor v31, v22
+    v36: i64 = select v34, v35, v31
+    v37: i64 = iadd v7, v23
+    jump block1(v37, v26, v22, v36, v11)
+
+// return result
+block3(v38: i64, v39: i64):
+    v40: i64 = bxor v38, v39
+    return v40
+}

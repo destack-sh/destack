@@ -1,0 +1,41 @@
+function @invariant_load(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: ref<raw addrspace(stack) mut i64> = stack.alloc i64
+    v2: i64 = iconst 7i64
+    store v1, v2
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    jump block1(v3, v4)
+
+// loop condition, check limit
+block1(v5: i64, v6: i64):
+    v7: bool = icmp_sge v5, v0
+    branch v7, block3(v6), block2
+
+// loop body, update accumulator
+block2:
+    v8: i64 = load v1
+    v9: i64 = iadd v6, v8
+    v10: i64 = iconst 1i64
+    v11: i64 = iadd v5, v10
+    jump block1(v11, v9)
+
+// return result
+block3(v12: i64):
+    v13: i64 = iconst 7i64
+    v14: i64 = imul v0, v13
+    v15: i64 = iadd v12, v14
+    v16: i64 = iconst 3i64
+    v17: i64 = iadd v15, v16
+    v18: i64 = iconst 3i64
+    v19: i64 = sshr v12, v18
+    v20: i64 = bxor v17, v19
+    v21: i64 = iconst 33i64
+    v22: i64 = imul v20, v21
+    v23: i64 = iconst 255i64
+    v24: i64 = band v0, v23
+    v25: i64 = iadd v22, v24
+    return v25
+}
