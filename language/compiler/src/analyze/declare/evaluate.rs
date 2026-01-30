@@ -2524,6 +2524,7 @@ impl Compiler {
                     }
                     Expression::TypeImport {
                         target,
+                        arguments: _,
                         qualifier,
                         static_arguments,
                     } => {
