@@ -7,7 +7,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_compiler::{
     CompositePipeline, FunctionPass, FunctionPipeline, FunctionToModuleAdaptor, ModulePass,
-    ModulePipeline, OptimizationLevel, Pipeline, PipelineContext, PipelineOptions,
+    ModulePipeline, OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, PipelineTarget,
     RepeatedPipeline, default_pipeline,
 };
 use destack_mir as mir;
@@ -221,6 +221,8 @@ struct PassFilter {
     disabled: HashSet<String>,
     /// Passes that should be exclusively enabled.
     only: Option<HashSet<String>>,
+    /// Force the filtered pass runner even when no filtering is configured.
+    force_run: bool,
 }
 
 impl PassFilter {
@@ -233,12 +235,16 @@ impl PassFilter {
             Some(only.iter().cloned().collect::<HashSet<_>>())
         };
 
-        Self { disabled, only }
+        Self {
+            disabled,
+            only,
+            force_run: false,
+        }
     }
 
     /// Return true when no filtering is configured.
     fn is_noop(&self) -> bool {
-        self.disabled.is_empty() && self.only.is_none()
+        !self.force_run && self.disabled.is_empty() && self.only.is_none()
     }
 
     /// Return true when a pass should run.
@@ -248,6 +254,12 @@ impl PassFilter {
         }
 
         !self.disabled.contains(pass_name)
+    }
+
+    /// Force the filtered pass runner even when no passes are filtered.
+    fn force(mut self) -> Self {
+        self.force_run = true;
+        self
     }
 }
 
@@ -494,7 +506,9 @@ impl Suite for OptimizeValidateSuite {
         let allow_list = BenchAllowList::from_source(&source);
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
-        let options = PipelineOptions::default();
+        // use vm friendly pipeline options
+        let mut options = PipelineOptions::default();
+        options.target = PipelineTarget::Vm;
         let module_id = module_id_for_fixture(&self.root, &case.path, package_id);
 
         // run all configured optimization levels
@@ -510,7 +524,7 @@ impl Suite for OptimizeValidateSuite {
             }
 
             ran_any = true;
-            let pipeline = default_pipeline(level);
+            let pipeline = default_pipeline(level, options.target);
             if let Err(message) = optimize_source(
                 &source,
                 module_id,
@@ -709,7 +723,9 @@ impl Suite for OptimizeExecuteSuite {
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
-        let options = PipelineOptions::default();
+        // use vm friendly pipeline options
+        let mut options = PipelineOptions::default();
+        options.target = PipelineTarget::Vm;
 
         // optimize and validate each configured level
         let mut ran_any = false;
@@ -724,7 +740,7 @@ impl Suite for OptimizeExecuteSuite {
             }
 
             ran_any = true;
-            let pipeline = default_pipeline(level);
+            let pipeline = default_pipeline(level, options.target);
             let module_id = module_id_for_program(package_id, program.name);
             let (tree, strings) = match optimize_source(
                 program.source,
@@ -899,7 +915,9 @@ impl Suite for OptimizePerfSuite {
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
-        let options = PipelineOptions::default();
+        // use vm friendly pipeline options
+        let mut options = PipelineOptions::default();
+        options.target = PipelineTarget::Vm;
 
         // optimize and execute each configured level
         let mut ran_any = false;
@@ -914,7 +932,7 @@ impl Suite for OptimizePerfSuite {
             }
 
             ran_any = true;
-            let pipeline = default_pipeline(level);
+            let pipeline = default_pipeline(level, options.target);
 
             for variant in &variants {
                 // optimize with compile timing
@@ -1602,11 +1620,11 @@ fn bench_profile_label(profile: program::BenchProfileKind) -> &'static str {
 /// Build pipeline variants for perf runs.
 fn build_perf_variants(options: &OptimizeRunOptions) -> Vec<PipelineVariant> {
     if options.perf_ab {
-        let filter = PassFilter::new(&options.perf_ab_disable, &options.perf_ab_only);
+        let filter = PassFilter::new(&options.perf_ab_disable, &options.perf_ab_only).force();
         vec![
             PipelineVariant {
                 label: "A".to_string(),
-                filter: PassFilter::default(),
+                filter: PassFilter::default().force(),
             },
             PipelineVariant {
                 label: "B".to_string(),
@@ -2423,7 +2441,7 @@ fn diagnose_mismatch(
     );
 
     // run each pass in order using a pass major traversal
-    let pipeline = default_pipeline(level);
+    let pipeline = default_pipeline(level, options.target);
     diagnose_pipeline(
         program,
         &mut tree,
@@ -2721,7 +2739,7 @@ fn build_execute_failure(
 ) -> String {
     // run individual pass cases in matrix mode
     if run_options.matrix {
-        let pipeline = default_pipeline(level);
+        let pipeline = default_pipeline(level, options.target);
         let mut path = Vec::new();
         if let Some(reason) = run_matrix_pipeline(
             program,
