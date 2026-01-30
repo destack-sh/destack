@@ -98,31 +98,53 @@ impl Parser {
     /// Eat a tree literal identifier (`kebab-case` as `kebabCase`).
     #[inline]
     pub fn eat_tree_literal_identifier(&mut self) -> ParseResult<StringId> {
+        let (string_id, _) = self.eat_tree_literal_identifier_with_span()?;
+        Ok(string_id)
+    }
+
+    /// Eat a tree literal identifier and return both the identifier and its span.
+    #[inline]
+    pub fn eat_tree_literal_identifier_with_span(
+        &mut self,
+    ) -> ParseResult<(StringId, destack_source::Span)> {
         let mut identifier = String::new();
-        loop {
-            let token = *self.eat_token(TokenType::Identifier)?;
-            let token_part = self.get_token_str(token);
+        let token = *self.eat_token(TokenType::Identifier)?;
+        let mut last_span = token.span;
+        let token_part = self.get_token_str(token);
 
-            // uppercase first letter (except at start)
-            if identifier.is_empty() {
-                identifier.push_str(token_part);
-            } else {
-                // uppercase the first character (UTF-8 safe)
-                let mut chars = token_part.chars();
-                if let Some(first) = chars.next() {
-                    identifier.extend(first.to_uppercase());
-                    identifier.push_str(chars.as_str());
-                }
+        // uppercase first letter (except at start)
+        if identifier.is_empty() {
+            identifier.push_str(token_part);
+        } else {
+            // uppercase the first character (UTF-8 safe)
+            let mut chars = token_part.chars();
+            if let Some(first) = chars.next() {
+                identifier.extend(first.to_uppercase());
+                identifier.push_str(chars.as_str());
             }
+        }
 
+        loop {
+            // snack kebab-case segments
             if self.peek_token(TokenType::Subtract).is_ok() {
                 self.bump();
             } else {
                 break;
             }
+
+            let token = *self.eat_token(TokenType::Identifier)?;
+            let token_part = self.get_token_str(token);
+            last_span = token.span;
+
+            // uppercase the first character (UTF-8 safe)
+            let mut chars = token_part.chars();
+            if let Some(first) = chars.next() {
+                identifier.extend(first.to_uppercase());
+                identifier.push_str(chars.as_str());
+            }
         }
         let string_id = self.strings.intern(identifier);
-        Ok(string_id)
+        Ok((string_id, last_span))
     }
 
     /// Peek a string literal.

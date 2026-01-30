@@ -837,6 +837,23 @@ fn test_lex_tree_with_text_and_expression() {
 }
 
 #[test]
+fn test_lex_tree_with_static_arguments() {
+    assert_tokenize_eq_roundtrip!(
+        "<Component<any>></Component>",
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 9, None),  // Component
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 3, None),  // any
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 9, None),  // Component
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
 fn test_lex_comparison_not_tree() {
     // a < b should be comparison, not tree opening
     assert_tokenize_eq_roundtrip!(

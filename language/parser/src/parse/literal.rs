@@ -529,7 +529,7 @@ impl Parser {
         // left
         let mut path_name_span = None;
         let path: Option<Path> = if self.peek_token(TokenType::Identifier).is_ok() {
-            let (path, name_span) = self.eat_path_with_last_span()?;
+            let (path, name_span) = self.eat_tree_literal_path_with_last_span()?;
             path_name_span = Some(name_span);
             Some(path)
         } else {
@@ -537,6 +537,20 @@ impl Parser {
         };
         self.eat_newlines_maybe()?;
         let header_start = self.mark();
+
+        // static arguments on the tag (TypeScript/TSX generic JSX components)
+        let static_arguments = if path.is_some()
+            && (self.peek_token(TokenType::LessThan).is_ok()
+                || self.peek_token(TokenType::ShiftLeft).is_ok())
+        {
+            Some(
+                self.with_options(self.options.not_in_tree_literal(), |parser| {
+                    parser.eat_static_arguments()
+                })?,
+            )
+        } else {
+            None
+        };
 
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
@@ -602,7 +616,7 @@ impl Parser {
                             // speculatively eat </path
                             self.bump(); // eat <
                             self.bump(); // eat /
-                            match self.eat_path() {
+                            match self.eat_tree_literal_path() {
                                 Ok(closing_path) => {
                                     // found our closing tag
                                     if closing_path == *path {
@@ -644,7 +658,7 @@ impl Parser {
             let expression_id = self.tree.insert(
                 Expression::Path {
                     path: path.clone(),
-                    static_arguments: None,
+                    static_arguments: static_arguments.clone(),
                 },
                 self.get_span_between(start, header_start),
             );
@@ -668,6 +682,7 @@ mod tests {
         Argument, Expression, FloatType, IfCondition, IfKind, IntType, Name, ScalarLiteral,
         TemplateLiteral, TypeLiteral,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
@@ -1054,6 +1069,20 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_tree_fragment_with_kebab_tag() {
+        let mut test =
+            TestParser::new_with_options("<amp-something />", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        // <amp-something />
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "ampSomething");
+            assert!(arguments.is_none());
+            assert!(elements.is_none());
+        });
+    }
+
+    #[test]
     fn test_parse_tree_fragment_with_arguments() {
         // pure TSX: numeric values need {}, boolean flags are implicit true
         let mut test = TestParser::new("<A a={1} annoying-bee={2} c={3} flag />");
@@ -1245,6 +1274,30 @@ mod tests {
                     });
                 });
             });
+        });
+    }
+
+    /// Parse tree literal with static arguments on the tag.
+    #[test]
+    fn test_parse_tree_with_static_arguments() {
+        let mut test = TestParser::new_with_options(
+            r#"<Component<any>></Component>"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                assert_path!(parser, *path, "Component");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Any));
+                });
+            });
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 0);
         });
     }
 
