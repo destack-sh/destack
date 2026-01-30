@@ -2559,6 +2559,13 @@ impl Compiler {
 
         // reject type-only symbols in value resolution
         if !self.symbol_is_value_capable(profile, target_symbol) {
+            if module.language_type.is_declaration() {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from_any(ty, node_id));
+            }
+
             self.error(AnalyzeError::TypeOnlyValue { node: error_node });
             let ty = Type::Error;
             return Ok(types.insert_type_from_any(ty, node_id));
