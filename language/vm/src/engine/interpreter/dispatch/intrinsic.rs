@@ -24,7 +24,12 @@ pub(crate) fn handle_intrinsic(
     let args = collect_values(state, *arguments);
 
     // execute intrinsic
-    match state.interpreter.execute_intrinsic_resolved(
+    let heap_ptr = state.heap_ptr();
+    let heap = unsafe { &mut *heap_ptr };
+    let interpreter = &mut *state.interpreter;
+
+    match interpreter.execute_intrinsic_resolved(
+        heap,
         *intrinsic,
         args.as_slice(),
         *ordering,

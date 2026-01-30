@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::ptr::NonNull;
 #[cfg(feature = "stats")]
 use std::time::Duration;
@@ -83,6 +84,27 @@ pub(crate) struct InterpreterContext<'a> {
     pub(crate) isolate: &'a mut IsolateState,
     /// Interpreter engine state for execution.
     pub(crate) engine: &'a mut InterpreterState,
+}
+
+/// Aggregate slots backed by a heap read guard.
+pub(crate) struct AggregateSlots<'a> {
+    /// Aggregate slot slice.
+    slots: &'a [Value],
+}
+
+impl<'a> AggregateSlots<'a> {
+    /// Create aggregate slots from a slice reference.
+    pub(crate) fn new(slots: &'a [Value]) -> Self {
+        Self { slots }
+    }
+}
+
+impl<'a> Deref for AggregateSlots<'a> {
+    type Target = [Value];
+
+    fn deref(&self) -> &Self::Target {
+        self.slots
+    }
 }
 
 /// Threaded function registry for fast lookup.
@@ -268,7 +290,8 @@ impl<'a> InterpreterContext<'a> {
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
 
                 // allocate managed aggregate for bytes
-                let handle = self.isolate.managed_heap.allocate_with_values(values);
+                let mut heap = self.isolate.heap.borrow();
+                let handle = heap.managed.allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -280,7 +303,8 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for elements
-                let handle = self.isolate.managed_heap.allocate_with_values(values);
+                let mut heap = self.isolate.heap.borrow();
+                let handle = heap.managed.allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -390,7 +414,8 @@ impl<'a> InterpreterContext<'a> {
                     .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for tuple
-                let handle = self.isolate.managed_heap.allocate_with_values(values);
+                let mut heap = self.isolate.heap.borrow();
+                let handle = heap.managed.allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -404,7 +429,8 @@ impl<'a> InterpreterContext<'a> {
                 let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
 
                 // allocate managed aggregate for array
-                let handle = self.isolate.managed_heap.allocate_with_values(values);
+                let mut heap = self.isolate.heap.borrow();
+                let handle = heap.managed.allocate_with_values(values);
 
                 Ok(Value::aggregate(handle))
             }
@@ -416,7 +442,8 @@ impl<'a> InterpreterContext<'a> {
 
     /// Get the slot count for a raw pointer.
     pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        Some(self.isolate.raw_heap.get(pointer)?.storage.len())
+        let heap = self.isolate.heap.borrow();
+        Some(heap.raw.get(pointer)?.storage.len())
     }
 
     /// Read a raw slot, dispatching to the correct raw heap.
@@ -426,11 +453,8 @@ impl<'a> InterpreterContext<'a> {
         slot_index: usize,
         bounds_checks: bool,
     ) -> Result<Value, Error> {
-        let cell = self
-            .isolate
-            .raw_heap
-            .get(pointer)
-            .ok_or(Error::InvalidHeapHandle)?;
+        let heap = self.isolate.heap.borrow();
+        let cell = heap.raw.get(pointer).ok_or(Error::InvalidHeapHandle)?;
 
         match &cell.storage {
             RawCellStorage::Bytes(bytes) => {
@@ -485,11 +509,8 @@ impl<'a> InterpreterContext<'a> {
         value: Value,
         bounds_checks: bool,
     ) -> Result<(), Error> {
-        let cell = self
-            .isolate
-            .raw_heap
-            .get_mut(pointer)
-            .ok_or(Error::InvalidHeapHandle)?;
+        let mut heap = self.isolate.heap.borrow();
+        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
 
         match &mut cell.storage {
             RawCellStorage::Bytes(bytes) => {
@@ -596,14 +617,6 @@ impl<'a> InterpreterContext<'a> {
         self.isolate.allocate_single(value)
     }
 
-    /// Get the slots of an aggregate value (looking up from heap if needed).
-    pub(crate) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
-        value
-            .as_heap_handle()
-            .and_then(|handle| self.isolate.managed_heap.get(handle))
-            .map(|cell| cell.slots.as_slice())
-    }
-
     /// Create an error with instruction anchor.
     #[cold]
     pub(crate) fn make_error_at(
@@ -680,15 +693,14 @@ impl<'a> InterpreterContext<'a> {
         self.isolate.collect_string_roots(&mut roots);
 
         // run collection
-        let freed_cells = self.isolate.managed_heap.collect(&roots);
+        let stats = {
+            let mut heap = self.isolate.heap.borrow();
+            heap.managed.collect(&roots)
+        };
 
         // sweep raw payload buffers for freed strings
         self.sweep_string_buffers();
-        let live_cells = self.isolate.managed_heap.cell_count();
 
-        GcStats {
-            freed_cells,
-            live_cells,
-        }
+        stats
     }
 }

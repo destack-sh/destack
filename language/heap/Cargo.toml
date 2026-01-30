@@ -1,0 +1,19 @@
+[package]
+name = "destack_heap"
+description = "Destack Heap"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_mir = { workspace = true }
+
+[lints]
+workspace = true

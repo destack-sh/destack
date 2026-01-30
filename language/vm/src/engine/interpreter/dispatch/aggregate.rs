@@ -65,7 +65,8 @@ pub(crate) fn handle_field_get_inline(
 
     // fast path: directly access heap cell and inline slots
     let value = unsafe {
-        let cell = state.interpreter.isolate.managed_heap.get_unchecked(handle);
+        let heap = state.heap_ref();
+        let cell = heap.managed.get_unchecked(handle);
         let slot_index = handle.slot_index().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked(slot_index)
@@ -119,11 +120,8 @@ pub(crate) fn handle_field_store_inline(
 
     // fast path: directly access heap cell and inline slots
     unsafe {
-        let cell = state
-            .interpreter
-            .isolate
-            .managed_heap
-            .get_unchecked_mut(handle);
+        let heap = state.heap();
+        let cell = heap.managed.get_unchecked_mut(handle);
         let slot_index = handle.slot_index().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked_mut(slot_index) = val;
@@ -1881,13 +1879,11 @@ pub(crate) fn handle_aggregate(
     let element_slice = state.argument_slice(*elements);
     let result = match element_slice {
         // empty aggregate
-        [] => state.interpreter.allocate_aggregate(Vec::new()),
+        [] => state.allocate_aggregate(Vec::new()),
         // single element aggregate
-        [first] => state.interpreter.allocate_single(state.get(*first)),
+        [first] => state.allocate_single(state.get(*first)),
         // pair aggregate fast path
-        [first, second] => state
-            .interpreter
-            .allocate_pair(state.get(*first), state.get(*second)),
+        [first, second] => state.allocate_pair(state.get(*first), state.get(*second)),
         // general aggregate
         _ => {
             // collect element values into a vec
@@ -1897,7 +1893,7 @@ pub(crate) fn handle_aggregate(
             }
 
             // allocate the aggregate on the heap
-            state.interpreter.allocate_aggregate(element_values)
+            state.allocate_aggregate(element_values)
         }
     };
 
