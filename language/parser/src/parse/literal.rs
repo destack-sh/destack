@@ -410,6 +410,14 @@ impl Parser {
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
         while self.peek().is_ok() {
+            // allow trailing newlines before the closing token
+            if self.peek_token(TokenType::Newline).is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), close_token)
+                    .is_ok()
+            {
+                break;
+            }
             // stop at closing parenthesis (trailing commas are allowed, no hole)
             if self.peek_token(close_token).is_ok() {
                 break;
@@ -463,20 +471,46 @@ impl Parser {
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
     pub fn peek_tree_literal(&self) -> ParseResult<()> {
-        if self.peek_token(TokenType::LessThan).is_ok()
-            && (self.peek_next_token(TokenType::GreaterThan).is_ok()
-                || self.peek_next_token(TokenType::Divide).is_ok()
-                || self.peek_next_token(TokenType::Identifier).is_ok())
+        if self.peek_token(TokenType::LessThan).is_err() {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // skip newlines after `<`
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos + 1)
+            && token.token.ty == TokenType::Newline
         {
-            // exclude generic arrow function disambiguation: <T,>(...)
-            if self.peek_next_token(TokenType::Identifier).is_ok()
-                && self.peek_next_next_token(TokenType::Comma).is_ok()
+            pos += 1;
+        }
+
+        // next token after `<` (and newlines)
+        let next = self
+            .tokens
+            .get(pos + 1)
+            .ok_or(ParseError::unexpected(self.peek()?.span))?;
+        if !matches!(
+            next.token.ty,
+            TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
+        ) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // exclude generic arrow function disambiguation: <T,>(...)
+        if next.token.ty == TokenType::Identifier {
+            let mut comma_pos = pos + 1;
+            while let Some(token) = self.tokens.get(comma_pos + 1)
+                && token.token.ty == TokenType::Newline
+            {
+                comma_pos += 1;
+            }
+            if let Some(token) = self.tokens.get(comma_pos + 1)
+                && token.token.ty == TokenType::Comma
             {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
-            return Ok(());
         }
-        Err(ParseError::unexpected(self.peek()?.span))
+
+        Ok(())
     }
 
     /// Skip whitespace-only tree string tokens (TSX content whitespace).
@@ -1382,6 +1416,41 @@ mod tests {
         });
     }
 
+    /// Parse tree fragment with comments between the angle brackets.
+    #[test]
+    fn test_parse_tree_fragment_with_comments() {
+        let mut test = TestParser::new_with_options(
+            "<\n// comment\n/* comment */\n>\n</>",
+            LanguageType::JavaScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert!(elements.as_ref().unwrap().is_empty());
+        });
+    }
+
+    /// Parse tree literal with namespace tag and attribute.
+    #[test]
+    fn test_parse_tree_with_namespace_tag() {
+        let mut test =
+            TestParser::new_with_options(r#"<Foo:Bar n:foo="bar" />"#, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "Foo:Bar");
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "n:foo");
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(_)));
+            });
+            assert!(elements.is_none());
+        });
+    }
+
     /// Ternary with tree literal containing && inside expression container.
     /// Regression test for fresh_expression() fix - ensures left_precedence is cleared.
     #[test]
@@ -1535,6 +1604,27 @@ mod tests {
         });
     }
 
+    /// Tree literal should parse after a closing class block on a new line.
+    #[test]
+    fn test_parse_tree_after_class_block_newline() {
+        let mut test = TestParser::new_with_options(
+            "class C extends D<T> {}\n<C/>",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+
+        // class declaration
+        let class_expr = parser.try_eat_statement_expression().unwrap();
+        assert_node!(parser.tree, class_expr, Expression::Declaration(_));
+
+        // statement boundary
+        parser.eat_statement_stop_with_newlines().unwrap();
+
+        // tree literal expression
+        let tree_expr = parser.try_eat_statement_expression().unwrap();
+        assert_node!(parser.tree, tree_expr, Expression::TreeExpression { .. });
+    }
+
     /// Valid template literal with interpolation should parse correctly.
     #[test]
     fn test_parse_template_literal_valid() {
@@ -1596,5 +1686,130 @@ mod tests {
         let mut parser = test.prepare();
         let result = parser.eat_template_literal();
         assert!(result.is_ok());
+    }
+
+    /// Parse JSX text that includes `=` and `>=` after opening tags.
+    #[test]
+    fn test_parse_jsx_text_with_equals() {
+        let input = r#"
+<div className={styles.foo}>=</div>;
+<div className={styles.foo} >=</div>;
+<div>=</div>;
+<div >=</div>;
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Parse JSX fragments containing text and comparisons after closing tags.
+    #[test]
+    fn test_parse_jsx_fragment_with_equals() {
+        let input = r#"
+<>=x</>;
+<>x</>>=1;
+<span>=x</span>;
+<span>x</span>>=1;
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Parse JSX fragments with text between child elements in arrays.
+    #[test]
+    fn test_parse_jsx_fragment_equals_in_array() {
+        let input = r#"
+function Test() {
+    return (
+        <Y
+            elements={[
+                <>
+                    <span>x</span>=
+                    <br />
+                </>,
+                true
+            ]}
+        />
+    );
+}
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Parse JSX elements after newline-terminated let and var declarations.
+    #[test]
+    fn test_parse_jsx_after_let_newline() {
+        let input = r#"
+let x
+<Comp></Comp>
+
+let x
+
+<Comp></Comp>
+
+let x;
+<Comp></Comp>
+
+var x
+<Comp></Comp>
+
+var x;
+<Comp></Comp>
+
+function x() {
+    let x
+    <div />
+}
+
+{ foo: 'test' }
+<Comp></Comp>
+
+function test1() {}
+<Comp></Comp>
+
+class Foo {}
+<>
+<Comp></Comp>
+<Comp></Comp>
+</>
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Parse JSX elements after return with newline termination.
+    #[test]
+    fn test_parse_jsx_after_return_newline() {
+        let input = r#"
+function test() {
+    return
+    <Comp />
+}
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+    }
+
+    /// Reject JSX-looking input when it continues an expression across a newline.
+    #[test]
+    fn test_parse_jsx_after_expression_newline_is_error() {
+        let input = r#"
+x
+<Comp />
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let _ = parser.parse();
+        assert!(!parser.errors.is_empty(), "expected parse errors");
     }
 }

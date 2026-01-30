@@ -166,6 +166,11 @@ impl Parser {
             return Err(ParseError::unexpected(token.span));
         }
 
+        // spread (...x) is not a valid standalone expression in JS/TS
+        if operator == UnaryOperator::Spread && !self.language.is_destack() {
+            return Err(ParseError::unexpected(token.span));
+        }
+
         Ok(operator)
     }
 
@@ -625,8 +630,13 @@ impl Parser {
 
             // labelled blocks are only allowed in statement position
             let is_labelled_block = self.peek_next_next_token(TokenType::OpenBrace).is_ok();
-            let can_parse_label =
-                is_labelled_expression || (self.options.in_statement_position && is_labelled_block);
+            let can_parse_label = if self.options.in_statement_position
+                && !self.language.is_destack()
+            {
+                true
+            } else {
+                is_labelled_expression || (self.options.in_statement_position && is_labelled_block)
+            };
             if can_parse_label {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.eat_colon()?;
@@ -1442,6 +1452,7 @@ impl Parser {
             // tree literal
             else if self.language.supports_jsx()
                 && token_type == TokenType::LessThan
+                && !self.options.in_type
                 && self.peek_tree_literal().is_ok()
             {
                 self.with_options(self.options.not_in_position(), |parser| {
@@ -1959,7 +1970,16 @@ impl Parser {
         //
 
         // eat infix expressions while left precedence is weaker than right precedence
+        let left_is_statement = self.options.in_statement_position
+            && self
+                .tree
+                .get(left_expression_id)
+                .ends_statement_on_newline();
         while self.peek().is_ok() {
+            // statement expressions do not continue across newlines
+            if left_is_statement && self.peek_token(TokenType::Newline).is_ok() {
+                break;
+            }
             let (right_operator, operator_offset) = {
                 // infix operator on same line with higher precedence
                 if let Ok((operator, operator_offset)) = self.peek_infix_operator()

@@ -639,10 +639,12 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// import("mod").Type
+    /// import("mod", { with: { "resolution-mode": "import" } }).Type
     /// import("mod").Type<T>
     /// ```
     TypeImport {
         target: StringId,
+        arguments: Vec<LocalNodeId<Argument>>,
         qualifier: Option<Path>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
@@ -888,6 +890,36 @@ impl Expression {
             Expression::Match { .. } => true,
             _ => false,
         }
+    }
+
+    /// Determine if this expression should terminate at a newline in statement position.
+    #[inline]
+    pub fn ends_statement_on_newline(&self) -> bool {
+        matches!(
+            self,
+            Expression::Block(_)
+                | Expression::Declaration(_)
+                | Expression::Statement(_)
+                | Expression::Labelled { .. }
+                | Expression::Import { .. }
+                | Expression::Export { .. }
+                | Expression::ExportNamespace { .. }
+                | Expression::TreeExpression { .. }
+                | Expression::Let { .. }
+                | Expression::Using { .. }
+                | Expression::If { .. }
+                | Expression::While { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Loop { .. }
+                | Expression::Try { .. }
+                | Expression::Match { .. }
+                | Expression::Break { .. }
+                | Expression::Continue { .. }
+                | Expression::Return { .. }
+                | Expression::Throw { .. }
+                | Expression::Debugger
+        )
     }
 
     /// Whether the expression may be inlined into a statement.

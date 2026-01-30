@@ -6,10 +6,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError};
 use destack_parser::Parser;
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleStamp,
-    ProfileStamp, Uri,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId,
+    ModuleStamp, ProfileStamp, Uri,
 };
-use destack_workspace::{MemoryCacheStore, Session};
+use destack_workspace::{
+    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, Program,
+    Session, TargetId,
+};
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,6 +38,10 @@ pub(super) enum TestArea {
 /// Early analysis error codes relevant for syntax-level conformance.
 const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA214", // ReservedIdentifier
+    "EA215", // ObjectLiteralDefault
+    "EA216", // ObjectPatternMultipleSpreads
+    "EA217", // ObjectPatternSpreadNotLast
+    "EA218", // ExportNamespaceOutsideDeclaration
     "EA300", // InvalidBreak
     "EA301", // InvalidContinue
     "EA302", // InvalidAwait
@@ -196,29 +203,71 @@ fn parse_file_with_parser(
     }
 }
 
+/// Apply a default dsconfig for conformance runs.
+fn apply_default_dsconfig(program: &Program, module_id: ModuleId, root: &Path) {
+    // build a default dsconfig to enable early checks for js and ts
+    let file_id = program.files.next_id();
+    let mut options = DsConfigOptions::default();
+    options.compiler.check_ts = true;
+    options.compiler.check_js = true;
+    let target = DsConfigTargetOptions {
+        output: OutputFormat::Js,
+        ..Default::default()
+    };
+    options.targets.insert("default".to_string(), target);
+    options.default_target = Some("default".to_string());
+
+    // attach the dsconfig to the owning package
+    let dsconfig_path = root.join("dsconfig.json");
+    let dsconfig = DsConfig {
+        file_id,
+        path: dsconfig_path,
+        directory: root.to_path_buf(),
+        options,
+        content: Default::default(),
+    };
+    let package_id = {
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let package = program.packages.get(package_id);
+    let mut package = package.write();
+    package.dsconfig = Some(dsconfig.clone());
+    package.targets.clear();
+    for (name, options) in dsconfig.options.targets.iter() {
+        let target = options.to_target(name);
+        let target_id = TargetId::new(package_id, name);
+        package.targets.insert(target_id, target);
+    }
+}
+
 fn parse_file_with_compiler(
     path: &Path,
     content: &str,
     file_type: FileType,
     area: TestArea,
 ) -> ParseOutcome {
-    let (session, program, file_path) = SHARED_CONFORMANCE_ENV.with(|env| {
+    let (session, program, root, file_path) = SHARED_CONFORMANCE_ENV.with(|env| {
         // allocate a fresh test root and file path
         let root = env.root_for(path);
         let file_path = env.file_for(&root, path);
         let session = env.session.clone();
-        let program = session.add_root(root);
+        let program = session.add_root(root.clone());
 
         env.fs
             .add_file(&file_path, content.as_bytes())
             .expect("failed to add test file");
 
-        (session, program, file_path)
+        (session, program, root, file_path)
     });
 
     // register module with the correct file type (important for JSX files with .js extension)
     let uri = Uri::from_path(&file_path);
     let module_id = program.register_inline_module(uri, content.to_string(), file_type);
+
+    // ensure conformance runs check js and ts analyze errors
+    apply_default_dsconfig(&program, module_id, &root);
 
     // create compiler and compile the module
     let compiler = Compiler::new(

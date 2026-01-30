@@ -318,10 +318,6 @@ impl Parser {
         else if self.peek_keyword(Keyword::As).is_ok()
             && self.peek_next_keyword(Keyword::Namespace).is_ok()
         {
-            if !self.language.is_declaration() {
-                let span = self.peek()?.span;
-                return Err(ParseError::unexpected(span));
-            }
             self.bump(); // eat as
             self.bump(); // eat namespace
             let (name, name_span) = self.eat_identifier_with_span()?;

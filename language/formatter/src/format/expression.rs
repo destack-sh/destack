@@ -6318,20 +6318,25 @@ pub(crate) fn format_expression<'ast>(
         // type import
         Expression::TypeImport {
             target,
+            arguments,
             qualifier,
             static_arguments,
         } => {
-            write!(
-                f,
-                [
-                    Keyword::Import,
-                    token("("),
-                    token("\""),
-                    target,
-                    token("\""),
-                    token(")")
-                ]
-            )?;
+            if arguments.is_empty() {
+                write!(
+                    f,
+                    [
+                        Keyword::Import,
+                        token("("),
+                        token("\""),
+                        target,
+                        token("\""),
+                        token(")")
+                    ]
+                )?;
+            } else {
+                write!(f, [Keyword::Import, list_like("(", ")", ",", arguments)])?;
+            }
             if let Some(qualifier) = qualifier {
                 write!(f, [token("."), qualifier])?;
             }

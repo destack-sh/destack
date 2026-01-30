@@ -1047,6 +1047,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::TypeImport {
                 target,
+                arguments: _,
                 qualifier,
                 static_arguments: _,
             } => {

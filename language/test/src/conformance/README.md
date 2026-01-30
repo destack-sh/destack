@@ -10,12 +10,12 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   528  |   180  |     7  |   708 |  74.58% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
-| swc      |   489  |    49  |     -  |   538 |  90.89% |
+| swc      |   490  |    48  |     -  |   538 |  91.08% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5675  |  1571  |      7  |  7246 |  78.32% |
+| total    |  5676  |  1570  |      7  |  7246 |  78.33% |
 
-Total Blended Pass Rate: **78.32%**
+Total Blended Pass Rate: **78.33%**
 <!-- end:summary-results -->
 
 ### babel
@@ -93,7 +93,7 @@ Total Blended Pass Rate: **78.32%**
 | errors               |    25  |     0  |       -  |    25 | 100.00% |
 | es2019               |     1  |     0  |       -  |     1 | 100.00% |
 | estree-compat        |     1  |     0  |       -  |     1 | 100.00% |
-| export               |     3  |     2  |       -  |     5 |  60.00% |
+| export               |     4  |     1  |       -  |     5 |  80.00% |
 | export-default-interface |     1  |     0  |       -  |     1 | 100.00% |
 | function             |     6  |     0  |       -  |     6 | 100.00% |
 | import               |     7  |     1  |       -  |     8 |  87.50% |
@@ -123,7 +123,7 @@ Total Blended Pass Rate: **78.32%**
 | variance-annotations |     0  |     2  |       -  |     2 |   0.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   489  |    49  |       -  |   538 |  90.89% |
+| total                |   490  |    48  |       -  |   538 |  91.08% |
 <!-- end:swc-results -->
 
 ### test262

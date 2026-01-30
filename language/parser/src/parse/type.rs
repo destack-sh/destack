@@ -1,9 +1,9 @@
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType, Keyword,
-    LocalNodeId, Mutability, Name, TokenType, TypeBinaryOperator, TypeKind, TypeLiteral,
-    TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+    Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType,
+    Keyword, LocalNodeId, Mutability, Name, ScalarLiteral, TokenType, TypeBinaryOperator, TypeKind,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
     TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
@@ -383,23 +383,42 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Import)?;
 
+        // arguments
+        let arguments = self.with_options(self.options.nested().not_in_position(), |parser| {
+            parser.eat_dynamic_arguments()
+        })?;
+
         // target
-        self.eat_token(TokenType::OpenParenthesis)?;
-        self.eat_newlines_maybe()?;
-        let (target, target_span) = self.eat_string_literal_with_span()?;
-        self.eat_newlines_maybe()?;
-        self.eat_token(TokenType::CloseParenthesis)?;
+        if arguments.is_empty() {
+            return Err(ParseError::expected(
+                self.get_span_from(start),
+                TokenType::Literal,
+            ));
+        }
+        let (target, target_span) = {
+            let first_argument = self.tree.get(arguments[0]);
+            let Argument::Positional { value, .. } = first_argument else {
+                return Err(ParseError::expected(
+                    self.tree.get_span(arguments[0]),
+                    TokenType::Literal,
+                ));
+            };
+            let value_expression = self.tree.get(*value);
+            let Expression::ScalarLiteral(ScalarLiteral::String(target)) = value_expression else {
+                return Err(ParseError::expected(
+                    self.tree.get_span(*value),
+                    TokenType::Literal,
+                ));
+            };
+            (*target, self.tree.get_span(*value))
+        };
 
         // qualifier (e.g., import("mod").Type)
         let (qualifier, static_arguments) = if self.peek_token(TokenType::Dot).is_ok() {
             self.bump(); // eat dot
             let qualifier = self.eat_path()?;
             self.eat_newlines_maybe()?;
-            let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-                Some(self.eat_static_arguments()?)
-            } else {
-                None
-            };
+            let static_arguments = self.eat_static_arguments_maybe()?;
             (Some(qualifier), static_arguments)
         } else {
             (None, None)
@@ -408,6 +427,7 @@ impl Parser {
         let expr_id = self.tree.insert(
             Expression::TypeImport {
                 target,
+                arguments,
                 qualifier,
                 static_arguments,
             },
@@ -1424,8 +1444,14 @@ mod tests {
         // type T = import("mod").Type
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::TypeImport { target, qualifier, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
                     assert_string!(parser, *target, "mod");
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            assert_string!(parser, *string_id, "mod");
+                        });
+                    });
                     assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
                     assert!(static_arguments.is_none());
                 });
@@ -1442,8 +1468,14 @@ mod tests {
         // type T = import("mod").Type<string, number>
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
-                assert_node!(parser.tree, *value, Expression::TypeImport { target, qualifier, static_arguments } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
                     assert_string!(parser, *target, "mod");
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            assert_string!(parser, *string_id, "mod");
+                        });
+                    });
                     assert_path!(parser, qualifier.as_ref().unwrap(), "Type");
                     let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                     assert_eq!(static_arguments.len(), 2);
@@ -1453,6 +1485,45 @@ mod tests {
                     assert_node!(parser.tree, static_arguments[1], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
                     });
+                });
+            });
+        });
+    }
+
+    /// Parse type import expressions with attributes.
+    #[test]
+    fn test_parse_type_import_expression_with_attributes() {
+        let mut test = TestParser::new(
+            "type T = import(\"vite\", { with: { \"resolution-mode\": \"import\" } })",
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
+                    assert_string!(parser, *target, "vite");
+                    assert_eq!(arguments.len(), 2);
+                    assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::ObjectExpression { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse type import expressions with trailing commas.
+    #[test]
+    fn test_parse_type_import_expression_with_trailing_comma() {
+        let mut test = TestParser::new("type T = import(\"vite\",)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
+                    assert_string!(parser, *target, "vite");
+                    assert_eq!(arguments.len(), 1);
                 });
             });
         });
@@ -2264,8 +2335,9 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 let import_id = *value;
-                assert_node!(parser.tree, *value, Expression::TypeImport { target, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
                     assert_string!(parser, *target, "foo");
+                    assert_eq!(arguments.len(), 1);
                 });
 
                 let main_span = parser
