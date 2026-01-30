@@ -112,6 +112,8 @@ impl WellKnownSymbol {
 /// Compiler known decorator markers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WellKnownDecorator {
+    /// The `@binding` decorator marker.
+    Binding,
     /// The `@extern` decorator marker.
     Extern,
     /// The `@intrinsic` decorator marker.
@@ -185,6 +187,7 @@ impl WellKnownDecorator {
     /// Return the export name for a decorator marker.
     pub fn export_name(&self) -> &'static str {
         match self {
+            WellKnownDecorator::Binding => "binding",
             WellKnownDecorator::Extern => "extern",
             WellKnownDecorator::Intrinsic => "intrinsic",
             WellKnownDecorator::Deprecated => "deprecated",
@@ -222,6 +225,7 @@ impl WellKnownDecorator {
     /// Iterate over all well known decorator markers.
     pub fn all() -> impl Iterator<Item = Self> {
         const ALL: &[WellKnownDecorator] = &[
+            WellKnownDecorator::Binding,
             WellKnownDecorator::Extern,
             WellKnownDecorator::Intrinsic,
             WellKnownDecorator::Deprecated,
