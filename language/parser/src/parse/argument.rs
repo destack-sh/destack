@@ -759,7 +759,7 @@ impl Parser {
             {
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
-                // TSX expression container: attr={expr} - braces are delimiters
+                // tsx expression container: attr={expr}
                 if self.peek_token(TokenType::OpenBrace).is_ok() {
                     self.bump(); // eat {
                     self.eat_newlines_maybe()?;
@@ -773,11 +773,18 @@ impl Parser {
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::CloseBrace)?;
                     value
-                } else {
-                    // bare expression (like attr="string" or attr=true)
-                    self.with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_expression()
-                    })?
+                }
+                // string literal attribute
+                else if self.peek_string_literal().is_ok() {
+                    let (string, span) = self.eat_string_literal_with_span()?;
+                    self.tree.insert(
+                        Expression::ScalarLiteral(ScalarLiteral::String(string)),
+                        span,
+                    )
+                }
+                // unexpected attribute value
+                else {
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
             // implicit boolean true
@@ -1155,6 +1162,19 @@ mod tests {
             .get_main_span(argument_id)
             .expect("expected argument name span");
         assert_eq!(parser.get_span_str(main_span), "\"Content-Type\"");
+    }
+
+    #[test]
+    fn test_parse_named_argument_string_literal_value() {
+        let mut test = TestParser::new("title=\"hello\"");
+        let mut parser = test.prepare();
+        let argument_id = parser.eat_tree_literal_argument().unwrap();
+        assert_node!(parser.tree, argument_id, Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+            assert_string!(parser, *name, "title");
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string)) => {
+                assert_string!(parser, *string, "hello");
+            });
+        });
     }
 
     // positional arguments (for dynamic args, static args, tuples)
