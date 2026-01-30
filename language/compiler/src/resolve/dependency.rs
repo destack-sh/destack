@@ -10,23 +10,72 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleDir, ProfileId};
 use indexmap::IndexMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::resolve::cache::{
+    BindingExportCacheKey, ExportAssignmentTarget, NamespaceExportSymbolCacheKey,
+    NamespaceSymbolCacheKey, RemoteSymbolCacheKey, ReexportChainCacheKey,
+    ResolveDependencyItemCache, TargetCacheKey,
+};
+use crate::timing::tags;
 use crate::{
     Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
 };
 
-/// Target of an export assignment resolution.
-/// Used when resolving named imports from modules with `export = X`.
-#[derive(Debug, Clone, Copy)]
-enum ExportAssignmentTarget {
-    /// Redirect to another module's exports (e.g., `export = importedModule`)
-    Module(ModuleTarget),
-    /// Look in a namespace symbol's members (e.g., `export = LocalNamespace`)
-    Namespace(GlobalSymbolId),
+/// Track visited entries while walking reexport chains.
+#[derive(Debug, Default)]
+struct ReexportVisitStack {
+    /// The current path of visited entries.
+    stack: Vec<ReexportVisitKey>,
+    /// The set of visited entries for fast lookup.
+    seen: FxHashSet<ReexportVisitKey>,
+}
+
+/// Key for reexport chain visitation.
+type ReexportVisitKey = (ModuleTarget, StaticKey, SymbolSpace);
+
+impl ReexportVisitStack {
+    /// Check whether a key has been visited.
+    fn contains(&self, key: &ReexportVisitKey) -> bool {
+        self.seen.contains(key)
+    }
+
+    /// Record a new visit.
+    fn push(&mut self, key: ReexportVisitKey) {
+        self.stack.push(key);
+        self.seen.insert(key);
+    }
+
+    /// Drop the most recent visit.
+    fn pop(&mut self) {
+        if let Some(key) = self.stack.pop() {
+            self.seen.remove(&key);
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Select an origin module for module binding cache entries.
+    fn cache_origin_module_id(
+        &self,
+        origin_module_id: ModuleId,
+        target: ModuleTarget,
+    ) -> Option<ModuleId> {
+        match target {
+            ModuleTarget::Binding(_) => Some(origin_module_id),
+            ModuleTarget::Module(_) => None,
+        }
+    }
+
+    /// Build a cache key for a module target.
+    fn cache_target_key(&self, origin_module_id: ModuleId, target: ModuleTarget) -> TargetCacheKey {
+        TargetCacheKey {
+            target,
+            origin_module_id: self.cache_origin_module_id(origin_module_id, target),
+        }
+    }
+
     /// Select the export spaces to consider for a dependency kind.
     fn export_spaces_for_kind(&self, kind: DependencyKind) -> SymbolSpaceOrder {
         // prefer type space for type lookups
@@ -98,7 +147,8 @@ impl Compiler {
         kind: DependencyKind,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut Vec<(ModuleTarget, StaticKey, SymbolSpace)>,
+        visited: &mut ReexportVisitStack,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // check symbol spaces in priority order
         let order = self.export_spaces_for_kind(kind);
@@ -113,6 +163,7 @@ impl Compiler {
                 key,
                 default_name,
                 visited,
+                cache.as_deref_mut(),
             )?;
             if let Some(symbol) = symbol {
                 let symbol_space = self.symbol_space_for_global(profile, symbol);
@@ -142,10 +193,24 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut Vec<(ModuleTarget, StaticKey, SymbolSpace)>,
+        visited: &mut ReexportVisitStack,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
+        let cache_key = cache.as_ref().map(|_| ReexportChainCacheKey {
+            target,
+            space,
+            key,
+            origin_module_id: self.cache_origin_module_id(origin_module_id, target),
+        });
+        if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
+            && let Some(&cached) = cache.reexport_chain_symbols.get(&cache_key)
+        {
+            return Ok(cached);
+        }
+
         // detect cycles in reexport chains
-        if visited.contains(&(target, key, space)) {
+        let visit_key = (target, key, space);
+        if visited.contains(&visit_key) {
             // report cyclic symbols when an origin symbol is known
             if let Some(symbol) = origin_symbol {
                 return Err(ResolveError::CyclicSymbol {
@@ -165,7 +230,7 @@ impl Compiler {
         }
 
         // record this visit for cycle detection
-        visited.push((target, key, space));
+        visited.push(visit_key);
 
         // resolve the export entry for this space and key
         let result = self.resolve_export_entry_for_target(
@@ -178,10 +243,19 @@ impl Compiler {
             key,
             default_name,
             visited,
+            cache.as_deref_mut(),
         );
 
         // drop the visit marker
         visited.pop();
+
+        if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+            if let Ok(resolved) = result {
+                cache.reexport_chain_symbols.insert(cache_key, resolved);
+                return Ok(resolved);
+            }
+            return result;
+        }
 
         result
     }
@@ -282,7 +356,8 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut Vec<(ModuleTarget, StaticKey, SymbolSpace)>,
+        visited: &mut ReexportVisitStack,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match target {
             ModuleTarget::Module(module_id) => {
@@ -299,7 +374,9 @@ impl Compiler {
                 let dir = module_ref.dir(profile);
 
                 // read the export entry for the requested key
-                let export = {
+                let export = if let Some(cache) = cache.as_deref_mut() {
+                    cache.module_exports_for(module_id, dir).get(&(space, key)).cloned()
+                } else {
                     let exports = dir.exported_symbols.read();
                     exports.get(&(space, key)).cloned()
                 };
@@ -328,6 +405,7 @@ impl Compiler {
                     default_name,
                     export,
                     visited,
+                    cache.as_deref_mut(),
                 )
             }
             ModuleTarget::Binding(specifier) => {
@@ -352,11 +430,27 @@ impl Compiler {
                     let module_ref = self.program.modules.get(binding_ref.module_id);
                     let module_ref = module_ref.read();
                     let dir = module_ref.dir(profile);
-                    let binding_exports = dir
-                        .module_binding_exports
-                        .read()
-                        .get(&binding_ref.declaration.into_any())
-                        .cloned();
+                    let binding_exports = if let Some(cache) = cache.as_deref_mut() {
+                        let cache_key = BindingExportCacheKey {
+                            module_id: binding_ref.module_id,
+                            declaration: binding_ref.declaration.into_any(),
+                        };
+                        cache
+                            .binding_exports
+                            .entry(cache_key)
+                            .or_insert_with(|| {
+                                let binding_exports = dir.module_binding_exports.read();
+                                binding_exports
+                                    .get(&binding_ref.declaration.into_any())
+                                    .cloned()
+                            })
+                            .clone()
+                    } else {
+                        dir.module_binding_exports
+                            .read()
+                            .get(&binding_ref.declaration.into_any())
+                            .cloned()
+                    };
                     let Some(binding_exports) = binding_exports else {
                         continue;
                     };
@@ -383,6 +477,7 @@ impl Compiler {
                         default_name,
                         export.clone(),
                         visited,
+                        cache.as_deref_mut(),
                     )?;
                     let Some(symbol) = symbol else {
                         continue;
@@ -433,7 +528,8 @@ impl Compiler {
         profile: ProfileId,
         default_name: StringId,
         export: Export,
-        visited: &mut Vec<(ModuleTarget, StaticKey, SymbolSpace)>,
+        visited: &mut ReexportVisitStack,
+        cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match export.kind {
             ExportKind::Local => {
@@ -464,6 +560,7 @@ impl Compiler {
                     item_node,
                     item,
                     visited,
+                    cache,
                 )
             }
         }
@@ -518,7 +615,8 @@ impl Compiler {
         default_name: StringId,
         item_node: GlobalNodeIdAny,
         item: DependencyItem,
-        visited: &mut Vec<(ModuleTarget, StaticKey, SymbolSpace)>,
+        visited: &mut ReexportVisitStack,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // resolve local or remote target symbols
         match item {
@@ -545,6 +643,7 @@ impl Compiler {
                         key,
                         space_order,
                         &symbols,
+                        cache.as_deref_mut().map(|cache| cache.scope_indices()),
                     )
                     .or_else(|_| {
                         let global_scope_id = dir.global_augmentation_scope;
@@ -557,6 +656,7 @@ impl Compiler {
                             key,
                             space_order,
                             &symbols,
+                            cache.as_deref_mut().map(|cache| cache.scope_indices()),
                         )
                     })?;
                 Ok(Some(symbol_id.into_global(module.id)))
@@ -602,6 +702,7 @@ impl Compiler {
                     target_key,
                     default_name,
                     visited,
+                    cache,
                 )
             }
             DependencyItem::Value { .. } => Ok(None),
@@ -614,100 +715,202 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         scope_id: LocalScopeId,
+        cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Vec<destack_dir::NamespaceExport>> {
-        // load module data for export discovery
+        // use cached exports when available
+        if let Some(cache) = cache {
+            if !cache.namespace_exports_by_scope.contains_key(&module.id) {
+                let dir = module.dir(profile);
+                let tree = dir.tree.read();
+                let item_ids = cache.dependency_item_ids_for(module.id, &tree);
+                let exports_by_scope =
+                    self.build_namespace_exports_by_scope(module, profile, dir, &tree, &item_ids)?;
+                cache
+                    .namespace_exports_by_scope
+                    .insert(module.id, exports_by_scope);
+            }
+
+            if let Some(exports_by_scope) = cache.namespace_exports_by_scope.get(&module.id)
+                && let Some(exports) = exports_by_scope.get(&scope_id)
+            {
+                return Ok(exports.clone());
+            }
+
+            return Ok(Vec::new());
+        }
+
+        // fall back to a local scan without caching
         let dir = module.dir(profile);
         let tree = dir.tree.read();
+        let item_ids = tree.iter_node_ids_of_type::<DependencyItem>();
+        self.collect_namespace_exports_in_scope_direct(
+            module, profile, dir, &tree, &item_ids, scope_id,
+        )
+    }
+
+    /// Collect namespace exports in a scope without caching.
+    fn collect_namespace_exports_in_scope_direct(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        item_ids: &[LocalNodeId<DependencyItem>],
+        scope_id: LocalScopeId,
+    ) -> ResolveResult<Vec<destack_dir::NamespaceExport>> {
         let mut exports = Vec::new();
 
         // walk dependency items for namespace exports
-        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-            // extract namespace export metadata
-            let item = tree.get(item_id);
-            let (mode, kind, alias, source, target, target_module) = match item {
-                DependencyItem::UnresolvedRemote {
-                    mode,
-                    kind,
-                    alias,
-                    source,
-                    target,
-                    target_module,
-                    ..
-                } => (
-                    *mode,
-                    *kind,
-                    *alias,
-                    Some(*source),
-                    Some(*target),
-                    *target_module,
-                ),
-                DependencyItem::Remote {
-                    mode,
-                    kind,
-                    alias,
-                    target_module,
-                    ..
-                } => (*mode, *kind, *alias, None, None, Some(*target_module)),
-                _ => continue,
-            };
-
-            // namespace export statements must be export * from without alias
-            if mode != DependencyMode::Namespace || alias.is_some() {
-                continue;
-            }
-            if let Some(source) = source
-                && source != DependencySource::ExportStatement
-            {
-                continue;
-            }
-
-            // ensure this dependency item belongs to an export expression
-            let Some(parent_id) = tree.get_parent(item_id.id) else {
+        for item_id in item_ids {
+            let Some(export) =
+                self.namespace_export_for_item(module, profile, dir, tree, *item_id, scope_id)?
+            else {
                 continue;
             };
-            let Ok(parent_id) = parent_id.try_into_typed::<Expression>() else {
-                continue;
-            };
-            if !matches!(
-                tree.get(parent_id),
-                Expression::Export { .. }
-                    | Expression::UnresolvedReExport { .. }
-                    | Expression::ReExport { .. }
-            ) {
-                continue;
-            }
-
-            // ensure the export is in the requested scope
-            let (parent_scope_id, _) = tree.get_scope(parent_id);
-            if parent_scope_id != scope_id {
-                continue;
-            }
-
-            // resolve the target module
-            let target_module = if let Some(target_module) = target_module {
-                target_module
-            } else if let Some(target) = target {
-                self.resolve_import(
-                    module,
-                    dir,
-                    profile,
-                    item_id.into_global_any(module.id),
-                    source.unwrap_or(DependencySource::ExportStatement),
-                    target,
-                )?
-            } else {
-                continue;
-            };
-
-            // register the namespace export edge
-            exports.push(destack_dir::NamespaceExport {
-                module_id: target_module,
-                kind,
-                item: item_id,
-            });
+            exports.push(export);
         }
 
         Ok(exports)
+    }
+
+    /// Build a scope grouped namespace export table for the module.
+    fn build_namespace_exports_by_scope(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        item_ids: &[LocalNodeId<DependencyItem>],
+    ) -> ResolveResult<FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>>> {
+        let mut exports_by_scope: FxHashMap<LocalScopeId, Vec<destack_dir::NamespaceExport>> =
+            FxHashMap::default();
+
+        // walk dependency items once and group exports by scope
+        for item_id in item_ids {
+            let Some((scope_id, export)) =
+                self.namespace_export_for_item_with_scope(module, profile, dir, tree, *item_id)?
+            else {
+                continue;
+            };
+            exports_by_scope.entry(scope_id).or_default().push(export);
+        }
+
+        Ok(exports_by_scope)
+    }
+
+    /// Resolve a namespace export for a dependency item in the given scope.
+    fn namespace_export_for_item(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+        scope_id: LocalScopeId,
+    ) -> ResolveResult<Option<destack_dir::NamespaceExport>> {
+        // ensure the dependency item belongs to the requested scope
+        let Some((item_scope_id, export)) =
+            self.namespace_export_for_item_with_scope(module, profile, dir, tree, item_id)?
+        else {
+            return Ok(None);
+        };
+        if item_scope_id != scope_id {
+            return Ok(None);
+        }
+
+        Ok(Some(export))
+    }
+
+    /// Resolve a namespace export and return its owning scope.
+    fn namespace_export_for_item_with_scope(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        dir: &ModuleDir,
+        tree: &NodeTree,
+        item_id: LocalNodeId<DependencyItem>,
+    ) -> ResolveResult<Option<(LocalScopeId, destack_dir::NamespaceExport)>> {
+        // extract namespace export metadata
+        let item = tree.get(item_id);
+        let (mode, kind, alias, source, target, target_module) = match item {
+            DependencyItem::UnresolvedRemote {
+                mode,
+                kind,
+                alias,
+                source,
+                target,
+                target_module,
+                ..
+            } => (
+                *mode,
+                *kind,
+                *alias,
+                Some(*source),
+                Some(*target),
+                *target_module,
+            ),
+            DependencyItem::Remote {
+                mode,
+                kind,
+                alias,
+                target_module,
+                ..
+            } => (*mode, *kind, *alias, None, None, Some(*target_module)),
+            _ => return Ok(None),
+        };
+
+        // namespace export statements must be export * from without alias
+        if mode != DependencyMode::Namespace || alias.is_some() {
+            return Ok(None);
+        }
+        if let Some(source) = source
+            && source != DependencySource::ExportStatement
+        {
+            return Ok(None);
+        }
+
+        // ensure this dependency item belongs to an export expression
+        let Some(parent_id) = tree.get_parent(item_id.id) else {
+            return Ok(None);
+        };
+        let Ok(parent_id) = parent_id.try_into_typed::<Expression>() else {
+            return Ok(None);
+        };
+        if !matches!(
+            tree.get(parent_id),
+            Expression::Export { .. }
+                | Expression::UnresolvedReExport { .. }
+                | Expression::ReExport { .. }
+        ) {
+            return Ok(None);
+        }
+
+        // resolve the target module
+        let target_module = if let Some(target_module) = target_module {
+            target_module
+        } else if let Some(target) = target {
+            self.resolve_import(
+                module,
+                dir,
+                profile,
+                item_id.into_global_any(module.id),
+                source.unwrap_or(DependencySource::ExportStatement),
+                target,
+            )?
+        } else {
+            return Ok(None);
+        };
+
+        // register the namespace export edge
+        let (parent_scope_id, _) = tree.get_scope(parent_id);
+        Ok(Some((
+            parent_scope_id,
+            destack_dir::NamespaceExport {
+                module_id: target_module,
+                kind,
+                item: item_id,
+            },
+        )))
     }
 
     /// Collect namespace exports for a module or module binding target.
@@ -716,7 +919,17 @@ impl Compiler {
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Vec<(ModuleId, destack_dir::NamespaceExport)>> {
+        let cache_key = cache
+            .as_ref()
+            .map(|_| self.cache_target_key(origin_module_id, target));
+        if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
+            && let Some(cached) = cache.namespace_exports.get(&cache_key)
+        {
+            return Ok(cached.clone());
+        }
+
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
@@ -734,13 +947,18 @@ impl Compiler {
                     &module,
                     profile,
                     dir.namespace_scope,
+                    cache.as_deref_mut(),
                 )?;
 
                 // attach the module id to each namespace export
-                Ok(exports
+                let exports: Vec<(ModuleId, destack_dir::NamespaceExport)> = exports
                     .into_iter()
                     .map(|export| (module_id, export))
-                    .collect())
+                    .collect();
+                if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                    cache.namespace_exports.insert(cache_key, exports.clone());
+                }
+                Ok(exports)
             }
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
@@ -771,8 +989,12 @@ impl Compiler {
                     };
 
                     // collect namespace exports from the binding scope
-                    let nested =
-                        self.collect_namespace_exports_for_scope(&module, profile, scope_id)?;
+                    let nested = self.collect_namespace_exports_for_scope(
+                        &module,
+                        profile,
+                        scope_id,
+                        cache.as_deref_mut(),
+                    )?;
                     exports.extend(
                         nested
                             .into_iter()
@@ -780,6 +1002,9 @@ impl Compiler {
                     );
                 }
 
+                if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+                    cache.namespace_exports.insert(cache_key, exports.clone());
+                }
                 Ok(exports)
             }
         }
@@ -857,9 +1082,6 @@ impl Compiler {
             && let Some(binding_target) =
                 self.resolve_module_binding_target(module.id, profile, target)?
         {
-            dir.imported_modules
-                .write()
-                .insert(cache_key, binding_target);
             // cache globally for non-relative imports (see above)
             if !is_relative && !module.is_builtin() {
                 self.require_resolve_module_prepare_if_needed(
@@ -875,6 +1097,9 @@ impl Compiler {
                     .write()
                     .insert((None, target, None), binding_target);
             }
+            dir.imported_modules
+                .write()
+                .insert(cache_key, binding_target);
             return Ok(binding_target);
         }
 
@@ -1083,7 +1308,17 @@ impl Compiler {
         origin_module_id: ModuleId,
         target: ModuleTarget,
         profile: ProfileId,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
+        let cache_key = cache
+            .as_ref()
+            .map(|_| self.cache_target_key(origin_module_id, target));
+        if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
+            && let Some(&cached) = cache.export_assignment_targets.get(&cache_key)
+        {
+            return Ok(cached);
+        }
+
         match target {
             ModuleTarget::Module(module_id) => {
                 // ensure the target module is prepared
@@ -1099,26 +1334,37 @@ impl Compiler {
                 let dir = module.dir(profile);
                 let export_assignment = *dir.export_assignment.read();
                 let Some(item_id) = export_assignment else {
+                    if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                        cache.export_assignment_targets.insert(cache_key, None);
+                    }
                     return Ok(None);
                 };
 
                 // resolve the export assignment item
                 let tree = dir.tree.read();
                 let item = tree.get(item_id);
-                self.resolve_export_assignment_target_for_item(
+                let resolved = self.resolve_export_assignment_target_for_item(
                     module_id,
                     profile,
                     dir,
                     &tree,
                     dir.namespace_scope,
                     item,
-                )
+                    cache.as_deref_mut(),
+                )?;
+                if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                    cache.export_assignment_targets.insert(cache_key, resolved);
+                }
+                Ok(resolved)
             }
             ModuleTarget::Binding(specifier) => {
                 // load bindings for the specifier
                 let bindings =
                     self.module_bindings_for_specifier(origin_module_id, profile, specifier)?;
                 let Some(bindings) = bindings else {
+                    if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                        cache.export_assignment_targets.insert(cache_key, None);
+                    }
                     return Ok(None);
                 };
 
@@ -1135,11 +1381,27 @@ impl Compiler {
                     let module = self.program.modules.get(binding_ref.module_id);
                     let module = module.read();
                     let dir = module.dir(profile);
-                    let binding_exports = dir
-                        .module_binding_exports
-                        .read()
-                        .get(&binding_ref.declaration.into_any())
-                        .cloned();
+                    let binding_exports = if let Some(cache) = cache.as_deref_mut() {
+                        let cache_key = BindingExportCacheKey {
+                            module_id: binding_ref.module_id,
+                            declaration: binding_ref.declaration.into_any(),
+                        };
+                        cache
+                            .binding_exports
+                            .entry(cache_key)
+                            .or_insert_with(|| {
+                                let binding_exports = dir.module_binding_exports.read();
+                                binding_exports
+                                    .get(&binding_ref.declaration.into_any())
+                                    .cloned()
+                            })
+                            .clone()
+                    } else {
+                        dir.module_binding_exports
+                            .read()
+                            .get(&binding_ref.declaration.into_any())
+                            .cloned()
+                    };
                     let Some(binding_exports) = binding_exports else {
                         continue;
                     };
@@ -1166,11 +1428,20 @@ impl Compiler {
                         &tree,
                         scope_id,
                         item,
+                        cache.as_deref_mut(),
                     )? {
+                        if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                            cache
+                                .export_assignment_targets
+                                .insert(cache_key, Some(target));
+                        }
                         return Ok(Some(target));
                     }
                 }
 
+                if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+                    cache.export_assignment_targets.insert(cache_key, None);
+                }
                 Ok(None)
             }
         }
@@ -1185,6 +1456,7 @@ impl Compiler {
         tree: &NodeTree,
         scope_id: LocalScopeId,
         item: &DependencyItem,
+        cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // resolve the assignment target based on the dependency item
         match item {
@@ -1200,7 +1472,7 @@ impl Compiler {
                 Ok(Some(ExportAssignmentTarget::Namespace(*target_symbol)))
             }
             DependencyItem::Value { value, .. } => self.resolve_export_assignment_value_target(
-                module_id, profile, dir, tree, scope_id, *value,
+                module_id, profile, dir, tree, scope_id, *value, cache,
             ),
             _ => Ok(None),
         }
@@ -1215,6 +1487,7 @@ impl Compiler {
         tree: &NodeTree,
         scope_id: LocalScopeId,
         value: LocalNodeId<Expression>,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // handle resolved references
         let expr = tree.get(value);
@@ -1235,8 +1508,14 @@ impl Compiler {
         } = expr
         {
             if let Some(name) = path.first_segment()
-                && let Some(redirect) =
-                    self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name)?
+                && let Some(redirect) = self.find_import_redirect_for_name(
+                    module_id,
+                    profile,
+                    tree,
+                    scope_id,
+                    name,
+                    cache.as_deref_mut(),
+                )?
             {
                 return Ok(Some(ExportAssignmentTarget::Module(redirect)));
             }
@@ -1249,7 +1528,7 @@ impl Compiler {
             && let Some(name) = path.first_segment()
         {
             if let Some(redirect) =
-                self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name)?
+                self.find_import_redirect_for_name(module_id, profile, tree, scope_id, name, cache)?
             {
                 return Ok(Some(ExportAssignmentTarget::Module(redirect)));
             }
@@ -1298,6 +1577,110 @@ impl Compiler {
     /// Find an import redirect target for a name in a binding scope.
     /// Used to resolve `export = X` where X is an import alias.
     fn find_import_redirect_for_name(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        scope_id: LocalScopeId,
+        name: StringId,
+        cache: Option<&mut ResolveDependencyItemCache>,
+    ) -> ResolveResult<Option<ModuleTarget>> {
+        if let Some(cache) = cache {
+            if !cache.import_redirects_by_scope.contains_key(&module_id) {
+                let item_ids = cache.dependency_item_ids_for(module_id, tree);
+                let redirects_by_scope =
+                    self.build_import_redirects_by_scope(module_id, profile, tree, &item_ids)?;
+                cache
+                    .import_redirects_by_scope
+                    .insert(module_id, redirects_by_scope);
+            }
+
+            if let Some(scope_redirects) = cache.import_redirects_by_scope.get(&module_id)
+                && let Some(redirects) = scope_redirects.get(&scope_id)
+                && let Some(&target) = redirects.get(&name)
+            {
+                return Ok(Some(target));
+            }
+
+            return Ok(None);
+        }
+
+        self.find_import_redirect_for_name_uncached(module_id, profile, tree, scope_id, name)
+    }
+
+    /// Build a lookup table of import redirect targets per binding scope.
+    fn build_import_redirects_by_scope(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        item_ids: &[LocalNodeId<DependencyItem>],
+    ) -> ResolveResult<FxHashMap<LocalScopeId, FxHashMap<StringId, ModuleTarget>>> {
+        let mut redirects_by_scope: FxHashMap<LocalScopeId, FxHashMap<StringId, ModuleTarget>> =
+            FxHashMap::default();
+
+        for item_id in item_ids {
+            // extract the item scope once
+            let (item_scope_id, _) = tree.get_scope(*item_id);
+            let item = tree.get(*item_id);
+            match item {
+                DependencyItem::UnresolvedRemote {
+                    source: DependencySource::ImportEquals | DependencySource::RequireCall,
+                    mode: DependencyMode::Namespace,
+                    name,
+                    alias,
+                    target,
+                    ..
+                } => {
+                    let Some(name) = alias.or(*name) else {
+                        continue;
+                    };
+
+                    // resolve module bindings before falling back to module specifiers
+                    if let Some(binding_target) =
+                        self.resolve_module_binding_target(module_id, profile, *target)?
+                    {
+                        redirects_by_scope
+                            .entry(item_scope_id)
+                            .or_default()
+                            .insert(name, binding_target);
+                        continue;
+                    }
+
+                    // resolve the specifier to a module target
+                    if let Ok(target_module) =
+                        self.resolve_specifier_to_module(*target, Some(module_id))
+                    {
+                        redirects_by_scope
+                            .entry(item_scope_id)
+                            .or_default()
+                            .insert(name, ModuleTarget::Module(target_module));
+                    }
+                }
+                DependencyItem::Remote {
+                    mode: DependencyMode::Namespace,
+                    name,
+                    alias,
+                    target_module,
+                    ..
+                } => {
+                    let Some(name) = alias.or(*name) else {
+                        continue;
+                    };
+                    redirects_by_scope
+                        .entry(item_scope_id)
+                        .or_default()
+                        .insert(name, *target_module);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(redirects_by_scope)
+    }
+
+    /// Search dependency items for a redirect target without using the cache.
+    fn find_import_redirect_for_name_uncached(
         &self,
         module_id: ModuleId,
         profile: ProfileId,
@@ -1368,7 +1751,19 @@ impl Compiler {
         profile: ProfileId,
         kind: DependencyKind,
         key: StaticKey,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
+        let cache_key = cache.as_ref().map(|_| NamespaceSymbolCacheKey {
+            symbol: namespace_symbol,
+            kind,
+            key,
+        });
+        if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
+            && let Some(&cached) = cache.namespace_symbols.get(&cache_key)
+        {
+            return Ok(cached);
+        }
+
         // load the namespace symbol's module and check if it's a namespace
         let module = self.program.modules.get(namespace_symbol.module_id);
         let module = module.read();
@@ -1387,7 +1782,11 @@ impl Compiler {
                 self.find_symbol_in_scope(scope, key, space_order, &symbols, None);
 
             if let Some(symbol_id) = preferred.or(fallback) {
-                return Ok(Some(symbol_id.into_global(namespace_symbol.module_id)));
+                let resolved = Some(symbol_id.into_global(namespace_symbol.module_id));
+                if let (Some(cache), Some(cache_key)) = (cache.as_deref_mut(), cache_key) {
+                    cache.namespace_symbols.insert(cache_key, resolved);
+                }
+                return Ok(resolved);
             }
         }
 
@@ -1412,17 +1811,26 @@ impl Compiler {
                             self.find_symbol_in_scope(ns_scope, key, space_order, &symbols, None);
 
                         if let Some(symbol_id) = preferred.or(fallback) {
-                            return Ok(Some(symbol_id.into_global(namespace_symbol.module_id)));
+                            let resolved = Some(symbol_id.into_global(namespace_symbol.module_id));
+                            if let (Some(cache), Some(cache_key)) =
+                                (cache.as_deref_mut(), cache_key)
+                            {
+                                cache.namespace_symbols.insert(cache_key, resolved);
+                            }
+                            return Ok(resolved);
                         }
                     }
                 }
             }
         }
+        if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+            cache.namespace_symbols.insert(cache_key, None);
+        }
 
         Ok(None)
     }
 
-    /// Resolve a dependency item.
+    /// Resolve a dependency item, optionally using a cache.
     pub(super) fn resolve_dependency_item(
         &self,
         module: &Module,
@@ -1431,6 +1839,7 @@ impl Compiler {
         item_id: LocalNodeId<DependencyItem>,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<DependencyItem>> {
         // resolve the dependency item based on its mode
         let item = tree.get(item_id);
@@ -1449,14 +1858,17 @@ impl Compiler {
                 let origin_symbol = symbol.map(|symbol| symbol.into_global(module.id));
 
                 // resolve the target module or binding
-                let remote_target = self.resolve_import(
-                    module,
-                    dir,
-                    profile,
-                    item_id.into_global_any(module.id),
-                    *source,
-                    *target,
-                )?;
+                let remote_target = {
+                    let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_IMPORT);
+                    self.resolve_import(
+                        module,
+                        dir,
+                        profile,
+                        item_id.into_global_any(module.id),
+                        *source,
+                        *target,
+                    )?
+                };
 
                 // resolve target symbol based on mode
                 let (target_symbol, resolved_kind) = match mode {
@@ -1469,33 +1881,69 @@ impl Compiler {
                                     .into_anchored(Some(profile)),
                             },
                         )?;
-                        let (symbol, resolved_kind) = self.resolve_remote_item_symbol_with_kind(
-                            module,
-                            item_id.into_global_any(module.id),
-                            remote_target,
-                            profile,
-                            *kind,
-                            origin_symbol,
-                            key,
-                        )?;
+                        let (symbol, resolved_kind) = {
+                            let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
+                            if let Some(cache) = cache.as_deref_mut() {
+                                self.resolve_remote_item_symbol_with_kind_cached(
+                                    module,
+                                    item_id.into_global_any(module.id),
+                                    remote_target,
+                                    profile,
+                                    *kind,
+                                    origin_symbol,
+                                    key,
+                                    cache,
+                                )?
+                            } else {
+                                self.resolve_remote_item_symbol_with_kind(
+                                    module,
+                                    item_id.into_global_any(module.id),
+                                    remote_target,
+                                    profile,
+                                    *kind,
+                                    origin_symbol,
+                                    key,
+                                    None,
+                                )?
+                            }
+                        };
                         (symbol, resolved_kind)
                     }
                     DependencyMode::Default => {
                         // resolve the default export from the target
                         let default_name = self.program.strings.intern("default");
                         let key = StaticKey::Name(default_name);
-                        let (symbol, resolved_kind) = self.resolve_remote_item_symbol_with_kind(
-                            module,
-                            item_id.into_global_any(module.id),
-                            remote_target,
-                            profile,
-                            *kind,
-                            origin_symbol,
-                            key,
-                        )?;
+                        let (symbol, resolved_kind) = {
+                            let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_SYMBOL);
+                            if let Some(cache) = cache.as_deref_mut() {
+                                self.resolve_remote_item_symbol_with_kind_cached(
+                                    module,
+                                    item_id.into_global_any(module.id),
+                                    remote_target,
+                                    profile,
+                                    *kind,
+                                    origin_symbol,
+                                    key,
+                                    cache,
+                                )?
+                            } else {
+                                self.resolve_remote_item_symbol_with_kind(
+                                    module,
+                                    item_id.into_global_any(module.id),
+                                    remote_target,
+                                    profile,
+                                    *kind,
+                                    origin_symbol,
+                                    key,
+                                    None,
+                                )?
+                            }
+                        };
                         (symbol, resolved_kind)
                     }
                     DependencyMode::Namespace => {
+                        let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_NAMESPACE);
+
                         // prefer export assignment for import equals
                         if *source == DependencySource::ImportEquals {
                             if let Some(symbol) = self.resolve_export_assignment_symbol(
@@ -1594,6 +2042,7 @@ impl Compiler {
                         key,
                         space_order,
                         symbols,
+                        cache.as_deref_mut().map(|cache| cache.scope_indices()),
                     )
                     // fallback to global augmentation scope for types like AllowSharedBuffer
                     // that are defined in `global { }` blocks within module declarations
@@ -1608,6 +2057,7 @@ impl Compiler {
                             key,
                             space_order,
                             symbols,
+                            cache.map(|cache| cache.scope_indices()),
                         )
                     })?;
 
@@ -1630,6 +2080,43 @@ impl Compiler {
         Ok(Some(resolved_item))
     }
 
+    /// Resolve a remote item symbol with caching applied.
+    fn resolve_remote_item_symbol_with_kind_cached(
+        &self,
+        module: &Module,
+        node: GlobalNodeIdAny,
+        remote_target: ModuleTarget,
+        profile: ProfileId,
+        kind: DependencyKind,
+        origin_symbol: Option<GlobalSymbolId>,
+        key: StaticKey,
+        cache: &mut ResolveDependencyItemCache,
+    ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
+        // reuse cached resolution to avoid repeated reexport walks
+        let cache_key = RemoteSymbolCacheKey {
+            target: remote_target,
+            kind,
+            key,
+            origin_module_id: self.cache_origin_module_id(module.id, remote_target),
+        };
+        if let Some(&cached) = cache.remote_symbols.get(&cache_key) {
+            return Ok(cached);
+        }
+
+        let resolved = self.resolve_remote_item_symbol_with_kind(
+            module,
+            node,
+            remote_target,
+            profile,
+            kind,
+            origin_symbol,
+            key,
+            Some(cache),
+        )?;
+        cache.remote_symbols.insert(cache_key, resolved);
+        Ok(resolved)
+    }
+
     /// Resolve an item symbol in a remote module, searching through namespace exports if needed.
     fn resolve_remote_item_symbol(
         &self,
@@ -1640,6 +2127,7 @@ impl Compiler {
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<GlobalSymbolId> {
         // resolve the requested kind first
         let resolved = self.resolve_remote_item_symbol_for_kind(
@@ -1650,6 +2138,7 @@ impl Compiler {
             kind,
             origin_symbol,
             key,
+            cache.as_deref_mut(),
         );
 
         // fall back to type lookups for declaration modules
@@ -1665,6 +2154,7 @@ impl Compiler {
                 DependencyKind::Type,
                 origin_symbol,
                 key,
+                cache,
             );
         }
 
@@ -1681,6 +2171,7 @@ impl Compiler {
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
+        cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
         let symbol = self.resolve_remote_item_symbol(
             module,
@@ -1690,6 +2181,7 @@ impl Compiler {
             kind,
             origin_symbol,
             key,
+            cache,
         )?;
         let resolved_kind = self.effective_dependency_kind_for_symbol(profile, kind, symbol);
         Ok((symbol, resolved_kind))
@@ -1719,11 +2211,12 @@ impl Compiler {
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<GlobalSymbolId> {
         let default_name = self.program.strings.intern("default");
 
         // resolve explicit exports and reexport chains first
-        let mut visited = Vec::new();
+        let mut visited = ReexportVisitStack::default();
         let resolved_symbol = self.resolve_reexport_chain_symbol(
             module.id,
             origin_symbol,
@@ -1734,6 +2227,7 @@ impl Compiler {
             key,
             default_name,
             &mut visited,
+            cache.as_deref_mut(),
         )?;
         if let Some(symbol_id) = resolved_symbol {
             return Ok(symbol_id);
@@ -1741,9 +2235,12 @@ impl Compiler {
 
         // fall back to export assignment target (e.g., `export = X`)
         // handles both module redirects and local namespace lookups
-        if let Some(target) =
-            self.resolve_export_assignment_target(module.id, remote_target, profile)?
-        {
+        if let Some(target) = self.resolve_export_assignment_target(
+            module.id,
+            remote_target,
+            profile,
+            cache.as_deref_mut(),
+        )? {
             match target {
                 ExportAssignmentTarget::Module(redirect_target) => {
                     // recursively resolve the symbol in the redirected module
@@ -1755,6 +2252,7 @@ impl Compiler {
                         kind,
                         origin_symbol,
                         key,
+                        cache.as_deref_mut(),
                     );
                 }
                 ExportAssignmentTarget::Namespace(namespace_symbol) => {
@@ -1765,6 +2263,7 @@ impl Compiler {
                         profile,
                         kind,
                         key,
+                        cache.as_deref_mut(),
                     )? {
                         return Ok(symbol);
                     }
@@ -1782,6 +2281,7 @@ impl Compiler {
             key,
             origin_symbol,
             default_name,
+            cache,
         )?;
 
         Ok(global_symbol)
@@ -1841,14 +2341,31 @@ impl Compiler {
         key: StaticKey,
         origin_symbol: Option<GlobalSymbolId>,
         default_name: StringId,
+        mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<GlobalSymbolId> {
+        let cache_key = cache.as_ref().map(|_| NamespaceExportSymbolCacheKey {
+            target: via_target,
+            origin_module_id: self.cache_origin_module_id(module.id, via_target),
+            kind,
+            key,
+        });
+        if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
+            && let Some(&cached) = cache.namespace_export_symbols.get(&cache_key)
+        {
+            return Ok(cached);
+        }
+
         // resolve the scope for missing symbol errors
         let (via_scope, via_module_id) =
             self.export_chain_scope_for_target(module.id, via_target, profile)?;
 
         // collect namespace exports from export * statements
-        let namespace_exports =
-            self.collect_namespace_exports_for_target(module.id, via_target, profile)?;
+        let namespace_exports = self.collect_namespace_exports_for_target(
+            module.id,
+            via_target,
+            profile,
+            cache.as_deref_mut(),
+        )?;
         if namespace_exports.is_empty() {
             return Err(ResolveError::MissingSymbol {
                 node: node.into_anchored(Some(profile)),
@@ -1879,7 +2396,7 @@ impl Compiler {
             visited.push((source_module_id, namespace_target, origin_item));
 
             // resolve explicit exports within the namespace target
-            let mut visited_exports = Vec::new();
+            let mut visited_exports = ReexportVisitStack::default();
             if let Some(symbol_id) = self.resolve_reexport_chain_symbol(
                 module.id,
                 origin_symbol,
@@ -1890,6 +2407,7 @@ impl Compiler {
                 key,
                 default_name,
                 &mut visited_exports,
+                cache.as_deref_mut(),
             )? {
                 match found {
                     None => {
@@ -1913,8 +2431,12 @@ impl Compiler {
             }
 
             // enqueue nested namespace exports
-            let nested_exports =
-                self.collect_namespace_exports_for_target(module.id, namespace_target, profile)?;
+            let nested_exports = self.collect_namespace_exports_for_target(
+                module.id,
+                namespace_target,
+                profile,
+                cache.as_deref_mut(),
+            )?;
             for (nested_source_module_id, nested) in nested_exports {
                 if self.namespace_export_allows_kind(nested.kind, kind) {
                     queue.push_back((nested_source_module_id, nested.module_id, nested.item));
@@ -1924,6 +2446,9 @@ impl Compiler {
 
         // return the resolved symbol if any
         if let Some((symbol_id, _)) = found {
+            if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
+                cache.namespace_export_symbols.insert(cache_key, symbol_id);
+            }
             return Ok(symbol_id);
         }
 

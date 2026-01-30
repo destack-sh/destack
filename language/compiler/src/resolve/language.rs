@@ -9,6 +9,7 @@ use destack_workspace::{
 };
 use indexmap::IndexMap;
 
+use crate::resolve::cache::ResolveDependencyItemCache;
 use crate::timing::tags;
 use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 
@@ -106,9 +107,13 @@ impl Compiler {
         let mut collector = TaskResultCollector::new();
         {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCY_ITEMS);
+            let mut dependency_cache = ResolveDependencyItemCache::default();
             for &module_id in &lib_modules {
-                if let Err(error) = self.resolve_dependency_items(module_id, profile_id)
-                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                if let Err(error) = self.resolve_dependency_items_with_cache(
+                    module_id,
+                    profile_id,
+                    &mut dependency_cache,
+                ) && let Some(error) = collector.try_collect::<(), _>(Err(error))
                 {
                     return Err(error);
                 }
@@ -449,8 +454,8 @@ impl Compiler {
         })
     }
 
-    /// Load builtin lib modules in dependency order for benchmark tests.
-    #[cfg(test)]
+    /// Load builtin lib modules in dependency order for benchmark runs.
+    #[cfg(feature = "bench")]
     pub(crate) fn load_lib_modules_for_bench(
         &self,
         libs: &[&str],

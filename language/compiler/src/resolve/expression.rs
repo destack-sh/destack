@@ -1,5 +1,6 @@
 use destack_dir::{DependencySource, Expression, LocalNodeId, NodeTree, SymbolTable};
 
+use crate::resolve::cache::{ResolveExpressionCache, ResolvePathCacheKey};
 use crate::{Compiler, ResolveResult};
 
 use destack_workspace::{Module, ModuleDir, ProfileId};
@@ -14,9 +15,15 @@ impl Compiler {
         profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
-        symbols: &mut SymbolTable,
+        symbols: &SymbolTable,
+        cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<()> {
         let scope = symbols.get_scope(expression_id, tree);
+        let scope = if module.language_type.is_declaration() {
+            (scope.0, scope.1, destack_dir::LocalScopeMark::end())
+        } else {
+            scope
+        };
         let expression = tree.get(expression_id);
 
         let expression: Expression = match expression {
@@ -75,18 +82,52 @@ impl Compiler {
             } => {
                 let path = path.clone(); // (clone to release borrow on tree)
                 let static_arguments = static_arguments.clone();
-                self.resolve_absolute_path(
-                    module,
-                    expression_id,
-                    expression_id.into_global_any(module.id),
-                    profile,
-                    scope,
-                    &path,
-                    static_arguments,
-                    *space_order,
-                    symbols,
-                    tree,
-                )?
+                if static_arguments.is_none() && path.segments.len() == 1 {
+                    let name = path.first_segment().expect("path is empty");
+                    let module_binding_scope_id =
+                        self.module_binding_scope_for_global_expression(tree, expression_id);
+                    let cache_key = ResolvePathCacheKey {
+                        module_id: module.id,
+                        scope_id: scope.0,
+                        scope_mark: scope.2,
+                        module_binding_scope_id,
+                        name,
+                        space_order: *space_order,
+                    };
+                    if let Some(cached) = cache.path_root(cache_key) {
+                        cached
+                    } else {
+                        let resolved = self.resolve_absolute_path(
+                            module,
+                            expression_id,
+                            expression_id.into_global_any(module.id),
+                            profile,
+                            scope,
+                            &path,
+                            static_arguments,
+                            *space_order,
+                            symbols,
+                            tree,
+                            cache,
+                        )?;
+                        cache.insert_path_root(cache_key, resolved.clone());
+                        resolved
+                    }
+                } else {
+                    self.resolve_absolute_path(
+                        module,
+                        expression_id,
+                        expression_id.into_global_any(module.id),
+                        profile,
+                        scope,
+                        &path,
+                        static_arguments,
+                        *space_order,
+                        symbols,
+                        tree,
+                        cache,
+                    )?
+                }
             }
 
             Expression::UnresolvedBreak { target, value } => {

@@ -9,6 +9,7 @@ use destack_workspace::{
     Target, TargetDiscovery, TargetId,
 };
 
+use crate::resolve::cache::ResolveScopeIndexCache;
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue, TaskDependencyError};
 
 /// Track dependency targets while scanning module trees.
@@ -61,6 +62,7 @@ impl Compiler {
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
         tree: &mut NodeTree,
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
@@ -152,6 +154,7 @@ impl Compiler {
                 &remaining_path,
                 space_order,
                 &symbols,
+                scope_cache,
             ) {
                 Ok((resolved_id, None)) => {
                     return Ok(Some(Expression::GlobalReference {

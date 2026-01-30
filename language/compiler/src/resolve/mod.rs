@@ -1,4 +1,5 @@
 mod active;
+mod cache;
 mod declaration;
 mod dependency;
 mod discover;

@@ -36,7 +36,7 @@ dashmap = { workspace = true }
 filetime = { workspace = true }
 fs2 = { workspace = true }
 indexmap = { workspace = true }
-parking_lot = { workspace = true }
+parking_lot = { workspace = true, features = ["deadlock_detection"] }
 rayon = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }

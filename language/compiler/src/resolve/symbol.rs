@@ -5,6 +5,9 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use crate::resolve::cache::{
+    ResolveAbsoluteSymbolCacheKey, ResolveExpressionCache, ResolveScopeIndexCache,
+};
 use crate::{Compiler, ResolveError, ResolveResult};
 
 #[allow(clippy::too_many_arguments)]
@@ -66,7 +69,7 @@ impl Compiler {
     }
 
     /// Find the module binding scope for a global augmentation expression.
-    fn module_binding_scope_for_global_expression(
+    pub(super) fn module_binding_scope_for_global_expression(
         &self,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
@@ -165,6 +168,26 @@ impl Compiler {
         (preferred, fallback)
     }
 
+    /// Find the best matching symbol for a key within a single scope using an index cache.
+    pub(super) fn find_symbol_in_scope_cached(
+        &self,
+        scope_id: LocalScopeId,
+        scope: &Scope,
+        key: StaticKey,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+        mark: LocalScopeMark,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
+    ) -> (Option<LocalSymbolId>, Option<LocalSymbolId>) {
+        if let Some(scope_cache) = scope_cache {
+            let index = scope_cache.scope_index(scope_id, scope, symbols);
+            return index.lookup(key, mark, space_order);
+        }
+
+        let limit = mark.0 as usize;
+        self.find_symbol_in_scope(scope, key, space_order, symbols, Some(limit))
+    }
+
     /// Resolve an absolute symbol key within local scopes only.
     /// Walks up the scope chain looking for the symbol.
     /// Does NOT check prelude - use resolve_absolute_path for that.
@@ -177,6 +200,7 @@ impl Compiler {
         key: StaticKey,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
         // track the nearest fallback symbol
         let mut scope = scope;
@@ -185,9 +209,15 @@ impl Compiler {
         // walk scopes from inner to outer
         loop {
             // scan the current scope for a preferred match
-            let limit = scope.2.0 as usize;
-            let (preferred, scope_fallback) =
-                self.find_symbol_in_scope(scope.1, key, space_order, symbols, Some(limit));
+            let (preferred, scope_fallback) = self.find_symbol_in_scope_cached(
+                scope.0,
+                scope.1,
+                key,
+                space_order,
+                symbols,
+                scope.2,
+                scope_cache.as_deref_mut(),
+            );
 
             // return the preferred match when found
             if let Some(symbol_id) = preferred {
@@ -238,6 +268,7 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
         if !self.module_is_ambient_lib(module) {
             return Ok(None);
@@ -256,6 +287,7 @@ impl Compiler {
                     path,
                     space_order,
                     symbols,
+                    scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, None)) => {
                         if resolved_id.module_id == module.id {
@@ -408,6 +440,7 @@ impl Compiler {
                 &remaining_path,
                 space_order,
                 &prelude_symbols,
+                None,
             ) {
                 Ok((resolved_id, None)) => {
                     // fully resolved within prelude
@@ -467,6 +500,7 @@ impl Compiler {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
         tree: &mut NodeTree,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(None);
@@ -518,6 +552,7 @@ impl Compiler {
                         &remaining_path,
                         space_order,
                         &symbols,
+                        scope_cache.as_deref_mut(),
                     ) {
                         Ok((resolved_id, None)) => {
                             return Ok(Some(Expression::GlobalReference {
@@ -592,6 +627,7 @@ impl Compiler {
                 key,
                 space_order,
                 &symbols,
+                scope_cache.as_deref_mut(),
             );
             let symbol_id = match symbol_id {
                 Ok(symbol_id) => symbol_id,
@@ -619,6 +655,7 @@ impl Compiler {
                     &remaining_path,
                     space_order,
                     &symbols,
+                    scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, None)) => {
                         return Ok(Some(Expression::GlobalReference {
@@ -680,6 +717,7 @@ impl Compiler {
         path: &Path,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
         // try resolving within the current module first
         let resolved = self.resolve_relative_symbol(
@@ -690,6 +728,7 @@ impl Compiler {
             path,
             space_order,
             symbols,
+            scope_cache.as_deref_mut(),
         );
         let missing = match resolved {
             Ok((resolved_id, remaining)) => {
@@ -733,6 +772,7 @@ impl Compiler {
                     path,
                     space_order,
                     symbols,
+                    scope_cache.as_deref_mut(),
                 ) {
                     Ok((resolved_id, remaining)) => {
                         return Ok((resolved_id.into_global(source_symbol.module_id), remaining));
@@ -763,6 +803,7 @@ impl Compiler {
                 path,
                 space_order,
                 &source_symbols,
+                scope_cache.as_deref_mut(),
             ) {
                 Ok((resolved_id, remaining)) => {
                     return Ok((resolved_id.into_global(source_symbol.module_id), remaining));
@@ -784,6 +825,7 @@ impl Compiler {
         path: &Path,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
+        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
         // track the current symbol as we walk segments
         let mut current_symbol_id = symbol_id;
@@ -802,8 +844,15 @@ impl Compiler {
             // resolve the next segment in the namespace scope
             let key = StaticKey::Name(segment);
             let scope = symbols.get_scope_by_id(symbol.scope.0);
-            let (preferred, fallback) =
-                self.find_symbol_in_scope(scope, key, space_order, symbols, None);
+            let (preferred, fallback) = self.find_symbol_in_scope_cached(
+                symbol.scope.0,
+                scope,
+                key,
+                space_order,
+                symbols,
+                LocalScopeMark::end(),
+                scope_cache.as_deref_mut(),
+            );
 
             // advance to the next symbol when possible
             if let Some(symbol_id) = preferred.or(fallback) {
@@ -865,9 +914,16 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
+        cache: &mut ResolveExpressionCache,
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty in {node:?}");
         let first_segment_str = self.program.strings.get(first_segment);
+        let scope_mark = if module.language_type.is_declaration() {
+            LocalScopeMark::end()
+        } else {
+            scope.2
+        };
+        let scope = (scope.0, scope.1, scope_mark);
 
         // resolve import.meta intrinsic
         if first_segment_str.as_str() == "import" && path.segments.len() >= 2 {
@@ -904,15 +960,29 @@ impl Compiler {
         }
 
         // try to resolve root symbol locally
-        let local_result = self.resolve_absolute_symbol(
-            module,
-            profile,
-            node,
-            scope,
-            StaticKey::Name(first_segment),
-            space_order,
-            symbols,
-        );
+        let cache_key =
+            ResolveAbsoluteSymbolCacheKey::new(module.id, scope.0, scope.2, first_segment, space_order);
+        let local_result = if let Some(local_id) = cache.absolute_symbol(cache_key) {
+            Ok(local_id)
+        } else {
+            let local_result = {
+                let scope_cache = cache.scope_indices();
+                self.resolve_absolute_symbol(
+                    module,
+                    profile,
+                    node,
+                    scope,
+                    StaticKey::Name(first_segment),
+                    space_order,
+                    symbols,
+                    Some(scope_cache),
+                )
+            };
+            if let Ok(local_id) = local_result {
+                cache.insert_absolute_symbol(cache_key, local_id);
+            }
+            local_result
+        };
 
         // if local lookup succeeded, use the local symbol
         if let Ok(local_id) = local_result {
@@ -927,6 +997,7 @@ impl Compiler {
                 space_order,
                 symbols,
                 tree,
+                Some(cache.scope_indices()),
             );
         }
 
@@ -952,15 +1023,19 @@ impl Compiler {
         {
             let module_scope = symbols.get_scope_by_id(module_scope_id);
             let module_mark = LocalScopeMark::end();
-            let module_result = self.resolve_absolute_symbol(
-                module,
-                profile,
-                node,
-                (module_scope_id, module_scope, module_mark),
-                StaticKey::Name(first_segment),
-                space_order,
-                symbols,
-            );
+            let module_result = {
+                let scope_cache = cache.scope_indices();
+                self.resolve_absolute_symbol(
+                    module,
+                    profile,
+                    node,
+                    (module_scope_id, module_scope, module_mark),
+                    StaticKey::Name(first_segment),
+                    space_order,
+                    symbols,
+                    Some(scope_cache),
+                )
+            };
 
             // return module binding symbols when present
             if let Ok(local_id) = module_result {
@@ -975,6 +1050,7 @@ impl Compiler {
                     space_order,
                     symbols,
                     tree,
+                    Some(cache.scope_indices()),
                 );
             }
         }
@@ -991,6 +1067,7 @@ impl Compiler {
             space_order,
             symbols,
             tree,
+            Some(cache.scope_indices()),
         )? {
             return Ok(expr);
         }
@@ -1027,6 +1104,7 @@ impl Compiler {
             path,
             static_arguments.clone(),
             space_order,
+            Some(cache.scope_indices()),
             tree,
         )? {
             return Ok(expr);
@@ -1042,6 +1120,7 @@ impl Compiler {
             static_arguments,
             space_order,
             tree,
+            Some(cache.scope_indices()),
         )? {
             return Ok(expr);
         }
@@ -1063,6 +1142,7 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
         tree: &mut NodeTree,
+        scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Expression> {
         let first_segment = path.first_segment().expect("path is empty");
         let remaining_segments = &path.segments[1..];
@@ -1090,6 +1170,7 @@ impl Compiler {
                 &remaining_path,
                 space_order,
                 symbols,
+                scope_cache,
             ) {
                 Ok((resolved_id, None)) => {
                     if resolved_id.module_id == module.id {
