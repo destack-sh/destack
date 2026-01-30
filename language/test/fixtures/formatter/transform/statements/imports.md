@@ -144,6 +144,42 @@ import foo=require("module")
 import foo = require("module");
 ```
 
+### import equals path
+
+Import equals can alias qualified names.
+
+```ts
+import Foo=Bar.Baz
+```
+
+```ts expected
+import Foo = Bar.Baz;
+```
+
+### export import equals path
+
+Exported import equals declarations keep their export keyword.
+
+```ts
+export import Foo=Bar.Baz
+```
+
+```ts expected
+export import Foo = Bar.Baz;
+```
+
+### import type equals require
+
+Type-only import equals keeps the `import type` modifier.
+
+```ts
+import type Foo=require("module")
+```
+
+```ts expected
+import type Foo = require("module");
+```
+
 ## Side Effect Imports
 
 ### side effect import

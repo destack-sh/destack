@@ -8,9 +8,10 @@ use crate::{
     DestackFormatContext, DestackFormatter, FormatNode, empty_block_with_infix_annotations,
 };
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode, EnumKind,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, Key, Keyword,
-    LocalNodeId, Mutability, Name, Parameter, TypeKind, Visibility,
+    Asynchrony, Declaration, DeclarationAbstraction, DeclarationKind, DependencyKind,
+    DependencyMode, EnumKind, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind,
+    FunctionMode, ImportAliasTarget, Key, Keyword, LocalNodeId, Mutability, Name, Parameter,
+    TypeKind, Visibility,
 };
 use destack_fir::format::{BestFittingMode, FormatResult};
 use destack_fir::prelude::*;
@@ -266,6 +267,52 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
                         .format(f)?;
                 }
                 // type alias declarations need trailing semicolon (like const/let)
+                write!(f, [token(";")])?;
+            }
+
+            // import alias
+            Declaration::ImportAlias {
+                descriptor,
+                kind,
+                target,
+            } => {
+                // export
+                if let Some(export) = descriptor.export {
+                    write!(f, [export, space()])?;
+                }
+
+                // keyword
+                write!(f, [Keyword::Import])?;
+                if *kind == DependencyKind::Type {
+                    write!(f, [space(), Keyword::Type])?;
+                }
+
+                // name
+                if let Some(name) = descriptor.name {
+                    write!(f, [space(), name])?;
+                }
+
+                // target
+                write!(f, [space(), token("="), space()])?;
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        write!(
+                            f,
+                            [
+                                token("require"),
+                                token("("),
+                                token("\""),
+                                target,
+                                token("\""),
+                                token(")")
+                            ]
+                        )?;
+                    }
+                    ImportAliasTarget::Path { value } => {
+                        write!(f, [*value])?;
+                    }
+                }
+
                 write!(f, [token(";")])?;
             }
 

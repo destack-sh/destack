@@ -394,6 +394,7 @@ impl Compiler {
 
                 Ok(())
             }
+            Declaration::ImportAlias { .. } => Ok(()),
             Declaration::Struct {
                 descriptor,
                 generics,

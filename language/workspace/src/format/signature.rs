@@ -77,6 +77,9 @@ pub fn format_declaration_signature(
             };
             format!("{export_prefix}{declare_prefix}global")
         }
+        dir::Declaration::ImportAlias { kind, .. } => {
+            format_import_alias(&name, *kind, export_prefix)
+        }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text =
                 format_generics(generics, module_id, &dir_tree, &types, modules, strings);
@@ -163,6 +166,15 @@ fn format_function(
     format!(
         "{export_prefix}{async_prefix}function {name}{generics_text}({parameters_text}){return_text}"
     )
+}
+
+fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &str) -> String {
+    let import_prefix = if kind == dir::DependencyKind::Type {
+        "import type "
+    } else {
+        "import "
+    };
+    format!("{export_prefix}{import_prefix}{name}")
 }
 
 /// Format a function or method call signature without declaration keywords.
@@ -411,6 +423,9 @@ pub fn format_symbol_signature(
                 ""
             };
             format!("{export_prefix}{declare_prefix}global")
+        }
+        dir::Declaration::ImportAlias { kind, .. } => {
+            format_import_alias(&name, *kind, export_prefix)
         }
         dir::Declaration::Struct { generics, .. } => {
             let generics_text =

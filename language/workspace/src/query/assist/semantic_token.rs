@@ -161,6 +161,10 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             dir::Declaration::Enum { .. } => SemanticTokenType::Enum,
             dir::Declaration::Namespace { .. } => SemanticTokenType::Namespace,
             dir::Declaration::Type { .. } => SemanticTokenType::Type,
+            dir::Declaration::ImportAlias { kind, .. } => match kind {
+                dir::DependencyKind::Type => SemanticTokenType::Type,
+                dir::DependencyKind::Value => SemanticTokenType::Namespace,
+            },
             dir::Declaration::Extension { .. } => SemanticTokenType::Type,
         };
 
@@ -478,6 +482,7 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                 }
                 None
             }
+            dir::Declaration::ImportAlias { .. } => None,
             dir::Declaration::Extension { generics, .. } => Some(generics),
         };
 

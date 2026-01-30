@@ -1,8 +1,8 @@
 use crate::{
     Annotation, Argument, Block, Declaration, Declarator, DependencyItem, DynamicKey, EnumField,
-    Expression, ForEachBinding, FunctionSignature, Generics, Heritage, IfCondition, LocalNodeId,
-    MatchCase, MatchSelector, Member, NodeTree, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Property, TemplateLiteral, WhereClause,
+    Expression, ForEachBinding, FunctionSignature, Generics, Heritage, IfCondition,
+    ImportAliasTarget, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
 };
 
 /// Walk any node.
@@ -854,6 +854,16 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 }
                 let value_expression = tree.get(*value);
                 visitor.visit_expression(tree, *value, value_expression);
+            }
+            Declaration::ImportAlias {
+                descriptor: _,
+                kind: _,
+                target,
+            } => {
+                if let ImportAliasTarget::Path { value } = target {
+                    let value_expression = tree.get(*value);
+                    visitor.visit_expression(tree, *value, value_expression);
+                }
             }
             Declaration::Struct {
                 descriptor: _,

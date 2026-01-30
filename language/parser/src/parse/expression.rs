@@ -2166,10 +2166,10 @@ mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
         Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind,
-        Expression, FunctionKind, IfCondition, ImportSource, IntType, Key, Mutability, Name,
-        Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
-        TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
-        VarianceBound,
+        Expression, FunctionKind, IfCondition, ImportAliasTarget, ImportSource, IntType, Key,
+        Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property,
+        ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator,
+        UnaryOperator, VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -2488,15 +2488,20 @@ type = type * 2
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
-        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, mutability, declarators, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
-            assert!(descriptor.export.is_some());
-            assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                    assert_string!(parser, *name, "atob");
-                });
-                assert_expression_path!(parser, parser.tree.get(*value), "globalThis.atob");
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert!(descriptor.export.is_some());
+                assert_eq!(*kind, DependencyKind::Value);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "atob");
+                match target {
+                    ImportAliasTarget::Path { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "globalThis.atob");
+                    }
+                    ImportAliasTarget::Require { .. } => {
+                        panic!("expected import alias path");
+                    }
+                }
             });
         });
     }
@@ -2508,24 +2513,20 @@ type = type * 2
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
-        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, mutability, declarators, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
-            assert!(descriptor.export.is_some());
-            assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                    assert_string!(parser, *name, "React");
-                });
-                assert_node!(parser.tree, *value, Expression::Import { source, kind, target, items, .. } => {
-                    assert_eq!(*source, ImportSource::ImportEquals);
-                    assert_eq!(*kind, DependencyKind::Type);
-                    assert_eq!(items.len(), 1);
-                    assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                        assert_eq!(*mode, DependencyMode::Namespace);
-                        assert_string!(parser, *alias, "React");
-                    });
-                    assert_string!(parser, *target, "react");
-                });
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert!(descriptor.export.is_some());
+                assert_eq!(*kind, DependencyKind::Type);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "React");
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        assert_string!(parser, *target, "react");
+                    }
+                    ImportAliasTarget::Path { .. } => {
+                        panic!("expected import alias require");
+                    }
+                }
             });
         });
     }

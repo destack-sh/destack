@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-    ImportSource, Keyword, LetKind, LocalNodeId, Mutability, Pattern, TokenType,
+    Declaration, DeclarationDescriptor, DependencyItem, DependencyKind, DependencyMode, Expression,
+    ImportAliasTarget, ImportSource, Keyword, LocalNodeId, Name, TokenType,
 };
 use destack_base::StringId;
 use destack_source::NodeSpanType;
@@ -42,9 +42,6 @@ impl Parser {
 
     /// Eat an import declaration (including the `import` keyword and an optional body).
     ///
-    /// Import equals syntax (`import A = B.C` or `import a = require("a")`) is lowered
-    /// to a Let binding since it's semantically equivalent to `const A = B.C`.
-    ///
     /// Examples:
     /// ```
     /// import "foo"
@@ -53,8 +50,8 @@ impl Parser {
     /// import { bar, baz } from "foo"
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
-    /// import A = B.C          // lowered to: const A = B.C
-    /// import a = require("a") // lowered to: const a = require("a")
+    /// import A = B.C
+    /// import a = require("a")
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -78,16 +75,28 @@ impl Parser {
             self.eat_token(TokenType::Assign)?;
 
             // require import equals
-            if let Some(import_id) =
-                self.try_eat_import_equals_require(start, kind, name, name_span)?
-            {
-                return Ok(import_id);
+            if let Some((target, _target_span)) = self.try_eat_import_equals_require_target()? {
+                let target = ImportAliasTarget::Require { target };
+                let descriptor = DeclarationDescriptor::default();
+                let expression_id =
+                    self.build_import_alias(start, descriptor, kind, name, name_span, target);
+                return Ok(expression_id);
             }
 
-            let value = self.eat_expression()?;
+            let value = if kind == Some(DependencyKind::Type) {
+                self.with_options(self.options.not_in_position().in_type(), |parser| {
+                    parser.eat_expression()
+                })?
+            } else {
+                self.with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?
+            };
             let descriptor = DeclarationDescriptor::default();
-            let let_id = self.build_import_equals_let(start, descriptor, name, value);
-            return Ok(let_id);
+            let target = ImportAliasTarget::Path { value };
+            let expression_id =
+                self.build_import_alias(start, descriptor, kind, name, name_span, target);
+            return Ok(expression_id);
         }
 
         // binding
@@ -162,14 +171,10 @@ impl Parser {
         ))
     }
 
-    /// Eat `import a = require("a")` and build an import expression.
-    fn try_eat_import_equals_require(
+    /// Eat `require("a")` and return its target.
+    fn try_eat_import_equals_require_target(
         &mut self,
-        start: ParserMark,
-        kind: Option<DependencyKind>,
-        name: StringId,
-        name_span: destack_source::Span,
-    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+    ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
         if !(self.peek_identifier_str("require").is_ok()
             && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
             && self.peek_next_next_token(TokenType::Literal).is_ok()
@@ -184,32 +189,10 @@ impl Parser {
         self.bump(); // eat (
         let (target, target_span) = self.eat_string_literal_with_span()?;
         self.eat_token(TokenType::CloseParenthesis)?;
-        let item = self.tree.insert(
-            DependencyItem {
-                mode: DependencyMode::Namespace,
-                kind: None,
-                name: None,
-                alias: Some(name),
-                value: None,
-            },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(item, name_span);
-        let import_id = self.tree.insert(
-            Expression::Import {
-                source: ImportSource::ImportEquals,
-                kind: kind.unwrap_or(DependencyKind::Value),
-                target,
-                items: vec![item],
-                arguments: None,
-            },
-            self.get_span_from(start),
-        );
-        self.tree.set_main_span(import_id, target_span);
-        Ok(Some(import_id))
+        Ok(Some((target, target_span)))
     }
 
-    /// Eat `export import Foo = Bar.Baz` as an exported const binding.
+    /// Eat `export import Foo = Bar.Baz` as an exported import alias.
     pub fn eat_export_import_equals(
         &mut self,
         start: ParserMark,
@@ -231,67 +214,61 @@ impl Parser {
         self.eat_token(TokenType::Assign)?;
 
         // require import equals
-        if let Some(import_id) = self.try_eat_import_equals_require(start, kind, name, name_span)? {
+        if let Some((target, _target_span)) = self.try_eat_import_equals_require_target()? {
             // normalize descriptor export mode
             if descriptor.export.is_none() {
                 descriptor.export = Some(DependencyMode::Item);
             }
 
-            let let_id = self.build_import_equals_let(start, descriptor, name, import_id);
-            return Ok(let_id);
+            let target = ImportAliasTarget::Require { target };
+            let expression_id =
+                self.build_import_alias(start, descriptor, kind, name, name_span, target);
+            return Ok(expression_id);
         }
 
         // value expression
-        let value = self.eat_expression()?;
+        let value = if kind == Some(DependencyKind::Type) {
+            self.with_options(self.options.not_in_position().in_type(), |parser| {
+                parser.eat_expression()
+            })?
+        } else {
+            self.with_options(self.options.not_in_position(), |parser| {
+                parser.eat_expression()
+            })?
+        };
 
         // normalize descriptor export mode
         if descriptor.export.is_none() {
             descriptor.export = Some(DependencyMode::Item);
         }
 
-        // build the exported let binding
-        let let_id = self.build_import_equals_let(start, descriptor, name, value);
-        Ok(let_id)
+        // build the exported import alias
+        let target = ImportAliasTarget::Path { value };
+        let expression_id =
+            self.build_import_alias(start, descriptor, kind, name, name_span, target);
+        Ok(expression_id)
     }
 
-    /// Build a const binding for `import X = Y`-style aliases.
-    fn build_import_equals_let(
+    /// Build an import alias declaration.
+    fn build_import_alias(
         &mut self,
         start: ParserMark,
-        descriptor: DeclarationDescriptor,
+        mut descriptor: DeclarationDescriptor,
+        kind: Option<DependencyKind>,
         name: StringId,
-        value: LocalNodeId<Expression>,
+        name_span: destack_source::Span,
+        target: ImportAliasTarget,
     ) -> LocalNodeId<Expression> {
-        // pattern binding
-        let pattern = self.tree.insert(
-            Pattern::Binding {
-                mutability: None,
-                name,
-                pattern: None,
-            },
-            self.get_span_from(start),
-        );
-
-        // declarator
-        let declarator = self.tree.insert(
-            Declarator {
-                pattern,
-                ty: None,
-                value: Some(value),
-            },
-            self.get_span_from(start),
-        );
-
-        // exported const binding
-        self.tree.insert(
-            Expression::Let {
-                kind: LetKind::Const,
-                descriptor,
-                mutability: Mutability::Immutable,
-                declarators: vec![declarator],
-            },
-            self.get_span_from(start),
-        )
+        descriptor.name = Some(Name::Identifier(name));
+        let declaration = Declaration::ImportAlias {
+            descriptor,
+            kind: kind.unwrap_or(DependencyKind::Value),
+            target,
+        };
+        let declaration_id = self.tree.insert(declaration, self.get_span_from(start));
+        self.tree.set_main_span(declaration_id, name_span);
+        let expression = Expression::Declaration(declaration_id);
+        self.tree.insert(expression, self.get_span_from(start))
     }
 
     /// Eat an export declaration (including the `export` keyword and an optional body).
@@ -686,8 +663,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Declarator, DependencyItem, DependencyKind, DependencyMode, Expression,
-        ImportSource, Mutability, Pattern, ScalarLiteral,
+        Argument, Declaration, DependencyItem, DependencyKind, DependencyMode, Expression,
+        ImportAliasTarget, ImportSource, ScalarLiteral,
     };
     use destack_source::LanguageType;
 
@@ -958,16 +935,21 @@ import {
     fn test_parse_import_equals_namespace() {
         let mut test = TestParser::new("import A = B.C");
         let mut parser = test.prepare();
-        let let_id = parser.eat_import().unwrap();
+        let expression_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, let_id, Expression::Let { mutability, declarators, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
-            assert_eq!(declarators.len(), 1);
-            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
-                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
-                    assert_string!(parser, *name, "A");
-                });
-                assert_expression_path!(parser, parser.tree.get(*value), "B.C");
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert_eq!(*kind, DependencyKind::Value);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "A");
+                match target {
+                    ImportAliasTarget::Path { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "B.C");
+                    }
+                    ImportAliasTarget::Require { .. } => {
+                        panic!("expected import alias path");
+                    }
+                }
             });
         });
     }
@@ -976,17 +958,22 @@ import {
     fn test_parse_import_equals_require() {
         let mut test = TestParser::new(r#"import a = require("a")"#);
         let mut parser = test.prepare();
-        let import_id = parser.eat_import().unwrap();
+        let expression_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
-            assert_eq!(*source, ImportSource::ImportEquals);
-            assert_eq!(*kind, DependencyKind::Value);
-            assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                assert_eq!(*mode, DependencyMode::Namespace);
-                assert_string!(parser, *alias, "a");
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert_eq!(*kind, DependencyKind::Value);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "a");
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        assert_string!(parser, *target, "a");
+                    }
+                    ImportAliasTarget::Path { .. } => {
+                        panic!("expected import alias require");
+                    }
+                }
             });
-            assert_string!(parser, *target, "a");
         });
     }
 
@@ -994,17 +981,22 @@ import {
     fn test_parse_import_type_equals_require() {
         let mut test = TestParser::new(r#"import type MyType = require("pkg")"#);
         let mut parser = test.prepare();
-        let import_id = parser.eat_import().unwrap();
+        let expression_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
-            assert_eq!(*source, ImportSource::ImportEquals);
-            assert_eq!(*kind, DependencyKind::Type);
-            assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                assert_eq!(*mode, DependencyMode::Namespace);
-                assert_string!(parser, *alias, "MyType");
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert_eq!(*kind, DependencyKind::Type);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "MyType");
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        assert_string!(parser, *target, "pkg");
+                    }
+                    ImportAliasTarget::Path { .. } => {
+                        panic!("expected import alias require");
+                    }
+                }
             });
-            assert_string!(parser, *target, "pkg");
         });
     }
 
@@ -1012,17 +1004,22 @@ import {
     fn test_parse_import_type_modifier_equals_require() {
         let mut test = TestParser::new(r#"import type React = require("pkg")"#);
         let mut parser = test.prepare();
-        let import_id = parser.eat_import().unwrap();
+        let expression_id = parser.eat_import().unwrap();
 
-        assert_node!(parser.tree, import_id, Expression::Import { source, kind, target, items, .. } => {
-            assert_eq!(*source, ImportSource::ImportEquals);
-            assert_eq!(*kind, DependencyKind::Type);
-            assert_eq!(items.len(), 1);
-            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
-                assert_eq!(*mode, DependencyMode::Namespace);
-                assert_string!(parser, *alias, "React");
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert_eq!(*kind, DependencyKind::Type);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "React");
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        assert_string!(parser, *target, "pkg");
+                    }
+                    ImportAliasTarget::Path { .. } => {
+                        panic!("expected import alias require");
+                    }
+                }
             });
-            assert_string!(parser, *target, "pkg");
         });
     }
 

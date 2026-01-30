@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
-    Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType,
-    Parameter, StringId, TypeKind,
+    BindingAnchor, DependencyKind, DependencyMode, Expression, FunctionSignature, Generics,
+    GlobalSymbolId, Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name,
+    Node, NodeType, Parameter, StringId, TypeKind,
 };
 
 /// The kind of declaration.
@@ -41,6 +41,15 @@ pub struct DeclarationDescriptor {
     pub symbol: LocalSymbolId,
 }
 
+/// The target of an import-alias declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImportAliasTarget {
+    /// A require-based alias target.
+    Require { target: StringId },
+    /// A qualified path alias target.
+    Path { value: LocalNodeId<Expression> },
+}
+
 /// Declaration introduces a type or function into its scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
@@ -64,6 +73,12 @@ pub enum Declaration {
         mutability: Option<Mutability>,
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
+    },
+    /// Import-alias declaration (TypeScript `import A = B.C`).
+    ImportAlias {
+        descriptor: DeclarationDescriptor,
+        kind: DependencyKind,
+        target: ImportAliasTarget,
     },
     /// Struct declaration: nominal value type with fixed layout.
     Struct {
@@ -130,6 +145,7 @@ impl Declaration {
             Declaration::Global { .. } => "global",
             Declaration::Namespace { .. } => "namespace",
             Declaration::Type { .. } => "type",
+            Declaration::ImportAlias { .. } => "import alias",
             Declaration::Struct { .. } => "struct",
             Declaration::Class { .. } => "class",
             Declaration::Enum { .. } => "enum",
@@ -145,6 +161,7 @@ impl Declaration {
             Declaration::Global { descriptor, .. } => descriptor,
             Declaration::Namespace { descriptor, .. } => descriptor,
             Declaration::Type { descriptor, .. } => descriptor,
+            Declaration::ImportAlias { descriptor, .. } => descriptor,
             Declaration::Struct { descriptor, .. } => descriptor,
             Declaration::Class { descriptor, .. } => descriptor,
             Declaration::Enum { descriptor, .. } => descriptor,
@@ -165,7 +182,7 @@ impl Declaration {
         match self {
             Declaration::Global { scope, .. } => Some(*scope),
             Declaration::Namespace { scope, .. } => Some(*scope),
-            Declaration::Type { .. } => None,
+            Declaration::Type { .. } | Declaration::ImportAlias { .. } => None,
             Declaration::Struct { scope, .. } => Some(*scope),
             Declaration::Class { scope, .. } => Some(*scope),
             Declaration::Enum { scope, .. } => Some(*scope),
@@ -186,6 +203,7 @@ impl Declaration {
             Declaration::Global { .. }
             | Declaration::Namespace { .. }
             | Declaration::Type { .. }
+            | Declaration::ImportAlias { .. }
             | Declaration::Function { .. } => None,
         }
     }
@@ -207,6 +225,7 @@ impl Declaration {
             Declaration::Type {
                 static_parameters, ..
             } => static_parameters.as_ref(),
+            Declaration::ImportAlias { .. } => None,
             Declaration::Global { .. } => None,
         }
     }

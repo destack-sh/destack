@@ -2,9 +2,10 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingAnchor, Declaration, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    DependencyMode, EnumField, EnumKind, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, EnumField, EnumKind,
+    Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    ModuleBinding, Name, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst, ModuleBindingReference};
 
@@ -77,6 +78,47 @@ impl Compiler {
         symbol_type: SymbolType,
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
+        let space = match symbol_type {
+            SymbolType::TypeAlias | SymbolType::Interface => SymbolSpace::Type,
+            SymbolType::Class
+            | SymbolType::Enum
+            | SymbolType::Struct
+            | SymbolType::Newtype
+            | SymbolType::Extension => SymbolSpace::TypeValue,
+            SymbolType::Function => {
+                if module.language_type.is_destack() {
+                    SymbolSpace::TypeValue
+                } else {
+                    SymbolSpace::Value
+                }
+            }
+            SymbolType::Void => SymbolSpace::Value,
+        };
+
+        self.bind_declaration_descriptor_with_space(
+            module,
+            ast,
+            scope,
+            descriptor,
+            kind,
+            symbol_type,
+            space,
+            symbols,
+        )
+    }
+
+    /// Bind AST declaration descriptor into DIR declaration descriptor with an explicit space.
+    pub(super) fn bind_declaration_descriptor_with_space(
+        &self,
+        module: &Module,
+        ast: &ModuleAst,
+        scope: (LocalScopeId, LocalScopeMark),
+        descriptor: &ast::DeclarationDescriptor,
+        kind: SymbolKind,
+        symbol_type: SymbolType,
+        space: SymbolSpace,
+        symbols: &mut SymbolTable,
+    ) -> (DeclarationDescriptor, LocalScopeId) {
         // bind the name into the dir string pool
         let name = descriptor.name.map(|name| {
             let name_id = match &name {
@@ -94,22 +136,6 @@ impl Compiler {
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));
-        let space = match symbol_type {
-            SymbolType::TypeAlias | SymbolType::Interface => SymbolSpace::Type,
-            SymbolType::Class
-            | SymbolType::Enum
-            | SymbolType::Struct
-            | SymbolType::Newtype
-            | SymbolType::Extension => SymbolSpace::TypeValue,
-            SymbolType::Function => {
-                if module.language_type.is_destack() {
-                    SymbolSpace::TypeValue
-                } else {
-                    SymbolSpace::Value
-                }
-            }
-            SymbolType::Void => SymbolSpace::Value,
-        };
 
         // declaration kind is always a declaration in declaration files
         let mut declaration_kind = self.bind_declaration_kind(descriptor.kind);
@@ -451,6 +477,88 @@ impl Compiler {
                     static_parameters,
                     value,
                 }
+            }
+
+            ast::Declaration::ImportAlias {
+                descriptor,
+                kind,
+                target,
+            } => {
+                let symbol_space = match kind {
+                    ast::DependencyKind::Type => SymbolSpace::Type,
+                    ast::DependencyKind::Value => SymbolSpace::TypeValue,
+                };
+                let (descriptor, _scope_id) = self.bind_declaration_descriptor_with_space(
+                    module,
+                    ast,
+                    scope,
+                    descriptor,
+                    SymbolKind::Item,
+                    SymbolType::Void,
+                    symbol_space,
+                    symbols,
+                );
+                let kind = self.bind_dependency_kind(*kind);
+                let scope = (scope.0, symbols.get_scope_mark(scope.0));
+                let symbol_id = descriptor.symbol;
+                let alias_name = descriptor.name.map(|name| name.string());
+                let target = match target {
+                    ast::ImportAliasTarget::Require { target } => {
+                        let target = self.program.strings.intern_from(&ast.strings, *target);
+                        ImportAliasTarget::Require { target }
+                    }
+                    ast::ImportAliasTarget::Path { value } => {
+                        let space_order = match kind {
+                            DependencyKind::Type => SymbolSpaceOrder::TypeThenValue,
+                            DependencyKind::Value => SymbolSpaceOrder::ValueThenType,
+                        };
+                        let value = self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *value,
+                            Some(declaration_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        );
+                        ImportAliasTarget::Path { value }
+                    }
+                };
+                let require_target = match &target {
+                    ImportAliasTarget::Require { target } => Some(*target),
+                    ImportAliasTarget::Path { .. } => None,
+                };
+                let declaration = Declaration::ImportAlias {
+                    descriptor,
+                    kind,
+                    target,
+                };
+
+                if let Some(target) = require_target
+                    && let Some(name) = alias_name
+                {
+                    let dependency_id = tree.reserve_from(
+                        NodeType::DependencyItem,
+                        LocalNodeIdAny::from(declaration_id),
+                        scope,
+                        Some(LocalNodeIdAny::from(declaration_id)),
+                    );
+                    let dependency = DependencyItem::UnresolvedRemote {
+                        source: DependencySource::ImportEquals,
+                        mode: DependencyMode::Namespace,
+                        kind,
+                        name: None,
+                        alias: Some(name),
+                        target,
+                        target_module: None,
+                        symbol: Some(symbol_id),
+                    };
+                    tree.insert(dependency_id, dependency);
+                }
+
+                declaration
             }
 
             ast::Declaration::Struct {

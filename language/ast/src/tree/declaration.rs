@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Member, Mutability,
-    Name, Node, NodeType, Parameter, TypeKind, WhereClause,
+    BindingAnchor, DependencyKind, DependencyMode, Expression, FunctionSignature, LocalNodeId,
+    Member, Mutability, Name, Node, NodeType, Parameter, StringId, TypeKind, WhereClause,
 };
 
 /// The kind of declaration.
@@ -137,6 +137,15 @@ impl Heritage {
     }
 }
 
+/// The target of an import-alias declaration.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ImportAliasTarget {
+    /// A require-based alias target.
+    Require { target: StringId },
+    /// A qualified path alias target.
+    Path { value: LocalNodeId<Expression> },
+}
+
 /// Declaration introduces a type or such into a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
@@ -192,6 +201,20 @@ pub enum Declaration {
         mutability: Option<Mutability>,
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
+    },
+    
+    /// Import-alias declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// import Foo = Bar.Baz
+    /// import type React = require("react")
+    /// export import atob = globalThis.atob
+    /// ```
+    ImportAlias {
+        descriptor: DeclarationDescriptor,
+        kind: DependencyKind,
+        target: ImportAliasTarget,
     },
 
     /// A Struct is a nominal value type with fixed layout.
@@ -458,6 +481,7 @@ impl Declaration {
             Declaration::Interface { descriptor, .. } => descriptor,
             Declaration::Extension { descriptor, .. } => descriptor,
             Declaration::Function { descriptor, .. } => descriptor,
+            Declaration::ImportAlias { descriptor, .. } => descriptor,
         }
     }
 
@@ -484,7 +508,8 @@ impl Declaration {
             } => static_parameters.as_ref(),
             Declaration::Global { .. }
             | Declaration::Namespace { .. }
-            | Declaration::Extension { .. } => None,
+            | Declaration::Extension { .. }
+            | Declaration::ImportAlias { .. } => None,
         }
     }
 }
