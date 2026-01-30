@@ -39,3 +39,41 @@ const x: Map</* key */ string, /* value */ number> = new Map()
 ```ds expected
 const x: Map</* key */ string, /* value */ number> = new Map();
 ```
+
+## Instantiation Expressions
+
+### instantiation keeps type arguments inline
+
+Instantiation expressions should retain their type arguments without extra spacing.
+
+```ts:main.ts
+const factory = getFactory<number>
+```
+
+```ts expected
+const factory = getFactory<number>;
+```
+
+### instantiation with multiple parameters
+
+Multiple type arguments are separated by comma and space.
+
+```ts:main.ts
+const pair = makePair<string, number>
+```
+
+```ts expected
+const pair = makePair<string, number>;
+```
+
+### instantiation with comments
+
+Comments inside instantiation type arguments are preserved.
+
+```ts:main.ts
+const pair = makePair</* key */ string, /* value */ number>
+```
+
+```ts expected
+const pair = makePair</* key */ string, /* value */ number>;
+```

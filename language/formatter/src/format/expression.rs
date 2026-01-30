@@ -1848,6 +1848,28 @@ fn format_call_expression<'ast>(
     Ok(())
 }
 
+/// Format an instantiation expression without considering chaining.
+#[inline]
+fn format_instantiation_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    if let Expression::Instantiation {
+        left,
+        static_arguments,
+    } = f.context().tree.get(node_id)
+    {
+        write!(f, [*left])?;
+        write!(f, [list_like("<", ">", ",", static_arguments)])?;
+    } else {
+        debug_assert!(
+            false,
+            "unexpected expression kind for instantiation formatter"
+        );
+    }
+    Ok(())
+}
+
 /// Get the precedence of an expression.
 ///
 /// Returns the operator precedence for expressions that have one, or `u16::MAX` for
@@ -1858,6 +1880,7 @@ fn expression_precedence(expr: &Expression) -> u16 {
         Expression::Call { .. }
         | Expression::Member { .. }
         | Expression::Index { .. }
+        | Expression::Instantiation { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. } => OperatorPrecedence::Postfix as u16,
 
@@ -2035,6 +2058,11 @@ enum ChainExpression {
         emit_prefix_annotations: bool,
         emit_postfix_annotations: bool,
     },
+    /// Instantiation expression.
+    Instantiation {
+        node_id: LocalNodeId<Expression>,
+        static_arguments: Vec<LocalNodeId<Argument>>,
+    },
     /// Call expression.
     Call {
         node_id: LocalNodeId<Expression>,
@@ -2121,7 +2149,8 @@ fn format_chain_expression<'ast>(
             *emit_prefix_annotations,
             *emit_postfix_annotations,
         ),
-        ChainExpression::Call { node_id, .. }
+        ChainExpression::Instantiation { node_id, .. }
+        | ChainExpression::Call { node_id, .. }
         | ChainExpression::Index { node_id, .. }
         | ChainExpression::Maybe { node_id, .. }
         | ChainExpression::Must { node_id, .. } => (*node_id, true, true),
@@ -2146,6 +2175,11 @@ fn format_chain_expression<'ast>(
             if let Some(arguments) = static_arguments {
                 write!(f, [list_like("<", ">", ",", arguments)])?;
             }
+        }
+        ChainExpression::Instantiation {
+            static_arguments, ..
+        } => {
+            write!(f, [list_like("<", ">", ",", static_arguments)])?;
         }
         ChainExpression::Call {
             node_id: call_node_id,
@@ -2226,14 +2260,21 @@ fn group_chain_expression_lines(
                             line.push(iter.next().unwrap());
                         }
                         // (maybe, member, index | call)
-                        if let Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) =
-                            iter.peek()
+                        if let Some(
+                            ChainExpression::Index { .. }
+                            | ChainExpression::Call { .. }
+                            | ChainExpression::Instantiation { .. },
+                        ) = iter.peek()
                         {
                             line.push(iter.next().unwrap());
                         }
                     }
                     // (maybe, index | call)
-                    Some(ChainExpression::Index { .. } | ChainExpression::Call { .. }) => {
+                    Some(
+                        ChainExpression::Index { .. }
+                        | ChainExpression::Call { .. }
+                        | ChainExpression::Instantiation { .. },
+                    ) => {
                         line.push(iter.next().unwrap());
                         // (maybe, index | call, must?)
                         if let Some(ChainExpression::Must { .. }) = iter.peek() {
@@ -2250,15 +2291,20 @@ fn group_chain_expression_lines(
                     line.push(iter.next().unwrap());
                 }
                 // (member, index | call)
-                if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
-                    iter.peek()
+                if let Some(
+                    ChainExpression::Call { .. }
+                    | ChainExpression::Index { .. }
+                    | ChainExpression::Instantiation { .. },
+                ) = iter.peek()
                 {
                     line.push(iter.next().unwrap());
                 }
             }
-            // (index | call)
-            ChainExpression::Index { .. } | ChainExpression::Call { .. } => {
-                // (index | call, must)
+            // (index | call | instantiation)
+            ChainExpression::Index { .. }
+            | ChainExpression::Call { .. }
+            | ChainExpression::Instantiation { .. } => {
+                // (index | call | instantiation, must)
                 if let Some(ChainExpression::Must { .. }) = iter.peek() {
                     line.push(iter.next().unwrap());
                 }
@@ -2270,8 +2316,11 @@ fn group_chain_expression_lines(
                     line.push(iter.next().unwrap());
                 }
                 // (must, index | call)
-                if let Some(ChainExpression::Call { .. } | ChainExpression::Index { .. }) =
-                    iter.peek()
+                if let Some(
+                    ChainExpression::Call { .. }
+                    | ChainExpression::Index { .. }
+                    | ChainExpression::Instantiation { .. },
+                ) = iter.peek()
                 {
                     line.push(iter.next().unwrap());
                 }
@@ -2289,6 +2338,7 @@ pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expressi
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
+        | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => is_chain_expression(tree.get(*left)),
         _ => false,
@@ -2301,8 +2351,30 @@ pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -
         Expression::Member { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
+        | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => !is_chain_expression(tree.get(*left)),
+        _ => false,
+    }
+}
+
+/// Check whether this expression is used as the receiver in a chain parent.
+fn has_chain_parent(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expression>) -> bool {
+    let Some((parent_id, parent_type)) = context.get_parent_by_id(node_id.id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+    match parent_expr {
+        Expression::Member { left, .. }
+        | Expression::Call { left, .. }
+        | Expression::Instantiation { left, .. }
+        | Expression::Maybe { left, .. }
+        | Expression::Must { left, .. } => left.id == node_id.id,
+        Expression::Index { .. } => false,
         _ => false,
     }
 }
@@ -2556,6 +2628,7 @@ fn chain_head_id(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> LocalNode
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => Some(*left),
             _ => None,
@@ -2692,6 +2765,7 @@ pub(crate) fn is_poorly_breakable_chain(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => Some(*left),
             _ => None,
@@ -2869,6 +2943,7 @@ fn expression_chain_should_break(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => Some(*left),
             _ => None,
@@ -3132,6 +3207,18 @@ fn is_simple_chain_static_arguments(
     }
 }
 
+/// Check whether a static argument list is simple enough for chain heads.
+fn is_simple_chain_static_argument_list(
+    context: &DestackFormatContext<'_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> bool {
+    static_arguments.len() <= 1
+        && static_arguments
+            .iter()
+            .copied()
+            .all(|argument_id| is_simple_chain_argument(context, argument_id))
+}
+
 /// Check whether a chain call is simple enough to stay in the head.
 fn is_simple_chain_call(
     context: &DestackFormatContext<'_>,
@@ -3180,6 +3267,13 @@ fn is_simple_chain_operation(
             dynamic_arguments,
             ..
         } => is_simple_chain_call(context, *node_id, static_arguments, dynamic_arguments),
+        ChainExpression::Instantiation {
+            node_id,
+            static_arguments,
+        } => {
+            !chain_node_has_non_inline_annotation(context, *node_id)
+                && is_simple_chain_static_argument_list(context, static_arguments)
+        }
         ChainExpression::Index { node_id, index, .. } => {
             !chain_node_has_non_inline_annotation(context, *node_id)
                 && is_numeric_index(context, index)
@@ -3361,14 +3455,20 @@ fn static_arguments_len(
 ) -> usize {
     match static_arguments {
         None => 0,
-        Some(arguments) => {
-            // compute argument length inside delimiters
-            let arguments_len = arguments_rendered_len(context, arguments);
-
-            // account for `<` and `>`
-            arguments_len.saturating_add(2)
-        }
+        Some(arguments) => static_argument_list_len(context, arguments),
     }
+}
+
+/// Estimate the rendered length of a static argument list.
+fn static_argument_list_len(
+    context: &DestackFormatContext<'_>,
+    static_arguments: &[LocalNodeId<Argument>],
+) -> usize {
+    // compute argument length inside delimiters
+    let arguments_len = arguments_rendered_len(context, static_arguments);
+
+    // account for `<` and `>`
+    arguments_len.saturating_add(2)
 }
 
 /// Estimate the rendered length of a single chain operation.
@@ -3390,6 +3490,9 @@ fn chain_operation_len(context: &DestackFormatContext<'_>, operation: &ChainExpr
                 .saturating_add(segment_len)
                 .saturating_add(static_len)
         }
+        ChainExpression::Instantiation {
+            static_arguments, ..
+        } => static_argument_list_len(context, static_arguments),
         ChainExpression::Call {
             position,
             static_arguments,
@@ -3540,6 +3643,7 @@ pub(crate) fn chain_inline_len(
             Expression::Member { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => Some(*left),
             _ => None,
@@ -3599,6 +3703,12 @@ pub(crate) fn chain_inline_len(
                 static_arguments: static_arguments.clone(),
                 dynamic_arguments: dynamic_arguments.clone(),
             },
+            Expression::Instantiation {
+                static_arguments, ..
+            } => ChainExpression::Instantiation {
+                node_id: expression_id,
+                static_arguments: static_arguments.clone(),
+            },
             Expression::Index {
                 position, index, ..
             } => ChainExpression::Index {
@@ -3651,6 +3761,7 @@ fn split_chain_head_operations(
     // detect whether the chain starts with calls or numeric indexes
     let first_is_call_or_numeric_index = match operations.first() {
         Some(ChainExpression::Call { .. }) => true,
+        Some(ChainExpression::Instantiation { .. }) => true,
         Some(ChainExpression::Index { index, .. }) => is_numeric_index(context, index),
         _ => false,
     };
@@ -3675,7 +3786,11 @@ fn split_chain_head_operations(
         let next_operation = operations.get(index + 1);
         let next_is_call_or_index = matches!(
             next_operation,
-            Some(ChainExpression::Call { .. } | ChainExpression::Index { .. })
+            Some(
+                ChainExpression::Call { .. }
+                    | ChainExpression::Index { .. }
+                    | ChainExpression::Instantiation { .. }
+            )
         );
 
         if matches!(operation, ChainExpression::Member { .. }) && next_is_call_or_index {
@@ -3711,11 +3826,15 @@ fn split_chain_head_operations(
             }
 
             // keep call-start chains restricted to call-like operations
+            let next_is_call_like = matches!(
+                next_operation,
+                ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+            );
             let next_is_numeric_index = matches!(
                 next_operation,
                 ChainExpression::Index { index, .. } if is_numeric_index(context, index)
             );
-            if first_is_call_or_numeric_index && !next_is_numeric_index {
+            if first_is_call_or_numeric_index && !(next_is_call_like || next_is_numeric_index) {
                 break;
             }
 
@@ -3739,7 +3858,10 @@ fn split_chain_head_operations(
             break;
         }
 
-        let is_call = matches!(operation, ChainExpression::Call { .. });
+        let is_call = matches!(
+            operation,
+            ChainExpression::Call { .. } | ChainExpression::Instantiation { .. }
+        );
         let is_numeric_index_op = matches!(
             operation,
             ChainExpression::Index { index, .. } if is_numeric_index(context, index)
@@ -3866,6 +3988,7 @@ fn chain_line_starts_with_block_prefix_annotation(
         ChainExpression::Member { node_id, .. }
         | ChainExpression::Call { node_id, .. }
         | ChainExpression::Index { node_id, .. }
+        | ChainExpression::Instantiation { node_id, .. }
         | ChainExpression::Maybe { node_id, .. }
         | ChainExpression::Must { node_id, .. } => *node_id,
     };
@@ -4064,6 +4187,12 @@ pub(crate) fn format_expression_chain<'ast>(
                 static_arguments: static_arguments.clone(),
                 dynamic_arguments: dynamic_arguments.clone(),
             },
+            Expression::Instantiation {
+                static_arguments, ..
+            } => ChainExpression::Instantiation {
+                node_id: expression_id,
+                static_arguments: static_arguments.clone(),
+            },
             Expression::Index {
                 position, index, ..
             } => ChainExpression::Index {
@@ -4095,7 +4224,7 @@ pub(crate) fn format_expression_chain<'ast>(
             ChainExpression::Call {
                 position: PostfixPosition::Direct,
                 ..
-            }
+            } | ChainExpression::Instantiation { .. }
         )
     {
         base.body.push(first_op.clone());
@@ -4326,6 +4455,7 @@ fn is_chain_expression(expression: &Expression) -> bool {
         Expression::Member { .. }
             | Expression::Call { .. }
             | Expression::Index { .. }
+            | Expression::Instantiation { .. }
             | Expression::Maybe { .. }
             | Expression::Must { .. }
     )
@@ -6639,8 +6769,9 @@ pub(crate) fn format_expression<'ast>(
         }
 
         // index
-        Expression::Index { .. } => {
-            if is_expression_chain(tree, node_id) {
+        Expression::Index { left, .. } => {
+            let left_is_instantiation = matches!(tree.get(*left), Expression::Instantiation { .. });
+            if is_expression_chain(tree, node_id) && !left_is_instantiation {
                 format_expression_chain(f, node_id)?;
             } else {
                 format_index_expression(f, node_id)?;
@@ -6653,6 +6784,15 @@ pub(crate) fn format_expression<'ast>(
                 format_expression_chain(f, node_id)?;
             } else {
                 format_call_expression(f, node_id)?;
+            }
+        }
+
+        // instantiation
+        Expression::Instantiation { .. } => {
+            if is_expression_chain(tree, node_id) && has_chain_parent(f.context(), node_id) {
+                format_expression_chain(f, node_id)?;
+            } else {
+                format_instantiation_expression(f, node_id)?;
             }
         }
 
@@ -7448,6 +7588,17 @@ mod tests {
         assert_format!(
             "x?.[f]?.[2]?.(a, b)",
             "x?.[f]?.[2]?.(a, b)",
+            |p| p.eat_expression(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Instantiation expressions should retain static arguments.
+    #[test]
+    fn test_format_expression_instantiation() {
+        assert_format!(
+            "f<number>",
+            "f<number>",
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );

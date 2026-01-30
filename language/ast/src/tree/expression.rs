@@ -755,6 +755,19 @@ pub enum Expression {
         index: Option<LocalNodeId<Expression>>,
     },
 
+    /// Instantiation expression (TypeScript).
+    ///
+    /// Examples:
+    /// ```
+    /// f<number>
+    /// f['g']<number>
+    /// (f<number>)<number>
+    /// ```
+    Instantiation {
+        left: LocalNodeId<Expression>,
+        static_arguments: Vec<LocalNodeId<Argument>>,
+    },
+
     /// A Call is call to a function OR an instantiation of a tuple type.
     ///
     /// The function may or may not be declared as comptime (with a `@ prefix),

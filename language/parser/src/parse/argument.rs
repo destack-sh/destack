@@ -1,5 +1,5 @@
 use destack_ast::{
-    AccessorKind, Argument, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter,
     Pattern, PostfixPosition, ScalarLiteral, StringId, Timing, TokenType, VarianceModifier,
 };

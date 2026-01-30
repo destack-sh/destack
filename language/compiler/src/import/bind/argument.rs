@@ -1,7 +1,7 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    AccessorKind, Argument, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability,
     NodeTree, NodeType, Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder,
     SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,

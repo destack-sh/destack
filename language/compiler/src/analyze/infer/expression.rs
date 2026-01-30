@@ -1782,6 +1782,114 @@ impl Compiler {
                 ctx,
             )?,
 
+            // instantiation: apply static arguments to callable type
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                let left_ty_id =
+                    self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
+                let static_arguments = static_arguments.as_slice();
+                if static_arguments.is_empty() {
+                    return Ok(left_ty_id);
+                }
+
+                self.ensure_reference_instance_types_for_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    left_ty_id,
+                    types,
+                )?;
+
+                let Some(signature_ty_id) = self.call_signature_for_type(left_ty_id, types)
+                else {
+                    self.error(AnalyzeError::MissingType {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                    return Ok(left_ty_id);
+                };
+
+                let Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters,
+                    this_parameter,
+                    dynamic_parameters,
+                    return_type,
+                } = types.get_type(signature_ty_id).clone()
+                else {
+                    self.error(AnalyzeError::MissingType {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                    return Ok(left_ty_id);
+                };
+
+                let mut owner_symbol = self.reference_symbol_for_expression(
+                    module,
+                    *left,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                );
+
+                if owner_symbol.is_none() {
+                    let node_id = left.into_global_any(module.id);
+                    if let Some(resolution_id) = types.get_resolution_for_node(node_id) {
+                        let resolution = types.get_resolution(resolution_id);
+                        if let Resolution::Static { candidate, .. } = resolution {
+                            owner_symbol = Some(candidate.target_symbol);
+                        }
+                    }
+                }
+
+                let resolved = self.resolve_function_signature(
+                    module,
+                    expression_id.into_any(),
+                    owner_symbol,
+                    Some(static_arguments),
+                    None,
+                    &static_parameters,
+                    &dynamic_parameters,
+                    return_type,
+                    super::SignatureResolutionMode::Checking,
+                    false,
+                    ctx.profile,
+                    &ctx.options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+
+                let instantiated_fn = Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters: Vec::new(),
+                    this_parameter,
+                    dynamic_parameters: resolved.dynamic_parameters,
+                    return_type: resolved.return_type,
+                };
+                let instantiated_ty_id = types.insert_type_from(instantiated_fn, expression_id);
+
+                if let Some(owner_symbol) = owner_symbol
+                    && !resolved.static_arguments.is_empty()
+                {
+                    self.register_instance_for_node(
+                        expression_id.into_global_any(module.id),
+                        owner_symbol,
+                        resolved.static_arguments,
+                        types,
+                    );
+                }
+
+                instantiated_ty_id
+            }
+
             // index: element type
             Expression::Index { left, right } => {
                 self.infer_index_access_expression(

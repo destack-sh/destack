@@ -461,6 +461,10 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::Instantiation { left, .. } => self
+                .lower_expression(*left)
+                .expect_node::<Expression>(left.into_global_any(self.module.id), self)?
+                .into_any(),
             dir::Expression::Call {
                 left,
                 static_arguments,

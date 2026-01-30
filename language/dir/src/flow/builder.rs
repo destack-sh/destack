@@ -1656,6 +1656,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 self.build_arguments(static_arguments.as_deref(), left_block_id)
             }
+            Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                let left_block_id = self.build_expression(*left, current_block_id)?;
+                self.build_arguments(Some(static_arguments.as_slice()), left_block_id)
+            }
             Expression::Call {
                 left,
                 static_arguments,

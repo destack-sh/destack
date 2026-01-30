@@ -101,6 +101,59 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
     ?.();
 ```
 
+## Instantiation Expressions
+
+### chain with instantiation stays inline
+
+Instantiation expressions inside chains keep type arguments attached.
+
+```ts:main.ts
+const name = api.getFactory<number>.name
+```
+
+```ts expected
+const name = api.getFactory<number>.name;
+```
+
+### instantiation after computed access stays inline
+
+Instantiation expressions after computed access keep type arguments attached.
+
+```ts:main.ts
+const factory = providers["main"]<Factory>
+```
+
+```ts expected
+const factory = providers["main"]<Factory>;
+```
+
+### chain with instantiation breaks cleanly
+
+Instantiation expressions remain attached when chains break.
+
+```ts:main.ts line-width=25
+const value = api.getFactory<number>.create().build()
+```
+
+```ts expected
+const value = api
+    .getFactory<number>
+    .create()
+    .build();
+```
+
+### instantiation before index access stays inline
+
+Instantiation expressions keep type arguments before computed access.
+
+```ts:main.ts
+const value = providers["main"]<Factory>[0]
+```
+
+```ts expected
+const value = providers["main"]<Factory>[0];
+```
+
 ## Non-Null Assertions
 
 ### non-null assertions stay tight
