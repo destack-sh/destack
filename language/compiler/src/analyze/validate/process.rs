@@ -125,6 +125,9 @@ impl Compiler {
             self.validate_member(&module, profile, &tree, id, member);
         }
 
+        // validate expression level syntax rules
+        self.validate_expressions(&module, profile, &tree);
+
         // validate option dependent checks
         self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
         self.validate_restriction_checks(&module, profile, &types);

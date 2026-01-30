@@ -277,6 +277,28 @@ pub enum AnalyzeError {
         name: StringId,
     },
 
+    /// Object literal property defaults are not allowed.
+    #[error(
+        code = "EA215",
+        message = "object literal property defaults are not allowed"
+    )]
+    ObjectLiteralDefault { node: AnchoredGlobalNodeId },
+
+    /// Object pattern can only contain one spread field.
+    #[error(code = "EA216", message = "object pattern can only contain one spread")]
+    ObjectPatternMultipleSpreads { node: AnchoredGlobalNodeId },
+
+    /// Object pattern spread must be the last field.
+    #[error(code = "EA217", message = "object pattern spread must be last")]
+    ObjectPatternSpreadNotLast { node: AnchoredGlobalNodeId },
+
+    /// Export namespace is only allowed in declaration modules.
+    #[error(
+        code = "EA218",
+        message = "export as namespace is only allowed in declaration modules"
+    )]
+    ExportNamespaceOutsideDeclaration { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
