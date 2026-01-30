@@ -52,6 +52,71 @@ const node = <div>{" "}Hello{" "}World{" "}</div>
 const node = <div>{" "}Hello{" "}World{" "}</div>;
 ```
 
+## Generic Tags
+
+### simple generic tag
+
+Generic tag parameters stay attached to the tag name.
+
+```tsx:main.tsx
+const node = <Component<any>></Component>
+```
+
+```tsx expected
+const node = <Component<any>></Component>;
+```
+
+### generic tag with children
+
+Generic opening tags do not repeat parameters on closing tags.
+
+```tsx:main.tsx
+const node = <Widget<string>>Hello</Widget>
+```
+
+```tsx expected
+const node = <Widget<string>>Hello</Widget>;
+```
+
+### generic tag with attributes
+
+Generic tags format with attributes normally.
+
+```tsx:main.tsx
+const node = <Select<Option> value={"ok"}  disabled={true}/>
+```
+
+```tsx expected
+const node = <Select<Option> value="ok" disabled />;
+```
+
+### nested generic tag
+
+Nested generic tags keep paired angle closings.
+
+```tsx:main.tsx
+const node = <Component<Array<string>> />
+```
+
+```tsx expected
+const node = <Component<Array<string>> />;
+```
+
+### multiline generic tag
+
+Long generic tags still break like normal.
+
+```tsx:main.tsx line-width=30
+const node = <Panel<Props> title="Settings" description="Long description" />
+```
+
+```tsx expected
+const node = <Panel<Props>
+    title="Settings"
+    description="Long description"
+/>;
+```
+
 ## Attributes
 
 ### boolean attribute shorthand

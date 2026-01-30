@@ -90,6 +90,82 @@ impl Parser {
         let path = Path { segments };
         Ok((path, last_span))
     }
+
+    /// Eat a tree literal path.
+    pub fn eat_tree_literal_path(&mut self) -> ParseResult<Path> {
+        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+
+        // first identifier (kebab-case supported)
+        let first = self.eat_tree_literal_identifier()?;
+        segments.push(first);
+
+        // zero or more `.identifier` (ignoring newlines)
+        while self.peek().is_ok() {
+            // dot followed by identifier
+            if self.peek_token(TokenType::Dot).is_ok()
+                && let Ok(after_dot) = self.peek_next()
+                && after_dot.token.ty == TokenType::Identifier
+            {
+                self.eat_token(TokenType::Dot)?;
+                let seg = self.eat_tree_literal_identifier()?;
+                segments.push(seg);
+            }
+            // newline followed by dot
+            else if self.peek_token(TokenType::Newline).is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                    .is_ok()
+            {
+                self.eat_newlines_maybe()?;
+            }
+            // end of path
+            else {
+                break;
+            }
+        }
+
+        let path = Path { segments };
+        Ok(path)
+    }
+
+    /// Eat a tree literal path and return the span of its last segment.
+    pub fn eat_tree_literal_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
+
+        // first identifier (kebab-case supported)
+        let (first, first_span) = self.eat_tree_literal_identifier_with_span()?;
+        segments.push(first);
+        let mut last_span = first_span;
+
+        // zero or more `.identifier` (ignoring newlines)
+        while self.peek().is_ok() {
+            // dot followed by identifier
+            if self.peek_token(TokenType::Dot).is_ok()
+                && let Ok(after_dot) = self.peek_next()
+                && after_dot.token.ty == TokenType::Identifier
+            {
+                self.eat_token(TokenType::Dot)?;
+                let (seg, seg_span) = self.eat_tree_literal_identifier_with_span()?;
+                segments.push(seg);
+                last_span = seg_span;
+            }
+            // newline followed by dot
+            else if self.peek_token(TokenType::Newline).is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                    .is_ok()
+            {
+                self.eat_newlines_maybe()?;
+            }
+            // end of path
+            else {
+                break;
+            }
+        }
+
+        let path = Path { segments };
+        Ok((path, last_span))
+    }
 }
 
 #[cfg(test)]

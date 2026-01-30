@@ -581,8 +581,52 @@ impl Lexer<'_> {
 
             // less than, shift left, or tree literal opening
             '<' => {
+                let in_tree_opening_tag = self.tree_state() == TreeState::OpeningTag
+                    && !self.in_tree_attribute_expression();
+
+                // static arguments inside opening tag
+                if in_tree_opening_tag {
+                    // <<
+                    if self.peek() == '<' {
+                        self.eat();
+                        self.options.tree_tag_angle_depth += 2;
+                        // <<|
+                        if self.peek() == '|' {
+                            self.eat();
+                            // <<|=
+                            if self.peek() == '=' {
+                                self.eat();
+                                (TokenType::SaturatingShiftLeftAssign, None)
+                            }
+                            // <<|
+                            else {
+                                (TokenType::SaturatingShiftLeft, None)
+                            }
+                        }
+                        // <<=
+                        else if self.peek() == '=' {
+                            self.eat();
+                            (TokenType::ShiftLeftAssign, None)
+                        }
+                        // <<
+                        else {
+                            (TokenType::ShiftLeft, None)
+                        }
+                    }
+                    // <=
+                    else if self.peek() == '=' {
+                        self.eat();
+                        self.options.tree_tag_angle_depth += 1;
+                        (TokenType::LessThanOrEqual, None)
+                    }
+                    // <
+                    else {
+                        self.options.tree_tag_angle_depth += 1;
+                        (TokenType::LessThan, None)
+                    }
+                }
                 // <<
-                if self.peek() == '<' {
+                else if self.peek() == '<' {
                     self.eat();
                     // <<|
                     if self.peek() == '|' {
@@ -644,22 +688,27 @@ impl Lexer<'_> {
             '>' => {
                 // in tree opening tag mode, > ends the tag
                 if self.tree_state() == TreeState::OpeningTag {
-                    // check if previous token was / (self-closing tag)
-                    let prev_is_divide = self
-                        .tokens
-                        .last()
-                        .map(|t| t.token.ty == TokenType::Divide)
-                        .unwrap_or(false);
-
-                    if prev_is_divide {
-                        // self-closing: just pop, no content mode
-                        self.pop_tree_state();
+                    if self.options.tree_tag_angle_depth > 0 {
+                        self.options.tree_tag_angle_depth -= 1;
+                        (TokenType::GreaterThan, None)
                     } else {
-                        // regular opening: transition to content mode
-                        self.pop_tree_state();
-                        self.push_tree_state(TreeState::Content);
+                        // check if previous token was / (self-closing tag)
+                        let prev_is_divide = self
+                            .tokens
+                            .last()
+                            .map(|t| t.token.ty == TokenType::Divide)
+                            .unwrap_or(false);
+
+                        if prev_is_divide {
+                            // self-closing: just pop, no content mode
+                            self.pop_tree_state();
+                        } else {
+                            // regular opening: transition to content mode
+                            self.pop_tree_state();
+                            self.push_tree_state(TreeState::Content);
+                        }
+                        (TokenType::GreaterThan, None)
                     }
-                    (TokenType::GreaterThan, None)
                 }
                 // in tree closing tag mode, > ends the closing tag
                 else if self.tree_state() == TreeState::ClosingTag {

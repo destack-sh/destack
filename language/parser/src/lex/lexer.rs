@@ -41,6 +41,8 @@ pub(super) struct LexerOptions {
     pub(super) parentheses_depth: i32 = 0,
     /// Stack of tree literal states for nested tree elements (TSX-compatible).
     pub(super) tree_state_stack: Vec<TreeState>,
+    /// The angle bracket depth within the current opening tag.
+    pub(super) tree_tag_angle_depth: usize,
     /// Stack of entries tracking where tree expression containers started.
     /// When `}` is seen at the matching depth and tree level, we return to TreeState::Content.
     pub(super) tree_expression_stack: Vec<TreeExpressionEntry>,
@@ -221,16 +223,24 @@ impl<'a> Lexer<'a> {
     /// Pushes a new tree literal state onto the stack.
     #[inline]
     pub(super) fn push_tree_state(&mut self, state: TreeState) {
+        if state == TreeState::OpeningTag {
+            self.options.tree_tag_angle_depth = 0;
+        }
         self.options.tree_state_stack.push(state);
     }
 
     /// Pops the current tree literal state from the stack.
     #[inline]
     pub(super) fn pop_tree_state(&mut self) -> TreeState {
-        self.options
+        let state = self
+            .options
             .tree_state_stack
             .pop()
-            .unwrap_or(TreeState::None)
+            .unwrap_or(TreeState::None);
+        if state == TreeState::OpeningTag {
+            self.options.tree_tag_angle_depth = 0;
+        }
+        state
     }
 
     /// Checks if we're currently inside tree literal content.
@@ -256,5 +266,15 @@ impl<'a> Lexer<'a> {
             }
         }
         true
+    }
+
+    /// Checks if we're inside an attribute expression container for the current opening tag.
+    #[inline]
+    pub(super) fn in_tree_attribute_expression(&self) -> bool {
+        if let Some(entry) = self.options.tree_expression_stack.last() {
+            entry.tree_depth == self.options.tree_state_stack.len() && !entry.from_content
+        } else {
+            false
+        }
     }
 }

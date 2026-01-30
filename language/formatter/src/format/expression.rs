@@ -5616,10 +5616,16 @@ pub(crate) fn format_tree_literal<'ast>(
                     write!(f, [group(&soft_block_indent(&format_children))])?;
                 }
 
-                // closing tag
+                // closing tag uses path only, no static arguments
                 write!(f, [token("</")])?;
                 if let Some(left) = left {
-                    write!(f, [left])?;
+                    let left_expression = f.context().tree.get(*left);
+
+                    if let Expression::Path { path, .. } = left_expression {
+                        write!(f, [path])?;
+                    } else {
+                        write!(f, [left])?;
+                    }
                 }
                 write!(f, [token(">")])?;
             }
