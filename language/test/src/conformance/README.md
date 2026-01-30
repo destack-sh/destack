@@ -10,12 +10,12 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   528  |   180  |     7  |   708 |  74.58% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
-| swc      |   452  |    86  |     -  |   538 |  84.01% |
+| swc      |   489  |    49  |     -  |   538 |  90.89% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5638  |  1608  |      7  |  7246 |  77.81% |
+| total    |  5675  |  1571  |      7  |  7246 |  78.32% |
 
-Total Blended Pass Rate: **77.81%**
+Total Blended Pass Rate: **78.32%**
 <!-- end:summary-results -->
 
 ### babel
@@ -79,10 +79,10 @@ Total Blended Pass Rate: **77.81%**
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | amaro-194            |     1  |     0  |       -  |     1 | 100.00% |
 | arrow-function       |    14  |     1  |       -  |    15 |  93.33% |
-| basic                |    49  |    14  |       -  |    63 |  77.78% |
+| basic                |    63  |     0  |       -  |    63 | 100.00% |
 | case1                |     1  |     0  |       -  |     1 | 100.00% |
 | cast                 |    16  |     0  |       -  |    16 | 100.00% |
-| class                |    25  |    14  |       -  |    39 |  64.10% |
+| class                |    32  |     7  |       -  |    39 |  82.05% |
 | const                |     1  |     0  |       -  |     1 | 100.00% |
 | custom               |    47  |     9  |       -  |    56 |  83.93% |
 | declare              |     5  |     0  |       -  |     5 | 100.00% |
@@ -90,7 +90,7 @@ Total Blended Pass Rate: **77.81%**
 | deno                 |     6  |     1  |       -  |     7 |  85.71% |
 | enum                 |    11  |     0  |       -  |    11 | 100.00% |
 | eof-issue            |     1  |     0  |       -  |     1 | 100.00% |
-| errors               |    17  |     8  |       -  |    25 |  68.00% |
+| errors               |    25  |     0  |       -  |    25 | 100.00% |
 | es2019               |     1  |     0  |       -  |     1 | 100.00% |
 | estree-compat        |     1  |     0  |       -  |     1 | 100.00% |
 | export               |     3  |     2  |       -  |     5 |  60.00% |
@@ -98,12 +98,12 @@ Total Blended Pass Rate: **77.81%**
 | function             |     6  |     0  |       -  |     6 | 100.00% |
 | import               |     7  |     1  |       -  |     8 |  87.50% |
 | import-assertions    |     5  |     2  |       -  |     7 |  71.43% |
-| instantiation-expr   |     7  |     1  |       -  |     8 |  87.50% |
+| instantiation-expr   |     8  |     0  |       -  |     8 | 100.00% |
 | interface            |    16  |     0  |       -  |    16 | 100.00% |
-| issue                |   116  |    20  |       -  |   136 |  85.29% |
+| issue                |   119  |    17  |       -  |   136 |  87.50% |
 | meta-property        |     3  |     0  |       -  |     3 | 100.00% |
 | module-namespace     |     6  |     3  |       -  |     9 |  66.67% |
-| next                 |     0  |     2  |       -  |     2 |   0.00% |
+| next                 |     1  |     1  |       -  |     2 |  50.00% |
 | nullish-coalescing-operator |     7  |     0  |       -  |     7 | 100.00% |
 | object               |     2  |     0  |       -  |     2 | 100.00% |
 | optional-chaining    |    16  |     2  |       -  |    18 |  88.89% |
@@ -113,17 +113,17 @@ Total Blended Pass Rate: **77.81%**
 | stc                  |     2  |     0  |       -  |     2 | 100.00% |
 | template-literal-type |     1  |     0  |       -  |     1 | 100.00% |
 | top-level-await      |     1  |     0  |       -  |     1 | 100.00% |
-| ts-import-type       |     0  |     1  |       -  |     1 |   0.00% |
-| tsx                  |     2  |     1  |       -  |     3 |  66.67% |
+| ts-import-type       |     1  |     0  |       -  |     1 | 100.00% |
+| tsx                  |     3  |     0  |       -  |     3 | 100.00% |
 | type-alias           |     5  |     0  |       -  |     5 | 100.00% |
-| type-arguments       |     6  |     1  |       -  |     7 |  85.71% |
+| type-arguments       |     7  |     0  |       -  |     7 | 100.00% |
 | types                |    29  |     1  |       -  |    30 |  96.67% |
 | v4                   |     5  |     0  |       -  |     5 | 100.00% |
 | variable-declarator  |     1  |     0  |       -  |     1 | 100.00% |
 | variance-annotations |     0  |     2  |       -  |     2 |   0.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   452  |    86  |      -  |   538 |  84.01% |
+| total                |   489  |    49  |       -  |   538 |  90.89% |
 <!-- end:swc-results -->
 
 ### test262

@@ -144,7 +144,7 @@ impl Suite for ConformanceHarnessSuite {
         TestResult::Passed
     }
 
-    fn report(&self, _results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+    fn report(&self, _results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {
         let Ok(results) = self.results.lock() else {
             return;
         };
@@ -153,14 +153,11 @@ impl Suite for ConformanceHarnessSuite {
         let baseline = load_readme_baseline();
         print_summary(&results, baseline.as_ref());
 
-        // update README.md with results (skip if filtering is applied)
-        if context.options.filter.is_some() || self.suite_filter.is_some() {
-            return;
-        }
+        let has_filtered_suites = results.iter().any(|suite| suite.result.is_filtered());
 
-        // determine if this is a partial run (not all suites)
+        // determine if this is a partial run (not all suites or filtered suites)
         let run_all = self.selection.is_all_disabled();
-        let is_partial = !run_all;
+        let is_partial = !run_all || has_filtered_suites;
 
         update_readme(&results, is_partial);
     }
