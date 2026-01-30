@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use crate::engine::interpreter::{CopyRange, Frame};
+use crate::interpreter::{CopyRange, Frame};
 use crate::memory::{HeapHandle, Value};
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
