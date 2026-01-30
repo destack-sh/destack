@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_compiler::{
@@ -17,10 +17,22 @@ use destack_vm::memory::Value;
 use destack_vm::{ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
 use destack_workspace::TargetId;
 use mir::parse::ParseOptions;
+use serde::Serialize;
 
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
 use destack_test_mirbench as program;
+
+// ansi color codes
+const DIM: &str = "\x1b[2m";
+const RESET: &str = "\x1b[0m";
+const GREEN: &str = "\x1b[32m";
+const YELLOW: &str = "\x1b[33m";
+const CYAN: &str = "\x1b[36m";
+const RED: &str = "\x1b[31m";
+
+// table formatting
+const COLUMN_GAP: &str = "  ";
 
 /// All optimization levels exercised by the optimizer bench suite.
 const OPTIMIZATION_LEVELS: [OptimizationLevel; 5] = [
@@ -44,6 +56,24 @@ pub struct OptimizeRunOptions {
     pub trace: bool,
     /// Optional instruction limit for execution.
     pub max_instruction_limit: Option<u64>,
+    /// Benchmark profile for program arguments.
+    pub bench_profile: program::BenchProfileKind,
+    /// Number of perf warmup iterations per program.
+    pub perf_warmup: u32,
+    /// Number of perf samples per program.
+    pub perf_samples: u32,
+    /// Optional perf report output path.
+    pub perf_output: Option<PathBuf>,
+    /// Perf report output format.
+    pub perf_output_format: PerfOutputFormat,
+    /// Enable A/B pipeline comparison.
+    pub perf_ab: bool,
+    /// Disabled passes for the B pipeline.
+    pub perf_ab_disable: Vec<String>,
+    /// Allowed passes for the B pipeline.
+    pub perf_ab_only: Vec<String>,
+    /// Capture per-pass timing data.
+    pub perf_pass_timing: bool,
 }
 
 impl OptimizeRunOptions {
@@ -57,27 +87,295 @@ impl OptimizeRunOptions {
     }
 }
 
+/// Output format for perf reports.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum PerfOutputFormat {
+    /// Emit a json report.
+    Json,
+    /// Emit a csv report.
+    Csv,
+}
+
+/// Summary statistics for timing samples.
+#[derive(Debug, Clone)]
+struct SampleSummary {
+    /// Raw sample durations in milliseconds.
+    samples_ms: Vec<f64>,
+    /// Mean duration in milliseconds.
+    mean_ms: f64,
+    /// Median duration in milliseconds.
+    median_ms: f64,
+    /// Minimum duration in milliseconds.
+    min_ms: f64,
+    /// Maximum duration in milliseconds.
+    max_ms: f64,
+}
+
+/// Serializable summary for perf samples.
+#[derive(Debug, Clone, Serialize)]
+struct PerfSampleStats {
+    /// Raw sample durations in milliseconds.
+    samples_ms: Vec<f64>,
+    /// Mean duration in milliseconds.
+    mean_ms: f64,
+    /// Median duration in milliseconds.
+    median_ms: f64,
+    /// Minimum duration in milliseconds.
+    min_ms: f64,
+    /// Maximum duration in milliseconds.
+    max_ms: f64,
+}
+
+/// Serializable perf report metadata.
+#[derive(Debug, Clone, Serialize)]
+struct PerfReportMetadata {
+    /// Unix timestamp in seconds.
+    timestamp_seconds: u64,
+    /// Operating system name.
+    os: String,
+    /// Architecture name.
+    arch: String,
+    /// Destack test crate version.
+    crate_version: String,
+    /// Bench profile name.
+    bench_profile: String,
+    /// Warmup iterations per program.
+    perf_warmup: u32,
+    /// Sample count per program.
+    perf_samples: u32,
+    /// Whether A/B comparison was enabled.
+    perf_ab: bool,
+    /// Whether per-pass timing was enabled.
+    perf_pass_timing: bool,
+}
+
+/// Serializable perf report sample.
+#[derive(Debug, Clone, Serialize)]
+struct PerfReportSample {
+    /// Program name.
+    name: String,
+    /// Pipeline variant label.
+    variant: String,
+    /// Optimization level label.
+    level: String,
+    /// Compile time in milliseconds.
+    compile_ms: f64,
+    /// Optimized runtime statistics.
+    runtime: PerfSampleStats,
+    /// Baseline runtime statistics.
+    baseline_runtime: PerfSampleStats,
+    /// Runtime delta in milliseconds.
+    runtime_delta_ms: f64,
+    /// Runtime speedup factor.
+    runtime_speedup: f64,
+    /// MIR instruction count after optimization.
+    mir_instructions: u64,
+    /// Baseline MIR instruction count.
+    baseline_mir_instructions: u64,
+    /// MIR instruction delta.
+    mir_instruction_delta: i64,
+    /// MIR text size after optimization.
+    mir_bytes: u64,
+    /// Baseline MIR text size.
+    baseline_mir_bytes: u64,
+    /// MIR text size delta.
+    mir_bytes_delta: i64,
+    /// Threaded instructions executed by the VM.
+    threaded_instructions: u64,
+    /// Baseline threaded instructions executed by the VM.
+    baseline_threaded_instructions: u64,
+    /// Threaded instruction delta.
+    threaded_delta: i64,
+    /// Pass timing samples when enabled.
+    pass_timings: Vec<PerfPassTiming>,
+}
+
+/// Serializable perf report.
+#[derive(Debug, Clone, Serialize)]
+struct PerfReport {
+    /// Metadata describing the run.
+    metadata: PerfReportMetadata,
+    /// Per program perf samples.
+    samples: Vec<PerfReportSample>,
+}
+
+/// Table row for perf reporting.
+struct PerfTableRow {
+    /// Table cells.
+    cells: Vec<String>,
+}
+
+/// Table column alignment.
+#[derive(Clone, Copy)]
+enum ColumnAlign {
+    /// Left aligned column.
+    Left,
+    /// Right aligned column.
+    Right,
+}
+
+/// Filter configuration for pass selection.
+#[derive(Debug, Clone, Default)]
+struct PassFilter {
+    /// Passes that should be disabled.
+    disabled: HashSet<String>,
+    /// Passes that should be exclusively enabled.
+    only: Option<HashSet<String>>,
+}
+
+impl PassFilter {
+    /// Create a new filter from allow/deny lists.
+    fn new(disabled: &[String], only: &[String]) -> Self {
+        let disabled = disabled.iter().cloned().collect::<HashSet<_>>();
+        let only = if only.is_empty() {
+            None
+        } else {
+            Some(only.iter().cloned().collect::<HashSet<_>>())
+        };
+
+        Self { disabled, only }
+    }
+
+    /// Return true when no filtering is configured.
+    fn is_noop(&self) -> bool {
+        self.disabled.is_empty() && self.only.is_none()
+    }
+
+    /// Return true when a pass should run.
+    fn allows(&self, pass_name: &str) -> bool {
+        if let Some(only) = &self.only {
+            return only.contains(pass_name);
+        }
+
+        !self.disabled.contains(pass_name)
+    }
+}
+
+/// Pipeline variant configuration for perf runs.
+#[derive(Debug, Clone)]
+struct PipelineVariant {
+    /// Variant label.
+    label: String,
+    /// Pass filter for this variant.
+    filter: PassFilter,
+}
+
 /// Perf sample data captured for a single program and level.
 #[derive(Debug, Clone)]
 struct PerfSample {
     /// Program name.
     name: String,
+    /// Pipeline variant label.
+    variant: String,
     /// Optimization level.
     level: OptimizationLevel,
     /// Compile time in milliseconds.
     compile_ms: f64,
-    /// Runtime in milliseconds.
-    runtime_ms: f64,
-    /// Baseline runtime in milliseconds.
-    baseline_runtime_ms: f64,
+    /// Runtime summary for optimized output.
+    runtime: SampleSummary,
+    /// Runtime summary for the baseline output.
+    baseline_runtime: SampleSummary,
     /// MIR instruction count after optimization.
     mir_instructions: u64,
     /// Baseline MIR instruction count.
     baseline_mir_instructions: u64,
+    /// MIR text size after optimization.
+    mir_bytes: u64,
+    /// Baseline MIR text size.
+    baseline_mir_bytes: u64,
     /// Threaded instructions executed by the VM.
     threaded_instructions: u64,
     /// Baseline threaded instructions executed by the VM.
     baseline_threaded_instructions: u64,
+    /// Pass timing samples when enabled.
+    pass_timings: Vec<PassTimingEntry>,
+}
+
+impl SampleSummary {
+    /// Build a summary from timing samples.
+    fn from_samples(mut samples_ms: Vec<f64>) -> Self {
+        // sort to compute median and bounds
+        samples_ms.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        let count = samples_ms.len() as f64;
+        let mean_ms = if samples_ms.is_empty() {
+            0.0
+        } else {
+            samples_ms.iter().sum::<f64>() / count
+        };
+        let median_ms = if samples_ms.is_empty() {
+            0.0
+        } else if samples_ms.len() % 2 == 0 {
+            let upper = samples_ms.len() / 2;
+            let lower = upper - 1;
+            (samples_ms[lower] + samples_ms[upper]) * 0.5
+        } else {
+            samples_ms[samples_ms.len() / 2]
+        };
+        let min_ms = samples_ms.first().copied().unwrap_or(0.0);
+        let max_ms = samples_ms.last().copied().unwrap_or(0.0);
+
+        Self {
+            samples_ms,
+            mean_ms,
+            median_ms,
+            min_ms,
+            max_ms,
+        }
+    }
+}
+
+impl From<&SampleSummary> for PerfSampleStats {
+    fn from(summary: &SampleSummary) -> Self {
+        Self {
+            samples_ms: summary.samples_ms.clone(),
+            mean_ms: summary.mean_ms,
+            median_ms: summary.median_ms,
+            min_ms: summary.min_ms,
+            max_ms: summary.max_ms,
+        }
+    }
+}
+
+/// Pass timing data captured during pipeline execution.
+#[derive(Debug, Clone)]
+struct PassTimingEntry {
+    /// Pass label.
+    label: String,
+    /// Total time spent in the pass.
+    duration_ms: f64,
+    /// Whether the pass executed on any body.
+    executed: bool,
+    /// Whether the pass reported changes.
+    changed: bool,
+    /// MIR instruction delta for the pass.
+    mir_instruction_delta: Option<i64>,
+    /// MIR byte delta for the pass.
+    mir_bytes_delta: Option<i64>,
+}
+
+/// Serializable pass timing data.
+#[derive(Debug, Clone, Serialize)]
+struct PerfPassTiming {
+    /// Pass label.
+    label: String,
+    /// Total time spent in the pass.
+    duration_ms: f64,
+    /// Whether the pass executed on any body.
+    executed: bool,
+    /// Whether the pass reported changes.
+    changed: bool,
+    /// MIR instruction delta for the pass.
+    mir_instruction_delta: Option<i64>,
+    /// MIR byte delta for the pass.
+    mir_bytes_delta: Option<i64>,
+}
+
+impl PerfTableRow {
+    /// Create a table row from cells.
+    fn new(cells: Vec<String>) -> Self {
+        Self { cells }
+    }
 }
 
 /// Allowed diagnostics for a bench fixture.
@@ -399,11 +697,14 @@ impl Suite for OptimizeExecuteSuite {
         }
 
         // run the baseline program for comparison
-        let baseline_output =
-            match baseline_output_for_program(program, self.options.max_instruction_limit) {
-                Ok(output) => output,
-                Err(message) => return TestResult::Failed { message },
-            };
+        let baseline_output = match baseline_output_for_program(
+            program,
+            self.options.max_instruction_limit,
+            self.options.bench_profile,
+        ) {
+            Ok(output) => output,
+            Err(message) => return TestResult::Failed { message },
+        };
 
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
@@ -443,6 +744,7 @@ impl Suite for OptimizeExecuteSuite {
                 tree,
                 strings,
                 self.options.max_instruction_limit,
+                self.options.bench_profile,
             );
             let output = match output {
                 Ok(output) => output,
@@ -563,20 +865,26 @@ impl Suite for OptimizePerfSuite {
             };
         }
 
+        // prepare pipeline variants
+        let variants = build_perf_variants(&self.options);
+
         // parse baseline tree to count MIR instructions
         let (baseline_tree, baseline_strings) = match parse_mir_source(program.source) {
             Ok(output) => output,
             Err(message) => return TestResult::Failed { message },
         };
         let baseline_mir_instructions = count_mir_instructions(&baseline_tree);
+        let baseline_mir_bytes = count_mir_bytes(&baseline_tree, &baseline_strings);
 
         // run baseline program for correctness and baseline metrics
-        let baseline_start = Instant::now();
-        let baseline_output = match run_program_with_tree_result(
+        let (baseline_output, baseline_runtime) = match measure_runtime_samples(
             program,
-            baseline_tree,
-            baseline_strings,
+            &baseline_tree,
+            &baseline_strings,
             self.options.max_instruction_limit,
+            self.options.bench_profile,
+            self.options.perf_warmup,
+            self.options.perf_samples,
         ) {
             Ok(output) => output,
             Err(error) => {
@@ -585,7 +893,6 @@ impl Suite for OptimizePerfSuite {
                 };
             }
         };
-        let baseline_runtime_ms = baseline_start.elapsed().as_secs_f64() * 1000.0;
         let baseline_threaded_instructions =
             baseline_output.statistics.threaded_instructions_executed;
 
@@ -608,70 +915,82 @@ impl Suite for OptimizePerfSuite {
 
             ran_any = true;
             let pipeline = default_pipeline(level);
-            let module_id = module_id_for_program(package_id, program.name);
 
-            // optimize with compile timing
-            let compile_start = Instant::now();
-            let (tree, strings) = match optimize_source(
-                program.source,
-                module_id,
-                &target_id,
-                &pipeline,
-                options.clone(),
-                &allow_list,
-            ) {
-                Ok(output) => output,
-                Err(message) => return TestResult::Failed { message },
-            };
-            let compile_ms = compile_start.elapsed().as_secs_f64() * 1000.0;
+            for variant in &variants {
+                // optimize with compile timing
+                let compile_start = Instant::now();
+                let module_id = module_id_for_program(package_id, program.name);
+                let output = match optimize_source_variant(
+                    program.source,
+                    module_id,
+                    &target_id,
+                    &pipeline,
+                    options.clone(),
+                    &allow_list,
+                    &variant.filter,
+                    self.options.perf_pass_timing,
+                ) {
+                    Ok(output) => output,
+                    Err(message) => return TestResult::Failed { message },
+                };
+                let compile_ms = compile_start.elapsed().as_secs_f64() * 1000.0;
 
-            // compute MIR instruction count after optimization
-            let mir_instructions = count_mir_instructions(&tree);
+                // compute MIR instruction count after optimization
+                let mir_instructions = count_mir_instructions(&output.tree);
+                let mir_bytes = count_mir_bytes(&output.tree, &output.strings);
 
-            // execute the optimized program with runtime timing
-            let runtime_start = Instant::now();
-            let output = run_program_with_tree_result(
-                program,
-                tree,
-                strings,
-                self.options.max_instruction_limit,
-            );
-            let runtime_ms = runtime_start.elapsed().as_secs_f64() * 1000.0;
-            let output = match output {
-                Ok(output) => output,
-                Err(error) => {
+                // execute the optimized program with runtime timing
+                let (run_output, runtime) = match measure_runtime_samples(
+                    program,
+                    &output.tree,
+                    &output.strings,
+                    self.options.max_instruction_limit,
+                    self.options.bench_profile,
+                    self.options.perf_warmup,
+                    self.options.perf_samples,
+                ) {
+                    Ok(output) => output,
+                    Err(error) => {
+                        return TestResult::Failed {
+                            message: format!(
+                                "bench '{}' ({level:?}) failed: {error}",
+                                program.name
+                            ),
+                        };
+                    }
+                };
+
+                // compare outputs against the baseline
+                if run_output.value != baseline_output.value {
                     return TestResult::Failed {
-                        message: format!("bench '{}' ({level:?}) failed: {error}", program.name),
+                        message: format!(
+                            "'{}' ({level:?}): expected {:?}, got {:?}",
+                            program.name, baseline_output.value, run_output.value
+                        ),
                     };
                 }
-            };
 
-            // compare outputs against the baseline
-            if output.value != baseline_output.value {
-                return TestResult::Failed {
-                    message: format!(
-                        "'{}' ({level:?}): expected {:?}, got {:?}",
-                        program.name, baseline_output.value, output.value
-                    ),
+                let sample = PerfSample {
+                    name: program.name.to_string(),
+                    variant: variant.label.clone(),
+                    level,
+                    compile_ms,
+                    runtime,
+                    baseline_runtime: baseline_runtime.clone(),
+                    mir_instructions,
+                    baseline_mir_instructions,
+                    mir_bytes,
+                    baseline_mir_bytes,
+                    threaded_instructions: run_output.statistics.threaded_instructions_executed,
+                    baseline_threaded_instructions,
+                    pass_timings: output.pass_timings,
                 };
+
+                self.samples
+                    .lock()
+                    .expect("perf samples lock poisoned")
+                    .push(sample);
             }
-
-            let sample = PerfSample {
-                name: program.name.to_string(),
-                level,
-                compile_ms,
-                runtime_ms,
-                baseline_runtime_ms,
-                mir_instructions,
-                baseline_mir_instructions,
-                threaded_instructions: output.statistics.threaded_instructions_executed,
-                baseline_threaded_instructions,
-            };
-
-            self.samples
-                .lock()
-                .expect("perf samples lock poisoned")
-                .push(sample);
         }
 
         // skip if no levels matched the filter
@@ -692,7 +1011,10 @@ impl Suite for OptimizePerfSuite {
             .clone();
 
         samples.sort_by(|a, b| match a.name.cmp(&b.name) {
-            std::cmp::Ordering::Equal => level_index(a.level).cmp(&level_index(b.level)),
+            std::cmp::Ordering::Equal => match level_index(a.level).cmp(&level_index(b.level)) {
+                std::cmp::Ordering::Equal => a.variant.cmp(&b.variant),
+                order => order,
+            },
             order => order,
         });
 
@@ -701,26 +1023,19 @@ impl Suite for OptimizePerfSuite {
         }
 
         println!();
-        println!("perf summary (ms, threaded inst, mir inst)");
-        for sample in samples {
-            let runtime_delta = sample.runtime_ms - sample.baseline_runtime_ms;
-            let mir_delta =
-                sample.mir_instructions as i64 - sample.baseline_mir_instructions as i64;
-            let threaded_delta =
-                sample.threaded_instructions as i64 - sample.baseline_threaded_instructions as i64;
+        println!("perf summary (median ms)");
+        print_perf_table(&samples);
+        if self.options.perf_ab {
+            println!();
+            println!("perf ab summary (b vs a, median ms)");
+            print_perf_ab_table(&samples);
+        }
 
-            println!(
-                "{} {level:?} compile={compile:.2} runtime={runtime:.2} (delta={runtime_delta:+.2}) threaded={threaded} (delta={threaded_delta:+}) mir={mir} (delta={mir_delta:+})",
-                sample.name,
-                level = sample.level,
-                compile = sample.compile_ms,
-                runtime = sample.runtime_ms,
-                runtime_delta = runtime_delta,
-                threaded = sample.threaded_instructions,
-                threaded_delta = threaded_delta,
-                mir = sample.mir_instructions,
-                mir_delta = mir_delta,
-            );
+        if let Some(path) = &self.options.perf_output {
+            let report = build_perf_report(&samples, &self.options);
+            if let Err(error) = write_perf_report(path, &report, self.options.perf_output_format) {
+                eprintln!("failed to write perf report: {error}");
+            }
         }
     }
 }
@@ -809,6 +1124,503 @@ fn count_mir_instructions(tree: &mir::NodeTree) -> u64 {
     count
 }
 
+/// Estimate MIR text size by formatting the tree.
+fn count_mir_bytes(tree: &mir::NodeTree, strings: &ImmutableStringPool) -> u64 {
+    let formatted = mir::format_mir(tree, strings, mir::MirFormatOptions::default());
+    formatted.as_bytes().len() as u64
+}
+
+/// Build a perf report from collected samples.
+fn build_perf_report(samples: &[PerfSample], options: &OptimizeRunOptions) -> PerfReport {
+    let timestamp_seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let metadata = PerfReportMetadata {
+        timestamp_seconds,
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        crate_version: env!("CARGO_PKG_VERSION").to_string(),
+        bench_profile: bench_profile_label(options.bench_profile).to_string(),
+        perf_warmup: options.perf_warmup,
+        perf_samples: options.perf_samples,
+        perf_ab: options.perf_ab,
+        perf_pass_timing: options.perf_pass_timing,
+    };
+
+    let samples = samples
+        .iter()
+        .map(|sample| {
+            let baseline_runtime = sample.baseline_runtime.median_ms;
+            let runtime = sample.runtime.median_ms;
+            let runtime_delta_ms = runtime - baseline_runtime;
+            let runtime_speedup = if runtime > 0.0 {
+                baseline_runtime / runtime
+            } else {
+                0.0
+            };
+            let mir_instruction_delta =
+                sample.mir_instructions as i64 - sample.baseline_mir_instructions as i64;
+            let mir_bytes_delta = sample.mir_bytes as i64 - sample.baseline_mir_bytes as i64;
+            let threaded_delta =
+                sample.threaded_instructions as i64 - sample.baseline_threaded_instructions as i64;
+
+            let pass_timings = sample
+                .pass_timings
+                .iter()
+                .map(|timing| PerfPassTiming {
+                    label: timing.label.clone(),
+                    duration_ms: timing.duration_ms,
+                    executed: timing.executed,
+                    changed: timing.changed,
+                    mir_instruction_delta: timing.mir_instruction_delta,
+                    mir_bytes_delta: timing.mir_bytes_delta,
+                })
+                .collect();
+
+            PerfReportSample {
+                name: sample.name.clone(),
+                variant: sample.variant.clone(),
+                level: format!("{:?}", sample.level),
+                compile_ms: sample.compile_ms,
+                runtime: PerfSampleStats::from(&sample.runtime),
+                baseline_runtime: PerfSampleStats::from(&sample.baseline_runtime),
+                runtime_delta_ms,
+                runtime_speedup,
+                mir_instructions: sample.mir_instructions,
+                baseline_mir_instructions: sample.baseline_mir_instructions,
+                mir_instruction_delta,
+                mir_bytes: sample.mir_bytes,
+                baseline_mir_bytes: sample.baseline_mir_bytes,
+                mir_bytes_delta,
+                threaded_instructions: sample.threaded_instructions,
+                baseline_threaded_instructions: sample.baseline_threaded_instructions,
+                threaded_delta,
+                pass_timings,
+            }
+        })
+        .collect();
+
+    PerfReport { metadata, samples }
+}
+
+/// Write a perf report to disk.
+fn write_perf_report(
+    path: &Path,
+    report: &PerfReport,
+    format: PerfOutputFormat,
+) -> Result<(), String> {
+    match format {
+        PerfOutputFormat::Json => {
+            let payload =
+                serde_json::to_string_pretty(report).map_err(|error| error.to_string())?;
+            fs::write(path, payload)
+                .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+        }
+        PerfOutputFormat::Csv => {
+            let payload = format_perf_csv(report);
+            fs::write(path, payload)
+                .map_err(|error| format!("failed to write {}: {error}", path.display()))?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Format a perf report as csv.
+fn format_perf_csv(report: &PerfReport) -> String {
+    let mut output = String::new();
+    output.push_str("name,variant,level,compile_ms,runtime_median_ms,runtime_mean_ms,runtime_min_ms,runtime_max_ms,baseline_median_ms,baseline_mean_ms,baseline_min_ms,baseline_max_ms,runtime_delta_ms,runtime_speedup,mir_instructions,baseline_mir_instructions,mir_instruction_delta,mir_bytes,baseline_mir_bytes,mir_bytes_delta,threaded_instructions,baseline_threaded_instructions,threaded_delta\n");
+
+    for sample in &report.samples {
+        let row = format!(
+            "{name},{variant},{level},{compile_ms:.4},{runtime_median:.4},{runtime_mean:.4},{runtime_min:.4},{runtime_max:.4},{baseline_median:.4},{baseline_mean:.4},{baseline_min:.4},{baseline_max:.4},{runtime_delta:.4},{runtime_speedup:.4},{mir_instr},{baseline_mir_instr},{mir_delta},{mir_bytes},{baseline_mir_bytes},{mir_bytes_delta},{threaded},{baseline_threaded},{threaded_delta}\n",
+            name = csv_escape(&sample.name),
+            variant = csv_escape(&sample.variant),
+            level = csv_escape(&sample.level),
+            compile_ms = sample.compile_ms,
+            runtime_median = sample.runtime.median_ms,
+            runtime_mean = sample.runtime.mean_ms,
+            runtime_min = sample.runtime.min_ms,
+            runtime_max = sample.runtime.max_ms,
+            baseline_median = sample.baseline_runtime.median_ms,
+            baseline_mean = sample.baseline_runtime.mean_ms,
+            baseline_min = sample.baseline_runtime.min_ms,
+            baseline_max = sample.baseline_runtime.max_ms,
+            runtime_delta = sample.runtime_delta_ms,
+            runtime_speedup = sample.runtime_speedup,
+            mir_instr = sample.mir_instructions,
+            baseline_mir_instr = sample.baseline_mir_instructions,
+            mir_delta = sample.mir_instruction_delta,
+            mir_bytes = sample.mir_bytes,
+            baseline_mir_bytes = sample.baseline_mir_bytes,
+            mir_bytes_delta = sample.mir_bytes_delta,
+            threaded = sample.threaded_instructions,
+            baseline_threaded = sample.baseline_threaded_instructions,
+            threaded_delta = sample.threaded_delta,
+        );
+        output.push_str(&row);
+    }
+
+    output
+}
+
+/// Print a formatted perf table to stdout.
+fn print_perf_table(samples: &[PerfSample]) {
+    let mut rows = Vec::new();
+    let show_variant = samples
+        .iter()
+        .map(|sample| sample.variant.as_str())
+        .collect::<HashSet<_>>()
+        .len()
+        > 1;
+
+    let mut header_cells = vec!["Program".to_string()];
+    if show_variant {
+        header_cells.push("Var".to_string());
+    }
+    header_cells.push("Lvl".to_string());
+    header_cells.extend([
+        "Compile".to_string(),
+        "Run".to_string(),
+        "Base".to_string(),
+        "d_ms".to_string(),
+        "Speedup".to_string(),
+        "MIR".to_string(),
+        "Bytes".to_string(),
+        "Threaded".to_string(),
+    ]);
+    let header = PerfTableRow::new(header_cells);
+    rows.push(header);
+
+    let speedup_index = if show_variant { 7 } else { 6 };
+
+    for sample in samples {
+        let baseline_runtime = sample.baseline_runtime.median_ms;
+        let runtime = sample.runtime.median_ms;
+        let runtime_delta = runtime - baseline_runtime;
+        let runtime_speedup = if runtime > 0.0 {
+            baseline_runtime / runtime
+        } else {
+            0.0
+        };
+
+        let mut cells = vec![sample.name.clone()];
+        if show_variant {
+            cells.push(sample.variant.clone());
+            cells.push(format!("{:?}", sample.level));
+        } else {
+            cells.push(format!("{:?}", sample.level));
+        }
+        cells.extend([
+            format!("{:.2}", sample.compile_ms),
+            format!("{:.2}", runtime),
+            format!("{:.2}", baseline_runtime),
+            format!("{:+.2}", runtime_delta),
+            format!("{:.2}x", runtime_speedup),
+            sample.mir_instructions.to_string(),
+            sample.mir_bytes.to_string(),
+            sample.threaded_instructions.to_string(),
+        ]);
+        let row = PerfTableRow::new(cells);
+        rows.push(row);
+    }
+
+    let mut align = vec![ColumnAlign::Left];
+    if show_variant {
+        align.push(ColumnAlign::Left);
+    }
+    align.push(ColumnAlign::Left);
+    align.extend([
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+    ]);
+
+    let widths = compute_column_widths(&rows);
+    let header = format_perf_row(&rows[0], &widths, &align);
+    let separator =
+        "-".repeat(widths.iter().sum::<usize>() + COLUMN_GAP.len() * (widths.len() - 1));
+
+    println!("{DIM}{header}{RESET}");
+    println!("{DIM}{separator}{RESET}");
+    for row in rows.iter().skip(1) {
+        let speedup = parse_speedup_cell(row.cells.get(speedup_index));
+        let speedup_color = speedup.map(speedup_color).unwrap_or(RESET);
+
+        let mut colors = vec![None; row.cells.len()];
+        colors[0] = Some(CYAN);
+        if let Some(color) = color_if_not_reset(speedup_color) {
+            colors[speedup_index] = Some(color);
+        }
+
+        let line = format_perf_row_colored(row, &widths, &align, &colors);
+        println!("{line}");
+    }
+}
+
+/// Print a formatted A/B comparison table to stdout.
+fn print_perf_ab_table(samples: &[PerfSample]) {
+    let mut pairs: HashMap<(String, OptimizationLevel), (Option<usize>, Option<usize>)> =
+        HashMap::new();
+
+    for (index, sample) in samples.iter().enumerate() {
+        let key = (sample.name.clone(), sample.level);
+        let entry = pairs.entry(key).or_insert((None, None));
+        if sample.variant == "A" {
+            entry.0 = Some(index);
+        } else if sample.variant == "B" {
+            entry.1 = Some(index);
+        }
+    }
+
+    let mut keys: Vec<_> = pairs.keys().cloned().collect();
+    keys.sort_by(
+        |(name_a, level_a), (name_b, level_b)| match name_a.cmp(name_b) {
+            std::cmp::Ordering::Equal => level_index(*level_a).cmp(&level_index(*level_b)),
+            order => order,
+        },
+    );
+
+    let mut rows = Vec::new();
+    let header = PerfTableRow::new(vec![
+        "Program".to_string(),
+        "Lvl".to_string(),
+        "RunA".to_string(),
+        "RunB".to_string(),
+        "d_ms".to_string(),
+        "Speedup".to_string(),
+        "CompA".to_string(),
+        "CompB".to_string(),
+        "d_comp".to_string(),
+        "MIR_d".to_string(),
+        "Bytes_d".to_string(),
+        "Thread_d".to_string(),
+    ]);
+    rows.push(header);
+
+    for (name, level) in keys {
+        let Some((a_index, b_index)) = pairs.get(&(name.clone(), level)) else {
+            continue;
+        };
+        let (Some(a_index), Some(b_index)) = (a_index.as_ref(), b_index.as_ref()) else {
+            continue;
+        };
+        let sample_a = &samples[*a_index];
+        let sample_b = &samples[*b_index];
+
+        let runtime_a = sample_a.runtime.median_ms;
+        let runtime_b = sample_b.runtime.median_ms;
+        let runtime_delta = runtime_b - runtime_a;
+        let runtime_speedup = if runtime_b > 0.0 {
+            runtime_a / runtime_b
+        } else {
+            0.0
+        };
+
+        let compile_a = sample_a.compile_ms;
+        let compile_b = sample_b.compile_ms;
+        let compile_delta = compile_b - compile_a;
+
+        let mir_delta = sample_b.mir_instructions as i64 - sample_a.mir_instructions as i64;
+        let bytes_delta = sample_b.mir_bytes as i64 - sample_a.mir_bytes as i64;
+        let threaded_delta =
+            sample_b.threaded_instructions as i64 - sample_a.threaded_instructions as i64;
+
+        let row = PerfTableRow::new(vec![
+            name,
+            format!("{:?}", level),
+            format!("{:.2}", runtime_a),
+            format!("{:.2}", runtime_b),
+            format!("{:+.2}", runtime_delta),
+            format!("{:.2}x", runtime_speedup),
+            format!("{:.2}", compile_a),
+            format!("{:.2}", compile_b),
+            format!("{:+.2}", compile_delta),
+            format!("{:+}", mir_delta),
+            format!("{:+}", bytes_delta),
+            format!("{:+}", threaded_delta),
+        ]);
+        rows.push(row);
+    }
+
+    if rows.len() <= 1 {
+        return;
+    }
+
+    let mut align = vec![ColumnAlign::Left, ColumnAlign::Left];
+    align.extend([
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+        ColumnAlign::Right,
+    ]);
+
+    let widths = compute_column_widths(&rows);
+    let header = format_perf_row(&rows[0], &widths, &align);
+    let separator =
+        "-".repeat(widths.iter().sum::<usize>() + COLUMN_GAP.len() * (widths.len() - 1));
+
+    println!("{DIM}{header}{RESET}");
+    println!("{DIM}{separator}{RESET}");
+    for row in rows.iter().skip(1) {
+        let speedup = parse_speedup_cell(row.cells.get(5));
+        let speedup_color = speedup.map(speedup_color).unwrap_or(RESET);
+
+        let mut colors = vec![None; row.cells.len()];
+        colors[0] = Some(CYAN);
+        if let Some(color) = color_if_not_reset(speedup_color) {
+            colors[5] = Some(color);
+        }
+
+        let line = format_perf_row_colored(row, &widths, &align, &colors);
+        println!("{line}");
+    }
+}
+
+/// Compute column widths for perf rows.
+fn compute_column_widths(rows: &[PerfTableRow]) -> Vec<usize> {
+    let mut widths = Vec::new();
+    for row in rows {
+        if widths.is_empty() {
+            widths.resize(row.cells.len(), 0);
+        }
+
+        for (idx, cell) in row.cells.iter().enumerate() {
+            widths[idx] = widths[idx].max(cell.len());
+        }
+    }
+
+    widths
+}
+
+/// Format a perf row with widths and alignment.
+fn format_perf_row(row: &PerfTableRow, widths: &[usize], align: &[ColumnAlign]) -> String {
+    let mut output = String::new();
+    for (idx, cell) in row.cells.iter().enumerate() {
+        let width = widths[idx];
+        let aligned = match align.get(idx).copied().unwrap_or(ColumnAlign::Right) {
+            ColumnAlign::Left => format!("{cell:<width$}"),
+            ColumnAlign::Right => format!("{cell:>width$}"),
+        };
+
+        output.push_str(&aligned);
+        if idx + 1 < row.cells.len() {
+            output.push_str(COLUMN_GAP);
+        }
+    }
+
+    output
+}
+
+/// Format a perf row with widths, alignment, and optional colors.
+fn format_perf_row_colored(
+    row: &PerfTableRow,
+    widths: &[usize],
+    align: &[ColumnAlign],
+    colors: &[Option<&'static str>],
+) -> String {
+    let mut output = String::new();
+    for (idx, cell) in row.cells.iter().enumerate() {
+        let width = widths[idx];
+        let aligned = match align.get(idx).copied().unwrap_or(ColumnAlign::Right) {
+            ColumnAlign::Left => format!("{cell:<width$}"),
+            ColumnAlign::Right => format!("{cell:>width$}"),
+        };
+
+        if let Some(color) = colors.get(idx).copied().flatten() {
+            output.push_str(color);
+            output.push_str(&aligned);
+            output.push_str(RESET);
+        } else {
+            output.push_str(&aligned);
+        }
+
+        if idx + 1 < row.cells.len() {
+            output.push_str(COLUMN_GAP);
+        }
+    }
+
+    output
+}
+
+/// Return the color for a speedup value.
+fn speedup_color(speedup: f64) -> &'static str {
+    if speedup >= 1.05 {
+        GREEN
+    } else if speedup >= 0.98 {
+        YELLOW
+    } else {
+        RED
+    }
+}
+
+/// Parse a speedup cell value formatted as `Nx`.
+fn parse_speedup_cell(cell: Option<&String>) -> Option<f64> {
+    let cell = cell?;
+    let trimmed = cell.trim_end_matches('x');
+    trimmed.parse::<f64>().ok()
+}
+
+/// Return the color unless it is the reset code.
+fn color_if_not_reset(color: &'static str) -> Option<&'static str> {
+    if color == RESET { None } else { Some(color) }
+}
+
+/// Escape a csv field.
+fn csv_escape(value: &str) -> String {
+    let needs_escape = value.contains(',') || value.contains('"') || value.contains('\n');
+    if !needs_escape {
+        return value.to_string();
+    }
+
+    let escaped = value.replace('"', "\"\"");
+    format!("\"{escaped}\"")
+}
+
+/// Return the bench profile label.
+fn bench_profile_label(profile: program::BenchProfileKind) -> &'static str {
+    match profile {
+        program::BenchProfileKind::Quick => "quick",
+        program::BenchProfileKind::Standard => "standard",
+        program::BenchProfileKind::Stress => "stress",
+    }
+}
+
+/// Build pipeline variants for perf runs.
+fn build_perf_variants(options: &OptimizeRunOptions) -> Vec<PipelineVariant> {
+    if options.perf_ab {
+        let filter = PassFilter::new(&options.perf_ab_disable, &options.perf_ab_only);
+        vec![
+            PipelineVariant {
+                label: "A".to_string(),
+                filter: PassFilter::default(),
+            },
+            PipelineVariant {
+                label: "B".to_string(),
+                filter,
+            },
+        ]
+    } else {
+        vec![PipelineVariant {
+            label: "default".to_string(),
+            filter: PassFilter::default(),
+        }]
+    }
+}
+
 /// Map optimization levels to a stable sort index.
 fn level_index(level: OptimizationLevel) -> u8 {
     match level {
@@ -863,16 +1675,92 @@ fn optimize_source(
     Ok((tree, optimized_strings))
 }
 
+/// Output of an optimized pipeline run.
+struct OptimizeOutput {
+    /// Optimized tree.
+    tree: mir::NodeTree,
+    /// String pool for the optimized tree.
+    strings: ImmutableStringPool,
+    /// Per-pass timing data.
+    pass_timings: Vec<PassTimingEntry>,
+}
+
+/// Optimize a source program with optional pass filtering and timing.
+fn optimize_source_variant(
+    source: &str,
+    module_id: ModuleId,
+    target_id: &TargetId,
+    pipeline: &dyn Pipeline,
+    options: PipelineOptions,
+    allow_list: &BenchAllowList,
+    filter: &PassFilter,
+    capture_pass_timing: bool,
+) -> Result<OptimizeOutput, String> {
+    // parse the source program
+    let (mut tree, strings) = parse_mir_source(source)?;
+
+    // build the pipeline context
+    let strings_pool = StringPool::new();
+    strings_pool.copy_from_immutable(&strings);
+    let mut ctx = PipelineContext::new(&strings_pool, options, module_id, target_id.clone(), None);
+
+    let mut pass_timings = Vec::new();
+    if filter.is_noop() && !capture_pass_timing {
+        pipeline.run(&mut tree, &mut ctx);
+    } else {
+        let mut path = Vec::new();
+        run_pipeline_with_timings(
+            &mut tree,
+            &mut ctx,
+            pipeline,
+            filter,
+            capture_pass_timing,
+            &mut pass_timings,
+            &mut path,
+            &strings_pool,
+        );
+    }
+
+    // check diagnostics
+    let diagnostics = ctx.diagnostics();
+    let errors = diagnostics.take_errors();
+    let warnings = diagnostics.take_warnings();
+
+    let unexpected_errors: Vec<_> = errors
+        .iter()
+        .filter(|error| !allow_list.allows_error(error))
+        .collect();
+    let unexpected_warnings: Vec<_> = warnings
+        .iter()
+        .filter(|warning| !allow_list.allows_warning(warning))
+        .collect();
+
+    if !unexpected_errors.is_empty() || !unexpected_warnings.is_empty() {
+        return Err(format!(
+            "unexpected diagnostics:\nerrors: {unexpected_errors:#?}\nwarnings: {unexpected_warnings:#?}"
+        ));
+    }
+
+    // return optimized output
+    let optimized_strings = strings_pool.clone().into_immutable();
+    Ok(OptimizeOutput {
+        tree,
+        strings: optimized_strings,
+        pass_timings,
+    })
+}
+
 /// Return the baseline output for a bench program.
 fn baseline_output_for_program(
     program: &program::Program,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
     let (tree, strings) = parse_mir_source(program.source)?;
 
     // run the baseline program with quick profile args
-    run_program_with_tree_result(program, tree, strings, max_instruction_limit)
+    run_program_with_tree_result(program, tree, strings, max_instruction_limit, profile)
         .map_err(|error| format!("bench '{}' baseline failed: {error}", program.name))
 }
 
@@ -889,6 +1777,54 @@ fn baseline_output_for_program_default_args(
         .map_err(|error| format!("bench '{}' baseline failed: {error}", program.name))
 }
 
+/// Execute a program repeatedly and collect timing samples.
+fn measure_runtime_samples(
+    program: &program::Program,
+    tree: &mir::NodeTree,
+    strings: &ImmutableStringPool,
+    max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
+    warmup: u32,
+    samples: u32,
+) -> Result<(ExecutionOutput, SampleSummary), String> {
+    // run warmup iterations
+    for _ in 0..warmup {
+        run_program_with_tree_profile(program, tree, strings, max_instruction_limit, profile)
+            .map_err(|error| format!("bench '{}' warmup failed: {error}", program.name))?;
+    }
+
+    // run timing samples
+    let sample_count = samples.max(1) as usize;
+    let mut timings = Vec::with_capacity(sample_count);
+    let mut baseline_output: Option<ExecutionOutput> = None;
+
+    for _ in 0..sample_count {
+        let start = Instant::now();
+        let output =
+            run_program_with_tree_profile(program, tree, strings, max_instruction_limit, profile)
+                .map_err(|error| format!("bench '{}' run failed: {error}", program.name))?;
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+
+        if let Some(expected) = baseline_output.as_ref() {
+            if output.value != expected.value {
+                return Err(format!(
+                    "bench '{}' produced mismatched output during perf run",
+                    program.name
+                ));
+            }
+        } else {
+            baseline_output = Some(output);
+        }
+
+        timings.push(elapsed);
+    }
+
+    let baseline_output = baseline_output
+        .ok_or_else(|| format!("bench '{}' failed to produce a perf sample", program.name))?;
+
+    Ok((baseline_output, SampleSummary::from_samples(timings)))
+}
+
 /// Run a program and compare against the baseline output.
 fn run_and_compare_output(
     program: &program::Program,
@@ -896,10 +1832,12 @@ fn run_and_compare_output(
     strings: ImmutableStringPool,
     baseline_output: &ExecutionOutput,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
     context: &str,
 ) -> Result<(), String> {
     // execute the program
-    let output = run_program_with_tree_result(program, tree, strings, max_instruction_limit);
+    let output =
+        run_program_with_tree_result(program, tree, strings, max_instruction_limit, profile);
     let output = match output {
         Ok(output) => output,
         Err(error) => {
@@ -970,6 +1908,254 @@ fn run_module_pass(
     !preserved.preserves_all()
 }
 
+/// Run a function pass with filtering and requirement checks.
+fn run_function_pass_filtered(
+    pass: &dyn FunctionPass,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    filter: &PassFilter,
+) -> (bool, bool) {
+    if !filter.allows(pass.name()) {
+        return (false, false);
+    }
+
+    let mut any_changed = false;
+    let mut executed = false;
+
+    // collect function ids
+    let function_ids: Vec<_> = tree
+        .iter_nodes::<mir::Function>()
+        .map(|(id, _)| id)
+        .collect();
+
+    for function_id in function_ids {
+        let mut function = tree.get(function_id).clone();
+
+        // skip imported functions
+        if function.entry.is_none() {
+            continue;
+        }
+
+        // enforce pass requirements
+        if !ctx.enforce_function_requirements(pass.metadata(), function_id, &function, tree) {
+            continue;
+        }
+
+        executed = true;
+        function.recompute_next_value_id(tree);
+        let preserved = pass.run(&mut function, tree, ctx);
+        if !preserved.preserves_all() {
+            any_changed = true;
+        }
+
+        // write function back
+        *tree.get_mut(function_id) = function;
+    }
+
+    (any_changed, executed)
+}
+
+/// Run a module pass with filtering and requirement checks.
+fn run_module_pass_filtered(
+    pass: &dyn ModulePass,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    filter: &PassFilter,
+) -> (bool, bool) {
+    if !filter.allows(pass.name()) {
+        return (false, false);
+    }
+
+    // enforce pass requirements
+    if !ctx.enforce_module_requirements(pass.metadata(), tree) {
+        return (false, false);
+    }
+
+    let preserved = pass.run(tree, ctx);
+    (!preserved.preserves_all(), true)
+}
+
+/// Run a pipeline while capturing pass timings.
+fn run_pipeline_with_timings(
+    tree: &mut mir::NodeTree,
+    ctx: &mut PipelineContext<'_>,
+    pipeline: &dyn Pipeline,
+    filter: &PassFilter,
+    capture_metrics: bool,
+    timings: &mut Vec<PassTimingEntry>,
+    path: &mut Vec<String>,
+    strings_pool: &StringPool,
+) -> bool {
+    // handle composite pipelines
+    if let Some(composite) = pipeline.as_any().downcast_ref::<CompositePipeline>() {
+        let mut any_changed = false;
+
+        path.push(composite.name().to_string());
+        for child in composite.pipelines() {
+            let changed = run_pipeline_with_timings(
+                tree,
+                ctx,
+                child.as_ref(),
+                filter,
+                capture_metrics,
+                timings,
+                path,
+                strings_pool,
+            );
+            any_changed |= changed;
+        }
+        path.pop();
+
+        return any_changed;
+    }
+
+    // handle repeated pipelines
+    if let Some(repeat) = pipeline.as_any().downcast_ref::<RepeatedPipeline>() {
+        let mut any_changed = false;
+        let max_iterations = repeat.max_iterations();
+        let repeat_label = format!("repeat({max_iterations})");
+        path.push(repeat_label);
+
+        for iteration_index in 0..max_iterations {
+            let iteration_label = format!("iter {}", iteration_index + 1);
+            path.push(iteration_label);
+            let changed = run_pipeline_with_timings(
+                tree,
+                ctx,
+                repeat.inner(),
+                filter,
+                capture_metrics,
+                timings,
+                path,
+                strings_pool,
+            );
+            path.pop();
+
+            any_changed |= changed;
+            if !changed {
+                break;
+            }
+        }
+
+        path.pop();
+        return any_changed;
+    }
+
+    // handle function pipelines
+    if let Some(function_pipeline) = pipeline.as_any().downcast_ref::<FunctionPipeline>() {
+        let mut any_changed = false;
+
+        for pass in function_pipeline.passes() {
+            let label = build_pass_label(path, pass.name());
+            let (before_instructions, before_bytes) = if capture_metrics {
+                (
+                    Some(count_mir_instructions(tree)),
+                    Some(count_mir_bytes(
+                        tree,
+                        &strings_pool.clone().into_immutable(),
+                    )),
+                )
+            } else {
+                (None, None)
+            };
+
+            let start = Instant::now();
+            let (changed, executed) = run_function_pass_filtered(pass.as_ref(), tree, ctx, filter);
+            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+            any_changed |= changed;
+
+            let (mir_instruction_delta, mir_bytes_delta) = if capture_metrics && executed {
+                let after_instructions = count_mir_instructions(tree);
+                let after_bytes = count_mir_bytes(tree, &strings_pool.clone().into_immutable());
+                let before_instructions = before_instructions.unwrap_or(after_instructions);
+                let before_bytes = before_bytes.unwrap_or(after_bytes);
+                (
+                    Some(after_instructions as i64 - before_instructions as i64),
+                    Some(after_bytes as i64 - before_bytes as i64),
+                )
+            } else {
+                (None, None)
+            };
+
+            timings.push(PassTimingEntry {
+                label,
+                duration_ms,
+                executed,
+                changed,
+                mir_instruction_delta,
+                mir_bytes_delta,
+            });
+        }
+
+        return any_changed;
+    }
+
+    // handle function adaptor pipelines
+    if let Some(adaptor) = pipeline.as_any().downcast_ref::<FunctionToModuleAdaptor>() {
+        return run_pipeline_with_timings(
+            tree,
+            ctx,
+            adaptor.inner(),
+            filter,
+            capture_metrics,
+            timings,
+            path,
+            strings_pool,
+        );
+    }
+
+    // handle module pipelines
+    if let Some(module_pipeline) = pipeline.as_any().downcast_ref::<ModulePipeline>() {
+        let mut any_changed = false;
+
+        for pass in module_pipeline.passes() {
+            let label = build_pass_label(path, pass.name());
+            let (before_instructions, before_bytes) = if capture_metrics {
+                (
+                    Some(count_mir_instructions(tree)),
+                    Some(count_mir_bytes(
+                        tree,
+                        &strings_pool.clone().into_immutable(),
+                    )),
+                )
+            } else {
+                (None, None)
+            };
+
+            let start = Instant::now();
+            let (changed, executed) = run_module_pass_filtered(pass.as_ref(), tree, ctx, filter);
+            let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+            any_changed |= changed;
+
+            let (mir_instruction_delta, mir_bytes_delta) = if capture_metrics && executed {
+                let after_instructions = count_mir_instructions(tree);
+                let after_bytes = count_mir_bytes(tree, &strings_pool.clone().into_immutable());
+                let before_instructions = before_instructions.unwrap_or(after_instructions);
+                let before_bytes = before_bytes.unwrap_or(after_bytes);
+                (
+                    Some(after_instructions as i64 - before_instructions as i64),
+                    Some(after_bytes as i64 - before_bytes as i64),
+                )
+            } else {
+                (None, None)
+            };
+
+            timings.push(PassTimingEntry {
+                label,
+                duration_ms,
+                executed,
+                changed,
+                mir_instruction_delta,
+                mir_bytes_delta,
+            });
+        }
+
+        return any_changed;
+    }
+
+    false
+}
+
 /// Run a matrix case and return a mismatch reason if any.
 fn run_matrix_case(
     program: &program::Program,
@@ -977,6 +2163,7 @@ fn run_matrix_case(
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
     label: &str,
     apply: impl FnOnce(&mut mir::NodeTree, &StringPool, &PipelineContext<'_>),
 ) -> Option<String> {
@@ -1015,6 +2202,7 @@ fn run_matrix_case(
         strings_pool.into_immutable(),
         baseline_output,
         max_instruction_limit,
+        profile,
         &context,
     )
     .err()
@@ -1087,6 +2275,7 @@ fn run_matrix_pipeline(
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
     pipeline: &dyn Pipeline,
     path: &mut Vec<String>,
 ) -> Option<String> {
@@ -1099,6 +2288,7 @@ fn run_matrix_pipeline(
                 options,
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 child.as_ref(),
                 path,
             );
@@ -1120,6 +2310,7 @@ fn run_matrix_pipeline(
             options,
             baseline_output,
             max_instruction_limit,
+            profile,
             repeat.inner(),
             path,
         );
@@ -1140,6 +2331,7 @@ fn run_matrix_pipeline(
                 options,
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 &label,
                 |tree, _strings_pool, ctx| {
                     run_function_pass(pass.as_ref(), tree, ctx);
@@ -1161,6 +2353,7 @@ fn run_matrix_pipeline(
             options,
             baseline_output,
             max_instruction_limit,
+            profile,
             adaptor.inner(),
             path,
         );
@@ -1179,6 +2372,7 @@ fn run_matrix_pipeline(
                 options,
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 &label,
                 |tree, _strings_pool, ctx| {
                     run_module_pass(pass.as_ref(), tree, ctx);
@@ -1207,6 +2401,7 @@ fn diagnose_mismatch(
     options: &PipelineOptions,
     baseline_output: &ExecutionOutput,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
 ) -> Option<String> {
     // parse the source program
     let (mut tree, strings) =
@@ -1237,6 +2432,7 @@ fn diagnose_mismatch(
         &pipeline,
         baseline_output,
         max_instruction_limit,
+        profile,
         0,
         None,
     )
@@ -1253,6 +2449,15 @@ fn format_pass_context(depth: usize, iteration: Option<(usize, usize)>, pass_nam
     }
 }
 
+/// Build a label for pass timing entries.
+fn build_pass_label(path: &[String], pass_name: &str) -> String {
+    if path.is_empty() {
+        pass_name.to_string()
+    } else {
+        format!("{}/{}", path.join(" / "), pass_name)
+    }
+}
+
 /// Walk a pipeline and return whether any changes occurred.
 #[allow(clippy::too_many_arguments)]
 fn diagnose_pipeline(
@@ -1263,6 +2468,7 @@ fn diagnose_pipeline(
     pipeline: &dyn Pipeline,
     baseline_output: &ExecutionOutput,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
     depth: usize,
     iteration: Option<(usize, usize)>,
 ) -> Result<bool, String> {
@@ -1279,6 +2485,7 @@ fn diagnose_pipeline(
                 child.as_ref(),
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 depth,
                 iteration,
             )?;
@@ -1303,6 +2510,7 @@ fn diagnose_pipeline(
                 repeat.inner(),
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 depth + 1,
                 Some(iteration),
             )?;
@@ -1331,6 +2539,7 @@ fn diagnose_pipeline(
                 strings_pool.clone().into_immutable(),
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 &context,
             )?;
         }
@@ -1348,6 +2557,7 @@ fn diagnose_pipeline(
             adaptor.inner(),
             baseline_output,
             max_instruction_limit,
+            profile,
             depth,
             iteration,
         );
@@ -1368,6 +2578,7 @@ fn diagnose_pipeline(
                 strings_pool.clone().into_immutable(),
                 baseline_output,
                 max_instruction_limit,
+                profile,
                 &context,
             )?;
         }
@@ -1414,6 +2625,7 @@ fn run_program_with_tree_result(
     tree: mir::NodeTree,
     strings: ImmutableStringPool,
     max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
 ) -> RuntimeResult<ExecutionOutput> {
     // configure an isolate like the bench harness
     let mut options = IsolateOptions::unbounded();
@@ -1428,10 +2640,27 @@ fn run_program_with_tree_result(
 
     // build isolate and arguments
     let mut isolate = Isolate::with_options(tree, strings, options)?;
-    let args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
+    let args = program.args_for_profile(&isolate, profile);
 
     // execute using the requested runner
     run_program_with_isolate(program, &mut isolate, &args)
+}
+
+/// Execute a program by cloning the provided tree and strings.
+fn run_program_with_tree_profile(
+    program: &program::Program,
+    tree: &mir::NodeTree,
+    strings: &ImmutableStringPool,
+    max_instruction_limit: Option<u64>,
+    profile: program::BenchProfileKind,
+) -> RuntimeResult<ExecutionOutput> {
+    run_program_with_tree_result(
+        program,
+        tree.clone(),
+        strings.clone(),
+        max_instruction_limit,
+        profile,
+    )
 }
 
 /// Execute a program using default arguments.
@@ -1500,6 +2729,7 @@ fn build_execute_failure(
             options,
             baseline_output,
             run_options.max_instruction_limit,
+            run_options.bench_profile,
             &pipeline,
             &mut path,
         ) {
@@ -1516,6 +2746,7 @@ fn build_execute_failure(
             options,
             baseline_output,
             run_options.max_instruction_limit,
+            run_options.bench_profile,
         )
     {
         return reason;
