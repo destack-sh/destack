@@ -103,7 +103,7 @@ impl AnalyzeOptions {
         let mut key = 0u64;
 
         // strictness and typing flags
-        key |= (self.strict as u64) << 0;
+        key |= self.strict as u64;
         key |= (self.always_strict as u64) << 1;
         key |= (self.no_implicit_any as u64) << 2;
         key |= (self.strict_null_checks as u64) << 3;

@@ -1316,12 +1316,14 @@ impl Compiler {
                         symbol,
                         static_arguments,
                     } = types.get_type(expected_ty_id).clone()
+                    && let Some(well_known) = self.well_known_array_kind(ctx.profile, symbol)
                     && let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
                         module,
                         symbols,
                         ctx.profile,
                         expression_id.into_any(),
                         symbol,
+                        well_known,
                         static_arguments.as_deref(),
                         types,
                     )
@@ -4219,7 +4221,7 @@ impl Compiler {
     }
 
     /// Resolve the dependency item that introduced a symbol when possible.
-    fn dependency_item_for_symbol(
+    pub(crate) fn dependency_item_for_symbol(
         &self,
         tree: &NodeTree,
         primary_declaration: GlobalNodeIdAny,

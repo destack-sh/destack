@@ -105,14 +105,17 @@ impl Compiler {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
             // evaluate unevaluated types to a fixed point
+            let mut pending: Vec<LocalTypeId> = (0..types.type_count())
+                .map(LocalTypeId::new)
+                .filter(|ty_id| matches!(types.get_type(*ty_id), Type::Unevaluated(_)))
+                .collect();
             let mut did_change = true;
-            while did_change {
+            while did_change && !pending.is_empty() {
                 did_change = false;
+                let mut next_pending = Vec::new();
                 let type_count = types.type_count();
 
-                // attempt evaluation for each unevaluated type
-                for i in 0..type_count {
-                    let ty_id = LocalTypeId::new(i);
+                for ty_id in pending {
                     let was_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
                     if !was_unevaluated {
                         continue;
@@ -129,9 +132,11 @@ impl Compiler {
                         has_dependency = true;
                         break;
                     }
-                    // record progress on any resolved types
+
                     let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
-                    if was_unevaluated && !is_unevaluated {
+                    if is_unevaluated {
+                        next_pending.push(ty_id);
+                    } else {
                         did_change = true;
                     }
                 }
@@ -141,17 +146,18 @@ impl Compiler {
                     break;
                 }
 
-                // repeat when new unevaluated types were added
+                // add any newly created unevaluated types
                 let new_type_count = types.type_count();
-                if new_type_count != type_count {
+                if new_type_count > type_count {
                     for i in type_count..new_type_count {
                         let ty_id = LocalTypeId::new(i);
                         if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-                            did_change = true;
-                            break;
+                            next_pending.push(ty_id);
                         }
                     }
                 }
+
+                pending = next_pending;
             }
         }
 

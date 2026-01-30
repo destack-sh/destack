@@ -90,6 +90,28 @@ pub mod tags {
 
     pub const ANALYZE_MODULE_DECLARE: TimingTag = TimingTag::new("analyze.module.declare");
     pub const ANALYZE_DECLARE_TYPES: TimingTag = TimingTag::new("analyze.types.evaluate");
+    pub const ANALYZE_TYPES_EVALUATE_EXPRESSION: TimingTag =
+        TimingTag::new("analyze.types.evaluate.expression");
+    pub const ANALYZE_TYPES_EVALUATE_SIGNATURE: TimingTag =
+        TimingTag::new("analyze.types.evaluate.signature");
+    pub const ANALYZE_TYPES_EVALUATE_TEMPLATE: TimingTag =
+        TimingTag::new("analyze.types.evaluate.template");
+    pub const ANALYZE_TYPES_EVALUATE_TYPEOF: TimingTag =
+        TimingTag::new("analyze.types.evaluate.typeof");
+    pub const ANALYZE_TYPES_EVALUATE_CONDITIONAL: TimingTag =
+        TimingTag::new("analyze.types.evaluate.conditional");
+    pub const ANALYZE_TYPES_EVALUATE_MAPPED: TimingTag =
+        TimingTag::new("analyze.types.evaluate.mapped");
+    pub const ANALYZE_TYPES_EVALUATE_INDEX: TimingTag =
+        TimingTag::new("analyze.types.evaluate.index");
+    pub const ANALYZE_TYPES_EVALUATE_REFERENCE: TimingTag =
+        TimingTag::new("analyze.types.evaluate.reference");
+    pub const ANALYZE_TYPES_EVALUATE_REFERENCE_CANONICAL: TimingTag =
+        TimingTag::new("analyze.types.evaluate.reference.canonical");
+    pub const ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS: TimingTag =
+        TimingTag::new("analyze.types.evaluate.reference.arguments");
+    pub const ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN: TimingTag =
+        TimingTag::new("analyze.types.evaluate.reference.well_known");
     pub const ANALYZE_DECLARE_DECLARATIONS: TimingTag =
         TimingTag::new("analyze.declarations.declare");
     pub const ANALYZE_DECLARE_DECORATORS: TimingTag = TimingTag::new("analyze.decorators.register");
