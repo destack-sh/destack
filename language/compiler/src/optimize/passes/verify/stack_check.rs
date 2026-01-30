@@ -299,10 +299,10 @@ impl StackPointerMap {
                 .map(|index| index as u32)
                 .collect();
             self.propagate_from_param_indices(destination, arguments, &param_indices, env);
-        } else if let Some(env) = env {
-            if self.get(env).is_maybe_stack() {
-                self.0.insert(destination, self.get(env));
-            }
+        } else if let Some(env) = env
+            && self.get(env).is_maybe_stack()
+        {
+            self.0.insert(destination, self.get(env));
         }
     }
 
@@ -315,11 +315,11 @@ impl StackPointerMap {
         env: Option<Value>,
     ) {
         for &param_idx in param_indices {
-            if let Some(&arg) = arguments.get(param_idx as usize) {
-                if self.get(arg).is_maybe_stack() {
-                    self.0.insert(destination, self.get(arg));
-                    return;
-                }
+            if let Some(&arg) = arguments.get(param_idx as usize)
+                && self.get(arg).is_maybe_stack()
+            {
+                self.0.insert(destination, self.get(arg));
+                return;
             }
         }
 
@@ -502,6 +502,7 @@ impl Lattice for StackPointerMap {
 }
 
 /// Run stack check on a function.
+#[allow(clippy::too_many_arguments)]
 fn run_stack_check(
     function: &mir::Function,
     tree: &mir::NodeTree,

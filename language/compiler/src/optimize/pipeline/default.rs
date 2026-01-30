@@ -11,7 +11,7 @@ use crate::optimize::passes::{
     PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
     Sroa, StackCheck, StorePre, StoreSink, TailCallElim, ValueRangePropagation,
 };
-use crate::optimize::{FunctionPass, OptimizationLevel};
+use crate::optimize::{FunctionPass, OptimizationLevel, PipelineTarget};
 
 use super::builder::{PackagePipelineBuilder, PipelineBuilder, ProgramPipelineBuilder};
 use super::module::{FunctionPipeline, FunctionToModuleAdaptor};
@@ -20,19 +20,26 @@ use super::package::{
 };
 
 /// Build the optimization pipeline for the given level.
-pub fn default_pipeline(level: OptimizationLevel) -> super::module::CompositePipeline {
+/// Build the optimization pipeline for the given level and target.
+pub fn default_pipeline(
+    level: OptimizationLevel,
+    pipeline_target: PipelineTarget,
+) -> super::module::CompositePipeline {
     match level {
-        OptimizationLevel::O0 => o0_pipeline(),
-        OptimizationLevel::O1 => o1_pipeline(),
-        OptimizationLevel::O2 => o2_pipeline(),
-        OptimizationLevel::O3 => o3_pipeline(),
-        OptimizationLevel::O4 => o4_pipeline(),
+        OptimizationLevel::O0 => o0_pipeline(pipeline_target),
+        OptimizationLevel::O1 => o1_pipeline(pipeline_target),
+        OptimizationLevel::O2 => o2_pipeline(pipeline_target),
+        OptimizationLevel::O3 => o3_pipeline(pipeline_target),
+        OptimizationLevel::O4 => o4_pipeline(pipeline_target),
     }
 }
 
 /// Build the package pipeline for the given level.
-pub fn default_package_pipeline(level: OptimizationLevel) -> PackageCompositePipeline {
-    let module_pipeline = default_pipeline(level);
+pub fn default_package_pipeline(
+    level: OptimizationLevel,
+    pipeline_target: PipelineTarget,
+) -> PackageCompositePipeline {
+    let module_pipeline = default_pipeline(level, pipeline_target);
 
     PackagePipelineBuilder::new()
         .module_pipeline(module_pipeline)
@@ -40,13 +47,13 @@ pub fn default_package_pipeline(level: OptimizationLevel) -> PackageCompositePip
 }
 
 /// Build the program pipeline.
-pub fn default_program_pipeline() -> ProgramCompositePipeline {
+pub fn default_program_pipeline(pipeline_target: PipelineTarget) -> ProgramCompositePipeline {
     let pipeline = PackageLevelProgramPipeline::new(
-        default_package_pipeline(OptimizationLevel::O0),
-        default_package_pipeline(OptimizationLevel::O1),
-        default_package_pipeline(OptimizationLevel::O2),
-        default_package_pipeline(OptimizationLevel::O3),
-        default_package_pipeline(OptimizationLevel::O4),
+        default_package_pipeline(OptimizationLevel::O0, pipeline_target),
+        default_package_pipeline(OptimizationLevel::O1, pipeline_target),
+        default_package_pipeline(OptimizationLevel::O2, pipeline_target),
+        default_package_pipeline(OptimizationLevel::O3, pipeline_target),
+        default_package_pipeline(OptimizationLevel::O4, pipeline_target),
     );
 
     ProgramPipelineBuilder::new().pipeline(pipeline).build()
@@ -65,8 +72,13 @@ fn verify() -> Vec<Box<dyn FunctionPass>> {
 }
 
 /// Return canonicalization passes that normalize MIR shape.
-fn canonicalize() -> Vec<Box<dyn FunctionPass>> {
-    vec![Box::new(Sroa), Box::new(Mem2Reg), Box::new(DropInsert)]
+fn canonicalize(pipeline_target: PipelineTarget) -> Vec<Box<dyn FunctionPass>> {
+    let mut passes: Vec<Box<dyn FunctionPass>> = vec![Box::new(Sroa)];
+    if pipeline_target == PipelineTarget::Native {
+        passes.push(Box::new(Mem2Reg));
+    }
+    passes.push(Box::new(DropInsert));
+    passes
 }
 
 /// Fast simplification passes that benefit from tight iteration.
@@ -200,18 +212,18 @@ fn cleanup() -> Vec<Box<dyn FunctionPass>> {
 }
 
 /// O0: Verification and correctness only.
-fn o0_pipeline() -> CompositePipeline {
+fn o0_pipeline(pipeline_target: PipelineTarget) -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize())
+        .function_passes(canonicalize(pipeline_target))
         .build()
 }
 
 /// O1: Fast compilation with essential optimizations.
-fn o1_pipeline() -> super::module::CompositePipeline {
+fn o1_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize())
+        .function_passes(canonicalize(pipeline_target))
         .function_passes(scalar_island_light())
         .function_passes(optimize_types())
         .function_passes(cleanup())
@@ -222,10 +234,10 @@ fn o1_pipeline() -> super::module::CompositePipeline {
 ///
 /// Structure: verify -> canonicalize -> [simplify <-> optimize]* -> cleanup
 /// Each major phase is followed by simplification to expose new opportunities.
-fn o2_pipeline() -> super::module::CompositePipeline {
+fn o2_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize())
+        .function_passes(canonicalize(pipeline_target))
         // early scalar fixed point island
         .repeat(
             2,
@@ -266,10 +278,10 @@ fn o2_pipeline() -> super::module::CompositePipeline {
 /// O3: aggressive optimization.
 ///
 /// More iterations, aggressive loop transforms, extra cleanup rounds.
-fn o3_pipeline() -> super::module::CompositePipeline {
+fn o3_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize())
+        .function_passes(canonicalize(pipeline_target))
         // early scalar fixed point island (more iterations)
         .repeat(
             3,
@@ -314,10 +326,10 @@ fn o3_pipeline() -> super::module::CompositePipeline {
 /// O4: maximal single module optimization.
 ///
 /// This adds more fixed point iterations to expose secondary effects.
-fn o4_pipeline() -> super::module::CompositePipeline {
+fn o4_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize())
+        .function_passes(canonicalize(pipeline_target))
         // early scalar fixed point island (extra iterations)
         .repeat(
             4,

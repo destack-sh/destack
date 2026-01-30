@@ -14,16 +14,16 @@ use destack_source::{
     ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, ProfileStamp, ProfileVersion,
 };
 use destack_workspace::{
-    LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, ProfileId,
+    DebugMode, LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, ProfileId,
     ProgramStamp, Target, TargetDiscovery, TargetId,
 };
 use target_lexicon::Triple;
 
 use super::{
     ModuleWorkItem, OptimizationLevel, PackagePipeline, PackagePipelineContext, PackageWorkset,
-    Pipeline, PipelineContext, PipelineOptions, ProgramPipeline, ProgramPipelineContext,
-    ProgramWorkset, TypeContext, count_mir_size, default_package_pipeline, default_pipeline,
-    default_program_pipeline,
+    Pipeline, PipelineContext, PipelineOptions, PipelineTarget, ProgramPipeline,
+    ProgramPipelineContext, ProgramWorkset, TypeContext, count_mir_size, default_package_pipeline,
+    default_pipeline, default_program_pipeline,
 };
 
 /// Scope for optimization tasks.
@@ -194,7 +194,12 @@ impl Compiler {
         // resolve pipeline for this target
         let target_config = self.target_for_module(module, target)?;
         let level = self.optimization_level_for_target_config(&target_config);
-        let pipeline = default_pipeline(level);
+        let pipeline_target = if matches!(target_config.debug_mode, DebugMode::Vm) {
+            PipelineTarget::Vm
+        } else {
+            PipelineTarget::Native
+        };
+        let pipeline = default_pipeline(level, pipeline_target);
 
         // read module mir
         let module_ref = self.program.modules.get(module);
@@ -245,7 +250,12 @@ impl Compiler {
 
         // resolve pipeline for this target
         let level = self.optimization_level_for_target_config(&target_config);
-        let pipeline = default_package_pipeline(level);
+        let pipeline_target = if matches!(target_config.debug_mode, DebugMode::Vm) {
+            PipelineTarget::Vm
+        } else {
+            PipelineTarget::Native
+        };
+        let pipeline = default_package_pipeline(level, pipeline_target);
 
         // discover and order target modules
         let mut modules =
@@ -353,6 +363,15 @@ impl Compiler {
             targets.push((package.id, package.path.clone(), target_id, target, level));
         }
 
+        // resolve pipeline target for this program run
+        let mut pipeline_target = PipelineTarget::Native;
+        for (_, _, _, target, _) in &targets {
+            if matches!(target.debug_mode, DebugMode::Vm) {
+                pipeline_target = PipelineTarget::Vm;
+                break;
+            }
+        }
+
         // discover modules for each target
         let mut package_modules = Vec::new();
         let mut collector = TaskResultCollector::new();
@@ -423,7 +442,7 @@ impl Compiler {
         }
 
         // build the program pipeline
-        let pipeline = default_program_pipeline();
+        let pipeline = default_program_pipeline(pipeline_target);
 
         // run the program pipeline
         let mut context = ProgramPipelineContext::new(target_name.to_string());
@@ -550,9 +569,15 @@ impl Compiler {
             level,
             OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
         );
+        let pipeline_target = if matches!(target.debug_mode, DebugMode::Vm) {
+            PipelineTarget::Vm
+        } else {
+            PipelineTarget::Native
+        };
 
         PipelineOptions {
             strict_borrow_mode,
+            target: pipeline_target,
             float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },
             unroll_threshold,
