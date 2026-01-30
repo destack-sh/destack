@@ -101,8 +101,11 @@ impl ConformanceSuite for BiomeSuite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        // parse-only conformance checks
-        let area = TestArea::Parse;
+        let area = if test.expect_error {
+            TestArea::EarlySyntax
+        } else {
+            TestArea::Parse
+        };
         let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions { area });
 
         match (test.expect_error, parse_outcome) {
