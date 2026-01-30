@@ -95,7 +95,8 @@ impl SwcSuite {
     /// Determine file type based on SWC category directory.
     fn file_type_for_category(category: &str, name: &str) -> FileType {
         // tsx directory = TypeScript with JSX
-        if category.contains("tsx") || name.ends_with(".tsx") {
+        let in_tsx_dir = name.contains("/tsx/") || name.contains("/tsx-");
+        if category.contains("tsx") || in_tsx_dir || name.ends_with(".tsx") {
             FileType::TypeScriptXml
         } else if category == "typescript" || name.ends_with(".ts") {
             FileType::TypeScript

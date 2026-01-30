@@ -199,6 +199,8 @@ impl CategoryStats {
 /// Result of a conformance test run.
 #[derive(Debug)]
 pub struct ConformanceResult {
+    pub total_discovered: usize,
+    pub total_selected: usize,
     pub passed: usize,
     pub failed: usize,
     pub skipped: usize,
@@ -216,6 +218,10 @@ pub struct ConformanceResult {
 }
 
 impl ConformanceResult {
+    pub fn is_filtered(&self) -> bool {
+        self.total_selected != self.total_discovered
+    }
+
     pub fn has_regressions(&self) -> bool {
         !self.regressions.is_empty()
     }
@@ -275,6 +281,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
 
     // discover tests
     let all_tests = suite.discover();
+    let total_discovered = all_tests.len();
     let tests: Vec<_> = if let Some(filter) = &options.filter {
         all_tests
             .into_iter()
@@ -283,6 +290,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     } else {
         all_tests
     };
+    let total_selected = tests.len();
 
     // list mode
     if options.list {
@@ -471,6 +479,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     }
 
     let result = ConformanceResult {
+        total_discovered,
+        total_selected,
         passed,
         failed,
         skipped,
@@ -1203,8 +1213,43 @@ pub fn update_readme(results: &[SuiteResult], is_partial: bool) -> bool {
     // parse existing results
     let old_results = ReadmeResults::parse(&content);
 
+    // filter out suites that only ran a subset of tests
+    let filtered_suites: Vec<&SuiteResult> = results
+        .iter()
+        .filter(|suite| suite.result.is_filtered())
+        .collect();
+    let eligible_results: Vec<&SuiteResult> = results
+        .iter()
+        .filter(|suite| !suite.result.is_filtered())
+        .collect();
+
+    if eligible_results.is_empty() {
+        if !filtered_suites.is_empty() {
+            println!(
+                "  {} README.md update skipped — all suites were filtered",
+                color::yellow("warning")
+            );
+        }
+        return false;
+    }
+
+    if !filtered_suites.is_empty() {
+        let filtered_names = filtered_suites
+            .iter()
+            .map(|suite| suite.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!(
+            "  {} README.md skipping filtered suites: {filtered_names}",
+            color::yellow("warning")
+        );
+    }
+
     // build new rows
-    let new_rows: Vec<ReadmeRow> = results.iter().map(ReadmeRow::from_suite_result).collect();
+    let new_rows: Vec<ReadmeRow> = eligible_results
+        .iter()
+        .map(|suite| ReadmeRow::from_suite_result(suite))
+        .collect();
 
     // merge with existing if partial update
     let mut final_rows: Vec<ReadmeRow> = if is_partial {
@@ -1265,7 +1310,7 @@ pub fn update_readme(results: &[SuiteResult], is_partial: bool) -> bool {
     };
 
     // update per-suite category sections (only for suites that were run)
-    for suite_result in results {
+    for suite_result in eligible_results.iter().copied() {
         if suite_result.result.categories.len() > 1 {
             let section_name = format!("{}-results", suite_result.name);
             let category_section = format_category_section(&suite_result.result.categories);
