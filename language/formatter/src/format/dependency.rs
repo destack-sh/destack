@@ -115,7 +115,7 @@ mod tests {
     fn test_format_import_type_equals_require() {
         assert_format!(
             r#"import type React = require("react")"#,
-            r#"import type React = require("react")"#,
+            r#"import type React = require("react");"#,
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
@@ -125,7 +125,7 @@ mod tests {
     fn test_format_export_import_type_equals_require() {
         assert_format!(
             r#"export import type React = require("react")"#,
-            r#"export import type React = require("react")"#,
+            r#"export import type React = require("react");"#,
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );

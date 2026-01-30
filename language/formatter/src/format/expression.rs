@@ -5,10 +5,10 @@ use destack_ast::{
     Annotation, AnnotationPosition, Argument, AssignOperator, Asynchrony, BinaryOperator,
     Declaration, DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem,
     DependencyKind, DependencyMode, Expression, ForEachBinding, ForEachKind, FunctionKind,
-    IfCondition, IfKind, ImportSource, Keyword, LetKind, LocalNodeId, MatchCase, MatchKind,
-    MatchSelector, Member, Mutability, NodeTree, NodeType, OperatorPrecedence, Parameter, Pattern,
-    PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
-    TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhereClause, WhileKind,
+    IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword, LetKind, LocalNodeId, MatchCase,
+    MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,
+    Parameter, Pattern, PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator,
+    TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhereClause, WhileKind,
     YieldCardinality,
 };
 use destack_base::StringId;
@@ -1480,6 +1480,12 @@ fn is_type_context(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Expr
                     Declaration::Function { signature, .. } => signature
                         .return_type
                         .is_some_and(|return_type| return_type.id == current_id),
+                    Declaration::ImportAlias { kind, target, .. } => match (kind, target) {
+                        (DependencyKind::Type, ImportAliasTarget::Path { value }) => {
+                            value.id == current_id
+                        }
+                        _ => false,
+                    },
                     Declaration::Global { .. } | Declaration::Namespace { .. } => false,
                 };
                 if in_type_slot {
@@ -7640,10 +7646,10 @@ mod tests {
     fn test_format_expression_tree_literal_with_array_of_struct_element() {
         // multiline array attributes break the element
         let source = r#"<Menu
-    items=[
+    items={[
         { to: "/posts" },
         { to: "/posts/$postId", params: { postId: "postId" } },
-    ]
+    ]}
 />"#;
         let expected = r#"<Menu
     items={[

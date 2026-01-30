@@ -111,6 +111,9 @@ impl Compiler {
                 // static parameter defaults are resolved during static argument evaluation
             }
 
+            // import alias
+            Declaration::ImportAlias { .. } => {}
+
             // struct
             Declaration::Struct {
                 descriptor,

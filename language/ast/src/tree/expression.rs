@@ -16,7 +16,7 @@ use crate::{
 pub enum ImportSource {
     /// Standard import statement.
     ImportStatement,
-    /// Import-equals declaration (`import x = require("mod")`).
+    /// Legacy import-equals expression used by older lowerings.
     ImportEquals,
     /// Dynamic import call (`import("mod")`).
     ImportCall,
@@ -57,7 +57,6 @@ pub enum Expression {
     /// import { bar, baz } from "foo"
     /// import Default, { type Item } from "foo"
     /// import foo as baz with { bar: true }
-    /// import foo = require("foo")
     /// ```
     ///
     /// NOTE #Incomplete: support `/// <reference path="..." />` triple-slash directives.

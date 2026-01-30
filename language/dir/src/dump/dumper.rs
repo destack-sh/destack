@@ -473,6 +473,26 @@ impl_dump_display! {
     YieldCardinality,
 }
 
+/// Dump an ImportAliasTarget as a structured representation.
+impl Dump for ImportAliasTarget {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        match self {
+            ImportAliasTarget::Require { target } => {
+                dumper
+                    .object("ImportAliasTarget::Require")
+                    .field("target", target)
+                    .end();
+            }
+            ImportAliasTarget::Path { value } => {
+                dumper
+                    .object("ImportAliasTarget::Path")
+                    .field("value_id", &value.id)
+                    .end();
+            }
+        }
+    }
+}
+
 /// Dump a BindingModifier as a string.
 impl Dump for BindingModifier {
     fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
@@ -1427,6 +1447,17 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("descriptor", descriptor)
                     .field("kind", kind)
                     .field_optional("mutability", mutability)
+                    .end();
+            }
+            Declaration::ImportAlias {
+                descriptor,
+                kind,
+                target,
+            } => {
+                self.node("Declaration::ImportAlias", id.id)
+                    .field("descriptor", descriptor)
+                    .field("kind", kind)
+                    .field("target", target)
                     .end();
             }
             Declaration::Struct {

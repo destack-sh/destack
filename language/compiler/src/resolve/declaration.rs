@@ -1,4 +1,6 @@
-use destack_dir::{Declaration, LocalNodeId, NodeTree, SymbolTable, TypeKind};
+use destack_dir::{
+    Declaration, DependencyKind, ImportAliasTarget, LocalNodeId, NodeTree, SymbolTable, TypeKind,
+};
 
 use destack_workspace::{Module, ModuleDir};
 
@@ -64,6 +66,43 @@ impl Compiler {
                 // extract the target symbol from the resolved reference expressions
                 if let Some(resolved_target_symbol) = value_expr.target_symbol() {
                     // set the type alias symbol's target_symbol
+                    symbols
+                        .get_symbol_mut(symbol_id)
+                        .resolve_to(resolved_target_symbol);
+                }
+
+                Ok(())
+            }
+
+            Declaration::ImportAlias {
+                descriptor,
+                kind,
+                target,
+            } => {
+                let symbol_id = descriptor.symbol;
+                let symbol = symbols.get_symbol(symbol_id);
+
+                // bail if symbol already has a target_symbol
+                if symbol.target_symbol.is_some() {
+                    return Ok(());
+                }
+
+                // type-only aliases should only resolve type targets
+                if *kind == DependencyKind::Type {
+                    if let ImportAliasTarget::Path { value } = target
+                        && let Some(resolved_target_symbol) = tree.get(*value).target_symbol()
+                    {
+                        symbols
+                            .get_symbol_mut(symbol_id)
+                            .resolve_to(resolved_target_symbol);
+                    }
+                    return Ok(());
+                }
+
+                // resolve path aliases to their target symbols
+                if let ImportAliasTarget::Path { value } = target
+                    && let Some(resolved_target_symbol) = tree.get(*value).target_symbol()
+                {
                     symbols
                         .get_symbol_mut(symbol_id)
                         .resolve_to(resolved_target_symbol);

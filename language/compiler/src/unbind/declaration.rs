@@ -246,6 +246,38 @@ impl Compiler {
                     value,
                 }
             }
+            dir::Declaration::ImportAlias {
+                descriptor,
+                kind,
+                target,
+            } => {
+                let descriptor =
+                    self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+                let kind = self.unbind_dependency_kind(context, *kind);
+                let target = match target {
+                    dir::ImportAliasTarget::Require { target } => {
+                        let target = ast_strings.intern_from(&self.program.strings, *target);
+                        ast::ImportAliasTarget::Require { target }
+                    }
+                    dir::ImportAliasTarget::Path { value } => {
+                        let value = self.unbind_expression(
+                            module,
+                            *value,
+                            tree,
+                            symbols,
+                            ast_tree,
+                            ast_strings,
+                            context,
+                        );
+                        ast::ImportAliasTarget::Path { value }
+                    }
+                };
+                ast::Declaration::ImportAlias {
+                    descriptor,
+                    kind,
+                    target,
+                }
+            }
             dir::Declaration::Struct {
                 descriptor,
                 generics,
