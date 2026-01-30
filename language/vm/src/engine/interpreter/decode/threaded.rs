@@ -8,7 +8,7 @@ use destack_mir as mir;
 
 use super::super::state::{Frame, InterpreterContext};
 use crate::diagnostic::Error;
-use crate::memory::{ReferenceMeta, Value};
+use crate::memory::{HeapBorrow, HeapStore, RawCellStorage, RawPointer, ReferenceMeta, Value};
 
 /// Handler function for threaded dispatch.
 ///
@@ -1119,6 +1119,10 @@ pub struct ThreadedState<'ctx, 'iso> {
     switch_case_pool: *const SwitchCase,
     /// Switch case pool length.
     switch_case_pool_len: usize,
+    /// Heap borrow guard for the current block execution.
+    _heap_guard: HeapBorrow<'ctx>,
+    /// Raw pointer to the heap store for fast access.
+    heap_ptr: *mut HeapStore,
 }
 
 impl fmt::Debug for ThreadedInstruction {
@@ -1188,6 +1192,11 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         let values_ptr = interpreter.engine.value_stack.as_mut_ptr();
         let locals_ptr = interpreter.engine.local_stack.as_mut_ptr();
 
+        // borrow heap storage once for this threaded block
+        let heap_cell = std::ptr::addr_of!(interpreter.isolate.heap);
+        let mut heap_guard = unsafe { (&*heap_cell).borrow() };
+        let heap_ptr = &mut *heap_guard as *mut HeapStore;
+
         // assemble state
         Self {
             frame_index,
@@ -1204,6 +1213,8 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
             argument_pool_len: argument_pool.len(),
             switch_case_pool: switch_case_pool.as_ptr(),
             switch_case_pool_len: switch_case_pool.len(),
+            _heap_guard: heap_guard,
+            heap_ptr,
         }
     }
 
@@ -1243,6 +1254,171 @@ impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
         self.argument_pool_len = threaded.argument_pool.len();
         self.switch_case_pool = threaded.switch_case_pool.as_ptr();
         self.switch_case_pool_len = threaded.switch_case_pool.len();
+    }
+
+    /// Borrow the heap store for the current block.
+    #[inline]
+    pub(crate) fn heap(&mut self) -> &mut HeapStore {
+        unsafe { &mut *self.heap_ptr }
+    }
+
+    /// Borrow the heap store immutably for the current block.
+    #[inline]
+    pub(crate) fn heap_ref(&self) -> &HeapStore {
+        unsafe { &*self.heap_ptr }
+    }
+
+    /// Get the raw heap pointer for split borrows.
+    #[inline]
+    pub(crate) fn heap_ptr(&self) -> *mut HeapStore {
+        self.heap_ptr
+    }
+
+    /// Get the slot count for a raw pointer.
+    pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
+        Some(self.heap_ref().raw.get(pointer)?.storage.len())
+    }
+
+    /// Read a raw slot, dispatching to the correct raw heap.
+    pub(crate) fn read_raw_slot(
+        &self,
+        pointer: RawPointer,
+        slot_index: usize,
+        bounds_checks: bool,
+    ) -> Result<Value, Error> {
+        let cell = self
+            .heap_ref()
+            .raw
+            .get(pointer)
+            .ok_or(Error::InvalidHeapHandle)?;
+
+        match &cell.storage {
+            RawCellStorage::Bytes(bytes) => {
+                // treat empty slot 0 as void
+                if bytes.is_empty() && slot_index == 0 {
+                    return Ok(Value::VOID);
+                }
+
+                // enforce bounds even in unchecked mode to avoid UB
+                if slot_index >= bytes.len() {
+                    return Err(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: bytes.len(),
+                    });
+                }
+
+                let byte = bytes[slot_index];
+                Ok(Value::uint(byte as u64, 8))
+            }
+            RawCellStorage::Values(slots) => {
+                // treat empty slot 0 as void
+                if slots.is_empty() && slot_index == 0 {
+                    return Ok(Value::VOID);
+                }
+
+                // fast path without bounds checks
+                if !bounds_checks {
+                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
+                    // #Safety: bounds checks are disabled and slot is trusted
+                    let value = unsafe { *slots.get_unchecked(slot_index) };
+                    return Ok(value);
+                }
+
+                // read the slot when in bounds
+                if let Some(value) = slots.get(slot_index).copied() {
+                    return Ok(value);
+                }
+
+                Err(Error::InvalidFieldAccess {
+                    index: slot_index as u32,
+                    field_count: slots.len(),
+                })
+            }
+        }
+    }
+
+    /// Write a raw slot, dispatching to the correct raw heap.
+    pub(crate) fn write_raw_slot(
+        &mut self,
+        pointer: RawPointer,
+        slot_index: usize,
+        value: Value,
+        bounds_checks: bool,
+    ) -> Result<(), Error> {
+        let cell = self
+            .heap()
+            .raw
+            .get_mut(pointer)
+            .ok_or(Error::InvalidHeapHandle)?;
+
+        match &mut cell.storage {
+            RawCellStorage::Bytes(bytes) => {
+                let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
+                    expected: "integer".to_string(),
+                    actual: format!("{value:?}"),
+                })?;
+                let byte = raw as u8;
+
+                // enforce bounds even in unchecked mode to avoid UB
+                if slot_index >= bytes.len() {
+                    return Err(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: bytes.len(),
+                    });
+                }
+
+                bytes[slot_index] = byte;
+                Ok(())
+            }
+            RawCellStorage::Values(slots) => {
+                // resize slots as needed when bounds checks are enabled
+                if bounds_checks && slots.len() <= slot_index {
+                    slots.resize(slot_index + 1, Value::VOID);
+                }
+
+                // fast path without bounds checks
+                if !bounds_checks {
+                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
+                    // #Safety: bounds checks are disabled and slot is trusted
+                    unsafe {
+                        *slots.get_unchecked_mut(slot_index) = value;
+                    }
+                    return Ok(());
+                }
+
+                // write the slot when in bounds
+                if let Some(slot) = slots.get_mut(slot_index) {
+                    *slot = value;
+                    return Ok(());
+                }
+
+                Err(Error::InvalidFieldAccess {
+                    index: slot_index as u32,
+                    field_count: slots.len(),
+                })
+            }
+        }
+    }
+
+    /// Allocate an aggregate on the managed heap.
+    #[inline]
+    pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
+        let handle = self.heap().managed.allocate_with_values(values);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a 2-element aggregate on the managed heap.
+    #[inline]
+    pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
+        let handle = self.heap().managed.allocate_pair(first, second);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a 1-element aggregate on the managed heap.
+    #[inline]
+    pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
+        let handle = self.heap().managed.allocate_single(value);
+        Value::aggregate(handle)
     }
 
     /// Move the state to a new frame and threaded function.

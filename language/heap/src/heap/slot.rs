@@ -1,4 +1,4 @@
-use super::value::Value;
+use crate::value::Value;
 
 const INLINE_SLOT_CAP: usize = 2;
 
@@ -231,7 +231,7 @@ impl HeapCell {
     }
 
     /// Clone this cell for a forked continuation.
-    pub(crate) fn clone_for_fork(&self) -> Self {
+    pub fn clone_for_fork(&self) -> Self {
         Self {
             slots: self.slots.clone(),
             marked: false,

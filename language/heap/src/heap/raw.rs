@@ -1,5 +1,5 @@
 use super::slot::SlotStorage;
-use super::value::{RawPointer, Value};
+use crate::value::{RawPointer, Value};
 
 /// Raw heap storage for either value slots or byte buffers.
 #[derive(Debug, Clone)]
@@ -69,7 +69,7 @@ impl RawCell {
 }
 
 /// A raw heap for manual memory management (not GC-tracked).
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RawHeap {
     /// Allocated cells. Index 0 is reserved (null pointer).
     cells: Vec<Option<RawCell>>,
@@ -170,5 +170,11 @@ impl RawHeap {
         self.cells.push(None);
         self.free_list.clear();
         self.allocated_cells = 0;
+    }
+}
+
+impl Default for RawHeap {
+    fn default() -> Self {
+        Self::new()
     }
 }

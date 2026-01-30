@@ -582,6 +582,8 @@ pub(crate) fn handle_managed_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    let max_heap_cells = state.interpreter.isolate.options.limits.max_heap_cells;
+
     // decode instruction data
     let ThreadedInstructionData::ManagedAlloc {
         dest,
@@ -592,22 +594,18 @@ pub(crate) fn handle_managed_alloc(
         unreachable!()
     };
 
-    // enforce heap limit
-    if state.interpreter.isolate.managed_heap.cell_count()
-        >= state.interpreter.isolate.options.limits.max_heap_cells
-    {
-        return ControlFlow::Error(Error::AllocationFailed);
-    }
-
     // allocate heap cell
-    let handle = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.interpreter.isolate.managed_heap.allocate()
-    } else {
-        state
-            .interpreter
-            .isolate
-            .managed_heap
-            .allocate_with_slots(*slot_count as usize)
+    let handle = {
+        let heap = state.heap();
+        if heap.managed.cell_count() >= max_heap_cells {
+            return ControlFlow::Error(Error::AllocationFailed);
+        }
+
+        if *slot_count == UNKNOWN_SLOT_COUNT {
+            heap.managed.allocate()
+        } else {
+            heap.managed.allocate_with_slots(*slot_count as usize)
+        }
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -631,6 +629,8 @@ pub(crate) fn handle_managed_alloc_array(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    let max_heap_cells = state.interpreter.isolate.options.limits.max_heap_cells;
+
     // decode instruction data
     let ThreadedInstructionData::ManagedAllocArray {
         dest,
@@ -641,23 +641,19 @@ pub(crate) fn handle_managed_alloc_array(
         unreachable!()
     };
 
-    // enforce heap limit
-    if state.interpreter.isolate.managed_heap.cell_count()
-        >= state.interpreter.isolate.options.limits.max_heap_cells
-    {
-        return ControlFlow::Error(Error::AllocationFailed);
-    }
-
     // resolve array length
     let len_val = state.get(*length);
     let length = len_val.as_uint().unwrap_or(0) as usize;
 
     // allocate heap cell with slots
-    let handle = state
-        .interpreter
-        .isolate
-        .managed_heap
-        .allocate_with_slots(length);
+    let handle = {
+        let heap = state.heap();
+        if heap.managed.cell_count() >= max_heap_cells {
+            return ControlFlow::Error(Error::AllocationFailed);
+        }
+
+        heap.managed.allocate_with_slots(length)
+    };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
     }
@@ -680,6 +676,8 @@ pub(crate) fn handle_raw_alloc(
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
+    let max_raw_cells = state.interpreter.isolate.options.limits.max_raw_cells;
+
     // decode instruction data
     let ThreadedInstructionData::RawAlloc {
         dest,
@@ -690,22 +688,18 @@ pub(crate) fn handle_raw_alloc(
         unreachable!()
     };
 
-    // enforce heap limit
-    if state.interpreter.isolate.raw_heap.cell_count()
-        >= state.interpreter.isolate.options.limits.max_raw_cells
-    {
-        return ControlFlow::Error(Error::AllocationFailed);
-    }
-
     // allocate raw heap cell
-    let ptr = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.interpreter.isolate.raw_heap.allocate()
-    } else {
-        state
-            .interpreter
-            .isolate
-            .raw_heap
-            .allocate_with_slots(*slot_count as usize)
+    let ptr = {
+        let heap = state.heap();
+        if heap.raw.cell_count() >= max_raw_cells {
+            return ControlFlow::Error(Error::AllocationFailed);
+        }
+
+        if *slot_count == UNKNOWN_SLOT_COUNT {
+            heap.raw.allocate()
+        } else {
+            heap.raw.allocate_with_slots(*slot_count as usize)
+        }
     };
     if state.collect_stats {
         state.interpreter.engine.statistics.heap_allocations += 1;
@@ -740,7 +734,8 @@ pub(crate) fn handle_raw_free(
     // accept raw pointer values
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        if !state.interpreter.isolate.raw_heap.free(p) {
+        let heap = state.heap();
+        if !heap.raw.free(p) {
             return ControlFlow::Error(Error::InvalidHeapHandle);
         }
     }
@@ -774,7 +769,8 @@ pub(crate) fn handle_raw_drop(
     // accept raw pointer values - deallocate like raw_free
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        if !state.interpreter.isolate.raw_heap.free(p) {
+        let heap = state.heap();
+        if !heap.raw.free(p) {
             return ControlFlow::Error(Error::InvalidHeapHandle);
         }
     }

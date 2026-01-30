@@ -8,7 +8,7 @@ use destack_mir as mir;
 use super::string::StringInterner;
 use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage};
 use crate::diagnostic::Error;
-use crate::memory::{HeapHandle, ManagedHeap, RawHeap, RawPointer, Value};
+use crate::memory::{HeapBorrow, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 
 // isolate id generator for continuation validation
@@ -22,10 +22,8 @@ pub(crate) struct IsolateState {
     pub(crate) tree: mir::NodeTree,
     /// String pool for names.
     pub(crate) strings: ImmutableStringPool,
-    /// The managed heap (GC-tracked allocations).
-    pub(crate) managed_heap: ManagedHeap,
-    /// The raw heap (manually managed allocations).
-    pub(crate) raw_heap: RawHeap,
+    /// Shared heap storage for managed and raw allocations.
+    pub(crate) heap: SharedHeap,
     /// String interner for literal storage.
     pub(crate) string_interner: StringInterner,
     /// Global variable storage.
@@ -50,6 +48,16 @@ impl IsolateState {
         strings: ImmutableStringPool,
         options: IsolateOptions,
     ) -> Self {
+        Self::new_with_heap_store(tree, strings, options, SharedHeap::default())
+    }
+
+    /// Create isolate state with explicit heap store.
+    pub(crate) fn new_with_heap_store(
+        tree: mir::NodeTree,
+        strings: ImmutableStringPool,
+        options: IsolateOptions,
+        heap: SharedHeap,
+    ) -> Self {
         let function_name_map = build_function_name_map(&tree, &strings);
         let dispatch_table_by_global = build_dispatch_table_map(&tree);
 
@@ -60,8 +68,7 @@ impl IsolateState {
             isolate_id,
             tree,
             strings,
-            managed_heap: ManagedHeap::new(),
-            raw_heap: RawHeap::new(),
+            heap,
             string_interner: StringInterner::new(),
             globals: GlobalStorage::new(),
             externals: HashMap::new(),
@@ -70,6 +77,11 @@ impl IsolateState {
             dispatch_table_by_global,
             options,
         }
+    }
+
+    /// Borrow the heap store exclusively.
+    pub(crate) fn heap_borrow(&self) -> HeapBorrow<'_> {
+        self.heap.borrow()
     }
 
     /// Resolve a dispatch table id for a vtable global.
@@ -103,48 +115,50 @@ impl IsolateState {
     /// Intern a string literal and return its managed value.
     pub(crate) fn intern_string_literal(&mut self, value: &str) -> Value {
         // delegate to the string interner
-        self.string_interner.intern_string_literal(
-            &mut self.managed_heap,
-            &mut self.raw_heap,
-            value,
-        )
+        let heap = &self.heap;
+        let string_interner = &mut self.string_interner;
+        let mut heap = heap.borrow();
+        let heap = &mut *heap;
+        string_interner.intern_string_literal(&mut heap.managed, &mut heap.raw, value)
     }
 
     /// Read a UTF-8 string value from the heap.
     pub(crate) fn string_value(&self, value: Value) -> Result<String, Error> {
         // delegate to the string interner
+        let heap = self.heap_borrow();
         self.string_interner
-            .string_value(&self.managed_heap, &self.raw_heap, value)
+            .string_value(&heap.managed, &heap.raw, value)
     }
 
     /// Read a UTF-8 string from a managed handle.
     pub(crate) fn string_value_for_handle(&self, handle: HeapHandle) -> Result<String, Error> {
         // delegate to the string interner
+        let heap = self.heap_borrow();
         self.string_interner
-            .string_value_for_handle(&self.managed_heap, &self.raw_heap, handle)
+            .string_value_for_handle(&heap.managed, &heap.raw, handle)
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        let handle = self.managed_heap.allocate_with_values(values);
+        let handle = self.heap_borrow().managed.allocate_with_values(values);
         Value::aggregate(handle)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self.managed_heap.allocate_pair(first, second);
+        let handle = self.heap_borrow().managed.allocate_pair(first, second);
         Value::aggregate(handle)
     }
 
     /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
     pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self.managed_heap.allocate_single(value);
+        let handle = self.heap_borrow().managed.allocate_single(value);
         Value::aggregate(handle)
     }
 
     /// Allocate a raw heap cell with value slots and return its pointer.
     pub(crate) fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
-        self.raw_heap.allocate_with_values(values)
+        self.heap_borrow().raw.allocate_with_values(values)
     }
 
     /// Collect string literal handles as GC roots.
@@ -156,16 +170,21 @@ impl IsolateState {
     /// Sweep raw string payloads for freed managed string headers.
     pub(crate) fn sweep_string_buffers(&mut self) {
         // delegate to the string interner
-        self.string_interner
-            .sweep_buffers(&self.managed_heap, &mut self.raw_heap);
+        let heap = &self.heap;
+        let string_interner = &mut self.string_interner;
+        let mut heap = heap.borrow();
+        let heap = &mut *heap;
+        string_interner.sweep_buffers(&heap.managed, &mut heap.raw);
     }
 }
 
 impl fmt::Debug for IsolateState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let heap = self.heap_borrow();
+
         f.debug_struct("IsolateState")
-            .field("managed_heap", &self.managed_heap)
-            .field("raw_heap", &self.raw_heap)
+            .field("managed_heap", &heap.managed)
+            .field("raw_heap", &heap.raw)
             .field("string_interner", &self.string_interner)
             .field("globals", &format!("<{} globals>", self.globals.len()))
             .field("externals", &format!("<{} handlers>", self.externals.len()))

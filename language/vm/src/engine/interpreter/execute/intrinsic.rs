@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::memory::{Value, ValueTag};
+use crate::memory::{HeapStore, RawCellStorage, Value, ValueTag};
 
 use super::super::state::InterpreterContext;
 
@@ -11,6 +11,7 @@ impl<'a> InterpreterContext<'a> {
     /// Used by threaded interpreter where values are pre-resolved.
     pub(crate) fn execute_intrinsic_resolved(
         &mut self,
+        heap: &mut HeapStore,
         intrinsic: mir::Intrinsic,
         args: &[Value],
         _ordering: Option<mir::MemoryOrdering>,
@@ -29,9 +30,9 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::RotateRight => self.execute_rotate_right(args),
 
             // checked arithmetic
-            mir::Intrinsic::AddOverflow => self.execute_add_overflow(args),
-            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(args),
-            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(args),
+            mir::Intrinsic::AddOverflow => self.execute_add_overflow(heap, args),
+            mir::Intrinsic::SubOverflow => self.execute_sub_overflow(heap, args),
+            mir::Intrinsic::MulOverflow => self.execute_mul_overflow(heap, args),
 
             // unchecked arithmetic
             mir::Intrinsic::AddUnchecked => self.execute_add_unchecked(args),
@@ -112,10 +113,10 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::PtrOffsetFrom => self.execute_ptr_offset_from(args),
 
             // memory operations
-            mir::Intrinsic::Memcpy => self.execute_memcpy(args),
-            mir::Intrinsic::Memmove => self.execute_memmove(args),
-            mir::Intrinsic::Memset => self.execute_memset(args),
-            mir::Intrinsic::Memcmp => self.execute_memcmp(args),
+            mir::Intrinsic::Memcpy => self.execute_memcpy(heap, args),
+            mir::Intrinsic::Memmove => self.execute_memmove(heap, args),
+            mir::Intrinsic::Memset => self.execute_memset(heap, args),
+            mir::Intrinsic::Memcmp => self.execute_memcmp(heap, args),
 
             // control flow
             mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
@@ -130,7 +131,8 @@ impl<'a> InterpreterContext<'a> {
                 })?;
                 let message = self
                     .isolate
-                    .string_value(message_value)
+                    .string_interner
+                    .string_value(&heap.managed, &heap.raw, message_value)
                     .map_err(|error| self.make_error(error))?;
 
                 // surface panic as a runtime error
@@ -147,9 +149,9 @@ impl<'a> InterpreterContext<'a> {
                 })),
 
             // volatile operations
-            mir::Intrinsic::VolatileLoad => self.execute_volatile_load(args),
+            mir::Intrinsic::VolatileLoad => self.execute_volatile_load(heap, args),
             mir::Intrinsic::VolatileStore => {
-                self.execute_volatile_store(args)?;
+                self.execute_volatile_store(heap, args)?;
                 Ok(Value::VOID)
             }
 
@@ -160,26 +162,26 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::GcWriteBarrier => Ok(Value::VOID),
 
             // atomics (single-threaded interpreter)
-            mir::Intrinsic::AtomicLoad => self.execute_atomic_load(args),
+            mir::Intrinsic::AtomicLoad => self.execute_atomic_load(heap, args),
             mir::Intrinsic::AtomicStore => {
-                self.execute_atomic_store(args)?;
+                self.execute_atomic_store(heap, args)?;
                 Ok(Value::VOID)
             }
-            mir::Intrinsic::AtomicCas => self.execute_atomic_cas(args),
-            mir::Intrinsic::AtomicCasWeak => self.execute_atomic_cas_weak(args),
-            mir::Intrinsic::AtomicExchange => self.execute_atomic_exchange(args),
-            mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(args),
-            mir::Intrinsic::AtomicFetchSub => self.execute_atomic_fetch_sub(args),
-            mir::Intrinsic::AtomicFetchAnd => self.execute_atomic_fetch_and(args),
-            mir::Intrinsic::AtomicFetchOr => self.execute_atomic_fetch_or(args),
-            mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(args),
-            mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(args),
-            mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(args),
-            mir::Intrinsic::AtomicFetchUmin => self.execute_atomic_fetch_umin(args),
-            mir::Intrinsic::AtomicFetchUmax => self.execute_atomic_fetch_umax(args),
-            mir::Intrinsic::AtomicFetchFadd => self.execute_atomic_fetch_fadd(args),
-            mir::Intrinsic::AtomicFetchFmin => self.execute_atomic_fetch_fmin(args),
-            mir::Intrinsic::AtomicFetchFmax => self.execute_atomic_fetch_fmax(args),
+            mir::Intrinsic::AtomicCas => self.execute_atomic_cas(heap, args),
+            mir::Intrinsic::AtomicCasWeak => self.execute_atomic_cas_weak(heap, args),
+            mir::Intrinsic::AtomicExchange => self.execute_atomic_exchange(heap, args),
+            mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(heap, args),
+            mir::Intrinsic::AtomicFetchSub => self.execute_atomic_fetch_sub(heap, args),
+            mir::Intrinsic::AtomicFetchAnd => self.execute_atomic_fetch_and(heap, args),
+            mir::Intrinsic::AtomicFetchOr => self.execute_atomic_fetch_or(heap, args),
+            mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(heap, args),
+            mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(heap, args),
+            mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(heap, args),
+            mir::Intrinsic::AtomicFetchUmin => self.execute_atomic_fetch_umin(heap, args),
+            mir::Intrinsic::AtomicFetchUmax => self.execute_atomic_fetch_umax(heap, args),
+            mir::Intrinsic::AtomicFetchFadd => self.execute_atomic_fetch_fadd(heap, args),
+            mir::Intrinsic::AtomicFetchFmin => self.execute_atomic_fetch_fmin(heap, args),
+            mir::Intrinsic::AtomicFetchFmax => self.execute_atomic_fetch_fmax(heap, args),
             mir::Intrinsic::AtomicFence => Ok(Value::VOID),
             mir::Intrinsic::Barrier => Ok(Value::VOID),
 
@@ -459,7 +461,11 @@ impl<'a> InterpreterContext<'a> {
 
     /// Add with overflow detection.
     #[inline]
-    fn execute_add_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_add_overflow(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "add.overflow".to_string(),
@@ -487,7 +493,11 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                ))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -508,7 +518,11 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_add(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                ))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -519,7 +533,11 @@ impl<'a> InterpreterContext<'a> {
 
     /// Subtract with overflow detection.
     #[inline]
-    fn execute_sub_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_sub_overflow(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "sub.overflow".to_string(),
@@ -547,7 +565,11 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                ))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -568,7 +590,11 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_sub(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                ))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
@@ -579,7 +605,11 @@ impl<'a> InterpreterContext<'a> {
 
     /// Multiply with overflow detection.
     #[inline]
-    fn execute_mul_overflow(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_mul_overflow(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "mul.overflow".to_string(),
@@ -607,7 +637,11 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(self.allocate_pair(Value::int(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::int(result, width),
+                    Value::bool(overflow),
+                ))
             }
             (ValueTag::UInt, ValueTag::UInt) => {
                 let a = args[0].raw_data();
@@ -628,13 +662,29 @@ impl<'a> InterpreterContext<'a> {
                     }
                     _ => a.overflowing_mul(b),
                 };
-                Ok(self.allocate_pair(Value::uint(result, width), Value::bool(overflow)))
+                Ok(self.allocate_pair_with_heap(
+                    heap,
+                    Value::uint(result, width),
+                    Value::bool(overflow),
+                ))
             }
             _ => Err(self.make_error(Error::TypeMismatch {
                 expected: "matching integer types".to_string(),
                 actual: format!("{:?}, {:?}", args[0], args[1]),
             })),
         }
+    }
+
+    /// Allocate a 2-slot aggregate on the managed heap.
+    #[inline]
+    fn allocate_pair_with_heap(
+        &mut self,
+        heap: &mut HeapStore,
+        first: Value,
+        second: Value,
+    ) -> Value {
+        let handle = heap.managed.allocate_pair(first, second);
+        Value::aggregate(handle)
     }
 
     // unchecked arithmetic
@@ -1083,7 +1133,7 @@ impl<'a> InterpreterContext<'a> {
     // memory operations
 
     /// Copy memory between locations.
-    fn execute_memcpy(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_memcpy(&mut self, heap: &mut HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "memcpy".to_string(),
@@ -1096,17 +1146,17 @@ impl<'a> InterpreterContext<'a> {
         }
 
         // copy slots from source to destination
-        self.copy_memory(&args[0], &args[1], len)?;
+        self.copy_memory(heap, &args[0], &args[1], len)?;
         Ok(Value::VOID)
     }
 
     /// Move memory (handles overlapping regions).
-    fn execute_memmove(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_memcpy(args)
+    fn execute_memmove(&mut self, heap: &mut HeapStore, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_memcpy(heap, args)
     }
 
     /// Fill memory with a byte value.
-    fn execute_memset(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_memset(&mut self, heap: &mut HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "memset".to_string(),
@@ -1119,12 +1169,12 @@ impl<'a> InterpreterContext<'a> {
             return Ok(Value::VOID);
         }
 
-        self.set_memory(&args[0], byte_val, len)?;
+        self.set_memory(heap, &args[0], byte_val, len)?;
         Ok(Value::VOID)
     }
 
     /// Compare memory regions.
-    fn execute_memcmp(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_memcmp(&self, heap: &HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "memcmp".to_string(),
@@ -1136,41 +1186,59 @@ impl<'a> InterpreterContext<'a> {
             return Ok(Value::int(0, 32));
         }
 
-        let result = self.compare_memory(&args[0], &args[1], len)?;
+        let result = self.compare_memory(heap, &args[0], &args[1], len)?;
         Ok(Value::int(result as i64, 32))
     }
 
     // memory operation helpers
 
     /// Copy len slots from source to destination.
-    fn copy_memory(&mut self, dst: &Value, src: &Value, len: usize) -> RuntimeResult<()> {
+    fn copy_memory(
+        &mut self,
+        heap: &mut HeapStore,
+        dst: &Value,
+        src: &Value,
+        len: usize,
+    ) -> RuntimeResult<()> {
         let values: Vec<Value> = (0..len)
-            .map(|i| self.read_memory_slot(src, i))
+            .map(|i| self.read_memory_slot(heap, src, i))
             .collect::<RuntimeResult<_>>()?;
 
         for (i, value) in values.into_iter().enumerate() {
-            self.write_memory_slot(dst, i, value)?;
+            self.write_memory_slot(heap, dst, i, value)?;
         }
 
         Ok(())
     }
 
     /// Set len slots to a byte value.
-    fn set_memory(&mut self, dst: &Value, byte_val: u8, len: usize) -> RuntimeResult<()> {
+    fn set_memory(
+        &mut self,
+        heap: &mut HeapStore,
+        dst: &Value,
+        byte_val: u8,
+        len: usize,
+    ) -> RuntimeResult<()> {
         let value = Value::uint(byte_val as u64, 8);
 
         for i in 0..len {
-            self.write_memory_slot(dst, i, value)?;
+            self.write_memory_slot(heap, dst, i, value)?;
         }
 
         Ok(())
     }
 
     /// Compare len slots of two memory regions.
-    fn compare_memory(&self, a: &Value, b: &Value, len: usize) -> RuntimeResult<i32> {
+    fn compare_memory(
+        &self,
+        heap: &HeapStore,
+        a: &Value,
+        b: &Value,
+        len: usize,
+    ) -> RuntimeResult<i32> {
         for i in 0..len {
-            let va = self.read_memory_slot(a, i)?;
-            let vb = self.read_memory_slot(b, i)?;
+            let va = self.read_memory_slot(heap, a, i)?;
+            let vb = self.read_memory_slot(heap, b, i)?;
 
             let byte_a = va.as_uint().unwrap_or(0) as u8;
             let byte_b = vb.as_uint().unwrap_or(0) as u8;
@@ -1186,7 +1254,12 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Read a value from a memory slot at offset.
-    fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
+    fn read_memory_slot(
+        &self,
+        heap: &HeapStore,
+        ptr: &Value,
+        offset: usize,
+    ) -> RuntimeResult<Value> {
         // resolve pointer and slot offset
         match ptr.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
@@ -1200,7 +1273,7 @@ impl<'a> InterpreterContext<'a> {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.isolate.managed_heap.get(handle) {
+                if let Some(cell) = heap.managed.get(handle) {
                     cell.slots
                         .get(slot_index)
                         .copied()
@@ -1220,8 +1293,36 @@ impl<'a> InterpreterContext<'a> {
                         field_count: 0,
                     })
                 })?;
-                self.read_raw_slot(raw_ptr, slot_index, true)
-                    .map_err(|error| self.make_error(error))
+                let cell = heap
+                    .raw
+                    .get(raw_ptr)
+                    .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
+                match &cell.storage {
+                    RawCellStorage::Bytes(bytes) => {
+                        if bytes.is_empty() && slot_index == 0 {
+                            return Ok(Value::VOID);
+                        }
+                        if slot_index >= bytes.len() {
+                            return Err(self.make_error(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: bytes.len(),
+                            }));
+                        }
+                        Ok(Value::uint(bytes[slot_index] as u64, 8))
+                    }
+                    RawCellStorage::Values(slots) => {
+                        if slots.is_empty() && slot_index == 0 {
+                            return Ok(Value::VOID);
+                        }
+                        if let Some(value) = slots.get(slot_index).copied() {
+                            return Ok(value);
+                        }
+                        Err(self.make_error(Error::InvalidFieldAccess {
+                            index: slot_index as u32,
+                            field_count: slots.len(),
+                        }))
+                    }
+                }
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
@@ -1275,7 +1376,13 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Write a value to a memory slot at offset.
-    fn write_memory_slot(&mut self, ptr: &Value, offset: usize, value: Value) -> RuntimeResult<()> {
+    fn write_memory_slot(
+        &mut self,
+        heap: &mut HeapStore,
+        ptr: &Value,
+        offset: usize,
+        value: Value,
+    ) -> RuntimeResult<()> {
         // resolve pointer and slot offset
         match ptr.tag() {
             ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
@@ -1290,7 +1397,7 @@ impl<'a> InterpreterContext<'a> {
                     })
                 })?;
                 // resolve the managed cell
-                let error = match self.isolate.managed_heap.get_mut(handle) {
+                let error = match heap.managed.get_mut(handle) {
                     Some(cell) => {
                         // ensure the slot exists
                         let required_len = slot_index + 1;
@@ -1325,8 +1432,41 @@ impl<'a> InterpreterContext<'a> {
                         field_count: 0,
                     })
                 })?;
-                self.write_raw_slot(raw_ptr, slot_index, value, true)
-                    .map_err(|error| self.make_error(error))?;
+                let cell = heap
+                    .raw
+                    .get_mut(raw_ptr)
+                    .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
+                match &mut cell.storage {
+                    RawCellStorage::Bytes(bytes) => {
+                        let raw = value.as_uint().ok_or_else(|| {
+                            self.make_error(Error::TypeMismatch {
+                                expected: "integer".to_string(),
+                                actual: format!("{value:?}"),
+                            })
+                        })?;
+                        let byte = raw as u8;
+                        if slot_index >= bytes.len() {
+                            return Err(self.make_error(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: bytes.len(),
+                            }));
+                        }
+                        bytes[slot_index] = byte;
+                    }
+                    RawCellStorage::Values(slots) => {
+                        if slots.len() <= slot_index {
+                            slots.resize(slot_index + 1, Value::VOID);
+                        }
+                        if let Some(slot) = slots.get_mut(slot_index) {
+                            *slot = value;
+                        } else {
+                            return Err(self.make_error(Error::InvalidFieldAccess {
+                                index: slot_index as u32,
+                                field_count: slots.len(),
+                            }));
+                        }
+                    }
+                }
                 Ok(())
             }
             ValueTag::StackPointer => {
@@ -1392,17 +1532,21 @@ impl<'a> InterpreterContext<'a> {
     // volatile operations
 
     /// Load a value with volatile semantics.
-    fn execute_volatile_load(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_volatile_load(&self, heap: &HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         let ptr = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "volatile.load".to_string(),
             })
         })?;
-        self.read_memory_slot(ptr, 0)
+        self.read_memory_slot(heap, ptr, 0)
     }
 
     /// Store a value with volatile semantics.
-    fn execute_volatile_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
+    fn execute_volatile_store(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<()> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "volatile.store".to_string(),
@@ -1410,23 +1554,23 @@ impl<'a> InterpreterContext<'a> {
         }
         let ptr = args[0];
         let value = args[1];
-        self.write_memory_slot(&ptr, 0, value)
+        self.write_memory_slot(heap, &ptr, 0, value)
     }
 
     // atomic operations
 
     /// Atomic load (single-threaded: same as regular load).
-    fn execute_atomic_load(&self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_atomic_load(&self, heap: &HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         let ptr = args.first().ok_or_else(|| {
             self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "atomic.load".to_string(),
             })
         })?;
-        self.read_memory_slot(ptr, 0)
+        self.read_memory_slot(heap, ptr, 0)
     }
 
     /// Atomic store (single-threaded: same as regular store).
-    fn execute_atomic_store(&mut self, args: &[Value]) -> RuntimeResult<()> {
+    fn execute_atomic_store(&mut self, heap: &mut HeapStore, args: &[Value]) -> RuntimeResult<()> {
         if args.len() < 2 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "atomic.store".to_string(),
@@ -1434,11 +1578,11 @@ impl<'a> InterpreterContext<'a> {
         }
         let ptr = args[0];
         let value = args[1];
-        self.write_memory_slot(&ptr, 0, value)
+        self.write_memory_slot(heap, &ptr, 0, value)
     }
 
     /// Atomic compare-and-swap.
-    fn execute_atomic_cas(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+    fn execute_atomic_cas(&mut self, heap: &mut HeapStore, args: &[Value]) -> RuntimeResult<Value> {
         if args.len() < 3 {
             return Err(self.make_error(Error::InvalidIntrinsicArguments {
                 intrinsic: "atomic.cas".to_string(),
@@ -1449,150 +1593,204 @@ impl<'a> InterpreterContext<'a> {
         let expected = &args[1];
         let desired = args[2];
 
-        let current = self.read_memory_slot(&ptr, 0)?;
+        let current = self.read_memory_slot(heap, &ptr, 0)?;
         let success = self.values_equal(&current, expected);
 
         if success {
-            self.write_memory_slot(&ptr, 0, desired)?;
+            self.write_memory_slot(heap, &ptr, 0, desired)?;
         }
 
-        Ok(self.allocate_pair(current, Value::bool(success)))
+        Ok(self.allocate_pair_with_heap(heap, current, Value::bool(success)))
     }
 
     /// Atomic compare-and-swap (weak).
     ///
     /// The interpreter uses strong semantics for the weak variant.
-    fn execute_atomic_cas_weak(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_cas(args)
+    fn execute_atomic_cas_weak(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_cas(heap, args)
     }
 
     /// Atomic exchange.
-    fn execute_atomic_exchange(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.xchg", |_, b| *b)
+    fn execute_atomic_exchange(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.xchg", |_, b| *b)
     }
 
     /// Atomic fetch-and-add.
-    fn execute_atomic_fetch_add(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.add", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.wrapping_add(bv), a.width())
+    fn execute_atomic_fetch_add(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.add", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_add(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_add(bv), a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.wrapping_add(bv), a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-subtract.
-    fn execute_atomic_fetch_sub(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.sub", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.wrapping_sub(bv), a.width())
+    fn execute_atomic_fetch_sub(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.sub", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.wrapping_sub(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.wrapping_sub(bv), a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.wrapping_sub(bv), a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-and.
-    fn execute_atomic_fetch_and(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.and", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av & bv, a.width())
+    fn execute_atomic_fetch_and(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.and", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av & bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av & bv, a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av & bv, a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-or.
-    fn execute_atomic_fetch_or(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.or", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av | bv, a.width())
+    fn execute_atomic_fetch_or(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.or", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av | bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av | bv, a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av | bv, a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-xor.
-    fn execute_atomic_fetch_xor(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.xor", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av ^ bv, a.width())
+    fn execute_atomic_fetch_xor(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.xor", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av ^ bv, a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av ^ bv, a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av ^ bv, a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-min.
-    fn execute_atomic_fetch_min(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.min", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.min(bv), a.width())
+    fn execute_atomic_fetch_min(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.min", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.min(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.min(bv), a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.min(bv), a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-max.
-    fn execute_atomic_fetch_max(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.max", |a, b| match (a.tag(), b.tag()) {
-            (ValueTag::Int, ValueTag::Int) => {
-                let av = a.raw_data() as i64;
-                let bv = b.raw_data() as i64;
-                Value::int(av.max(bv), a.width())
+    fn execute_atomic_fetch_max(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.max", |a, b| {
+            match (a.tag(), b.tag()) {
+                (ValueTag::Int, ValueTag::Int) => {
+                    let av = a.raw_data() as i64;
+                    let bv = b.raw_data() as i64;
+                    Value::int(av.max(bv), a.width())
+                }
+                (ValueTag::UInt, ValueTag::UInt) => {
+                    let av = a.raw_data();
+                    let bv = b.raw_data();
+                    Value::uint(av.max(bv), a.width())
+                }
+                _ => *a,
             }
-            (ValueTag::UInt, ValueTag::UInt) => {
-                let av = a.raw_data();
-                let bv = b.raw_data();
-                Value::uint(av.max(bv), a.width())
-            }
-            _ => *a,
         })
     }
 
     /// Atomic fetch-and-min (unsigned).
-    fn execute_atomic_fetch_umin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.umin", |a, b| match (a.tag(), b.tag()) {
+    fn execute_atomic_fetch_umin(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.umin", |a, b| match (a.tag(), b.tag()) {
             (ValueTag::UInt, ValueTag::UInt) => {
                 let av = a.raw_data();
                 let bv = b.raw_data();
@@ -1603,8 +1801,12 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Atomic fetch-and-max (unsigned).
-    fn execute_atomic_fetch_umax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.umax", |a, b| match (a.tag(), b.tag()) {
+    fn execute_atomic_fetch_umax(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.umax", |a, b| match (a.tag(), b.tag()) {
             (ValueTag::UInt, ValueTag::UInt) => {
                 let av = a.raw_data();
                 let bv = b.raw_data();
@@ -1615,8 +1817,12 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Atomic fetch-and-add (float).
-    fn execute_atomic_fetch_fadd(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fadd", |a, b| match (a.tag(), b.tag()) {
+    fn execute_atomic_fetch_fadd(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fadd", |a, b| match (a.tag(), b.tag()) {
             (ValueTag::Float64, ValueTag::Float64) => {
                 let av = f64::from_bits(a.raw_data());
                 let bv = f64::from_bits(b.raw_data());
@@ -1632,8 +1838,12 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Atomic fetch-and-min (float).
-    fn execute_atomic_fetch_fmin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fmin", |a, b| match (a.tag(), b.tag()) {
+    fn execute_atomic_fetch_fmin(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmin", |a, b| match (a.tag(), b.tag()) {
             (ValueTag::Float64, ValueTag::Float64) => {
                 let av = f64::from_bits(a.raw_data());
                 let bv = f64::from_bits(b.raw_data());
@@ -1649,8 +1859,12 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Atomic fetch-and-max (float).
-    fn execute_atomic_fetch_fmax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
-        self.execute_atomic_rmw(args, "atomic.fetch.fmax", |a, b| match (a.tag(), b.tag()) {
+    fn execute_atomic_fetch_fmax(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+    ) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(heap, args, "atomic.fetch.fmax", |a, b| match (a.tag(), b.tag()) {
             (ValueTag::Float64, ValueTag::Float64) => {
                 let av = f64::from_bits(a.raw_data());
                 let bv = f64::from_bits(b.raw_data());
@@ -1666,7 +1880,13 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Execute an atomic read-modify-write operation.
-    fn execute_atomic_rmw<F>(&mut self, args: &[Value], name: &str, op: F) -> RuntimeResult<Value>
+    fn execute_atomic_rmw<F>(
+        &mut self,
+        heap: &mut HeapStore,
+        args: &[Value],
+        name: &str,
+        op: F,
+    ) -> RuntimeResult<Value>
     where
         F: FnOnce(&Value, &Value) -> Value,
     {
@@ -1679,9 +1899,9 @@ impl<'a> InterpreterContext<'a> {
         let ptr = args[0];
         let operand = &args[1];
 
-        let old_value = self.read_memory_slot(&ptr, 0)?;
+        let old_value = self.read_memory_slot(heap, &ptr, 0)?;
         let new_value = op(&old_value, operand);
-        self.write_memory_slot(&ptr, 0, new_value)?;
+        self.write_memory_slot(heap, &ptr, 0, new_value)?;
 
         Ok(old_value)
     }

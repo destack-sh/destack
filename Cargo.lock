@@ -1062,6 +1062,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_heap"
+version = "0.53.0"
+dependencies = [
+ "destack_mir",
+]
+
+[[package]]
 name = "destack_json"
 version = "0.53.0"
 dependencies = [
@@ -1326,6 +1333,7 @@ dependencies = [
  "clap",
  "criterion",
  "destack_base",
+ "destack_heap",
  "destack_mir",
  "destack_source",
  "destack_test_mirbench",

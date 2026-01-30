@@ -8,7 +8,7 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::engine::compiled::CompiledEngine;
 use crate::engine::interpreter::{InterpreterContext, InterpreterEngine};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::memory::{GcStats, HeapHandle, ManagedHeap, RawHeap, RawPointer, Value};
+use crate::memory::{GcStats, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 
 /// VM isolate with its own heaps, globals, and execution state.
@@ -43,6 +43,30 @@ impl Isolate {
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new(tree, strings, options);
+        let mut interpreter = InterpreterEngine::new(&state);
+        let compiled = CompiledEngine::new(&state);
+
+        // initialize globals and interned literals
+        {
+            let mut context = interpreter.context(&mut state);
+            context.initialize_globals()?;
+        }
+
+        Ok(Self {
+            state,
+            interpreter,
+            compiled,
+        })
+    }
+
+    /// Create a new isolate with custom options and an explicit heap store.
+    pub fn with_options_and_heap_store(
+        tree: mir::NodeTree,
+        strings: ImmutableStringPool,
+        options: IsolateOptions,
+        heap: SharedHeap,
+    ) -> RuntimeResult<Self> {
+        let mut state = IsolateState::new_with_heap_store(tree, strings, options, heap);
         let mut interpreter = InterpreterEngine::new(&state);
         let compiled = CompiledEngine::new(&state);
 
@@ -192,14 +216,9 @@ impl Isolate {
         self.state.allocate_single(value)
     }
 
-    /// Get a reference to the managed heap.
-    pub fn managed_heap(&self) -> &ManagedHeap {
-        &self.state.managed_heap
-    }
-
-    /// Get a mutable reference to the managed heap.
-    pub fn managed_heap_mut(&mut self) -> &mut ManagedHeap {
-        &mut self.state.managed_heap
+    /// Get a shared heap handle.
+    pub fn heap(&self) -> SharedHeap {
+        self.state.heap.clone()
     }
 
     /// Read a UTF-8 string value from the heap.
@@ -212,14 +231,9 @@ impl Isolate {
         self.state.string_value_for_handle(handle)
     }
 
-    /// Get a reference to the raw heap.
-    pub fn raw_heap(&self) -> &RawHeap {
-        &self.state.raw_heap
-    }
-
-    /// Get a mutable reference to the raw heap.
-    pub fn raw_heap_mut(&mut self) -> &mut RawHeap {
-        &mut self.state.raw_heap
+    /// Get a shared heap handle.
+    pub fn heap_mut(&mut self) -> SharedHeap {
+        self.state.heap.clone()
     }
 
     /// Collect garbage from managed heap.

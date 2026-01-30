@@ -157,15 +157,25 @@ fn value_to_usize(value: Value) -> Result<usize, Error> {
 fn aggregate_slots<'a>(
     state: &'a ThreadedState<'_, '_>,
     value: Value,
-) -> Result<&'a [Value], Error> {
+) -> Result<super::state::AggregateSlots<'a>, Error> {
     // require aggregate payload
-    state
-        .interpreter
-        .get_aggregate_slots(&value)
-        .ok_or_else(|| Error::TypeMismatch {
-            expected: "aggregate".to_string(),
-            actual: format!("{value:?}"),
-        })
+    let handle = value.as_heap_handle().ok_or_else(|| Error::TypeMismatch {
+        expected: "aggregate".to_string(),
+        actual: format!("{value:?}"),
+    })?;
+
+    let cell = state
+        .heap_ref()
+        .managed
+        .get(handle)
+        .ok_or(Error::InvalidHeapHandle)?;
+    Ok(super::state::AggregateSlots::new(cell.slots.as_slice()))
+}
+
+/// Load aggregate slots and copy them into a Vec.
+fn aggregate_slots_vec(state: &ThreadedState<'_, '_>, value: Value) -> Result<Vec<Value>, Error> {
+    let slots = aggregate_slots(state, value)?;
+    Ok(slots.to_vec())
 }
 
 /// Tensor layout information for flattened storage.

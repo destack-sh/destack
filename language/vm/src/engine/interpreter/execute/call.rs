@@ -607,11 +607,12 @@ impl<'a> InterpreterContext<'a> {
     /// Assemble a completed execution outcome.
     fn finish_execution(&mut self, value: Value) -> ExecutionOutcome {
         // assemble output
+        let heap = self.isolate.heap_borrow();
         let output = ExecutionOutput {
             value,
             statistics: self.engine.statistics.clone(),
-            heap_cells: self.isolate.managed_heap.cell_count(),
-            raw_heap_cells: self.isolate.raw_heap.cell_count(),
+            heap_cells: heap.managed.cell_count(),
+            raw_heap_cells: heap.raw.cell_count(),
         };
 
         // return completed outcome

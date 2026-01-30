@@ -21,7 +21,7 @@ pub(crate) fn handle_vector_splat(
     }
 
     // allocate the vector aggregate
-    let result = state.interpreter.allocate_aggregate(lanes_vec);
+    let result = state.allocate_aggregate(lanes_vec);
     state.set(*dest, result);
 
     // continue to next instruction
@@ -63,6 +63,7 @@ pub(crate) fn handle_vector_extract(
 
     // extract lane
     let result = vec_slots[index_value];
+    drop(vec_slots);
     state.set(*dest, result);
 
     // continue to next instruction
@@ -88,8 +89,8 @@ pub(crate) fn handle_vector_insert(
 
     // resolve inputs
     let vec_value = state.get(*vector);
-    let mut vec_slots = match aggregate_slots(state, vec_value) {
-        Ok(slots) => slots.to_vec(),
+    let mut vec_slots = match aggregate_slots_vec(state, vec_value) {
+        Ok(slots) => slots,
         Err(error) => return ControlFlow::Error(error),
     };
     let index_value = match value_to_usize(state.get(*index)) {
@@ -105,7 +106,7 @@ pub(crate) fn handle_vector_insert(
 
     // update lane
     vec_slots[index_value] = state.get(*value);
-    let result = state.interpreter.allocate_aggregate(vec_slots);
+    let result = state.allocate_aggregate(vec_slots);
     state.set(*dest, result);
 
     // continue to next instruction
@@ -132,11 +133,11 @@ pub(crate) fn handle_vector_shuffle(
     // resolve lane sources
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_slots = match aggregate_slots(state, left_value) {
+    let left_slots = match aggregate_slots_vec(state, left_value) {
         Ok(slots) => slots,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_slots = match aggregate_slots(state, right_value) {
+    let right_slots = match aggregate_slots_vec(state, right_value) {
         Ok(slots) => slots,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -160,7 +161,7 @@ pub(crate) fn handle_vector_shuffle(
     }
 
     // allocate result aggregate
-    let result = state.interpreter.allocate_aggregate(result);
+    let result = state.allocate_aggregate(result);
     state.set(*dest, result);
 
     // continue to next instruction
@@ -250,27 +251,29 @@ pub(crate) fn handle_vector_reduce(
 
     // resolve vector lanes
     let vec_value = state.get(*vector);
-    let vec_slots = match aggregate_slots(state, vec_value) {
-        Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    if vec_slots.is_empty() {
-        state.set(*dest, Value::VOID);
-        next!(state, block, pc)
-    }
-
-    // reduce lanes
-    let mut result = vec_slots[0];
-    let op = ReduceOperator::from(*operator);
-    for lane in &vec_slots[1..] {
-        match apply_reduce_operator(op, result, *lane) {
-            Ok(value) => result = value,
+    let result = {
+        let vec_slots = match aggregate_slots(state, vec_value) {
+            Ok(slots) => slots,
             Err(error) => return ControlFlow::Error(error),
+        };
+        if vec_slots.is_empty() {
+            None
+        } else {
+            // reduce lanes
+            let mut result = vec_slots[0];
+            let op = ReduceOperator::from(*operator);
+            for lane in &vec_slots[1..] {
+                match apply_reduce_operator(op, result, *lane) {
+                    Ok(value) => result = value,
+                    Err(error) => return ControlFlow::Error(error),
+                }
+            }
+            Some(result)
         }
-    }
+    };
 
     // store result
-    state.set(*dest, result);
+    state.set(*dest, result.unwrap_or(Value::VOID));
 
     // continue to next instruction
     next!(state, block, pc)
@@ -296,11 +299,11 @@ pub(crate) fn handle_vector_compare(
     // resolve vector slots
     let left_value = state.get(*left);
     let right_value = state.get(*right);
-    let left_slots = match aggregate_slots(state, left_value) {
+    let left_slots = match aggregate_slots_vec(state, left_value) {
         Ok(slots) => slots,
         Err(error) => return ControlFlow::Error(error),
     };
-    let right_slots = match aggregate_slots(state, right_value) {
+    let right_slots = match aggregate_slots_vec(state, right_value) {
         Ok(slots) => slots,
         Err(error) => return ControlFlow::Error(error),
     };
@@ -324,7 +327,7 @@ pub(crate) fn handle_vector_compare(
     }
 
     // allocate result aggregate
-    let result = state.interpreter.allocate_aggregate(output);
+    let result = state.allocate_aggregate(output);
     state.set(*dest, result);
 
     // continue to next instruction
@@ -372,40 +375,45 @@ pub(crate) fn handle_vector_convert(
 
     // resolve lane values
     let vector_value = state.get(*vector);
-    let source_slots = match aggregate_slots(state, vector_value) {
-        Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
-    };
-
-    // validate lane counts
-    if source_slots.len() != dest_lanes {
-        return ControlFlow::Error(Error::TypeMismatch {
-            expected: "matching vector lanes".to_string(),
-            actual: format!("{} vs {}", source_slots.len(), dest_lanes),
-        });
-    }
-
-    // convert lanes
-    let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_element) {
-        Ok(info) => info,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
-        Ok(info) => info,
-        Err(error) => return ControlFlow::Error(error),
-    };
-    let convert_mode = ScalarConvertMode::from(*mode);
-    let mut output = Vec::with_capacity(source_slots.len());
-    for value in source_slots {
-        let converted = match convert_scalar_value(*value, source_info, dest_info, convert_mode) {
-            Ok(value) => value,
+    let output = {
+        let source_slots = match aggregate_slots(state, vector_value) {
+            Ok(slots) => slots,
             Err(error) => return ControlFlow::Error(error),
         };
-        output.push(converted);
-    }
+
+        // validate lane counts
+        if source_slots.len() != dest_lanes {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "matching vector lanes".to_string(),
+                actual: format!("{} vs {}", source_slots.len(), dest_lanes),
+            });
+        }
+
+        // convert lanes
+        let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_element) {
+            Ok(info) => info,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
+            Ok(info) => info,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        let convert_mode = ScalarConvertMode::from(*mode);
+        let mut output = Vec::with_capacity(source_slots.len());
+        for value in source_slots.iter() {
+            let converted = match convert_scalar_value(*value, source_info, dest_info, convert_mode)
+            {
+                Ok(value) => value,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            output.push(converted);
+        }
+
+        output
+    };
 
     // allocate result aggregate
-    let result = state.interpreter.allocate_aggregate(output);
+    let result = state.allocate_aggregate(output);
     state.set(*dest, result);
 
     // continue to next instruction

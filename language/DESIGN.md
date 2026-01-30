@@ -31,16 +31,17 @@ Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectl
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | Add methods to existing types and enable natural mathematical notation | [resolution/](test/fixtures/specification/resolution/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | Deterministic resource management and memory safety without garbage collection overhead | [types/ownership/](test/fixtures/specification/types/ownership/) |
 
-**Why not Python**:
-Python is great, and it's arguably the second closest thing we have to a universal language.
-However, unlike Python, TypeScript actually has a good answer to rich frontends _and_ close-to-the-metal optimizations.
-It also runs natively on the most widely deployed application platform (the web).
-Yes, JITed TS is still slower than well-written Rust or C++, but in principle you can make a subset of TypeScript (like Destack) that compiles properly.
-
-There is no equivalent to V8 and JSC in Python land, and well written TypeScript often comes within touching distance of Go and C# in common scenarios.
-And unfortunately due to how the Python language and ecosystem have evolved, it's structurally extremely difficult to fill this gap, and TypeScript is slowly pulling away.
-It's also _much_ easier to
-
+| Feature | Description | Tests |
+|---------|-------------|-------|
+| [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
+| [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
+| [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
+| [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
+| [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
+| [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [declarations/reflection/](test/fixtures/specification/declarations/reflection/) |
+| [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [resolution/](test/fixtures/specification/resolution/) |
+| [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [types/ownership/](test/fixtures/specification/types/ownership/) |
 ## Expressions
 
 TypeScript inherits JavaScript's expression syntax, and - for the most part - doesn't change it too much to preserve both type-independent emit (i.e., blind erasure) and the familiar JavaScript feeling.
