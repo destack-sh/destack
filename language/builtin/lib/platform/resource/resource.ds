@@ -1,0 +1,32 @@
+/// Opaque identifier for a runtime-managed resource.
+export newtype ResourceId = uint64;
+
+/// Handle for an open file.
+export newtype FileHandle = ResourceId;
+
+/// Handle for an open directory.
+export newtype DirectoryHandle = ResourceId;
+
+/// Handle for a network socket.
+export newtype SocketHandle = ResourceId;
+
+/// Handle for a network listener.
+export newtype ListenerHandle = ResourceId;
+
+/// Handle for a spawned process.
+export newtype ProcessHandle = ResourceId;
+
+/// Handle for a scheduled timer.
+export newtype TimerHandle = ResourceId;
+
+/// Handle for a filesystem watcher.
+export newtype WatchHandle = ResourceId;
+
+/// Handle for a pipe or IPC stream.
+export newtype PipeHandle = ResourceId;
+
+/// Handle for a TTY device.
+export newtype TtyHandle = ResourceId;
+
+/// Handle for a signal subscription.
+export newtype SignalHandle = ResourceId;

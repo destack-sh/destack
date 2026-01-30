@@ -1,0 +1,18 @@
+export { console } from "./console/index.ds";
+export type { PlatformError } from "./error/index.ds";
+export { assert } from "./assert/index.ds";
+export { buffer } from "./buffer/index.ds";
+export { crypto } from "./crypto/index.ds";
+export { fs } from "./fs/index.ds";
+export { net } from "./net/index.ds";
+export { os } from "./os/index.ds";
+export { path } from "./path/index.ds";
+export { process } from "./process/index.ds";
+export { random } from "./random/index.ds";
+export { stream } from "./stream/index.ds";
+export { sys } from "./sys/index.ds";
+export { time } from "./time/index.ds";
+export { timers } from "./timers/index.ds";
+export { url } from "./url/index.ds";
+export { util } from "./util/index.ds";
+export { vm } from "./vm/index.ds";

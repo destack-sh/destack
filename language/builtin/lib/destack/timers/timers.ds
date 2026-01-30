@@ -1,0 +1,20 @@
+import { timer as platformTimer } from "../../platform/timer/index.ds";
+import { TimerHandle } from "../resource/index.ds";
+
+/// Timer API for the Destack runtime.
+export namespace timers {
+    /// Schedule a one-shot timer.
+    export function once(delayNs: uint64): TimerHandle {
+        platformTimer.once(delayNs)
+    }
+
+    /// Schedule a repeating timer.
+    export function interval(periodNs: uint64): TimerHandle {
+        platformTimer.interval(periodNs)
+    }
+
+    /// Cancel a scheduled timer.
+    export function cancel(handle: TimerHandle): void {
+        platformTimer.cancel(handle)
+    }
+}

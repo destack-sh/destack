@@ -1,0 +1,12 @@
+{
+  "path": "scripthost.rs",
+  "sourceSets": {},
+  "libs": [
+    {
+      "name": "scripthost",
+      "sources": [
+        "lib/scripthost/index.d.ts"
+      ]
+    }
+  ]
+}

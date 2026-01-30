@@ -7,6 +7,7 @@ import re
 import urllib.request
 from pathlib import Path
 
+# default target versions
 DEFAULT_TYPESCRIPT_VERSION = "5.9.3"
 DEFAULT_UNDICI_TYPES_TARGETS = [
     ("v5", "5.26.4"),
@@ -22,17 +23,20 @@ DEFAULT_NODE_TARGETS = [
 DEFAULT_DENO_TARGETS = [("2.6", "2.6.3"), ("2.5", "2.5.6")]
 DEFAULT_BUN_TARGETS = [("1.3", "1.3.5"), ("1.2", "1.2.23")]
 
+# reference path parsing
 REFERENCE_PATH_PATTERN = re.compile(
     r'^///\s*<reference\s+path=(?:"([^"]+)"|\'([^\']+)\')\s*/>\s*$',
     flags=re.M,
 )
 
+# reference lib overrides
 TYPESCRIPT_REFERENCE_OVERRIDES = {
-    # typescript ships dom/webworker without explicit reference libs, so we inject them here
+    # typescript dom and webworker need injected reference libs
     "lib.dom.d.ts": ["es2015", "es2018.asynciterable", "es2020"],
     "lib.webworker.d.ts": ["es2015", "es2018.asynciterable", "es2020"],
 }
 
+# deno file mapping
 DENO_LIB_FILES = [
     ("lib.deno.ns.d.ts", ["deno", "deno.ns"]),
     ("lib.deno.shared_globals.d.ts", ["deno.shared_globals"]),
@@ -53,6 +57,7 @@ DENO_LIB_FILES = [
     ("lib.deno_webstorage.d.ts", ["deno.webstorage"]),
 ]
 
+
 def _resolve_reference_path(source_path: str, reference: str) -> str:
     """Resolve a reference path relative to the current source path."""
     # normalize path separators
@@ -67,20 +72,23 @@ def _resolve_reference_path(source_path: str, reference: str) -> str:
 
     return posixpath.normpath(normalized_reference)
 
+
 def _fetch_remote_text(url: str) -> str:
-    """Fetch a url and normalize line endings."""
+    """Fetch a URL and normalize line endings."""
     # read remote content
     with urllib.request.urlopen(url) as response:
         data = response.read().decode("utf-8")
 
     return data.replace("\r\n", "\n")
 
+
 def _fetch_remote_json(url: str) -> object:
-    """Fetch a url and parse JSON content."""
+    """Fetch a URL and parse JSON content."""
     # ensure github api requests include a user agent
     request = urllib.request.Request(url, headers={"User-Agent": "destack-builtin-fetch"})
     with urllib.request.urlopen(request) as response:
         return json.load(response)
+
 
 def _fetch_reference_tree(base_url: str, entry_path: str) -> str:
     """Fetch a file and its reference path dependencies."""
@@ -119,6 +127,7 @@ def _fetch_reference_tree(base_url: str, entry_path: str) -> str:
         raise RuntimeError("unresolved reference path in fetched types")
 
     return combined + "\n"
+
 
 def _inject_reference_libs(content: str, libs: list[str]) -> str:
     """Inject reference lib directives into content."""
@@ -159,6 +168,7 @@ def _inject_reference_libs(content: str, libs: list[str]) -> str:
     updated_lines = lines[: insert_after + 1] + insert_lines + lines[insert_after + 1 :]
     return "\n".join(updated_lines) + ("\n" if content.endswith("\n") else "")
 
+
 def _fetch_git_tree_paths(tree_url: str, prefix: str, suffix: str) -> list[str]:
     """Fetch file paths from a git tree listing."""
     # load tree listing
@@ -197,6 +207,7 @@ def _fetch_git_tree_paths(tree_url: str, prefix: str, suffix: str) -> list[str]:
 
     return paths
 
+
 def _write_text(destination_path: Path, content: str) -> None:
     """Write content to the destination path."""
     # ensure destination directory exists
@@ -204,6 +215,7 @@ def _write_text(destination_path: Path, content: str) -> None:
 
     # write content to disk
     destination_path.write_text(content, encoding="utf-8")
+
 
 def _parse_target_overrides(value: str, default: list[tuple[str, str]]) -> list[tuple[str, str]]:
     """Parse override targets from an environment variable."""
@@ -229,12 +241,14 @@ def _parse_target_overrides(value: str, default: list[tuple[str, str]]) -> list[
 
     return targets
 
+
 def _format_targets(targets: list[tuple[str, str]]) -> str:
     """Format targets for display."""
     # render target pairs
     formatted = [f"{name}:{version}" for name, version in targets]
 
     return ",".join(formatted)
+
 
 def _parse_only_targets(value: str) -> set[str]:
     """Parse the only argument into target names."""
@@ -246,6 +260,7 @@ def _parse_only_targets(value: str) -> set[str]:
     targets = {name.strip() for name in value.split(",") if name.strip()}
 
     return targets
+
 
 def _write_lib_sources(
     library_directory: Path,
@@ -295,6 +310,7 @@ def _write_lib_sources(
     content = "\n".join(lines).rstrip() + "\n"
     _write_text(destination_path, content)
 
+
 def _fetch_typescript_library(base_url: str, source_name: str, destination_path: Path) -> None:
     """Fetch one TypeScript library file."""
     # build the source url
@@ -305,6 +321,7 @@ def _fetch_typescript_library(base_url: str, source_name: str, destination_path:
     overrides = TYPESCRIPT_REFERENCE_OVERRIDES.get(source_name, [])
     content = _inject_reference_libs(content, overrides)
     _write_text(destination_path, content)
+
 
 def _fetch_typescript_es_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript ES library sources."""
@@ -402,6 +419,7 @@ def _fetch_typescript_es_libs(library_directory: Path, base_url: str) -> None:
                 group_directory / f"{file_name}.d.ts",
             )
 
+
 def _fetch_typescript_decorators_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript decorators libraries."""
     # emit the decorators label
@@ -418,6 +436,7 @@ def _fetch_typescript_decorators_libs(library_directory: Path, base_url: str) ->
         "lib.decorators.legacy.d.ts",
         library_directory / "es" / "decorators.legacy.d.ts",
     )
+
 
 def _fetch_typescript_dom_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript DOM libraries."""
@@ -440,6 +459,7 @@ def _fetch_typescript_dom_libs(library_directory: Path, base_url: str) -> None:
         "lib.dom.asynciterable.d.ts",
         library_directory / "dom" / "asynciterable.d.ts",
     )
+
 
 def _fetch_typescript_worker_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript web worker libraries."""
@@ -468,6 +488,7 @@ def _fetch_typescript_worker_libs(library_directory: Path, base_url: str) -> Non
         library_directory / "worker" / "importscripts.d.ts",
     )
 
+
 def _fetch_typescript_scripthost_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript scripthost libraries."""
     # emit the scripthost label
@@ -480,6 +501,7 @@ def _fetch_typescript_scripthost_libs(library_directory: Path, base_url: str) ->
         library_directory / "scripthost" / "index.d.ts",
     )
 
+
 def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
     """Fetch the TypeScript standard library sources."""
     # fetch standard library groups
@@ -488,6 +510,7 @@ def fetch_typescript_libs(library_directory: Path, base_url: str) -> None:
     _fetch_typescript_dom_libs(library_directory, base_url)
     _fetch_typescript_worker_libs(library_directory, base_url)
     _fetch_typescript_scripthost_libs(library_directory, base_url)
+
 
 def fetch_undici_types(library_directory: Path) -> None:
     """Fetch the undici-types package definitions."""
@@ -524,6 +547,7 @@ def fetch_undici_types(library_directory: Path) -> None:
             )
             _write_text(destination_path, content)
 
+
 def fetch_node_libs(library_directory: Path) -> None:
     """Fetch the Node.js library definitions."""
     # resolve targets
@@ -544,6 +568,7 @@ def fetch_node_libs(library_directory: Path) -> None:
         content = _fetch_reference_tree(base_url, "index.d.ts")
         destination_path = library_directory / "node" / f"v{library_version}" / "index.d.ts"
         _write_text(destination_path, content)
+
 
 def fetch_deno_libs(library_directory: Path) -> None:
     """Fetch the Deno library definitions."""
@@ -570,6 +595,7 @@ def fetch_deno_libs(library_directory: Path) -> None:
                 )
                 _write_text(destination_path, content)
 
+
 def fetch_bun_libs(library_directory: Path) -> None:
     """Fetch the Bun library definitions."""
     # resolve targets
@@ -585,13 +611,13 @@ def fetch_bun_libs(library_directory: Path) -> None:
             or f"https://raw.githubusercontent.com/oven-sh/bun/bun-v{bun_version}/packages/bun-types"
         )
 
-        # fetch bun definitions (follows /// <reference path="..." /> directives)
+        # fetch bun definitions with reference paths
         print(f"  - bun.v{library_version} {bun_version}")
         content = _fetch_reference_tree(base_url, "index.d.ts")
         destination_path = library_directory / "bun" / f"v{library_version}" / "index.d.ts"
         _write_text(destination_path, content)
 
-        # fetch vendor files (expect-type)
+        # fetch vendor files for expect type
         vendor_files = [
             "vendor/expect-type/index.d.ts",
             "vendor/expect-type/branding.d.ts",
@@ -603,6 +629,7 @@ def fetch_bun_libs(library_directory: Path) -> None:
             vendor_content = _fetch_remote_text(f"{base_url}/{vendor_file}")
             vendor_destination = library_directory / "bun" / f"v{library_version}" / vendor_file
             _write_text(vendor_destination, vendor_content)
+
 
 def _print_versions(typescript_version: str) -> None:
     """Print the configured library versions."""
@@ -628,6 +655,7 @@ def _print_versions(typescript_version: str) -> None:
     print(f"node targets: {_format_targets(node_targets)}")
     print(f"deno targets: {_format_targets(deno_targets)}")
     print(f"bun targets: {_format_targets(bun_targets)}")
+
 
 def main() -> int:
     """Run the builtin library fetcher."""

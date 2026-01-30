@@ -3,6 +3,14 @@
 // These newtypes are used as decorators that the compiler understands.
 // When applied to declarations, they affect compilation behavior.
 
+/// Marks something as a runtime binding.
+///
+/// ```
+/// @binding("destack.fs.open")
+/// function open() { }
+/// ```
+export newtype binding = (string,) | ();
+
 /// Marks something as an external symbol.
 ///
 /// ```

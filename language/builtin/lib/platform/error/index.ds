@@ -1,0 +1,12 @@
+/// Error returned by platform bindings.
+export newtype PlatformError = {
+    message: string,
+    code?: string,
+    errno?: int32,
+    syscall?: string,
+    path?: string,
+    dest?: string,
+    hostname?: string,
+    fd?: int32,
+    cause?: Error,
+};

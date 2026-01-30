@@ -2,7 +2,7 @@
 export { Type, typeOf } from "./reflect/type.ds";
 
 // ownership
-export { type Drop, type Copy, type Clone, type Send, type Sync } from "./memory/index.ds";
+export { type Bytes, type Buffer, type Drop, type Copy, type Clone, type Send, type Sync } from "./memory/index.ds";
 
 // control flow
 export { type Try, type TryBranch } from "./control/try.ds";
@@ -54,6 +54,7 @@ export {
     deny,
     forbid,
     expect,
+    binding,
     extern,
     intrinsic,
     languageItem,

@@ -295,6 +295,9 @@ define_language_symbols! {
 
     /// Well-known decorator markers (in intrinsic/).
     decorator_markers {
+        /// `@binding` marker
+        Binding => (Newtype, "intrinsic/decorator", "binding"),
+
         /// `@extern` marker
         Extern => (Newtype, "intrinsic/decorator", "extern"),
 
