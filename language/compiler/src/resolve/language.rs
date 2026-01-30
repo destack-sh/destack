@@ -54,6 +54,7 @@ impl Compiler {
         // build lib load order with dependencies first
         let version_overrides = collect_lib_version_overrides(&libs)?;
         let ordered_libs = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCIES);
             let mut ordered_libs = Vec::new();
             let mut seen_libs = HashSet::new();
             for lib_name in &libs {
@@ -68,10 +69,16 @@ impl Compiler {
         };
 
         // reject conflicting builtin lib versions before loading modules
-        self.check_builtin_lib_version_conflicts(&ordered_libs)?;
+        {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_CONFLICTS);
+            self.check_builtin_lib_version_conflicts(&ordered_libs)?;
+        }
 
         // load libs in order
-        let loaded_modules = self.load_lib_modules_in_order(builtins, &ordered_libs)?;
+        let loaded_modules = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_LOAD_MODULES);
+            self.load_lib_modules_in_order(builtins, &ordered_libs)?
+        };
         let LoadedLibModules {
             modules_to_resolve,
             lib_modules,
@@ -97,34 +104,45 @@ impl Compiler {
 
         // resolve dependency items for lib modules
         let mut collector = TaskResultCollector::new();
-        for &module_id in &lib_modules {
-            if let Err(error) = self.resolve_dependency_items(module_id, profile_id)
-                && let Some(error) = collector.try_collect::<(), _>(Err(error))
-            {
-                return Err(error);
+        {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DEPENDENCY_ITEMS);
+            for &module_id in &lib_modules {
+                if let Err(error) = self.resolve_dependency_items(module_id, profile_id)
+                    && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                {
+                    return Err(error);
+                }
             }
-        }
-        if let Some(dependency) = collector.try_into_yield_all() {
-            return Err(ResolveError::Yield { dependency });
+            if let Some(dependency) = collector.try_into_yield_all() {
+                return Err(ResolveError::Yield { dependency });
+            }
         }
 
         // build global symbol cache for lib modules
-        let global_cache = self.build_global_symbol_table_freestanding(&lib_modules, profile_id)?;
+        let global_cache = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_GLOBAL_CACHE);
+            self.build_global_symbol_table_freestanding(&lib_modules, profile_id)?
+        };
 
         // find declared symbol names from lib definitions
-        let declared_names = self.collect_declared_lib_symbol_names(&ordered_libs)?;
-        let declared_symbols = self.find_declared_lib_symbols(
-            profile_id,
-            &lib_modules,
-            &global_cache,
-            &declared_names,
-        );
+        let declared_names = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DECLARED_NAMES);
+            self.collect_declared_lib_symbol_names(&ordered_libs)?
+        };
+        let declared_symbols = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_DECLARED_SYMBOLS);
+            self.find_declared_lib_symbols(profile_id, &lib_modules, &global_cache, &declared_names)
+        };
 
         // collect all ambient lib symbols
-        let ambient_symbols =
-            self.collect_ambient_lib_symbols(profile_id, &ambient_modules, &global_cache);
-        let ambient_symbol_sources =
-            self.collect_ambient_lib_symbol_sources(&ambient_modules, &global_cache);
+        let ambient_symbols = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_AMBIENT_SYMBOLS);
+            self.collect_ambient_lib_symbols(profile_id, &ambient_modules, &global_cache)
+        };
+        let ambient_symbol_sources = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_AMBIENT_SOURCES);
+            self.collect_ambient_lib_symbol_sources(&ambient_modules, &global_cache)
+        };
 
         // cache declared lib symbols
         builtins.set_declared_lib_symbols(&profile_key, declared_symbols.clone());
@@ -134,7 +152,10 @@ impl Compiler {
         builtins.set_ambient_lib_symbol_sources(&profile_key, ambient_symbol_sources);
 
         // cache well-known symbols
-        let well_known_symbols = WellKnownSymbols::build(&self.program.strings, &declared_symbols);
+        let well_known_symbols = {
+            let _timing = self.timing_scope(tags::RESOLVE_LIBS_WELL_KNOWN);
+            WellKnownSymbols::build(&self.program.strings, &declared_symbols)
+        };
         builtins.set_well_known_symbols(&profile_key, well_known_symbols);
 
         Ok(())

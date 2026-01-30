@@ -137,24 +137,31 @@ impl Compiler {
         let cache_handle = self.cache_handle_for_module(module_id, None, None, CacheKind::Ast);
 
         // try to load AST from cache
-        if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_ast()
-        {
-            // skip stale tasks before applying cached data
-            self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-            let mut ast = ModuleAst::from_data(entry.payload);
-            ast.ensure_anchor_expression(file_id);
-            let mut module = module.write();
-            self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
-            module.code_mut().ast = Some(ast);
-            tracing::trace!(?module_id, "import.module.parse.code.cache");
-            return Ok(());
+        if let Some(cache) = cache_handle.as_ref() {
+            let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_CACHE_READ);
+            if let Ok(Some(entry)) = cache.read_ast() {
+                // skip stale tasks before applying cached data
+                self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
+                let mut ast = ModuleAst::from_data(entry.payload);
+                ast.ensure_anchor_expression(file_id);
+                let mut module = module.write();
+                self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
+                module.code_mut().ast = Some(ast);
+                tracing::trace!(?module_id, "import.module.parse.code.cache");
+                return Ok(());
+            }
         }
 
         // parse
         let language_type = LanguageType::from(file.ty);
-        let mut parser = Parser::lex_file(file.clone(), language_type);
-        let expressions = parser.parse();
+        let mut parser = {
+            let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_LEX);
+            Parser::lex_file(file.clone(), language_type)
+        };
+        let expressions = {
+            let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_TREE);
+            parser.parse()
+        };
         self.program.diagnostics.merge_from(&parser.diagnostics);
 
         // record stats
@@ -187,6 +194,7 @@ impl Compiler {
             && let Some(ast) = self.program.modules.get(module_id).read().ast_maybe()
         {
             let payload = ast.to_data();
+            let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_CACHE_WRITE);
             if let Err(error) = cache.write_ast(payload) {
                 tracing::debug!(?module_id, ?error, "import.module.parse.cache.write");
             }
