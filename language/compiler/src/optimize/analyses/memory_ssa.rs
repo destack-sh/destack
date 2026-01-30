@@ -974,48 +974,15 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::CallIndirect { arguments, env, .. } => {
                 self.call_effects(instruction, *arguments, *env)
             }
-            mir::Instruction::RawFree { pointer } => {
-                let access_type = self.pointer_access_type(*pointer);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryAccessLocation::from_pointer(
-                        *pointer,
-                        access_type,
-                        self.type_context.pointer_width_bits,
-                    ),
-                    false,
-                );
-                self.apply_pointer_location(&mut effect, *pointer);
-                Self::single_effect(effect)
-            }
-            mir::Instruction::RawDrop { value } | mir::Instruction::StackDrop { value } => {
-                let access_type = self.pointer_access_type(*value);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryAccessLocation::from_pointer(
-                        *value,
-                        access_type,
-                        self.type_context.pointer_width_bits,
-                    ),
-                    false,
-                );
-                self.apply_pointer_location(&mut effect, *value);
-                Self::single_effect(effect)
-            }
-            mir::Instruction::ManagedAlloc { destination, .. }
-            | mir::Instruction::ManagedAllocArray { destination, .. }
-            | mir::Instruction::RawAlloc { destination, .. }
-            | mir::Instruction::StackAlloc { destination, .. } => {
-                let access_type = self.pointer_access_type(*destination);
-                let mut effect = MemoryAccessEffect::write(
-                    MemoryAccessLocation::from_pointer(
-                        *destination,
-                        access_type,
-                        self.type_context.pointer_width_bits,
-                    ),
-                    false,
-                );
-                self.apply_pointer_location(&mut effect, *destination);
-                Self::single_effect(effect)
-            }
+            mir::Instruction::RawFree { .. }
+            | mir::Instruction::RawDrop { .. }
+            | mir::Instruction::StackDrop { .. }
+            | mir::Instruction::ManagedAlloc { .. }
+            | mir::Instruction::ManagedAllocArray { .. }
+            | mir::Instruction::RawAlloc { .. }
+            | mir::Instruction::StackAlloc { .. } => Self::single_effect(
+                MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
+            ),
             mir::Instruction::Intrinsic {
                 intrinsic,
                 arguments,
@@ -2921,6 +2888,68 @@ block0:
 
         // local load should see the local set
         assert_eq!(memory_ssa.defining_access(load_access), Some(store_access));
+    }
+
+    /// Drop effects are modeled as unknown read and write accesses.
+    #[test]
+    fn test_memory_ssa_drop_effect_unknown() {
+        let test = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    raw.drop v0
+    v1: i32 = iconst 0i32
+    return v1
+}"#,
+        );
+
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let drop_inst = instructions[0];
+
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
+
+        let drop_access = memory_ssa
+            .access_for_instruction(drop_inst)
+            .expect("missing drop access");
+        let effect = access_effect(memory_ssa, drop_access);
+
+        assert!(effect.reads);
+        assert!(effect.writes);
+        assert!(matches!(effect.location, MemoryAccessLocation::Unknown));
+    }
+
+    /// Allocation effects are modeled as unknown read and write accesses.
+    #[test]
+    fn test_memory_ssa_alloc_effect_unknown() {
+        let test = TestProgram::new(
+            r#"type @Point = { i32 }
+function @test() -> ref<managed @Point> {
+block0:
+    v0: ref<managed @Point> = managed.alloc @Point
+    return v0
+}"#,
+        );
+
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let alloc_inst = instructions[0];
+
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
+
+        let alloc_access = memory_ssa
+            .access_for_instruction(alloc_inst)
+            .expect("missing alloc access");
+        let effect = access_effect(memory_ssa, alloc_access);
+
+        assert!(effect.reads);
+        assert!(effect.writes);
+        assert!(matches!(effect.location, MemoryAccessLocation::Unknown));
     }
 
     /// Memcpy produces a read followed by a write access for its operands.
