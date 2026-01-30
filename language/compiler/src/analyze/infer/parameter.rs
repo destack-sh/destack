@@ -111,24 +111,32 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<Vec<GlobalSymbolId>> {
+        let cache_key = (profile, symbol);
+        if let Some(entry) = self.cached_static_parameter_symbols(cache_key.0, cache_key.1) {
+            return entry;
+        }
+
         // follow imports until a declaration provides static parameters
         let mut current = symbol;
         let mut visited = HashSet::new();
-        loop {
+        let result = loop {
             if !visited.insert(current) {
-                return None;
+                break None;
             }
 
             if current.module_id == module.id {
                 if let Some(parameters) = self
                     .collect_static_parameter_symbols_in_module(module.id, current, tree, symbols)
                 {
-                    return Some(parameters);
+                    break Some(parameters);
                 }
 
                 let symbol_entry = symbols.get_symbol(current.local_id);
                 let next = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-                let next = next?;
+                let next = match next {
+                    Some(next) => next,
+                    None => break None,
+                };
                 current = next;
                 continue;
             }
@@ -143,14 +151,20 @@ impl Compiler {
                 &remote_tree,
                 &remote_symbols,
             ) {
-                return Some(parameters);
+                break Some(parameters);
             }
 
             let symbol_entry = remote_symbols.get_symbol(current.local_id);
             let next = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
-            let next = next?;
+            let next = match next {
+                Some(next) => next,
+                None => break None,
+            };
             current = next;
-        }
+        };
+
+        self.set_cached_static_parameter_symbols(cache_key.0, cache_key.1, result.clone());
+        result
     }
 
     /// Collect static parameter symbols for a declaration in a module.

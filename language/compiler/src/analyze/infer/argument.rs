@@ -6,7 +6,8 @@ use crate::analyze::common::{
 };
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DynamicKey,
+    AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
+    DynamicKey,
     EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
     InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Mutability,
     NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
@@ -1889,6 +1890,34 @@ impl Compiler {
         );
         let symbol = self.merged_type_symbol_id(module, symbols, profile, symbol);
 
+        self.resolve_type_reference_static_arguments_for_symbol(
+            module,
+            profile,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            options,
+            tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Resolve static arguments for a canonicalized type reference.
+    pub(crate) fn resolve_type_reference_static_arguments_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // ensure remote declarations are available before resolving arguments
         if symbol.module_id != module.id {
             self.require_analyze_module_declare(symbol.module_id, profile)
@@ -2587,12 +2616,32 @@ impl Compiler {
             return Ok(None);
         }
 
-        let Some(enum_symbol) = self
-            .reference_symbol_for_expression(module, *left, profile, tree, symbols)
-            .filter(|symbol| symbol.ty() == SymbolType::Enum)
-        else {
-            return Ok(None);
+        let left_expression = tree.get(*left);
+        let mut enum_symbol = match left_expression {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            _ => return Ok(None),
         };
+        // unwrap import/export dependency items for enum symbols
+        if enum_symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+            let dependency_id = symbol_entry.primary_declaration.and_then(|primary| {
+                self.dependency_item_for_symbol(tree, primary, enum_symbol.local_id)
+            });
+            if let Some(dependency_id) = dependency_id
+                && let DependencyItem::Local { target_symbol, .. }
+                | DependencyItem::Remote { target_symbol, .. } = tree.get(dependency_id)
+            {
+                enum_symbol = *target_symbol;
+            }
+        }
+
+        // ensure enum declarations are available before scanning enum fields
+        if enum_symbol.module_id != module.id {
+            self.require_analyze_module_declare(enum_symbol.module_id, profile)
+                .map_err(AnalyzeError::from)?;
+        }
 
         if self
             .enum_field_symbol_for_name(module, profile, enum_symbol, *name, tree, symbols)

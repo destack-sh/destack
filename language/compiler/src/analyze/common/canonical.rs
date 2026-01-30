@@ -7,12 +7,21 @@ use destack_workspace::{Module, ProfileId};
 use crate::Compiler;
 
 /// Control how canonical symbol resolution treats aliases.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub(crate) enum CanonicalSymbolMode {
     /// Follow target and canonical links without preserving aliases.
     FollowAliases,
     /// Preserve alias identity when walking targets.
     PreserveAliases,
+}
+
+impl CanonicalSymbolMode {
+    fn cache_key(self) -> u8 {
+        match self {
+            CanonicalSymbolMode::FollowAliases => 0,
+            CanonicalSymbolMode::PreserveAliases => 1,
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -26,13 +35,18 @@ impl Compiler {
         symbol: GlobalSymbolId,
         mode: CanonicalSymbolMode,
     ) -> GlobalSymbolId {
+        let mode_key = mode.cache_key();
+        if let Some(cached) = self.cached_canonical_symbol(profile, symbol, mode_key) {
+            return cached;
+        }
+
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
 
         // walk target and canonical chains until we stabilize
-        loop {
+        let result = loop {
             if visited.contains(&current_symbol) {
-                return current_symbol;
+                break current_symbol;
             }
             visited.push(current_symbol);
 
@@ -60,22 +74,40 @@ impl Compiler {
             if matches!(mode, CanonicalSymbolMode::PreserveAliases)
                 && matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype)
             {
-                return current_symbol;
+                break current_symbol;
             }
 
             // otherwise, follow canonical links
             if let Some(canonical_symbol) = canonical_symbol
                 && matches!(mode, CanonicalSymbolMode::FollowAliases)
             {
-                return canonical_symbol;
+                break canonical_symbol;
             }
 
             if let Some(target_symbol) = target_symbol {
                 current_symbol = target_symbol;
             } else {
-                return current_symbol;
+                break current_symbol;
             }
+        };
+
+        self.set_cached_canonical_symbol(profile, symbol, mode_key, result);
+        result
+    }
+
+    /// Return the array well-known kind for a symbol when applicable.
+    pub(crate) fn well_known_array_kind(
+        &self,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> Option<WellKnownSymbol> {
+        if self.is_well_known_symbol(profile, symbol, WellKnownSymbol::Array) {
+            return Some(WellKnownSymbol::Array);
         }
+        if self.is_well_known_symbol(profile, symbol, WellKnownSymbol::ReadonlyArray) {
+            return Some(WellKnownSymbol::ReadonlyArray);
+        }
+        None
     }
 
     /// Resolve merged namespace symbols into the type space when possible.
@@ -156,45 +188,39 @@ impl Compiler {
     /// Normalize well-known type references into structural types when possible.
     pub(crate) fn normalize_well_known_type_reference(
         &self,
-        module: &Module,
-        symbols: &SymbolTable,
+        _module: &Module,
+        _symbols: &SymbolTable,
         profile: ProfileId,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
+        well_known: WellKnownSymbol,
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
     ) -> Option<Type> {
-        let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
+        let element = static_arguments
+            .and_then(|arguments| arguments.first())
+            .map(|argument| self.static_argument_type(argument, source_id, types));
 
-        // check array reference
-        if self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::Array) {
-            let element = static_arguments
-                .and_then(|arguments| arguments.first())
-                .map(|argument| self.static_argument_type(argument, source_id, types));
-            return Some(Type::Array {
+        match well_known {
+            WellKnownSymbol::Array => Some(Type::Array {
                 element,
                 is_readonly: false,
-            });
-        }
-
-        // check readonly array reference
-        if self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::ReadonlyArray) {
-            let element = static_arguments
-                .and_then(|arguments| arguments.first())
-                .map(|argument| self.static_argument_type(argument, source_id, types));
-            return Some(Type::Array {
+            }),
+            WellKnownSymbol::ReadonlyArray => Some(Type::Array {
                 element,
                 is_readonly: true,
-            });
+            }),
+            _ => {
+                if self.is_well_known_symbol(profile, symbol, well_known) {
+                    Some(Type::Array {
+                        element,
+                        is_readonly: false,
+                    })
+                } else {
+                    None
+                }
+            }
         }
-
-        None
     }
 
     /// Convert a static argument into a type id for type evaluation.

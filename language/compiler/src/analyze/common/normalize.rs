@@ -21,31 +21,38 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> GlobalSymbolId {
-        if symbol.module_id == module.id {
+        if let Some(cached) = self.cached_normalized_reference_symbol(profile, module.id, symbol) {
+            return cached;
+        }
+
+        let normalized = if symbol.module_id == module.id {
             let symbols = module.dir_base().symbols.read();
             let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-            return self.normalize_reference_symbol_id_with_symbols(
+            self.normalize_reference_symbol_id_with_symbols(
                 module,
                 profile,
                 module,
                 symbol,
                 &symbols,
                 symbol_entry,
-            );
-        }
+            )
+        } else {
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let symbols = remote_module.dir_base().symbols.read();
+            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+            self.normalize_reference_symbol_id_with_symbols(
+                module,
+                profile,
+                &remote_module,
+                symbol,
+                &symbols,
+                symbol_entry,
+            )
+        };
 
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let symbols = remote_module.dir_base().symbols.read();
-        let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-        self.normalize_reference_symbol_id_with_symbols(
-            module,
-            profile,
-            &remote_module,
-            symbol,
-            &symbols,
-            symbol_entry,
-        )
+        self.set_cached_normalized_reference_symbol(profile, module.id, symbol, normalized);
+        normalized
     }
 
     /// Normalize a reference symbol id using a symbol table snapshot.
@@ -382,15 +389,18 @@ impl Compiler {
                     );
 
                     // rewrite well known references to canonical shapes
-                    if let Some(normalized) = self.normalize_well_known_type_reference(
-                        module,
-                        symbols,
-                        profile,
-                        source_id,
-                        symbol,
-                        static_arguments.as_deref(),
-                        types,
-                    ) {
+                    if let Some(well_known) = self.well_known_array_kind(profile, symbol)
+                        && let Some(normalized) = self.normalize_well_known_type_reference(
+                            module,
+                            symbols,
+                            profile,
+                            source_id,
+                            symbol,
+                            well_known,
+                            static_arguments.as_deref(),
+                            types,
+                        )
+                    {
                         let normalized_id = types.insert_type_from_any(normalized, source_id);
                         self.normalize_type_inner(
                             module,
@@ -1937,17 +1947,13 @@ impl Compiler {
     ) -> LocalTypeId {
         let mut current_id = type_id;
         let mut visited = Vec::new();
-        loop {
-            // exit when the current type is not a reference
-            let (symbol, static_arguments) = match types.get_type(current_id) {
-                Type::Reference {
-                    symbol,
-                    static_arguments,
-                } => (*symbol, static_arguments.clone()),
-                _ => {
-                    break;
-                }
-            };
+        while let Type::Reference {
+            symbol,
+            static_arguments,
+        } = types.get_type(current_id)
+        {
+            let symbol = *symbol;
+            let static_arguments = static_arguments.clone();
 
             // exit when this is not a type alias
             if symbol.ty() != SymbolType::TypeAlias {
