@@ -8,6 +8,7 @@ use crate::analyze::common::{
     CanonicalSymbolMode, ConstContext, ContextualTypingMode, LiteralFreshness, RelationMode,
     WideningMode,
 };
+use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
     Compiler, FlowContext, InferContext,
@@ -1281,6 +1282,8 @@ impl Compiler {
 
             // array expression: infer element types and build array type
             Expression::ArrayExpression { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // resolve contextual type for array literals
                 let expected_ty_id = self
                     .expected_value_type(ctx.expected_type, types)
@@ -1462,6 +1465,8 @@ impl Compiler {
 
             // tuple expression: preserve positional element types
             Expression::TupleExpression { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // infer element types using any contextual type
                 let expected_ty_id = self
                     .expected_value_type(ctx.expected_type, types)
@@ -1607,6 +1612,8 @@ impl Compiler {
 
             // object expression: object type
             Expression::ObjectExpression { properties } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // apply contextual object type when available
                 let expected_object_ty_id = self.expected_object_type(
                     module,
@@ -2559,12 +2566,16 @@ impl Compiler {
 
             // template expressions: string
             Expression::TemplateExpression { value: _ } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_TEMPLATE);
+
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
                 };
                 types.insert_type_from(ty, expression_id)
             }
             Expression::TaggedTemplateExpression { tag, value } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_TEMPLATE);
+
                 self.validate_call_expression(
                     module,
                     expression_id,
@@ -2634,6 +2645,8 @@ impl Compiler {
 
             // tagged expressions for newtype construction
             Expression::TaggedScalarExpression { ty, value } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // resolve the tag type
                 let ty_id = self.try_evaluate_expression_to_type(
                     module,
@@ -2659,6 +2672,8 @@ impl Compiler {
                 ty_id
             }
             Expression::TaggedTupleExpression { ty, elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // resolve the tag type
                 let ty_id = self.try_evaluate_expression_to_type(
                     module,
@@ -2701,6 +2716,8 @@ impl Compiler {
                 ty_id
             }
             Expression::TaggedObjectExpression { ty, properties } => {
+                let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_LITERAL);
+
                 // resolve the tag type
                 let ty_id = self.try_evaluate_expression_to_type(
                     module,
@@ -4339,6 +4356,8 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_REFERENCE);
+
         // validate local references against type-only exports
         if target_symbol.module_id == module.id {
             let symbol_entry = symbols.get_symbol(target_symbol.local_id);

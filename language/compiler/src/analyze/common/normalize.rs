@@ -10,6 +10,7 @@ use destack_workspace::{Module, ProfileId};
 
 use super::{CanonicalSymbolMode, RelationMode};
 use crate::analyze::infer::Assignability;
+use crate::timing::tags;
 use crate::{AnalyzeError, Compiler};
 
 #[allow(clippy::too_many_arguments)]
@@ -179,6 +180,8 @@ impl Compiler {
         mode: NormalizationMode,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_NORMALIZE);
+
         let mut visited = Vec::new();
         self.normalize_type_inner(
             module,
@@ -2027,6 +2030,8 @@ impl Compiler {
         types: &mut TypeTable,
         relation_mode: RelationMode,
     ) -> LocalTypeId {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_APPARENT);
+
         // skip apparent type expansion when the relation mode says so
         if !relation_mode.flags.use_apparent_type {
             return type_id;

@@ -8,6 +8,7 @@ use crate::analyze::common::{
     MaterializationMode, REWRITER_TAG_INFER_MATERIALIZER, TypeRewriteCache, TypeWalkContext,
     rewrite_type_with_cache,
 };
+use crate::timing::tags;
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
 /// Track bounds for a single inference variable.
@@ -161,6 +162,8 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> LocalTypeId {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_MATERIALIZE);
+
         // shape mode placeholder to keep the variant live
         let _ = MaterializationMode::Shape;
         let mut materializer = InferTypeMaterializer::new(

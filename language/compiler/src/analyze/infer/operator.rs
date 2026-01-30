@@ -4,6 +4,7 @@ use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
+use crate::timing::tags;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,
     InferContext, OperatorLanguageSymbolExt,
@@ -33,6 +34,8 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_OPERATOR);
+
         let options = ctx.options;
         let mut right_ctx = ctx.fork().with_expected_type(None);
         let right_ty_id = self.infer_expression(
@@ -506,6 +509,8 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_OPERATOR);
+
         let options = ctx.options;
 
         // route index assignment to index set resolution
