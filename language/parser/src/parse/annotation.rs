@@ -55,6 +55,9 @@ impl Parser {
             .eat_path_with_span()
             .for_node_type(NodeType::Decorator)?;
 
+        // static arguments
+        let static_arguments = self.eat_static_arguments_maybe()?;
+
         // arguments
         let arguments = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
             self.bump(); // eat open parenthesis
@@ -78,9 +81,14 @@ impl Parser {
         };
 
         // decorator
-        let decorator = self
-            .tree
-            .insert(Decorator { left, arguments }, self.get_span_from(start));
+        let decorator = self.tree.insert(
+            Decorator {
+                left,
+                static_arguments,
+                arguments,
+            },
+            self.get_span_from(start),
+        );
         self.tree.set_main_span(decorator, left_span);
         Ok(decorator)
     }
@@ -1006,10 +1014,11 @@ mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc,
-        DocStyle, Expression, FunctionMode, Key, Member, Name, TypeKind,
+        DocStyle, Expression, FunctionKind, FunctionMode, Key, Member, Name, Parameter, TypeKind,
     };
+    use destack_source::LanguageType;
 
-    use crate::{TestParser, assert_node, assert_path, assert_string};
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     /// Empty file with only a line comment should produce a Stub with the comment attached.
     #[test]
@@ -1095,8 +1104,90 @@ function foo() { }",
         // @foo
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+            assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                 assert_path!(parser, *left, "foo");
+                assert!(static_arguments.is_none());
+                assert!(arguments.is_none());
+            });
+        });
+    }
+
+    #[test]
+    fn test_attach_decorator_with_static_arguments() {
+        let mut test = TestParser::new(
+            r"@foo<<T>(value: T) => T>()
+function foo() { }",
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
+                assert_path!(parser, *left, "foo");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            let generics = signature.generics.as_ref().expect("expected generics");
+                            let static_parameters = generics
+                                .static_parameters
+                                .as_ref()
+                                .expect("expected static parameters");
+                            assert_eq!(static_parameters.len(), 1);
+                            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
+                                assert_string!(parser, *name, "T");
+                                assert!(ty.is_none());
+                            });
+                            assert_eq!(signature.dynamic_parameters.len(), 1);
+                            assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                                assert_string!(parser, *name, "value");
+                                assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "T");
+                            });
+
+                            // match return type or body for the arrow target
+                            if let Some(return_type) = signature.return_type {
+                                assert_expression_path!(parser, parser.tree.get(return_type), "T");
+                            } else {
+                                let body = body.expect("expected body expression");
+                                assert_expression_path!(parser, parser.tree.get(body), "T");
+                            }
+                        });
+                    });
+                });
+                assert!(arguments.is_none());
+            });
+        });
+    }
+
+    /// Parse a decorator with TypeScript-style static arguments.
+    #[test]
+    fn test_attach_decorator_with_typescript_static_arguments() {
+        let mut test = TestParser::new_with_options(
+            r"@foo<T>()
+function foo() { }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
+                assert_path!(parser, *left, "foo");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "T");
+                });
                 assert!(arguments.is_none());
             });
         });
@@ -1183,8 +1274,9 @@ export enum EventStatus {
         assert_eq!(enum_annotations.len(), 1);
         assert_node!(parser.tree, enum_annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
-            assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+            assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                 assert_path!(parser, *left, "description");
+                assert!(static_arguments.is_none());
                 assert!(arguments.is_some());
             });
         });
@@ -1198,14 +1290,16 @@ export enum EventStatus {
                 let draft_annotations = parser.tree.get_annotations(fields[0].id);
                 assert_eq!(draft_annotations.len(), 2);
                 assert_node!(parser.tree, draft_annotations[0], Annotation::Decorator { node, .. } => {
-                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                    assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                         assert_path!(parser, *left, "default");
+                        assert!(static_arguments.is_none());
                         assert!(arguments.is_none());
                     });
                 });
                 assert_node!(parser.tree, draft_annotations[1], Annotation::Decorator { node, .. } => {
-                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                    assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                         assert_path!(parser, *left, "description");
+                        assert!(static_arguments.is_none());
                         assert!(arguments.is_some());
                     });
                 });
@@ -1215,8 +1309,9 @@ export enum EventStatus {
                 assert_eq!(upcoming_annotations.len(), 2);
                 assert_node!(parser.tree, upcoming_annotations[0], Annotation::Blank { .. } => {});
                 assert_node!(parser.tree, upcoming_annotations[1], Annotation::Decorator { node, .. } => {
-                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                    assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                         assert_path!(parser, *left, "description");
+                        assert!(static_arguments.is_none());
                         assert!(arguments.is_some());
                     });
                 });
@@ -1226,8 +1321,9 @@ export enum EventStatus {
                 assert_eq!(cancelled_annotations.len(), 2);
                 assert_node!(parser.tree, cancelled_annotations[0], Annotation::Blank { .. } => {});
                 assert_node!(parser.tree, cancelled_annotations[1], Annotation::Decorator { node, .. } => {
-                    assert_node!(parser.tree, *node, Decorator { left, arguments } => {
+                    assert_node!(parser.tree, *node, Decorator { left, static_arguments, arguments } => {
                         assert_path!(parser, *left, "description");
+                        assert!(static_arguments.is_none());
                         assert!(arguments.is_some());
                     });
                 });

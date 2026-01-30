@@ -71,18 +71,54 @@ impl Compiler {
                 let position = self.unbind_annotation_position(context, *position);
                 // Unbind the left expression to get a path
                 let left_expr = tree.get(*left);
-                let path = match left_expr {
-                    dir::Expression::UnresolvedPath { path, .. }
-                    | dir::Expression::LocalReference { path, .. }
-                    | dir::Expression::ModuleReference { path, .. }
-                    | dir::Expression::GlobalReference { path, .. } => {
-                        self.unbind_path(path, ast_strings, context)
+                let (path, static_arguments) = match left_expr {
+                    dir::Expression::UnresolvedPath {
+                        path,
+                        static_arguments,
+                        ..
+                    }
+                    | dir::Expression::LocalReference {
+                        path,
+                        static_arguments,
+                        ..
+                    }
+                    | dir::Expression::ModuleReference {
+                        path,
+                        static_arguments,
+                        ..
+                    }
+                    | dir::Expression::GlobalReference {
+                        path,
+                        static_arguments,
+                        ..
+                    } => {
+                        let path = self.unbind_path(path, ast_strings, context);
+                        let static_arguments = static_arguments.as_ref().map(|arguments| {
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    self.unbind_argument(
+                                        module,
+                                        *argument,
+                                        tree,
+                                        symbols,
+                                        ast_tree,
+                                        ast_strings,
+                                        context,
+                                    )
+                                })
+                                .collect()
+                        });
+                        (path, static_arguments)
                     }
                     _ => {
                         // Fallback: a single-segment path with an error placeholder
-                        ast::Path {
-                            segments: smallvec::smallvec![ast_strings.intern("__error__")],
-                        }
+                        (
+                            ast::Path {
+                                segments: smallvec::smallvec![ast_strings.intern("__error__")],
+                            },
+                            None,
+                        )
                     }
                 };
                 let arguments = arguments.as_ref().map(|args| {
@@ -102,6 +138,7 @@ impl Compiler {
                 });
                 let decorator = ast::Decorator {
                     left: path,
+                    static_arguments,
                     arguments,
                 };
                 let decorator_id = ast_tree.insert(decorator, span);

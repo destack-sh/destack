@@ -109,6 +109,24 @@ impl Compiler {
 
                 // bind the path as a Path expression
                 let path = self.bind_path(module, ast, &decorator.left);
+                let static_arguments = decorator.static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.bind_argument(
+                                module,
+                                ast,
+                                scope,
+                                *argument,
+                                Some(annotation_id),
+                                tree,
+                                symbols,
+                                types,
+                                SymbolSpaceOrder::TypeThenValue,
+                            )
+                        })
+                        .collect()
+                });
                 let left_id = tree.reserve_from_source(
                     NodeType::Expression,
                     node.id, // use decorator node as source
@@ -119,7 +137,7 @@ impl Compiler {
                     left_id,
                     Expression::UnresolvedPath {
                         path,
-                        static_arguments: None,
+                        static_arguments,
                         space_order: SymbolSpaceOrder::ValueThenType,
                     },
                 );

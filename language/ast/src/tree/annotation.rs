@@ -143,6 +143,8 @@ impl Node for Comment {
 pub struct Decorator {
     /// The decorator name / path.
     pub left: Path,
+    /// The static arguments (if any).
+    pub static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     /// The arguments (if any).
     pub arguments: Option<Vec<LocalNodeId<Argument>>>,
 }

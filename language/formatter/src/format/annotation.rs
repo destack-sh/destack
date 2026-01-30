@@ -2,6 +2,7 @@ use destack_fir::format::{Format, FormatResult, hard_line_break};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
 
+use crate::argument::list_like;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
@@ -389,6 +390,11 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [token("@"), self.left])?;
+        if let Some(static_arguments) = &self.static_arguments
+            && !static_arguments.is_empty()
+        {
+            write!(f, [list_like("<", ">", ",", static_arguments)])?;
+        }
         if let Some(arguments) = &self.arguments
             && !arguments.is_empty()
         {
