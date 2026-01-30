@@ -19,6 +19,9 @@ mod optimize;
 mod resolve;
 mod unbind;
 
+#[cfg(feature = "bench")]
+pub mod bench;
+
 pub use analyze::*;
 pub(crate) use analyze::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub use cache::*;

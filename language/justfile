@@ -173,6 +173,10 @@ bench:
 bench-compiler:
     cargo bench -p destack_compiler -- destack_compile
 
+# run compiler bench stats
+bench-compiler-stats args="--help":
+    cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
+
 # run lexer benchmarks
 bench-lexer:
     cargo bench -p destack_parser -- destack_lex
