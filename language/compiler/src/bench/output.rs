@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::bench::runner::{BenchMode, BenchOptions, BenchOutputFormat, LibTiming};
 
-const COLUMN_GAP: &str = "  ";
+const COLUMN_GAP: &str = "   ";
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
@@ -43,13 +43,37 @@ pub(super) fn format_duration(duration: Duration) -> String {
     format!("{ms:.3}ms")
 }
 
-/// Format a percentage for output.
-fn format_percent(value: f64) -> String {
-    if value >= 100.0 {
-        return format!("{value:.0}%");
+/// Format a count with digit grouping.
+fn format_count(value: usize) -> String {
+    let raw = value.to_string();
+    let mut out = String::with_capacity(raw.len() + raw.len() / 3);
+    for (index, ch) in raw.chars().rev().enumerate() {
+        if index > 0 && index % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
     }
+    out.chars().rev().collect()
+}
 
-    format!("{value:.1}%")
+/// Format a mean line count with a single decimal.
+fn format_mean_lines(value: f64) -> String {
+    let formatted = format!("{value:.1}");
+    let Some((int_part, frac_part)) = formatted.split_once('.') else {
+        return formatted;
+    };
+    let int_value = int_part.parse::<usize>().unwrap_or(0);
+    format!("{}.{}", format_count(int_value), frac_part)
+}
+
+/// Format a lines per second rate with a single decimal.
+fn format_lines_per_sec(value: f64) -> String {
+    let formatted = format!("{value:.1}");
+    let Some((int_part, frac_part)) = formatted.split_once('.') else {
+        return format!("{formatted}/s");
+    };
+    let int_value = int_part.parse::<usize>().unwrap_or(0);
+    format!("{}.{}{}", format_count(int_value), frac_part, "/s")
 }
 
 /// Escape a string for json output.
@@ -92,7 +116,22 @@ fn output_json(timings: &[LibTiming], options: &BenchOptions) {
         }
         output.push_str("{\"lib\":\"");
         output.push_str(&json_escape(&timing.name));
-        output.push_str("\",\"import_ms\":");
+        output.push_str("\",\"modules\":");
+        output.push_str(&timing.module_count.to_string());
+        output.push_str(",\"lines_total\":");
+        output.push_str(&timing.total_lines.to_string());
+        output.push_str(",\"lines_min\":");
+        output.push_str(&timing.min_lines.to_string());
+        output.push_str(",\"lines_max\":");
+        output.push_str(&timing.max_lines.to_string());
+        output.push_str(",\"lines_mean\":");
+        output.push_str(&format!("{:.1}", timing.mean_lines));
+        output.push_str(",\"lines_per_sec\":");
+        output.push_str(&format!(
+            "{:.1}",
+            timing.total_lines as f64 / timing.total.as_secs_f64().max(0.000_001)
+        ));
+        output.push_str(",\"import_ms\":");
         output.push_str(&format!("{:.3}", timing.import.as_secs_f64() * 1000.0));
         output.push_str(",\"resolve_ms\":");
         output.push_str(&format!("{:.3}", timing.resolve.as_secs_f64() * 1000.0));
@@ -109,11 +148,19 @@ fn output_json(timings: &[LibTiming], options: &BenchOptions) {
 
 /// Emit results as csv.
 fn output_csv(timings: &[LibTiming]) {
-    println!("lib,import_ms,resolve_ms,analyze_ms,total_ms");
+    println!(
+        "lib,modules,lines_total,lines_min,lines_max,lines_mean,lines_per_sec,import_ms,resolve_ms,analyze_ms,total_ms"
+    );
     for timing in timings {
         println!(
-            "{},{:.3},{:.3},{:.3},{:.3}",
+            "{},{},{},{},{},{:.1},{:.1},{:.3},{:.3},{:.3},{:.3}",
             csv_escape(&timing.name),
+            timing.module_count,
+            timing.total_lines,
+            timing.min_lines,
+            timing.max_lines,
+            timing.mean_lines,
+            timing.total_lines as f64 / timing.total.as_secs_f64().max(0.000_001),
             timing.import.as_secs_f64() * 1000.0,
             timing.resolve.as_secs_f64() * 1000.0,
             timing.analyze.as_secs_f64() * 1000.0,
@@ -134,8 +181,18 @@ struct TableWidths {
     analyze: usize,
     /// Width for the total column.
     total: usize,
-    /// Width for the share column.
-    share: usize,
+    /// Width for the modules column.
+    modules: usize,
+    /// Width for the lines column.
+    lines: usize,
+    /// Width for the min lines column.
+    min_lines: usize,
+    /// Width for the max lines column.
+    max_lines: usize,
+    /// Width for the mean lines column.
+    mean_lines: usize,
+    /// Width for the lines per second column.
+    lines_per_sec: usize,
 }
 
 impl TableWidths {
@@ -143,11 +200,16 @@ impl TableWidths {
     fn new() -> Self {
         Self {
             lib: "Library".len().max(12),
-            import: "Import".len().max(8),
-            resolve: "Resolve".len().max(8),
-            analyze: "Analyze".len().max(8),
-            total: "Total".len().max(8),
-            share: "Share".len().max(7),
+            import: "Import".len().max(9),
+            resolve: "Resolve".len().max(9),
+            analyze: "Analyze".len().max(9),
+            total: "Total".len().max(9),
+            modules: "Modules".len().max(8),
+            lines: "Lines".len().max(9),
+            min_lines: "Min".len().max(5),
+            max_lines: "Max".len().max(5),
+            mean_lines: "Mean".len().max(6),
+            lines_per_sec: "Lines/s".len().max(10),
         }
     }
 
@@ -158,7 +220,12 @@ impl TableWidths {
         self.resolve = self.resolve.max(row.resolve.len());
         self.analyze = self.analyze.max(row.analyze.len());
         self.total = self.total.max(row.total.len());
-        self.share = self.share.max(row.share.len());
+        self.modules = self.modules.max(row.modules.len());
+        self.lines = self.lines.max(row.lines.len());
+        self.min_lines = self.min_lines.max(row.min_lines.len());
+        self.max_lines = self.max_lines.max(row.max_lines.len());
+        self.mean_lines = self.mean_lines.max(row.mean_lines.len());
+        self.lines_per_sec = self.lines_per_sec.max(row.lines_per_sec.len());
     }
 
     /// Return the full table width in characters.
@@ -168,8 +235,13 @@ impl TableWidths {
             + self.resolve
             + self.analyze
             + self.total
-            + self.share
-            + COLUMN_GAP.len() * 5
+            + self.modules
+            + self.lines
+            + self.min_lines
+            + self.max_lines
+            + self.mean_lines
+            + self.lines_per_sec
+            + COLUMN_GAP.len() * 10
     }
 }
 
@@ -185,8 +257,18 @@ struct TableRow {
     analyze: String,
     /// Total duration string.
     total: String,
-    /// Share string.
-    share: String,
+    /// Modules count string.
+    modules: String,
+    /// Total lines string.
+    lines: String,
+    /// Min lines string.
+    min_lines: String,
+    /// Max lines string.
+    max_lines: String,
+    /// Mean lines string.
+    mean_lines: String,
+    /// Lines per second string.
+    lines_per_sec: String,
     /// Total duration for color scaling.
     total_duration: Duration,
 }
@@ -277,6 +359,15 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
     let total_all = timings
         .iter()
         .fold(Duration::ZERO, |acc, entry| acc + entry.total);
+    let total_modules = timings.iter().map(|entry| entry.module_count).sum::<usize>();
+    let total_lines = timings.iter().map(|entry| entry.total_lines).sum::<usize>();
+    let min_lines = timings.iter().map(|entry| entry.min_lines).min().unwrap_or(0);
+    let max_lines = timings.iter().map(|entry| entry.max_lines).max().unwrap_or(0);
+    let mean_lines = if total_modules == 0 {
+        0.0
+    } else {
+        total_lines as f64 / total_modules as f64
+    };
 
     let min_total = timings
         .iter()
@@ -301,18 +392,20 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
 
     let mut table_rows = Vec::with_capacity(rows.len());
     for timing in rows {
-        let share = if total_all.is_zero() {
-            0.0
-        } else {
-            timing.total.as_secs_f64() / total_all.as_secs_f64() * 100.0
-        };
         table_rows.push(TableRow {
             name: timing.name.clone(),
             import: format_duration(timing.import),
             resolve: format_duration(timing.resolve),
             analyze: format_duration(timing.analyze),
             total: format_duration(timing.total),
-            share: format_percent(share),
+            modules: format_count(timing.module_count),
+            lines: format_count(timing.total_lines),
+            min_lines: format_count(timing.min_lines),
+            max_lines: format_count(timing.max_lines),
+            mean_lines: format_mean_lines(timing.mean_lines),
+            lines_per_sec: format_lines_per_sec(
+                timing.total_lines as f64 / timing.total.as_secs_f64().max(0.000_001),
+            ),
             total_duration: timing.total,
         });
     }
@@ -327,19 +420,29 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
 
     println!();
     println!(
-        "{bold}{:<lib_width$}{reset}{gap}{:>import_width$}{gap}{:>resolve_width$}{gap}{:>analyze_width$}{gap}{:>total_width$}{gap}{:>share_width$}{reset}",
-        "Library",
-        "Import",
-        "Resolve",
-        "Analyze",
-        "Total",
-        "Share",
+        "{bold}{lib:<lib_width$}{reset}{gap}{import:>import_width$}{gap}{resolve:>resolve_width$}{gap}{analyze:>analyze_width$}{gap}{total:>total_width$}{gap}{modules:>modules_width$}{gap}{lines:>lines_width$}{gap}{min:>min_lines_width$}{gap}{max:>max_lines_width$}{gap}{mean:>mean_lines_width$}{gap}{lines_per_sec:>lines_per_sec_width$}{reset}",
+        lib = "Library",
+        import = "Import",
+        resolve = "Resolve",
+        analyze = "Analyze",
+        total = "Total",
+        modules = "Modules",
+        lines = "Lines",
+        min = "Min",
+        max = "Max",
+        mean = "Mean",
+        lines_per_sec = "Lines/s",
         lib_width = widths.lib,
         import_width = widths.import,
         resolve_width = widths.resolve,
         analyze_width = widths.analyze,
         total_width = widths.total,
-        share_width = widths.share,
+        modules_width = widths.modules,
+        lines_width = widths.lines,
+        min_lines_width = widths.min_lines,
+        max_lines_width = widths.max_lines,
+        mean_lines_width = widths.mean_lines,
+        lines_per_sec_width = widths.lines_per_sec,
         gap = COLUMN_GAP,
         bold = style.bold,
         reset = style.reset,
@@ -388,23 +491,32 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
     for row in &table_rows {
         let total_color = style.color_for_total(row.total_duration, min_total, max_total);
         println!(
-            "{cyan}{:<lib_width$}{reset}{gap}{:>import_width$}{gap}{:>resolve_width$}{gap}{:>analyze_width$}{gap}{total_color}{:>total_width$}{reset}{gap}{dim}{:>share_width$}{reset}",
-            row.name,
-            row.import,
-            row.resolve,
-            row.analyze,
-            row.total,
-            row.share,
+            "{cyan}{lib:<lib_width$}{reset}{gap}{import:>import_width$}{gap}{resolve:>resolve_width$}{gap}{analyze:>analyze_width$}{gap}{total_color}{total:>total_width$}{reset}{gap}{modules:>modules_width$}{gap}{lines:>lines_width$}{gap}{min:>min_lines_width$}{gap}{max:>max_lines_width$}{gap}{mean:>mean_lines_width$}{gap}{lines_per_sec:>lines_per_sec_width$}{reset}",
+            lib = row.name,
+            import = row.import,
+            resolve = row.resolve,
+            analyze = row.analyze,
+            total = row.total,
+            modules = row.modules,
+            lines = row.lines,
+            min = row.min_lines,
+            max = row.max_lines,
+            mean = row.mean_lines,
+            lines_per_sec = row.lines_per_sec,
             lib_width = widths.lib,
             import_width = widths.import,
             resolve_width = widths.resolve,
             analyze_width = widths.analyze,
             total_width = widths.total,
-            share_width = widths.share,
+            modules_width = widths.modules,
+            lines_width = widths.lines,
+            min_lines_width = widths.min_lines,
+            max_lines_width = widths.max_lines,
+            mean_lines_width = widths.mean_lines,
+            lines_per_sec_width = widths.lines_per_sec,
             gap = COLUMN_GAP,
             cyan = style.cyan,
             total_color = total_color,
-            dim = style.dim,
             reset = style.reset,
         );
     }
@@ -416,19 +528,29 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
         reset = style.reset
     );
     println!(
-        "{bold}{:<lib_width$}{reset}{gap}{:>import_width$}{gap}{:>resolve_width$}{gap}{:>analyze_width$}{gap}{:>total_width$}{reset}{gap}{:>share_width$}{reset}",
-        "Total",
-        format_duration(total_import),
-        format_duration(total_resolve),
-        format_duration(total_analyze),
-        format_duration(total_all),
-        format_percent(100.0),
+        "{bold}{lib:<lib_width$}{reset}{gap}{import:>import_width$}{gap}{resolve:>resolve_width$}{gap}{analyze:>analyze_width$}{gap}{total:>total_width$}{reset}{gap}{modules:>modules_width$}{gap}{lines:>lines_width$}{gap}{min:>min_lines_width$}{gap}{max:>max_lines_width$}{gap}{mean:>mean_lines_width$}{gap}{lines_per_sec:>lines_per_sec_width$}{reset}",
+        lib = "Total",
+        import = format_duration(total_import),
+        resolve = format_duration(total_resolve),
+        analyze = format_duration(total_analyze),
+        total = format_duration(total_all),
+        modules = format_count(total_modules),
+        lines = format_count(total_lines),
+        min = format_count(min_lines),
+        max = format_count(max_lines),
+        mean = format_mean_lines(mean_lines),
+        lines_per_sec = format_lines_per_sec(total_lines as f64 / total_all.as_secs_f64().max(0.000_001)),
         lib_width = widths.lib,
         import_width = widths.import,
         resolve_width = widths.resolve,
         analyze_width = widths.analyze,
         total_width = widths.total,
-        share_width = widths.share,
+        modules_width = widths.modules,
+        lines_width = widths.lines,
+        min_lines_width = widths.min_lines,
+        max_lines_width = widths.max_lines,
+        mean_lines_width = widths.mean_lines,
+        lines_per_sec_width = widths.lines_per_sec,
         gap = COLUMN_GAP,
         bold = style.bold,
         reset = style.reset,
@@ -445,11 +567,16 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
 fn write_timings_csv(timings: &[LibTiming], path: &str) -> std::io::Result<()> {
     // build CSV output in memory
     let mut output = String::new();
-    output.push_str("lib,import_ms,resolve_ms,analyze_ms,total_ms\n");
+    output.push_str("lib,modules,lines_total,lines_min,lines_max,lines_mean,import_ms,resolve_ms,analyze_ms,total_ms\n");
     for entry in timings {
         output.push_str(&format!(
-            "{},{:.3},{:.3},{:.3},{:.3}\n",
+            "{},{},{},{},{},{:.1},{:.3},{:.3},{:.3},{:.3}\n",
             csv_escape(&entry.name),
+            entry.module_count,
+            entry.total_lines,
+            entry.min_lines,
+            entry.max_lines,
+            entry.mean_lines,
             entry.import.as_secs_f64() * 1000.0,
             entry.resolve.as_secs_f64() * 1000.0,
             entry.analyze.as_secs_f64() * 1000.0,
