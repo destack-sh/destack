@@ -727,7 +727,7 @@ impl Compiler {
 
         // resolve unevaluated target types for cast classification
         let target_type_id = self
-            .evaluate_unevaluated_type(module, profile, target_type_id, tree, symbols, types)
+            .ensure_type_evaluated(module, profile, target_type_id, tree, symbols, types)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 node: types
                     .get_type_source(target_type_id)

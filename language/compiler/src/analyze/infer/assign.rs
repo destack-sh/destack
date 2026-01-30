@@ -11,8 +11,8 @@ use super::{
     field_key_matches_index_kind, index_key_kind_for_type,
     index_key_kinds_compatible_for_assignability,
 };
-use crate::{AnalyzeOptions, Compiler};
 use crate::timing::tags;
+use crate::{AnalyzeOptions, Compiler};
 
 /// Clear assignability recursion state on drop.
 struct AssignabilityGuard {

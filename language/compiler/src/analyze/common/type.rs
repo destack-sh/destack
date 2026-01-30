@@ -740,8 +740,8 @@ impl Compiler {
         visitor.found
     }
 
-    /// Evaluate a type id in place when it is unevaluated.
-    pub(crate) fn evaluate_unevaluated_type(
+    /// Ensure a type id is evaluated when it is unevaluated.
+    pub(crate) fn ensure_type_evaluated(
         &self,
         module: &Module,
         profile: ProfileId,

@@ -1825,7 +1825,11 @@ impl Compiler {
         resolve_static_arguments: bool,
     ) -> AnalyzeResult<Option<Type>> {
         let options = self.analyze_context_options_for_module(module.id);
+        let module_checks = self.module_check_options_for_module(module.id);
         let is_user_module = matches!(module.source, ModuleSource::User);
+        let defer_reference_resolution = module.language_type.is_declaration()
+            && !self.options.validate_builtin_libs
+            && (module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)));
 
         let expression = tree.get(expression_id);
         let ty = match expression {
@@ -1921,12 +1925,15 @@ impl Compiler {
                         types,
                     )?
                 };
+                let resolve_static_arguments =
+                    resolve_static_arguments && !defer_reference_resolution;
                 if !resolve_static_arguments {
                     return Ok(Some(Type::Reference {
                         symbol: target_symbol,
                         static_arguments,
                     }));
                 }
+
                 let options = self.analyze_context_options_for_module(module.id);
                 // skip resolution when we know the reference is non-generic
                 let has_explicit_arguments = static_arguments
@@ -2098,8 +2105,8 @@ impl Compiler {
                         operator: UnaryOperator::Not,
                         right,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let type_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2142,8 +2149,8 @@ impl Compiler {
                         variance,
                         right,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let type_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2166,8 +2173,8 @@ impl Compiler {
                         variance,
                         right,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let type_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2186,8 +2193,8 @@ impl Compiler {
                     }
                     // pointer
                     Expression::PointerOf { mutability, right } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let type_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2217,8 +2224,8 @@ impl Compiler {
                             )?));
                         }
 
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let right_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2240,8 +2247,8 @@ impl Compiler {
                         operator,
                         right,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let left_id = self.try_evaluate_expression_to_type(
                             module,
                             profile,
@@ -2493,8 +2500,8 @@ impl Compiler {
                         }
                     }
                     Expression::TypeTemplateLiteral { strings, spans } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let spans = spans
                             .iter()
                             .map(|span| {
@@ -2520,8 +2527,8 @@ impl Compiler {
                         qualifier,
                         static_arguments,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let static_arguments = self.evaluate_static_arguments(
                             module,
                             profile,
@@ -2537,8 +2544,8 @@ impl Compiler {
                         }
                     }
                     Expression::TypeInfer { name, constraint } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let constraint = constraint.map(|constraint| {
                             self.try_evaluate_expression_to_type(
                                 module,
@@ -2563,8 +2570,8 @@ impl Compiler {
                         subject,
                         target,
                     } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
                         let target = target.map(|target| {
                             self.try_evaluate_expression_to_type(
                                 module,
@@ -2825,8 +2832,8 @@ impl Compiler {
 
                     // tuple (anonymous)
                     Expression::ArrayExpression { elements } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                         // evaluate element types
                         let mut element_types = Vec::with_capacity(elements.len());
                         for element_id in elements {
@@ -2877,8 +2884,8 @@ impl Compiler {
 
                     // tuple (anonymous)
                     Expression::TupleExpression { elements } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                         // evaluate element types
                         let mut element_types = Vec::with_capacity(elements.len());
                         for element_id in elements {
@@ -2927,8 +2934,8 @@ impl Compiler {
                     }
                     // object (anonymous)
                     Expression::ObjectExpression { properties } => {
-                        let _timing = self
-                            .timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                        let _timing =
+                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
                         // evaluate object fields
                         // #Cleanup: extract property -> type field evaluation?
                         let mut fields = Vec::with_capacity(properties.len());

@@ -8,13 +8,12 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
-    DynamicKey,
-    EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
-    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Mutability,
-    NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticParameter,
-    StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions, TypeTable,
-    rewrite_type,
+    DynamicKey, EnumFieldValue, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
+    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId,
+    Mutability, NodeTree, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeLiteral, TypeMappedParameter, TypeRewriter, TypeRewriterOptions,
+    TypeTable, rewrite_type,
 };
 use destack_workspace::{Module, ProfileId};
 

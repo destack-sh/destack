@@ -5,8 +5,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, TaskDependencyError, TaskResultCollector,
 };
 use destack_dir::{
-    Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type,
-    TypeTable,
+    Export, GlobalSymbolId, NodeTree, StaticKey, SymbolSpace, SymbolTable, SymbolType, TypeTable,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ProfileId};
@@ -187,9 +186,7 @@ impl Compiler {
             };
 
             // evaluate unevaluated alias targets in place
-            if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
-                self.evaluate_type(module, profile, alias_target_id, tree, symbols, types)?;
-            }
+            self.ensure_type_evaluated(module, profile, alias_target_id, tree, symbols, types)?;
 
             // materialize value static arguments when needed
             let needs_materialization = self.type_contains_unevaluated_value_static_arguments(

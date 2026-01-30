@@ -1,11 +1,13 @@
+use std::collections::VecDeque;
+
 use crate::timing::tags;
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, Task, TaskDependencyError,
-    TaskResultCollector,
+    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, ModuleCheckOptions, Task,
+    TaskDependencyError, TaskResultCollector,
 };
 use destack_dir::{LocalTypeId, Type};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure a module's types have been declared (evaluated).
@@ -65,33 +67,7 @@ impl Compiler {
         self.require_resolve_builtins(profile)?;
 
         // ensure ambient libs are declared before user modules
-        let mut lib_collector = TaskResultCollector::new();
-        if self.options.load_libs && module.is_user() {
-            if let Err(error) = self.require_resolve_libs(profile)
-                && let Some(error) = lib_collector.try_collect::<(), _>(Err(error))
-            {
-                return Err(AnalyzeError::from(error));
-            }
-            if let Some(builtins) = self.program.builtins.as_ref() {
-                let profile_key = &self.program.profile(profile).key;
-                if let Some(ambient_libs) = builtins.ambient_libs(profile_key) {
-                    for lib_module_id in ambient_libs {
-                        if lib_module_id == module_id {
-                            continue;
-                        }
-                        if let Err(error) =
-                            self.require_analyze_module_declare(lib_module_id, profile)
-                            && let Some(error) = lib_collector.try_collect::<(), _>(Err(error))
-                        {
-                            return Err(AnalyzeError::from(error));
-                        }
-                    }
-                }
-            }
-        }
-        if let Some(dependency) = lib_collector.try_into_yield_any() {
-            return Err(AnalyzeError::Yield { dependency });
-        }
+        self.ensure_ambient_libs_declared(&module, profile)?;
 
         // snapshot the module dir tables for analysis
         let dir = module.dir(profile);
@@ -99,75 +75,29 @@ impl Compiler {
         let mut types = dir.types.write();
         let symbols = dir.symbols.read();
         let mut collector = TaskResultCollector::new();
-        let mut has_dependency = false;
+        let module_checks = self.module_check_options_for_module(module.id);
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
-            // evaluate unevaluated types to a fixed point
-            let mut pending: Vec<LocalTypeId> = (0..types.type_count())
-                .map(LocalTypeId::new)
-                .filter(|ty_id| matches!(types.get_type(*ty_id), Type::Unevaluated(_)))
-                .collect();
-            let mut did_change = true;
-            while did_change && !pending.is_empty() {
-                did_change = false;
-                let mut next_pending = Vec::new();
-                let type_count = types.type_count();
-
-                for ty_id in pending {
-                    let was_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
-                    if !was_unevaluated {
-                        continue;
-                    }
-
-                    // evaluate the type and track progress
-                    self.collect(
-                        &mut collector,
-                        self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
-                    );
-
-                    // stop early once a dependency yield is detected
-                    if collector.has_dependencies() {
-                        has_dependency = true;
-                        break;
-                    }
-
-                    let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
-                    if is_unevaluated {
-                        next_pending.push(ty_id);
-                    } else {
-                        did_change = true;
-                    }
-                }
-
-                // stop after dependency detection
+            // run eager evaluation when required
+            if self.should_eager_evaluate_declared_types(&module, module_checks) {
+                let has_dependency = self.evaluate_unevaluated_types_to_fixpoint(
+                    &module,
+                    profile,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                    &mut collector,
+                );
                 if has_dependency {
-                    break;
-                }
-
-                // add any newly created unevaluated types
-                let new_type_count = types.type_count();
-                if new_type_count > type_count {
-                    for i in type_count..new_type_count {
-                        let ty_id = LocalTypeId::new(i);
-                        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-                            next_pending.push(ty_id);
-                        }
+                    if let Some(dependency) = collector.try_into_yield_any() {
+                        return Err(AnalyzeError::Yield { dependency });
                     }
+
+                    return Ok(());
                 }
-
-                pending = next_pending;
             }
-        }
-
-        // yield early when a dependency blocked evaluation
-        if has_dependency {
-            if let Some(dependency) = collector.try_into_yield_any() {
-                return Err(AnalyzeError::Yield { dependency });
-            }
-
-            return Ok(());
         }
 
         // reset collector for declaration steps
@@ -176,7 +106,7 @@ impl Compiler {
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_DECLARATIONS);
 
-            // declare type-level declarations and shapes
+            // declare type level declarations and shapes
             self.collect(
                 &mut collector,
                 self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
@@ -220,5 +150,130 @@ impl Compiler {
 
         // return the collected result
         Ok(())
+    }
+
+    /// Ensure ambient libs are declared before analyzing a user module.
+    fn ensure_ambient_libs_declared(
+        &self,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        // collect dependency yields
+        let mut collector = TaskResultCollector::new();
+
+        if self.options.load_libs && module.is_user() {
+            // resolve libs before declaring ambient modules
+            if let Err(error) = self.require_resolve_libs(profile)
+                && let Some(error) = collector.try_collect::<(), _>(Err(error))
+            {
+                return Err(AnalyzeError::from(error));
+            }
+
+            if let Some(builtins) = self.program.builtins.as_ref() {
+                let profile_key = &self.program.profile(profile).key;
+                if let Some(ambient_libs) = builtins.ambient_libs(profile_key) {
+                    for lib_module_id in ambient_libs {
+                        if lib_module_id == module.id {
+                            continue;
+                        }
+                        if let Err(error) =
+                            self.require_analyze_module_declare(lib_module_id, profile)
+                            && let Some(error) = collector.try_collect::<(), _>(Err(error))
+                        {
+                            return Err(AnalyzeError::from(error));
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Some(dependency) = collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
+
+        Ok(())
+    }
+
+    /// Decide whether declared types should be eagerly evaluated for a module.
+    fn should_eager_evaluate_declared_types(
+        &self,
+        module: &destack_workspace::Module,
+        module_checks: ModuleCheckOptions,
+    ) -> bool {
+        // eager evaluation is only skipped for declaration libs with skip lib check
+        if !module.language_type.is_declaration() {
+            return true;
+        }
+        if self.options.validate_builtin_libs {
+            return true;
+        }
+        if module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)) {
+            return false;
+        }
+
+        true
+    }
+
+    /// Evaluate unevaluated types to a fixed point.
+    ///
+    /// Returns true if evaluation yielded dependencies.
+    fn evaluate_unevaluated_types_to_fixpoint(
+        &self,
+        module: &destack_workspace::Module,
+        profile: ProfileId,
+        tree: &destack_dir::NodeTree,
+        symbols: &destack_dir::SymbolTable,
+        types: &mut destack_dir::TypeTable,
+        collector: &mut TaskResultCollector,
+    ) -> bool {
+        // seed the worklist
+        let mut pending: VecDeque<LocalTypeId> = (0..types.type_count())
+            .map(LocalTypeId::new)
+            .filter(|ty_id| matches!(types.get_type(*ty_id), Type::Unevaluated(_)))
+            .collect();
+        let mut did_change = true;
+
+        while did_change && !pending.is_empty() {
+            did_change = false;
+            let mut next_pending = VecDeque::new();
+            let type_count = types.type_count();
+
+            // evaluate pending types
+            while let Some(ty_id) = pending.pop_front() {
+                if !matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                    continue;
+                }
+
+                self.collect(
+                    collector,
+                    self.evaluate_type(module, profile, ty_id, tree, symbols, types),
+                );
+
+                if collector.has_dependencies() {
+                    return true;
+                }
+
+                if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                    next_pending.push_back(ty_id);
+                } else {
+                    did_change = true;
+                }
+            }
+
+            // add newly created unevaluated types
+            let new_type_count = types.type_count();
+            if new_type_count > type_count {
+                for i in type_count..new_type_count {
+                    let ty_id = LocalTypeId::new(i);
+                    if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                        next_pending.push_back(ty_id);
+                    }
+                }
+            }
+
+            pending = next_pending;
+        }
+
+        false
     }
 }

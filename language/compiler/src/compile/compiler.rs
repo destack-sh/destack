@@ -78,6 +78,8 @@ pub struct CompilerOptions {
 
     /// Whether to collect detailed timing tags.
     pub timings: bool,
+    /// Whether to validate builtin declaration libs eagerly.
+    pub validate_builtin_libs: bool,
 }
 
 impl Default for CompilerOptions {
@@ -108,6 +110,7 @@ impl Default for CompilerOptions {
 
             event_handler: None,
             timings: false,
+            validate_builtin_libs: false,
         }
     }
 }
@@ -143,6 +146,7 @@ impl std::fmt::Debug for CompilerOptions {
             .field("emit_dry_run", &self.emit_dry_run)
             .field("event_handler", &self.event_handler.is_some())
             .field("timings", &self.timings)
+            .field("validate_builtin_libs", &self.validate_builtin_libs)
             .finish()
     }
 }
