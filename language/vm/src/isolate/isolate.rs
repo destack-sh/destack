@@ -5,9 +5,8 @@ use destack_mir as mir;
 
 use super::{ExternalHandler, IsolateState};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::engine::compiled::CompiledEngine;
-use crate::engine::interpreter::{InterpreterContext, InterpreterEngine};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
+use crate::interpreter::{InterpreterContext, InterpreterEngine};
 use crate::memory::{GcStats, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 
@@ -17,15 +16,12 @@ pub struct Isolate {
     state: IsolateState,
     /// Interpreter engine backing this isolate.
     interpreter: InterpreterEngine,
-    /// Compiled engine backing this isolate.
-    compiled: CompiledEngine,
 }
 
 impl fmt::Debug for Isolate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Isolate")
             .field("state", &self.state)
-            .field("compiled", &self.compiled)
             .finish_non_exhaustive()
     }
 }
@@ -44,19 +40,13 @@ impl Isolate {
     ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new(tree, strings, options);
         let mut interpreter = InterpreterEngine::new(&state);
-        let compiled = CompiledEngine::new(&state);
-
         // initialize globals and interned literals
         {
             let mut context = interpreter.context(&mut state);
             context.initialize_globals()?;
         }
 
-        Ok(Self {
-            state,
-            interpreter,
-            compiled,
-        })
+        Ok(Self { state, interpreter })
     }
 
     /// Create a new isolate with custom options and an explicit heap store.
@@ -68,19 +58,13 @@ impl Isolate {
     ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new_with_heap_store(tree, strings, options, heap);
         let mut interpreter = InterpreterEngine::new(&state);
-        let compiled = CompiledEngine::new(&state);
-
         // initialize globals and interned literals
         {
             let mut context = interpreter.context(&mut state);
             context.initialize_globals()?;
         }
 
-        Ok(Self {
-            state,
-            interpreter,
-            compiled,
-        })
+        Ok(Self { state, interpreter })
     }
 
     /// Get the isolate options.

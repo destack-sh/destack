@@ -5,8 +5,8 @@
 #![allow(incomplete_features)]
 
 pub mod diagnostic;
-pub mod engine;
 pub mod execute;
+pub mod interpreter;
 pub mod isolate;
 pub mod memory;
 pub mod options;
@@ -17,8 +17,7 @@ pub mod telemetry;
 mod tests;
 
 pub use diagnostic::*;
-pub use engine::compiled::CompiledEngine;
-pub use engine::interpreter::*;
+pub use interpreter::*;
 pub use isolate::*;
 pub use memory::*;
 pub use options::*;
