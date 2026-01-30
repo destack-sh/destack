@@ -202,7 +202,7 @@ pub enum Declaration {
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
     },
-    
+
     /// Import-alias declaration.
     ///
     /// Examples:
