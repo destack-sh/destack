@@ -702,7 +702,7 @@ fn inline_callsite(
 
     // substitute the call result in the continuation block
     if let (Some(destination), Some(result_value)) = (site.destination, split.result_value) {
-        substitute_value_in_block(tree, split.continuation_id, destination, result_value);
+        substitute_value_in_function(tree, caller, destination, result_value);
     }
 
     // remap the inlined blocks and rewrite returns
@@ -885,9 +885,9 @@ fn split_block_for_inline(
 }
 
 /// Substitute a value inside a single block.
-fn substitute_value_in_block(
+fn substitute_value_in_function(
     tree: &mut mir::NodeTree,
-    block_id: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
     from: mir::Value,
     to: mir::Value,
 ) {
@@ -895,18 +895,19 @@ fn substitute_value_in_block(
     let mut substitutions = HashMap::new();
     substitutions.insert(from, to);
 
-    // update instructions inside the block
-    let block = tree.get(block_id).clone();
-    for instruction_id in &block.instructions {
-        let instruction = tree.get(*instruction_id).clone();
-        let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
-        tree.replace(*instruction_id, updated);
-    }
+    // update instructions and terminators across all blocks
+    for block_id in &function.blocks {
+        let block = tree.get(*block_id).clone();
+        for instruction_id in &block.instructions {
+            let instruction = tree.get(*instruction_id).clone();
+            let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+            tree.replace(*instruction_id, updated);
+        }
 
-    // update the block terminator
-    let mut updated_block = block.clone();
-    updated_block.terminator = terminator_substitute_uses(&block.terminator, &substitutions);
-    tree.replace(block_id, updated_block);
+        let mut updated_block = block.clone();
+        updated_block.terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+        tree.replace(*block_id, updated_block);
+    }
 }
 
 /// Remap values and locals in inlined blocks.

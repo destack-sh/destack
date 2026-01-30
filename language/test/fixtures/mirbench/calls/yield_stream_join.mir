@@ -1,0 +1,109 @@
+function @stream_left(v0: i64, v1: i64) -> i64 {
+
+// entry, compute left transform
+block0(v0: i64, v1: i64):
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 3i64
+    v4: i64 = imul v2, v3
+    return v4
+}
+
+function @stream_right(v0: i64, v1: i64) -> i64 {
+
+// entry, compute right transform
+block0(v0: i64, v1: i64):
+    v2: i64 = iconst 5i64
+    v3: i64 = imul v0, v2
+    v4: i64 = iadd v3, v1
+    return v4
+}
+
+function @stream_join(v0: i64, v1: i64) -> i64 {
+
+// entry, join streams
+block0(v0: i64, v1: i64):
+    v2: i64 = bxor v0, v1
+    v3: i64 = iconst 7i64
+    v4: i64 = iadd v2, v3
+    return v4
+}
+
+function @yield_stream_join(v0: i64) -> i64 {
+
+// entry, init buffers
+block0(v0: i64):
+    v1: ref<managed i64> = managed.alloc_array i64, v0
+    v2: ref<managed i64> = managed.alloc_array i64, v0
+    v3: i64 = iconst 0i64
+    jump block1(v3, v1, v2)
+
+// loop condition, fill buffers
+block1(v4: i64, v5: ref<managed i64>, v6: ref<managed i64>):
+    v7: bool = icmp_sge v4, v0
+    branch v7, block3(v5, v6), block2
+
+// fill buffer values
+block2:
+    v8: i64 = iconst 3i64
+    v9: i64 = imul v4, v8
+    v10: i64 = iconst 1i64
+    v11: i64 = iadd v9, v10
+    v12: ref<borrowed i64> = element.addr v5, v4
+    store v12, v11
+    v13: i64 = iconst 5i64
+    v14: i64 = imul v4, v13
+    v15: i64 = iconst 2i64
+    v16: i64 = iadd v14, v15
+    v17: ref<borrowed i64> = element.addr v6, v4
+    store v17, v16
+    v18: i64 = iconst 1i64
+    v19: i64 = iadd v4, v18
+    jump block1(v19, v5, v6)
+
+// init stream loop
+block3(v20: ref<managed i64>, v21: ref<managed i64>):
+    v22: i64 = iconst 0i64
+    v23: i64 = iconst 0i64
+    jump block4(v22, v23, v20, v21)
+
+// loop condition, process stream
+block4(v24: i64, v25: i64, v26: ref<managed i64>, v27: ref<managed i64>):
+    v28: bool = icmp_sge v24, v0
+    branch v28, block7(v25), block5
+
+// yield joined item
+block5:
+    v29: ref<borrowed i64> = element.addr v26, v24
+    v30: i64 = load v29
+    v31: ref<borrowed i64> = element.addr v27, v24
+    v32: i64 = load v31
+    v33: i64 = call @stream_left(v30, v24)
+    v34: i64 = call @stream_right(v32, v24)
+    v35: i64 = call @stream_join(v33, v34)
+    v36: i64 = iconst 1i64
+    v37: i64 = iadd v24, v36
+    yield v35, block6(v37, v25, v26, v27, v35)
+
+// resume, accumulate
+block6(v38: i64, v39: i64, v40: ref<managed i64>, v41: ref<managed i64>, v42: i64, v43: i64):
+    v44: i64 = iadd v39, v42
+    v45: i64 = iadd v44, v43
+    jump block4(v38, v45, v40, v41)
+
+// return result
+block7(v46: i64):
+    v47: i64 = iconst 7i64
+    v48: i64 = imul v0, v47
+    v49: i64 = iadd v46, v48
+    v50: i64 = iconst 3i64
+    v51: i64 = iadd v49, v50
+    v52: i64 = iconst 3i64
+    v53: i64 = sshr v46, v52
+    v54: i64 = bxor v51, v53
+    v55: i64 = iconst 33i64
+    v56: i64 = imul v54, v55
+    v57: i64 = iconst 255i64
+    v58: i64 = band v0, v57
+    v59: i64 = iadd v56, v58
+    return v59
+}

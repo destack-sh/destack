@@ -1,0 +1,157 @@
+function @header_map_merge(v0: i64) -> i64 {
+
+// entry, init buffers
+block0(v0: i64):
+    v1: i64 = iconst 32i64
+    v2: i64 = iconst 16i64
+    v3: ref<managed i64> = managed.alloc_array i64, v1
+    v4: ref<managed i64> = managed.alloc_array i64, v1
+    v5: ref<managed i64> = managed.alloc_array i64, v1
+    v6: ref<managed i64> = managed.alloc_array i64, v1
+    v7: i64 = iconst 0i64
+    jump block1(v7, v2, v3, v4, v5, v6, v1)
+
+// loop condition, fill primary map
+block1(v8: i64, v9: i64, v10: ref<managed i64>, v11: ref<managed i64>, v12: ref<managed i64>, v13: ref<managed i64>, v14: i64):
+    v15: bool = icmp_sge v8, v9
+    branch v15, block3(v9, v10, v11, v12, v13, v14), block2
+
+// fill primary entries
+block2:
+    v16: i64 = iconst 3i64
+    v17: i64 = imul v8, v16
+    v18: i64 = iconst 1i64
+    v19: i64 = iadd v17, v18
+    v20: i64 = iconst 5i64
+    v21: i64 = imul v8, v20
+    v22: i64 = iconst 2i64
+    v23: i64 = iadd v21, v22
+    v24: ref<borrowed i64> = element.addr v10, v8
+    store v24, v19
+    v25: ref<borrowed i64> = element.addr v11, v8
+    store v25, v23
+    v26: i64 = iconst 1i64
+    v27: i64 = iadd v8, v26
+    jump block1(v27, v9, v10, v11, v12, v13, v14)
+
+// init secondary fill
+block3(v28: i64, v29: ref<managed i64>, v30: ref<managed i64>, v31: ref<managed i64>, v32: ref<managed i64>, v33: i64):
+    v34: i64 = iconst 0i64
+    jump block4(v34, v28, v29, v30, v31, v32, v33)
+
+// loop condition, fill secondary map
+block4(v35: i64, v36: i64, v37: ref<managed i64>, v38: ref<managed i64>, v39: ref<managed i64>, v40: ref<managed i64>, v41: i64):
+    v42: bool = icmp_sge v35, v41
+    branch v42, block6(v36, v37, v38, v39, v40, v41), block5
+
+// fill secondary entries
+block5:
+    v43: i64 = iconst 7i64
+    v44: i64 = imul v35, v43
+    v45: i64 = iconst 3i64
+    v46: i64 = iadd v44, v45
+    v47: i64 = iconst 11i64
+    v48: i64 = imul v35, v47
+    v49: i64 = iconst 5i64
+    v50: i64 = iadd v48, v49
+    v51: ref<borrowed i64> = element.addr v39, v35
+    store v51, v46
+    v52: ref<borrowed i64> = element.addr v40, v35
+    store v52, v50
+    v53: i64 = iconst 1i64
+    v54: i64 = iadd v35, v53
+    jump block4(v54, v36, v37, v38, v39, v40, v41)
+
+// init merge loop
+block6(v55: i64, v56: ref<managed i64>, v57: ref<managed i64>, v58: ref<managed i64>, v59: ref<managed i64>, v60: i64):
+    v61: i64 = iconst 0i64
+    v62: i64 = iconst 0i64
+    jump block7(v62, v55, v61, v56, v57, v58, v59, v60)
+
+// loop condition, merge entries
+block7(v63: i64, v64: i64, v65: i64, v66: ref<managed i64>, v67: ref<managed i64>, v68: ref<managed i64>, v69: ref<managed i64>, v70: i64):
+    v71: bool = icmp_sge v63, v0
+    branch v71, block14(v65, v64, v63), block8
+
+// load merge key
+block8:
+    v72: i64 = srem v63, v70
+    v73: ref<borrowed i64> = element.addr v68, v72
+    v74: i64 = load v73
+    v75: ref<borrowed i64> = element.addr v69, v72
+    v76: i64 = load v75
+    v77: i64 = iconst 0i64
+    jump block9(v77, v65, v63, v64, v74, v76, v66, v67, v68, v69, v70)
+
+// scan condition
+block9(v78: i64, v79: i64, v80: i64, v81: i64, v82: i64, v83: i64, v84: ref<managed i64>, v85: ref<managed i64>, v86: ref<managed i64>, v87: ref<managed i64>, v88: i64):
+    v89: bool = icmp_sge v78, v81
+    branch v89, block12(v80, v79, v81, v82, v83, v84, v85, v86, v87, v88), block10
+
+// compare key
+block10:
+    v90: ref<borrowed i64> = element.addr v84, v78
+    v91: i64 = load v90
+    v92: bool = icmp_eq v91, v82
+    branch v92, block11(v80, v79, v78, v81, v82, v83, v84, v85, v86, v87, v88), block15(v78, v79, v80, v81, v82, v83, v84, v85, v86, v87, v88)
+
+// found entry
+block11(v93: i64, v94: i64, v95: i64, v96: i64, v97: i64, v98: i64, v99: ref<managed i64>, v100: ref<managed i64>, v101: ref<managed i64>, v102: ref<managed i64>, v103: i64):
+    v104: ref<borrowed i64> = element.addr v100, v95
+    v105: i64 = load v104
+    v106: i64 = iadd v94, v105
+    store v104, v98
+    jump block13(v93, v96, v106, v99, v100, v101, v102, v103)
+
+// not found
+block12(v107: i64, v108: i64, v109: i64, v110: i64, v111: i64, v112: ref<managed i64>, v113: ref<managed i64>, v114: ref<managed i64>, v115: ref<managed i64>, v116: i64):
+    v117: bool = icmp_slt v109, v116
+    branch v117, block16(v107, v108, v109, v110, v111, v112, v113, v114, v115, v116), block17(v107, v108, v109, v110, v111, v112, v113, v114, v115, v116)
+
+// insert entry
+block16(v118: i64, v119: i64, v120: i64, v121: i64, v122: i64, v123: ref<managed i64>, v124: ref<managed i64>, v125: ref<managed i64>, v126: ref<managed i64>, v127: i64):
+    v128: ref<borrowed i64> = element.addr v123, v120
+    store v128, v121
+    v129: ref<borrowed i64> = element.addr v124, v120
+    store v129, v122
+    v130: i64 = iadd v119, v122
+    v131: i64 = iconst 1i64
+    v132: i64 = iadd v120, v131
+    jump block13(v118, v132, v130, v123, v124, v125, v126, v127)
+
+// map full
+block17(v133: i64, v134: i64, v135: i64, v136: i64, v137: i64, v138: ref<managed i64>, v139: ref<managed i64>, v140: ref<managed i64>, v141: ref<managed i64>, v142: i64):
+    v143: i64 = iadd v134, v136
+    jump block13(v133, v135, v143, v138, v139, v140, v141, v142)
+
+// advance scan
+block15(v144: i64, v145: i64, v146: i64, v147: i64, v148: i64, v149: i64, v150: ref<managed i64>, v151: ref<managed i64>, v152: ref<managed i64>, v153: ref<managed i64>, v154: i64):
+    v155: i64 = iconst 1i64
+    v156: i64 = iadd v144, v155
+    jump block9(v156, v145, v146, v147, v148, v149, v150, v151, v152, v153, v154)
+
+// advance merge loop
+block13(v157: i64, v158: i64, v159: i64, v160: ref<managed i64>, v161: ref<managed i64>, v162: ref<managed i64>, v163: ref<managed i64>, v164: i64):
+    v165: i64 = iconst 1i64
+    v166: i64 = iadd v157, v165
+    jump block7(v166, v158, v159, v160, v161, v162, v163, v164)
+
+// return result
+block14(v167: i64, v168: i64, v169: i64):
+    v170: i64 = iadd v167, v168
+    v171: i64 = iadd v170, v169
+    v172: i64 = iconst 7i64
+    v173: i64 = imul v0, v172
+    v174: i64 = iadd v171, v173
+    v175: i64 = iconst 3i64
+    v176: i64 = iadd v174, v175
+    v177: i64 = iconst 3i64
+    v178: i64 = sshr v171, v177
+    v179: i64 = bxor v176, v178
+    v180: i64 = iconst 33i64
+    v181: i64 = imul v179, v180
+    v182: i64 = iconst 255i64
+    v183: i64 = band v0, v182
+    v184: i64 = iadd v181, v183
+    return v184
+}

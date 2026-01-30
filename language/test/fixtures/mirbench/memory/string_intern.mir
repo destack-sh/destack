@@ -1,0 +1,107 @@
+
+function @string_intern(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 256i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: ref<managed i64> = managed.alloc_array i64, v1
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    v6: i64 = iconst 0i64
+    jump block1(v6, v4, v5, v2, v3, v1)
+
+// loop condition, check limit
+block1(v7: i64, v8: i64, v9: i64, v10: ref<managed i64>, v11: ref<managed i64>, v12: i64):
+    v13: bool = icmp_sge v7, v0
+    branch v13, block9(v9, v8), block2
+
+// compute hash and length
+block2:
+    v14: i64 = iconst 1103515245i64
+    v15: i64 = imul v7, v14
+    v16: i64 = iconst 12345i64
+    v17: i64 = iadd v15, v16
+    v18: i64 = iconst 15i64
+    v19: i64 = band v17, v18
+    v20: i64 = iconst 1i64
+    v21: i64 = iadd v19, v20
+    v22: i64 = iconst 0i64
+    jump block3(v22, v9, v8, v17, v21, v7, v10, v11, v12)
+
+// loop condition, scan entries
+block3(v23: i64, v24: i64, v25: i64, v26: i64, v27: i64, v28: i64, v29: ref<managed i64>, v30: ref<managed i64>, v31: i64):
+    v32: bool = icmp_sge v23, v25
+    branch v32, block6(v24, v25, v26, v27, v28, v29, v30, v31), block4
+
+// compare hash entry
+block4:
+    v33: ref<borrowed i64> = element.addr v29, v23
+    v34: i64 = load v33
+    v35: bool = icmp_eq v34, v26
+    branch v35, block5(v23, v24, v25, v26, v27, v28, v29, v30, v31), block8(v23, v24, v25, v26, v27, v28, v29, v30, v31)
+
+// compare length entry
+block5(v36: i64, v37: i64, v38: i64, v39: i64, v40: i64, v41: i64, v42: ref<managed i64>, v43: ref<managed i64>, v44: i64):
+    v45: ref<borrowed i64> = element.addr v43, v36
+    v46: i64 = load v45
+    v47: bool = icmp_eq v46, v41
+    branch v47, block7(v37, v38, v41, v42, v43, v44), block8(v36, v37, v38, v39, v40, v41, v42, v43, v44)
+
+// insert or drop
+block6(v48: i64, v49: i64, v50: i64, v51: i64, v52: i64, v53: ref<managed i64>, v54: ref<managed i64>, v55: i64):
+    v56: bool = icmp_sge v49, v55
+    branch v56, block11(v52, v49, v48, v53, v54, v55), block10(v52, v49, v48, v50, v51, v53, v54, v55)
+
+// found entry
+block7(v57: i64, v58: i64, v59: i64, v60: ref<managed i64>, v61: ref<managed i64>, v62: i64):
+    v63: i64 = iconst 1i64
+    v64: i64 = iadd v59, v63
+    v65: i64 = iadd v57, v63
+    jump block1(v64, v58, v65, v60, v61, v62)
+
+// advance scan
+block8(v66: i64, v67: i64, v68: i64, v69: i64, v70: i64, v71: i64, v72: ref<managed i64>, v73: ref<managed i64>, v74: i64):
+    v75: i64 = iconst 1i64
+    v76: i64 = iadd v66, v75
+    jump block3(v76, v67, v68, v69, v70, v71, v72, v73, v74)
+
+// insert entry
+block10(v77: i64, v78: i64, v79: i64, v80: i64, v81: i64, v82: ref<managed i64>, v83: ref<managed i64>, v84: i64):
+    v85: ref<borrowed i64> = element.addr v82, v78
+    store v85, v80
+    v86: ref<borrowed i64> = element.addr v83, v78
+    store v86, v81
+    v87: i64 = iconst 1i64
+    v88: i64 = iadd v78, v87
+    v89: i64 = iconst 2i64
+    v90: i64 = iadd v79, v89
+    v91: i64 = iadd v77, v87
+    jump block1(v91, v88, v90, v82, v83, v84)
+
+// table full
+block11(v92: i64, v93: i64, v94: i64, v95: ref<managed i64>, v96: ref<managed i64>, v97: i64):
+    v98: i64 = iconst 3i64
+    v99: i64 = iadd v94, v98
+    v100: i64 = iconst 1i64
+    v101: i64 = iadd v92, v100
+    jump block1(v101, v93, v99, v95, v96, v97)
+
+// return result
+block9(v102: i64, v103: i64):
+    v104: i64 = iadd v102, v103
+    v105: i64 = iconst 7i64
+    v106: i64 = imul v0, v105
+    v107: i64 = iadd v104, v106
+    v108: i64 = iconst 3i64
+    v109: i64 = iadd v107, v108
+    v110: i64 = iconst 3i64
+    v111: i64 = sshr v104, v110
+    v112: i64 = bxor v109, v111
+    v113: i64 = iconst 33i64
+    v114: i64 = imul v112, v113
+    v115: i64 = iconst 255i64
+    v116: i64 = band v0, v115
+    v117: i64 = iadd v114, v116
+    return v117
+}

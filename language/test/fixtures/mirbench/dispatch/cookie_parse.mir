@@ -1,0 +1,136 @@
+function @cookie_parse(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    v5: i64 = iconst 0i64
+    v6: i64 = iconst 0i64
+    jump block1(v1, v2, v3, v4, v5, v6)
+
+// loop condition, check limit
+block1(v7: i64, v8: i64, v9: i64, v10: i64, v11: i64, v12: i64):
+    v13: bool = icmp_sge v7, v0
+    branch v13, block20(v12, v8, v9, v10, v11), block2(v7, v8, v9, v10, v11, v12)
+
+// compute token
+block2(v14: i64, v15: i64, v16: i64, v17: i64, v18: i64, v19: i64):
+    v20: i64 = iconst 1664525i64
+    v21: i64 = imul v14, v20
+    v22: i64 = iconst 1013904223i64
+    v23: i64 = iadd v21, v22
+    v24: i64 = iconst 16i64
+    v25: i64 = sshr v23, v24
+    v26: i64 = iconst 7i64
+    v27: i64 = band v25, v26
+    switch v27, block12(v14, v15, v16, v17, v18, v19, v27), 0 => block3(v14, v15, v16, v17, v18, v19), 1 => block4(v14, v15, v16, v17, v18, v19), 2 => block5(v14, v15, v16, v17, v18, v19)
+
+// equals token
+block3(v28: i64, v29: i64, v30: i64, v31: i64, v32: i64, v33: i64):
+    v34: i64 = iconst 0i64
+    v35: bool = icmp_eq v32, v34
+    branch v35, block6(v28, v29, v30, v31, v33), block7(v28, v29, v30, v31, v32, v33)
+
+// semicolon token
+block4(v36: i64, v37: i64, v38: i64, v39: i64, v40: i64, v41: i64):
+    v42: i64 = iconst 1i64
+    v43: i64 = iadd v39, v42
+    v44: i64 = iadd v37, v38
+    v45: i64 = iadd v41, v44
+    v46: i64 = iconst 0i64
+    jump block18(v36, v46, v46, v43, v46, v45)
+
+// space token
+block5(v47: i64, v48: i64, v49: i64, v50: i64, v51: i64, v52: i64):
+    v53: i64 = iconst 0i64
+    v54: bool = icmp_eq v51, v53
+    branch v54, block8(v47, v48, v49, v50, v52), block9(v47, v48, v49, v50, v51, v52)
+
+// move to value mode
+block6(v55: i64, v56: i64, v57: i64, v58: i64, v59: i64):
+    v60: i64 = iconst 1i64
+    jump block18(v55, v56, v57, v58, v60, v59)
+
+// equals in value mode
+block7(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64):
+    v67: i64 = iconst 1i64
+    v68: i64 = iadd v66, v67
+    jump block18(v61, v62, v63, v64, v65, v68)
+
+// space in key, mark space mode
+block8(v69: i64, v70: i64, v71: i64, v72: i64, v73: i64):
+    v74: i64 = iconst 2i64
+    jump block18(v69, v70, v71, v72, v74, v73)
+
+// space in value or space mode
+block9(v75: i64, v76: i64, v77: i64, v78: i64, v79: i64, v80: i64):
+    v81: i64 = iconst 1i64
+    v82: bool = icmp_eq v79, v81
+    branch v82, block10(v75, v76, v77, v78, v79, v80), block11(v75, v76, v77, v78, v79, v80)
+
+// space in value
+block10(v83: i64, v84: i64, v85: i64, v86: i64, v87: i64, v88: i64):
+    v89: i64 = iconst 1i64
+    v90: i64 = iadd v85, v89
+    jump block18(v83, v84, v90, v86, v87, v88)
+
+// space in space mode
+block11(v91: i64, v92: i64, v93: i64, v94: i64, v95: i64, v96: i64):
+    jump block18(v91, v92, v93, v94, v95, v96)
+
+// default token
+block12(v97: i64, v98: i64, v99: i64, v100: i64, v101: i64, v102: i64, v103: i64):
+    v104: i64 = iconst 1i64
+    v105: bool = icmp_eq v101, v104
+    branch v105, block13(v97, v98, v99, v100, v101, v102, v103), block14(v97, v98, v99, v100, v101, v102, v103)
+
+// append to value
+block13(v106: i64, v107: i64, v108: i64, v109: i64, v110: i64, v111: i64, v112: i64):
+    v113: i64 = iadd v108, v112
+    jump block18(v106, v107, v113, v109, v110, v111)
+
+// append to key
+block14(v114: i64, v115: i64, v116: i64, v117: i64, v118: i64, v119: i64, v120: i64):
+    v121: i64 = iadd v115, v120
+    v122: i64 = iconst 2i64
+    v123: bool = icmp_eq v118, v122
+    branch v123, block15(v114, v121, v116, v117, v119), block16(v114, v121, v116, v117, v118, v119)
+
+// leave space mode
+block15(v124: i64, v125: i64, v126: i64, v127: i64, v128: i64):
+    v129: i64 = iconst 0i64
+    jump block18(v124, v125, v126, v127, v129, v128)
+
+// keep mode
+block16(v130: i64, v131: i64, v132: i64, v133: i64, v134: i64, v135: i64):
+    jump block18(v130, v131, v132, v133, v134, v135)
+
+// advance loop
+block18(v136: i64, v137: i64, v138: i64, v139: i64, v140: i64, v141: i64):
+    v142: i64 = iconst 1i64
+    v143: i64 = iadd v136, v142
+    jump block1(v143, v137, v138, v139, v140, v141)
+
+// return result
+block20(v144: i64, v145: i64, v146: i64, v147: i64, v148: i64):
+    v149: i64 = iadd v144, v145
+    v150: i64 = iadd v149, v146
+    v151: i64 = iadd v150, v147
+    v152: i64 = iadd v151, v148
+    v153: i64 = iconst 7i64
+    v154: i64 = imul v0, v153
+    v155: i64 = iadd v152, v154
+    v156: i64 = iconst 3i64
+    v157: i64 = iadd v155, v156
+    v158: i64 = iconst 3i64
+    v159: i64 = sshr v152, v158
+    v160: i64 = bxor v157, v159
+    v161: i64 = iconst 33i64
+    v162: i64 = imul v160, v161
+    v163: i64 = iconst 255i64
+    v164: i64 = band v0, v163
+    v165: i64 = iadd v162, v164
+    return v165
+}

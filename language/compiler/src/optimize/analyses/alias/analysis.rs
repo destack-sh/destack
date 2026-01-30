@@ -52,7 +52,7 @@ impl AliasAnalysis {
                 value_types,
                 type_context,
             ),
-            tbaa: TypeBasedAA::new(true),
+            tbaa: TypeBasedAA::new(),
             globals: GlobalsAA::build(function, tree),
             scoped: ScopedNoAliasAA::build(
                 function,

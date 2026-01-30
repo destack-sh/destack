@@ -1,0 +1,198 @@
+function @path_normalize(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
+    jump block1(v1, v2, v3, v4)
+
+// loop condition, check limit
+block1(v5: i64, v6: i64, v7: i64, v8: i64):
+    v9: bool = icmp_sge v5, v0
+    branch v9, block20(v6, v7, v8), block2(v5, v6, v7, v8)
+
+// compute token
+block2(v10: i64, v11: i64, v12: i64, v13: i64):
+    v14: i64 = iconst 1103515245i64
+    v15: i64 = imul v10, v14
+    v16: i64 = iconst 12345i64
+    v17: i64 = iadd v15, v16
+    v18: i64 = iconst 6i64
+    v19: i64 = srem v17, v18
+    switch v19, block11(v10, v11, v12, v13, v19), 0 => block3(v10, v11, v12, v13), 1 => block4(v10, v11, v12, v13, v19), 2 => block4(v10, v11, v12, v13, v19)
+
+// slash token
+block3(v20: i64, v21: i64, v22: i64, v23: i64):
+    v24: i64 = iconst 1i64
+    v25: bool = icmp_eq v22, v24
+    branch v25, block5(v20, v21, v23), block6(v20, v21, v22, v23)
+
+// dot token
+block4(v26: i64, v27: i64, v28: i64, v29: i64, v30: i64):
+    v31: i64 = iconst 0i64
+    v32: bool = icmp_eq v28, v31
+    branch v32, block8(v26, v27, v29, v30), block9(v26, v27, v28, v29, v30)
+
+// slash after dot
+block5(v33: i64, v34: i64, v35: i64):
+    v36: i64 = iconst 1i64
+    v37: i64 = iadd v34, v36
+    v38: i64 = iconst 0i64
+    jump block18(v33, v37, v38, v35)
+
+// slash after non-dot
+block6(v39: i64, v40: i64, v41: i64, v42: i64):
+    v43: i64 = iconst 2i64
+    v44: bool = icmp_eq v41, v43
+    branch v44, block7(v39, v40, v42), block10(v39, v40, v41, v42)
+
+// slash after dotdot
+block7(v45: i64, v46: i64, v47: i64):
+    v48: i64 = iconst 0i64
+    v49: bool = icmp_sgt v47, v48
+    branch v49, block12(v45, v46, v47), block13(v45, v46, v47)
+
+// dot after empty
+block8(v50: i64, v51: i64, v52: i64, v53: i64):
+    v54: i64 = iconst 1i64
+    v55: i64 = iadd v51, v53
+    jump block18(v50, v55, v54, v52)
+
+// dot after dot or normal
+block9(v56: i64, v57: i64, v58: i64, v59: i64, v60: i64):
+    v61: i64 = iconst 1i64
+    v62: bool = icmp_eq v58, v61
+    branch v62, block14(v56, v57, v59, v60), block15(v56, v57, v59, v60)
+
+// slash after normal
+block10(v63: i64, v64: i64, v65: i64, v66: i64):
+    v67: i64 = iconst 3i64
+    v68: bool = icmp_eq v65, v67
+    branch v68, block16(v63, v64, v66), block17(v63, v64, v66)
+
+// default token
+block11(v69: i64, v70: i64, v71: i64, v72: i64, v73: i64):
+    v74: i64 = iconst 3i64
+    v75: i64 = iadd v70, v73
+    jump block18(v69, v75, v74, v72)
+
+// dotdot with depth
+block12(v76: i64, v77: i64, v78: i64):
+    v79: i64 = iconst 1i64
+    v80: i64 = isub v78, v79
+    v81: i64 = iconst 2i64
+    v82: i64 = iadd v77, v81
+    v83: i64 = iconst 0i64
+    jump block18(v76, v82, v83, v80)
+
+// dotdot without depth
+block13(v84: i64, v85: i64, v86: i64):
+    v87: i64 = iconst 1i64
+    v88: i64 = iadd v85, v87
+    v89: i64 = iconst 0i64
+    jump block18(v84, v88, v89, v86)
+
+// dot after dot
+block14(v90: i64, v91: i64, v92: i64, v93: i64):
+    v94: i64 = iconst 2i64
+    v95: i64 = iadd v91, v93
+    jump block18(v90, v95, v94, v92)
+
+// dot after normal or dotdot
+block15(v96: i64, v97: i64, v98: i64, v99: i64):
+    v100: i64 = iconst 3i64
+    v101: i64 = iadd v97, v99
+    jump block18(v96, v101, v100, v98)
+
+// normal segment
+block16(v102: i64, v103: i64, v104: i64):
+    v105: i64 = iconst 1i64
+    v106: i64 = iadd v104, v105
+    v107: i64 = iconst 3i64
+    v108: i64 = iadd v103, v107
+    v109: i64 = iconst 0i64
+    jump block18(v102, v108, v109, v106)
+
+// slash after empty
+block17(v110: i64, v111: i64, v112: i64):
+    v113: i64 = iconst 0i64
+    jump block18(v110, v111, v113, v112)
+
+// advance loop
+block18(v114: i64, v115: i64, v116: i64, v117: i64):
+    v118: i64 = iconst 1i64
+    v119: i64 = iadd v114, v118
+    jump block1(v119, v115, v116, v117)
+
+// finalize trailing segment
+block20(v120: i64, v121: i64, v122: i64):
+    v123: i64 = iconst 1i64
+    v124: bool = icmp_eq v121, v123
+    branch v124, block21(v120, v122), block22(v120, v121, v122)
+
+// finalize dot
+block21(v125: i64, v126: i64):
+    v127: i64 = iconst 1i64
+    v128: i64 = iadd v125, v127
+    jump block24(v128, v126)
+
+// finalize dotdot or normal
+block22(v129: i64, v130: i64, v131: i64):
+    v132: i64 = iconst 2i64
+    v133: bool = icmp_eq v130, v132
+    branch v133, block23(v129, v131), block25(v129, v130, v131)
+
+// finalize dotdot
+block23(v134: i64, v135: i64):
+    v136: i64 = iconst 0i64
+    v137: bool = icmp_sgt v135, v136
+    branch v137, block26(v134, v135), block27(v134, v135)
+
+// add depth and return
+block24(v138: i64, v139: i64):
+    v140: i64 = iadd v138, v139
+    v141: i64 = iconst 7i64
+    v142: i64 = imul v0, v141
+    v143: i64 = iadd v140, v142
+    v144: i64 = iconst 3i64
+    v145: i64 = iadd v143, v144
+    v146: i64 = iconst 3i64
+    v147: i64 = sshr v140, v146
+    v148: i64 = bxor v145, v147
+    v149: i64 = iconst 33i64
+    v150: i64 = imul v148, v149
+    v151: i64 = iconst 255i64
+    v152: i64 = band v0, v151
+    v153: i64 = iadd v150, v152
+    return v153
+
+// finalize normal
+block25(v154: i64, v155: i64, v156: i64):
+    v157: i64 = iconst 3i64
+    v158: bool = icmp_eq v155, v157
+    branch v158, block28(v154, v156), block24(v154, v156)
+
+// dotdot with depth
+block26(v159: i64, v160: i64):
+    v161: i64 = iconst 1i64
+    v162: i64 = isub v160, v161
+    v163: i64 = iconst 2i64
+    v164: i64 = iadd v159, v163
+    jump block24(v164, v162)
+
+// dotdot without depth
+block27(v165: i64, v166: i64):
+    v167: i64 = iconst 1i64
+    v168: i64 = iadd v165, v167
+    jump block24(v168, v166)
+
+// normal segment
+block28(v169: i64, v170: i64):
+    v171: i64 = iconst 1i64
+    v172: i64 = iadd v170, v171
+    v173: i64 = iconst 3i64
+    v174: i64 = iadd v169, v173
+    jump block24(v174, v172)
+}

@@ -194,3 +194,61 @@ pub trait ProgramPass: Pass + Send + Sync {
         self.name()
     }
 }
+
+/// Run a sequence of function passes on a cloned function and write it back when changed.
+pub fn run_function_passes(
+    function_id: mir::LocalNodeId<mir::Function>,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    passes: &[&dyn FunctionPass],
+) -> bool {
+    // clone the function for mutation
+    let mut function = tree.get(function_id).clone();
+
+    // skip extern functions
+    if function.entry.is_none() {
+        return false;
+    }
+
+    // run passes and track changes
+    let mut changed = false;
+    for pass in passes {
+        function.recompute_next_value_id(tree);
+        let preservation = pass.run(&mut function, tree, ctx);
+        if !preservation.preserves_all() {
+            changed = true;
+        }
+    }
+
+    // write back when changes occurred
+    if changed {
+        *tree.get_mut(function_id) = function;
+    }
+
+    changed
+}
+
+/// Run a sequence of function passes on a cloned function and always write it back.
+pub fn run_function_passes_always(
+    function_id: mir::LocalNodeId<mir::Function>,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    passes: &[&dyn FunctionPass],
+) {
+    // clone the function for mutation
+    let mut function = tree.get(function_id).clone();
+
+    // skip extern functions
+    if function.entry.is_none() {
+        return;
+    }
+
+    // run passes
+    for pass in passes {
+        function.recompute_next_value_id(tree);
+        pass.run(&mut function, tree, ctx);
+    }
+
+    // write back the updated function
+    *tree.get_mut(function_id) = function;
+}

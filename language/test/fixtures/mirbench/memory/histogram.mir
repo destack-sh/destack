@@ -1,0 +1,86 @@
+
+function @histogram(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 64i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: i64 = iconst 0i64
+    jump block1(v3, v2)
+
+// loop condition, zero buckets
+block1(v4: i64, v5: ref<managed i64>):
+    v6: bool = icmp_sge v4, v1
+    branch v6, block3(v5), block2
+
+// zero bucket
+block2:
+    v7: ref<borrowed i64> = element.addr v5, v4
+    v8: i64 = iconst 0i64
+    store v7, v8
+    v9: i64 = iconst 1i64
+    v10: i64 = iadd v4, v9
+    jump block1(v10, v5)
+
+// init update loop
+block3(v11: ref<managed i64>):
+    v12: i64 = iconst 0i64
+    jump block4(v12, v11)
+
+// loop condition, update buckets
+block4(v13: i64, v14: ref<managed i64>):
+    v15: bool = icmp_sge v13, v0
+    branch v15, block6(v14), block5
+
+// update bucket
+block5:
+    v16: i64 = iconst 1103515245i64
+    v17: i64 = imul v13, v16
+    v18: i64 = iconst 12345i64
+    v19: i64 = iadd v17, v18
+    v20: i64 = srem v19, v1
+    v21: ref<borrowed i64> = element.addr v14, v20
+    v22: i64 = load v21
+    v23: i64 = iconst 1i64
+    v24: i64 = iadd v22, v23
+    store v21, v24
+    v25: i64 = iadd v13, v23
+    jump block4(v25, v14)
+
+// init sum loop
+block6(v26: ref<managed i64>):
+    v27: i64 = iconst 0i64
+    v28: i64 = iconst 0i64
+    jump block7(v27, v28, v26)
+
+// loop condition, sum buckets
+block7(v29: i64, v30: i64, v31: ref<managed i64>):
+    v32: bool = icmp_sge v29, v1
+    branch v32, block9(v30), block8
+
+// sum bucket
+block8:
+    v33: ref<borrowed i64> = element.addr v31, v29
+    v34: i64 = load v33
+    v35: i64 = iadd v30, v34
+    v36: i64 = iconst 1i64
+    v37: i64 = iadd v29, v36
+    jump block7(v37, v35, v31)
+
+// return result
+block9(v38: i64):
+    v39: i64 = iconst 7i64
+    v40: i64 = imul v0, v39
+    v41: i64 = iadd v38, v40
+    v42: i64 = iconst 3i64
+    v43: i64 = iadd v41, v42
+    v44: i64 = iconst 3i64
+    v45: i64 = sshr v38, v44
+    v46: i64 = bxor v43, v45
+    v47: i64 = iconst 33i64
+    v48: i64 = imul v46, v47
+    v49: i64 = iconst 255i64
+    v50: i64 = band v0, v49
+    v51: i64 = iadd v48, v50
+    return v51
+}

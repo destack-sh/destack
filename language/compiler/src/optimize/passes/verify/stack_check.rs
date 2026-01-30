@@ -8,9 +8,10 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionPass, Lattice,
-    LifetimeAnalysis, PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature,
-    forward_dataflow, signature_return_contains_borrowed_refs,
+    AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
+    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime,
+    borrowed_parameter_indices_for_signature, forward_dataflow,
+    signature_return_contains_borrowed_refs,
 };
 
 declare_pass! {
@@ -165,9 +166,11 @@ impl StackPointerMap {
     /// that are stack pointers, the return value is also a stack pointer.
     fn apply_call_effects(
         &mut self,
+        instruction_id: mir::LocalNodeId<Instruction>,
         instruction: &Instruction,
         tree: &mir::NodeTree,
         lifetime_analysis: &LifetimeAnalysis,
+        call_targets: &CallTargetAnalysis,
     ) {
         match instruction {
             Instruction::Call {
@@ -200,7 +203,9 @@ impl StackPointerMap {
                 args.push(*receiver);
                 args.extend_from_slice(tree.get_arguments(*arguments));
 
-                if let Some(target) = declared_target {
+                if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
+                    self.apply_call_targets(*dest, &args, targets, lifetime_analysis);
+                } else if let Some(target) = declared_target {
                     let lifetime = lifetime_analysis.get(*target);
                     self.apply_lifetime_result(*dest, lifetime, &args);
                 } else {
@@ -215,10 +220,39 @@ impl StackPointerMap {
                 ..
             } => {
                 let args = tree.get_arguments(*arguments);
-                self.apply_signature_fallback(*dest, *signature, tree, args, *env);
+                if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
+                    self.apply_call_targets(*dest, args, targets, lifetime_analysis);
+                } else {
+                    self.apply_signature_fallback(*dest, *signature, tree, args, *env);
+                }
             }
             // calls without destination: nothing to track
             _ => {}
+        }
+    }
+
+    /// Apply resolved call targets to propagate stack pointer state.
+    fn apply_call_targets(
+        &mut self,
+        destination: Value,
+        arguments: &[Value],
+        targets: &[mir::LocalNodeId<mir::Function>],
+        lifetime_analysis: &LifetimeAnalysis,
+    ) {
+        let mut param_indices = Vec::new();
+        for target in targets {
+            let lifetime = lifetime_analysis.get(*target);
+            if let ResolvedLifetime::Parameters(params) = lifetime {
+                for &param in params {
+                    if !param_indices.contains(&param) {
+                        param_indices.push(param);
+                    }
+                }
+            }
+        }
+
+        if !param_indices.is_empty() {
+            self.propagate_from_param_indices(destination, arguments, &param_indices, None);
         }
     }
 
@@ -473,6 +507,7 @@ fn run_stack_check(
     tree: &mir::NodeTree,
     cfg: &ControlFlowGraph,
     lifetime_analysis: &LifetimeAnalysis,
+    call_targets: &CallTargetAnalysis,
     module_id: ModuleId,
     target_id: TargetId,
     context: &impl DiagnosticEmitter,
@@ -494,7 +529,13 @@ fn run_stack_check(
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
                 state.apply_instruction_effects(instruction);
-                state.apply_call_effects(instruction, tree, lifetime_analysis);
+                state.apply_call_effects(
+                    instruction_id,
+                    instruction,
+                    tree,
+                    lifetime_analysis,
+                    call_targets,
+                );
             }
 
             // propagate to successors via jump arguments
@@ -526,7 +567,13 @@ fn run_stack_check(
                 context,
             );
             current_state.apply_instruction_effects(instruction);
-            current_state.apply_call_effects(instruction, tree, lifetime_analysis);
+            current_state.apply_call_effects(
+                instruction_id,
+                instruction,
+                tree,
+                lifetime_analysis,
+                call_targets,
+            );
         }
 
         // check terminator
@@ -554,13 +601,16 @@ impl FunctionPass for StackCheck {
         };
 
         // get module-level lifetime analysis
-        let lifetime_analysis = ctx.module_analyses(tree).get::<LifetimeAnalysis>().clone();
+        let module_analyses = ctx.module_analyses(tree);
+        let lifetime_analysis = module_analyses.get::<LifetimeAnalysis>().clone();
+        let call_targets = module_analyses.get::<CallTargetAnalysis>().clone();
 
         run_stack_check(
             function,
             tree,
             &cfg,
             &lifetime_analysis,
+            &call_targets,
             ctx.module_id(),
             ctx.target_id().clone(),
             ctx,

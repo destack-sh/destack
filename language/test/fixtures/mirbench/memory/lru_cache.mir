@@ -1,0 +1,155 @@
+function @lru_cache(v0: i64) -> i64 {
+
+// entry, init buffers
+block0(v0: i64):
+    v1: i64 = iconst 16i64
+    v2: ref<managed i64> = managed.alloc_array i64, v1
+    v3: ref<managed i64> = managed.alloc_array i64, v1
+    v4: i64 = iconst 0i64
+    jump block1(v4, v1, v2, v3)
+
+// loop condition, zero buffers
+block1(v5: i64, v6: i64, v7: ref<managed i64>, v8: ref<managed i64>):
+    v9: bool = icmp_sge v5, v6
+    branch v9, block3(v6, v7, v8), block2
+
+// zero slots
+block2:
+    v10: ref<borrowed i64> = element.addr v7, v5
+    v11: i64 = iconst 0i64
+    store v10, v11
+    v12: ref<borrowed i64> = element.addr v8, v5
+    store v12, v11
+    v13: i64 = iconst 1i64
+    v14: i64 = iadd v5, v13
+    jump block1(v14, v6, v7, v8)
+
+// init main loop
+block3(v15: i64, v16: ref<managed i64>, v17: ref<managed i64>):
+    v18: i64 = iconst 0i64
+    v19: i64 = iconst 0i64
+    v20: i64 = iconst 0i64
+    v21: i64 = iconst 1i64
+    jump block4(v20, v18, v19, v21, v16, v17, v15)
+
+// main loop condition
+block4(v22: i64, v23: i64, v24: i64, v25: i64, v26: ref<managed i64>, v27: ref<managed i64>, v28: i64):
+    v29: bool = icmp_sge v22, v0
+    branch v29, block20(v24, v23, v25), block5
+
+// compute key
+block5:
+    v30: i64 = iconst 1103515245i64
+    v31: i64 = imul v22, v30
+    v32: i64 = iconst 12345i64
+    v33: i64 = iadd v31, v32
+    v34: i64 = iconst 16i64
+    v35: i64 = sshr v33, v34
+    v36: i64 = bxor v33, v35
+    v37: i64 = iconst 0i64
+    jump block6(v37, v24, v36, v23, v25, v22, v26, v27, v28)
+
+// scan loop condition
+block6(v38: i64, v39: i64, v40: i64, v41: i64, v42: i64, v43: i64, v44: ref<managed i64>, v45: ref<managed i64>, v46: i64):
+    v47: bool = icmp_sge v38, v41
+    branch v47, block10(v39, v40, v41, v42, v43, v44, v45, v46), block7
+
+// compare key
+block7:
+    v48: ref<borrowed i64> = element.addr v44, v38
+    v49: i64 = load v48
+    v50: bool = icmp_eq v49, v40
+    branch v50, block8(v38, v41, v40, v39, v42, v43, v44, v45, v46), block9
+
+// cache hit
+block8(v51: i64, v52: i64, v53: i64, v54: i64, v55: i64, v56: i64, v57: ref<managed i64>, v58: ref<managed i64>, v59: i64):
+    v60: ref<borrowed i64> = element.addr v58, v51
+    v61: i64 = load v60
+    v62: i64 = iadd v55, v61
+    store v60, v56
+    jump block12(v56, v52, v62, v56, v57, v58, v59)
+
+// scan advance
+block9:
+    v63: i64 = iconst 1i64
+    v64: i64 = iadd v38, v63
+    jump block6(v64, v39, v40, v41, v42, v43, v44, v45, v46)
+
+// cache miss
+block10(v65: i64, v66: i64, v67: i64, v68: i64, v69: i64, v70: ref<managed i64>, v71: ref<managed i64>, v72: i64):
+    v73: bool = icmp_slt v67, v72
+    branch v73, block11(v65, v66, v67, v68, v69, v70, v71, v72), block13(v65, v66, v67, v68, v69, v70, v71, v72)
+
+// insert into free slot
+block11(v74: i64, v75: i64, v76: i64, v77: i64, v78: i64, v79: ref<managed i64>, v80: ref<managed i64>, v81: i64):
+    v82: i64 = iconst 1i64
+    v83: i64 = iadd v76, v82
+    jump block15(v76, v75, v83, v77, v74, v77, v79, v80, v81)
+
+// init eviction search
+block13(v84: i64, v85: i64, v86: i64, v87: i64, v88: i64, v89: ref<managed i64>, v90: ref<managed i64>, v91: i64):
+    v92: i64 = iconst 0i64
+    v93: ref<borrowed i64> = element.addr v90, v92
+    v94: i64 = load v93
+    v95: i64 = iconst 1i64
+    jump block14(v95, v92, v94, v84, v85, v86, v87, v88, v89, v90, v91)
+
+// eviction scan condition
+block14(v96: i64, v97: i64, v98: i64, v99: i64, v100: i64, v101: i64, v102: i64, v103: i64, v104: ref<managed i64>, v105: ref<managed i64>, v106: i64):
+    v107: bool = icmp_sge v96, v106
+    branch v107, block15(v97, v100, v101, v102, v99, v102, v104, v105, v106), block16
+
+// compare age
+block16:
+    v108: ref<borrowed i64> = element.addr v105, v96
+    v109: i64 = load v108
+    v110: bool = icmp_slt v109, v98
+    branch v110, block17, block18
+
+// update min age
+block17:
+    v111: i64 = iconst 1i64
+    v112: i64 = iadd v96, v111
+    jump block14(v112, v96, v109, v99, v100, v101, v102, v103, v104, v105, v106)
+
+// keep min age
+block18:
+    v113: i64 = iconst 1i64
+    v114: i64 = iadd v96, v113
+    jump block14(v114, v97, v98, v99, v100, v101, v102, v103, v104, v105, v106)
+
+// insert entry
+block15(v115: i64, v116: i64, v117: i64, v118: i64, v119: i64, v120: i64, v121: ref<managed i64>, v122: ref<managed i64>, v123: i64):
+    v124: ref<borrowed i64> = element.addr v121, v115
+    store v124, v116
+    v125: ref<borrowed i64> = element.addr v122, v115
+    store v125, v120
+    v126: i64 = iadd v119, v116
+    jump block12(v118, v117, v126, v120, v121, v122, v123)
+
+// advance loop
+block12(v127: i64, v128: i64, v129: i64, v130: i64, v131: ref<managed i64>, v132: ref<managed i64>, v133: i64):
+    v134: i64 = iconst 1i64
+    v135: i64 = iadd v127, v134
+    v136: i64 = iadd v130, v134
+    jump block4(v135, v128, v129, v136, v131, v132, v133)
+
+// return result
+block20(v137: i64, v138: i64, v139: i64):
+    v140: i64 = iadd v137, v138
+    v141: i64 = iadd v140, v139
+    v142: i64 = iconst 7i64
+    v143: i64 = imul v0, v142
+    v144: i64 = iadd v141, v143
+    v145: i64 = iconst 3i64
+    v146: i64 = iadd v144, v145
+    v147: i64 = iconst 3i64
+    v148: i64 = sshr v141, v147
+    v149: i64 = bxor v146, v148
+    v150: i64 = iconst 33i64
+    v151: i64 = imul v149, v150
+    v152: i64 = iconst 255i64
+    v153: i64 = band v0, v152
+    v154: i64 = iadd v151, v153
+    return v154
+}

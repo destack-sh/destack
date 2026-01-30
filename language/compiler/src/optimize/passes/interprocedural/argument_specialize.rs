@@ -9,12 +9,12 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
     callsite_hotness, constant_arguments_for_parameters, instruction_map_with_locals,
-    required_parameter_indices, terminator_remap,
+    required_parameter_indices, run_function_passes_always, terminator_remap,
 };
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, ModulePass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 /// Maximum specializations per function.
 const MAX_SPECIALIZE_PER_FUNCTION: usize = 4;
@@ -412,7 +412,10 @@ fn specialize_callee(
     }
 
     // run cleanup passes on the specialized clone
-    run_specialization_cleanup(new_function_id, tree, ctx);
+    let sccp = SparseConditionalConstantPropagation;
+    let simplify = SimplifyCfg;
+    let dce = DeadCodeEliminate;
+    run_function_passes_always(new_function_id, tree, ctx, &[&sccp, &simplify, &dce]);
     new_function_id
 }
 
@@ -631,39 +634,6 @@ fn update_callsite(
     tree.replace(callsite.call_instruction, updated);
 
     true
-}
-
-/// Run cleanup passes on a specialized function.
-fn run_specialization_cleanup(
-    function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
-    ctx: &PipelineContext<'_>,
-) {
-    // clone the function for mutation
-    let mut function = tree.get(function_id).clone();
-
-    // skip extern functions
-    if function.entry.is_none() {
-        return;
-    }
-
-    // run sccp
-    let sccp = SparseConditionalConstantPropagation;
-    function.recompute_next_value_id(tree);
-    sccp.run(&mut function, tree, ctx);
-
-    // run simplify cfg
-    let simplify = SimplifyCfg;
-    function.recompute_next_value_id(tree);
-    simplify.run(&mut function, tree, ctx);
-
-    // run dead code elimination
-    let dce = DeadCodeEliminate;
-    function.recompute_next_value_id(tree);
-    dce.run(&mut function, tree, ctx);
-
-    // write back the updated function
-    *tree.get_mut(function_id) = function;
 }
 
 #[cfg(test)]

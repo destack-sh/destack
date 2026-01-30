@@ -6,7 +6,8 @@ use destack_compiler::OptimizationLevel;
 
 use destack_test::harness::{Runner, TestOptions};
 use destack_test::optimize::{
-    OptimizeBaselineSuite, OptimizeExecuteSuite, OptimizeRunOptions, OptimizeValidateSuite,
+    OptimizeBaselineSuite, OptimizeExecuteSuite, OptimizePerfSuite, OptimizeRunOptions,
+    OptimizeValidateSuite,
 };
 
 /// CLI options for the `optimize` test binary.
@@ -24,6 +25,10 @@ struct OptimizeOptions {
     /// Run execution suite over bench programs.
     #[arg(long)]
     execute: bool,
+
+    /// Run perf suite over bench programs.
+    #[arg(long)]
+    perf: bool,
 
     /// Enable diagnostic mismatch isolation.
     #[arg(long)]
@@ -55,10 +60,11 @@ fn main() -> ExitCode {
     let options = OptimizeOptions::parse();
 
     // determine which suites to run
-    let run_validate =
-        options.validate || (!options.validate && !options.execute && !options.baseline);
+    let run_validate = options.validate
+        || (!options.validate && !options.execute && !options.baseline && !options.perf);
     let run_baseline = options.baseline;
     let run_execute = options.execute;
+    let run_perf = options.perf;
 
     // parse the optional level filter
     let level_filter = match options.level.as_deref() {
@@ -98,7 +104,14 @@ fn main() -> ExitCode {
         }
     }
     if run_execute {
-        let suite = OptimizeExecuteSuite::load(run_options);
+        let suite = OptimizeExecuteSuite::load(run_options.clone());
+        let result = Runner::run_suite(&suite, &options.test);
+        if result != ExitCode::SUCCESS {
+            any_failed = true;
+        }
+    }
+    if run_perf {
+        let suite = OptimizePerfSuite::load(run_options);
         let result = Runner::run_suite(&suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;

@@ -1,0 +1,108 @@
+
+function @http_router(v0: i64) -> i64 {
+
+// entry, init state
+block0(v0: i64):
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    jump block1(v1, v2)
+
+// loop condition, check limit
+block1(v3: i64, v4: i64):
+    v5: bool = icmp_sge v3, v0
+    branch v5, block9(v4), block2
+
+// compute method and route
+block2:
+    v6: i64 = iconst 1i64
+    v7: i64 = band v3, v6
+    v8: i64 = iconst 1103515245i64
+    v9: i64 = imul v3, v8
+    v10: i64 = iconst 12345i64
+    v11: i64 = iadd v9, v10
+    v12: i64 = iconst 4i64
+    v13: i64 = srem v11, v12
+    switch v7, block8, 0 => block3, 1 => block4
+
+// GET routes
+block3:
+    switch v13, block8, 0 => block5, 1 => block6, 2 => block7, 3 => block8
+
+// POST routes
+block4:
+    switch v13, block8, 0 => block10, 1 => block11, 2 => block12, 3 => block13
+
+// GET /a
+block5:
+    v14: i64 = iadd v4, v3
+    jump block14(v14, v3)
+
+// GET /b
+block6:
+    v15: i64 = iconst 3i64
+    v16: i64 = iadd v4, v15
+    jump block14(v16, v3)
+
+// GET /c
+block7:
+    v17: i64 = iconst 2i64
+    v18: i64 = imul v3, v17
+    v19: i64 = iadd v4, v18
+    jump block14(v19, v3)
+
+// GET /d
+block8:
+    v20: i64 = iconst 7i64
+    v21: i64 = iadd v4, v20
+    jump block14(v21, v3)
+
+// POST /a
+block10:
+    v22: i64 = iconst 5i64
+    v23: i64 = bxor v3, v22
+    v24: i64 = iadd v4, v23
+    jump block14(v24, v3)
+
+// POST /b
+block11:
+    v25: i64 = iconst 11i64
+    v26: i64 = iadd v3, v25
+    v27: i64 = iadd v4, v26
+    jump block14(v27, v3)
+
+// POST /c
+block12:
+    v28: i64 = iconst 1i64
+    v29: i64 = isub v3, v28
+    v30: i64 = iadd v4, v29
+    jump block14(v30, v3)
+
+// POST /d
+block13:
+    v31: i64 = iconst 9i64
+    v32: i64 = iadd v4, v31
+    jump block14(v32, v3)
+
+// advance loop
+block14(v33: i64, v34: i64):
+    v35: i64 = iconst 1i64
+    v36: i64 = iadd v34, v35
+    jump block1(v36, v33)
+
+// return result
+block9(v37: i64):
+    v38: i64 = iconst 7i64
+    v39: i64 = imul v0, v38
+    v40: i64 = iadd v37, v39
+    v41: i64 = iconst 3i64
+    v42: i64 = iadd v40, v41
+    v43: i64 = iconst 3i64
+    v44: i64 = sshr v37, v43
+    v45: i64 = bxor v42, v44
+    v46: i64 = iconst 33i64
+    v47: i64 = imul v45, v46
+    v48: i64 = iconst 255i64
+    v49: i64 = band v0, v48
+    v50: i64 = iadd v47, v49
+    return v50
+}

@@ -6,10 +6,10 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, constant_propagation_with_params};
 use crate::optimize::common::{
     SignatureKey, apply_constant_parameters, constant_arguments_for_parameters,
-    constant_matches_type, constant_type_of,
+    constant_matches_type, constant_type_of, run_function_passes,
 };
 use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
-use crate::optimize::{AnalysisPreservation, FunctionPass, ModulePass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
     /// Propagate constants across call edges and prune dead paths.
@@ -201,7 +201,9 @@ fn run_interprocedural_sccp(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>)
 
     // run cleanup passes for modified functions
     for function_id in cleanup_functions {
-        if run_function_cleanup(function_id, tree, ctx) {
+        let sccp = SparseConditionalConstantPropagation;
+        let simplify = SimplifyCfg;
+        if run_function_passes(function_id, tree, ctx, &[&sccp, &simplify]) {
             changed = true;
         }
     }
@@ -568,40 +570,6 @@ fn replace_constant_calls(
         );
         tree.memory_table.remove_memory_accesses(call_instruction);
         changed = true;
-    }
-
-    changed
-}
-
-/// Run cleanup passes on a modified function.
-fn run_function_cleanup(
-    function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
-    ctx: &PipelineContext<'_>,
-) -> bool {
-    // clone the function for mutation
-    let mut function = tree.get(function_id).clone();
-
-    // skip extern functions
-    if function.entry.is_none() {
-        return false;
-    }
-
-    // run SCCP
-    let sccp = SparseConditionalConstantPropagation;
-    function.recompute_next_value_id(tree);
-    let mut changed = !sccp.run(&mut function, tree, ctx).preserves_all();
-
-    // run simplify cfg
-    let simplify = SimplifyCfg;
-    function.recompute_next_value_id(tree);
-    if !simplify.run(&mut function, tree, ctx).preserves_all() {
-        changed = true;
-    }
-
-    // write back when changes occurred
-    if changed {
-        *tree.get_mut(function_id) = function;
     }
 
     changed
