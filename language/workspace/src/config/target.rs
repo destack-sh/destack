@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use destack_builtin::{BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
+
 use super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
     DeterminismPolicy, DeterminismPolicyJson, DivisionCheckPolicy, DivisionCheckPolicyJson,
@@ -64,6 +66,17 @@ impl OutputFormat {
     /// Whether this format typically produces a single output file.
     pub fn is_single_file(&self) -> bool {
         matches!(self, Self::Wasm | Self::Native)
+    }
+}
+
+impl From<OutputFormat> for BuiltinOutputFormat {
+    fn from(value: OutputFormat) -> Self {
+        match value {
+            OutputFormat::Js => BuiltinOutputFormat::Js,
+            OutputFormat::Ts => BuiltinOutputFormat::Ts,
+            OutputFormat::Wasm => BuiltinOutputFormat::Wasm,
+            OutputFormat::Native => BuiltinOutputFormat::Native,
+        }
     }
 }
 
@@ -758,6 +771,23 @@ pub enum Runtime {
     NativeEmbedded,
 }
 
+impl From<Runtime> for BuiltinRuntime {
+    fn from(value: Runtime) -> Self {
+        match value {
+            Runtime::Browser => BuiltinRuntime::Browser,
+            Runtime::Node => BuiltinRuntime::Node,
+            Runtime::Deno => BuiltinRuntime::Deno,
+            Runtime::Bun => BuiltinRuntime::Bun,
+            Runtime::Worker => BuiltinRuntime::Worker,
+            Runtime::WasmJs => BuiltinRuntime::WasmJs,
+            Runtime::WasmWasi => BuiltinRuntime::WasmWasi,
+            Runtime::NativeHosted => BuiltinRuntime::NativeHosted,
+            Runtime::NativeFreestanding => BuiltinRuntime::NativeFreestanding,
+            Runtime::NativeEmbedded => BuiltinRuntime::NativeEmbedded,
+        }
+    }
+}
+
 impl std::str::FromStr for Runtime {
     type Err = ();
 
@@ -854,6 +884,22 @@ pub enum Platform {
     BareMetal,
     /// Unknown or portable (no platform-specific APIs)
     Universal,
+}
+
+impl From<Platform> for BuiltinPlatform {
+    fn from(value: Platform) -> Self {
+        match value {
+            Platform::Web => BuiltinPlatform::Web,
+            Platform::Windows => BuiltinPlatform::Windows,
+            Platform::MacOS => BuiltinPlatform::MacOS,
+            Platform::Linux => BuiltinPlatform::Linux,
+            Platform::IOS => BuiltinPlatform::IOS,
+            Platform::Android => BuiltinPlatform::Android,
+            Platform::Wasi => BuiltinPlatform::Wasi,
+            Platform::BareMetal => BuiltinPlatform::BareMetal,
+            Platform::Universal => BuiltinPlatform::Universal,
+        }
+    }
 }
 
 impl std::str::FromStr for Platform {

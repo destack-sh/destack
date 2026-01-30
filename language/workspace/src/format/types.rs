@@ -690,7 +690,10 @@ pub fn format_static_argument(
     strings: &StringPool,
 ) -> String {
     match argument {
-        dir::StaticArgument::Unevaluated { .. } => "<unevaluated>".to_string(),
+        dir::StaticArgument::Unevaluated { node } => types
+            .get_declared_or_inferred_type_id(*node)
+            .map(|type_id| format_local_type(type_id, types, modules, strings))
+            .unwrap_or_else(|| "<unevaluated>".to_string()),
         dir::StaticArgument::Evaluated { name, value } => {
             let value_str = format_static_expression(value, types, modules, strings);
             if let Some(name_id) = name {

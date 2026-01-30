@@ -325,8 +325,10 @@ impl TestProgram {
 
     /// Load a lib module set (builder pattern).
     pub fn with_lib(self, name: &str) -> Self {
+        let profile_id = self.default_profile_id_for_root();
+        let profile_key = self.program.profile(profile_id).key.clone();
         self.session
-            .load_lib(name)
+            .load_lib(name, &profile_key)
             .unwrap_or_else(|| panic!("missing builtin lib '{name}'"));
         self
     }
