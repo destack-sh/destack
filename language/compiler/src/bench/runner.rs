@@ -14,6 +14,16 @@ use super::program::BenchProgram;
 pub(crate) struct LibTiming {
     /// The builtin lib name.
     pub(crate) name: String,
+    /// The number of modules in the lib.
+    pub(crate) module_count: usize,
+    /// The total number of lines in the lib.
+    pub(crate) total_lines: usize,
+    /// The minimum line count across modules.
+    pub(crate) min_lines: usize,
+    /// The maximum line count across modules.
+    pub(crate) max_lines: usize,
+    /// The mean line count across modules.
+    pub(crate) mean_lines: f64,
     /// The time spent importing sources.
     pub(crate) import: Duration,
     /// The time spent resolving builtins and libs.
@@ -272,6 +282,7 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
 
         // import lib modules
         let (import_modules, import_duration) = import_lib_modules(&test, &libs, timeout);
+        let line_stats = collect_line_stats(&test, &import_modules);
 
         // resolve builtins and libs
         let resolve_duration = resolve_builtins_and_libs(&test, timeout);
@@ -279,6 +290,11 @@ fn run_builtin_libs_per_lib(options: &BenchOptions) {
 
         timings.push(LibTiming {
             name: lib.name.to_string(),
+            module_count: line_stats.module_count,
+            total_lines: line_stats.total_lines,
+            min_lines: line_stats.min_lines,
+            max_lines: line_stats.max_lines,
+            mean_lines: line_stats.mean_lines,
             import: import_duration,
             resolve: resolve_duration,
             analyze: analyze_duration,
@@ -439,6 +455,59 @@ fn analyze_lib_modules(test: &BenchProgram, modules: &[ModuleId], timeout: Durat
     analyze_start.elapsed()
 }
 
+#[derive(Debug, Clone, Copy)]
+/// Line count statistics for a module set.
+struct LineStats {
+    /// The total number of modules.
+    module_count: usize,
+    /// The total number of lines across modules.
+    total_lines: usize,
+    /// The minimum lines in a module.
+    min_lines: usize,
+    /// The maximum lines in a module.
+    max_lines: usize,
+    /// The mean line count across modules.
+    mean_lines: f64,
+}
+
+/// Collect line count statistics for a module list.
+fn collect_line_stats(test: &BenchProgram, modules: &[ModuleId]) -> LineStats {
+    let mut seen_modules = HashSet::new();
+    let mut line_counts = Vec::new();
+
+    for module_id in modules {
+        if !seen_modules.insert(*module_id) {
+            continue;
+        }
+
+        let module_ref = test.program.modules.get(*module_id);
+        let module = module_ref.read();
+        let Some(file) = test.program.files.get_maybe(module.file_id) else {
+            line_counts.push(0);
+            continue;
+        };
+        line_counts.push(file.line_count() as usize);
+    }
+
+    let module_count = line_counts.len();
+    let total_lines = line_counts.iter().sum();
+    let min_lines = line_counts.iter().copied().min().unwrap_or(0);
+    let max_lines = line_counts.iter().copied().max().unwrap_or(0);
+    let mean_lines = if module_count == 0 {
+        0.0
+    } else {
+        total_lines as f64 / module_count as f64
+    };
+
+    LineStats {
+        module_count,
+        total_lines,
+        min_lines,
+        max_lines,
+        mean_lines,
+    }
+}
+
 /// Compile queued tasks and assert no diagnostics.
 fn compile_and_check(test: &BenchProgram, timeout: Duration) {
     // compile with timeout
@@ -478,6 +547,7 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
     let timeout = options.effective_timeout();
 
     let (import_modules, import_duration) = import_lib_modules(&test, &lib_refs, timeout);
+    let line_stats = collect_line_stats(&test, &import_modules);
 
     // resolve builtins and libs
     let resolve_duration = resolve_builtins_and_libs(&test, timeout);
@@ -486,6 +556,11 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
     let label = format!("combined({})", libs.join(","));
     let timing = LibTiming {
         name: label,
+        module_count: line_stats.module_count,
+        total_lines: line_stats.total_lines,
+        min_lines: line_stats.min_lines,
+        max_lines: line_stats.max_lines,
+        mean_lines: line_stats.mean_lines,
         import: import_duration,
         resolve: resolve_duration,
         analyze: analyze_duration,
