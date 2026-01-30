@@ -110,6 +110,17 @@ fn decorators_equal(
         return false;
     }
 
+    // compare static arguments
+    match (&left.static_arguments, &right.static_arguments) {
+        (None, None) => {}
+        (Some(left_args), Some(right_args)) => {
+            if !arguments_are_equal(ctx, left_args, right_args) {
+                return false;
+            }
+        }
+        _ => return false,
+    }
+
     // compare arguments
     match (&left.arguments, &right.arguments) {
         (None, None) => true,
