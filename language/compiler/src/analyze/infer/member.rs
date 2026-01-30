@@ -1,6 +1,7 @@
 use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
 use crate::analyze::common::CanonicalSymbolMode;
+use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
@@ -82,6 +83,8 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_MEMBER);
+
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let left_ty_id = self.materialize_infer_type_for_check(

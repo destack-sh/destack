@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use super::SignatureResolutionMode;
 use super::member::{MemberLookupMode, MemberResolution};
 use crate::analyze::common::CanonicalSymbolMode;
+use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
@@ -310,6 +311,8 @@ impl Compiler {
         types: &mut TypeTable,
         infer: &mut InferTable,
     ) -> AnalyzeResult<Option<(LocalTypeId, ResolvedSignature)>> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_OVERLOAD_RESOLVE);
+
         // only attempt selection when overloads exist
         if signature_ids.len() <= 1 {
             return Ok(None);
@@ -1275,6 +1278,8 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_CALL);
+
         // enforce call restrictions from options
         self.validate_call_expression(
             module,

@@ -71,11 +71,13 @@ impl Compiler {
 pub mod tags {
     use super::TimingTag;
 
+    // import
     pub const IMPORT_MODULE_PARSE: TimingTag = TimingTag::new("import.module.parse");
     pub const IMPORT_MODULE_BIND: TimingTag = TimingTag::new("import.module.bind");
     pub const IMPORT_MODULE_DESUGAR: TimingTag = TimingTag::new("import.module.desugar");
     pub const IMPORT_MODULE_VALIDATE: TimingTag = TimingTag::new("import.module.validate");
 
+    // resolve
     pub const RESOLVE_BUILTINS: TimingTag = TimingTag::new("resolve.builtins");
     pub const RESOLVE_LIBS: TimingTag = TimingTag::new("resolve.libs");
     pub const RESOLVE_MODULE_PREPARE: TimingTag = TimingTag::new("resolve.module.prepare");
@@ -88,10 +90,15 @@ pub mod tags {
     pub const RESOLVE_MODULE_EXPORTS: TimingTag = TimingTag::new("resolve.exports.finalize");
     pub const RESOLVE_MODULE_CANONICAL: TimingTag = TimingTag::new("resolve.module.canonicalize");
 
+    // analyze declare
     pub const ANALYZE_MODULE_DECLARE: TimingTag = TimingTag::new("analyze.module.declare");
     pub const ANALYZE_DECLARE_TYPES: TimingTag = TimingTag::new("analyze.types.evaluate");
     pub const ANALYZE_TYPES_EVALUATE_EXPRESSION: TimingTag =
         TimingTag::new("analyze.types.evaluate.expression");
+    pub const ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL: TimingTag =
+        TimingTag::new("analyze.types.evaluate.expression.literal");
+    pub const ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP: TimingTag =
+        TimingTag::new("analyze.types.evaluate.expression.type_op");
     pub const ANALYZE_TYPES_EVALUATE_SIGNATURE: TimingTag =
         TimingTag::new("analyze.types.evaluate.signature");
     pub const ANALYZE_TYPES_EVALUATE_TEMPLATE: TimingTag =
@@ -115,18 +122,52 @@ pub mod tags {
     pub const ANALYZE_DECLARE_DECLARATIONS: TimingTag =
         TimingTag::new("analyze.declarations.declare");
     pub const ANALYZE_DECLARE_DECORATORS: TimingTag = TimingTag::new("analyze.decorators.register");
+
+    // analyze export
     pub const ANALYZE_MODULE_EXPORT: TimingTag = TimingTag::new("analyze.module.export");
     pub const ANALYZE_EXPORT_VALUES: TimingTag = TimingTag::new("analyze.exports.declare");
     pub const ANALYZE_EXPORT_ALIASES: TimingTag = TimingTag::new("analyze.exports.materialize");
     pub const ANALYZE_EXPORT_NAMESPACE: TimingTag = TimingTag::new("analyze.namespace.declare");
+
+    // analyze infer
     pub const ANALYZE_MODULE_INFER: TimingTag = TimingTag::new("analyze.module.infer");
     pub const ANALYZE_FLOW_GRAPH_BUILD: TimingTag = TimingTag::new("analyze.flow.graph.build");
     pub const ANALYZE_FLOW_TABLE_COMPUTE: TimingTag = TimingTag::new("analyze.flow.table.compute");
     pub const ANALYZE_EXPRESSION_INFER: TimingTag = TimingTag::new("analyze.expression.infer");
+    pub const ANALYZE_INFER_EXPRESSION_CALL: TimingTag =
+        TimingTag::new("analyze.infer.expression.call");
+    pub const ANALYZE_INFER_EXPRESSION_MEMBER: TimingTag =
+        TimingTag::new("analyze.infer.expression.member");
+    pub const ANALYZE_INFER_EXPRESSION_OPERATOR: TimingTag =
+        TimingTag::new("analyze.infer.expression.operator");
+    pub const ANALYZE_INFER_EXPRESSION_LITERAL: TimingTag =
+        TimingTag::new("analyze.infer.expression.literal");
+    pub const ANALYZE_INFER_EXPRESSION_TEMPLATE: TimingTag =
+        TimingTag::new("analyze.infer.expression.template");
+    pub const ANALYZE_INFER_EXPRESSION_REFERENCE: TimingTag =
+        TimingTag::new("analyze.infer.expression.reference");
     pub const ANALYZE_INFER_REGISTER_INSTANCES: TimingTag =
         TimingTag::new("analyze.infer.instances.register");
     pub const ANALYZE_INFER_SOLVE_CONSTRAINTS: TimingTag =
         TimingTag::new("analyze.infer.constraints.solve");
+    pub const ANALYZE_INFER_ASSIGN_CHECK: TimingTag =
+        TimingTag::new("analyze.infer.assign.check");
+    pub const ANALYZE_INFER_TYPE_NORMALIZE: TimingTag =
+        TimingTag::new("analyze.infer.type.normalize");
+    pub const ANALYZE_INFER_TYPE_MATERIALIZE: TimingTag =
+        TimingTag::new("analyze.infer.type.materialize");
+    pub const ANALYZE_INFER_TYPE_SUBSTITUTE: TimingTag =
+        TimingTag::new("analyze.infer.type.substitute");
+    pub const ANALYZE_INFER_TYPE_APPARENT: TimingTag =
+        TimingTag::new("analyze.infer.type.apparent");
+    pub const ANALYZE_INFER_STATIC_RESOLVE: TimingTag =
+        TimingTag::new("analyze.infer.static.resolve");
+    pub const ANALYZE_INFER_STATIC_EVALUATE: TimingTag =
+        TimingTag::new("analyze.infer.static.evaluate");
+    pub const ANALYZE_INFER_STATIC_MATERIALIZE: TimingTag =
+        TimingTag::new("analyze.infer.static.materialize");
+    pub const ANALYZE_INFER_OVERLOAD_RESOLVE: TimingTag =
+        TimingTag::new("analyze.infer.overload.resolve");
     pub const ANALYZE_MODULE_CAPTURE: TimingTag = TimingTag::new("analyze.module.capture");
     pub const ANALYZE_MODULE_VALIDATE: TimingTag = TimingTag::new("analyze.module.validate");
 

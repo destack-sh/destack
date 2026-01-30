@@ -12,6 +12,7 @@ use super::{
     index_key_kinds_compatible_for_assignability,
 };
 use crate::{AnalyzeOptions, Compiler};
+use crate::timing::tags;
 
 /// Clear assignability recursion state on drop.
 struct AssignabilityGuard {
@@ -78,6 +79,8 @@ impl Compiler {
         if target_id == source_id {
             return Assignability::Assignable;
         }
+
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
 
         // normalize and resolve apparent types for assignability
         let target_id = self.normalize_apparent_type(

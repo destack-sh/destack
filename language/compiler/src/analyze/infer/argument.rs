@@ -4,6 +4,7 @@ use crate::analyze::common::{
     CanonicalSymbolMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache,
     TypeWalkContext, rewrite_type_with_cache,
 };
+use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DependencyItem,
@@ -1880,6 +1881,8 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_RESOLVE);
+
         // canonicalize import targets while preserving alias identity
         let symbol = self.canonical_symbol_id(
             module,
@@ -3246,6 +3249,8 @@ impl Compiler {
         types: &mut TypeTable,
         cache: &mut HashMap<LocalTypeId, LocalTypeId>,
     ) -> LocalTypeId {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_TYPE_SUBSTITUTE);
+
         if let Some(mapped) = cache.get(&ty_id).copied() {
             return mapped;
         }
@@ -4013,6 +4018,8 @@ impl Compiler {
         types: &mut TypeTable,
         cache: &mut TypeRewriteCache,
     ) -> LocalTypeId {
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_STATIC_MATERIALIZE);
+
         let local_cache = std::mem::take(cache);
         let mut materializer = StaticArgumentMaterializer::new(
             self,
