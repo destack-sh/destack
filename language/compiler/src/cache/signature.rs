@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use destack_base::{ImmutableStringPool, StringId};
 use destack_dir::{
-    AccessorKind, Argument, Asynchrony, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, Declaration, Dumper, DumperOptions, DynamicKey, Export, ExportKind,
-    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    AccessorKind, Argument, Asynchrony, AbstractionModifier, BindingAnchor, BindingKind,
+    BindingModifier, BindingOperator, Declaration, Dumper, DumperOptions, DynamicKey, Export,
+    ExportKind, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntrinsicType,
     LocalTypeId, Mutability, NodeType, NodeVisitor, Parameter, Path, PrimitiveType, Property,
     ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty, Symbol, SymbolKey,
@@ -1516,6 +1516,10 @@ impl<'a> SignatureHasher<'a> {
             .map(|value| self.hash_binding_kind(value))
             .hash(&mut hasher);
         modifier
+            .abstraction
+            .map(|value| self.hash_binding_abstraction(value))
+            .hash(&mut hasher);
+        modifier
             .variance
             .map(|value| self.hash_variance_modifier(value))
             .hash(&mut hasher);
@@ -1551,6 +1555,14 @@ impl<'a> SignatureHasher<'a> {
     fn hash_binding_kind(&mut self, kind: BindingKind) -> u64 {
         let mut hasher = FxHasher::default();
         std::mem::discriminant(&kind).hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    /// Hash a binding abstraction into a stable fingerprint.
+    fn hash_binding_abstraction(&mut self, abstraction: AbstractionModifier) -> u64 {
+        let mut hasher = FxHasher::default();
+        std::mem::discriminant(&abstraction).hash(&mut hasher);
 
         hasher.finish()
     }

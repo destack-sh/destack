@@ -1,7 +1,7 @@
 use destack_ast::{
-    AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter, Pattern,
-    PostfixPosition, ScalarLiteral, StringId, Timing, TokenType, VarianceModifier,
+    AccessorKind, Argument, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    BindingOperator, Expression, Keyword, LocalNodeId, Mutability, Name, NodeType, Parameter,
+    Pattern, PostfixPosition, ScalarLiteral, StringId, Timing, TokenType, VarianceModifier,
 };
 use destack_source::NodeSpanType;
 
@@ -9,7 +9,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 impl Parser {
-    /// Eat a binding modifiers prefix (visibility and mutability).
+    /// Eat a binding modifiers prefix when present.
     pub fn eat_binding_modifiers_prefix_maybe(
         &mut self,
         allow_readonly_key: bool,
@@ -18,73 +18,136 @@ impl Parser {
         let mut modifiers = BindingModifier::default();
         let mut has_modifiers = false;
 
-        // variance for static parameters
-        if self.options.in_static {
-            if self.peek_keyword(Keyword::In).is_ok() {
-                self.bump(); // eat in
-                modifiers.variance = Some(VarianceModifier::In);
-                has_modifiers = true;
-            } else if self.peek_identifier_str("out").is_ok() {
-                self.bump(); // eat out
-                modifiers.variance = Some(VarianceModifier::Out);
-                has_modifiers = true;
+        // eat modifiers in any order
+        loop {
+            let mut progress = false;
+
+            // modifier disambiguation for abstraction keywords
+            let abstraction_is_modifier = self.peek_next_token(TokenType::Colon).is_err()
+                && self.peek_next_token(TokenType::Maybe).is_err()
+                && self.peek_next_token(TokenType::LessThan).is_err()
+                && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+
+            // variance for static parameters
+            if self.options.in_static && modifiers.variance.is_none() {
+                if self.peek_keyword(Keyword::In).is_ok() {
+                    self.bump(); // eat in
+                    modifiers.variance = Some(VarianceModifier::In);
+                    has_modifiers = true;
+                    progress = true;
+                } else if self.peek_identifier_str("out").is_ok() {
+                    self.bump(); // eat out
+                    modifiers.variance = Some(VarianceModifier::Out);
+                    has_modifiers = true;
+                    progress = true;
+                }
             }
-        }
 
-        // visibility
-        if let Ok(Some(visibility)) = self.peek_visibility() {
-            self.bump(); // eat visibility
-            modifiers.visibility = Some(visibility);
-            has_modifiers = true;
-        }
+            // visibility
+            if modifiers.visibility.is_none()
+                && let Ok(Some(visibility)) = self.peek_visibility()
+            {
+                self.bump(); // eat visibility
+                modifiers.visibility = Some(visibility);
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // scope
-        if self.peek_keyword(Keyword::Static).is_ok() {
-            self.bump(); // eat static
-            modifiers.anchor = Some(BindingAnchor::Static);
-            has_modifiers = true;
-        }
+            // scope
+            if modifiers.anchor.is_none() && self.peek_keyword(Keyword::Static).is_ok() {
+                self.bump(); // eat static
+                modifiers.anchor = Some(BindingAnchor::Static);
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // mutability
-        // allow treating readonly as a key in property contexts
-        let readonly_is_modifier = if allow_readonly_key {
-            self.peek_next_token(TokenType::Identifier).is_ok()
-                || self.peek_next_token(TokenType::OpenBracket).is_ok()
-        } else {
-            true
-        };
-        if self.peek_keyword(Keyword::Readonly).is_ok() && readonly_is_modifier {
-            self.bump(); // eat readonly
-            modifiers.mutability = Some(Mutability::Immutable);
-            has_modifiers = true;
-        }
+            // abstraction
+            if self.peek_keyword(Keyword::Abstract).is_ok() && abstraction_is_modifier {
+                self.bump(); // eat abstract
+                modifiers.abstraction = Some(match modifiers.abstraction {
+                    None => AbstractionModifier::Abstract,
+                    Some(AbstractionModifier::Override) => AbstractionModifier::AbstractOverride,
+                    Some(AbstractionModifier::Abstract) => AbstractionModifier::Abstract,
+                    Some(AbstractionModifier::AbstractOverride) => {
+                        AbstractionModifier::AbstractOverride
+                    }
+                });
+                has_modifiers = true;
+                progress = true;
+            }
+            if self.peek_keyword(Keyword::Override).is_ok() && abstraction_is_modifier {
+                self.bump(); // eat override
+                modifiers.abstraction = Some(match modifiers.abstraction {
+                    None => AbstractionModifier::Override,
+                    Some(AbstractionModifier::Abstract) => AbstractionModifier::AbstractOverride,
+                    Some(AbstractionModifier::Override) => AbstractionModifier::Override,
+                    Some(AbstractionModifier::AbstractOverride) => {
+                        AbstractionModifier::AbstractOverride
+                    }
+                });
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // explicit mutability
-        if self.peek_keyword(Keyword::Mut).is_ok() {
-            self.bump(); // eat mut
-            modifiers.mutability = Some(Mutability::Mutable);
-            has_modifiers = true;
-        }
+            // mutability
+            // allow treating readonly as a key in property contexts
+            let readonly_is_modifier = if allow_readonly_key {
+                self.peek_next_token(TokenType::Identifier).is_ok()
+                    || self.peek_next_token(TokenType::OpenBracket).is_ok()
+            } else {
+                true
+            };
+            if modifiers.mutability.is_none()
+                && self.peek_keyword(Keyword::Readonly).is_ok()
+                && readonly_is_modifier
+            {
+                self.bump(); // eat readonly
+                modifiers.mutability = Some(Mutability::Immutable);
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // operator
-        if self.peek_keyword(Keyword::Const).is_ok() {
-            self.bump(); // eat const
-            modifiers.operator = Some(BindingOperator::AsConst);
-            has_modifiers = true;
-        }
+            // explicit mutability
+            if modifiers.mutability.is_none() && self.peek_keyword(Keyword::Mut).is_ok() {
+                self.bump(); // eat mut
+                modifiers.mutability = Some(Mutability::Mutable);
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // accessor
-        if accessor_is_modifier && self.peek_keyword(Keyword::Accessor).is_ok() {
-            self.bump(); // eat accessor
-            modifiers.accessor = Some(AccessorKind::Accessor);
-            has_modifiers = true;
-        }
+            // operator
+            if modifiers.operator.is_none() && self.peek_keyword(Keyword::Const).is_ok() {
+                self.bump(); // eat const
+                modifiers.operator = Some(BindingOperator::AsConst);
+                has_modifiers = true;
+                progress = true;
+            }
 
-        // timing
-        if self.peek_keyword(Keyword::Comptime).is_ok() {
-            self.bump(); // eat comptime
-            modifiers.timing = Some(Timing::Comptime);
-            has_modifiers = true;
+            // accessor
+            let accessor_is_modifier = accessor_is_modifier
+                && self.peek_keyword(Keyword::Accessor).is_ok()
+                && self.peek_next_token(TokenType::Colon).is_err()
+                && self.peek_next_token(TokenType::Maybe).is_err()
+                && self.peek_next_token(TokenType::LessThan).is_err()
+                && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+            if modifiers.accessor.is_none() && accessor_is_modifier {
+                self.bump(); // eat accessor
+                modifiers.accessor = Some(AccessorKind::Accessor);
+                has_modifiers = true;
+                progress = true;
+            }
+
+            // timing
+            if modifiers.timing.is_none() && self.peek_keyword(Keyword::Comptime).is_ok() {
+                self.bump(); // eat comptime
+                modifiers.timing = Some(Timing::Comptime);
+                has_modifiers = true;
+                progress = true;
+            }
+
+            if !progress {
+                break;
+            }
         }
 
         if has_modifiers {
@@ -154,7 +217,7 @@ impl Parser {
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         let start = self.mark();
 
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(false, false)?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, false)?;
 
         // variadic
         let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {
@@ -782,6 +845,18 @@ impl Parser {
                         span,
                     )
                 }
+                // shorthand array attribute
+                else if self.peek_token(TokenType::OpenBracket).is_ok() {
+                    let value_start = self.mark();
+                    let elements = self.with_options(
+                        self.options.not_in_position().not_in_tree_literal(),
+                        |parser| parser.eat_array_literal(),
+                    )?;
+                    self.tree.insert(
+                        Expression::ArrayExpression { elements },
+                        self.get_span_from(value_start),
+                    )
+                }
                 // unexpected attribute value
                 else {
                     return Err(ParseError::unexpected(self.peek()?.span));
@@ -1110,6 +1185,23 @@ mod tests {
             assert_eq!(modifiers.visibility, Some(Visibility::Private));
             assert_eq!(modifiers.mutability, Some(Mutability::Immutable));
             assert_eq!(modifiers.operator, Some(BindingOperator::AsConst));
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_readonly_name() {
+        // readonly: int32
+        let mut test = TestParser::new("readonly: int32");
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Named { modifiers, name, ty, default: None } => {
+            assert!(modifiers.is_none());
+            assert_string!(parser, *name, "readonly");
+            let ty = ty.expect("expected type annotation");
+            assert_node!(parser.tree, ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary {
+                width: Some(32),
+                is_signed: true
+            })));
         });
     }
 

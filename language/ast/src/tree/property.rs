@@ -14,6 +14,17 @@ pub enum BindingKind {
     Maybe,
 }
 
+/// The abstraction modifier of a binding.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AbstractionModifier {
+    /// Abstract binding.
+    Abstract,
+    /// Override binding.
+    Override,
+    /// Abstract override binding.
+    AbstractOverride,
+}
+
 /// Variance annotation for type parameters.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VarianceModifier {
@@ -69,6 +80,8 @@ pub enum Timing {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
+    /// The abstraction modifier of the binding.
+    pub abstraction: Option<AbstractionModifier>,
     /// The variance of a type parameter.
     pub variance: Option<VarianceModifier>,
     /// The anchor of the binding.

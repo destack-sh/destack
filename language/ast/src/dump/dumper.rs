@@ -427,6 +427,7 @@ impl_dump_display! {
     AnnotationPosition,
     Asynchrony,
     AssignOperator,
+    AbstractionModifier,
     BindingKind,
     BindingOperator,
     BindingAnchor,
@@ -516,6 +517,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
+            .field_optional("abstraction", &self.abstraction)
             .field_optional("variance", &self.variance)
             .field_optional("anchor", &self.anchor)
             .field_optional("mutability", &self.mutability)
