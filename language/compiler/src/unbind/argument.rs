@@ -18,6 +18,11 @@ impl Compiler {
             dir::BindingKind::Must => ast::BindingKind::Must,
             dir::BindingKind::Maybe => ast::BindingKind::Maybe,
         });
+        let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
+            dir::AbstractionModifier::Abstract => ast::AbstractionModifier::Abstract,
+            dir::AbstractionModifier::Override => ast::AbstractionModifier::Override,
+            dir::AbstractionModifier::AbstractOverride => ast::AbstractionModifier::AbstractOverride,
+        });
         let variance = modifiers.variance.map(|variance| match variance {
             dir::VarianceModifier::In => ast::VarianceModifier::In,
             dir::VarianceModifier::Out => ast::VarianceModifier::Out,
@@ -46,6 +51,7 @@ impl Compiler {
         });
         ast::BindingModifier {
             kind,
+            abstraction,
             variance,
             anchor,
             mutability,

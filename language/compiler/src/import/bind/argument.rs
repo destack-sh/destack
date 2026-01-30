@@ -1,10 +1,10 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType,
-    Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder, SymbolTable, Timing,
-    TypeTable, VarianceModifier, Visibility,
+    AccessorKind, Argument, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    BindingOperator, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability,
+    NodeTree, NodeType, Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -20,6 +20,11 @@ impl Compiler {
         let kind = modifiers.kind.map(|kind| match kind {
             ast::BindingKind::Must => BindingKind::Must,
             ast::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
+            ast::AbstractionModifier::Abstract => AbstractionModifier::Abstract,
+            ast::AbstractionModifier::Override => AbstractionModifier::Override,
+            ast::AbstractionModifier::AbstractOverride => AbstractionModifier::AbstractOverride,
         });
         let variance = modifiers.variance.map(|variance| match variance {
             ast::VarianceModifier::In => VarianceModifier::In,
@@ -49,6 +54,7 @@ impl Compiler {
         });
         BindingModifier {
             kind,
+            abstraction,
             variance,
             anchor,
             mutability,

@@ -1,17 +1,18 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction, FunctionCardinality,
-    FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword, LocalNodeId, Member,
-    NodeType, Property, TokenType,
+    Asynchrony, AbstractionModifier, BindingKind, BindingModifier, Expression, FunctionAbstraction,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword,
+    LocalNodeId, Member, NodeType, Property, TokenType,
 };
 use destack_source::NodeSpanType;
 
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 /// The keywords that can appear before a binding.
-pub static BINDING_MODIFIERS: [Keyword; 7] = [
+pub static BINDING_MODIFIERS: [Keyword; 8] = [
     Keyword::Static,
+    Keyword::Abstract,
     Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
@@ -75,30 +76,6 @@ impl Parser {
 
         // modifiers prefix
         let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
-
-        // abstraction
-        let abstract_is_abstraction = self.peek_keyword(Keyword::Abstract).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_err()
-            && self.peek_next_token(TokenType::Maybe).is_err()
-            && self.peek_next_token(TokenType::LessThan).is_err()
-            && self.peek_next_token(TokenType::OpenParenthesis).is_err();
-        let override_is_abstraction = self.peek_keyword(Keyword::Override).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_err()
-            && self.peek_next_token(TokenType::Maybe).is_err();
-        let abstraction = if abstract_is_abstraction {
-            self.bump(); // eat abstract keyword
-            if self.peek_keyword(Keyword::Override).is_ok() {
-                self.bump(); // eat override keyword
-                Some(FunctionAbstraction::AbstractOverride)
-            } else {
-                Some(FunctionAbstraction::Abstract)
-            }
-        } else if override_is_abstraction {
-            self.bump(); // eat override keyword
-            Some(FunctionAbstraction::ConcreteOverride)
-        } else {
-            None
-        };
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
@@ -175,12 +152,33 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
         // method
-        if abstraction.is_some()
-            || is_async
+        if is_async
             || is_generator
             || self.peek_token(TokenType::LessThan).is_ok()
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
         {
+            // abstraction
+            let abstraction = modifiers
+                .and_then(|modifiers| modifiers.abstraction)
+                .map(|abstraction| match abstraction {
+                    AbstractionModifier::Abstract => FunctionAbstraction::Abstract,
+                    AbstractionModifier::Override => FunctionAbstraction::ConcreteOverride,
+                    AbstractionModifier::AbstractOverride => FunctionAbstraction::AbstractOverride,
+                })
+                .unwrap_or(FunctionAbstraction::Concrete);
+            let modifiers = modifiers
+                .map(|modifiers| BindingModifier {
+                    abstraction: None,
+                    ..modifiers
+                })
+                .and_then(|modifiers| {
+                    if modifiers == BindingModifier::default() {
+                        None
+                    } else {
+                        Some(modifiers)
+                    }
+                });
+
             // methods without key or mode are implicit calls
             let mode = if key.is_none() && mode.is_none() {
                 Some(FunctionMode::Call)
@@ -246,7 +244,7 @@ impl Parser {
                 modifiers,
                 key,
                 signature: FunctionSignature {
-                    abstraction: abstraction.unwrap_or(FunctionAbstraction::Concrete),
+                    abstraction,
                     asynchrony: if is_async {
                         Asynchrony::Async
                     } else {
@@ -439,7 +437,7 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
-        // (must check *before* abstraction parsing since `static` is also a modifier)
+        // must check before key parsing since static is already a modifier
         if modifiers
             .as_ref()
             .is_some_and(|m| m.anchor == Some(destack_ast::BindingAnchor::Static))
@@ -515,30 +513,6 @@ impl Parser {
             return Ok(self.tree.insert(member, self.get_span_from(start)));
         }
 
-        // abstraction
-        let abstract_is_abstraction = self.peek_keyword(Keyword::Abstract).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_err()
-            && self.peek_next_token(TokenType::Maybe).is_err()
-            && self.peek_next_token(TokenType::LessThan).is_err()
-            && self.peek_next_token(TokenType::OpenParenthesis).is_err();
-        let override_is_abstraction = self.peek_keyword(Keyword::Override).is_ok()
-            && self.peek_next_token(TokenType::Colon).is_err()
-            && self.peek_next_token(TokenType::Maybe).is_err();
-        let abstraction = if abstract_is_abstraction {
-            self.bump(); // eat abstract keyword
-            if self.peek_keyword(Keyword::Override).is_ok() {
-                self.bump(); // eat override keyword
-                Some(FunctionAbstraction::AbstractOverride)
-            } else {
-                Some(FunctionAbstraction::Abstract)
-            }
-        } else if override_is_abstraction {
-            self.bump(); // eat override keyword
-            Some(FunctionAbstraction::ConcreteOverride)
-        } else {
-            None
-        };
-
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
             && (self.peek_next_token(TokenType::Identifier).is_ok()
@@ -605,12 +579,33 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
         // method
-        if abstraction.is_some()
-            || is_async
+        if is_async
             || is_generator
             || self.peek_token(TokenType::LessThan).is_ok()
             || self.peek_token(TokenType::OpenParenthesis).is_ok()
         {
+            // abstraction
+            let abstraction = modifiers
+                .and_then(|modifiers| modifiers.abstraction)
+                .map(|abstraction| match abstraction {
+                    AbstractionModifier::Abstract => FunctionAbstraction::Abstract,
+                    AbstractionModifier::Override => FunctionAbstraction::ConcreteOverride,
+                    AbstractionModifier::AbstractOverride => FunctionAbstraction::AbstractOverride,
+                })
+                .unwrap_or(FunctionAbstraction::Concrete);
+            let modifiers = modifiers
+                .map(|modifiers| BindingModifier {
+                    abstraction: None,
+                    ..modifiers
+                })
+                .and_then(|modifiers| {
+                    if modifiers == BindingModifier::default() {
+                        None
+                    } else {
+                        Some(modifiers)
+                    }
+                });
+
             // methods without key or mode are implicit calls
             let mode = if key.is_none() && mode.is_none() {
                 Some(FunctionMode::Call)
@@ -676,7 +671,7 @@ impl Parser {
                 modifiers,
                 key,
                 signature: FunctionSignature {
-                    abstraction: abstraction.unwrap_or(FunctionAbstraction::Concrete),
+                    abstraction,
                     asynchrony: if is_async {
                         Asynchrony::Async
                     } else {
@@ -816,8 +811,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BindingKind, Expression, FunctionMode, IntType, Key, Member, Name, Parameter, Property,
-        ScalarLiteral, TypeLiteral, Visibility,
+        AbstractionModifier, BindingKind, Expression, FunctionAbstraction, FunctionMode, IntType,
+        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -833,6 +828,34 @@ mod tests {
         assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
             assert_string!(parser, *name, "#name");
             assert_expression_path!(parser, parser.tree.get(*ty), "string");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_override_field() {
+        let mut test =
+            TestParser::new_with_options("override foo: int32", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_eq!(modifiers.abstraction, Some(AbstractionModifier::Override));
+            assert_string!(parser, *name, "foo");
+            assert_expression_path!(parser, parser.tree.get(*value), "int32");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_abstract_override_method() {
+        let mut test =
+            TestParser::new_with_options("abstract override foo(): void", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { modifiers, key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+            assert!(modifiers.is_none());
+            assert_string!(parser, *name, "foo");
+            assert_eq!(signature.abstraction, FunctionAbstraction::AbstractOverride);
         });
     }
 

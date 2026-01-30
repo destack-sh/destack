@@ -9,9 +9,10 @@ use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
-    AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier, BindingOperator,
-    Declaration, Expression, FunctionAbstraction, FunctionCardinality, FunctionMode, Key, Keyword,
-    LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing, VarianceModifier,
+    AccessorKind, Asynchrony, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    BindingOperator, Declaration, Expression, FunctionAbstraction, FunctionCardinality,
+    FunctionMode, Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing,
+    VarianceModifier,
 };
 use destack_fir::format::{FormatResult, text};
 use destack_fir::prelude::*;
@@ -34,6 +35,17 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
     // visibility
     if let Some(visibility) = modifiers.visibility {
         write!(f, [visibility, space()])?;
+    }
+    // abstraction
+    if let Some(abstraction) = modifiers.abstraction {
+        match abstraction {
+            AbstractionModifier::Abstract => write!(f, [Keyword::Abstract, space()])?,
+            AbstractionModifier::Override => write!(f, [Keyword::Override, space()])?,
+            AbstractionModifier::AbstractOverride => {
+                write!(f, [Keyword::Abstract, space()])?;
+                write!(f, [Keyword::Override, space()])?;
+            }
+        }
     }
     // scope
     if modifiers.anchor == Some(BindingAnchor::Static) {
@@ -663,6 +675,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 mod tests {
     use crate::{DestackFormatOptions, TestFormatter, assert_format};
     use destack_ast::DeclarationDescriptor;
+    use destack_source::LanguageType;
 
     #[test]
     fn test_format_struct_empty() {
@@ -711,6 +724,19 @@ mod tests {
             "struct Foo {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
             |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
+        );
+    }
+
+    #[test]
+    fn test_format_class_with_abstract_override_field() {
+        assert_format!(
+            "class Foo { abstract override bar: int32 }",
+            "class Foo {\n\tabstract override bar: int32;\n}",
+            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            DestackFormatOptions {
+                language_type: LanguageType::TypeScript,
+                ..DestackFormatOptions::default_tab()
+            }
         );
     }
 
