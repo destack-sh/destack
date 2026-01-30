@@ -282,6 +282,41 @@ impl Parser {
         )
     }
 
+    /// Check whether a parsed static argument list can be followed in expression position.
+    #[inline]
+    pub fn can_follow_type_arguments_in_expression(&self) -> bool {
+        if self.peek_any_stop().is_ok() {
+            return true;
+        }
+        if self
+            .peek_token_in(&[
+                TokenType::CloseParenthesis,
+                TokenType::CloseBracket,
+                TokenType::CloseBrace,
+            ])
+            .is_ok()
+        {
+            return true;
+        }
+        if self
+            .peek_token_in(&[
+                TokenType::OpenParenthesis,
+                TokenType::OpenBracket,
+                TokenType::Dot,
+            ])
+            .is_ok()
+        {
+            return true;
+        }
+        if self.peek_token(TokenType::Maybe).is_ok() {
+            return true;
+        }
+        if self.peek_infix_operator().is_ok() || self.peek_assign_operator().is_ok() {
+            return true;
+        }
+        false
+    }
+
     /// Make an expression from an infix operator.
     #[inline]
     fn make_infix_expression(
@@ -1707,24 +1742,41 @@ impl Parser {
                 };
                 left_expression_id = self.eat_call(left_expression_id, None, position)?;
             }
-            // statically parameterized call (like `(expr)<T>()`)
-            else if self.peek_token(TokenType::LessThan).is_ok()
+            // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
+            else if (self.peek_token(TokenType::LessThan).is_ok()
+                || self.peek_token(TokenType::ShiftLeft).is_ok())
                 && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                 && !self.options.in_new_receiver
+                && !self.options.in_tree_literal
+                && !self.language.is_javascript()
             {
                 // speculatively try to parse static arguments
                 let speculative_start = self.mark();
                 let speculative_start_idx = self.tree.next_id();
-                if let Ok(static_arguments) = self.eat_static_arguments()
-                    && self.peek_token(TokenType::OpenParenthesis).is_ok()
-                {
-                    left_expression_id = self.eat_call(
-                        left_expression_id,
-                        Some(static_arguments),
-                        PostfixPosition::Direct,
-                    )?;
+                if let Ok(static_arguments) = self.eat_static_arguments() {
+                    // call with static arguments
+                    if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                        left_expression_id = self.eat_call(
+                            left_expression_id,
+                            Some(static_arguments),
+                            PostfixPosition::Direct,
+                        )?;
+                    }
+                    // instantiation expression
+                    else if self.can_follow_type_arguments_in_expression() {
+                        left_expression_id = self.tree.insert(
+                            Expression::Instantiation {
+                                left: left_expression_id,
+                                static_arguments,
+                            },
+                            self.get_span_from(start),
+                        );
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+                        break;
+                    }
                 } else {
-                    // not static arguments followed by call, restore and exit postfix loop
+                    // not static arguments, restore and exit postfix loop
                     self.restore(speculative_start, speculative_start_idx);
                     break;
                 }
@@ -3078,6 +3130,51 @@ const shapes = (
                             });
                         });
                     });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_instantiation_expression_with_index() {
+        let mut test = TestParser::new_with_options("f[\"g\"]<number>", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Instantiation { left, static_arguments } => {
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+            assert_node!(parser.tree, *left, Expression::Index { left, index, position: PostfixPosition::Direct } => {
+                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert!(static_arguments.is_none());
+                    assert_path!(parser, *path, "f");
+                });
+                let index = index.expect("expected index expression");
+                assert_node!(parser.tree, index, Expression::ScalarLiteral(ScalarLiteral::String(name)) => {
+                    assert_string!(parser, *name, "g");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_instantiation_expression_parenthesized() {
+        let mut test =
+            TestParser::new_with_options("(f<number>)<number>", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Instantiation { left, static_arguments } => {
+            assert_eq!(static_arguments.len(), 1);
+            assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+            });
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Path { path, static_arguments } => {
+                    assert_path!(parser, *path, "f");
+                    assert!(static_arguments.as_ref().is_some_and(|args| args.len() == 1));
                 });
             });
         });

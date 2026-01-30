@@ -1,7 +1,7 @@
 #![allow(clippy::type_complexity)]
 
 use destack_ast::{
-    Asynchrony, AbstractionModifier, BindingKind, BindingModifier, Expression, FunctionAbstraction,
+    AbstractionModifier, Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword,
     LocalNodeId, Member, NodeType, Property, TokenType,
 };

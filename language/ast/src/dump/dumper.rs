@@ -1027,6 +1027,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("position", position)
                     .end();
             }
+            Expression::Instantiation {
+                left: _,
+                static_arguments: _,
+            } => {
+                self.node("Expression::Instantiation", _id.id).end();
+            }
             Expression::Call {
                 position,
                 static_arguments: _,

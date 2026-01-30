@@ -21,7 +21,9 @@ impl Compiler {
         let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
             dir::AbstractionModifier::Abstract => ast::AbstractionModifier::Abstract,
             dir::AbstractionModifier::Override => ast::AbstractionModifier::Override,
-            dir::AbstractionModifier::AbstractOverride => ast::AbstractionModifier::AbstractOverride,
+            dir::AbstractionModifier::AbstractOverride => {
+                ast::AbstractionModifier::AbstractOverride
+            }
         });
         let variance = modifiers.variance.map(|variance| match variance {
             dir::VarianceModifier::In => ast::VarianceModifier::In,

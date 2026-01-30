@@ -74,6 +74,18 @@ foo(   x   )
 foo(x);
 ```
 
+### call on instantiation expression
+
+Calls on parenthesized instantiation expressions keep the parentheses.
+
+```ts:main.ts
+const value = (makeFactory<number>)(config)
+```
+
+```ts expected
+const value = (makeFactory<number>)(config);
+```
+
 ## Line Breaking
 
 ### call breaks when exceeding line width

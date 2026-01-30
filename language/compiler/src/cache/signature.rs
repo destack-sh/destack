@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_base::{ImmutableStringPool, StringId};
 use destack_dir::{
-    AccessorKind, Argument, Asynchrony, AbstractionModifier, BindingAnchor, BindingKind,
+    AbstractionModifier, AccessorKind, Argument, Asynchrony, BindingAnchor, BindingKind,
     BindingModifier, BindingOperator, Declaration, Dumper, DumperOptions, DynamicKey, Export,
     ExportKind, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntrinsicType,

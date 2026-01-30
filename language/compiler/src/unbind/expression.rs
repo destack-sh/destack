@@ -435,6 +435,21 @@ impl Compiler {
                     }
                 }
 
+                dir::Expression::Instantiation { left, static_arguments } => {
+                    let left =
+                        self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let static_arguments = static_arguments
+                        .iter()
+                        .map(|arg| {
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
+                        })
+                        .collect();
+                    ast::Expression::Instantiation {
+                        left,
+                        static_arguments,
+                    }
+                }
+
                 dir::Expression::Maybe { left } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
                     ast::Expression::Maybe {

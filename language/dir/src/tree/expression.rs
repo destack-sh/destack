@@ -215,6 +215,11 @@ pub enum Expression {
         left: LocalNodeId<Expression>,
         right: Option<LocalNodeId<Expression>>,
     },
+    /// Instantiation expression (TypeScript).
+    Instantiation {
+        left: LocalNodeId<Expression>,
+        static_arguments: Vec<LocalNodeId<Argument>>,
+    },
     /// Maybe unwrap an expression with `?` and propagate.
     Maybe { left: LocalNodeId<Expression> },
     /// Force unwrap an expression with `!` and propagate.
@@ -481,6 +486,7 @@ impl Expression {
             Expression::Member { .. } => "member",
             Expression::Call { .. } => "call",
             Expression::Index { .. } => "index",
+            Expression::Instantiation { .. } => "instantiation",
             Expression::Maybe { .. } => "maybe",
             Expression::Must { .. } => "must",
             Expression::New { .. } => "new",

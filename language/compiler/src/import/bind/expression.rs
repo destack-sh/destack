@@ -1065,6 +1065,47 @@ impl Compiler {
                 });
                 Expression::Index { left, right: index }
             }
+            ast::Expression::Instantiation {
+                left,
+                static_arguments,
+            } => {
+                let left = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                let static_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
+                let static_arguments = static_arguments
+                    .iter()
+                    .map(|argument| {
+                        self.bind_argument(
+                            module,
+                            ast,
+                            scope,
+                            *argument,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            static_argument_space_order,
+                        )
+                    })
+                    .collect();
+                Expression::Instantiation {
+                    left,
+                    static_arguments,
+                }
+            }
             ast::Expression::Maybe { position: _, left } => {
                 let left = self.bind_expression(
                     module,

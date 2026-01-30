@@ -9,7 +9,7 @@ use crate::key::{format_key_with_quote_policy, is_identifier_for_quotes};
 use crate::r#where::format_where_clause_with_break;
 use crate::{DestackFormatter, FormatNode};
 use destack_ast::{
-    AccessorKind, Asynchrony, AbstractionModifier, BindingAnchor, BindingKind, BindingModifier,
+    AbstractionModifier, AccessorKind, Asynchrony, BindingAnchor, BindingKind, BindingModifier,
     BindingOperator, Declaration, Expression, FunctionAbstraction, FunctionCardinality,
     FunctionMode, Key, Keyword, LocalNodeId, Member, Mutability, Name, NodeType, Property, Timing,
     VarianceModifier,

@@ -505,6 +505,9 @@ pub fn expression_has_side_effects(
         // pure: member access (if object is pure)
         ast::Expression::Member { left, .. } => expression_has_side_effects(ctx, *left),
 
+        // pure: instantiation (if target is pure)
+        ast::Expression::Instantiation { left, .. } => expression_has_side_effects(ctx, *left),
+
         // pure: index access (if object and index are pure)
         ast::Expression::Index { left, index, .. } => {
             expression_has_side_effects(ctx, *left)
