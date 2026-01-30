@@ -3695,7 +3695,7 @@ impl Compiler {
             return Ok(false);
         };
         let target_ty_id =
-            self.evaluate_unevaluated_type(module, profile, target_ty_id, tree, symbols, types)?;
+            self.ensure_type_evaluated(module, profile, target_ty_id, tree, symbols, types)?;
 
         let target_ty = types.get_type(target_ty_id);
         let is_object = matches!(target_ty, Type::Object { .. });

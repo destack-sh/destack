@@ -150,8 +150,7 @@ pub mod tags {
         TimingTag::new("analyze.infer.instances.register");
     pub const ANALYZE_INFER_SOLVE_CONSTRAINTS: TimingTag =
         TimingTag::new("analyze.infer.constraints.solve");
-    pub const ANALYZE_INFER_ASSIGN_CHECK: TimingTag =
-        TimingTag::new("analyze.infer.assign.check");
+    pub const ANALYZE_INFER_ASSIGN_CHECK: TimingTag = TimingTag::new("analyze.infer.assign.check");
     pub const ANALYZE_INFER_TYPE_NORMALIZE: TimingTag =
         TimingTag::new("analyze.infer.type.normalize");
     pub const ANALYZE_INFER_TYPE_MATERIALIZE: TimingTag =
