@@ -51,6 +51,10 @@ impl TypeBasedAA {
             return false;
         }
 
+        if Self::is_raw_reference(ty_a) || Self::is_raw_reference(ty_b) {
+            return false;
+        }
+
         match (ty_a, ty_b) {
             // different scalar categories cannot alias
             (TypeKey::Int { .. }, TypeKey::Float { .. })
@@ -160,6 +164,20 @@ impl TypeBasedAA {
         }
     }
 
+    /// Return true when a type key represents a raw pointer.
+    fn is_raw_reference(ty: &TypeKey) -> bool {
+        matches!(
+            ty,
+            TypeKey::Reference {
+                kind: destack_mir::ReferenceKind::Raw,
+                ..
+            } | TypeKey::TensorReference {
+                kind: destack_mir::ReferenceKind::Raw,
+                ..
+            }
+        )
+    }
+
     /// Check if two struct types cannot alias.
     fn structs_cannot_alias(
         &self,
@@ -207,7 +225,7 @@ impl TypeBasedAA {
 
 impl Default for TypeBasedAA {
     fn default() -> Self {
-        // strict TBAA by default
+        // default to strict aliasing
         Self::new(true)
     }
 }
@@ -224,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_int_vs_float_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let int_ty = TypeKey::Int {
             width: 32,
@@ -240,7 +258,7 @@ mod tests {
 
     #[test]
     fn test_same_int_may_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let int_ty = TypeKey::Int {
             width: 32,
@@ -255,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_bool_vs_int_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let bool_ty = TypeKey::Boolean;
         let int_ty = TypeKey::Int {
@@ -271,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_struct_vs_tuple_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let struct_ty = TypeKey::Struct {
             fields: vec![
@@ -314,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_different_struct_layouts_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let struct_2field = TypeKey::Struct {
             fields: vec![
@@ -370,7 +388,7 @@ mod tests {
 
     #[test]
     fn test_array_vs_struct_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let array_ty = TypeKey::Array {
             element: Box::new(TypeKey::Int {
@@ -399,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_no_type_info_may_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let loc1 = MemoryLocation::from_ptr(destack_mir::Value::new(0));
         let loc2 = MemoryLocation::from_ptr(destack_mir::Value::new(1));
@@ -425,9 +443,73 @@ mod tests {
         assert_eq!(tbaa.alias(&loc_int, &loc_float), AliasResult::MayAlias);
     }
 
+    /// Non-strict raw references may alias regardless of pointee type.
+    #[test]
+    fn test_non_strict_raw_refs_may_alias() {
+        let tbaa = TypeBasedAA::new(false);
+
+        let ref_i32 = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Int {
+                width: 32,
+                signed: true,
+            }),
+            is_nullable: false,
+        };
+        let ref_f64 = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Float { width: 64 }),
+            is_nullable: false,
+        };
+
+        let loc_ref_i32 = make_loc_with_type(0, ref_i32);
+        let loc_ref_f64 = make_loc_with_type(1, ref_f64);
+
+        assert_eq!(
+            tbaa.alias(&loc_ref_i32, &loc_ref_f64),
+            AliasResult::MayAlias
+        );
+    }
+
+    /// Strict TBAA still treats raw references as may-alias.
+    #[test]
+    fn test_strict_raw_refs_may_alias() {
+        let tbaa = TypeBasedAA::new(true);
+
+        let ref_i32 = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Int {
+                width: 32,
+                signed: true,
+            }),
+            is_nullable: false,
+        };
+        let ref_f64 = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Float { width: 64 }),
+            is_nullable: false,
+        };
+
+        let loc_ref_i32 = make_loc_with_type(0, ref_i32);
+        let loc_ref_f64 = make_loc_with_type(1, ref_f64);
+
+        assert_eq!(
+            tbaa.alias(&loc_ref_i32, &loc_ref_f64),
+            AliasResult::MayAlias
+        );
+    }
+
     #[test]
     fn test_array_different_element_types_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let array_i32 = TypeKey::Array {
             element: Box::new(TypeKey::Int {
@@ -452,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_reference_vs_scalar_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
@@ -478,7 +560,7 @@ mod tests {
 
     #[test]
     fn test_references_same_pointee_may_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
@@ -501,7 +583,7 @@ mod tests {
     /// References in different address spaces do not alias.
     #[test]
     fn test_references_different_address_spaces_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let ref_generic = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
@@ -533,7 +615,7 @@ mod tests {
 
     #[test]
     fn test_function_pointer_vs_data_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let fn_ptr_ty = TypeKey::FunctionPointer {
             parameters: vec![TypeKey::Int {
@@ -556,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_void_vs_anything_no_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         let void_ty = TypeKey::Void;
         let int_ty = TypeKey::Int {
@@ -573,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_different_width_ints_may_alias() {
-        let tbaa = TypeBasedAA::default();
+        let tbaa = TypeBasedAA::new(true);
 
         // different integer widths may alias (byte aliasing rule)
         let i32_ty = TypeKey::Int {

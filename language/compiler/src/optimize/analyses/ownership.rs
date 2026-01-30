@@ -174,7 +174,24 @@ impl OwnershipMap {
 
     /// Mark a local as moved.
     pub fn mark_local_moved(&mut self, local: mir::LocalNodeId<mir::Local>, at: MoveLocation) {
-        self.locals.insert(local, OwnershipState::Moved { at });
+        self.locals
+            .insert(local, OwnershipState::Moved { at: at.clone() });
+
+        // propagate local moves to values derived from the same origin
+        let moved_values: Vec<Value> = self
+            .origins
+            .iter()
+            .filter_map(
+                |(value, origin)| {
+                    if *origin == local { Some(*value) } else { None }
+                },
+            )
+            .collect();
+
+        for value in moved_values {
+            self.values
+                .insert(value, OwnershipState::Moved { at: at.clone() });
+        }
     }
 }
 
@@ -873,16 +890,19 @@ impl OwnershipAnalysis {
                     continue;
                 }
 
-                let mut merged = match result.block_exit.get(&predecessors[0]) {
-                    Some(state) => state.clone(),
-                    None => continue,
-                };
-
-                for &pred in &predecessors[1..] {
+                let mut merged: Option<OwnershipMap> = None;
+                for &pred in predecessors {
                     if let Some(pred_exit) = result.block_exit.get(&pred) {
-                        merged = merged.meet(pred_exit);
+                        merged = Some(match merged {
+                            Some(state) => state.meet(pred_exit),
+                            None => pred_exit.clone(),
+                        });
                     }
                 }
+
+                let Some(merged) = merged else {
+                    continue;
+                };
 
                 merged
             };
@@ -1628,5 +1648,33 @@ block3:
         let v1_state = entry_state.get(mir::Value::new(1));
         assert!(v1_state.is_some());
         assert!(v1_state.unwrap().is_maybe_moved());
+    }
+
+    /// Moving one local-derived value moves other values from the same origin.
+    #[test]
+    fn test_ownership_local_get_propagates_move() {
+        let test = TestProgram::new(
+            r#"function @test() -> void {
+    local0: ref<managed i32>
+block0:
+    v0: ref<managed i32> = managed.alloc i32
+    local.set local0, v0
+    v1: ref<managed i32> = local.get local0
+    v2: ref<managed i32> = local.get local0
+    raw.drop v1
+    return
+}"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let ownership = analyses.get::<OwnershipAnalysis>();
+
+        let entry = function.entry.unwrap();
+        let exit_state = ownership.state_at_exit(entry).unwrap();
+
+        assert!(exit_state.is_moved(mir::Value::new(1)));
+        assert!(exit_state.is_moved(mir::Value::new(2)));
     }
 }

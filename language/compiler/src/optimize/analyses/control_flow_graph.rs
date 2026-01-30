@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
@@ -60,7 +60,25 @@ impl ControlFlowGraph {
         if block == entry {
             return true;
         }
-        !self.predecessors(block).is_empty()
+
+        let mut worklist = vec![block];
+        let mut visited = HashSet::new();
+
+        while let Some(current) = worklist.pop() {
+            if !visited.insert(current) {
+                continue;
+            }
+
+            if current == entry {
+                return true;
+            }
+
+            if let Some(preds) = self.predecessors.get(&current) {
+                worklist.extend(preds.iter().copied());
+            }
+        }
+
+        false
     }
 }
 
@@ -194,5 +212,35 @@ block2:
         // block1 has two predecessors: block0 and block1 (self-loop)
         let block1 = function.blocks[1];
         assert_eq!(cfg.predecessors(block1).len(), 2);
+    }
+
+    /// Reachability follows predecessor chains from the entry.
+    #[test]
+    fn test_cfg_reachability() {
+        let program = TestProgram::new(
+            r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1: i32 = iconst 1i32
+    return v1
+block2:
+    unreachable
+block3:
+    v2: i32 = iconst 2i32
+    return v2
+}"#,
+        );
+
+        let function_id = program.function_id_by_name("test");
+        let function = program.tree.get(function_id);
+        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let entry = function.entry.expect("missing entry");
+
+        let reachable_block = function.blocks[1];
+        let unreachable_block = function.blocks[3];
+
+        assert!(cfg.is_reachable(reachable_block, entry));
+        assert!(!cfg.is_reachable(unreachable_block, entry));
     }
 }

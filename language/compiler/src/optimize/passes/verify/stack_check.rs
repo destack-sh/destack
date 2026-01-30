@@ -9,7 +9,8 @@ use mir::{Instruction, Value};
 use crate::OptimizeError;
 use crate::optimize::{
     AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionPass, Lattice,
-    LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
+    LifetimeAnalysis, PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature,
+    forward_dataflow, signature_return_contains_borrowed_refs,
 };
 
 declare_pass! {
@@ -108,6 +109,11 @@ impl StackPointerMap {
                 self.mark_stack(*destination);
             }
 
+            // local.addr yields a pointer to stack storage
+            Instruction::LocalAddr { destination, .. } => {
+                self.mark_stack(*destination);
+            }
+
             // field.addr of a stack pointer is also a stack pointer
             Instruction::FieldAddr {
                 destination,
@@ -163,20 +169,66 @@ impl StackPointerMap {
         tree: &mir::NodeTree,
         lifetime_analysis: &LifetimeAnalysis,
     ) {
-        let (destination, callee_id, arguments) = match instruction {
+        match instruction {
             Instruction::Call {
                 destination: Some(dest),
                 function,
                 arguments,
                 ..
-            } => (*dest, *function, tree.get_arguments(*arguments)),
-            // indirect calls: conservative, can't analyze lifetime
-            // calls without destination: nothing to track
-            _ => return,
-        };
+            } => {
+                let arguments = tree.get_arguments(*arguments);
+                let lifetime = lifetime_analysis.get(*function);
+                self.apply_lifetime_result(*dest, lifetime, arguments);
+            }
+            Instruction::CallVirtual {
+                destination: Some(dest),
+                receiver,
+                arguments,
+                declared_target,
+                signature,
+                ..
+            }
+            | Instruction::CallInterface {
+                destination: Some(dest),
+                receiver,
+                arguments,
+                declared_target,
+                signature,
+                ..
+            } => {
+                let mut args = Vec::with_capacity(tree.get_arguments(*arguments).len() + 1);
+                args.push(*receiver);
+                args.extend_from_slice(tree.get_arguments(*arguments));
 
-        // get lifetime for the callee
-        let lifetime = lifetime_analysis.get(callee_id);
+                if let Some(target) = declared_target {
+                    let lifetime = lifetime_analysis.get(*target);
+                    self.apply_lifetime_result(*dest, lifetime, &args);
+                } else {
+                    self.apply_signature_fallback(*dest, *signature, tree, &args, None);
+                }
+            }
+            Instruction::CallIndirect {
+                destination: Some(dest),
+                arguments,
+                signature,
+                env,
+                ..
+            } => {
+                let args = tree.get_arguments(*arguments);
+                self.apply_signature_fallback(*dest, *signature, tree, args, *env);
+            }
+            // calls without destination: nothing to track
+            _ => {}
+        }
+    }
+
+    /// Apply resolved lifetime information to a call destination.
+    fn apply_lifetime_result(
+        &mut self,
+        destination: Value,
+        lifetime: &ResolvedLifetime,
+        arguments: &[Value],
+    ) {
         match lifetime {
             // no borrowed references in return: destination is not a stack pointer
             ResolvedLifetime::None => {}
@@ -186,16 +238,61 @@ impl StackPointerMap {
 
             // return borrows from specific parameters
             ResolvedLifetime::Parameters(param_indices) => {
-                for &param_idx in param_indices {
-                    if let Some(&arg) = arguments.get(param_idx as usize) {
-                        // if argument is a stack pointer, return is too
-                        if self.get(arg).is_maybe_stack() {
-                            self.0.insert(destination, self.get(arg));
-                            return; // once we find one stack arg, we're done
-                        }
-                    }
+                self.propagate_from_param_indices(destination, arguments, param_indices, None);
+            }
+        }
+    }
+
+    /// Apply signature-based fallback when lifetime metadata is missing.
+    fn apply_signature_fallback(
+        &mut self,
+        destination: Value,
+        signature: mir::LocalNodeId<mir::Type>,
+        tree: &mir::NodeTree,
+        arguments: &[Value],
+        env: Option<Value>,
+    ) {
+        let signature_type = tree.get(signature);
+        let return_borrows = signature_return_contains_borrowed_refs(signature_type, tree);
+        if !return_borrows {
+            return;
+        }
+
+        if let Some(param_indices) = borrowed_parameter_indices_for_signature(signature_type, tree)
+        {
+            let param_indices: Vec<u32> = param_indices
+                .into_iter()
+                .map(|index| index as u32)
+                .collect();
+            self.propagate_from_param_indices(destination, arguments, &param_indices, env);
+        } else if let Some(env) = env {
+            if self.get(env).is_maybe_stack() {
+                self.0.insert(destination, self.get(env));
+            }
+        }
+    }
+
+    /// Propagate stack pointer state from borrowed parameter indices.
+    fn propagate_from_param_indices(
+        &mut self,
+        destination: Value,
+        arguments: &[Value],
+        param_indices: &[u32],
+        env: Option<Value>,
+    ) {
+        for &param_idx in param_indices {
+            if let Some(&arg) = arguments.get(param_idx as usize) {
+                if self.get(arg).is_maybe_stack() {
+                    self.0.insert(destination, self.get(arg));
+                    return;
                 }
             }
+        }
+
+        if let Some(env) = env
+            && self.get(env).is_maybe_stack()
+        {
+            self.0.insert(destination, self.get(env));
         }
     }
 
@@ -534,6 +631,21 @@ block0:
         test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
+    /// Returning a local.addr pointer is detected.
+    #[test]
+    fn test_detect_return_local_addr() {
+        let input = r#"function @test() -> ref<borrowed i32> {
+local0: i32 ; owned, mut
+block0:
+    v0: ref<borrowed addrspace(stack) i32> = local.addr local0
+    return v0
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+    }
+
     /// Returning field address of stack allocation is detected.
     #[test]
     fn test_detect_return_stack_field_addr() {
@@ -557,6 +669,21 @@ block0:
     v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     v1: i32 = iconst 0i32
     v2: ref<borrowed i32> = element.addr v0, v1
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+    }
+
+    /// Stack pointer propagates through indirect calls with borrowed returns.
+    #[test]
+    fn test_detect_stack_through_call_indirect() {
+        let input = r#"function @test(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>):
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<borrowed i32> = call.indirect v0(v1) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 

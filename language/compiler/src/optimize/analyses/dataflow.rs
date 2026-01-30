@@ -132,16 +132,19 @@ where
                 continue; // unreachable block
             }
 
-            let mut merged = match result.block_exit.get(&predecessors[0]) {
-                Some(s) => s.clone(),
-                None => continue, // predecessor not yet processed
-            };
-
-            for &pred in &predecessors[1..] {
+            let mut merged: Option<S> = None;
+            for &pred in predecessors {
                 if let Some(pred_exit) = result.block_exit.get(&pred) {
-                    merged = merged.meet(pred_exit);
+                    merged = Some(match merged {
+                        Some(state) => state.meet(pred_exit),
+                        None => pred_exit.clone(),
+                    });
                 }
             }
+
+            let Some(merged) = merged else {
+                continue;
+            };
 
             merged
         };
@@ -224,7 +227,12 @@ where
         let block = tree.get(block_id);
         if matches!(
             block.terminator,
-            mir::Terminator::Return { .. } | mir::Terminator::Unreachable
+            mir::Terminator::Return { .. }
+                | mir::Terminator::Unreachable
+                | mir::Terminator::TailCall { .. }
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallInterface { .. }
+                | mir::Terminator::TailCallIndirect { .. }
         ) {
             result.block_exit.insert(block_id, exit_state.clone());
         }
@@ -344,6 +352,7 @@ impl<T: Clone + PartialEq> Lattice for Option<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::optimize::common::tests::TestProgram;
 
     /// HashSet lattice uses union for meet.
     #[test]
@@ -366,5 +375,90 @@ mod tests {
         assert_eq!(b.meet(&a), Some(42));
         assert_eq!(a.meet(&c), Some(42));
         assert_eq!(a.meet(&d), None); // Conflict
+    }
+
+    /// Forward dataflow should not skip blocks when the first predecessor is unreachable.
+    #[test]
+    fn test_forward_dataflow_unreachable_predecessor_order() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1: i32 = iconst 1i32
+    jump block2
+block1:
+    v2: i32 = iconst 2i32
+    jump block2
+block2:
+    return v0
+}"#,
+        );
+
+        let function_id = program.first_function_id();
+        let (block0, block1, block2) = {
+            let function = program.tree.get_mut(function_id);
+            let entry = function.entry.expect("missing entry");
+
+            let block0 = entry;
+            let block1 = function.blocks[1];
+            let block2 = function.blocks[2];
+
+            // reorder blocks so the unreachable predecessor is first
+            function.blocks = vec![block1, block0, block2];
+
+            (block0, block1, block2)
+        };
+
+        let function = program.tree.get(function_id);
+        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let entry_state: HashSet<mir::LocalNodeId<mir::Block>> = [block0].into_iter().collect();
+        let result = forward_dataflow(
+            function,
+            &program.tree,
+            &cfg,
+            entry_state,
+            |block_id, mut state, _| {
+                state.insert(block_id);
+                state
+            },
+        );
+
+        let entry_block2 = result.entry(block2).expect("missing block2 entry");
+        assert!(entry_block2.contains(&block0));
+        assert!(!entry_block2.contains(&block1));
+    }
+
+    /// Backward dataflow seeds tailcall blocks as exits.
+    #[test]
+    fn test_backward_dataflow_tailcall_exit() {
+        let program = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    tailcall @callee(v0)
+}"#,
+        );
+
+        let function_id = program.function_id_by_name("test");
+        let function = program.tree.get(function_id);
+        let cfg = ControlFlowGraph::build(function, &program.tree);
+        let entry = function.entry.expect("missing entry");
+
+        let exit_state: HashSet<mir::LocalNodeId<mir::Block>> = [entry].into_iter().collect();
+        let result = backward_dataflow(
+            function,
+            &program.tree,
+            &cfg,
+            exit_state,
+            |block_id, mut state, _| {
+                state.insert(block_id);
+                state
+            },
+        );
+
+        let exit = result.exit(entry).expect("missing tailcall exit");
+        assert!(exit.contains(&entry));
     }
 }

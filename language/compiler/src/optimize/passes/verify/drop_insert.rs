@@ -6,7 +6,8 @@ use mir::{Instruction, Value};
 
 use crate::optimize::common::{ValueTypeMap, build_signature_type};
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, PipelineContext,
+    AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, OwnershipMap,
+    PipelineContext,
 };
 
 declare_pass! {
@@ -68,6 +69,9 @@ fn run_drop_insert(
                     find_death_point(block_id, idx, dest, &instructions, tree, liveness);
 
                 if let Some(after_idx) = death_idx {
+                    if last_use_moves_value(dest, after_idx, &instructions, tree, ownership) {
+                        continue;
+                    }
                     drops_to_insert.push(DropInsertionPoint::AfterInstruction {
                         block: block_id,
                         instruction_index: after_idx,
@@ -84,6 +88,9 @@ fn run_drop_insert(
                 let death_idx = find_death_point(block_id, 0, value, &instructions, tree, liveness);
 
                 if let Some(after_idx) = death_idx {
+                    if last_use_moves_value(value, after_idx, &instructions, tree, ownership) {
+                        continue;
+                    }
                     drops_to_insert.push(DropInsertionPoint::AfterInstruction {
                         block: block_id,
                         instruction_index: after_idx,
@@ -117,6 +124,15 @@ fn run_drop_insert(
                         find_death_point(block_id, 0, param.value, &instructions, tree, liveness);
 
                     if let Some(after_idx) = death_idx {
+                        if last_use_moves_value(
+                            param.value,
+                            after_idx,
+                            &instructions,
+                            tree,
+                            ownership,
+                        ) {
+                            continue;
+                        }
                         drops_to_insert.push(DropInsertionPoint::AfterInstruction {
                             block: block_id,
                             instruction_index: after_idx,
@@ -312,6 +328,27 @@ fn find_death_point(
     }
 
     last_use_idx
+}
+
+/// Return true when the last use is a move that transfers ownership.
+fn last_use_moves_value(
+    value: Value,
+    instruction_index: usize,
+    instructions: &[mir::LocalNodeId<Instruction>],
+    tree: &mir::NodeTree,
+    ownership: &OwnershipAnalysis,
+) -> bool {
+    let instruction_id = match instructions.get(instruction_index) {
+        Some(id) => *id,
+        None => return false,
+    };
+    let instruction = tree.get(instruction_id);
+
+    let mut state = OwnershipMap::new();
+    state.mark_owned(value);
+    ownership.apply_instruction_effects(&mut state, instruction_id, instruction, tree);
+
+    state.is_moved(value)
 }
 
 /// Emit the drop sequence for a value.
@@ -769,6 +806,37 @@ block0(v0: ref<owned i32>):
         test.run_pass(&DropInsert);
         test.assert_no_errors();
         test.assert_output(expected);
+    }
+
+    /// Move into call should not get a drop inserted.
+    #[test]
+    fn test_no_drop_after_move_into_call() {
+        let input = r#"extern function @consume(ref<owned i32>) -> void
+function @test(v0: ref<owned i32>) -> void {
+block0(v0: ref<owned i32>):
+    call @consume(v0) -> fn(ref<owned i32>) -> void
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
+    }
+
+    /// Move into store should not get a drop inserted.
+    #[test]
+    fn test_no_drop_after_move_into_store() {
+        let input = r#"function @test(v0: ref<raw ref<owned i32>>, v1: ref<owned i32>) -> void {
+block0(v0: ref<raw ref<owned i32>>, v1: ref<owned i32>):
+    store v0, v1
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Raw allocation does not get automatic drop.
