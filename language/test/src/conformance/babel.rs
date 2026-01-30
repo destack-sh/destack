@@ -224,8 +224,11 @@ impl ConformanceSuite for BabelSuite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        // parse-only conformance checks
-        let area = TestArea::Parse;
+        let area = if test.expect_error {
+            TestArea::EarlySyntax
+        } else {
+            TestArea::Parse
+        };
         let parse_outcome =
             parse_file(&input_path, &content, test.file_type, ParseOptions { area });
 

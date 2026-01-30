@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_compiler::{
-    AnalyzeError, AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError,
-};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError};
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleStamp,
@@ -28,25 +26,27 @@ pub(super) enum TestArea {
     /// Pure grammar-level conformance.
     #[default]
     Parse,
+    /// Grammar + early syntax validation (analysis-backed, no resolve errors).
+    EarlySyntax,
     /// "Early" error semi-semantic conformance.
     Early,
 }
 
-/// Early analysis error codes relevant for conformance testing.
-const EARLY_ANALYZE_CODES: &[&str] = &[
-    AnalyzeError::ALL_CODES[20], // EA020: InvalidLineage
-    AnalyzeError::ALL_CODES[21], // EA021: InvalidBreak
-    AnalyzeError::ALL_CODES[22], // EA022: InvalidContinue
-    AnalyzeError::ALL_CODES[23], // EA023: InvalidAwait
-    AnalyzeError::ALL_CODES[24], // EA024: InvalidYield
-    AnalyzeError::ALL_CODES[25], // EA025: InvalidReturn
-    AnalyzeError::ALL_CODES[26], // EA026: InvalidConstructor
-    AnalyzeError::ALL_CODES[27], // EA027: InvalidInterface
-    AnalyzeError::ALL_CODES[28], // EA028: InvalidFunction
-    AnalyzeError::ALL_CODES[29], // EA029: InvalidMethod
-    AnalyzeError::ALL_CODES[30], // EA030: InvalidMemberModifier
-    AnalyzeError::ALL_CODES[31], // EA031: InvalidParameterProperty
-    AnalyzeError::ALL_CODES[32], // EA032: InvalidStaticBlockModifier
+/// Early analysis error codes relevant for syntax-level conformance.
+const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
+    "EA214", // ReservedIdentifier
+    "EA300", // InvalidBreak
+    "EA301", // InvalidContinue
+    "EA302", // InvalidAwait
+    "EA303", // InvalidYield
+    "EA304", // InvalidReturn
+    "EA501", // InvalidConstructor
+    "EA502", // InvalidInterface
+    "EA503", // InvalidFunction
+    "EA504", // InvalidMethod
+    "EA505", // InvalidMemberModifier
+    "EA506", // InvalidParameterProperty
+    "EA507", // InvalidStaticBlockModifier
 ];
 
 /// Early resolve error codes relevant for conformance testing.
@@ -61,12 +61,18 @@ impl TestArea {
         match self {
             // parse errors are EP (parser) and EI (import, includes file loading)
             TestArea::Parse => code.starts_with("EP") || ImportError::is_valid_code(code),
+            // early syntax errors include parse + import + targeted analyze codes
+            TestArea::EarlySyntax => {
+                code.starts_with("EP")
+                    || ImportError::is_valid_code(code)
+                    || EARLY_SYNTAX_ANALYZE_CODES.contains(&code)
+            }
             // early errors include parse + import + specific resolve/analyze codes
             TestArea::Early => {
                 code.starts_with("EP")
                     || ImportError::is_valid_code(code)
                     || EARLY_RESOLVE_CODES.contains(&code)
-                    || EARLY_ANALYZE_CODES.contains(&code)
+                    || EARLY_SYNTAX_ANALYZE_CODES.contains(&code)
             }
         }
     }
@@ -143,7 +149,9 @@ pub(super) fn parse_file(
         // parse only tests should not pay the cost of full compiler analysis
         TestArea::Parse => parse_file_with_parser(path, content, file_type, options.area),
         // early error tests still need compiler checks
-        TestArea::Early => parse_file_with_compiler(path, content, file_type, options.area),
+        TestArea::EarlySyntax | TestArea::Early => {
+            parse_file_with_compiler(path, content, file_type, options.area)
+        }
     }
 }
 
@@ -218,6 +226,16 @@ fn parse_file_with_compiler(
         program.clone(),
         CompilerOptions {
             workers: 1,
+            follow_imports: false,
+            inject_prelude: false,
+            load_libs: false,
+            source_map: false,
+            elaborate_with_ternary: false,
+            elaborate_split_declarators: false,
+            elaborate_explicit_return: false,
+            emit_overwrite: false,
+            emit_create_dirs: false,
+            emit_dry_run: true,
             ..Default::default()
         },
     );

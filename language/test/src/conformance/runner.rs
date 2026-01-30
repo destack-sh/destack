@@ -13,11 +13,6 @@ use destack_source::FileType;
 use crate::harness::print::color;
 use crate::harness::{TestOptions, load_expected_failures, save_expected_failures};
 
-/// Parse only timeout in seconds.
-const PARSE_TIMEOUT_SECONDS: u64 = 1;
-/// Early check timeout in seconds.
-const EARLY_TIMEOUT_SECONDS: u64 = 3;
-
 /// Result of running a single conformance test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TestOutcome {
@@ -110,12 +105,18 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     }
 
     /// Select the timeout for a conformance test.
-    fn timeout_for_test(&self, test: &Test) -> Duration {
-        if test.expect_error {
-            Duration::from_secs(EARLY_TIMEOUT_SECONDS)
+    fn timeout_for_test(&self, test: &Test, options: &TestOptions) -> Duration {
+        let scale = if options.parallel() {
+            options.jobs.max(1) as u64
         } else {
-            Duration::from_secs(PARSE_TIMEOUT_SECONDS)
-        }
+            1
+        };
+        let base_ms = if test.expect_error {
+            options.early_timeout_ms
+        } else {
+            options.parse_timeout_ms
+        };
+        Duration::from_millis(base_ms.saturating_mul(scale).max(1))
     }
 }
 
@@ -131,10 +132,13 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
     suite: &S,
     test: &Test,
     timeout: Duration,
+    abort_on_timeout: bool,
 ) -> TestResult {
     let suite = suite.clone();
     let test = test.clone();
-    let thread_name = format!("{}::{}", suite.name(), test.name);
+    let suite_name = suite.name().to_string();
+    let test_name = test.name.clone();
+    let thread_name = format!("{suite_name}::{test_name}");
 
     let (tx, rx) = mpsc::channel();
 
@@ -146,12 +150,23 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
         })
         .expect("failed to spawn test thread");
 
-    match rx.recv_timeout(timeout) {
+    let outcome = match rx.recv_timeout(timeout) {
         Ok(TestOutcome::Passed) => TestResult::Passed,
         Ok(TestOutcome::Failed) => TestResult::Failed,
         Err(mpsc::RecvTimeoutError::Timeout) => TestResult::TimedOut,
         Err(mpsc::RecvTimeoutError::Disconnected) => TestResult::Failed,
+    };
+
+    // abort on timeouts to prevent runaway test threads
+    if abort_on_timeout && matches!(outcome, TestResult::TimedOut) {
+        eprintln!(
+            "timeout in {}::{} (aborting to avoid runaway threads)",
+            suite_name, test_name
+        );
+        std::process::exit(2);
     }
+
+    outcome
 }
 
 /// Per-category statistics.
@@ -159,11 +174,16 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
 pub struct CategoryStats {
     pub passed: usize,
     pub failed: usize,
+    pub skipped: usize,
 }
 
 impl CategoryStats {
     pub fn total(&self) -> usize {
         self.passed + self.failed
+    }
+
+    pub fn total_with_skipped(&self) -> usize {
+        self.passed + self.failed + self.skipped
     }
 
     pub fn pass_rate(&self) -> f64 {
@@ -320,6 +340,9 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let verbose = options.verbose;
 
     // run tests in parallel and collect results
+    let abort_on_timeout = options.abort_on_timeout();
+
+    // run tests in parallel and collect results
     let results: Vec<_> = if options.parallel() {
         let jobs = options.jobs.max(1);
         let thread_pool = ThreadPoolBuilder::new()
@@ -331,8 +354,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             tests
                 .par_iter()
                 .map(|test| {
-                    let timeout = suite.timeout_for_test(test);
-                    let outcome = run_test_with_timeout(suite, test, timeout);
+                    let timeout = suite.timeout_for_test(test, options);
+                    let outcome = run_test_with_timeout(suite, test, timeout, abort_on_timeout);
 
                     // progress reporting (approximate due to parallelism)
                     if verbose {
@@ -355,8 +378,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         tests
             .iter()
             .map(|test| {
-                let timeout = suite.timeout_for_test(test);
-                let outcome = run_test_with_timeout(suite, test, timeout);
+                let timeout = suite.timeout_for_test(test, options);
+                let outcome = run_test_with_timeout(suite, test, timeout, abort_on_timeout);
                 (test.name.clone(), outcome)
             })
             .collect()
@@ -388,7 +411,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                     // Skipped test now passes - report so we can remove from skipped list
                     unskipped.push(name);
                     skipped += 1;
-                    // Don't count in category stats (it's skipped)
+                    cat_stats.skipped += 1;
                 } else {
                     passed += 1;
                     cat_stats.passed += 1;
@@ -401,7 +424,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 if is_skipped {
                     // Expected - skipped tests should fail
                     skipped += 1;
-                    // Don't count in category stats (it's skipped)
+                    cat_stats.skipped += 1;
                 } else {
                     failed += 1;
                     cat_stats.failed += 1;
@@ -415,6 +438,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
                 if is_skipped {
                     // Skipped test timed out - still counts as skipped
                     skipped += 1;
+                    cat_stats.skipped += 1;
                 } else {
                     timedout += 1;
                     cat_stats.failed += 1; // count timeouts as failures in category
@@ -1072,6 +1096,7 @@ fn replace_section(content: &str, section_name: &str, new_section: &str) -> Opti
 fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> String {
     let total_passed: usize = categories.values().map(|s| s.passed).sum();
     let total_failed: usize = categories.values().map(|s| s.failed).sum();
+    let total_skipped: usize = categories.values().map(|s| s.skipped).sum();
     let total_total: usize = categories.values().map(|s| s.total()).sum();
     let total_rate = if total_total > 0 {
         total_passed as f64 / total_total as f64 * 100.0
@@ -1080,24 +1105,38 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
     };
 
     let mut lines = Vec::new();
-    lines.push("| Category             | Passed | Failed | Total |  Rate   |".to_string());
-    lines.push("|:---------------------|-------:|-------:|------:|--------:|".to_string());
+    lines
+        .push("| Category             | Passed | Failed | Skipped | Total |  Rate   |".to_string());
+    lines
+        .push("|:---------------------|-------:|-------:|--------:|------:|--------:|".to_string());
 
     for (category, stats) in categories {
+        let skipped = if stats.skipped > 0 {
+            stats.skipped.to_string()
+        } else {
+            "-".to_string()
+        };
         lines.push(format!(
-            "| {:<20} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
+            "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% |",
             category,
             stats.passed,
             stats.failed,
+            skipped,
             stats.total(),
             stats.pass_rate()
         ));
     }
 
-    lines.push("|----------------------|--------|--------|-------|---------|".to_string());
+    lines
+        .push("|----------------------|--------|--------|---------|-------|---------|".to_string());
+    let skipped_str = if total_skipped > 0 {
+        total_skipped.to_string()
+    } else {
+        "-".to_string()
+    };
     lines.push(format!(
-        "| {:<20} | {:>5}  | {:>5}  | {:>5} | {:>6.2}% |",
-        "total", total_passed, total_failed, total_total, total_rate
+        "| {:<20} | {:>5}  | {:>5}  | {:>7}  | {:>5} | {:>6.2}% |",
+        "total", total_passed, total_failed, skipped_str, total_total, total_rate
     ));
 
     lines.join("\n")
