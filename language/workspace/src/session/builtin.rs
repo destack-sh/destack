@@ -5,7 +5,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_base::{StringId, StringPool};
 use destack_builtin::{
-    BuiltinLibKind, BuiltinLibSource, CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
+    BuiltinLibKind, BuiltinLibSource, BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime,
+    CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
 use destack_dir::{
     GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
@@ -254,12 +255,12 @@ pub struct Builtins {
     /// The prelude module ID (re-exports items available without imports).
     pub prelude_module_id: ModuleId,
 
-    /// Lib modules cache ("dom" -> modules, "es2024" -> modules).
-    pub lib_module_by_name: DashMap<String, Vec<ModuleId>>,
+    /// Lib modules cache ((profile, "dom") -> modules).
+    pub lib_module_by_name: DashMap<(ProfileKey, String), Vec<ModuleId>>,
     /// Lib load markers by name.
     /// #Cleanup: can we do better than lib load markers in Builtins?
     /// (It's a little annoying fishy, but we have to protect against concurrent re-entrant loads.)
-    pub lib_loading_by_name: DashMap<String, ()>,
+    pub lib_loading_by_name: DashMap<(ProfileKey, String), ()>,
     /// Lib name for each registered lib module.
     pub lib_name_by_module: DashMap<ModuleId, &'static str>,
     /// Ambient lib modules per profile key.
@@ -411,12 +412,13 @@ impl Builtins {
         name: &str,
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
+        profile_key: &ProfileKey,
     ) -> Option<Vec<ModuleId>> {
         // create a local cycle guard
         let mut loading = HashSet::new();
 
         // load the lib with cycle tracking
-        self.load_lib_inner(name, files, modules, &mut loading)
+        self.load_lib_inner(name, files, modules, profile_key, &mut loading)
     }
 
     /// Load a lib module set with cycle tracking.
@@ -425,10 +427,11 @@ impl Builtins {
         name: &str,
         files: Arc<FileRegistry>,
         modules: Arc<ModuleRegistry>,
+        profile_key: &ProfileKey,
         loading: &mut HashSet<String>,
     ) -> Option<Vec<ModuleId>> {
         // return cached modules when available
-        if let Some(cached) = self.cached_lib_modules(name) {
+        if let Some(cached) = self.cached_lib_modules(name, profile_key) {
             return Some(cached);
         }
 
@@ -440,13 +443,28 @@ impl Builtins {
         // load the lib metadata
         let lib = builtin_lib(name)?;
 
+        // check if the lib has any sources for this target
+        let runtime = BuiltinRuntime::from(profile_key.runtime);
+        let output = BuiltinOutputFormat::from(profile_key.output);
+        let platform = BuiltinPlatform::from(profile_key.platform);
+        let filtered_sources = lib
+            .sources
+            .iter()
+            .copied()
+            .filter(|source| source.matches_target(runtime, output, platform))
+            .collect::<Vec<_>>();
+        if filtered_sources.is_empty() {
+            return None;
+        }
+
         // wait if another thread is already loading this lib
+        let loading_key = (profile_key.clone(), name.to_string());
         if self
             .lib_loading_by_name
-            .insert(name.to_string(), ())
+            .insert(loading_key.clone(), ())
             .is_some()
         {
-            return self.wait_for_lib_modules(name);
+            return self.wait_for_lib_modules(name, profile_key);
         }
 
         // track this lib for the current load chain
@@ -479,20 +497,26 @@ impl Builtins {
 
             // load each dependency or exit early
             if self
-                .load_lib_inner(&dependency, files.clone(), modules.clone(), loading)
+                .load_lib_inner(
+                    &dependency,
+                    files.clone(),
+                    modules.clone(),
+                    profile_key,
+                    loading,
+                )
                 .is_none()
             {
-                self.lib_loading_by_name.remove(name);
+                self.lib_loading_by_name.remove(&loading_key);
                 loading.remove(name);
                 return None;
             }
         }
 
         // register lib sources
-        let mut module_ids = Vec::with_capacity(lib.sources.len());
-        for source in lib.sources {
+        let mut module_ids = Vec::with_capacity(filtered_sources.len());
+        for source in filtered_sources {
             let module_id =
-                self.register_lib_source(source, lib.kind, files.clone(), modules.clone());
+                self.register_lib_source(&source, lib.kind, files.clone(), modules.clone());
             module_ids.push(module_id);
         }
 
@@ -503,19 +527,21 @@ impl Builtins {
 
         // cache module ids
         self.lib_module_by_name
-            .insert(name.to_string(), module_ids.clone());
+            .insert((profile_key.clone(), name.to_string()), module_ids.clone());
 
         // clear load markers
-        self.lib_loading_by_name.remove(name);
+        self.lib_loading_by_name.remove(&loading_key);
         loading.remove(name);
 
         Some(module_ids)
     }
 
     /// Clone cached module ids and refresh lib name mappings.
-    fn cached_lib_modules(&self, name: &str) -> Option<Vec<ModuleId>> {
+    fn cached_lib_modules(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
         // read cached module ids
-        let cached = self.lib_module_by_name.get(name)?;
+        let cached = self
+            .lib_module_by_name
+            .get(&(profile_key.clone(), name.to_string()))?;
 
         // refresh module to lib name mappings when possible
         if let Some(lib) = builtin_lib(name) {
@@ -528,15 +554,18 @@ impl Builtins {
     }
 
     /// Wait for a lib that is already loading elsewhere.
-    fn wait_for_lib_modules(&self, name: &str) -> Option<Vec<ModuleId>> {
+    fn wait_for_lib_modules(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
         loop {
             // return cached modules when they appear
-            if let Some(cached) = self.cached_lib_modules(name) {
+            if let Some(cached) = self.cached_lib_modules(name, profile_key) {
                 return Some(cached);
             }
 
             // stop waiting if the load marker is gone
-            if !self.lib_loading_by_name.contains_key(name) {
+            if !self
+                .lib_loading_by_name
+                .contains_key(&(profile_key.clone(), name.to_string()))
+            {
                 return None;
             }
 

@@ -800,7 +800,7 @@ impl Program {
                     return true;
                 };
                 matches!(builtin.kind, destack_builtin::BuiltinLibKind::Std)
-                    || builtin.name == "native"
+                    || matches!(builtin.name, "native" | "platform" | "destack")
             });
             if !libs.iter().any(|lib| lib == "native") {
                 libs.push("native".to_string());

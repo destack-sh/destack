@@ -25,6 +25,10 @@ fetch-builtin-libs-version:
 fetch-builtin-libs:
     just language/fetch-builtin-libs
 
+# generate builtin lib registry
+generate-builtin-libs:
+    just language/generate-builtin-libs
+
 # --- build ---
 
 # check everything

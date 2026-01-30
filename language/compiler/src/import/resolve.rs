@@ -5,7 +5,9 @@ use destack_builtin::builtin_lib;
 use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
-use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
+use destack_workspace::{
+    Loader, Module, ModuleSource, Package, PackageKind, ProfileId, Runtime, SourceType,
+};
 
 use crate::{Compiler, ImportError, ImportResult};
 
@@ -22,16 +24,54 @@ impl Compiler {
     /// If the module already exists, the override is ignored.
     pub fn resolve_specifier_to_module(
         &self,
+        profile_id: Option<ProfileId>,
+        specifier: StringId,
+        source_module: Option<ModuleId>,
+        kind: DependencyKind,
+    ) -> ImportResult<ModuleId> {
+        self.resolve_specifier_to_module_with_loader(
+            profile_id,
+            specifier,
+            source_module,
+            kind,
+            None,
+        )
+    }
+
+    /// Resolve a specifier to a ModuleId with an optional loader override.
+    ///
+    /// If `loader_override` is provided and the module doesn't exist yet, the module
+    /// will be registered with the specified loader instead of the default for its file type.
+    /// If the module already exists, the override is ignored (Option B from plan).
+    pub fn resolve_specifier_to_module_with_loader(
+        &self,
+        profile_id: Option<ProfileId>,
         specifier: StringId,
         source_module: Option<ModuleId>,
         kind: DependencyKind,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
+        let profile_id = profile_id
+            .or_else(|| self.profile_id_for_resolution(source_module))
+            .unwrap_or_else(|| {
+                self.program
+                    .default_profile_id_for_module(self.program.root_module_id)
+            });
         let specifier_str = self.program.strings.get(specifier).to_string();
+        let profile_key = self.program.profile(profile_id).key.clone();
+        let runtime = profile_key.runtime;
+
+        // resolve protocol specifiers (destack:, node:, bun:, deno:)
+        if let Some(module_id) =
+            self.resolve_protocol_specifier(&specifier_str, runtime, &profile_key)
+        {
+            return Ok(module_id);
+        }
 
         // resolve builtin module imports (builtin:// URIs)
         if let Some(source_id) = source_module
-            && let Some(module_id) = self.resolve_builtin_specifier(&specifier_str, source_id)
+            && let Some(module_id) =
+                self.resolve_builtin_specifier(&specifier_str, source_id, &profile_key)
         {
             return Ok(module_id);
         }
@@ -125,6 +165,7 @@ impl Compiler {
         &self,
         specifier: &str,
         source_module: ModuleId,
+        profile_key: &destack_workspace::ProfileKey,
     ) -> Option<ModuleId> {
         // get source module URI
         let source = self.program.modules.get(source_module);
@@ -172,20 +213,13 @@ impl Compiler {
                 };
 
             // resolve entry module and ensure lib is loaded
-            let lib = builtin_lib(lib_name)?;
-            let entry_source = lib
-                .sources
-                .iter()
-                .find(|source| source.name == "index.d.ts")
-                .unwrap_or_else(|| &lib.sources[0]);
-            let module_path = entry_source.module_path();
-            let module_id =
-                ModuleId::from_relative_path(builtins.package_id, Path::new(&module_path));
-            builtins.load_lib(
+            let module_ids = builtins.load_lib(
                 lib_name,
                 self.program.files.clone(),
                 self.program.modules.clone(),
-            );
+                profile_key,
+            )?;
+            let module_id = entry_module_id(&self.program.modules, &module_ids);
             return Some(module_id);
         }
 
@@ -219,6 +253,78 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Resolve a protocol specifier (destack:, node:, bun:, deno:) to a builtin module.
+    fn resolve_protocol_specifier(
+        &self,
+        specifier: &str,
+        runtime: Runtime,
+        profile_key: &destack_workspace::ProfileKey,
+    ) -> Option<ModuleId> {
+        let (protocol, path) = specifier.split_once(':')?;
+        let path = path.trim_start_matches('/');
+
+        let is_destack = matches!(protocol, "destack");
+        let is_alias = matches!(protocol, "node" | "bun" | "deno");
+        if !is_destack && !is_alias {
+            return None;
+        }
+        if is_alias {
+            if !runtime.is_native() {
+                return None;
+            }
+            // NOTE #Architecture: decide whether node:/bun:/deno: are aliases or separate libs.
+            // for now, treat them as aliases to destack: on native runtimes.
+            if !protocol_alias_allowed(protocol, path) {
+                return None;
+            }
+        }
+
+        // normalize to destack scheme
+        let path = if path.is_empty() { "index" } else { path };
+
+        // load destack builtin lib for native runtime
+        let builtins = self.program.builtins.as_ref()?;
+        let lib_name = "destack";
+        builtins.load_lib(
+            lib_name,
+            self.program.files.clone(),
+            self.program.modules.clone(),
+            profile_key,
+        )?;
+
+        // resolve destack modules under lib/destack
+        let base_path = format!("lib/destack/{path}");
+        let base_uri = Uri::from_string(format!("builtin://{base_path}"));
+
+        // try exact path
+        if let Some(module_id) = self.program.modules.get_id_by_uri(&base_uri) {
+            return Some(module_id);
+        }
+
+        // try extensions
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_uri = Uri::from_string(format!("builtin://{base_path}{extension}"));
+            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+                return Some(module_id);
+            }
+        }
+
+        // try index (with extensions)
+        for extension in BUILTIN_EXTENSIONS {
+            let candidate_uri = Uri::from_string(format!("builtin://{base_path}/index{extension}"));
+            if let Some(module_id) = self.program.modules.get_id_by_uri(&candidate_uri) {
+                return Some(module_id);
+            }
+        }
+
+        None
+    }
+
+    /// Resolve a profile id for protocol routing.
+    fn profile_id_for_resolution(&self, source_module: Option<ModuleId>) -> Option<ProfileId> {
+        source_module.map(|module_id| self.program.default_profile_id_for_module(module_id))
     }
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
@@ -508,6 +614,50 @@ impl Compiler {
             .unwrap_or("synthetic");
         format!("<{name}>")
     }
+}
+
+fn protocol_alias_allowed(protocol: &str, path: &str) -> bool {
+    let module = path.split('/').next().unwrap_or("");
+    match protocol {
+        "node" => NODE_ALIAS_MODULES.contains(&module),
+        "bun" => BUN_ALIAS_MODULES.contains(&module),
+        "deno" => DENO_ALIAS_MODULES.contains(&module),
+        _ => false,
+    }
+}
+
+const NODE_ALIAS_MODULES: &[&str] = &[
+    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream",
+    "timers", "url", "util", "vm",
+];
+
+const BUN_ALIAS_MODULES: &[&str] = &[
+    "assert", "buffer", "console", "crypto", "fs", "net", "os", "path", "process", "stream", "sys",
+    "timers", "url", "util", "vm",
+];
+
+const DENO_ALIAS_MODULES: &[&str] = &[];
+
+fn entry_module_id(
+    modules: &destack_workspace::ModuleRegistry,
+    module_ids: &[ModuleId],
+) -> ModuleId {
+    let mut fallback = None;
+    for module_id in module_ids {
+        let module = modules.get(*module_id);
+        let module = module.read();
+        let uri = module.uri.as_ref();
+        if uri.ends_with("/index.d.ts")
+            || uri.ends_with("/index.d.ds")
+            || uri.ends_with("/index.ds")
+        {
+            return *module_id;
+        }
+        fallback.get_or_insert(*module_id);
+    }
+    fallback.unwrap_or_else(|| {
+        panic!("builtin lib returned no modules for entry resolution");
+    })
 }
 
 /// Resolve a relative specifier against a base URI directory.

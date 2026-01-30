@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
 use destack_runtime::platform::{
-    BindingPolicy, BindingRegistry, DeterminismPolicy, HostContext, ReplayMode,
+    BindingPolicy, BindingRegistry, DeterminismPolicy, PlatformContext, ReplayMode,
 };
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
@@ -222,10 +222,10 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
-    let host = HostContext::new(process_args);
+    let platform = PlatformContext::new(process_args);
     let mut bindings = BindingRegistry::new();
     bindings.set_policy(binding_policy_for_target(&target));
-    bindings.install_defaults(&mut isolate, &host);
+    bindings.install_defaults(&mut isolate, &platform);
 
     let result = isolate
         .run_function_by_name(entry_name, &[])

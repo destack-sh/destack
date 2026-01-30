@@ -99,7 +99,7 @@ impl Compiler {
         // load libs in order
         let loaded_modules = {
             let _timing = self.timing_scope(tags::RESOLVE_LIBS_LOAD_MODULES);
-            self.load_lib_modules_in_order(builtins, &ordered_libs)?
+            self.load_lib_modules_in_order(builtins, &ordered_libs, &profile_key)?
         };
         let LoadedLibModules {
             modules_to_resolve,

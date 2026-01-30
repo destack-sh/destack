@@ -8,8 +8,8 @@ use parking_lot::RwLock;
 
 use crate::{
     ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions,
-    ModuleRegistry, PackageRegistry, ProfileId, Program, SessionOptions, TsConfigRegistry,
-    Workspace, resolve_workspace_cache_root,
+    ModuleRegistry, PackageRegistry, ProfileId, ProfileKey, Program, SessionOptions,
+    TsConfigRegistry, Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -184,9 +184,9 @@ impl Session {
 
     /// Load a lib module set (e.g., "dom", "es2024").
     /// Returns None if the lib name is not registered.
-    pub fn load_lib(&self, name: &str) -> Option<Vec<ModuleId>> {
+    pub fn load_lib(&self, name: &str, profile_key: &ProfileKey) -> Option<Vec<ModuleId>> {
         self.builtins
-            .load_lib(name, self.files.clone(), self.modules.clone())
+            .load_lib(name, self.files.clone(), self.modules.clone(), profile_key)
     }
 
     /// Add a root to the session.

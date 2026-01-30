@@ -93,6 +93,11 @@ generate-schema:
     cp workspace/generated/dsconfig.schema.json ../platform/vscode/dsconfig.schema.json
     @echo "generated workspace/generated/dsconfig.schema.json"
 
+# generate runtime binding catalog
+generate-bindings:
+    cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
+    @echo "generated runtime binding catalog"
+
 # --- builtin libs ---
 
 # typescript lib version is pinned in builtin/fetch.py
@@ -102,6 +107,11 @@ fetch-builtin-libs-version:
 # fetch typescript libs into builtin/lib
 fetch-builtin-libs:
     python3 ./builtin/fetch.py
+
+# generate builtin lib registry
+generate-builtin-libs:
+    python3 ./builtin/generate.py
+    cargo fmt -p destack_builtin
 
 # --- test ---
 
