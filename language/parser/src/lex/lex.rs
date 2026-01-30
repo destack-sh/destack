@@ -80,6 +80,73 @@ pub fn is_semantic(token_type: TokenType) -> bool {
 }
 
 impl Lexer<'_> {
+    /// Skip whitespace and comments in a byte buffer, returning the next index.
+    #[inline]
+    fn skip_trivia_bytes(bytes: &[u8], mut i: usize) -> usize {
+        while i < bytes.len() {
+            let c = bytes[i] as char;
+            if is_whitespace(c) || bytes[i] == b'\n' {
+                i += 1;
+                continue;
+            }
+            if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                i += 2;
+                while i + 1 < bytes.len() {
+                    if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                        i += 2;
+                        break;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+            break;
+        }
+        i
+    }
+
+    /// Skip a string literal starting at `i` (including the quote).
+    #[inline]
+    fn skip_string_literal_bytes(bytes: &[u8], mut i: usize, quote: u8) -> usize {
+        i += 1;
+        while i < bytes.len() {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == quote {
+                i += 1;
+                break;
+            }
+            i += 1;
+        }
+        i
+    }
+
+    /// Skip a template literal starting at `i` (including the backtick).
+    #[inline]
+    fn skip_template_literal_bytes(bytes: &[u8], mut i: usize) -> usize {
+        i += 1;
+        while i < bytes.len() {
+            if bytes[i] == b'\\' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'`' {
+                i += 1;
+                break;
+            }
+            i += 1;
+        }
+        i
+    }
     /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
     /// Semantic tokens are identifiers, keywords, literals, operators.
     /// Side tokens are whitespace and comments.
@@ -117,9 +184,11 @@ impl Lexer<'_> {
             }
 
             // track last tokens for O(1) context lookups
-            if token.ty != TokenType::Whitespace {
+            if is_semantic(token.ty) {
                 self.options.last_non_whitespace_token = Some(token_span);
                 if token.ty != TokenType::Newline {
+                    self.options.prev_prev_semantic_token = self.options.prev_semantic_token;
+                    self.options.prev_semantic_token = self.options.last_semantic_token;
                     self.options.last_semantic_token = Some(token_span);
                 }
             }
@@ -502,6 +571,11 @@ impl Lexer<'_> {
                     && let Some(html_entity_token) = self.try_eat_html_entity()
                 {
                     html_entity_token
+                }
+                // treat invalid html entities as text content
+                else if self.in_tree_content() {
+                    self.eat_tree_text_after_ampersand();
+                    (TokenType::Literal, Some(LiteralType::TreeString))
                 }
                 // &&
                 else if self.peek() == '&' {
@@ -1597,7 +1671,7 @@ impl Lexer<'_> {
 
         // these characters start other tokens, not text
         // `&` may start an HTML entity, so let advance() handle it
-        if matches!(first, '<' | '{' | '&' | '\0') {
+        if matches!(first, '<' | '>' | '{' | '&' | '\0') {
             return None;
         }
 
@@ -1608,7 +1682,7 @@ impl Lexer<'_> {
             let c = self.peek();
             match c {
                 // boundaries: start of tag, expression container, or potential html entity
-                '<' | '{' | '&' => break,
+                '<' | '>' | '{' | '&' => break,
                 _ => {
                     self.eat();
                 }
@@ -1626,6 +1700,19 @@ impl Lexer<'_> {
         Some(token)
     }
 
+    /// Eat tree literal text starting from an already consumed `&`.
+    fn eat_tree_text_after_ampersand(&mut self) {
+        while !self.is_end() {
+            let c = self.peek();
+            match c {
+                '<' | '>' | '{' | '&' => break,
+                _ => {
+                    self.eat();
+                }
+            }
+        }
+    }
+
     /// Checks if we're in a position where `<` could start a tree literal.
     /// This uses the same logic as regex detection: `<` starts a tree when
     /// after operators, keywords, or opening brackets (not after values).
@@ -1635,36 +1722,114 @@ impl Lexer<'_> {
             return true;
         }
 
-        // use cached last semantic token for O(1) lookup
-        let prev = self.options.last_semantic_token.as_ref();
+        // use cached tokens for O(1) lookup
+        let last = self.options.last_semantic_token.as_ref();
+        let prev = self.options.prev_semantic_token.as_ref();
+        let last_non_whitespace = self.options.last_non_whitespace_token.as_ref();
 
-        match prev {
-            // start of file: tree is allowed (top-level JSX expression)
-            None => true,
-            Some(prev_token) => {
-                // after tree-opening tokens: tree is allowed
-                if TREE_OPENING_TOKEN_TYPES.contains(&prev_token.token.ty) {
-                    return true;
-                }
-                // after control keywords (return, if, etc.): tree is allowed
-                if prev_token.token.ty == TokenType::Identifier
-                    && let Ok(kw) = Keyword::from_str(self.get_span_str(prev_token.span))
-                    && kw.is_control()
-                {
-                    return true;
-                }
-                // after open brace only if we're in tree content (expression container)
-                // not for interface/block bodies
-                if prev_token.token.ty == TokenType::OpenBrace {
-                    // check if we're inside a tree expression container
-                    if !self.options.tree_expression_stack.is_empty() {
-                        return true;
-                    }
-                }
-                // otherwise: it's a comparison operator or generic
-                false
-            }
+        // start of file: tree is allowed (top-level JSX expression)
+        let Some(prev_token) = last else {
+            return true;
+        };
+
+        // after tree-opening tokens: tree is allowed
+        if self.is_tree_expression_start_token(prev_token) {
+            return true;
         }
+
+        // after control keywords (return, if, etc.): tree is allowed
+        if self.is_control_keyword_token(prev_token) {
+            return true;
+        }
+
+        // after open brace only if we're in tree content (expression container)
+        if self.is_tree_expression_container_open(prev_token) {
+            return true;
+        }
+
+        // after newline if we can safely terminate the previous statement
+        if self.is_statement_boundary_after_newline(last_non_whitespace, prev_token, prev) {
+            return true;
+        }
+
+        // otherwise: it's a comparison operator or generic
+        false
+    }
+
+    /// Check if a token can start an expression where tree literals are allowed.
+    #[inline]
+    fn is_tree_expression_start_token(&self, token: &TokenSpan) -> bool {
+        TREE_OPENING_TOKEN_TYPES.contains(&token.token.ty)
+    }
+
+    /// Check if a token is a control keyword that can precede an expression.
+    #[inline]
+    fn is_control_keyword_token(&self, token: &TokenSpan) -> bool {
+        if token.token.ty != TokenType::Identifier {
+            return false;
+        }
+        Keyword::from_str(self.get_span_str(token.span))
+            .map(|keyword| keyword.is_control())
+            .unwrap_or(false)
+    }
+
+    /// Check if `{` opens a tree expression container context.
+    #[inline]
+    fn is_tree_expression_container_open(&self, token: &TokenSpan) -> bool {
+        token.token.ty == TokenType::OpenBrace && !self.options.tree_expression_stack.is_empty()
+    }
+
+    /// Check whether a newline can terminate a statement before a tree literal.
+    fn is_statement_boundary_after_newline(
+        &self,
+        last_non_whitespace: Option<&TokenSpan>,
+        last_semantic: &TokenSpan,
+        prev_semantic: Option<&TokenSpan>,
+    ) -> bool {
+        // only treat newlines as boundaries
+        let is_newline = matches!(
+            last_non_whitespace.map(|token| token.token.ty),
+            Some(TokenType::Newline)
+        );
+        if !is_newline {
+            return false;
+        }
+
+        // semicolons always terminate statements
+        if last_semantic.token.ty == TokenType::Semicolon {
+            return true;
+        }
+
+        // block end followed by newline starts a new statement
+        if last_semantic.token.ty == TokenType::CloseBrace {
+            return true;
+        }
+
+        // allow after statement-terminating keywords
+        if last_semantic.token.ty == TokenType::Identifier
+            && let Ok(keyword) = Keyword::from_str(self.get_span_str(last_semantic.span))
+            && matches!(
+                keyword,
+                Keyword::Return
+                    | Keyword::Break
+                    | Keyword::Continue
+                    | Keyword::Debugger
+                    | Keyword::Yield
+            )
+        {
+            return true;
+        }
+
+        // allow after let/var declaration with newline terminator
+        if let Some(prev_token) = prev_semantic
+            && last_semantic.token.ty == TokenType::Identifier
+            && prev_token.token.ty == TokenType::Identifier
+            && let Ok(keyword) = Keyword::from_str(self.get_span_str(prev_token.span))
+        {
+            return matches!(keyword, Keyword::Let | Keyword::Var);
+        }
+
+        false
     }
 
     /// Checks if the next characters look like a tree tag start, NOT a generic.
@@ -1682,7 +1847,14 @@ impl Lexer<'_> {
             return false;
         }
 
-        let first = bytes[0] as char;
+        // skip leading whitespace and comments
+        let mut i = Self::skip_trivia_bytes(bytes, 0);
+
+        if i >= bytes.len() {
+            return false;
+        }
+
+        let first = bytes[i] as char;
 
         // `<>` is a fragment
         if first == '>' {
@@ -1695,7 +1867,7 @@ impl Lexer<'_> {
         }
 
         // skip the identifier to see what comes after
-        let mut i = 1;
+        i += 1;
         while i < bytes.len() && is_identifier_continue(bytes[i] as char) {
             i += 1;
         }
@@ -1726,9 +1898,79 @@ impl Lexer<'_> {
             }
             // Destack type annotation: <T : X> is generic
             ':' => false,
+            // arrow type: <T>(...) => ...
+            '>' => !self.is_generic_arrow_after_tag(i),
             // anything else (including >, /, space+attr): likely tree
             _ => true,
         }
+    }
+
+    /// Check whether the sequence after `>` looks like a generic arrow function type.
+    fn is_generic_arrow_after_tag(&self, tag_end: usize) -> bool {
+        let s = self.as_str();
+        let bytes = s.as_bytes();
+
+        // skip trivia after `>`
+        let mut i = Self::skip_trivia_bytes(bytes, tag_end + 1);
+        if i >= bytes.len() || bytes[i] != b'(' {
+            return false;
+        }
+
+        // find the matching closing parenthesis
+        i += 1;
+        let mut depth = 1;
+        while i < bytes.len() {
+            let c = bytes[i] as char;
+            match c {
+                '(' => {
+                    depth += 1;
+                }
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        i += 1;
+                        break;
+                    }
+                }
+                '"' | '\'' => {
+                    i = Self::skip_string_literal_bytes(bytes, i, bytes[i]);
+                    continue;
+                }
+                '`' => {
+                    i = Self::skip_template_literal_bytes(bytes, i);
+                    continue;
+                }
+                '/' => {
+                    if bytes.get(i + 1) == Some(&b'/') {
+                        i += 2;
+                        while i < bytes.len() && bytes[i] != b'\n' {
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    if bytes.get(i + 1) == Some(&b'*') {
+                        i += 2;
+                        while i + 1 < bytes.len() {
+                            if bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                                i += 2;
+                                break;
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        if depth != 0 {
+            return false;
+        }
+
+        // skip trivia before the arrow
+        i = Self::skip_trivia_bytes(bytes, i);
+        i + 1 < bytes.len() && bytes[i] == b'=' && bytes[i + 1] == b'>'
     }
 }
 

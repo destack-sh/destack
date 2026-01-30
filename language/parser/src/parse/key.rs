@@ -95,7 +95,7 @@ impl Parser {
         }
     }
 
-    /// Eat a tree literal identifier (`kebab-case` as `kebabCase`).
+    /// Eat a tree literal identifier (`kebab-case` as `kebabCase`, namespaces allowed).
     #[inline]
     pub fn eat_tree_literal_identifier(&mut self) -> ParseResult<StringId> {
         let (string_id, _) = self.eat_tree_literal_identifier_with_span()?;
@@ -112,11 +112,16 @@ impl Parser {
         let mut last_span = token.span;
         let token_part = self.get_token_str(token);
 
+        // disallow escaped identifiers in tree literals
+        if token_part.contains('\\') {
+            return Err(ParseError::unexpected(token.span));
+        }
+
         // uppercase first letter (except at start)
         if identifier.is_empty() {
             identifier.push_str(token_part);
         } else {
-            // uppercase the first character (UTF-8 safe)
+            // uppercase the first character
             let mut chars = token_part.chars();
             if let Some(first) = chars.next() {
                 identifier.extend(first.to_uppercase());
@@ -125,22 +130,36 @@ impl Parser {
         }
 
         loop {
-            // snack kebab-case segments
-            if self.peek_token(TokenType::Subtract).is_ok() {
+            // snack kebab-case or namespace segments
+            let is_kebab = if self.peek_token(TokenType::Subtract).is_ok() {
                 self.bump();
+                true
+            } else if self.peek_token(TokenType::Colon).is_ok() {
+                self.bump();
+                false
             } else {
                 break;
-            }
+            };
 
             let token = *self.eat_token(TokenType::Identifier)?;
             let token_part = self.get_token_str(token);
+
+            // disallow escaped identifiers in tree literals
+            if token_part.contains('\\') {
+                return Err(ParseError::unexpected(token.span));
+            }
             last_span = token.span;
 
-            // uppercase the first character (UTF-8 safe)
-            let mut chars = token_part.chars();
-            if let Some(first) = chars.next() {
-                identifier.extend(first.to_uppercase());
-                identifier.push_str(chars.as_str());
+            if is_kebab {
+                // uppercase the first character
+                let mut chars = token_part.chars();
+                if let Some(first) = chars.next() {
+                    identifier.extend(first.to_uppercase());
+                    identifier.push_str(chars.as_str());
+                }
+            } else {
+                identifier.push(':');
+                identifier.push_str(token_part);
             }
         }
         let string_id = self.strings.intern(identifier);

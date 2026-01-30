@@ -237,10 +237,25 @@ impl Compiler {
 
                 dir::Expression::TypeImport {
                     target,
+                    arguments,
                     qualifier,
                     static_arguments,
                 } => {
                     let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let arguments = arguments
+                        .iter()
+                        .map(|argument| {
+                            self.unbind_argument(
+                                module,
+                                *argument,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        })
+                        .collect();
                     let qualifier = qualifier.as_ref().map(|qualifier| {
                         self.unbind_path(qualifier, ast_strings, context)
                     });
@@ -262,6 +277,7 @@ impl Compiler {
                     });
                     ast::Expression::TypeImport {
                         target,
+                        arguments,
                         qualifier,
                         static_arguments,
                     }

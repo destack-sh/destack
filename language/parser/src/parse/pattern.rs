@@ -461,6 +461,7 @@ impl Parser {
                 break;
             }
         }
+
         Ok(fields)
     }
 }

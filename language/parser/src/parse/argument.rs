@@ -727,6 +727,31 @@ impl Parser {
                 );
                 return Ok(argument_id);
             }
+
+            // spread child: {...expr}
+            if self.peek_token(TokenType::Spread).is_ok() {
+                self.bump(); // eat spread
+                let value = self.with_options(
+                    self.options
+                        .not_in_position()
+                        .not_in_tree_literal()
+                        .not_in_left_precedence()
+                        .not_in_sequence_expression(),
+                    |parser| parser.eat_expression(),
+                )?;
+                self.eat_newlines_maybe()?;
+                self.eat_token(TokenType::CloseBrace)?;
+                let argument_id = self.tree.insert(
+                    Argument::Spread {
+                        modifiers: None,
+                        label: None,
+                        value,
+                    },
+                    self.get_span_from(start),
+                );
+                return Ok(argument_id);
+            }
+
             let value = self.with_options(
                 self.options
                     .not_in_position()

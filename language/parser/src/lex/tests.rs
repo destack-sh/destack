@@ -854,6 +854,41 @@ fn test_lex_tree_with_static_arguments() {
 }
 
 #[test]
+fn test_lex_generic_arrow_not_tree() {
+    assert_tokenize_eq_roundtrip!(
+        "<T>(x) => x",
+        Token::new(TokenType::LessThan, 1, None),        // <
+        Token::new(TokenType::Identifier, 1, None),      // T
+        Token::new(TokenType::GreaterThan, 1, None),     // >
+        Token::new(TokenType::OpenParenthesis, 1, None), // (
+        Token::new(TokenType::Identifier, 1, None),      // x
+        Token::new(TokenType::CloseParenthesis, 1, None), // )
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::ArrowWide, 2, None), // =>
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None), // x
+    );
+}
+
+#[test]
+fn test_lex_generic_arrow_not_tree_with_comment() {
+    assert_tokenize_eq_roundtrip!(
+        "<T>(/*x*/y) => y",
+        Token::new(TokenType::LessThan, 1, None),        // <
+        Token::new(TokenType::Identifier, 1, None),      // T
+        Token::new(TokenType::GreaterThan, 1, None),     // >
+        Token::new(TokenType::OpenParenthesis, 1, None), // (
+        Token::new(TokenType::BlockComment, 5, None),    // /*x*/
+        Token::new(TokenType::Identifier, 1, None),      // y
+        Token::new(TokenType::CloseParenthesis, 1, None), // )
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::ArrowWide, 2, None), // =>
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(TokenType::Identifier, 1, None), // y
+    );
+}
+
+#[test]
 fn test_lex_comparison_not_tree() {
     // a < b should be comparison, not tree opening
     assert_tokenize_eq_roundtrip!(
@@ -903,6 +938,22 @@ fn test_lex_tree_fragment() {
         Token::new(TokenType::GreaterThan, 1, None), // >
         Token::new(TokenType::LessThan, 1, None),    // <
         Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::GreaterThan, 1, None), // >
+    );
+}
+
+#[test]
+fn test_lex_tree_invalid_html_entity_as_text() {
+    // invalid html entity should be treated as text content
+    assert_tokenize_eq_roundtrip!(
+        "<A>&#x1g4q9;</A>",
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Identifier, 1, None),  // A
+        Token::new(TokenType::GreaterThan, 1, None), // >
+        Token::new(TokenType::Literal, 9, Some(LiteralType::TreeString)), // &#x1g4q9;
+        Token::new(TokenType::LessThan, 1, None),    // <
+        Token::new(TokenType::Divide, 1, None),      // /
+        Token::new(TokenType::Identifier, 1, None),  // A
         Token::new(TokenType::GreaterThan, 1, None), // >
     );
 }

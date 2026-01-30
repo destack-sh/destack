@@ -46,12 +46,16 @@ pub(super) struct LexerOptions {
     /// Stack of entries tracking where tree expression containers started.
     /// When `}` is seen at the matching depth and tree level, we return to TreeState::Content.
     pub(super) tree_expression_stack: Vec<TreeExpressionEntry>,
-    /// The last non-whitespace token for fast context lookups (includes newlines).
+    /// The last non-whitespace token for fast context lookups (excludes comments, includes newlines).
     /// Updated incrementally to avoid O(n) reverse scans.
     pub(super) last_non_whitespace_token: Option<TokenSpan>,
-    /// The last semantic token (excludes both whitespace and newlines).
+    /// The last semantic token (excludes whitespace, comments, and newlines).
     /// Used for tree literal context detection.
     pub(super) last_semantic_token: Option<TokenSpan>,
+    /// The second-to-last semantic token (excludes whitespace, comments, and newlines).
+    pub(super) prev_semantic_token: Option<TokenSpan>,
+    /// The third-to-last semantic token (excludes whitespace, comments, and newlines).
+    pub(super) prev_prev_semantic_token: Option<TokenSpan>,
 }
 
 /// Lexer over a source string.

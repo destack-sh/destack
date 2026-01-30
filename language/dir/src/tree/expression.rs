@@ -121,6 +121,7 @@ pub enum Expression {
     /// Type import expression.
     TypeImport {
         target: StringId,
+        arguments: Vec<LocalNodeId<Argument>>,
         qualifier: Option<Path>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },

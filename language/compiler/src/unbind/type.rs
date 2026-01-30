@@ -336,6 +336,18 @@ impl Compiler {
             } => {
                 // type import expression
                 let target = ast_strings.intern_from(&self.program.strings, *target);
+                let target_expression_id = ast_tree.insert(
+                    ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(target)),
+                    span,
+                );
+                let target_argument_id = ast_tree.insert(
+                    ast::Argument::Positional {
+                        modifiers: None,
+                        value: target_expression_id,
+                    },
+                    span,
+                );
+                let arguments = vec![target_argument_id];
                 let qualifier = qualifier
                     .as_ref()
                     .map(|qualifier| self.unbind_path(qualifier, ast_strings, context));
@@ -351,6 +363,7 @@ impl Compiler {
                 );
                 ast::Expression::TypeImport {
                     target,
+                    arguments,
                     qualifier,
                     static_arguments,
                 }

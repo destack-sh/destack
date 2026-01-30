@@ -16,14 +16,12 @@ typescript/custom/issue-401-const-assertion-object-ts/input.ts
 typescript/custom/type-only/import/default/input.ts
 typescript/custom/type-only/import/specific/input.ts
 typescript/deno/dso/reflect/input.ts
-typescript/export/as-namespace/input.ts
 typescript/export/declare/input.ts
 typescript/import-assertions/dynamic-import/expr/input.ts
 typescript/import-assertions/dynamic-import/top/input.ts
 typescript/import/type-only-string-specifier/input.ts
 typescript/issue-11124/input.ts
 typescript/issue-11160/input.ts
-typescript/issue-1252/case1/input.tsx
 typescript/issue-1505/case2/input.tsx
 typescript/issue-1514/case1/input.ts
 typescript/issue-1558/case1/input.ts
@@ -45,9 +43,6 @@ typescript/module-namespace/head/input.ts
 typescript/next/stack-overflow/1/input.ts
 typescript/optional-chaining/conditional-decimal/input.ts
 typescript/optional-chaining/type-arguments-with-call/input.ts
-typescript/ts-import-type/input.ts
-typescript/tsx/brace-is-block/input.ts
-typescript/type-arguments/tsx/input.ts
 typescript/types/conditional-infer-extends/distinguishing/input.ts
 typescript/variance-annotations/1/input.ts
 typescript/variance-annotations/with_jsx/input.tsx
