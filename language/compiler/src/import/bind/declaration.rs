@@ -541,9 +541,9 @@ impl Compiler {
                 {
                     let dependency_id = tree.reserve_from(
                         NodeType::DependencyItem,
-                        LocalNodeIdAny::from(declaration_id),
+                        declaration_id,
                         scope,
-                        Some(LocalNodeIdAny::from(declaration_id)),
+                        Some(declaration_id),
                     );
                     let dependency = DependencyItem::UnresolvedRemote {
                         source: DependencySource::ImportEquals,
