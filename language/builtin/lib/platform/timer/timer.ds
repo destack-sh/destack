@@ -1,0 +1,16 @@
+import { TimerHandle } from "../resource/resource.ds";
+
+/// Timer bindings for the native runtime.
+declare namespace timer {
+    /// Schedule a one-shot timer.
+    @binding("destack.timers.once")
+    export function once(delayNs: uint64): TimerHandle;
+
+    /// Schedule a repeating timer.
+    @binding("destack.timers.interval")
+    export function interval(periodNs: uint64): TimerHandle;
+
+    /// Cancel a scheduled timer.
+    @binding("destack.timers.cancel")
+    export function cancel(handle: TimerHandle): void;
+}

@@ -1,0 +1,29 @@
+import { Slice } from "native";
+import { ListenerHandle, SocketHandle } from "../resource/resource.ds";
+
+/// Networking bindings for the native runtime.
+declare namespace net {
+    /// Connect to a remote host and return a socket handle.
+    @binding("destack.net.connect")
+    export function connect(host: string, port: uint16): SocketHandle;
+
+    /// Start listening on the given address.
+    @binding("destack.net.listen")
+    export function listen(host: string, port: uint16, backlog: uint32): ListenerHandle;
+
+    /// Accept a new connection from a listener.
+    @binding("destack.net.accept")
+    export function accept(listener: ListenerHandle): SocketHandle;
+
+    /// Close a socket handle.
+    @binding("destack.net.close")
+    export function close(handle: SocketHandle): void;
+
+    /// Read from a socket into the provided slice.
+    @binding("destack.net.read")
+    export function read(handle: SocketHandle, buffer: Slice<uint8>): uint64;
+
+    /// Write to a socket from the provided slice.
+    @binding("destack.net.write")
+    export function write(handle: SocketHandle, buffer: Slice<uint8>): uint64;
+}

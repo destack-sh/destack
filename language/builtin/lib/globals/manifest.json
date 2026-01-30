@@ -1,0 +1,12 @@
+{
+  "path": "globals.rs",
+  "sourceSets": {},
+  "libs": [
+    {
+      "name": "globals",
+      "sources": [
+        "lib/globals/index.d.ts"
+      ]
+    }
+  ]
+}

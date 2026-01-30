@@ -1,0 +1,9 @@
+export type {
+    ResourceId,
+    FileHandle,
+    DirectoryHandle,
+    SocketHandle,
+    ListenerHandle,
+    ProcessHandle,
+    TimerHandle,
+} from "../../platform/resource/index.ds";

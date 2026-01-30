@@ -51,6 +51,7 @@ builtin_source!(CORE_PRELUDE, "prelude.ds");
 
 // memory
 builtin_source!(MEMORY_INDEX, "memory", "index.ds");
+builtin_source!(MEMORY_BYTES, "memory", "bytes.ds");
 builtin_source!(MEMORY_DROP, "memory", "drop.ds");
 builtin_source!(MEMORY_COPY, "memory", "copy.ds");
 builtin_source!(MEMORY_THREAD, "memory", "thread.ds");
@@ -97,6 +98,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     MEMORY_DROP,
     MEMORY_COPY,
     MEMORY_THREAD,
+    MEMORY_BYTES,
     MEMORY_INDEX,
     // operator
     OPERATOR_ARITHMETIC,

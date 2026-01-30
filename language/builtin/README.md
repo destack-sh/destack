@@ -50,11 +50,19 @@ newtype interface Add<T, R = this> {
 newtype Result<T, E> = Ok<T> | Err<E>
 ```
 
+### `prelude` - Ambient Core Convenience
+
+The prelude is a curated set of core exports that are available without imports.
+It is deliberately limited to universal language-level constructs.
+Anything that depends on runtime behavior or a specific platform does not belong here.
+
 ### `std/` - Universal Extensions
 
 Adds Destack-specific functionality, sometimes attaching to types or re-defining types from `lib/`.
 These are extensions that work the same on all targets (ideally).
 The standard library is loaded for all profiles but is not ambient; modules must be imported.
+The `std/` layer is the portable, runtime-agnostic library surface.
+Anything that depends on OS services or scheduling belongs in `destack:*`, not `std/`.
 
 ```
 // std/array.ds
@@ -106,6 +114,21 @@ Different targets get different implementations.
 Runtime-specific libs can also be versioned (e.g., `node.v22`, `deno.v2.6`, `bun.v1.3`).
 Targets with `runtimeVersion` select the matching versioned lib.
 `runtimeVersion: "latest"` (or omitted) uses the default alias shipped on disk.
+
+### `lib/` - Destack vs Platform vs Compat
+
+The Destack runtime surface is exposed via `destack:*` modules.
+These modules are the stable, ergonomic API that we target across runtimes.
+On native, `destack:*` is backed by the Destack runtime.
+On JS runtimes, `destack:*` maps directly to the host runtime (Node, Bun, Deno, Web).
+These modules define the runtime standard library for I/O, time, randomness, process, scheduling, and other system services.
+
+The lowest-level native bindings live in `lib/platform/`.
+These are direct `@extern` definitions that cross the VM/runtime boundary.
+They are intentionally minimal and not ergonomic.
+The `destack:*` surface wraps them.
+
+If you need raw Node/Bun/Deno APIs, use `node:*`, `bun:*`, or `deno:*` directly.
 
 ## Builtin vs Library
 

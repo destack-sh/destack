@@ -1,0 +1,20 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Console bindings for native runtime.
+declare namespace console {
+    /// Write a line to stdout.
+    @binding("destack.console.log")
+    export function log(value: string): Result<void, PlatformError>;
+
+    /// Write an info line to stdout.
+    @binding("destack.console.info")
+    export function info(value: string): Result<void, PlatformError>;
+
+    /// Write a warning line to stderr.
+    @binding("destack.console.warn")
+    export function warn(value: string): Result<void, PlatformError>;
+
+    /// Write an error line to stderr.
+    @binding("destack.console.error")
+    export function error(value: string): Result<void, PlatformError>;
+}

@@ -1,8 +1,3 @@
-use super::super::source::BuiltinLibSource;
+use crate::builtin_lib_source;
 
-pub const STD_ARRAY_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
-    "std",
-    "array",
-    "index.ds",
-    include_str!(concat!("../../../std/array/index.ds")),
-);
+builtin_lib_source!(pub STD_ARRAY_INDEX_DS, "std", "array", "index.ds");

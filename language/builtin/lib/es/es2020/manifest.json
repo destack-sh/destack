@@ -1,0 +1,84 @@
+{
+  "path": "es/es2020.rs",
+  "sourceSets": {},
+  "libs": [
+    {
+      "name": "es2020",
+      "sources": [
+        "lib/es/es2020/intl.d.ts",
+        "lib/es/es2020/bigint.d.ts",
+        "lib/es/es2020/date.d.ts",
+        "lib/es/es2020/index.d.ts",
+        "lib/es/es2020/number.d.ts",
+        "lib/es/es2020/promise.d.ts",
+        "lib/es/es2020/sharedmemory.d.ts",
+        "lib/es/es2020/string.d.ts",
+        "lib/es/es2020/symbol.wellknown.d.ts"
+      ],
+      "declaredSymbols": "es2020"
+    },
+    {
+      "name": "es2020.bigint",
+      "sources": [
+        "lib/es/es2020/bigint.d.ts"
+      ],
+      "declaredSymbols": "es2020_bigint"
+    },
+    {
+      "name": "es2020.date",
+      "sources": [
+        "lib/es/es2020/date.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.full",
+      "sources": [
+        "lib/es/es2020/full.d.ts"
+      ],
+      "declaredSymbols": "es2020"
+    },
+    {
+      "name": "es2020.intl",
+      "sources": [
+        "lib/es/es2020/intl.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.number",
+      "sources": [
+        "lib/es/es2020/number.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.promise",
+      "sources": [
+        "lib/es/es2020/promise.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.sharedmemory",
+      "sources": [
+        "lib/es/es2020/sharedmemory.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.string",
+      "sources": [
+        "lib/es/es2020/string.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    },
+    {
+      "name": "es2020.symbol.wellknown",
+      "sources": [
+        "lib/es/es2020/symbol.wellknown.d.ts"
+      ],
+      "declaredSymbols": "es2020_empty"
+    }
+  ]
+}

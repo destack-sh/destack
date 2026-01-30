@@ -12,6 +12,67 @@ pub enum BuiltinLibKind {
     Lib,
 }
 
+/// Runtime targets for builtin sources.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BuiltinRuntime {
+    /// Web browser (Chrome, Firefox, Safari, etc.).
+    Browser,
+    /// Node.js.
+    Node,
+    /// Deno.
+    Deno,
+    /// Bun.
+    Bun,
+    /// Web Worker / Service Worker / Shared Worker.
+    Worker,
+    /// WASM running in a JS host (browser or Node).
+    WasmJs,
+    /// WASM with WASI (wasmtime, wasmer, etc.).
+    WasmWasi,
+    /// Native hosted runtime (OS services available).
+    NativeHosted,
+    /// Native freestanding runtime (no OS services assumed).
+    NativeFreestanding,
+    /// Native embedded runtime (freestanding with tight constraints).
+    NativeEmbedded,
+}
+
+/// Output formats for builtin sources.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BuiltinOutputFormat {
+    /// JavaScript (.js).
+    Js,
+    /// TypeScript (.ts).
+    Ts,
+    /// WebAssembly (.wasm).
+    Wasm,
+    /// Native binary.
+    Native,
+}
+
+/// Platform targets for builtin sources.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum BuiltinPlatform {
+    /// Web browser platform.
+    Web,
+    /// Windows.
+    Windows,
+    /// macOS.
+    MacOS,
+    /// Linux.
+    Linux,
+    /// iOS.
+    IOS,
+    /// Android.
+    Android,
+    /// WASI.
+    Wasi,
+    /// Bare metal.
+    BareMetal,
+    /// Unknown or portable (no platform-specific APIs).
+    Universal,
+}
+
 /// A builtin library source file.
 #[derive(Clone, Copy)]
 pub struct BuiltinLibSource {
@@ -23,6 +84,12 @@ pub struct BuiltinLibSource {
     pub name: &'static str,
     /// Source content.
     pub content: &'static str,
+    /// Allowed runtime targets (empty means all).
+    pub runtimes: &'static [BuiltinRuntime],
+    /// Allowed output formats (empty means all).
+    pub outputs: &'static [BuiltinOutputFormat],
+    /// Allowed platform targets (empty means all).
+    pub platforms: &'static [BuiltinPlatform],
 }
 
 impl fmt::Debug for BuiltinLibSource {
@@ -47,6 +114,29 @@ impl BuiltinLibSource {
             path,
             name,
             content,
+            runtimes: &[],
+            outputs: &[],
+            platforms: &[],
+        }
+    }
+
+    pub(crate) const fn new_with_targets(
+        root: &'static str,
+        path: &'static str,
+        name: &'static str,
+        content: &'static str,
+        runtimes: &'static [BuiltinRuntime],
+        outputs: &'static [BuiltinOutputFormat],
+        platforms: &'static [BuiltinPlatform],
+    ) -> Self {
+        Self {
+            root,
+            path,
+            name,
+            content,
+            runtimes,
+            outputs,
+            platforms,
         }
     }
 
@@ -67,6 +157,155 @@ impl BuiltinLibSource {
             format!("{}/{}/{}", self.root, self.path, self.name)
         }
     }
+
+    /// Return true if this source matches the requested target.
+    pub fn matches_target(
+        &self,
+        runtime: BuiltinRuntime,
+        output: BuiltinOutputFormat,
+        platform: BuiltinPlatform,
+    ) -> bool {
+        (self.runtimes.is_empty() || self.runtimes.contains(&runtime))
+            && (self.outputs.is_empty() || self.outputs.contains(&output))
+            && (self.platforms.is_empty() || self.platforms.contains(&platform))
+    }
+}
+
+/// Define a builtin library source file embedded from builtin/.
+#[macro_export]
+macro_rules! builtin_lib_source {
+    ($vis:vis $name:ident, $root:literal, $path:literal, $file:literal) => {
+        $vis const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new(
+                $root,
+                $path,
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $path,
+                    "/",
+                    $file
+                )),
+            );
+    };
+    ($name:ident, $root:literal, $path:literal, $file:literal) => {
+        const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new(
+                $root,
+                $path,
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $path,
+                    "/",
+                    $file
+                )),
+            );
+    };
+    ($vis:vis $name:ident, $root:literal, $file:literal) => {
+        $vis const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new(
+                $root,
+                "",
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $file
+                )),
+            );
+    };
+    ($name:ident, $root:literal, $file:literal) => {
+        const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new(
+                $root,
+                "",
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $file
+                )),
+            );
+    };
+}
+
+#[macro_export]
+macro_rules! builtin_lib_sources {
+    ([$(($name:ident, $root:literal, $path:literal, $file:literal)),+ $(,)?]) => {
+        $(
+            $crate::builtin_lib_source!($name, $root, $path, $file);
+        )+
+    };
+}
+
+#[macro_export]
+macro_rules! builtin_lib_source_targeted {
+    ($vis:vis $name:ident, $root:literal, $path:literal, $file:literal, $runtimes:expr, $outputs:expr, $platforms:expr) => {
+        $vis const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new_with_targets(
+                $root,
+                $path,
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $path,
+                    "/",
+                    $file
+                )),
+                $runtimes,
+                $outputs,
+                $platforms,
+            );
+    };
+    ($vis:vis $name:ident, $root:literal, $file:literal, $runtimes:expr, $outputs:expr, $platforms:expr) => {
+        $vis const $name: $crate::libs::source::BuiltinLibSource =
+            $crate::libs::source::BuiltinLibSource::new_with_targets(
+                $root,
+                "",
+                $file,
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/",
+                    $root,
+                    "/",
+                    $file
+                )),
+                $runtimes,
+                $outputs,
+                $platforms,
+            );
+    };
+}
+
+#[macro_export]
+macro_rules! builtin_lib_sources_targeted {
+    ($runtimes:expr, $outputs:expr, $platforms:expr, [$(($name:ident, $root:literal, $path:literal, $file:literal)),+ $(,)?]) => {
+        $(
+            $crate::builtin_lib_source_targeted!(
+                $name,
+                $root,
+                $path,
+                $file,
+                $runtimes,
+                $outputs,
+                $platforms
+            );
+        )+
+    };
 }
 
 /// Definition for a builtin library.

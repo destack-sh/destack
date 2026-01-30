@@ -1,0 +1,14 @@
+{
+  "path": "es/es6.rs",
+  "sourceSets": {},
+  "libs": [
+    {
+      "name": "es6",
+      "sources": [],
+      "dependencies": [
+        "es2015"
+      ],
+      "declaredSymbols": "es2015"
+    }
+  ]
+}

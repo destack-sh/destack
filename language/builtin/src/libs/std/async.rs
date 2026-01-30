@@ -1,8 +1,3 @@
-use super::super::source::BuiltinLibSource;
+use crate::builtin_lib_source;
 
-pub const STD_ASYNC_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
-    "std",
-    "async",
-    "index.ds",
-    include_str!(concat!("../../../std/async/index.ds")),
-);
+builtin_lib_source!(pub STD_ASYNC_INDEX_DS, "std", "async", "index.ds");

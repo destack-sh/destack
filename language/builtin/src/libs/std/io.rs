@@ -1,8 +1,3 @@
-use super::super::source::BuiltinLibSource;
+use crate::builtin_lib_source;
 
-pub const STD_IO_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
-    "std",
-    "io",
-    "index.ds",
-    include_str!(concat!("../../../std/io/index.ds")),
-);
+builtin_lib_source!(pub STD_IO_INDEX_DS, "std", "io", "index.ds");

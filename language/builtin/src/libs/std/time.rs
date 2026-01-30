@@ -1,8 +1,3 @@
-use super::super::source::BuiltinLibSource;
+use crate::builtin_lib_source;
 
-pub const STD_TIME_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
-    "std",
-    "time",
-    "index.ds",
-    include_str!(concat!("../../../std/time/index.ds")),
-);
+builtin_lib_source!(pub STD_TIME_INDEX_DS, "std", "time", "index.ds");
