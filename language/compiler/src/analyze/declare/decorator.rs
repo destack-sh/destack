@@ -78,6 +78,10 @@ impl Compiler {
         let mut decorators = HashMap::new();
 
         decorators.insert(
+            self.language_symbol(profile, LanguageSymbol::Binding),
+            WellKnownDecorator::Binding,
+        );
+        decorators.insert(
             self.language_symbol(profile, LanguageSymbol::Extern),
             WellKnownDecorator::Extern,
         );
@@ -422,6 +426,45 @@ impl Compiler {
 
         // apply decorator metadata
         match marker {
+            WellKnownDecorator::Binding => {
+                let Some(name) = self.decorator_string_argument(
+                    module,
+                    profile,
+                    tree,
+                    annotation_id,
+                    decorator_name,
+                    &values,
+                ) else {
+                    return;
+                };
+                if let Some(name) = name {
+                    if decorators.intrinsic_binding.is_some() {
+                        self.report_invalid_well_known_decorator(
+                            module,
+                            profile,
+                            annotation_id,
+                            "binding and intrinsic decorators cannot be combined",
+                        );
+                        return;
+                    }
+
+                    let binding = ExternBinding { name: Some(name) };
+                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                } else {
+                    if decorators.intrinsic_binding.is_some() {
+                        self.report_invalid_well_known_decorator(
+                            module,
+                            profile,
+                            annotation_id,
+                            "binding and intrinsic decorators cannot be combined",
+                        );
+                        return;
+                    }
+
+                    let binding = ExternBinding { name: None };
+                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                }
+            }
             WellKnownDecorator::Extern => {
                 let Some(name) = self.decorator_string_argument(
                     module,
