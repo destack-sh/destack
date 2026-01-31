@@ -1371,10 +1371,10 @@ impl Compiler {
 
                 // allow explicit enum backing casts
                 let allow_enum_cast = {
-                    let left_ty = types.get_type(left_ty_id);
-                    let right_ty = types.get_type(right_ty_id);
+                    let left_ty = types.get_type(left_ty_id).clone();
+                    let right_ty = types.get_type(right_ty_id).clone();
 
-                    self.is_enum_backing_cast(left_ty, right_ty, types)
+                    self.is_enum_backing_cast(module, profile, &left_ty, &right_ty, types)
                 };
 
                 // check if cast is valid (types overlap: at least one direction is assignable)
@@ -5151,19 +5151,27 @@ impl Compiler {
     }
 
     /// Return the enum backing type for a reference type.
-    fn enum_backing_type_for_type(&self, ty: &Type, types: &TypeTable) -> Option<EnumBackingType> {
+    fn enum_backing_type_for_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        ty: &Type,
+        types: &mut TypeTable,
+    ) -> Option<EnumBackingType> {
         match ty {
             // read backing types directly from enum references
-            Type::Reference { symbol, .. } => types.get_enum_backing_type(*symbol),
+            Type::Reference { symbol, .. } => {
+                self.enum_backing_type_for_symbol(module, profile, *symbol, types)
+            }
             // unwrap value containers to reach enum references
             Type::Value { value } => {
-                let inner_ty = types.get_type(*value);
-                self.enum_backing_type_for_type(inner_ty, types)
+                let inner_ty = types.get_type(*value).clone();
+                self.enum_backing_type_for_type(module, profile, &inner_ty, types)
             }
             // scan intersections for a matching enum reference
             Type::Intersection { elements } => elements.iter().find_map(|element_id| {
-                let element_ty = types.get_type(*element_id);
-                self.enum_backing_type_for_type(element_ty, types)
+                let element_ty = types.get_type(*element_id).clone();
+                self.enum_backing_type_for_type(module, profile, &element_ty, types)
             }),
             _ => None,
         }
@@ -5193,10 +5201,17 @@ impl Compiler {
     }
 
     /// Return true when an enum cast targets its backing type.
-    fn is_enum_backing_cast(&self, left_ty: &Type, right_ty: &Type, types: &TypeTable) -> bool {
+    fn is_enum_backing_cast(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_ty: &Type,
+        right_ty: &Type,
+        types: &mut TypeTable,
+    ) -> bool {
         // read backing types
-        let left_backing = self.enum_backing_type_for_type(left_ty, types);
-        let right_backing = self.enum_backing_type_for_type(right_ty, types);
+        let left_backing = self.enum_backing_type_for_type(module, profile, left_ty, types);
+        let right_backing = self.enum_backing_type_for_type(module, profile, right_ty, types);
 
         // compare backing types against the other side
         match (left_backing, right_backing) {

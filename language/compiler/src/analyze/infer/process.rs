@@ -10,7 +10,9 @@ use destack_dir::{
     PrimitiveType, Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{Module, ModuleContent, ModuleGraphKey, ModuleType, ProfileId};
+use destack_workspace::{
+    Module, ModuleContent, ModuleGraphKey, ModuleSource, ModuleType, ProfileId,
+};
 
 use super::super::common::json_value_to_type;
 
@@ -64,7 +66,15 @@ impl Compiler {
         let mut types = dir.types.write();
 
         if module.language_type.is_declaration() {
-            // infer enum backing types (still required even for declaration-only modules)
+            let module_checks = self.module_check_options_for_module(module.id);
+            let should_skip_enum_validation = module_checks.skip_lib_check
+                || (matches!(module.source, ModuleSource::Builtin(_))
+                    && !self.options.validate_builtin_libs);
+            if should_skip_enum_validation {
+                return Ok(());
+            }
+
+            // infer enum backing types when declaration validation is enabled
             for root_id in dir.roots.iter() {
                 let Expression::Declaration { declaration } = tree.get(*root_id) else {
                     continue;
