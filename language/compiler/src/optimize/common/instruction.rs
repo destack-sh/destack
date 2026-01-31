@@ -32,6 +32,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::VectorExtract { .. }
         | Instruction::VectorInsert { .. }
         | Instruction::VectorShuffle { .. }
+        | Instruction::VectorSelect { .. }
         | Instruction::VectorReduce { .. }
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
@@ -49,6 +50,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::TensorGather { .. }
         | Instruction::TensorScatter { .. }
         | Instruction::TensorCompare { .. }
+        | Instruction::TensorSelect { .. }
         | Instruction::TensorConvert { .. }
         | Instruction::FieldGet { .. }
         | Instruction::FieldSet { .. }
@@ -107,7 +109,9 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
 pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTree) -> bool {
+    // classify instructions by speculative safety
     match instruction {
+        // borrow producing address computations are not speculatable
         Instruction::FieldAddr { result_type, .. }
         | Instruction::ElementAddr { result_type, .. }
         | Instruction::LocalAddr { result_type, .. } => {
@@ -123,21 +127,16 @@ pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTr
                 }
             )
         }
-        _ => instruction_is_speculatable_untyped(instruction),
-    }
-}
 
-/// Check if an instruction can be speculated without type context.
-fn instruction_is_speculatable_untyped(instruction: &Instruction) -> bool {
-    // classify instructions by speculative safety
-    match instruction {
         // assumptions must not be speculated across control flow
         Instruction::Assume { .. } => false,
-        // float to integer casts can trap on NaN or out of range inputs
+
+        // non-saturating float to integer casts can trap on NaN or out of range inputs
         Instruction::Cast {
             operator: mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt,
             ..
         } => false,
+
         // integer division and remainder may trap
         Instruction::Binary {
             operator:
@@ -147,6 +146,7 @@ fn instruction_is_speculatable_untyped(instruction: &Instruction) -> bool {
                 | mir::BinaryOperator::UnsignedRemainder,
             ..
         } => false,
+
         _ => instruction_is_pure(instruction),
     }
 }
@@ -183,6 +183,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::VectorExtract { .. }
         | Instruction::VectorInsert { .. }
         | Instruction::VectorShuffle { .. }
+        | Instruction::VectorSelect { .. }
         | Instruction::VectorReduce { .. }
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
@@ -201,6 +202,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::TensorGather { .. }
         | Instruction::TensorScatter { .. }
         | Instruction::TensorCompare { .. }
+        | Instruction::TensorSelect { .. }
         | Instruction::TensorConvert { .. }
         | Instruction::FieldGet { .. }
         | Instruction::FieldAddr { .. }
@@ -582,6 +584,17 @@ pub fn instruction_substitute_uses(
             right: substitute(right),
             mask: mask.clone(),
         },
+        mir::Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::VectorSelect {
+            destination: *destination,
+            mask: substitute(mask),
+            then_value: substitute(then_value),
+            else_value: substitute(else_value),
+        },
         mir::Instruction::VectorReduce {
             destination,
             operator,
@@ -807,6 +820,17 @@ pub fn instruction_substitute_uses(
             left: substitute(left),
             right: substitute(right),
         },
+        mir::Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::TensorSelect {
+            destination: *destination,
+            mask: substitute(mask),
+            then_value: substitute(then_value),
+            else_value: substitute(else_value),
+        },
         mir::Instruction::TensorConvert {
             destination,
             mode,
@@ -1009,6 +1033,17 @@ pub fn instruction_substitute_uses_in_tree(
             left: substitute(*left),
             right: substitute(*right),
             mask: mask.clone(),
+        },
+        mir::Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::VectorSelect {
+            destination: *destination,
+            mask: substitute(*mask),
+            then_value: substitute(*then_value),
+            else_value: substitute(*else_value),
         },
         mir::Instruction::VectorReduce {
             destination,
@@ -1234,6 +1269,17 @@ pub fn instruction_substitute_uses_in_tree(
             operator: *operator,
             left: substitute(*left),
             right: substitute(*right),
+        },
+        mir::Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::TensorSelect {
+            destination: *destination,
+            mask: substitute(*mask),
+            then_value: substitute(*then_value),
+            else_value: substitute(*else_value),
         },
         mir::Instruction::TensorConvert {
             destination,
@@ -1946,6 +1992,17 @@ pub fn instruction_map(
             right: remap(*right),
             mask: mask.clone(),
         },
+        mir::Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::VectorSelect {
+            destination: remap(*destination),
+            mask: remap(*mask),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
+        },
         mir::Instruction::VectorReduce {
             destination,
             operator,
@@ -2170,6 +2227,17 @@ pub fn instruction_map(
             operator: *operator,
             left: remap(*left),
             right: remap(*right),
+        },
+        mir::Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::TensorSelect {
+            destination: remap(*destination),
+            mask: remap(*mask),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
         },
         mir::Instruction::TensorConvert {
             destination,
@@ -2504,6 +2572,17 @@ pub fn instruction_map_with_locals(
             right: remap(*right),
             mask: mask.clone(),
         },
+        mir::Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::VectorSelect {
+            destination: remap(*destination),
+            mask: remap(*mask),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
+        },
         mir::Instruction::VectorReduce {
             destination,
             operator,
@@ -2728,6 +2807,17 @@ pub fn instruction_map_with_locals(
             operator: *operator,
             left: remap(*left),
             right: remap(*right),
+        },
+        mir::Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => mir::Instruction::TensorSelect {
+            destination: remap(*destination),
+            mask: remap(*mask),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
         },
         mir::Instruction::TensorConvert {
             destination,

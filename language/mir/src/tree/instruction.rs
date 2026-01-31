@@ -342,6 +342,17 @@ pub enum Instruction {
         /// The shuffle mask indices.
         mask: Vec<u32>,
     },
+    /// Select vector lanes based on a boolean mask.
+    VectorSelect {
+        /// The SSA value to define with the selected result.
+        destination: Value,
+        /// The boolean mask vector.
+        mask: Value,
+        /// The value returned if the mask lane is true.
+        then_value: Value,
+        /// The value returned if the mask lane is false.
+        else_value: Value,
+    },
     /// Reduce a vector to a scalar.
     VectorReduce {
         /// The SSA value to define with the reduced result.
@@ -511,6 +522,17 @@ pub enum Instruction {
         left: Value,
         /// The right tensor operand.
         right: Value,
+    },
+    /// Select tensor elements based on a boolean mask.
+    TensorSelect {
+        /// The SSA value to define with the selected tensor.
+        destination: Value,
+        /// The boolean mask tensor.
+        mask: Value,
+        /// The tensor returned if the mask element is true.
+        then_value: Value,
+        /// The tensor returned if the mask element is false.
+        else_value: Value,
     },
     /// Reduce a tensor along axes with a fixed operator.
     TensorReduce {
@@ -795,6 +817,7 @@ impl Instruction {
             Instruction::VectorExtract { destination, .. } => Some(*destination),
             Instruction::VectorInsert { destination, .. } => Some(*destination),
             Instruction::VectorShuffle { destination, .. } => Some(*destination),
+            Instruction::VectorSelect { destination, .. } => Some(*destination),
             Instruction::VectorReduce { destination, .. } => Some(*destination),
             Instruction::VectorCompare { destination, .. } => Some(*destination),
             Instruction::VectorConvert { destination, .. } => Some(*destination),
@@ -811,6 +834,7 @@ impl Instruction {
             Instruction::TensorPad { destination, .. } => Some(*destination),
             Instruction::TensorConcat { destination, .. } => Some(*destination),
             Instruction::TensorCompare { destination, .. } => Some(*destination),
+            Instruction::TensorSelect { destination, .. } => Some(*destination),
             Instruction::TensorReduce { destination, .. } => Some(*destination),
             Instruction::TensorDot { destination, .. } => Some(*destination),
             Instruction::TensorConvolution { destination, .. } => Some(*destination),
@@ -884,6 +908,12 @@ impl Instruction {
                 ..
             } => smallvec![*vector, *index, *value],
             Instruction::VectorShuffle { left, right, .. } => smallvec![*left, *right],
+            Instruction::VectorSelect {
+                mask,
+                then_value,
+                else_value,
+                ..
+            } => smallvec![*mask, *then_value, *else_value],
             Instruction::VectorReduce { vector, .. } => smallvec![*vector],
             Instruction::VectorCompare { left, right, .. } => smallvec![*left, *right],
             Instruction::VectorConvert { vector, .. } => smallvec![*vector],
@@ -900,6 +930,12 @@ impl Instruction {
             Instruction::TensorPad { tensor, value, .. } => smallvec![*tensor, *value],
             Instruction::TensorConcat { .. } => smallvec![],
             Instruction::TensorCompare { left, right, .. } => smallvec![*left, *right],
+            Instruction::TensorSelect {
+                mask,
+                then_value,
+                else_value,
+                ..
+            } => smallvec![*mask, *then_value, *else_value],
             Instruction::TensorReduce {
                 tensor, initial, ..
             } => smallvec![*tensor, *initial],
@@ -1047,6 +1083,10 @@ pub enum CastOperator {
     FloatToSignedInt,
     /// Convert float to unsigned integer.
     FloatToUnsignedInt,
+    /// Convert float to signed integer with saturation.
+    FloatToSignedIntSaturating,
+    /// Convert float to unsigned integer with saturation.
+    FloatToUnsignedIntSaturating,
     /// Convert signed integer to float.
     SignedIntToFloat,
     /// Convert unsigned integer to float.
@@ -1071,6 +1111,8 @@ impl CastOperator {
             CastOperator::SignExtend => "sextend",
             CastOperator::FloatToSignedInt => "fcvt_to_sint",
             CastOperator::FloatToUnsignedInt => "fcvt_to_uint",
+            CastOperator::FloatToSignedIntSaturating => "fcvt_to_sint_sat",
+            CastOperator::FloatToUnsignedIntSaturating => "fcvt_to_uint_sat",
             CastOperator::SignedIntToFloat => "scvt_to_float",
             CastOperator::UnsignedIntToFloat => "ucvt_to_float",
             CastOperator::FloatTruncate => "fnarrow",
@@ -1098,6 +1140,8 @@ impl FromStr for CastOperator {
             "sextend" => Ok(CastOperator::SignExtend),
             "fcvt_to_sint" => Ok(CastOperator::FloatToSignedInt),
             "fcvt_to_uint" => Ok(CastOperator::FloatToUnsignedInt),
+            "fcvt_to_sint_sat" => Ok(CastOperator::FloatToSignedIntSaturating),
+            "fcvt_to_uint_sat" => Ok(CastOperator::FloatToUnsignedIntSaturating),
             "scvt_to_float" => Ok(CastOperator::SignedIntToFloat),
             "ucvt_to_float" => Ok(CastOperator::UnsignedIntToFloat),
             "fnarrow" => Ok(CastOperator::FloatTruncate),

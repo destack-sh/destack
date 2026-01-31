@@ -424,6 +424,16 @@ fn apply_instruction_effects(
             origins.union_with(&state.value_origin(*right));
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
+        Instruction::VectorSelect {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            let mut origins = state.value_origin(*then_value);
+            origins.union_with(&state.value_origin(*else_value));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
         Instruction::VectorReduce {
             destination,
             vector,
@@ -504,6 +514,16 @@ fn apply_instruction_effects(
         } => {
             let mut origins = state.value_origin(*left);
             origins.union_with(&state.value_origin(*right));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorSelect {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            let mut origins = state.value_origin(*then_value);
+            origins.union_with(&state.value_origin(*else_value));
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
         Instruction::TensorPad {

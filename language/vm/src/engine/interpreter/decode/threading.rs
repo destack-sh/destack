@@ -1460,6 +1460,24 @@ fn thread_instruction(
             left,
             right,
         } => {
+            let left_type = value_type_for_value(*left, value_types);
+            if matches!(
+                tree.get(left_type),
+                mir::Type::Vector { .. } | mir::Type::Tensor { .. }
+            ) {
+                let result_type = value_type_for_value(*destination, value_types);
+                return ThreadedInstruction {
+                    handler: dispatch::handle_binary_elementwise,
+                    data: ThreadedInstructionData::BinaryElementwise {
+                        dest: *destination,
+                        op: *operator,
+                        left: *left,
+                        right: *right,
+                        result_type,
+                    },
+                };
+            }
+
             // check if we can use a specialized handler
             let kind = value_kinds.get(*left);
             if let Some(ValueKind::Int { signed, .. }) = kind
@@ -1491,14 +1509,33 @@ fn thread_instruction(
             destination,
             operator,
             argument,
-        } => ThreadedInstruction {
-            handler: select_unary_handler(value_kinds, *argument, *operator),
-            data: ThreadedInstructionData::Unary {
-                dest: *destination,
-                op: *operator,
-                arg: *argument,
-            },
-        },
+        } => {
+            let argument_type = value_type_for_value(*argument, value_types);
+            if matches!(
+                tree.get(argument_type),
+                mir::Type::Vector { .. } | mir::Type::Tensor { .. }
+            ) {
+                let result_type = value_type_for_value(*destination, value_types);
+                return ThreadedInstruction {
+                    handler: dispatch::handle_unary_elementwise,
+                    data: ThreadedInstructionData::UnaryElementwise {
+                        dest: *destination,
+                        op: *operator,
+                        arg: *argument,
+                        result_type,
+                    },
+                };
+            }
+
+            ThreadedInstruction {
+                handler: select_unary_handler(value_kinds, *argument, *operator),
+                data: ThreadedInstructionData::Unary {
+                    dest: *destination,
+                    op: *operator,
+                    arg: *argument,
+                },
+            }
+        }
 
         mir::Instruction::Cast {
             destination,
@@ -1942,6 +1979,20 @@ fn thread_instruction(
                 mask: mask.clone(),
             },
         },
+        mir::Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_vector_select,
+            data: ThreadedInstructionData::VectorSelect {
+                dest: *destination,
+                mask: *mask,
+                then_value: *then_value,
+                else_value: *else_value,
+            },
+        },
 
         mir::Instruction::VectorReduce {
             destination,
@@ -2340,6 +2391,24 @@ fn thread_instruction(
                     right: *right,
                     left_type,
                     right_type,
+                    dest_type,
+                },
+            }
+        }
+        mir::Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types);
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_select,
+                data: ThreadedInstructionData::TensorSelect {
+                    dest: *destination,
+                    mask: *mask,
+                    then_value: *then_value,
+                    else_value: *else_value,
                     dest_type,
                 },
             }
@@ -2747,6 +2816,7 @@ fn infer_instruction_kind(
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
         | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorSelect { .. }
         | mir::Instruction::VectorReduce { .. }
         | mir::Instruction::VectorCompare { .. }
         | mir::Instruction::VectorConvert { .. }
@@ -2768,6 +2838,7 @@ fn infer_instruction_kind(
         | mir::Instruction::TensorGather { .. }
         | mir::Instruction::TensorScatter { .. }
         | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => None,
         mir::Instruction::ManagedAlloc { result_type, .. }
         | mir::Instruction::ManagedAllocArray { result_type, .. }
@@ -2825,6 +2896,7 @@ fn infer_intrinsic_kind(
             kind_from_pointer(tree, pointer_kind)
         }
         mir::IntrinsicResultType::CheckedArithmetic => Some(ValueKind::Unknown),
+        mir::IntrinsicResultType::PointeeAndBool(_) => Some(ValueKind::Unknown),
         mir::IntrinsicResultType::TypeTag => Some(ValueKind::Unknown),
         mir::IntrinsicResultType::Explicit => Some(ValueKind::Unknown),
     }

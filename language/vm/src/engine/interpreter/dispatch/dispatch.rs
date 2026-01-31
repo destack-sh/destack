@@ -1055,6 +1055,97 @@ pub(crate) fn handle_binary_const_right(
     next!(state, block, pc)
 }
 
+/// Execute elementwise binary operation on vector or tensor values.
+pub(crate) fn handle_binary_elementwise(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::BinaryElementwise {
+        dest,
+        op,
+        left,
+        right,
+        result_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    let result_type_id = *result_type;
+    let result_type = state.interpreter.isolate.tree.get(result_type_id);
+    match result_type {
+        mir::Type::Vector { lanes, .. } => {
+            let left_value = state.get(*left);
+            let right_value = state.get(*right);
+            let left_slots = match aggregate_slots(state, left_value) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let right_slots = match aggregate_slots(state, right_value) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let expected = *lanes as usize;
+            if left_slots.len() != expected || right_slots.len() != expected {
+                return ControlFlow::Error(Error::TypeMismatch {
+                    expected: "matching vector lanes".to_string(),
+                    actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
+                });
+            }
+
+            let mut output = Vec::with_capacity(expected);
+            for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
+                let value = match operator::execute_binary(*op, *lhs, *rhs) {
+                    Ok(value) => value,
+                    Err(error) => return ControlFlow::Error(error),
+                };
+                output.push(value);
+            }
+
+            let result = state.interpreter.allocate_aggregate(output);
+            state.set(*dest, result);
+            next!(state, block, pc)
+        }
+        mir::Type::Tensor { .. } => {
+            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, result_type_id) {
+                Ok(layout) => layout,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let left_value = state.get(*left);
+            let right_value = state.get(*right);
+            let left_slots = match aggregate_slots(state, left_value) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let right_slots = match aggregate_slots(state, right_value) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            if left_slots.len() != layout.storage_len || right_slots.len() != layout.storage_len {
+                return ControlFlow::Error(Error::TypeMismatch {
+                    expected: "matching tensor elements".to_string(),
+                    actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
+                });
+            }
+
+            let mut output = Vec::with_capacity(layout.storage_len);
+            for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
+                let value = match operator::execute_binary(*op, *lhs, *rhs) {
+                    Ok(value) => value,
+                    Err(error) => return ControlFlow::Error(error),
+                };
+                output.push(value);
+            }
+
+            let result = state.interpreter.allocate_aggregate(output);
+            state.set(*dest, result);
+            next!(state, block, pc)
+        }
+        _ => ControlFlow::Error(Error::InvalidInstruction),
+    }
+}
+
 /// Handle unary operation.
 pub(crate) fn handle_unary(
     state: &mut ThreadedState<'_, '_>,
@@ -1080,6 +1171,86 @@ pub(crate) fn handle_unary(
 
     // continue to next instruction
     next!(state, block, pc)
+}
+
+/// Execute elementwise unary operation on vector or tensor values.
+pub(crate) fn handle_unary_elementwise(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::UnaryElementwise {
+        dest,
+        op,
+        arg,
+        result_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    let result_type_id = *result_type;
+    let result_type = state.interpreter.isolate.tree.get(result_type_id);
+    match result_type {
+        mir::Type::Vector { lanes, .. } => {
+            let argument = state.get(*arg);
+            let slots = match aggregate_slots(state, argument) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let expected = *lanes as usize;
+            if slots.len() != expected {
+                return ControlFlow::Error(Error::TypeMismatch {
+                    expected: "matching vector lanes".to_string(),
+                    actual: slots.len().to_string(),
+                });
+            }
+
+            let mut output = Vec::with_capacity(expected);
+            for value in slots {
+                let result = match operator::execute_unary(*op, *value) {
+                    Ok(value) => value,
+                    Err(error) => return ControlFlow::Error(error),
+                };
+                output.push(result);
+            }
+
+            let result = state.interpreter.allocate_aggregate(output);
+            state.set(*dest, result);
+            next!(state, block, pc)
+        }
+        mir::Type::Tensor { .. } => {
+            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, result_type_id) {
+                Ok(layout) => layout,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            let argument = state.get(*arg);
+            let slots = match aggregate_slots(state, argument) {
+                Ok(slots) => slots,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            if slots.len() != layout.storage_len {
+                return ControlFlow::Error(Error::TypeMismatch {
+                    expected: "matching tensor elements".to_string(),
+                    actual: slots.len().to_string(),
+                });
+            }
+
+            let mut output = Vec::with_capacity(layout.storage_len);
+            for value in slots {
+                let result = match operator::execute_unary(*op, *value) {
+                    Ok(value) => value,
+                    Err(error) => return ControlFlow::Error(error),
+                };
+                output.push(result);
+            }
+
+            let result = state.interpreter.allocate_aggregate(output);
+            state.set(*dest, result);
+            next!(state, block, pc)
+        }
+        _ => ControlFlow::Error(Error::InvalidInstruction),
+    }
 }
 
 /// Handle signed integer unary operation.

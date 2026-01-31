@@ -167,6 +167,71 @@ pub(crate) fn handle_vector_shuffle(
     next!(state, block, pc)
 }
 
+/// Handle vector.select.
+pub(crate) fn handle_vector_select(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::VectorSelect {
+        dest,
+        mask,
+        then_value,
+        else_value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    let mask_value = state.get(*mask);
+    let then_value = state.get(*then_value);
+    let else_value = state.get(*else_value);
+    let mask_slots = match aggregate_slots(state, mask_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let then_slots = match aggregate_slots(state, then_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let else_slots = match aggregate_slots(state, else_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    if mask_slots.len() != then_slots.len() || mask_slots.len() != else_slots.len() {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching vector lanes".to_string(),
+            actual: format!(
+                "{} vs {} vs {}",
+                mask_slots.len(),
+                then_slots.len(),
+                else_slots.len()
+            ),
+        });
+    }
+
+    let mut output = Vec::with_capacity(mask_slots.len());
+    for ((mask_value, then_lane), else_lane) in mask_slots
+        .iter()
+        .zip(then_slots.iter())
+        .zip(else_slots.iter())
+    {
+        if !matches!(mask_value.tag(), ValueTag::Bool) {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "vector.select mask lane to be bool".to_string(),
+                actual: format!("{mask_value:?}"),
+            });
+        }
+        let select = mask_value.raw_data() != 0;
+        output.push(if select { *then_lane } else { *else_lane });
+    }
+
+    let result = state.interpreter.allocate_aggregate(output);
+    state.set(*dest, result);
+    next!(state, block, pc)
+}
+
 /// Handle vector.reduce.
 pub(crate) fn handle_vector_reduce(
     state: &mut ThreadedState<'_, '_>,

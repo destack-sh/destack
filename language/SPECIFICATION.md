@@ -332,6 +332,7 @@ Assignments from `number` to a precise numeric type (`int32`, `float64`, and so 
  - Finite values in range truncate toward zero.
  - NaN or out of range values trap.
  - Unsigned targets treat negative values as out of range.
+ - Saturating float to integer intrinsics clamp to bounds and map NaN to 0.
 
 #### Characters and Strings
 

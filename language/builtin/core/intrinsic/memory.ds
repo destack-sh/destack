@@ -71,7 +71,7 @@ export declare function transmute<T, U>(value: T): U;
 ///
 /// Returns the signed byte offset from `start` to `end`.
 /// Result is (end - start) in bytes.
-@intrinsic("ptr.offset_from")
+@intrinsic("ptr_offset_from")
 export declare function ptrOffsetFrom(start: *void, end: *void): int;
 
 /// Byte-wise equality comparison.

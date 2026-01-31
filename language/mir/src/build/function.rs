@@ -630,6 +630,16 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
                 }
+                Instruction::VectorSelect {
+                    mask,
+                    then_value,
+                    else_value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(mask, from, to);
+                    Self::replace_value_in_slot(then_value, from, to);
+                    Self::replace_value_in_slot(else_value, from, to);
+                }
                 Instruction::VectorCompare { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
@@ -689,6 +699,16 @@ impl<'a> FunctionBuilder<'a> {
                 Instruction::TensorCompare { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
+                }
+                Instruction::TensorSelect {
+                    mask,
+                    then_value,
+                    else_value,
+                    ..
+                } => {
+                    Self::replace_value_in_slot(mask, from, to);
+                    Self::replace_value_in_slot(then_value, from, to);
+                    Self::replace_value_in_slot(else_value, from, to);
                 }
                 Instruction::CallVirtual { receiver, .. }
                 | Instruction::CallInterface { receiver, .. } => {
@@ -1616,6 +1636,20 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Select vector lanes based on a boolean mask.
+    pub fn vector_select(&mut self, mask: Value, then_value: Value, else_value: Value) -> Value {
+        let destination = self.allocate_value();
+        let vector_type = self.value_type_or_panic(then_value, "vector.select then_value");
+        self.insert_instruction(Instruction::VectorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        });
+        self.define_value(destination, vector_type);
+        destination
+    }
+
     /// Reduce a vector to a scalar.
     pub fn vector_reduce(&mut self, operator: VectorReduceOperator, vector: Value) -> Value {
         let destination = self.allocate_value();
@@ -1667,6 +1701,20 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     // instruction builders: tensor operations
+
+    /// Select tensor elements based on a boolean mask.
+    pub fn tensor_select(&mut self, mask: Value, then_value: Value, else_value: Value) -> Value {
+        let destination = self.allocate_value();
+        let tensor_type = self.value_type_or_panic(then_value, "tensor.select then_value");
+        self.insert_instruction(Instruction::TensorSelect {
+            destination,
+            mask,
+            then_value,
+            else_value,
+        });
+        self.define_value(destination, tensor_type);
+        destination
+    }
 
     /// Load a tensor element from a tensor reference.
     pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
@@ -2709,16 +2757,18 @@ impl<'a> FunctionBuilder<'a> {
         #[cfg(not(any(test, debug_assertions)))]
         let _ = self.verify;
 
-        // always verify in debug and test builds
+        // always validate in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
-            use crate::VerifierOptions;
+            use crate::ValidatorOptions;
 
             if self.verify {
-                let verifier =
-                    crate::verify::Verifier::new_with_options(self.tree, VerifierOptions::strict());
-                if let Err(error) = verifier.verify_function(self.function_id) {
-                    panic!("mir verification failed: {error}");
+                let validator = crate::validate::Validator::new_with_options(
+                    self.tree,
+                    ValidatorOptions::strict(),
+                );
+                if let Err(error) = validator.validate_function(self.function_id) {
+                    panic!("mir validation failed: {error}");
                 }
             }
         }

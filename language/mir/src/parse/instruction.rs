@@ -305,6 +305,19 @@ impl<'a> Parser<'a> {
                     mask,
                 }
             }
+            "vector.select" => {
+                let mask = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let then_value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let else_value = self.parse_value()?;
+                Instruction::VectorSelect {
+                    destination,
+                    mask,
+                    then_value,
+                    else_value,
+                }
+            }
             "vector.reduce" => {
                 let operator = self.parse_vector_reduce_operator()?;
                 self.eat_token(TokenType::Comma)?;
@@ -481,6 +494,19 @@ impl<'a> Parser<'a> {
                     operator,
                     left,
                     right,
+                }
+            }
+            "tensor.select" => {
+                let mask = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let then_value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let else_value = self.parse_value()?;
+                Instruction::TensorSelect {
+                    destination,
+                    mask,
+                    then_value,
+                    else_value,
                 }
             }
             "tensor.reduce" => {

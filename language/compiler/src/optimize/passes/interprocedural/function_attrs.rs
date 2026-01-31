@@ -758,13 +758,20 @@ fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
         }
         Intrinsic::AtomicStore
         | Intrinsic::AtomicCas
+        | Intrinsic::AtomicCasWeak
+        | Intrinsic::AtomicExchange
         | Intrinsic::AtomicFetchAdd
         | Intrinsic::AtomicFetchSub
         | Intrinsic::AtomicFetchAnd
         | Intrinsic::AtomicFetchOr
         | Intrinsic::AtomicFetchXor
         | Intrinsic::AtomicFetchMin
-        | Intrinsic::AtomicFetchMax => {
+        | Intrinsic::AtomicFetchMax
+        | Intrinsic::AtomicFetchUmin
+        | Intrinsic::AtomicFetchUmax
+        | Intrinsic::AtomicFetchFadd
+        | Intrinsic::AtomicFetchFmin
+        | Intrinsic::AtomicFetchFmax => {
             let mut effect = mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY);
             effect.nosync = false;
             effect

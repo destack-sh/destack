@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
-use crate::verify::{Verifier, VerifierOptions};
+use crate::validate::{Validator, ValidatorOptions};
 use crate::{
     AllocationMode, Block, Field, Function, Global, Lifetime, Linkage, LocalNodeId, NodeTree,
     PointerAttributes, Type,
@@ -266,11 +266,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // set up the verifier
-        let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+        // set up the validator
+        let validator = Validator::new_with_options(&self.tree, ValidatorOptions::strict());
 
-        // map verification errors to source positions
-        verifier.verify_module().map_err(|error| {
+        // map validation errors to source positions
+        validator.validate_module().map_err(|error| {
             let position = error
                 .anchor()
                 .and_then(|anchor| self.tree.get_span_by_id(anchor.node.id))

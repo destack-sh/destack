@@ -826,7 +826,10 @@ fn range_for_cast(
             let to_width = u8::try_from(*width).ok()?;
             float_range_from_integer(argument, to_width, operator)
         }
-        mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt => {
+        mir::CastOperator::FloatToSignedInt
+        | mir::CastOperator::FloatToUnsignedInt
+        | mir::CastOperator::FloatToSignedIntSaturating
+        | mir::CastOperator::FloatToUnsignedIntSaturating => {
             // require an integer target type
             let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
 
@@ -2009,9 +2012,11 @@ fn integer_range_from_float(
 ) -> Option<ValueRange> {
     let (bounds, _width, can_be_nan, can_be_pos_inf, can_be_neg_inf) =
         float_range_fields(argument)?;
-    let expect_signed = match operator {
-        mir::CastOperator::FloatToSignedInt => true,
-        mir::CastOperator::FloatToUnsignedInt => false,
+    let (expect_signed, is_saturating) = match operator {
+        mir::CastOperator::FloatToSignedInt => (true, false),
+        mir::CastOperator::FloatToUnsignedInt => (false, false),
+        mir::CastOperator::FloatToSignedIntSaturating => (true, true),
+        mir::CastOperator::FloatToUnsignedIntSaturating => (false, true),
         _ => return None,
     };
 
@@ -2019,23 +2024,69 @@ fn integer_range_from_float(
         return None;
     }
 
-    if can_be_nan || can_be_pos_inf || can_be_neg_inf {
-        return None;
-    }
-
     // resolve integer bounds for the target type
     let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
 
-    let bounds = bounds?;
+    if !is_saturating {
+        if can_be_nan || can_be_pos_inf || can_be_neg_inf {
+            return None;
+        }
 
-    if !float_within_int_bounds(bounds.min, min_bound, max_bound)
-        || !float_within_int_bounds(bounds.max, min_bound, max_bound)
-    {
-        return None;
+        let bounds = bounds?;
+
+        if !float_within_int_bounds(bounds.min, min_bound, max_bound)
+            || !float_within_int_bounds(bounds.max, min_bound, max_bound)
+        {
+            return None;
+        }
+
+        let mut min_value = bounds.min.trunc() as i128;
+        let mut max_value = bounds.max.trunc() as i128;
+
+        if min_value > max_value {
+            std::mem::swap(&mut min_value, &mut max_value);
+        }
+
+        return Some(ValueRange::Integer {
+            min: min_value,
+            max: max_value,
+            width: to_width,
+            is_signed: to_signed,
+        });
     }
 
-    let mut min_value = bounds.min.trunc() as i128;
-    let mut max_value = bounds.max.trunc() as i128;
+    let mut candidates = Vec::new();
+
+    if can_be_nan {
+        candidates.push(0);
+    }
+
+    if can_be_pos_inf {
+        candidates.push(max_bound);
+    }
+
+    if can_be_neg_inf {
+        candidates.push(min_bound);
+    }
+
+    if let Some(bounds) = bounds {
+        let min_value = float_to_int_saturating(bounds.min, min_bound, max_bound);
+        let max_value = float_to_int_saturating(bounds.max, min_bound, max_bound);
+        candidates.push(min_value);
+        candidates.push(max_value);
+    }
+
+    if candidates.is_empty() {
+        return Some(ValueRange::Integer {
+            min: min_bound,
+            max: max_bound,
+            width: to_width,
+            is_signed: to_signed,
+        });
+    }
+
+    let mut min_value = *candidates.iter().min()?;
+    let mut max_value = *candidates.iter().max()?;
 
     if min_value > max_value {
         std::mem::swap(&mut min_value, &mut max_value);
@@ -2068,6 +2119,49 @@ fn float_within_int_bounds(value: f64, min_bound: i128, max_bound: i128) -> bool
     };
 
     min_ok && max_ok
+}
+
+/// Convert a float to an integer with saturation.
+fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
+    if value.is_nan() {
+        return 0;
+    }
+
+    if !value.is_finite() {
+        return if value.is_sign_negative() {
+            min_bound
+        } else {
+            max_bound
+        };
+    }
+
+    let min_float = min_bound as f64;
+    let max_float = max_bound as f64;
+    let max_rounded = max_float.trunc() as i128;
+    let max_is_rounded_up = max_rounded > max_bound;
+
+    if value <= min_float {
+        return min_bound;
+    }
+
+    if max_is_rounded_up {
+        if value >= max_float {
+            return max_bound;
+        }
+    } else if value >= max_float {
+        return max_bound;
+    }
+
+    let truncated = value.trunc() as i128;
+    if truncated < min_bound {
+        return min_bound;
+    }
+
+    if truncated > max_bound {
+        return max_bound;
+    }
+
+    truncated
 }
 
 /// Evaluate comparison ranges for floats and return constant booleans when possible.
@@ -3320,6 +3414,88 @@ block0:
             &ValueRange::Integer {
                 min: 3,
                 max: 3,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Saturating float to signed int casts clamp out of range values.
+    #[test]
+    fn test_range_float_to_int_saturating_bounds() {
+        let test = TestProgram::new(
+            r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    v1: f32 = iconst 1.0f32
+    jump block3(v1)
+block2:
+    v2: f32 = iconst 1e20f32
+    jump block3(v2)
+block3(v3: f32):
+    v4: i32 = fcvt_to_sint_sat v3 -> i32
+    return v4
+}"#,
+        );
+
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
+
+        let block3 = function.blocks[3];
+        let block = test.tree.get(block3);
+        let instruction_id = block.instructions[0];
+        let instruction = test.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block3);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: 1,
+                max: 2_147_483_647,
+                width: 32,
+                is_signed: true
+            }
+        );
+    }
+
+    /// Saturating float to signed int casts map NaN to zero.
+    #[test]
+    fn test_range_float_to_int_saturating_nan_only() {
+        let test = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0: f32 = iconst 0.0f32
+    v1: f32 = fdiv v0, v0
+    v2: i32 = fcvt_to_sint_sat v1 -> i32
+    return v2
+}"#,
+        );
+
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let ranges = analyses.get::<RangeAnalysis>();
+
+        let block0 = function.blocks[0];
+        let block = test.tree.get(block0);
+        let instruction_id = block.instructions[2];
+        let instruction = test.tree.get(instruction_id);
+        let value = instruction.destination().unwrap();
+
+        let exit_ranges = ranges.exit(block0);
+        let range = exit_ranges.get(value).unwrap();
+
+        assert_eq!(
+            range,
+            &ValueRange::Integer {
+                min: 0,
+                max: 0,
                 width: 32,
                 is_signed: true
             }

@@ -1055,6 +1055,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::VectorExtract { .. } => return unsupported("vector.extract"),
             mir::Instruction::VectorInsert { .. } => return unsupported("vector.insert"),
             mir::Instruction::VectorShuffle { .. } => return unsupported("vector.shuffle"),
+            mir::Instruction::VectorSelect { .. } => return unsupported("vector.select"),
             mir::Instruction::VectorReduce { .. } => return unsupported("vector.reduce"),
             mir::Instruction::VectorCompare { .. } => return unsupported("vector.compare"),
             mir::Instruction::VectorConvert { .. } => return unsupported("vector.convert"),
@@ -1078,6 +1079,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::TensorGather { .. } => return unsupported("tensor.gather"),
             mir::Instruction::TensorScatter { .. } => return unsupported("tensor.scatter"),
             mir::Instruction::TensorCompare { .. } => return unsupported("tensor.compare"),
+            mir::Instruction::TensorSelect { .. } => return unsupported("tensor.select"),
             mir::Instruction::TensorConvert { .. } => return unsupported("tensor.convert"),
 
             // intrinsic: depends on the specific intrinsic
@@ -1635,6 +1637,12 @@ impl<'a> FunctionLowerer<'a> {
             mir::CastOperator::SignExtend => ins.sextend(to_type, argument),
             mir::CastOperator::FloatToSignedInt => ins.fcvt_to_sint(to_type, argument),
             mir::CastOperator::FloatToUnsignedInt => ins.fcvt_to_uint(to_type, argument),
+            mir::CastOperator::FloatToSignedIntSaturating => {
+                ins.fcvt_to_sint_sat(to_type, argument)
+            }
+            mir::CastOperator::FloatToUnsignedIntSaturating => {
+                ins.fcvt_to_uint_sat(to_type, argument)
+            }
             mir::CastOperator::SignedIntToFloat => ins.fcvt_from_sint(to_type, argument),
             mir::CastOperator::UnsignedIntToFloat => ins.fcvt_from_uint(to_type, argument),
             mir::CastOperator::FloatTruncate => ins.fdemote(to_type, argument),

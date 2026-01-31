@@ -1314,6 +1314,70 @@ pub fn fold_cast(
             }
         }
 
+        CastOperator::FloatToSignedIntSaturating => {
+            // read target integer width
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
+            };
+
+            // convert float to signed int with saturation
+            match value {
+                Constant::Float { bits, width: 32 } => {
+                    let value = f32::from_bits(bits as u32) as f64;
+                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
+                    let converted = float_to_int_saturating(value, min_bound, max_bound);
+                    Some(Constant::Int {
+                        value: converted as i64,
+                        width: target_width,
+                        is_signed: true,
+                    })
+                }
+                Constant::Float { bits, width: 64 } => {
+                    let value = f64::from_bits(bits);
+                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
+                    let converted = float_to_int_saturating(value, min_bound, max_bound);
+                    Some(Constant::Int {
+                        value: converted as i64,
+                        width: target_width,
+                        is_signed: true,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
+        CastOperator::FloatToUnsignedIntSaturating => {
+            // read target integer width
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
+            };
+
+            // convert float to unsigned int with saturation
+            match value {
+                Constant::Float { bits, width: 32 } => {
+                    let value = f32::from_bits(bits as u32) as f64;
+                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
+                    let converted = float_to_int_saturating(value, min_bound, max_bound);
+                    Some(Constant::UInt {
+                        value: converted as u64,
+                        width: target_width,
+                    })
+                }
+                Constant::Float { bits, width: 64 } => {
+                    let value = f64::from_bits(bits);
+                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
+                    let converted = float_to_int_saturating(value, min_bound, max_bound);
+                    Some(Constant::UInt {
+                        value: converted as u64,
+                        width: target_width,
+                    })
+                }
+                _ => Some(value),
+            }
+        }
+
         CastOperator::SignedIntToFloat => {
             // read target float width
             let target_width = match target_type {
@@ -1456,6 +1520,49 @@ fn float_to_int_checked(value: f64, min_bound: i128, max_bound: i128) -> Option<
     }
 
     Some(truncated)
+}
+
+/// Convert a float to an integer with saturation.
+fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
+    if value.is_nan() {
+        return 0;
+    }
+
+    if !value.is_finite() {
+        return if value.is_sign_negative() {
+            min_bound
+        } else {
+            max_bound
+        };
+    }
+
+    let min_float = min_bound as f64;
+    let max_float = max_bound as f64;
+    let max_rounded = max_float.trunc() as i128;
+    let max_is_rounded_up = max_rounded > max_bound;
+
+    if value <= min_float {
+        return min_bound;
+    }
+
+    if max_is_rounded_up {
+        if value >= max_float {
+            return max_bound;
+        }
+    } else if value >= max_float {
+        return max_bound;
+    }
+
+    let truncated = value.trunc() as i128;
+    if truncated < min_bound {
+        return min_bound;
+    }
+
+    if truncated > max_bound {
+        return max_bound;
+    }
+
+    truncated
 }
 
 /// Truncate an unsigned integer to a target bit width.

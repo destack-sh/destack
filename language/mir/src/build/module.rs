@@ -1,7 +1,7 @@
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 
 #[cfg(any(test, debug_assertions))]
-use crate::verify::{Verifier, VerifierOptions};
+use crate::validate::{Validator, ValidatorOptions};
 use crate::{
     AddressSpace, Copyability, Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability,
     NodeTree, ReferenceKind, TensorDimension, TensorLayout, Type, TypedValue, Value,
@@ -445,15 +445,17 @@ impl ModuleBuilder {
         #[cfg(not(any(test, debug_assertions)))]
         let _ = self.verify;
 
-        // verify in debug and test builds
+        // validate in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
-            // set up the verifier
-            let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+            if self.verify {
+                // set up the validator
+                let validator = Validator::new_with_options(&self.tree, ValidatorOptions::strict());
 
-            // fail fast on invalid mir
-            if let Err(error) = verifier.verify_tree() {
-                panic!("mir verification failed: {error}");
+                // fail fast on invalid mir
+                if let Err(error) = validator.validate_tree() {
+                    panic!("mir validation failed: {error}");
+                }
             }
         }
 
@@ -466,15 +468,17 @@ impl ModuleBuilder {
         #[cfg(not(any(test, debug_assertions)))]
         let _ = self.verify;
 
-        // verify in debug and test builds
+        // validate in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
-            // set up the verifier
-            let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+            if self.verify {
+                // set up the validator
+                let validator = Validator::new_with_options(&self.tree, ValidatorOptions::strict());
 
-            // fail fast on invalid mir
-            if let Err(error) = verifier.verify_tree() {
-                panic!("mir verification failed: {error}");
+                // fail fast on invalid mir
+                if let Err(error) = validator.validate_tree() {
+                    panic!("mir validation failed: {error}");
+                }
             }
         }
 

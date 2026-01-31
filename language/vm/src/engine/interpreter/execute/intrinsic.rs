@@ -166,6 +166,8 @@ impl<'a> InterpreterContext<'a> {
                 Ok(Value::VOID)
             }
             mir::Intrinsic::AtomicCas => self.execute_atomic_cas(args),
+            mir::Intrinsic::AtomicCasWeak => self.execute_atomic_cas_weak(args),
+            mir::Intrinsic::AtomicExchange => self.execute_atomic_exchange(args),
             mir::Intrinsic::AtomicFetchAdd => self.execute_atomic_fetch_add(args),
             mir::Intrinsic::AtomicFetchSub => self.execute_atomic_fetch_sub(args),
             mir::Intrinsic::AtomicFetchAnd => self.execute_atomic_fetch_and(args),
@@ -173,6 +175,11 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::AtomicFetchXor => self.execute_atomic_fetch_xor(args),
             mir::Intrinsic::AtomicFetchMin => self.execute_atomic_fetch_min(args),
             mir::Intrinsic::AtomicFetchMax => self.execute_atomic_fetch_max(args),
+            mir::Intrinsic::AtomicFetchUmin => self.execute_atomic_fetch_umin(args),
+            mir::Intrinsic::AtomicFetchUmax => self.execute_atomic_fetch_umax(args),
+            mir::Intrinsic::AtomicFetchFadd => self.execute_atomic_fetch_fadd(args),
+            mir::Intrinsic::AtomicFetchFmin => self.execute_atomic_fetch_fmin(args),
+            mir::Intrinsic::AtomicFetchFmax => self.execute_atomic_fetch_fmax(args),
             mir::Intrinsic::AtomicFence => Ok(Value::VOID),
             mir::Intrinsic::Barrier => Ok(Value::VOID),
 
@@ -1452,6 +1459,18 @@ impl<'a> InterpreterContext<'a> {
         Ok(self.allocate_pair(current, Value::bool(success)))
     }
 
+    /// Atomic compare-and-swap (weak).
+    ///
+    /// The interpreter uses strong semantics for the weak variant.
+    fn execute_atomic_cas_weak(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_cas(args)
+    }
+
+    /// Atomic exchange.
+    fn execute_atomic_exchange(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.xchg", |_, b| *b)
+    }
+
     /// Atomic fetch-and-add.
     fn execute_atomic_fetch_add(&mut self, args: &[Value]) -> RuntimeResult<Value> {
         self.execute_atomic_rmw(args, "atomic.fetch.add", |a, b| match (a.tag(), b.tag()) {
@@ -1566,6 +1585,81 @@ impl<'a> InterpreterContext<'a> {
                 let av = a.raw_data();
                 let bv = b.raw_data();
                 Value::uint(av.max(bv), a.width())
+            }
+            _ => *a,
+        })
+    }
+
+    /// Atomic fetch-and-min (unsigned).
+    fn execute_atomic_fetch_umin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.fetch.umin", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.min(bv), a.width())
+            }
+            _ => *a,
+        })
+    }
+
+    /// Atomic fetch-and-max (unsigned).
+    fn execute_atomic_fetch_umax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.fetch.umax", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::UInt, ValueTag::UInt) => {
+                let av = a.raw_data();
+                let bv = b.raw_data();
+                Value::uint(av.max(bv), a.width())
+            }
+            _ => *a,
+        })
+    }
+
+    /// Atomic fetch-and-add (float).
+    fn execute_atomic_fetch_fadd(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.fetch.fadd", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Float64, ValueTag::Float64) => {
+                let av = f64::from_bits(a.raw_data());
+                let bv = f64::from_bits(b.raw_data());
+                Value::float64(av + bv)
+            }
+            (ValueTag::Float32, ValueTag::Float32) => {
+                let av = f32::from_bits(a.raw_data() as u32);
+                let bv = f32::from_bits(b.raw_data() as u32);
+                Value::float32(av + bv)
+            }
+            _ => *a,
+        })
+    }
+
+    /// Atomic fetch-and-min (float).
+    fn execute_atomic_fetch_fmin(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.fetch.fmin", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Float64, ValueTag::Float64) => {
+                let av = f64::from_bits(a.raw_data());
+                let bv = f64::from_bits(b.raw_data());
+                Value::float64(av.min(bv))
+            }
+            (ValueTag::Float32, ValueTag::Float32) => {
+                let av = f32::from_bits(a.raw_data() as u32);
+                let bv = f32::from_bits(b.raw_data() as u32);
+                Value::float32(av.min(bv))
+            }
+            _ => *a,
+        })
+    }
+
+    /// Atomic fetch-and-max (float).
+    fn execute_atomic_fetch_fmax(&mut self, args: &[Value]) -> RuntimeResult<Value> {
+        self.execute_atomic_rmw(args, "atomic.fetch.fmax", |a, b| match (a.tag(), b.tag()) {
+            (ValueTag::Float64, ValueTag::Float64) => {
+                let av = f64::from_bits(a.raw_data());
+                let bv = f64::from_bits(b.raw_data());
+                Value::float64(av.max(bv))
+            }
+            (ValueTag::Float32, ValueTag::Float32) => {
+                let av = f32::from_bits(a.raw_data() as u32);
+                let bv = f32::from_bits(b.raw_data() as u32);
+                Value::float32(av.max(bv))
             }
             _ => *a,
         })

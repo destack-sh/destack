@@ -924,13 +924,21 @@ impl BasicAA {
             // atomics
             Intrinsic::AtomicLoad => ModRefInfo::REF,
             Intrinsic::AtomicStore => ModRefInfo::MOD,
-            Intrinsic::AtomicFetchAdd
+            Intrinsic::AtomicCas
+            | Intrinsic::AtomicCasWeak
+            | Intrinsic::AtomicExchange
+            | Intrinsic::AtomicFetchAdd
             | Intrinsic::AtomicFetchSub
             | Intrinsic::AtomicFetchAnd
             | Intrinsic::AtomicFetchOr
             | Intrinsic::AtomicFetchXor
             | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax => ModRefInfo::MOD_REF,
+            | Intrinsic::AtomicFetchMax
+            | Intrinsic::AtomicFetchUmin
+            | Intrinsic::AtomicFetchUmax
+            | Intrinsic::AtomicFetchFadd
+            | Intrinsic::AtomicFetchFmin
+            | Intrinsic::AtomicFetchFmax => ModRefInfo::MOD_REF,
 
             // fence is a barrier but doesn't access specific memory
             Intrinsic::AtomicFence => ModRefInfo::NO_MOD_REF,

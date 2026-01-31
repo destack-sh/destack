@@ -191,6 +191,228 @@ block0(v0: u32, v1: u32):
     );
 }
 
+// atomics
+
+#[test]
+fn test_intrinsic_atomic_cas_success_flag() {
+    let mir = r#"
+function @test() -> bool {
+block0:
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 10i32
+    store v0, v1
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 99i32
+    v4: (i32, bool) = intrinsic.atomic.cas(
+        v0,
+        v2,
+        v3,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v5: bool = field.get v4, 1
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::bool(true));
+}
+
+#[test]
+fn test_intrinsic_atomic_cas_success_value() {
+    let mir = r#"
+function @test() -> i32 {
+block0:
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 10i32
+    store v0, v1
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 42i32
+    v4: (i32, bool) = intrinsic.atomic.cas(
+        v0,
+        v2,
+        v3,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v5: i32 = field.get v4, 0
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(10));
+}
+
+#[test]
+fn test_intrinsic_atomic_cas_failure_flag() {
+    let mir = r#"
+function @test() -> bool {
+block0:
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 10i32
+    store v0, v1
+    v2: i32 = iconst 11i32
+    v3: i32 = iconst 99i32
+    v4: (i32, bool) = intrinsic.atomic.cas(
+        v0,
+        v2,
+        v3,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v5: bool = field.get v4, 1
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::bool(false));
+}
+
+#[test]
+fn test_intrinsic_atomic_cas_weak_success() {
+    let mir = r#"
+function @test() -> bool {
+block0:
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 5i32
+    store v0, v1
+    v2: i32 = iconst 5i32
+    v3: i32 = iconst 6i32
+    v4: (i32, bool) = intrinsic.atomic.cas.weak(
+        v0,
+        v2,
+        v3,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v5: bool = field.get v4, 1
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::bool(true));
+}
+
+#[test]
+fn test_intrinsic_atomic_fetch_umin() {
+    let mir = r#"
+function @test() -> u32 {
+block0:
+    v0: ref<raw u32> = raw.alloc u32
+    v1: u32 = iconst 40u32
+    store v0, v1
+    v2: u32 = iconst 10u32
+    v3: u32 = intrinsic.atomic.fetch.umin(
+        v0,
+        v2,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v4: u32 = load v0
+    v5: u32 = iadd v3, v4
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::uint32(50));
+}
+
+#[test]
+fn test_intrinsic_atomic_fetch_umax() {
+    let mir = r#"
+function @test() -> u32 {
+block0:
+    v0: ref<raw u32> = raw.alloc u32
+    v1: u32 = iconst 12u32
+    store v0, v1
+    v2: u32 = iconst 20u32
+    v3: u32 = intrinsic.atomic.fetch.umax(
+        v0,
+        v2,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v4: u32 = load v0
+    v5: u32 = iadd v3, v4
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::uint32(32));
+}
+
+#[test]
+fn test_intrinsic_atomic_fetch_fadd() {
+    let mir = r#"
+function @test() -> f64 {
+block0:
+    v0: ref<raw f64> = raw.alloc f64
+    v1: f64 = iconst 1.5f64
+    store v0, v1
+    v2: f64 = iconst 2.25f64
+    v3: f64 = intrinsic.atomic.fetch.fadd(
+        v0,
+        v2,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v4: f64 = load v0
+    v5: f64 = fadd v3, v4
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::float64(5.25));
+}
+
+#[test]
+fn test_intrinsic_atomic_fetch_fmin() {
+    let mir = r#"
+function @test() -> f64 {
+block0:
+    v0: ref<raw f64> = raw.alloc f64
+    v1: f64 = iconst 3.5f64
+    store v0, v1
+    v2: f64 = iconst 1.25f64
+    v3: f64 = intrinsic.atomic.fetch.fmin(
+        v0,
+        v2,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v4: f64 = load v0
+    v5: f64 = fadd v3, v4
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::float64(4.75));
+}
+
+#[test]
+fn test_intrinsic_atomic_fetch_fmax() {
+    let mir = r#"
+function @test() -> f64 {
+block0:
+    v0: ref<raw f64> = raw.alloc f64
+    v1: f64 = iconst 3.5f64
+    store v0, v1
+    v2: f64 = iconst 7.25f64
+    v3: f64 = intrinsic.atomic.fetch.fmax(
+        v0,
+        v2,
+        ordering=relaxed,
+        scope=device,
+        memory_scope=device,
+        semantics=any
+    )
+    v4: f64 = load v0
+    v5: f64 = fadd v3, v4
+    return v5
+}"#;
+    run_mir_expect(mir, "test", &[], Value::float64(10.75));
+}
+
 // unchecked arithmetic
 
 #[test]

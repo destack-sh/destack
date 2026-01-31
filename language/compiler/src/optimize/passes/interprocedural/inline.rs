@@ -1325,6 +1325,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::VectorExtract { .. }
         | mir::Instruction::VectorInsert { .. }
         | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorSelect { .. }
         | mir::Instruction::VectorReduce { .. }
         | mir::Instruction::VectorCompare { .. }
         | mir::Instruction::VectorConvert { .. }
@@ -1342,6 +1343,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::TensorGather { .. }
         | mir::Instruction::TensorScatter { .. }
         | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => INLINE_COST_SIMPLE,
         mir::Instruction::TensorLoad { .. }
         | mir::Instruction::TensorStore { .. }

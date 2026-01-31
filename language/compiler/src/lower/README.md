@@ -1846,7 +1846,8 @@ Shared memory is explicit and opt-in.
 
 #### Memory Model
 Shared memory follows JS Atomics semantics.
-Atomic operations are sequentially consistent by default and accept explicit orderings when needed.
+Atomic operations require explicit ordering and scope metadata.
+There are no implicit defaults for atomic ordering in Destack.
 Non atomic loads and stores have no cross thread ordering guarantees.
 Data races on shared non atomic memory are undefined behavior on native targets.
 This preserves JS and TS semantics while enabling native performance when code uses atomics.
