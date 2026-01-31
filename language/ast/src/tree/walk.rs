@@ -384,6 +384,8 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
+        Expression::PrivateIdentifier { name: _ } => {}
+
         Expression::This => {}
 
         Expression::ScalarLiteral(_) => {
@@ -530,6 +532,21 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Member {
+            left: receiver,
+            name: _,
+            static_arguments,
+        } => {
+            let receiver_expr = tree.get(*receiver);
+            visitor.visit_expression(tree, *receiver, receiver_expr);
+            if let Some(static_arguments) = static_arguments {
+                for argument_id in static_arguments {
+                    let argument = tree.get(*argument_id);
+                    visitor.visit_argument(tree, *argument_id, argument);
+                }
+            }
+        }
+
+        Expression::PrivateMember {
             left: receiver,
             name: _,
             static_arguments,
@@ -967,6 +984,9 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 pub fn walk_key<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &NodeTree, key: &Key) {
     match key {
         Key::Name(_name) => {
+            // nothing to do
+        }
+        Key::Private(_name) => {
             // nothing to do
         }
         Key::Expression(dynamic_key) => {

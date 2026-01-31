@@ -1,7 +1,9 @@
 use destack_base::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleTarget, Node, NodeType};
+use crate::{
+    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleTarget, Name, Node, NodeType,
+};
 
 /// The source of a dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
@@ -48,7 +50,7 @@ pub enum DependencyItem {
         source: DependencySource,
         mode: DependencyMode,
         kind: DependencyKind,
-        name: Option<StringId>,
+        name: Option<Name>,
         alias: Option<StringId>,
         target: StringId,
         target_module: Option<ModuleTarget>, // item may remain unresolved even if we can resolve the target module
@@ -58,7 +60,7 @@ pub enum DependencyItem {
     UnresolvedLocal {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: Option<StringId>,
+        name: Option<Name>,
         alias: Option<StringId>,
         symbol: Option<LocalSymbolId>,
     },
@@ -71,7 +73,7 @@ pub enum DependencyItem {
     Local {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: Option<StringId>,
+        name: Option<Name>,
         alias: Option<StringId>,
         symbol: Option<LocalSymbolId>,
         target_symbol: GlobalSymbolId,
@@ -80,7 +82,7 @@ pub enum DependencyItem {
     Remote {
         mode: DependencyMode,
         kind: DependencyKind,
-        name: Option<StringId>,
+        name: Option<Name>,
         alias: Option<StringId>,
         target: StringId,
         target_module: ModuleTarget,

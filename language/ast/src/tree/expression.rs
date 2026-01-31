@@ -383,6 +383,15 @@ pub enum Expression {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
+    /// Private identifier (JavaScript/TypeScript).
+    ///
+    /// Examples:
+    /// ```
+    /// #field
+    /// #method
+    /// ```
+    PrivateIdentifier { name: StringId },
+
     /// This reference (value or type context).
     This,
 
@@ -737,6 +746,19 @@ pub enum Expression {
     /// foo.bar<T>
     /// ```
     Member {
+        left: LocalNodeId<Expression>,
+        name: StringId,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    },
+
+    /// Private member access.
+    ///
+    /// Examples:
+    /// ```
+    /// foo.#bar
+    /// foo.#bar<T>
+    /// ```
+    PrivateMember {
         left: LocalNodeId<Expression>,
         name: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,

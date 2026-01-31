@@ -215,16 +215,20 @@ impl FunctionContext<'_> {
 
         // match member access against a scalar literal
         let literal_value = match (self.env.dir_tree.get(left), self.env.dir_tree.get(right)) {
-            (Expression::ScalarLiteral { value }, Expression::Member { .. }) => {
+            (Expression::ScalarLiteral { value }, Expression::Member { .. })
+            | (Expression::ScalarLiteral { value }, Expression::PrivateMember { .. }) => {
                 (right, DiscriminantLiteralValue::Scalar(value))
             }
-            (Expression::Member { .. }, Expression::ScalarLiteral { value }) => {
+            (Expression::Member { .. }, Expression::ScalarLiteral { value })
+            | (Expression::PrivateMember { .. }, Expression::ScalarLiteral { value }) => {
                 (left, DiscriminantLiteralValue::Scalar(value))
             }
-            (Expression::TypeLiteral { value }, Expression::Member { .. }) => {
+            (Expression::TypeLiteral { value }, Expression::Member { .. })
+            | (Expression::TypeLiteral { value }, Expression::PrivateMember { .. }) => {
                 (right, DiscriminantLiteralValue::Type(value))
             }
-            (Expression::Member { .. }, Expression::TypeLiteral { value }) => {
+            (Expression::Member { .. }, Expression::TypeLiteral { value })
+            | (Expression::PrivateMember { .. }, Expression::TypeLiteral { value }) => {
                 (left, DiscriminantLiteralValue::Type(value))
             }
             _ => return Ok(None),
@@ -233,11 +237,16 @@ impl FunctionContext<'_> {
         let (member_id, literal_value) = literal_value;
 
         // extract the member access expression
-        let Expression::Member {
+        let (Expression::Member {
             left: receiver_id,
             name,
             static_arguments,
-        } = self.env.dir_tree.get(member_id)
+        }
+        | Expression::PrivateMember {
+            left: receiver_id,
+            name,
+            static_arguments,
+        }) = self.env.dir_tree.get(member_id)
         else {
             return Ok(None);
         };

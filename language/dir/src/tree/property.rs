@@ -71,6 +71,8 @@ pub enum VarianceModifier {
     In,
     /// Covariant type parameter.
     Out,
+    /// Invariant type parameter.
+    InOut,
 }
 
 /// The anchor of a binding (static or instance).

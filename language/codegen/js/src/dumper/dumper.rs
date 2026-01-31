@@ -422,6 +422,9 @@ impl Dump for Key {
             Key::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
             }
+            Key::Private(name) => {
+                dumper.object("Key::Private").value(name).end();
+            }
             Key::Expression(_) => {
                 dumper.object("Key::Expression").end();
             }
@@ -818,6 +821,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("path", path)
                     .end();
             }
+            Expression::PrivateIdentifier { name } => {
+                self.node("Expression::PrivateIdentifier", id.id)
+                    .field("name", name)
+                    .end();
+            }
             Expression::ScalarLiteral { value } => {
                 self.node("Expression::ScalarLiteral", id.id)
                     .value(value)
@@ -898,6 +906,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 static_arguments: _,
             } => {
                 self.node("Expression::Member", id.id)
+                    .field("name", name)
+                    .end();
+            }
+            Expression::PrivateMember {
+                left: _,
+                name,
+                static_arguments: _,
+            } => {
+                self.node("Expression::PrivateMember", id.id)
                     .field("name", name)
                     .end();
             }

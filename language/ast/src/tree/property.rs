@@ -32,6 +32,8 @@ pub enum VarianceModifier {
     In,
     /// Covariant type parameter.
     Out,
+    /// Invariant type parameter.
+    InOut,
 }
 
 impl VarianceModifier {
@@ -40,6 +42,7 @@ impl VarianceModifier {
         match self {
             VarianceModifier::In => "in",
             VarianceModifier::Out => "out",
+            VarianceModifier::InOut => "in out",
         }
     }
 }

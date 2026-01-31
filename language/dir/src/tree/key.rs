@@ -30,6 +30,8 @@ impl Name {
 pub enum DynamicKey {
     /// Name (like `x` or `someThing`).
     Name(StringId),
+    /// Private name (like `#x`).
+    Private(StringId),
     /// Numeric name (like `123` or `2e308` as object key).
     Number(StringId),
     /// Dynamic key (like `["Content-Type"]`).

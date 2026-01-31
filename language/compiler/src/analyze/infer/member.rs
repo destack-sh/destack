@@ -6,9 +6,10 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext}
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
-    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, Visibility,
+    Argument, BindingAnchor, BindingModifier, Declaration, DynamicKey, Expression, GlobalSymbolId,
+    InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
+    StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Visibility,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};

@@ -12,6 +12,9 @@ impl<'ast> Format<CodegenJsFormatContext<'ast>> for Key {
             Key::Name(name) => {
                 write!(f, [name])?;
             }
+            Key::Private(name) => {
+                write!(f, [token("#"), *name])?;
+            }
             Key::Expression(expression) => {
                 write!(f, [token("[")])?;
                 write!(f, [expression])?;

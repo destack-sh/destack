@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BlockFormat, Declaration, DeclarationDescriptor, Generics, Keyword, LocalNodeId, Name,
-    NodeType, TokenType,
+    BlockFormat, Declaration, DeclarationDescriptor, Expression, Generics, Keyword, LocalNodeId,
+    Name, NodeType, TokenType,
 };
 
 impl Parser {
@@ -34,7 +34,7 @@ impl Parser {
     pub fn eat_namespace(
         &mut self,
         start: ParserMark,
-        mut descriptor: DeclarationDescriptor,
+        descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
         let is_module = if self.peek_keyword(Keyword::Namespace).is_ok() {
@@ -46,54 +46,88 @@ impl Parser {
         };
 
         // name
-        let (name, name_span) = if is_module {
+        let (names, name_span) = if is_module && self.peek_string_literal().is_ok() {
             let (name_id, span) = self.eat_string_literal_with_span()?;
-            (Some(Name::String(name_id)), Some(span))
+            (vec![(Name::String(name_id), span)], Some(span))
         } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-            (Some(name), Some(span))
+            let mut names = vec![(name, span)];
+            while self.peek_token(TokenType::Dot).is_ok() {
+                self.bump(); // eat dot
+                let (segment, segment_span) = self.eat_identifier_with_span()?;
+                names.push((Name::Identifier(segment), segment_span));
+            }
+            (names, Some(span))
         } else {
-            (None, None)
+            (Vec::new(), None)
         };
-        if let Some(name) = name {
-            descriptor = descriptor.with_name(name);
-        }
 
         // where
         let where_clauses = self.eat_where_maybe()?;
 
         // body
         let generics = Generics::new(None, where_clauses);
-        let namespace = {
-            let expressions = if self
-                .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-                .is_ok()
-            {
-                self.eat_newlines_maybe()?;
-                self.eat_token(TokenType::OpenBrace)?; // eat open brace
-                let expressions = self
-                    .eat_block_body(BlockFormat::Explicit)
-                    .for_node_type(NodeType::Block)?;
-                self.eat_token(TokenType::CloseBrace)
-                    .for_node_type(NodeType::Declaration)?;
-                expressions
-            } else {
-                vec![]
-            };
-            Declaration::Namespace {
-                descriptor,
-                generics,
-                expressions,
-            }
+        let expressions = if self
+            .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
+            .is_ok()
+        {
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::OpenBrace)?; // eat open brace
+            let expressions = self
+                .eat_block_body(BlockFormat::Explicit)
+                .for_node_type(NodeType::Block)?;
+            self.eat_token(TokenType::CloseBrace)
+                .for_node_type(NodeType::Declaration)?;
+            expressions
+        } else {
+            vec![]
         };
 
-        let namespace_id = self.tree.insert(namespace, self.get_span_from(start));
+        // build nested namespaces from dot-separated names
+        let mut nested_expressions = expressions;
+        let mut namespace_id = None;
+        let base_descriptor = descriptor;
+        for (index, (name, span)) in names.into_iter().enumerate().rev() {
+            let mut local_descriptor = if index == 0 {
+                base_descriptor.clone()
+            } else {
+                let mut inner_descriptor = base_descriptor.clone();
+                inner_descriptor.export = None;
+                inner_descriptor
+            };
+            local_descriptor = local_descriptor.with_name(name);
 
-        // set main span to the name identifier
-        if let Some(span) = name_span {
+            let namespace = Declaration::Namespace {
+                descriptor: local_descriptor,
+                generics: generics.clone(),
+                expressions: nested_expressions,
+            };
+            let current_id = self.tree.insert(namespace, self.get_span_from(start));
+            self.tree.set_main_span(current_id, span);
+            namespace_id = Some(current_id);
+
+            let expression_id = self.tree.insert(
+                Expression::Declaration(current_id),
+                self.get_span_from(start),
+            );
+            nested_expressions = vec![expression_id];
+        }
+
+        if let Some(span) = name_span
+            && let Some(namespace_id) = namespace_id
+        {
             self.tree.set_main_span(namespace_id, span);
         }
 
-        Ok(namespace_id)
+        Ok(namespace_id.unwrap_or_else(|| {
+            self.tree.insert(
+                Declaration::Namespace {
+                    descriptor: base_descriptor,
+                    generics,
+                    expressions: nested_expressions,
+                },
+                self.get_span_from(start),
+            )
+        }))
     }
 }
 

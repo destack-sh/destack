@@ -337,6 +337,34 @@ interface Foo extends Baz {
     }
 
     #[test]
+    fn test_parse_interface_with_invariant_parameter() {
+        let mut test = TestParser::new("interface Holder<in out T> {}");
+        let mut parser = test.prepare();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, generics, .. } => {
+            assert_eq!(descriptor.kind, DeclarationKind::Definition);
+            assert_string!(parser, descriptor.name.unwrap().string(), "Holder");
+            let params = generics
+                .static_parameters
+                .as_ref()
+                .expect("expected static params");
+            assert_eq!(params.len(), 1);
+            assert_node!(parser.tree, params[0], Parameter::Named { modifiers: Some(modifiers), name, .. } => {
+                assert_string!(parser, *name, "T");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::InOut));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_interface_with_where_clause() {
         let mut test = TestParser::new(
             r###"

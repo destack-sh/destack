@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Keyword, TokenType, Visibility};
+use destack_ast::{Keyword, Visibility};
 
 impl Parser {
     /// Peek a visibility.
@@ -9,9 +9,7 @@ impl Parser {
             Ok(Some(Visibility::Public))
         } else if self.peek_keyword(Keyword::Protected).is_ok() {
             Ok(Some(Visibility::Protected))
-        } else if self.peek_keyword(Keyword::Private).is_ok()
-            || self.language.is_destack() && self.peek_token(TokenType::Hash).is_ok()
-        {
+        } else if self.peek_keyword(Keyword::Private).is_ok() {
             Ok(Some(Visibility::Private))
         } else {
             Err(ParseError::unexpected(self.peek()?.span))

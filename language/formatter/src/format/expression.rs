@@ -196,13 +196,13 @@ fn sort_dependency_items(
         // sort key: use alias if present, otherwise name
         let a_key = a_item
             .alias
-            .or(a_item.name)
-            .map(|s| strings.get(s))
+            .or(a_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
             .unwrap_or("");
         let b_key = b_item
             .alias
-            .or(b_item.name)
-            .map(|s| strings.get(s))
+            .or(b_item.name.map(|name| name.string()))
+            .map(|string_id| strings.get(string_id))
             .unwrap_or("");
 
         match sort_order {
@@ -453,23 +453,31 @@ fn format_member_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    if let Expression::Member {
-        left,
-        name,
-        static_arguments,
-    } = f.context().tree.get(node_id)
-    {
-        let is_private_hash = member_is_private_hash(f.context(), node_id);
-        write!(f, [*left, token(".")])?;
-        if is_private_hash {
-            write!(f, [token("#")])?;
+    match f.context().tree.get(node_id) {
+        Expression::Member {
+            left,
+            name,
+            static_arguments,
+        } => {
+            write!(f, [*left, token(".")])?;
+            write!(f, [*name])?;
+            if let Some(static_arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            }
         }
-        write!(f, [*name])?;
-        if let Some(static_arguments) = static_arguments {
-            write!(f, [list_like("<", ">", ",", static_arguments)])?;
+        Expression::PrivateMember {
+            left,
+            name,
+            static_arguments,
+        } => {
+            write!(f, [*left, token("."), token("#"), *name])?;
+            if let Some(static_arguments) = static_arguments {
+                write!(f, [list_like("<", ">", ",", static_arguments)])?;
+            }
         }
-    } else {
-        debug_assert!(false, "unexpected expression kind for member formatter");
+        _ => {
+            debug_assert!(false, "unexpected expression kind for member formatter");
+        }
     }
     Ok(())
 }
@@ -1582,6 +1590,7 @@ fn format_call_arguments<'ast>(
                         let is_chain_call = matches!(
                             f.context().tree.get(*left),
                             Expression::Member { .. }
+                                | Expression::PrivateMember { .. }
                                 | Expression::Call { .. }
                                 | Expression::Index { .. }
                                 | Expression::Maybe { .. }
@@ -1879,6 +1888,7 @@ fn expression_precedence(expr: &Expression) -> u16 {
         // postfix operators (2000)
         Expression::Call { .. }
         | Expression::Member { .. }
+        | Expression::PrivateMember { .. }
         | Expression::Index { .. }
         | Expression::Instantiation { .. }
         | Expression::Maybe { .. }
@@ -2115,6 +2125,7 @@ fn format_chain_base<'ast>(
                 !matches!(
                     expression,
                     Expression::Member { .. }
+                        | Expression::PrivateMember { .. }
                         | Expression::Call { .. }
                         | Expression::Index { .. }
                         | Expression::Maybe { .. }
@@ -2336,6 +2347,7 @@ fn group_chain_expression_lines(
 pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     match tree.get(node_id) {
         Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
@@ -2349,6 +2361,7 @@ pub(crate) fn is_expression_chain(tree: &NodeTree, node_id: LocalNodeId<Expressi
 pub(crate) fn is_chain_root(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> bool {
     match tree.get(node_id) {
         Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
         | Expression::Call { left, .. }
         | Expression::Index { left, .. }
         | Expression::Instantiation { left, .. }
@@ -2370,6 +2383,7 @@ fn has_chain_parent(context: &DestackFormatContext<'_>, node_id: LocalNodeId<Exp
     let parent_expr = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
     match parent_expr {
         Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
         | Expression::Call { left, .. }
         | Expression::Instantiation { left, .. }
         | Expression::Maybe { left, .. }
@@ -2548,6 +2562,7 @@ fn should_use_trailing_coalesce(
     let left_is_chain = matches!(
         context.tree.get(left),
         Expression::Member { .. }
+            | Expression::PrivateMember { .. }
             | Expression::Index { .. }
             | Expression::Call { .. }
             | Expression::Maybe { .. }
@@ -2626,6 +2641,7 @@ fn chain_head_id(tree: &NodeTree, node_id: LocalNodeId<Expression>) -> LocalNode
     loop {
         let next = match tree.get(current) {
             Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
             | Expression::Instantiation { left, .. }
@@ -2757,12 +2773,16 @@ pub(crate) fn is_poorly_breakable_chain(
                     }
                 }
             }
-            Expression::Member { .. } | Expression::Maybe { .. } | Expression::Must { .. } => {}
+            Expression::Member { .. }
+            | Expression::PrivateMember { .. }
+            | Expression::Maybe { .. }
+            | Expression::Must { .. } => {}
             _ => break,
         }
 
         let next = match tree.get(current) {
             Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
             | Expression::Instantiation { left, .. }
@@ -2941,6 +2961,7 @@ fn expression_chain_should_break(
 
         let next = match tree.get(current) {
             Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
             | Expression::Instantiation { left, .. }
@@ -3290,7 +3311,7 @@ fn member_has_intervening_break_or_comment(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(node_id) {
-        Expression::Member { left, .. } => {
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             let Some(property_span) = context.tree.get_main_span(node_id) else {
                 return false;
             };
@@ -3327,6 +3348,10 @@ fn member_is_private_hash(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
+    if matches!(context.tree.get(node_id), Expression::PrivateMember { .. }) {
+        return true;
+    }
+
     let Some(property_span) = context.tree.get_main_span(node_id) else {
         return false;
     };
@@ -3641,6 +3666,7 @@ pub(crate) fn chain_inline_len(
         chain.push(current);
         let next = match tree.get(current) {
             Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
             | Expression::Instantiation { left, .. }
@@ -3682,6 +3708,17 @@ pub(crate) fn chain_inline_len(
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
             Expression::Member {
+                name,
+                static_arguments,
+                ..
+            } => ChainExpression::Member {
+                node_id: expression_id,
+                segment: *name,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
+            },
+            Expression::PrivateMember {
                 name,
                 static_arguments,
                 ..
@@ -4087,6 +4124,7 @@ pub(crate) fn format_expression_chain<'ast>(
         chain.push(current);
         let next = match tree.get(current) {
             Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
             | Expression::Maybe { left, .. }
@@ -4166,6 +4204,17 @@ pub(crate) fn format_expression_chain<'ast>(
     for &expression_id in &chain[1..] {
         let chain_expression = match tree.get(expression_id) {
             Expression::Member {
+                name,
+                static_arguments,
+                ..
+            } => ChainExpression::Member {
+                node_id: expression_id,
+                segment: *name,
+                static_arguments: static_arguments.clone(),
+                emit_prefix_annotations: true,
+                emit_postfix_annotations: true,
+            },
+            Expression::PrivateMember {
                 name,
                 static_arguments,
                 ..
@@ -4453,6 +4502,7 @@ fn is_chain_expression(expression: &Expression) -> bool {
     matches!(
         expression,
         Expression::Member { .. }
+            | Expression::PrivateMember { .. }
             | Expression::Call { .. }
             | Expression::Index { .. }
             | Expression::Instantiation { .. }
@@ -4493,7 +4543,7 @@ fn is_type_reference_expression(
     let expression_id = transparent_inner_expression(context, expression_id);
     matches!(
         context.tree.get(expression_id),
-        Expression::Path { .. } | Expression::Member { .. }
+        Expression::Path { .. } | Expression::Member { .. } | Expression::PrivateMember { .. }
     )
 }
 
@@ -4540,7 +4590,9 @@ fn should_hug_nullable_union_type(
 /// Whether an expression is "trivial" (prefers to be fully inline).
 pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
     match expression {
-        Expression::ScalarLiteral(_) | Expression::TypeLiteral(_) => true,
+        Expression::ScalarLiteral(_)
+        | Expression::TypeLiteral(_)
+        | Expression::PrivateIdentifier { .. } => true,
         Expression::ObjectExpression { ty, properties, .. } => {
             ty.is_none()
                 && properties.len() <= 5
@@ -4562,7 +4614,9 @@ pub fn is_trivial_expression(tree: &NodeTree, expression: &Expression) -> bool {
             mutability: _,
             right,
         } => is_trivial_expression(tree, tree.get(*right)),
-        Expression::Member { left, .. } => is_trivial_expression(tree, tree.get(*left)),
+        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
+            is_trivial_expression(tree, tree.get(*left))
+        }
         Expression::Path {
             path,
             static_arguments,
@@ -5229,6 +5283,7 @@ fn expression_has_block_callback(
             expression_has_block_callback(context, *left)
         }
         Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => expression_has_block_callback(context, *left),
@@ -5275,6 +5330,7 @@ fn expression_has_complex_callback(
             expression_has_complex_callback(context, *left)
         }
         Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
         | Expression::Index { left, .. }
         | Expression::Maybe { left, .. }
         | Expression::Must { left, .. } => {
@@ -6286,6 +6342,11 @@ pub(crate) fn format_expression<'ast>(
             }
         }
 
+        // private identifier
+        Expression::PrivateIdentifier { name } => {
+            write!(f, [token("#"), *name])?;
+        }
+
         // this
         Expression::This => {
             write!(f, [Keyword::This])?;
@@ -6771,7 +6832,7 @@ pub(crate) fn format_expression<'ast>(
         }
 
         // member
-        Expression::Member { .. } => {
+        Expression::Member { .. } | Expression::PrivateMember { .. } => {
             if is_expression_chain(tree, node_id) {
                 format_expression_chain(f, node_id)?;
             } else {

@@ -70,14 +70,9 @@ impl Compiler {
         let kind = self.unbind_declaration_kind(context, descriptor.kind);
         let abstraction = self.unbind_declaration_abstraction(context, descriptor.abstraction);
         let anchor = self.unbind_binding_anchor(context, descriptor.anchor);
-        let name = descriptor.name.map(|name| {
-            let name_id = ast_strings.intern_from(&self.program.strings, name.string());
-            match name {
-                dir::Name::Identifier(_) => ast::Name::Identifier(name_id),
-                dir::Name::String(_) => ast::Name::String(name_id),
-                dir::Name::Number(_) => ast::Name::Number(name_id),
-            }
-        });
+        let name = descriptor
+            .name
+            .map(|name| self.unbind_name(ast_strings, name));
         let export = descriptor
             .export
             .map(|export| self.unbind_dependency_mode(context, export));

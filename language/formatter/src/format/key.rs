@@ -44,6 +44,10 @@ pub(crate) fn format_key_with_quote_policy<'ast>(
         Key::Name(name) => {
             format_name_with_quote_policy(f, name, force_quote_keys)?;
         }
+        Key::Private(name) => {
+            write!(f, [token("#")])?;
+            write!(f, [name])?;
+        }
         Key::Expression(expression) => {
             write!(f, [token("[")])?;
             write!(f, [expression])?;

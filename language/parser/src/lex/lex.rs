@@ -377,6 +377,11 @@ impl Lexer<'_> {
                         (TokenType::Range, None)
                     }
                 }
+                // decimal literal starting with .
+                else if self.peek().is_ascii_digit() {
+                    let literal = self.eat_leading_dot_number_literal();
+                    (TokenType::Literal, Some(literal))
+                }
                 // .
                 else {
                     (TokenType::Dot, None)
@@ -1387,6 +1392,24 @@ impl Lexer<'_> {
                 is_empty: false,
                 is_bigint: false,
             },
+        }
+    }
+
+    /// Parse a decimal literal starting with a leading dot.
+    fn eat_leading_dot_number_literal(&mut self) -> LiteralType {
+        let base = NumberBase::Decimal;
+        let is_empty_exponent = {
+            self.eat_decimal_digits();
+            if matches!(self.peek(), 'e' | 'E') {
+                self.eat();
+                !self.eat_float_exponent()
+            } else {
+                false
+            }
+        };
+        LiteralType::Float {
+            base,
+            is_empty_exponent,
         }
     }
 

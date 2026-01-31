@@ -4,7 +4,7 @@ use destack_ast::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Export,
     ExportKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, ModuleTarget, NodeTree, StaticKey, SymbolSpace,
+    LocalScopeMark, LocalSymbolId, ModuleTarget, Name, NodeTree, StaticKey, SymbolSpace,
     SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
@@ -125,12 +125,12 @@ impl Compiler {
     fn reexport_import_key(
         &self,
         mode: DependencyMode,
-        name: Option<StringId>,
+        name: Option<Name>,
         default_name: StringId,
     ) -> Option<StaticKey> {
         // map export modes to import keys
         match mode {
-            DependencyMode::Item => name.map(StaticKey::Name),
+            DependencyMode::Item => name.map(|name| StaticKey::Name(name.string())),
             DependencyMode::Default => Some(StaticKey::Name(default_name)),
             DependencyMode::Namespace => None,
         }
@@ -624,13 +624,13 @@ impl Compiler {
             | DependencyItem::Remote { target_symbol, .. } => Ok(Some(target_symbol)),
             DependencyItem::UnresolvedLocal { kind, name, .. } => {
                 // resolve the name from the module namespace scope
-                let Some(name_id) = name else {
+                let Some(name) = name else {
                     return Ok(None);
                 };
                 let symbols = dir.symbols.read();
                 let scope = symbols.get_scope_by_id(scope_id);
                 let space_order = self.export_spaces_for_kind(kind);
-                let key = StaticKey::Name(name_id);
+                let key = StaticKey::Name(name.string());
 
                 // try resolving in the local scope first, fall back to global augmentation scope
                 // (for types defined in `global { }` blocks within module declarations)
@@ -1709,7 +1709,7 @@ impl Compiler {
                 } if matches!(
                     source,
                     DependencySource::ImportEquals | DependencySource::RequireCall
-                ) && alias.or(*item_name) == Some(name) =>
+                ) && alias.or(item_name.map(|name| name.string())) == Some(name) =>
                 {
                     // found `import X = require("target")` where X is our name
                     // resolve module bindings before falling back to module specifiers
@@ -1731,7 +1731,7 @@ impl Compiler {
                     alias,
                     target_module,
                     ..
-                } if alias.or(*item_name) == Some(name) => {
+                } if alias.or(item_name.map(|name| name.string())) == Some(name) => {
                     // already resolved import, use its target module
                     return Ok(Some(*target_module));
                 }
@@ -1874,7 +1874,7 @@ impl Compiler {
                 let (target_symbol, resolved_kind) = match mode {
                     DependencyMode::Item => {
                         // resolve a named import from the target
-                        let key = name.map(StaticKey::Name).ok_or(
+                        let key = name.map(|name| StaticKey::Name(name.string())).ok_or(
                             ResolveError::UnsupportedConstruct {
                                 node: item_id
                                     .into_global_any(module.id)
@@ -2029,7 +2029,7 @@ impl Compiler {
                     mark
                 };
                 let space_order = self.export_spaces_for_kind(*kind);
-                let key = StaticKey::Name(*name_id);
+                let key = StaticKey::Name(name_id.string());
                 let node = item_id.into_global_any(module.id);
 
                 // try resolving in the local scope first

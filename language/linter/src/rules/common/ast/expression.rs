@@ -485,7 +485,9 @@ pub fn expression_has_side_effects(
     let expr = ctx.tree.get(expr_id);
     match expr {
         // pure: literals
-        ast::Expression::ScalarLiteral(_) | ast::Expression::TypeLiteral(_) => false,
+        ast::Expression::ScalarLiteral(_)
+        | ast::Expression::TypeLiteral(_)
+        | ast::Expression::PrivateIdentifier { .. } => false,
 
         // pure: paths (variable references)
         ast::Expression::Path { .. } | ast::Expression::This => false,
@@ -503,7 +505,9 @@ pub fn expression_has_side_effects(
         }),
 
         // pure: member access (if object is pure)
-        ast::Expression::Member { left, .. } => expression_has_side_effects(ctx, *left),
+        ast::Expression::Member { left, .. } | ast::Expression::PrivateMember { left, .. } => {
+            expression_has_side_effects(ctx, *left)
+        }
 
         // pure: instantiation (if target is pure)
         ast::Expression::Instantiation { left, .. } => expression_has_side_effects(ctx, *left),

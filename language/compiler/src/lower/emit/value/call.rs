@@ -114,6 +114,9 @@ impl FunctionContext<'_> {
                 && resolution_receiver.is_some()
                 && let Expression::Member {
                     left: receiver_id, ..
+                }
+                | Expression::PrivateMember {
+                    left: receiver_id, ..
                 } = left_expr
             {
                 // skip evaluation for namespace receivers, they are compile-time only

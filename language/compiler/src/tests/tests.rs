@@ -1337,6 +1337,7 @@ impl TestProgram {
             let member_name_id = member.key().and_then(|key| match key {
                 DynamicKey::Name(name) => Some(name),
                 DynamicKey::Number(name) => Some(name),
+                DynamicKey::Private(_) => None,
                 DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
             });
 

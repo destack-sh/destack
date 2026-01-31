@@ -2,13 +2,27 @@ use crate::Compiler;
 use crate::analyze::evaluate_numeric_literal;
 use destack_ast as ast;
 use destack_dir::{
-    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpaceOrder,
+    DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name, NodeTree, SymbolSpaceOrder,
     SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Bind an AST name into a DIR name.
+    pub(super) fn bind_name(&self, ast: &ModuleAst, name: ast::Name) -> Name {
+        // intern the name into the program string pool
+        let name_id = name.string();
+        let name_id = self.program.strings.intern_from(&ast.strings, name_id);
+
+        // preserve the name flavor
+        match name {
+            ast::Name::Identifier(_) => Name::Identifier(name_id),
+            ast::Name::String(_) => Name::String(name_id),
+            ast::Name::Number(_) => Name::Number(name_id),
+        }
+    }
+
     /// Bind a key to a DIR key.
     pub(super) fn bind_key(
         &self,
@@ -35,6 +49,10 @@ impl Compiler {
                     .strings
                     .intern_from(&ast.strings, name.string());
                 DynamicKey::Name(name)
+            }
+            ast::Key::Private(name) => {
+                let name = self.program.strings.intern_from(&ast.strings, name);
+                DynamicKey::Private(name)
             }
             ast::Key::Expression(expression) => {
                 let expression = self.bind_expression(

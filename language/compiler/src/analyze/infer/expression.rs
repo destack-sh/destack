@@ -1167,6 +1167,14 @@ impl Compiler {
                 ctx,
             )?,
 
+            // private identifiers only appear in brand checks
+            Expression::PrivateIdentifier { name: _ } => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+
             // import meta: statically known type
             Expression::ImportMeta => {
                 // resolve the import.meta interface
@@ -1781,6 +1789,25 @@ impl Compiler {
                 infer,
                 ctx,
             )?,
+            Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let private_name = self.private_key_string_id(*name);
+                self.infer_member_expression(
+                    module,
+                    expression_id,
+                    *left,
+                    private_name,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?
+            }
 
             // instantiation: apply static arguments to callable type
             Expression::Instantiation {
@@ -3007,6 +3034,9 @@ impl Compiler {
             | Expression::GlobalReference { .. }
             | Expression::This => Addressability::Place,
             Expression::Member {
+                static_arguments, ..
+            }
+            | Expression::PrivateMember {
                 static_arguments, ..
             } => {
                 if static_arguments.is_some() {
@@ -4424,8 +4454,10 @@ impl Compiler {
             } => {
                 let default_name = self.program.strings.intern("default");
                 let export_name = match mode {
-                    DependencyMode::Item => *name,
-                    DependencyMode::Default => name.or(Some(default_name)),
+                    DependencyMode::Item => name.map(|name| name.string()),
+                    DependencyMode::Default => {
+                        name.map(|name| name.string()).or(Some(default_name))
+                    }
                     DependencyMode::Namespace => None,
                 };
                 (export_name, target_module.module_id())
@@ -4438,8 +4470,10 @@ impl Compiler {
             } => {
                 let default_name = self.program.strings.intern("default");
                 let export_name = match mode {
-                    DependencyMode::Item => *name,
-                    DependencyMode::Default => name.or(Some(default_name)),
+                    DependencyMode::Item => name.map(|name| name.string()),
+                    DependencyMode::Default => {
+                        name.map(|name| name.string()).or(Some(default_name))
+                    }
                     DependencyMode::Namespace => None,
                 };
                 (

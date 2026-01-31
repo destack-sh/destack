@@ -63,6 +63,9 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                     write!(f, [list_like("<", ">", ",", static_arguments)])?;
                 }
             }
+            Expression::PrivateIdentifier { name } => {
+                write!(f, [token("#"), *name])?;
+            }
             Expression::ScalarLiteral { value } => {
                 format_scalar_literal(value, f)?;
             }
@@ -149,6 +152,18 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
                 static_arguments,
             } => {
                 write!(f, [left, token("."), *name])?;
+                if f.context().include_types()
+                    && let Some(static_arguments) = static_arguments
+                {
+                    write!(f, [list_like("<", ">", ",", static_arguments)])?;
+                }
+            }
+            Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                write!(f, [left, token("."), token("#"), *name])?;
                 if f.context().include_types()
                     && let Some(static_arguments) = static_arguments
                 {

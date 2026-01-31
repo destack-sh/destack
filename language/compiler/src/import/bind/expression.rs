@@ -920,6 +920,52 @@ impl Compiler {
                     static_arguments,
                 }
             }
+            ast::Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let left = self.bind_expression(
+                    module,
+                    ast,
+                    scope,
+                    *left,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space_order,
+                );
+                let name = self.program.strings.intern_from(&ast.strings, *name);
+                let static_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
+                let static_arguments = static_arguments.as_ref().map(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            self.bind_argument(
+                                module,
+                                ast,
+                                scope,
+                                *argument,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                                static_argument_space_order,
+                            )
+                        })
+                        .collect()
+                });
+                Expression::PrivateMember {
+                    left,
+                    name,
+                    static_arguments,
+                }
+            }
             ast::Expression::Call {
                 position: _,
                 left,
@@ -1181,6 +1227,10 @@ impl Compiler {
                     static_arguments,
                     space_order,
                 }
+            }
+            ast::Expression::PrivateIdentifier { name } => {
+                let name = self.program.strings.intern_from(&ast.strings, *name);
+                Expression::PrivateIdentifier { name }
             }
             ast::Expression::ScalarLiteral(value) => {
                 let value = self.bind_scalar_literal(module, ast, value);

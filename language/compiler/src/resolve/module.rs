@@ -1804,7 +1804,7 @@ impl Compiler {
     fn export_name_for_dependency(
         &self,
         mode: DependencyMode,
-        name: Option<destack_base::StringId>,
+        name: Option<destack_dir::Name>,
         alias: Option<destack_base::StringId>,
         default_name: destack_base::StringId,
     ) -> Option<destack_base::StringId> {
@@ -1815,8 +1815,8 @@ impl Compiler {
 
         // use mode defaults for unnamed exports
         match mode {
-            DependencyMode::Item => name,
-            DependencyMode::Default => name.or(Some(default_name)),
+            DependencyMode::Item => name.map(|name| name.string()),
+            DependencyMode::Default => name.map(|name| name.string()).or(Some(default_name)),
             DependencyMode::Namespace => None,
         }
     }

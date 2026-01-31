@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_base::StringId;
 use destack_dir::{
     DynamicKey, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId, NodeTree, NodeType,
     PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
@@ -85,6 +86,15 @@ impl KeySet {
 }
 
 impl Compiler {
+    /// Create the internal name for a private key (like `#field`).
+    pub(crate) fn private_key_string_id(&self, name: StringId) -> StringId {
+        let name_str = self.program.strings.get(name).to_string();
+        let mut full = String::with_capacity(name_str.len() + 1);
+        full.push('#');
+        full.push_str(&name_str);
+        self.program.strings.intern(&full)
+    }
+
     /// Resolve a static key from a dynamic key when possible.
     pub(crate) fn static_key_from_dynamic_key(
         &self,
@@ -96,6 +106,10 @@ impl Compiler {
     ) -> Option<StaticKey> {
         match key {
             DynamicKey::Name(name) => Some(StaticKey::Name(name)),
+            DynamicKey::Private(name) => {
+                let private_name = self.private_key_string_id(name);
+                Some(StaticKey::Name(private_name))
+            }
             DynamicKey::Number(name) => Some(StaticKey::Number(name)),
             DynamicKey::Expression(expression_id) => {
                 self.static_key_from_expression(profile, expression_id, tree, symbols, types)

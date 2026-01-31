@@ -120,19 +120,7 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (DeclarationDescriptor, LocalScopeId) {
         // bind the name into the dir string pool
-        let name = descriptor.name.map(|name| {
-            let name_id = match &name {
-                ast::Name::Identifier(name_id) => *name_id,
-                ast::Name::String(name_id) => *name_id,
-                ast::Name::Number(name_id) => *name_id,
-            };
-            let name_id = self.program.strings.intern_from(&ast.strings, name_id);
-            match name {
-                ast::Name::Identifier(_) => Name::Identifier(name_id),
-                ast::Name::String(_) => Name::String(name_id),
-                ast::Name::Number(_) => Name::Number(name_id),
-            }
-        });
+        let name = descriptor.name.map(|name| self.bind_name(ast, name));
         let export = descriptor
             .export
             .map(|export| self.bind_dependency_mode(export));

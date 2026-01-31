@@ -18,6 +18,7 @@ impl ModuleLowerer<'_> {
         let variance = modifier.variance.map(|variance| match variance {
             dir::VarianceModifier::In => VarianceModifier::In,
             dir::VarianceModifier::Out => VarianceModifier::Out,
+            dir::VarianceModifier::InOut => VarianceModifier::InOut,
         });
         let anchor = modifier.anchor.map(|anchor| match anchor {
             dir::BindingAnchor::Static => BindingAnchor::Static,

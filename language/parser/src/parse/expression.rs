@@ -4,10 +4,11 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfCondition,
-    IfKind, InfixOperator, Keyword, LiteralType, LocalNodeId, NodeType, PostfixPosition, TokenSpan,
-    TokenType, TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
+    Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, Declaration,
+    DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind,
+    Expression, IfCondition, IfKind, InfixOperator, Keyword, LiteralType, LocalNodeId, NodeType,
+    PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeKind, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_source::LanguageType;
 
@@ -316,6 +317,18 @@ impl Parser {
         if self.peek_token(TokenType::Maybe).is_ok() {
             return true;
         }
+        // allow heritage terminators after static arguments
+        if self.options.in_super_type {
+            if self.peek_token(TokenType::OpenBrace).is_ok() {
+                return true;
+            }
+            if self.peek_keyword(Keyword::Implements).is_ok()
+                || self.peek_keyword(Keyword::With).is_ok()
+                || self.peek_keyword(Keyword::Where).is_ok()
+            {
+                return true;
+            }
+        }
         if self.peek_infix_operator().is_ok() || self.peek_assign_operator().is_ok() {
             return true;
         }
@@ -459,6 +472,34 @@ impl Parser {
 
             Err(ParseError::unexpected(self.peek()?.span))
         }
+    }
+
+    /// Check whether `?.` starts an optional chaining segment.
+    #[inline]
+    fn is_optional_chain_after_maybe(&self) -> bool {
+        // require ?. before we look at the target
+        if self.peek_next_token(TokenType::Dot).is_err() {
+            return false;
+        }
+
+        // accept valid optional chain targets after ?.
+        let next_next_token_type = self
+            .tokens
+            .get(self.pos() as usize + 2)
+            .map(|token| token.token.ty);
+        matches!(
+            next_next_token_type,
+            Some(
+                TokenType::Identifier
+                    | TokenType::OpenBracket
+                    | TokenType::OpenParenthesis
+                    | TokenType::Hash
+                    | TokenType::LessThan
+                    | TokenType::ShiftLeft
+                    | TokenType::TemplateStringStart
+                    | TokenType::TemplateString
+            )
+        )
     }
 
     /// Peek a private member access using `.#`.
@@ -841,8 +882,9 @@ impl Parser {
                 )
             }
             // parenthesis
-            // (may be tuple, lambda or just a parenthesized expression)
+            // may be tuple, lambda, or parenthesized expression
             else if token_type == TokenType::OpenParenthesis {
+                // find the matching close and the following token
                 let open_pos = self.pos();
                 let closing_pos = self.find_matching_close(
                     None,
@@ -850,40 +892,77 @@ impl Parser {
                     TokenType::CloseParenthesis,
                 )?;
                 let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
-                // function if the paranthesis are followed by an arrow (or colon)
-                if self
+
+                // detect top level commas for Destack tuples
+                let has_top_level_comma = self.language.is_destack()
+                    && self.has_token_before_matching_close(
+                        open_pos,
+                        closing_pos,
+                        TokenType::Comma,
+                        self.options.in_type,
+                    )?;
+
+                // detect lambda when followed by arrow or colon
+                let next_token_type = self
                     .tokens
                     .get(closing_pos_for_follow as usize + 1)
-                    .map(|token| token.token.ty)
-                    .map(|ty| {
-                        ty == TokenType::Arrow
-                            || ty == TokenType::ArrowWide
-                            || !self.options.in_before_type
-                                && !self.options.in_ternary_condition
-                                && ty == TokenType::Colon
-                    })
-                    .unwrap_or(false)
-                {
-                    let lambda_id = self.eat_function(start, descriptor, false, false)?;
-                    self.tree.insert(
-                        Expression::Declaration(lambda_id),
-                        self.get_span_from(start),
-                    )
+                    .map(|token| token.token.ty);
+                let has_arrow = matches!(
+                    next_token_type,
+                    Some(TokenType::Arrow | TokenType::ArrowWide)
+                );
+                let has_colon = matches!(next_token_type, Some(TokenType::Colon));
+                let is_colon_lambda_allowed = !self.options.in_before_type
+                    && has_colon
+                    && !(self.options.in_type
+                        && self.options.in_ternary_condition
+                        && has_top_level_comma);
+                let mut lambda_expression_id = None;
+
+                // parse lambda when we see a likely arrow or colon
+                if has_arrow || is_colon_lambda_allowed {
+                    // avoid colon lambdas that are actually ternary type tuples
+                    if self.options.in_ternary_condition && has_colon {
+                        let speculative_start = self.mark();
+                        let speculative_start_idx = self.tree.next_id();
+                        if let Ok(lambda_id) = self.eat_function(start, descriptor, false, false) {
+                            let should_accept = match self.tree.get(lambda_id) {
+                                Declaration::Function { body, .. } => {
+                                    body.is_some() || self.options.in_type
+                                }
+                                _ => true,
+                            };
+                            if should_accept {
+                                lambda_expression_id = Some(self.tree.insert(
+                                    Expression::Declaration(lambda_id),
+                                    self.get_span_from(start),
+                                ));
+                            } else {
+                                self.restore(speculative_start, speculative_start_idx);
+                            }
+                        } else {
+                            self.restore(speculative_start, speculative_start_idx);
+                        }
+                    } else {
+                        let lambda_id = self.eat_function(start, descriptor, false, false)?;
+                        lambda_expression_id = Some(self.tree.insert(
+                            Expression::Declaration(lambda_id),
+                            self.get_span_from(start),
+                        ));
+                    }
                 }
+
                 // tuple or parenthesized expression
-                else {
-                    let has_top_level_comma = self.language.is_destack()
-                        && self.has_token_before_matching_close(
-                            open_pos,
-                            closing_pos,
-                            TokenType::Comma,
-                            self.options.in_type,
-                        )?;
-                    self.bump(); // eat open paranthesis
+                if let Some(lambda_expression_id) = lambda_expression_id {
+                    lambda_expression_id
+                } else {
+                    self.bump(); // eat open parenthesis
                     self.eat_newlines_maybe()?;
-                    // empty tuple/sequence if we immediately see a closing parenthesis
+
+                    // empty tuple or sequence when we immediately see a closing parenthesis
                     if self.peek_token(TokenType::CloseParenthesis).is_ok() {
                         self.bump(); // eat closing parenthesis
+
                         // in Destack: empty tuple
                         if self.language.is_destack() {
                             self.tree.insert(
@@ -891,7 +970,7 @@ impl Parser {
                                 self.get_span_from(start),
                             )
                         }
-                        // in JS/TS: empty sequence (unusual but valid)
+                        // in JS or TS: empty sequence expression
                         else {
                             self.tree.insert(
                                 Expression::SequenceExpression {
@@ -901,7 +980,7 @@ impl Parser {
                             )
                         }
                     }
-                    // tuple if we see a named element or a comma at the top level
+                    // tuple when we see a named element or top level comma
                     else if (self.language.is_destack()
                         && self.peek_token(TokenType::Identifier).is_ok()
                         && self.peek_next_token(TokenType::Colon).is_ok())
@@ -919,7 +998,7 @@ impl Parser {
                             self.get_span_from(start),
                         )
                     }
-                    // may be a tuple/sequence with anonymous elements or just a parenthesized expression (see below)
+                    // tuple or parenthesized expression for the remaining cases
                     else {
                         let inner_start = self.pos();
                         let mut inner_options = self.options.nested().in_parenthesis();
@@ -1122,9 +1201,75 @@ impl Parser {
                     self.get_span_from(start),
                 )
             }
+            // async function or async identifier with static arguments
+            else if keyword == Some(Keyword::Async)
+                && [
+                    TokenType::Identifier,
+                    TokenType::OpenParenthesis,
+                    TokenType::LessThan,
+                    TokenType::At,
+                    TokenType::Multiply, // function* generator
+                ]
+                .contains(&next_token_type)
+            {
+                // prefer parsing an async function when possible
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id();
+                if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
+                    self.tree.insert(
+                        Expression::Declaration(function_id),
+                        self.get_span_from(start),
+                    )
+                } else {
+                    self.restore(speculative_start, speculative_start_idx);
+
+                    // parse async as an identifier path
+                    let (path, last_span) = self
+                        .eat_path_with_last_span()
+                        .for_node_type(NodeType::Expression)?;
+
+                    // eat optional static arguments with backtracking on failure
+                    let static_arguments = if self.peek_token(TokenType::LessThan).is_ok()
+                        || self.peek_token(TokenType::ShiftLeft).is_ok()
+                    {
+                        let speculative_start = self.mark();
+                        let speculative_start_idx = self.tree.next_id();
+                        match self.eat_static_arguments() {
+                            Ok(static_arguments) => Some(static_arguments),
+                            Err(_) => {
+                                self.restore(speculative_start, speculative_start_idx);
+                                None
+                            }
+                        }
+                    } else {
+                        None
+                    };
+
+                    // parse a direct call when static arguments are present
+                    if static_arguments.is_some()
+                        && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                        && !self.options.in_new_receiver
+                    {
+                        let receiver = Expression::Path {
+                            path,
+                            static_arguments: None,
+                        };
+                        let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                        self.tree.set_main_span(receiver_id, last_span);
+                        self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
+                    } else {
+                        let expression = Expression::Path {
+                            path,
+                            static_arguments,
+                        };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, last_span);
+                        expression_id
+                    }
+                }
+            }
             // function
             else if (keyword == Some(Keyword::Function)
-                || keyword == Some(Keyword::Async)
                 || keyword == Some(Keyword::Abstract)
                 || keyword == Some(Keyword::Override)
                 || (self.options.in_type
@@ -1490,6 +1635,19 @@ impl Parser {
                     self.get_span_from(start),
                 )
             }
+            // private identifier
+            else if token_type == TokenType::Hash
+                && self.peek_next_token(TokenType::Identifier).is_ok()
+            {
+                self.bump(); // eat #
+                let (name, name_span) = self.eat_identifier_with_span()?;
+                let expression_id = self.tree.insert(
+                    Expression::PrivateIdentifier { name },
+                    self.get_span_from(start),
+                );
+                self.tree.set_main_span(expression_id, name_span);
+                expression_id
+            }
             // alias / path / statically parameterized call
             else if token_type == TokenType::Identifier {
                 let (path, last_span) = self
@@ -1684,7 +1842,7 @@ impl Parser {
                     None
                 };
                 left_expression_id = self.tree.insert(
-                    Expression::Member {
+                    Expression::PrivateMember {
                         left: left_expression_id,
                         name,
                         static_arguments,
@@ -1755,23 +1913,41 @@ impl Parser {
             }
             // statically parameterized call or instantiation expression (like `(expr)<T>()` or `(expr)<T>`)
             else if (self.peek_token(TokenType::LessThan).is_ok()
-                || self.peek_token(TokenType::ShiftLeft).is_ok())
-                && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
+                || self.peek_token(TokenType::ShiftLeft).is_ok()
+                || self.peek_token(TokenType::Dot).is_ok()
+                    && (self.peek_next_token(TokenType::LessThan).is_ok()
+                        || self.peek_next_token(TokenType::ShiftLeft).is_ok()))
                 && !self.options.in_new_receiver
                 && !self.options.in_tree_literal
                 && !self.language.is_javascript()
             {
+                // decide whether this is a direct or optional chain static argument list
+                let has_indirect_static = self.peek_token(TokenType::Dot).is_ok()
+                    && (self.peek_next_token(TokenType::LessThan).is_ok()
+                        || self.peek_next_token(TokenType::ShiftLeft).is_ok());
+                let is_optional_chain =
+                    matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
+                if !has_indirect_static && is_optional_chain {
+                    break;
+                }
+                if has_indirect_static && !is_optional_chain {
+                    break;
+                }
+
                 // speculatively try to parse static arguments
                 let speculative_start = self.mark();
                 let speculative_start_idx = self.tree.next_id();
+                let position = if has_indirect_static {
+                    self.bump(); // eat .
+                    PostfixPosition::Indirect
+                } else {
+                    PostfixPosition::Direct
+                };
                 if let Ok(static_arguments) = self.eat_static_arguments() {
                     // call with static arguments
                     if self.peek_token(TokenType::OpenParenthesis).is_ok() {
-                        left_expression_id = self.eat_call(
-                            left_expression_id,
-                            Some(static_arguments),
-                            PostfixPosition::Direct,
-                        )?;
+                        left_expression_id =
+                            self.eat_call(left_expression_id, Some(static_arguments), position)?;
                     }
                     // instantiation expression
                     else if self.can_follow_type_arguments_in_expression() {
@@ -1816,7 +1992,7 @@ impl Parser {
                         && self.language.is_destack()
                         && self.prev_token_type() != TokenType::Newline
                         || self.peek_next_any_close_parenthesis().is_ok()
-                        || self.peek_next_token(TokenType::Dot).is_ok()
+                        || self.is_optional_chain_after_maybe()
                         || self.peek_next_assign_operator().is_ok());
                 if is_postfix_maybe {
                     self.bump(); // eat ?
@@ -2271,6 +2447,22 @@ mod tests {
         assert_node!(parser.tree, expression_id, Expression::This);
     }
 
+    /// Parse a private identifier used in an in expression.
+    #[test]
+    fn test_parse_private_identifier_in_expression() {
+        let mut test = TestParser::new_with_options("#a in this", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        // #a in this
+        assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::In);
+            assert_node!(parser.tree, *left, Expression::PrivateIdentifier { name } => {
+                assert_string!(parser, *name, "a");
+            });
+            assert_node!(parser.tree, *right, Expression::This);
+        });
+    }
+
     /// Disambiguate using `type` as a variable.
     #[test]
     fn test_parse_type_as_variable() {
@@ -2422,13 +2614,13 @@ type = type * 2
             // bar
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "bar");
+                assert_string!(parser, name.string(), "bar");
                 assert!(alias.is_none());
             });
             // baz
             assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "baz");
+                assert_string!(parser, name.string(), "baz");
                 assert!(alias.is_none());
             });
         });
@@ -2447,13 +2639,13 @@ type = type * 2
             // bar
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "bar");
+                assert_string!(parser, name.string(), "bar");
                 assert!(alias.is_none());
             });
             // baz
             assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "baz");
+                assert_string!(parser, name.string(), "baz");
                 assert!(alias.is_none());
             });
         });
@@ -2472,12 +2664,12 @@ type = type * 2
             assert_eq!(items.len(), 2);
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "Foo");
+                assert_string!(parser, name.string(), "Foo");
                 assert!(alias.is_none());
             });
             assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "Bar");
+                assert_string!(parser, name.string(), "Bar");
                 assert!(alias.is_none());
             });
         });
@@ -2495,7 +2687,7 @@ type = type * 2
             assert_eq!(items.len(), 1);
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "Foo");
+                assert_string!(parser, name.string(), "Foo");
                 assert!(alias.is_none());
             });
         });
@@ -2619,13 +2811,13 @@ type = type * 2
             // bar
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "bar");
+                assert_string!(parser, name.string(), "bar");
                 assert!(alias.is_none());
             });
             // baz
             assert_node!(parser.tree, items[1], DependencyItem { mode, name: Some(name), alias, .. } => {
                 assert_eq!(*mode, DependencyMode::Item);
-                assert_string!(parser, *name, "baz");
+                assert_string!(parser, name.string(), "baz");
                 assert!(alias.is_none());
             });
         });
@@ -2725,6 +2917,22 @@ type = type * 2
             assert_eq!(*kind, DependencyKind::Value);
             assert_string!(parser, *target, "foo");
             assert!(items.is_empty());
+        });
+    }
+
+    /// Parse `import("foo", { assert: { type: "json" } })`.
+    #[test]
+    fn test_parse_import_call_with_assertions() {
+        let mut test = TestParser::new("import(\"foo\", { assert: { type: \"json\" } })");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: Some(arguments), .. } => {
+            assert_eq!(*source, ImportSource::ImportCall);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_string!(parser, *target, "foo");
+            assert!(items.is_empty());
+            assert_eq!(arguments.len(), 1);
         });
     }
 
