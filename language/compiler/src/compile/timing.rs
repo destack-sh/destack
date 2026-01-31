@@ -166,6 +166,7 @@ pub mod tags {
 
     // analyze infer
     pub const ANALYZE_MODULE_INFER: TimingTag = TimingTag::new("analyze.module.infer");
+    pub const ANALYZE_FLOW_REQUIREMENTS: TimingTag = TimingTag::new("analyze.flow.requirements");
     pub const ANALYZE_FLOW_GRAPH_BUILD: TimingTag = TimingTag::new("analyze.flow.graph.build");
     pub const ANALYZE_FLOW_TABLE_COMPUTE: TimingTag = TimingTag::new("analyze.flow.table.compute");
     pub const ANALYZE_EXPRESSION_INFER: TimingTag = TimingTag::new("analyze.expression.infer");
