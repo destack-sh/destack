@@ -186,7 +186,7 @@ fn parse_file_with_parser(
 
     // parse and collect diagnostics
     let language = LanguageType::from(file_type);
-    let mut parser = Parser::lex_file(file, language);
+    let mut parser = Parser::lex_file(file.clone(), language);
     let _ = parser.parse();
 
     // check for errors relevant to the test area
@@ -195,6 +195,24 @@ fn parse_file_with_parser(
         .iter()
         .into_iter()
         .any(|d| d.severity == DiagnosticSeverity::Error && area.is_relevant_error(&d.code));
+
+    if has_relevant_error && std::env::var("DESTACK_CONFORMANCE_DEBUG").is_ok() {
+        eprintln!("conformance parse error: {}", path.display());
+        for diagnostic in parser
+            .diagnostics
+            .iter()
+            .into_iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Error)
+        {
+            let span = diagnostic.primary_span.span;
+            let snippet = file.span_str(span).replace('\n', "\\n");
+            eprintln!(
+                "  {} {} [{}..{}] {snippet}",
+                diagnostic.code, diagnostic.message, span.start, span.end
+            );
+        }
+        eprintln!();
+    }
 
     if has_relevant_error {
         ParseOutcome::Error

@@ -31,10 +31,9 @@ impl TypeBasedAA {
         ) {
             if let (Some(space_a), Some(space_b)) =
                 (loc_a.pointer_address_space, loc_b.pointer_address_space)
+                && space_a != space_b
             {
-                if space_a != space_b {
-                    return AliasResult::NoAlias;
-                }
+                return AliasResult::NoAlias;
             }
 
             return AliasResult::MayAlias;
@@ -62,10 +61,9 @@ impl TypeBasedAA {
     fn types_cannot_alias(&self, ty_a: &TypeKey, ty_b: &TypeKey) -> bool {
         if let (Some(space_a), Some(space_b)) =
             (Self::address_space_of(ty_a), Self::address_space_of(ty_b))
+            && space_a != space_b
         {
-            if space_a != space_b {
-                return true;
-            }
+            return true;
         }
 
         if Self::is_raw_reference(ty_a) || Self::is_raw_reference(ty_b) {

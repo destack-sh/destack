@@ -2212,20 +2212,13 @@ impl Compiler {
                     if let MatchSelector::Pattern { pattern, guard } = selector {
                         let mut allow_pattern_infer = true;
                         if is_switch {
-                            if guard.is_some() {
-                                self.error(AnalyzeError::InvalidSwitchCaseGuard {
-                                    node: case_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(ctx.profile)),
-                                });
-                            }
-                            if !matches!(tree.get(*pattern), Pattern::Expression { .. }) {
-                                self.error(AnalyzeError::InvalidSwitchCasePattern {
-                                    node: pattern
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(ctx.profile)),
-                                });
-                                allow_pattern_infer = false;
+                            match tree.get(*pattern) {
+                                Pattern::Expression { value } => {
+                                    if self.is_invalid_switch_case_expression(tree, *value) {
+                                        allow_pattern_infer = false;
+                                    }
+                                }
+                                _ => allow_pattern_infer = false,
                             }
                         }
                         if allow_pattern_infer {

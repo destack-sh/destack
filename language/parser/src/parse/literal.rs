@@ -737,7 +737,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Expression, FloatType, IfCondition, IfKind, IntType, Name, ScalarLiteral,
-        TemplateLiteral, TypeLiteral,
+        TemplateLiteral, TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1542,6 +1542,37 @@ mod tests {
                     assert_expression_path!(parser, parser.tree.get(*inner_left), "Icon");
                     assert!(inner_args.is_none());
                     assert!(inner_elems.is_none());
+                });
+            });
+            assert!(elements.is_none());
+        });
+    }
+
+    #[test]
+    fn test_parse_tree_attribute_spread_with_cast() {
+        let mut test = TestParser::new_with_options(
+            r#"<WrappedComponent {...(this.props as P & DependentProps)} {...this.state} />"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expr = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "WrappedComponent");
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 2);
+            // {...(this.props as P & DependentProps)}
+            assert_node!(parser.tree, arguments[0], Argument::Spread { modifiers: _, label: None, value } => {
+                assert_node!(parser.tree, *value, Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeBinary { operator, .. } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                    });
+                });
+            });
+            // {...this.state}
+            assert_node!(parser.tree, arguments[1], Argument::Spread { modifiers: _, label: None, value } => {
+                assert_node!(parser.tree, *value, Expression::Member { left, name, .. } => {
+                    assert_node!(parser.tree, *left, Expression::This);
+                    assert_string!(parser, *name, "state");
                 });
             });
             assert!(elements.is_none());

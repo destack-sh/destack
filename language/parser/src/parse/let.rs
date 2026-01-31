@@ -249,9 +249,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Asynchrony, BinaryOperator, DeclarationDescriptor, Declarator, Expression,
-        IntType, Key, Mutability, Name, Pattern, PatternField, Property, ScalarLiteral,
-        TypeLiteral,
+        Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Declarator,
+        Expression, FunctionKind, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
+        Property, ScalarLiteral, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -347,6 +347,52 @@ using x = open()
                     assert_string!(parser, *name, "x");
                 });
                 assert!(value.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_generic_arrow_initializer() {
+        let mut test = TestParser::new_with_options(
+            "const foo: Tmp = <T,>(str: T): T => { return str; }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // const foo: Tmp = <T,>(str: T): T => { return str; }
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "foo");
+                });
+                assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "Tmp");
+                });
+                let value_id = value.expect("expected value");
+                assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        let generics = signature.generics.as_ref().expect("expected generics");
+                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                        assert_eq!(static_parameters.len(), 1);
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+                            assert_string!(parser, *name, "T");
+                        });
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "str");
+                            assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                                assert_path!(parser, *path, "T");
+                            });
+                        });
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "T");
+                        });
+                    });
+                });
             });
         });
     }

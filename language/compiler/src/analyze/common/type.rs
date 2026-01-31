@@ -793,7 +793,7 @@ impl Compiler {
                 walk_type(&mut visitor, types, current_id, &ty);
             }
             if !discovered.is_empty() {
-                pending.extend(discovered.drain(..));
+                pending.append(&mut discovered)
             }
         }
 

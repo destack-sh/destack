@@ -3,7 +3,7 @@ use crate::{ParseResult, Parser};
 
 use destack_ast::{
     Block, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind, MatchSelector,
-    NodeType, TokenType,
+    NodeType, Pattern, TokenType,
 };
 
 impl Parser {
@@ -121,7 +121,22 @@ impl Parser {
                 // regular case
                 else {
                     self.eat_keyword(Keyword::Case)?;
-                    let pattern = self.eat_pattern()?;
+                    let pattern_start = self.mark();
+                    // allow a wildcard here so switch cases do not bind `_`
+                    let pattern = if self.peek_identifier_str("_").is_ok() {
+                        self.bump();
+                        self.tree
+                            .insert(Pattern::Wildcard, self.get_span_from(pattern_start))
+                    } else {
+                        let value = self.with_options(
+                            self.options.in_match_case().in_before_block(),
+                            |parser| parser.eat_expression(),
+                        )?;
+                        self.tree.insert(
+                            Pattern::Expression { value },
+                            self.get_span_from(pattern_start),
+                        )
+                    };
                     // guard
                     let guard = if self.peek_keyword(Keyword::If).is_ok() {
                         self.eat_keyword(Keyword::If)?;
