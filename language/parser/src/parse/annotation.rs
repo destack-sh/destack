@@ -76,27 +76,77 @@ impl Parser {
     /// Attach all annotations to respective AST nodes.
     /// Must be called *after* primary parsing.
     pub(crate) fn attach_annotations(&mut self) {
+        // skip annotation attachment when no annotation tokens exist
+        if !self.should_attach_annotations() {
+            return;
+        }
+
+        // build the index for fast node lookups before attaching annotations
+        {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_INDEX);
+            self.tree.build_position_index();
+        }
+
         // collect tokens in source order, excluding whitespace
         let mut tokens = std::mem::take(&mut self.annotation_tokens);
-        self.collect_annotation_tokens(&mut tokens);
+        let mut line_indices = Vec::with_capacity(tokens.capacity());
+        {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT);
+            self.collect_annotation_tokens(&mut tokens, &mut line_indices);
+        }
         if tokens.is_empty() {
             self.annotation_tokens = tokens;
             return;
         }
 
+        // precompute statement wrappers for expression promotion
+        let statement_wrappers = {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_WRAPPERS);
+            self.collect_statement_wrappers()
+        };
+
         // attach annotations
         let side_span = self.compute_side_span();
-        self.attach_side_annotations(&tokens, &side_span);
-        self.attach_main_annotations(&tokens, &side_span);
+        {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_SIDE);
+            self.attach_side_annotations(&tokens, &line_indices, &side_span, &statement_wrappers);
+        }
+        {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_MAIN);
+            self.attach_main_annotations(&tokens, &line_indices, &side_span, &statement_wrappers);
+        }
 
         // finalize tree structure
-        self.tree.sort_annotations();
+        {
+            let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_SORT);
+            self.tree.sort_annotations();
+        }
         self.annotation_tokens = tokens;
     }
 
     /// Collect semantic and side tokens without whitespace in source order.
-    fn collect_annotation_tokens(&self, tokens: &mut Vec<TokenSpan>) {
+    fn collect_annotation_tokens(&self, tokens: &mut Vec<TokenSpan>, line_indices: &mut Vec<u32>) {
         tokens.clear();
+        line_indices.clear();
+
+        // track line indices when available
+        let line_starts = self.file.line_start_offsets.as_deref();
+        let mut line_idx = 0usize;
+        let mut next_line_start = line_starts
+            .and_then(|starts| starts.get(1).copied())
+            .unwrap_or(u32::MAX);
+        let mut push_token = |token: TokenSpan| {
+            if let Some(starts) = line_starts {
+                while token.span.start >= next_line_start {
+                    line_idx += 1;
+                    next_line_start = starts.get(line_idx + 1).copied().unwrap_or(u32::MAX);
+                }
+                line_indices.push(line_idx as u32);
+            } else {
+                line_indices.push(0);
+            }
+            tokens.push(token);
+        };
 
         // merge both token streams by span start
         let mut main_index = 0;
@@ -124,19 +174,19 @@ impl Parser {
             match (main_token, side_token) {
                 (Some(main_token), Some(side_token)) => {
                     if main_token.span.start <= side_token.span.start {
-                        tokens.push(main_token);
+                        push_token(main_token);
                         main_index += 1;
                     } else {
-                        tokens.push(side_token);
+                        push_token(side_token);
                         side_index += 1;
                     }
                 }
                 (Some(main_token), None) => {
-                    tokens.push(main_token);
+                    push_token(main_token);
                     main_index += 1;
                 }
                 (None, Some(side_token)) => {
-                    tokens.push(side_token);
+                    push_token(side_token);
                     side_index += 1;
                 }
                 (None, None) => break,
@@ -145,7 +195,13 @@ impl Parser {
     }
 
     /// Attach comment and doc annotations to the tokens.
-    fn attach_side_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
+    fn attach_side_annotations(
+        &mut self,
+        tokens: &[TokenSpan],
+        line_indices: &[u32],
+        ignore_span: &MultiSpan,
+        statement_wrappers: &[Option<u32>],
+    ) {
         // build annotation groups
         let mut current_token_type: TokenType = tokens[0].token.ty;
         let mut group_start_idx: usize = 0;
@@ -154,14 +210,18 @@ impl Parser {
         for (i, token) in tokens.iter().enumerate().skip(1) {
             if token.token.ty != current_token_type {
                 let start_token = tokens[group_start_idx];
-                let prev_token = if i > 1 { Some(tokens[i - 2]) } else { None };
+                let prev_token = if i > 1 {
+                    Some((i - 2, tokens[i - 2]))
+                } else {
+                    None
+                };
 
                 // check for line postfix: single token on same line as previous non-newline token
                 // short-circuit to avoid expensive is_same_line calls
                 let is_line_postfix = group_len == 1
-                    && prev_token.is_some_and(|prev| {
+                    && prev_token.is_some_and(|(prev_idx, prev)| {
                         prev.token.ty != TokenType::Newline
-                            && self.is_same_line(start_token.span, prev.span)
+                            && line_indices[prev_idx] == line_indices[group_start_idx]
                     });
 
                 // skip up to one newline in-between non-blank annotations
@@ -185,9 +245,11 @@ impl Parser {
                         (i - group_len) as u32,
                         current_token_type,
                         tokens,
+                        line_indices,
                         group_start_idx,
                         group_end_idx,
                         group_len,
+                        statement_wrappers,
                         ignore_span,
                     );
                 }
@@ -216,24 +278,37 @@ impl Parser {
                 (tokens.len() - group_len) as u32,
                 current_token_type,
                 tokens,
+                line_indices,
                 group_start_idx,
                 group_end_idx,
                 group_len,
+                statement_wrappers,
                 ignore_span,
             );
         }
     }
 
     /// Attach decorator annotations to relevant nodes.
-    fn attach_main_annotations(&mut self, tokens: &[TokenSpan], ignore_span: &MultiSpan) {
+    fn attach_main_annotations(
+        &mut self,
+        tokens: &[TokenSpan],
+        line_indices: &[u32],
+        ignore_span: &MultiSpan,
+        statement_wrappers: &[Option<u32>],
+    ) {
         // attach Decorators
         for decorator_id in self.tree.get_nodes::<Decorator>() {
             let span = self.tree.get_span(decorator_id);
 
             // find the annotation position
-            let Some((position, target_node_id)) =
-                self.find_main_annotation_target(tokens, ignore_span, true, span)
-            else {
+            let Some((position, target_node_id)) = self.find_main_annotation_target(
+                tokens,
+                line_indices,
+                ignore_span,
+                statement_wrappers,
+                true,
+                span,
+            ) else {
                 // error if no position found
                 let error = ParseError::unexpected_for(span, NodeType::Decorator);
                 self.error(&error);
@@ -255,7 +330,9 @@ impl Parser {
     fn find_main_annotation_target(
         &self,
         tokens: &[TokenSpan],
+        line_indices: &[u32],
         ignore_span: &MultiSpan,
+        statement_wrappers: &[Option<u32>],
         is_block_prefix_only: bool,
         span: Span,
     ) -> Option<(AnnotationPosition, u32)> {
@@ -263,12 +340,14 @@ impl Parser {
         let _span_str = self.get_span_str(span);
 
         // find corresponding token group
+        let token_idx = tokens.partition_point(|token| token.span.start < span.start);
         let token_idx = tokens
-            .iter()
-            .position(|token| token.span.start == span.start)
+            .get(token_idx)
+            .is_some_and(|token| token.span.start == span.start)
+            .then_some(token_idx)
             .unwrap_or_else(|| unreachable!("annotation span not found in tokens: {span:?}"));
         let mut group_end_idx = token_idx;
-        while let Some(token) = tokens.get(group_end_idx) {
+        while let Some(token) = tokens.get(group_end_idx).copied() {
             if token.span.end > span.end {
                 break;
             }
@@ -282,20 +361,29 @@ impl Parser {
         self.find_annotation_target(
             token_idx as u32,
             tokens,
+            line_indices,
             token_idx,
             group_end_idx,
             group_len,
             true,
             is_block_prefix_only,
+            statement_wrappers,
             ignore_span,
         )
     }
 
     /// Promote expression targets to their statement wrapper when required.
-    fn annotation_promote_statement(&self, start_token: TokenSpan, target_node_id: u32) -> u32 {
+    fn annotation_promote_statement(
+        &self,
+        start_token: TokenSpan,
+        target_node_id: u32,
+        statement_wrappers: &[Option<u32>],
+    ) -> u32 {
         if start_token.token.ty == TokenType::Newline
             && self.tree.get_node_type(target_node_id) == NodeType::Expression
-            && let Some(statement_id) = self.statement_wrapper_for_expression(target_node_id)
+            && let Some(statement_id) = statement_wrappers
+                .get(target_node_id as usize)
+                .and_then(|id| *id)
         {
             return statement_id;
         }
@@ -322,7 +410,7 @@ impl Parser {
         tokens: &[TokenSpan],
         ignore_span: &MultiSpan,
         enclosing_span: Option<Span>,
-    ) -> Option<TokenSpan> {
+    ) -> Option<(usize, TokenSpan)> {
         if token_idx == 0 {
             return None;
         }
@@ -346,7 +434,7 @@ impl Parser {
                 return None;
             }
 
-            return Some(*prev_token);
+            return Some((prev_token_idx, *prev_token));
         }
 
         None
@@ -360,7 +448,7 @@ impl Parser {
         tokens: &[TokenSpan],
         ignore_span: &MultiSpan,
         enclosing_span: Option<Span>,
-    ) -> Option<TokenSpan> {
+    ) -> Option<(usize, TokenSpan)> {
         let mut next_token_idx = token_idx as usize + group_len;
         loop {
             let next_token = tokens.get(next_token_idx)?;
@@ -380,7 +468,7 @@ impl Parser {
                 return None;
             }
 
-            return Some(*next_token);
+            return Some((next_token_idx, *next_token));
         }
     }
 
@@ -389,17 +477,18 @@ impl Parser {
         &self,
         token_idx: u32,
         tokens: &[TokenSpan],
+        line_indices: &[u32],
         group_start_idx: usize,
         group_end_idx: usize,
         group_len: usize,
         is_full_line: bool,
         is_block_prefix_only: bool,
+        statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,
     ) -> Option<(AnnotationPosition, u32)> {
         debug_assert!(group_len > 0);
 
         let start_token = tokens[group_start_idx];
-        let end_token = tokens[group_end_idx];
         let is_block_comment = matches!(
             start_token.token.ty,
             TokenType::BlockComment | TokenType::DocBlockComment
@@ -409,8 +498,11 @@ impl Parser {
         } else {
             false
         };
-        let is_one_line =
-            self.is_same_line(start_token.span, end_token.span) || is_block_comment_single_line;
+        let is_one_line = if is_block_comment && !is_block_comment_single_line {
+            false
+        } else {
+            line_indices[group_start_idx] == line_indices[group_end_idx]
+        };
         let enclosing_scope = self.find_node_enclosing_at(
             &start_token.span,
             NodeSearchMode::SmallestInnermost,
@@ -423,6 +515,8 @@ impl Parser {
 
         #[cfg(debug_assertions)]
         let _start_token_str = self.get_span_str(start_token.span);
+        #[cfg(debug_assertions)]
+        let end_token = tokens[group_end_idx];
         #[cfg(debug_assertions)]
         let _end_token_str = self.get_span_str(end_token.span);
         #[cfg(debug_assertions)]
@@ -442,11 +536,14 @@ impl Parser {
             );
 
             // inline member split: keep comments between receiver and dot on their own line
-            if let (Some(prev_token), Some(next_token), Some(enclosing_scope)) =
-                (prev_token, next_token, enclosing_scope)
+            if let (
+                Some((prev_idx, _prev_token)),
+                Some((next_idx, next_token)),
+                Some(enclosing_scope),
+            ) = (prev_token, next_token, enclosing_scope)
                 && next_token.token.ty == TokenType::Dot
-                && self.is_same_line(end_token.span, next_token.span)
-                && self.is_same_line(prev_token.span, end_token.span)
+                && line_indices[group_end_idx] == line_indices[next_idx]
+                && line_indices[prev_idx] == line_indices[group_end_idx]
                 && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
             {
                 let enclosing_expr_id = LocalNodeId::<Expression>::new(enclosing_scope.idx);
@@ -456,8 +553,8 @@ impl Parser {
             }
 
             // line postfix: check for directly preceding node that ends at the start token
-            let line_postfix_target = if let Some(prev_token) = prev_token
-                && self.is_same_line(prev_token.span, end_token.span)
+            let line_postfix_target = if let Some((prev_idx, prev_token)) = prev_token
+                && line_indices[prev_idx] == line_indices[group_end_idx]
                 && prev_token.token.ty != TokenType::Newline
             {
                 let search_mode = if is_full_line {
@@ -470,8 +567,8 @@ impl Parser {
                         // if prev_token is a separator and comment is at end of line,
                         // look past the separator to find the element (handles `3, // comment`)
                         let is_end_of_line = next_token.is_none()
-                            || next_token.unwrap().token.ty == TokenType::Newline
-                            || next_token.unwrap().token.ty == TokenType::End;
+                            || next_token.unwrap().1.token.ty == TokenType::Newline
+                            || next_token.unwrap().1.token.ty == TokenType::End;
                         if is_end_of_line
                             && matches!(
                                 prev_token.token.ty,
@@ -501,8 +598,8 @@ impl Parser {
             if let Some(target_node_id) = line_postfix_target {
                 // line postfix boundary if next token is newline (or end)
                 if next_token.is_none()
-                    || next_token.unwrap().token.ty == TokenType::Newline
-                    || next_token.unwrap().token.ty == TokenType::End
+                    || next_token.unwrap().1.token.ty == TokenType::Newline
+                    || next_token.unwrap().1.token.ty == TokenType::End
                 {
                     return Some((AnnotationPosition::LinePostfixBoundary, target_node_id));
                 }
@@ -513,7 +610,7 @@ impl Parser {
             }
             // inline block comment before a node: keep on the same line
             else if is_block_comment_single_line
-                && let Some(next_token) = next_token
+                && let Some((next_idx, next_token)) = next_token
                 && next_token.token.ty != TokenType::Newline
                 && !matches!(
                     next_token.token.ty,
@@ -522,8 +619,8 @@ impl Parser {
                         | TokenType::CloseBracket
                         | TokenType::End
                 )
-                && (self.is_same_line(end_token.span, next_token.span)
-                    || self.is_same_line(start_token.span, next_token.span))
+                && (line_indices[group_end_idx] == line_indices[next_idx]
+                    || line_indices[group_start_idx] == line_indices[next_idx])
             {
                 let target_node_id = self
                     .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
@@ -552,12 +649,16 @@ impl Parser {
                 if let Some(target_node_id) = target_node_id {
                     return Some((
                         AnnotationPosition::LinePrefix,
-                        self.annotation_promote_statement(start_token, target_node_id),
+                        self.annotation_promote_statement(
+                            start_token,
+                            target_node_id,
+                            statement_wrappers,
+                        ),
                     ));
                 }
             }
             // special case: inline comment between path segments attaches to the path as postfix
-            else if let Some(prev_token) = prev_token
+            else if let Some((_, prev_token)) = prev_token
                 && let Some(enclosing_scope) = enclosing_scope
                 && self.tree.get_node_type(enclosing_scope.idx) == NodeType::Expression
             {
@@ -568,12 +669,16 @@ impl Parser {
                 {
                     return Some((
                         AnnotationPosition::LinePostfixBoundary,
-                        self.annotation_promote_statement(start_token, expression_id.id),
+                        self.annotation_promote_statement(
+                            start_token,
+                            expression_id.id,
+                            statement_wrappers,
+                        ),
                     ));
                 }
             }
             // line prefix: check for directly following node that starts at the end token
-            else if let Some(next_token) = next_token
+            else if let Some((next_idx, next_token)) = next_token
                 && next_token.token.ty != TokenType::Newline
                 && !matches!(
                     next_token.token.ty,
@@ -582,8 +687,8 @@ impl Parser {
                         | TokenType::CloseBracket
                         | TokenType::End
                 )
-                && (self.is_same_line(end_token.span, next_token.span)
-                    || self.is_same_line(start_token.span, next_token.span))
+                && (line_indices[group_end_idx] == line_indices[next_idx]
+                    || line_indices[group_start_idx] == line_indices[next_idx])
             {
                 let target_node_id = self
                     .find_node_starting_at(&next_token.span, NodeSearchMode::SmallestOutermost)
@@ -602,7 +707,11 @@ impl Parser {
                 if let Some(target_node_id) = target_node_id {
                     return Some((
                         AnnotationPosition::LinePrefix,
-                        self.annotation_promote_statement(start_token, target_node_id),
+                        self.annotation_promote_statement(
+                            start_token,
+                            target_node_id,
+                            statement_wrappers,
+                        ),
                     ));
                 }
             }
@@ -631,7 +740,11 @@ impl Parser {
             {
                 return Some((
                     AnnotationPosition::BlockPrefix,
-                    self.annotation_promote_statement(start_token, next_node.idx),
+                    self.annotation_promote_statement(
+                        start_token,
+                        next_node.idx,
+                        statement_wrappers,
+                    ),
                 ));
             }
             if next_token.token.ty == TokenType::Dot {
@@ -648,7 +761,11 @@ impl Parser {
                 if let Some(target_node_id) = target_node_id {
                     return Some((
                         AnnotationPosition::BlockPrefix,
-                        self.annotation_promote_statement(start_token, target_node_id),
+                        self.annotation_promote_statement(
+                            start_token,
+                            target_node_id,
+                            statement_wrappers,
+                        ),
                     ));
                 }
             }
@@ -681,7 +798,11 @@ impl Parser {
                 {
                     return Some((
                         AnnotationPosition::BlockPostfix,
-                        self.annotation_promote_statement(start_token, prev_node.idx),
+                        self.annotation_promote_statement(
+                            start_token,
+                            prev_node.idx,
+                            statement_wrappers,
+                        ),
                     ));
                 }
             }
@@ -691,7 +812,11 @@ impl Parser {
         if !is_block_prefix_only && let Some(enclosing_node) = enclosing_scope {
             return Some((
                 AnnotationPosition::BlockInfix,
-                self.annotation_promote_statement(start_token, enclosing_node.idx),
+                self.annotation_promote_statement(
+                    start_token,
+                    enclosing_node.idx,
+                    statement_wrappers,
+                ),
             ));
         }
 
@@ -699,22 +824,24 @@ impl Parser {
         None
     }
 
-    /// Find the statement wrapper that owns an expression.
-    fn statement_wrapper_for_expression(&self, expression_id: u32) -> Option<u32> {
+    /// Collect statement wrapper ids keyed by expression id.
+    fn collect_statement_wrappers(&self) -> Vec<Option<u32>> {
+        let total_nodes = self.tree.next_id() as usize;
+        let mut wrappers = vec![None; total_nodes];
+
         let mut node_id = 0;
-        let total_nodes = self.tree.next_id();
         while node_id < total_nodes {
-            if self.tree.get_node_type(node_id) == NodeType::Expression {
-                let expression = self.tree.get(LocalNodeId::<Expression>::new(node_id));
-                if let Expression::Statement(inner_id) = expression
-                    && inner_id.id == expression_id
-                {
-                    return Some(node_id);
+            let global_id = node_id as u32;
+            if self.tree.get_node_type(global_id) == NodeType::Expression {
+                let expression = self.tree.get(LocalNodeId::<Expression>::new(global_id));
+                if let Expression::Statement(inner_id) = expression {
+                    wrappers[inner_id.id as usize] = Some(global_id);
                 }
             }
             node_id += 1;
         }
-        None
+
+        wrappers
     }
 
     /// Make and attach an annotation group.
@@ -723,9 +850,11 @@ impl Parser {
         token_idx: u32,
         token_type: TokenType,
         tokens: &[TokenSpan],
+        line_indices: &[u32],
         group_start_idx: usize,
         group_end_idx: usize,
         group_len: usize,
+        statement_wrappers: &[Option<u32>],
         ignore_span: &MultiSpan,
     ) {
         debug_assert!(ANNOTATION_TOKEN_TYPES.contains(&token_type));
@@ -747,11 +876,13 @@ impl Parser {
         let Some((position, target_node_id)) = self.find_annotation_target(
             token_idx,
             tokens,
+            line_indices,
             group_start_idx,
             group_end_idx,
             group_len,
             is_line_comment,
             false,
+            statement_wrappers,
             ignore_span,
         ) else {
             let node_type = match token_type {
@@ -932,14 +1063,16 @@ impl Parser {
             let cleaned = match token_type {
                 TokenType::LineComment | TokenType::DocLineComment => {
                     if inner_str.contains('\n') {
-                        // strip leading space from each line
-                        inner_str
-                            .lines()
-                            .map(|line| line.strip_prefix(' ').unwrap_or(line).to_owned())
-                            .collect::<Vec<_>>()
-                            .join("\n")
+                        let mut cleaned = String::with_capacity(inner_str.len());
+                        for (idx, line) in inner_str.lines().enumerate() {
+                            if idx > 0 {
+                                cleaned.push('\n');
+                            }
+                            let line = line.strip_prefix(' ').unwrap_or(line);
+                            cleaned.push_str(line);
+                        }
+                        cleaned
                     } else {
-                        // strip leading space
                         inner_str.strip_prefix(' ').unwrap_or(inner_str).to_owned()
                     }
                 }
@@ -947,36 +1080,36 @@ impl Parser {
                     if inner_str.trim().is_empty() {
                         String::new()
                     } else {
-                        // strip block comment formatting with optional asterisk prefixes
-                        // (also strip first/last space before/after the asterisk)
-                        inner_str
-                            .split('\n')
-                            .map(|line| {
-                                let mut cleaned_line = if let Some((idx, ch)) =
-                                    line.char_indices().find(|&(_, ch)| ch != ' ')
-                                    && ch == '*'
-                                {
-                                    // strip asterisk prefix and following space
-                                    let mut line_str = &line[idx + ch.len_utf8()..];
-                                    if line_str.starts_with(' ') {
-                                        line_str = &line_str[1..];
-                                    }
-                                    line_str.to_owned()
-                                } else {
-                                    // strip leading space
-                                    line.strip_prefix(' ').unwrap_or(line).to_owned()
-                                };
+                        let mut cleaned = String::with_capacity(inner_str.len());
+                        for (idx, line) in inner_str.split('\n').enumerate() {
+                            if idx > 0 {
+                                cleaned.push('\n');
+                            }
 
-                                if cleaned_line.chars().all(|ch| ch == ' ') {
-                                    cleaned_line.clear();
-                                } else {
-                                    cleaned_line = cleaned_line.trim_end_matches(' ').to_owned();
+                            // strip optional asterisk prefixes and leading spaces
+                            let mut line = if let Some((pos, ch)) =
+                                line.char_indices().find(|&(_, ch)| ch != ' ')
+                                && ch == '*'
+                            {
+                                let mut line_str = &line[pos + ch.len_utf8()..];
+                                if line_str.starts_with(' ') {
+                                    line_str = &line_str[1..];
                                 }
+                                line_str
+                            } else {
+                                line.strip_prefix(' ').unwrap_or(line)
+                            };
 
-                                cleaned_line
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n")
+                            // drop lines that are only spaces, otherwise trim trailing space
+                            if line.chars().all(|ch| ch == ' ') {
+                                line = "";
+                            } else {
+                                line = line.trim_end_matches(' ');
+                            }
+
+                            cleaned.push_str(line);
+                        }
+                        cleaned
                     }
                 }
                 _ => unreachable!(),

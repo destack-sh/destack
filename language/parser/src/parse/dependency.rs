@@ -21,9 +21,9 @@ impl Parser {
         self.eat_token(TokenType::OpenParenthesis)?;
         let (target, target_span) = self.eat_string_literal_with_span()?;
         self.eat_newlines_maybe()?;
-        let arguments = if self.peek_item_stop().is_ok() {
+        let arguments = if self.is_item_stop() {
             self.eat_item_stop_with_newlines()?;
-            if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            if self.peek_is(TokenType::CloseParenthesis) {
                 Some(vec![])
             } else {
                 Some(self.eat_positional_arguments_body(TokenType::CloseParenthesis)?)
@@ -65,6 +65,7 @@ impl Parser {
     /// import a = require("a")
     /// ```
     pub fn eat_import(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_IMPORT);
         let start = self.mark();
 
         // keyword
@@ -79,9 +80,7 @@ impl Parser {
         };
 
         // import equals: `import A = B.C` or `import a = require("a")`
-        if self.peek_token(TokenType::Identifier).is_ok()
-            && self.peek_next_token(TokenType::Assign).is_ok()
-        {
+        if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Assign) {
             let (name, name_span) = self.eat_import_equals_name_with_span()?;
             self.eat_token(TokenType::Assign)?;
 
@@ -164,7 +163,7 @@ impl Parser {
         }
 
         // plain identifier alias
-        self.peek_next_token(TokenType::Identifier).is_ok()
+        self.peek_next_is(TokenType::Identifier)
             && self.peek_next_next_token(TokenType::Assign).is_ok()
     }
 
@@ -174,13 +173,11 @@ impl Parser {
             return false;
         }
 
-        if self.peek_next_token(TokenType::OpenBrace).is_ok()
-            || self.peek_next_token(TokenType::Multiply).is_ok()
-        {
+        if self.peek_next_is(TokenType::OpenBrace) || self.peek_next_is(TokenType::Multiply) {
             return true;
         }
 
-        if self.peek_next_token(TokenType::Identifier).is_ok() {
+        if self.peek_next_is(TokenType::Identifier) {
             if self.peek_next_keyword(Keyword::From).is_ok() {
                 if self.peek_next_next_token(TokenType::Assign).is_ok()
                     || self.peek_next_next_keyword(Keyword::From).is_ok()
@@ -200,7 +197,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<(StringId, destack_source::Span)> {
         // identifier alias
-        if self.peek_token(TokenType::Identifier).is_ok() {
+        if self.peek_is(TokenType::Identifier) {
             return self.eat_identifier_with_span();
         }
 
@@ -216,7 +213,7 @@ impl Parser {
         &mut self,
     ) -> ParseResult<Option<(StringId, destack_source::Span)>> {
         if !(self.peek_identifier_str("require").is_ok()
-            && self.peek_next_token(TokenType::OpenParenthesis).is_ok()
+            && self.peek_next_is(TokenType::OpenParenthesis)
             && self.peek_next_next_token(TokenType::Literal).is_ok()
             && self
                 .peek_next_next_next_token(TokenType::CloseParenthesis)
@@ -369,7 +366,7 @@ impl Parser {
             return Ok(export_id);
         }
         // export =
-        else if self.peek_token(TokenType::Assign).is_ok() {
+        else if self.peek_is(TokenType::Assign) {
             self.bump(); // eat assign
             let value = self.eat_expression()?;
             let item = self.tree.insert(
@@ -402,9 +399,7 @@ impl Parser {
         };
 
         // export * from
-        if self.peek_token(TokenType::Multiply).is_ok()
-            && self.peek_next_keyword(Keyword::From).is_ok()
-        {
+        if self.peek_is(TokenType::Multiply) && self.peek_next_keyword(Keyword::From).is_ok() {
             self.bump(); // eat *
             self.bump(); // eat from
             let (target, target_span) = self.eat_dependency_target_with_span()?;
@@ -474,10 +469,10 @@ impl Parser {
 
     /// Peek a dependency binding.
     pub(crate) fn peek_dependency_binding(&mut self) -> ParseResult<()> {
-        if self.peek_token(TokenType::OpenBrace).is_ok()
-            || self.peek_token(TokenType::Multiply).is_ok()
-            || (self.peek_token(TokenType::Identifier).is_ok()
-                && (self.peek_next_token(TokenType::Comma).is_ok()
+        if self.peek_is(TokenType::OpenBrace)
+            || self.peek_is(TokenType::Multiply)
+            || (self.peek_is(TokenType::Identifier)
+                && (self.peek_next_is(TokenType::Comma)
                     || self.peek_next_keyword(Keyword::From).is_ok()))
         {
             Ok(())
@@ -514,13 +509,13 @@ impl Parser {
         let mut items: Vec<LocalNodeId<DependencyItem>> = Vec::new();
 
         // `Default,` or `foo from`
-        if self.peek_token(TokenType::Identifier).is_ok()
-            && (self.peek_next_token(TokenType::Comma).is_ok()
+        if self.peek_is(TokenType::Identifier)
+            && (self.peek_next_is(TokenType::Comma)
                 || self.peek_next_keyword(Keyword::From).is_ok())
         {
             let start = self.mark();
             let (alias, alias_span) = self.eat_identifier_with_span()?;
-            if self.peek_token(TokenType::Comma).is_ok() {
+            if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma (leave from)
             }
             let item = DependencyItem {
@@ -536,9 +531,7 @@ impl Parser {
         }
 
         // `* as foo` (can follow a default import)
-        if self.peek_token(TokenType::Multiply).is_ok()
-            && self.peek_next_keyword(Keyword::As).is_ok()
-        {
+        if self.peek_is(TokenType::Multiply) && self.peek_next_keyword(Keyword::As).is_ok() {
             let start = self.mark();
             self.bump(); // eat *
             self.bump(); // eat as
@@ -556,10 +549,10 @@ impl Parser {
         }
 
         // main items
-        if items.is_empty() || self.peek_token(TokenType::OpenBrace).is_ok() {
+        if items.is_empty() || self.peek_is(TokenType::OpenBrace) {
             self.eat_token(TokenType::OpenBrace)?;
             self.eat_newlines_maybe()?;
-            while self.peek_token(TokenType::CloseBrace).is_err() {
+            while !self.peek_is(TokenType::CloseBrace) {
                 let item = self.eat_dependency_item(allow_type_modifier)?;
                 items.push(item);
                 if self.peek_comma().is_ok() {
@@ -605,15 +598,14 @@ impl Parser {
             self.bump(); // eat default
 
             // alias
-            let (alias, alias_span) = if self.peek_keyword(Keyword::As).is_ok()
-                || self.peek_token(TokenType::Colon).is_ok()
-            {
-                self.bump(); // eat `as` or `:`
-                let (alias, alias_span) = self.eat_identifier_with_span()?;
-                (Some(alias), Some(alias_span))
-            } else {
-                (None, None)
-            };
+            let (alias, alias_span) =
+                if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
+                    self.bump(); // eat `as` or `:`
+                    let (alias, alias_span) = self.eat_identifier_with_span()?;
+                    (Some(alias), Some(alias_span))
+                } else {
+                    (None, None)
+                };
 
             // item
             let item = self.tree.insert(
@@ -637,15 +629,14 @@ impl Parser {
             let (name, name_span) = self.eat_dependency_item_name_with_span()?;
 
             // alias
-            let (alias, alias_span) = if self.peek_keyword(Keyword::As).is_ok()
-                || self.peek_token(TokenType::Colon).is_ok()
-            {
-                self.bump(); // eat `as` or `:`
-                let (alias, alias_span) = self.eat_identifier_with_span()?;
-                (Some(alias), Some(alias_span))
-            } else {
-                (None, None)
-            };
+            let (alias, alias_span) =
+                if self.peek_keyword(Keyword::As).is_ok() || self.peek_is(TokenType::Colon) {
+                    self.bump(); // eat `as` or `:`
+                    let (alias, alias_span) = self.eat_identifier_with_span()?;
+                    (Some(alias), Some(alias_span))
+                } else {
+                    (None, None)
+                };
 
             // item
             let item = self.tree.insert(
@@ -673,9 +664,7 @@ impl Parser {
         }
 
         // require a name after `type`
-        if self.peek_next_token(TokenType::Identifier).is_err()
-            && self.peek_next_token(TokenType::Literal).is_err()
-        {
+        if !self.peek_next_is(TokenType::Identifier) && !self.peek_next_is(TokenType::Literal) {
             return false;
         }
 
@@ -699,7 +688,7 @@ impl Parser {
 
     /// Eat a dependency item name (identifier or string literal) and its span.
     fn eat_dependency_item_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
-        if self.peek_token(TokenType::Identifier).is_ok() {
+        if self.peek_is(TokenType::Identifier) {
             let (name, span) = self.eat_identifier_with_span()?;
             return Ok((Name::Identifier(name), span));
         }

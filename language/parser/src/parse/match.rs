@@ -22,6 +22,7 @@ impl Parser {
     /// }
     /// ```
     pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_MATCH);
         // keyword
         // (accept switch for #Compatibility)
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
@@ -76,13 +77,13 @@ impl Parser {
         kind: MatchKind,
     ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_is(TokenType::CloseBrace) {
                 break;
             }
             // allow statement separators between cases (newline/semicolon)
-            else if self.peek_statement_stop().is_ok() {
+            else if self.is_statement_stop() {
                 self.eat_statement_stop_with_newlines()?;
             }
             // case
@@ -206,11 +207,11 @@ impl Parser {
             let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
             while self.peek_keyword(Keyword::Case).is_err()
                 && self.peek_keyword(Keyword::Default).is_err()
-                && self.peek_token(TokenType::CloseBrace).is_err()
+                && !self.peek_is(TokenType::CloseBrace)
             {
                 let expression_id = self.try_eat_expression(TokenType::Newline)?;
                 expressions.push(expression_id);
-                if self.peek_any_stop().is_ok() {
+                if self.is_any_stop() {
                     self.eat_any_stop_with_newlines()?;
                 }
                 if matches!(self.tree.get(expression_id), Expression::Break { .. }) {

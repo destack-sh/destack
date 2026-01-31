@@ -131,10 +131,10 @@ impl Parser {
 
         loop {
             // snack kebab-case or namespace segments
-            let is_kebab = if self.peek_token(TokenType::Subtract).is_ok() {
+            let is_kebab = if self.peek_is(TokenType::Subtract) {
                 self.bump();
                 true
-            } else if self.peek_token(TokenType::Colon).is_ok() {
+            } else if self.peek_is(TokenType::Colon) {
                 self.bump();
                 false
             } else {
@@ -244,7 +244,7 @@ impl Parser {
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_name(&self) -> ParseResult<()> {
-        if self.peek_token(TokenType::Identifier).is_ok() || self.peek_string_literal().is_ok() {
+        if self.peek_is(TokenType::Identifier) || self.peek_string_literal().is_ok() {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
@@ -254,9 +254,7 @@ impl Parser {
     /// Peek a next name (like `x` or `"Content-Type"`).
     #[inline]
     pub fn peek_next_name(&self) -> ParseResult<()> {
-        if self.peek_next_token(TokenType::Identifier).is_ok()
-            || self.peek_next_string_literal().is_ok()
-        {
+        if self.peek_next_is(TokenType::Identifier) || self.peek_next_string_literal().is_ok() {
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek_next()?.span))
@@ -274,7 +272,7 @@ impl Parser {
     #[inline]
     pub fn eat_name_with_span(&mut self) -> ParseResult<(Name, destack_source::Span)> {
         // regular identifier
-        if self.peek_token(TokenType::Identifier).is_ok() {
+        if self.peek_is(TokenType::Identifier) {
             let (name, span) = self.eat_identifier_with_span()?;
             Ok((Name::Identifier(name), span))
         }
@@ -297,7 +295,7 @@ impl Parser {
     pub fn peek_key(&self) -> ParseResult<()> {
         if self.peek_private_hash_key().is_ok()
             || self.peek_name().is_ok()
-            || self.peek_token(TokenType::OpenBracket).is_ok()
+            || self.peek_is(TokenType::OpenBracket)
             || self.peek_numeric_literal().is_ok()
         {
             Ok(())
@@ -313,8 +311,8 @@ impl Parser {
             && (self.language.is_javascript()
                 || self.language.is_typescript()
                 || self.language.is_destack())
-            && self.peek_token(TokenType::Hash).is_ok()
-            && self.peek_next_token(TokenType::Identifier).is_ok()
+            && self.peek_is(TokenType::Hash)
+            && self.peek_next_is(TokenType::Identifier)
         {
             Ok(())
         } else {
@@ -337,12 +335,10 @@ impl Parser {
             let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok(Key::Name(Name::Number(string_id)))
-        } else if self.peek_token(TokenType::OpenBracket).is_ok() {
+        } else if self.peek_is(TokenType::OpenBracket) {
             self.bump(); // eat open bracket
             // name: type
-            if self.peek_token(TokenType::Identifier).is_ok()
-                && self.peek_next_token(TokenType::Colon).is_ok()
-            {
+            if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Colon) {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;
@@ -391,12 +387,10 @@ impl Parser {
             let key_str = self.file.span_str(token.span);
             let string_id = self.strings.intern(key_str);
             Ok((Key::Name(Name::Number(string_id)), token.span))
-        } else if self.peek_token(TokenType::OpenBracket).is_ok() {
+        } else if self.peek_is(TokenType::OpenBracket) {
             self.bump(); // eat open bracket
             // name: type
-            if self.peek_token(TokenType::Identifier).is_ok()
-                && self.peek_next_token(TokenType::Colon).is_ok()
-            {
+            if self.peek_is(TokenType::Identifier) && self.peek_next_is(TokenType::Colon) {
                 let name = self.eat_identifier()?;
                 self.bump(); // eat colon
                 self.eat_newlines_maybe()?;

@@ -500,6 +500,23 @@ impl CompilerStats {
         entry.sample_count.fetch_add(1, Ordering::Relaxed);
     }
 
+    /// Record time spent in a timing tag with an explicit sample count.
+    #[inline]
+    pub fn record_timing_samples(
+        &self,
+        name: &'static str,
+        duration: Duration,
+        sample_count: usize,
+    ) {
+        let entry = self.timing_stats.entry(name).or_default();
+        entry
+            .duration_ns
+            .fetch_add(duration.as_nanos() as u64, Ordering::Relaxed);
+        entry
+            .sample_count
+            .fetch_add(sample_count, Ordering::Relaxed);
+    }
+
     /// Check whether timing tags are enabled.
     #[inline]
     pub fn timings_enabled(&self) -> bool {

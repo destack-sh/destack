@@ -1,3 +1,4 @@
+use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
@@ -197,6 +198,8 @@ impl Parser {
         start: ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_TYPE);
+
         let keyword: Keyword =
             self.eat_keyword_in(&[Keyword::Type, Keyword::Readonly, Keyword::Newtype])?;
 
@@ -217,8 +220,7 @@ impl Parser {
 
         // alias (or expression with static parameters)
         if self.peek_identifier().is_ok()
-            && (self.peek_next_token(TokenType::Assign).is_ok()
-                || self.peek_next_token(TokenType::LessThan).is_ok())
+            && (self.peek_next_is(TokenType::Assign) || self.peek_next_is(TokenType::LessThan))
         {
             // identifier
             // (speculative because we don't know yet if we'll have a `=` afterwards)
@@ -241,7 +243,7 @@ impl Parser {
             };
 
             // if followed by =, then it's a type alias
-            if self.peek_token(TokenType::Assign).is_ok() {
+            if self.peek_is(TokenType::Assign) {
                 // =
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;
@@ -481,7 +483,7 @@ impl Parser {
         };
 
         // qualifier (e.g., import("mod").Type)
-        let (qualifier, static_arguments) = if self.peek_token(TokenType::Dot).is_ok() {
+        let (qualifier, static_arguments) = if self.peek_is(TokenType::Dot) {
             self.bump(); // eat dot
             let qualifier = self.eat_path()?;
             self.eat_newlines_maybe()?;
@@ -636,9 +638,7 @@ impl Parser {
             |parser| parser.eat_expression(),
         )?;
         self.eat_newlines_maybe()?;
-        if self.peek_token(TokenType::Semicolon).is_ok()
-            || self.peek_token(TokenType::Comma).is_ok()
-        {
+        if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
             self.eat_newlines_maybe()?;
         }
@@ -667,7 +667,7 @@ impl Parser {
             return Ok(TypeModifier::Add);
         }
         // -readonly
-        else if self.peek_token(TokenType::Subtract).is_ok()
+        else if self.peek_is(TokenType::Subtract)
             && self.peek_next_keyword(Keyword::Readonly).is_ok()
         {
             self.bump(); // eat -
@@ -675,8 +675,7 @@ impl Parser {
             return Ok(TypeModifier::Remove);
         }
         // +readonly
-        else if self.peek_token(TokenType::Add).is_ok()
-            && self.peek_next_keyword(Keyword::Readonly).is_ok()
+        else if self.peek_is(TokenType::Add) && self.peek_next_keyword(Keyword::Readonly).is_ok()
         {
             self.bump(); // eat +
             self.bump(); // eat readonly
@@ -688,22 +687,18 @@ impl Parser {
     /// Eat a type mapped optional modifier.
     fn eat_type_mapped_optional_modifier(&mut self) -> ParseResult<TypeModifier> {
         // ?
-        if self.peek_token(TokenType::Maybe).is_ok() {
+        if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat ?
             return Ok(TypeModifier::Add);
         }
         // -?
-        else if self.peek_token(TokenType::Subtract).is_ok()
-            && self.peek_next_token(TokenType::Maybe).is_ok()
-        {
+        else if self.peek_is(TokenType::Subtract) && self.peek_next_is(TokenType::Maybe) {
             self.bump(); // eat -
             self.bump(); // eat ?
             return Ok(TypeModifier::Remove);
         }
         // +?
-        else if self.peek_token(TokenType::Add).is_ok()
-            && self.peek_next_token(TokenType::Maybe).is_ok()
-        {
+        else if self.peek_is(TokenType::Add) && self.peek_next_is(TokenType::Maybe) {
             self.bump(); // eat +
             self.bump(); // eat ?
             return Ok(TypeModifier::Add);
@@ -752,7 +747,7 @@ impl Parser {
         &mut self,
         terminators: &[Keyword],
     ) -> ParseResult<Option<Vec<LocalNodeId<Expression>>>> {
-        let is_parenthesized = if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        let is_parenthesized = if self.peek_is(TokenType::OpenParenthesis) {
             self.bump();
             self.eat_newlines_maybe()?;
             true
@@ -778,10 +773,10 @@ impl Parser {
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
 
         // collect super types until a terminator is seen
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // eat until open brace or close parenthesis
-            if self.peek_token(TokenType::OpenBrace).is_ok()
-                || self.peek_token(TokenType::CloseParenthesis).is_ok()
+            if self.peek_is(TokenType::OpenBrace)
+                || self.peek_is(TokenType::CloseParenthesis)
                 || terminators
                     .iter()
                     .any(|terminator| self.peek_keyword(*terminator).is_ok())
@@ -789,11 +784,11 @@ impl Parser {
                 break;
             }
             // stop on newline if the next non-newline token is a terminator
-            else if self.peek_newline().is_ok() {
+            else if self.peek_is(TokenType::Newline) {
                 let mark = self.mark();
                 self.eat_newlines_maybe()?;
-                let is_terminator = self.peek_token(TokenType::OpenBrace).is_ok()
-                    || self.peek_token(TokenType::CloseParenthesis).is_ok()
+                let is_terminator = self.peek_is(TokenType::OpenBrace)
+                    || self.peek_is(TokenType::CloseParenthesis)
                     || terminators
                         .iter()
                         .any(|terminator| self.peek_keyword(*terminator).is_ok());
@@ -805,7 +800,7 @@ impl Parser {
                 }
             }
             // consume any stop
-            else if self.peek_item_stop().is_ok() {
+            else if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
             }
             // keep eating super types

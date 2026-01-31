@@ -83,6 +83,8 @@ pub struct Lexer<'a> {
     /// The language type for parsing behavior.
     #[allow(unused)]
     pub(super) language: LanguageType,
+    /// Whether an `@` token was seen.
+    pub(super) has_at: bool,
 }
 
 impl Debug for Lexer<'_> {
@@ -116,6 +118,7 @@ impl<'a> Lexer<'a> {
             tokens: Vec::with_capacity(estimated_semantic),
             side_tokens: Vec::with_capacity(estimated_side),
             language,
+            has_at: false,
         }
     }
 

@@ -73,6 +73,7 @@ impl Parser {
         expect_maybe: bool,
         expect_body: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
+        let _timing = self.timing_scope(tags::PARSE_FUNCTION);
         // abstraction
         if self.peek_keyword(Keyword::Abstract).is_ok()
             && descriptor.abstraction == DeclarationAbstraction::Concrete
@@ -91,8 +92,8 @@ impl Parser {
 
         // new
         let mode = if self.peek_keyword(Keyword::New).is_ok()
-            && (self.peek_next_token(TokenType::LessThan).is_ok()
-                || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+            && (self.peek_next_is(TokenType::LessThan)
+                || self.peek_next_is(TokenType::OpenParenthesis))
         {
             self.bump(); // eat new keyword
             Some(FunctionMode::New)
@@ -152,13 +153,13 @@ impl Parser {
             // regular `(...) => ...` function/lambda
             if kind == FunctionKind::Function
                 || self.options.in_type
-                || self.peek_token(TokenType::OpenParenthesis).is_ok()
+                || self.peek_is(TokenType::OpenParenthesis)
             {
                 self.eat_token(TokenType::OpenParenthesis)?;
                 self.eat_newlines_maybe()?;
 
                 // dynamic parameters
-                let dynamic_parameters = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                let dynamic_parameters = if self.peek_is(TokenType::CloseParenthesis) {
                     vec![]
                 } else {
                     let parameter_options = self
@@ -261,14 +262,14 @@ impl Parser {
         // only for functions or lambda values
         let body = {
             // expect body but no opening brace
-            if expect_body && self.peek_token(TokenType::OpenBrace).is_err() {
+            if expect_body && !self.peek_is(TokenType::OpenBrace) {
                 return Err(ParseError::expected(
                     self.peek()?.span,
                     TokenType::OpenBrace,
                 ));
             }
             // function with body
-            if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
+            if kind == FunctionKind::Function && self.peek_is(TokenType::OpenBrace) {
                 let mut options = self
                     .options
                     .in_statement_position()

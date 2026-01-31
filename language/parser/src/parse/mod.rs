@@ -25,6 +25,7 @@ mod property;
 mod seperator;
 mod stop;
 mod r#struct;
+mod timing;
 mod r#try;
 mod r#type;
 mod visibility;

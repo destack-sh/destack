@@ -13,7 +13,7 @@ impl Parser {
     /// Peek a scalar literal token.
     #[inline]
     pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {
-        if self.peek_token(TokenType::Literal).is_ok() {
+        if self.peek_is(TokenType::Literal) {
             Ok(self.peek()?)
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
@@ -38,6 +38,7 @@ impl Parser {
     /// /abc/g
     /// ```
     pub fn eat_scalar_literal(&mut self) -> ParseResult<ScalarLiteral> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let literal_span = *self.eat()?;
         let Some(body) = literal_span.token.literal else {
             return Err(ParseError::unexpected(literal_span.span));
@@ -264,9 +265,7 @@ impl Parser {
     /// Peek a template literal.
     #[inline]
     pub fn peek_template_literal(&self) -> ParseResult<&TokenSpan> {
-        if self.peek_token(TokenType::TemplateString).is_ok()
-            || self.peek_token(TokenType::TemplateStringStart).is_ok()
-        {
+        if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
             Ok(self.peek()?)
         } else {
             Err(ParseError::unexpected(self.peek()?.span))
@@ -284,6 +283,7 @@ impl Parser {
     /// `SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
     /// ```
     pub fn eat_template_literal(&mut self) -> ParseResult<TemplateLiteral> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let (strings, arguments) =
             self.eat_template_literal_parts(|parser| parser.eat_template_literal_argument())?;
 
@@ -302,6 +302,7 @@ impl Parser {
     /// `foo-${Bar}`
     /// ```
     pub fn eat_type_template_literal_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         let (strings, spans) = self.eat_template_literal_parts(|parser| {
             parser.with_options(parser.options.not_in_position().in_type(), |parser| {
@@ -340,9 +341,9 @@ impl Parser {
             strings.push(string_id);
 
             // eat until the end
-            while self.peek_token(TokenType::TemplateStringEnd).is_err() {
+            while !self.peek_is(TokenType::TemplateStringEnd) {
                 // string
-                if self.peek_token(TokenType::TemplateStringMiddle).is_ok() {
+                if self.peek_is(TokenType::TemplateStringMiddle) {
                     let token = *self.eat()?;
                     let token_str = self.file.span_str(token.span);
                     // remove } prefix and ${ suffix
@@ -405,9 +406,10 @@ impl Parser {
 
     /// Eat an array literal (including the surrounding brackets).
     pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBracket)?;
         self.eat_newlines_maybe()?;
-        let elements = if self.peek_token(TokenType::CloseBracket).is_ok() {
+        let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
             self.with_options(self.options.not_in_position(), |parser| {
@@ -432,9 +434,9 @@ impl Parser {
         }
         // track whether we expect an element (at start or after comma)
         let mut expect_element = first_element.is_none();
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // allow trailing newlines before the closing token
-            if self.peek_token(TokenType::Newline).is_ok()
+            if self.peek_is(TokenType::Newline)
                 && self
                     .peek_token_after_newlines(self.pos(), close_token)
                     .is_ok()
@@ -442,7 +444,7 @@ impl Parser {
                 break;
             }
             // stop at closing parenthesis (trailing commas are allowed, no hole)
-            if self.peek_token(close_token).is_ok() {
+            if self.peek_token_type() == close_token {
                 break;
             }
             // consume separator (comma)
@@ -484,6 +486,7 @@ impl Parser {
     /// { a: 1, b }
     /// { a(x): void }
     pub fn eat_object_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
@@ -494,7 +497,7 @@ impl Parser {
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
     pub fn peek_tree_literal(&self) -> ParseResult<()> {
-        if self.peek_token(TokenType::LessThan).is_err() {
+        if !self.peek_is(TokenType::LessThan) {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
@@ -579,13 +582,14 @@ impl Parser {
     /// </Level>
     /// ```
     pub fn eat_tree_literal(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
         self.eat_newlines_maybe()?;
 
         // left
         let mut path_name_span = None;
-        let path: Option<Path> = if self.peek_token(TokenType::Identifier).is_ok() {
+        let path: Option<Path> = if self.peek_is(TokenType::Identifier) {
             let (path, name_span) = self.eat_tree_literal_path_with_last_span()?;
             path_name_span = Some(name_span);
             Some(path)
@@ -597,8 +601,7 @@ impl Parser {
 
         // static arguments on the tag (TypeScript/TSX generic JSX components)
         let static_arguments = if path.is_some()
-            && (self.peek_token(TokenType::LessThan).is_ok()
-                || self.peek_token(TokenType::ShiftLeft).is_ok())
+            && (self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft))
         {
             Some(
                 self.with_options(self.options.not_in_tree_literal(), |parser| {
@@ -612,17 +615,13 @@ impl Parser {
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without arguments
-            if self.peek_token(TokenType::Divide).is_ok()
-                || self.peek_token(TokenType::GreaterThan).is_ok()
-            {
+            if self.peek_is(TokenType::Divide) || self.peek_is(TokenType::GreaterThan) {
                 None
             }
             // fragment with arguments
             else {
                 let mut arguments: Vec<LocalNodeId<Argument>> = vec![];
-                while self.peek_token(TokenType::Divide).is_err()
-                    && self.peek_token(TokenType::GreaterThan).is_err()
-                {
+                while !self.peek_is(TokenType::Divide) && !self.peek_is(TokenType::GreaterThan) {
                     let argument = self.with_options(
                         self.options.not_in_position().in_tree_literal(),
                         |parser| parser.eat_tree_literal_argument(),
@@ -638,7 +637,7 @@ impl Parser {
         // body (either />, or > with child elements)
         let elements: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without children (/>)
-            if self.peek_token(TokenType::Divide).is_ok() {
+            if self.peek_is(TokenType::Divide) {
                 self.bump(); // eat /
                 self.eat_token(TokenType::GreaterThan)?; // eat >
                 None
@@ -650,14 +649,12 @@ impl Parser {
 
                 // eat children until closing fragment
                 let mut elements: Vec<LocalNodeId<Argument>> = vec![];
-                while self.peek().is_ok() {
+                while self.has_more_tokens() {
                     // skip whitespace before checking for closing tag
                     self.skip_tree_whitespace()?;
 
                     // stop at closing fragment (</)
-                    if self.peek_token(TokenType::LessThan).is_ok()
-                        && self.peek_next_token(TokenType::Divide).is_ok()
-                    {
+                    if self.peek_is(TokenType::LessThan) && self.peek_next_is(TokenType::Divide) {
                         // special case for empty fragment (/>)
                         if path.is_none()
                             && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
