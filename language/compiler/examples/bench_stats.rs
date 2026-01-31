@@ -63,6 +63,8 @@ enum Command {
     AnalyzeFull,
     /// Analyze a combined lib set in one program.
     AnalyzeCombined,
+    /// List builtin lib modules in dependency order.
+    ListModules,
 }
 
 /// CLI execution modes.
@@ -122,6 +124,7 @@ fn main() {
         Command::AnalyzeFast => BenchRun::AnalyzeFast,
         Command::AnalyzeFull => BenchRun::AnalyzeFull,
         Command::AnalyzeCombined => BenchRun::AnalyzeCombined,
+        Command::ListModules => BenchRun::ListModules,
     };
 
     let output = BenchOutputFormat::from(args.output);
@@ -155,7 +158,7 @@ fn main() {
         let libs = args.libs.clone();
         if !libs.is_empty() {
             match run {
-                BenchRun::AnalyzeCombined => {
+                BenchRun::AnalyzeCombined | BenchRun::ListModules => {
                     options.combined_libs = Some(libs);
                 }
                 BenchRun::AnalyzeFast | BenchRun::AnalyzeFull => {
