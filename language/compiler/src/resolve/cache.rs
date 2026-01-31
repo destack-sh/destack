@@ -1,6 +1,6 @@
 use destack_dir::{
-    DependencyItem, DependencyKind, Export, Expression, GlobalScopeId, GlobalSymbolId,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleBindingExports,
+    DependencyItem, DependencyKind, Export, Expression, GlobalScopeId, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId, ModuleBindingExports,
     ModuleTarget, NamespaceExport, NodeTree, Scope, StaticKey, StringId, SymbolSpace,
     SymbolSpaceOrder, SymbolTable,
 };

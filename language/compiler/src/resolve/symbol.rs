@@ -960,8 +960,13 @@ impl Compiler {
         }
 
         // try to resolve root symbol locally
-        let cache_key =
-            ResolveAbsoluteSymbolCacheKey::new(module.id, scope.0, scope.2, first_segment, space_order);
+        let cache_key = ResolveAbsoluteSymbolCacheKey::new(
+            module.id,
+            scope.0,
+            scope.2,
+            first_segment,
+            space_order,
+        );
         let local_result = if let Some(local_id) = cache.absolute_symbol(cache_key) {
             Ok(local_id)
         } else {
