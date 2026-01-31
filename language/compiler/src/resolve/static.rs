@@ -809,7 +809,8 @@ impl Compiler {
                 import_meta,
             ),
             Expression::ImportMeta => Ok(StaticIfValue::ImportMeta),
-            Expression::Member { left, name, .. } => {
+            Expression::Member { left, name, .. }
+            | Expression::PrivateMember { left, name, .. } => {
                 // resolve the left side value
                 let left_value =
                     self.evaluate_static_if_value(module_id, profile_id, tree, *left, import_meta)?;

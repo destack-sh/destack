@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_base::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, StaticKey, SymbolSpace,
+    LocalScopeId, LocalScopeMark, Mutability, Name, NodeTree, NodeType, StaticKey, SymbolSpace,
     SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 
@@ -66,16 +66,14 @@ impl Compiler {
         );
         let kind = self.bind_dependency_kind(ast_item.kind.unwrap_or(kind));
         let mode = self.bind_dependency_mode(ast_item.mode);
-        let name = ast_item
-            .name
-            .map(|name| self.program.strings.intern_from(&ast.strings, name));
+        let name = ast_item.name.map(|name| self.bind_name(ast, name));
         let alias = ast_item
             .alias
             .map(|alias| self.program.strings.intern_from(&ast.strings, alias));
 
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
-        let key = alias.or(name);
+        let key = alias.or(name.map(|name| name.string()));
         let symbol_space = match kind {
             DependencyKind::Type => SymbolSpace::Type,
             DependencyKind::Value => SymbolSpace::Value,

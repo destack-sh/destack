@@ -612,6 +612,37 @@ function transform<in T, out U>(value: T): U {
     }
 
     #[test]
+    fn test_parse_function_with_invariant_parameter() {
+        let mut test = TestParser::new(
+            r"
+function invariant<in out T>(value: T): T {
+    value
+}
+        ",
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+        assert_node!(parser.tree, function_id, Declaration::Function { descriptor, signature, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "invariant");
+            let static_parameters = signature
+                .generics
+                .as_ref()
+                .and_then(|generics| generics.static_parameters.as_ref())
+                .expect("expected static parameters");
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, modifiers: Some(modifiers), .. } => {
+                assert_string!(parser, *name, "T");
+                assert_eq!(modifiers.variance, Some(VarianceModifier::InOut));
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_function_with_function_return_type() {
         let mut test = TestParser::new("function foo() => (str: string) => boolean {}");
         let mut parser = test.prepare();

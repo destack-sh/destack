@@ -26,6 +26,8 @@ pub enum Expression {
         path: Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
+    /// Private identifier.
+    PrivateIdentifier { name: StringId },
     /// Scalar literal.
     ScalarLiteral { value: ScalarLiteral },
     /// Template literal.
@@ -92,6 +94,12 @@ pub enum Expression {
     },
     /// Member access.
     Member {
+        left: LocalNodeId<Expression>,
+        name: StringId,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    },
+    /// Private member access.
+    PrivateMember {
         left: LocalNodeId<Expression>,
         name: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,

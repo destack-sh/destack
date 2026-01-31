@@ -171,7 +171,7 @@ pub fn collect_existing_imports(session: &Session, file_id: FileId) -> Vec<Exist
                     }
                     // use alias if present, otherwise name
                     item.alias
-                        .or(item.name)
+                        .or(item.name.map(|name| name.string()))
                         .map(|id| ctx.ast.strings.get(id).to_string())
                 })
                 .collect();

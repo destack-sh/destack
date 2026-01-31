@@ -422,6 +422,16 @@ impl Compiler {
                     });
                     ast::Expression::Member { left, name, static_arguments }
                 }
+                dir::Expression::PrivateMember { left, name, static_arguments } => {
+                    let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
+                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    let static_arguments = static_arguments.as_ref().map(|args| {
+                        args.iter().map(|arg| {
+                            self.unbind_argument(module, *arg, tree, symbols, ast_tree, ast_strings, context)
+                        }).collect()
+                    });
+                    ast::Expression::PrivateMember { left, name, static_arguments }
+                }
 
                 dir::Expression::Call { left, static_arguments, dynamic_arguments } => {
                     let left = self.unbind_expression(module, *left, tree, symbols, ast_tree, ast_strings, context);
@@ -515,6 +525,11 @@ impl Compiler {
                         }).collect()
                     });
                     ast::Expression::Path { path, static_arguments }
+                }
+
+                dir::Expression::PrivateIdentifier { name } => {
+                    let name = ast_strings.intern_from(&self.program.strings, *name);
+                    ast::Expression::PrivateIdentifier { name }
                 }
 
                 dir::Expression::ImportMeta => {

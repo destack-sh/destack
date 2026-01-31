@@ -1488,6 +1488,9 @@ impl<'a> SignatureHasher<'a> {
             DynamicKey::Name(name) => {
                 self.hash_string_id(*name).hash(&mut hasher);
             }
+            DynamicKey::Private(name) => {
+                self.hash_string_id(*name).hash(&mut hasher);
+            }
             DynamicKey::Number(name) => {
                 self.hash_string_id(*name).hash(&mut hasher);
             }

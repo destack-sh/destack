@@ -357,6 +357,11 @@ impl<'a> FunctionContext<'a> {
                 left,
                 name,
                 static_arguments,
+            }
+            | Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
             } => {
                 if static_arguments.is_some() {
                     return Err(LowerError::UnsupportedConstruct {
@@ -650,6 +655,11 @@ impl<'a> FunctionContext<'a> {
                 self.set_binding_value(binding, value);
             }
             Expression::Member {
+                left: receiver_id,
+                name,
+                static_arguments,
+            }
+            | Expression::PrivateMember {
                 left: receiver_id,
                 name,
                 static_arguments,

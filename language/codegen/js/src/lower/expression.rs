@@ -283,6 +283,13 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::PrivateIdentifier { name } => {
+                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let expression = Expression::PrivateIdentifier { name };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
             dir::Expression::ScalarLiteral { value } => {
                 let value = self.lower_scalar_literal(value);
                 let expression = Expression::ScalarLiteral { value };
@@ -430,6 +437,33 @@ impl ModuleLowerer<'_> {
                     })
                     .transpose()?;
                 let expression = Expression::Member {
+                    left: left_id,
+                    name,
+                    static_arguments,
+                };
+                self.tree
+                    .insert_from_source(expression, self.module.id, expression_id)
+                    .into_any()
+            }
+            dir::Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let left_id = self
+                    .lower_expression(*left)
+                    .expect_node::<Expression>(left.into_global_any(self.module.id), self)?;
+                let name = self.strings.intern_from(&self.ast.strings, *name);
+                let static_arguments = static_arguments
+                    .as_ref()
+                    .map(|arguments| {
+                        arguments
+                            .iter()
+                            .map(|argument| self.lower_argument(*argument))
+                            .collect::<Result<Vec<_>, CodegenJsError>>()
+                    })
+                    .transpose()?;
+                let expression = Expression::PrivateMember {
                     left: left_id,
                     name,
                     static_arguments,

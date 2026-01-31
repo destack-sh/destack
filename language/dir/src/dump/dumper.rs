@@ -578,6 +578,9 @@ impl Dump for DynamicKey {
             DynamicKey::Name(name) => {
                 dumper.object("Key::Name").value(name).end();
             }
+            DynamicKey::Private(name) => {
+                dumper.object("Key::Private").value(name).end();
+            }
             DynamicKey::Number(name) => {
                 dumper.object("Key::Number").value(name).end();
             }
@@ -1116,6 +1119,15 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field("name", name)
                     .end();
             }
+            Expression::PrivateMember {
+                left: _,
+                name,
+                static_arguments: _,
+            } => {
+                self.node("Expression::PrivateMember", id.id)
+                    .field("name", name)
+                    .end();
+            }
             Expression::Instantiation {
                 left: _,
                 static_arguments: _,
@@ -1187,6 +1199,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::GlobalReference", id.id)
                     .field("path", path)
                     .field("target_symbol", target_symbol)
+                    .end();
+            }
+            Expression::PrivateIdentifier { name } => {
+                self.node("Expression::PrivateIdentifier", id.id)
+                    .field("name", name)
                     .end();
             }
             Expression::ImportMeta => {

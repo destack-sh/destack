@@ -1,6 +1,6 @@
 use crate::{
     CodegenJsResult, CodegenJsResultExt, DependencyItem, DependencyKind, DependencyMode,
-    Expression, LocalNodeId, ModuleLowerer,
+    Expression, LocalNodeId, ModuleLowerer, Name,
 };
 use destack_dir as dir;
 
@@ -19,6 +19,21 @@ impl ModuleLowerer<'_> {
             dir::DependencyMode::Item => DependencyMode::Item,
             dir::DependencyMode::Default => DependencyMode::Default,
             dir::DependencyMode::Namespace => DependencyMode::Namespace,
+        }
+    }
+
+    /// Lower a DIR name into a JS AST name.
+    pub fn lower_name(&mut self, name: dir::Name) -> Name {
+        match name {
+            dir::Name::Identifier(name) => {
+                Name::Identifier(self.strings.intern_from(&self.ast.strings, name))
+            }
+            dir::Name::String(name) => {
+                Name::String(self.strings.intern_from(&self.ast.strings, name))
+            }
+            dir::Name::Number(name) => {
+                Name::Number(self.strings.intern_from(&self.ast.strings, name))
+            }
         }
     }
 
@@ -43,7 +58,7 @@ impl ModuleLowerer<'_> {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
@@ -66,7 +81,7 @@ impl ModuleLowerer<'_> {
                     symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
@@ -103,7 +118,7 @@ impl ModuleLowerer<'_> {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {
@@ -129,7 +144,7 @@ impl ModuleLowerer<'_> {
                     target_symbol: _,
                 } => {
                     let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
+                    let name = name.map(|name| self.lower_name(name));
                     let alias =
                         alias.map(|alias| self.strings.intern_from(&self.ast.strings, alias));
                     DependencyItem {

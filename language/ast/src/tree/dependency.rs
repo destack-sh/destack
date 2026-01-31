@@ -1,7 +1,7 @@
 use destack_base::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType};
+use crate::{Expression, LocalNodeId, Name, Node, NodeType};
 
 /// The mode of a dependency item.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -38,8 +38,8 @@ pub struct DependencyItem {
     pub mode: DependencyMode,
     /// The type of the item (if specified).
     pub kind: Option<DependencyKind>,
-    /// The name of the item (like `foo` in `foo as bar`, None if default)
-    pub name: Option<StringId>,
+    /// The name of the item (like `foo` in `foo as bar`, None if default).
+    pub name: Option<Name>,
     /// The alias to use for the item (like `bar` in `foo as bar`)
     pub alias: Option<StringId>,
     /// The value of the item (for namespace exports)

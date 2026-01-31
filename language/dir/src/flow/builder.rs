@@ -1652,6 +1652,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 left,
                 static_arguments,
                 ..
+            }
+            | Expression::PrivateMember {
+                left,
+                static_arguments,
+                ..
             } => {
                 let left_block_id = self.build_expression(*left, current_block_id)?;
                 self.build_arguments(static_arguments.as_deref(), left_block_id)
@@ -1708,7 +1713,9 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::GlobalReference {
                 static_arguments, ..
             } => self.build_arguments(static_arguments.as_deref(), current_block_id),
-            Expression::ImportMeta | Expression::This => Some(current_block_id),
+            Expression::PrivateIdentifier { .. } | Expression::ImportMeta | Expression::This => {
+                Some(current_block_id)
+            }
             Expression::Type { .. }
             | Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
@@ -2053,7 +2060,9 @@ impl<'tree> FlowGraphBuilder<'tree> {
             DynamicKey::NamedExpression { key, .. } => {
                 self.build_expression(*key, current_block_id)
             }
-            DynamicKey::Name(_) | DynamicKey::Number(_) => Some(current_block_id),
+            DynamicKey::Name(_) | DynamicKey::Private(_) | DynamicKey::Number(_) => {
+                Some(current_block_id)
+            }
         }
     }
 

@@ -201,7 +201,7 @@ fn check_member_sorting(
         let sort_name = if let Some(alias) = item.alias {
             ctx.strings.get(alias).to_string()
         } else if let Some(name) = item.name {
-            ctx.strings.get(name).to_string()
+            ctx.strings.get(name.string()).to_string()
         } else {
             // default import without alias
             "default".to_string()

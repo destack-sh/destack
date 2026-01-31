@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
 /// How an Export should be treated for processing by the system.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -35,7 +35,7 @@ pub struct DependencyItem {
     pub kind: Option<DependencyKind>,
     /// The name of the item (like `foo` in `foo as bar`).
     /// None for default/namespace items where only alias matters.
-    pub name: Option<StringId>,
+    pub name: Option<Name>,
     /// The alias to use for the item (like `bar` in `foo as bar`).
     pub alias: Option<StringId>,
     /// The value of the item (for `export = foo` style exports).

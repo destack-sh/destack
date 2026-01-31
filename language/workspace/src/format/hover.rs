@@ -63,6 +63,10 @@ pub fn format_member_hover(
         .key()
         .and_then(|key| match key {
             dir::DynamicKey::Name(string_id) => Some(strings.get(*string_id).to_string()),
+            dir::DynamicKey::Private(string_id) => {
+                let name = strings.get(*string_id);
+                Some(format!("#{}", name.as_ref()))
+            }
             dir::DynamicKey::Number(string_id) => Some(strings.get(*string_id).to_string()),
             dir::DynamicKey::NamedExpression { name, .. } => Some(strings.get(*name).to_string()),
             dir::DynamicKey::Expression(_) => None,

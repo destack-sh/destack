@@ -28,6 +28,7 @@ impl Compiler {
         let variance = modifiers.variance.map(|variance| match variance {
             dir::VarianceModifier::In => ast::VarianceModifier::In,
             dir::VarianceModifier::Out => ast::VarianceModifier::Out,
+            dir::VarianceModifier::InOut => ast::VarianceModifier::InOut,
         });
         let anchor = modifiers.anchor.map(|anchor| match anchor {
             dir::BindingAnchor::Static => ast::BindingAnchor::Static,

@@ -14,6 +14,7 @@ impl Parser {
         &mut self,
         allow_readonly_key: bool,
         accessor_is_modifier: bool,
+        allow_variance_modifier: bool,
     ) -> ParseResult<Option<BindingModifier>> {
         let mut modifiers = BindingModifier::default();
         let mut has_modifiers = false;
@@ -29,15 +30,26 @@ impl Parser {
                 && self.peek_next_token(TokenType::OpenParenthesis).is_err();
 
             // variance for static parameters
-            if self.options.in_static && modifiers.variance.is_none() {
+            if self.options.in_static || allow_variance_modifier {
                 if self.peek_keyword(Keyword::In).is_ok() {
                     self.bump(); // eat in
-                    modifiers.variance = Some(VarianceModifier::In);
+                    modifiers.variance = Some(match modifiers.variance {
+                        Some(VarianceModifier::Out) => VarianceModifier::InOut,
+                        Some(VarianceModifier::InOut) => VarianceModifier::InOut,
+                        _ => VarianceModifier::In,
+                    });
                     has_modifiers = true;
                     progress = true;
-                } else if self.peek_identifier_str("out").is_ok() {
+                } else if self.peek_identifier_str("out").is_ok()
+                    && (self.peek_next_token(TokenType::Identifier).is_ok()
+                        || self.peek_next_keyword(Keyword::In).is_ok())
+                {
                     self.bump(); // eat out
-                    modifiers.variance = Some(VarianceModifier::Out);
+                    modifiers.variance = Some(match modifiers.variance {
+                        Some(VarianceModifier::In) => VarianceModifier::InOut,
+                        Some(VarianceModifier::InOut) => VarianceModifier::InOut,
+                        _ => VarianceModifier::Out,
+                    });
                     has_modifiers = true;
                     progress = true;
                 }
@@ -217,7 +229,7 @@ impl Parser {
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         let start = self.mark();
 
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, false)?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, false, false)?;
 
         // variadic
         let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {

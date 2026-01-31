@@ -102,7 +102,7 @@ impl<'a> AddressTakenCollector<'a> {
             Expression::Cast { value, .. } => {
                 self.record_reference_target(tree, *value);
             }
-            Expression::Member { left, .. } => {
+            Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
                 if !self.expression_is_reference_like(*left) {
                     self.record_reference_target(tree, *left);
                 }

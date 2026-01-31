@@ -5,8 +5,8 @@ use std::path::Path;
 use destack_base::StringId;
 use destack_dir::{
     Declaration, Declarator, DependencyItem, DependencyMode, EnumField, Expression,
-    GlobalNodeIdAny, GlobalSymbolId, LocalScopeId, LocalSymbolId, Member, NodeType, Resolution,
-    SymbolSpace, SymbolType, Type,
+    GlobalNodeIdAny, GlobalSymbolId, LocalScopeId, LocalSymbolId, Member, Name, NodeType,
+    Resolution, SymbolSpace, SymbolType, Type,
 };
 use destack_source::{ModuleId, PathExt, Uri};
 
@@ -796,7 +796,7 @@ pub(crate) fn resolve_type_symbol_from_module(
 /// Check whether a dependency item matches a name or wildcard export.
 pub(crate) fn dependency_item_matches_name(
     name_id: StringId,
-    name: Option<StringId>,
+    name: Option<Name>,
     alias: Option<StringId>,
     mode: DependencyMode,
     allow_wildcard: bool,
@@ -807,7 +807,7 @@ pub(crate) fn dependency_item_matches_name(
     }
 
     // match the original name when no alias is used
-    if alias.is_none() && name == Some(name_id) {
+    if alias.is_none() && name.map(|name| name.string()) == Some(name_id) {
         return true;
     }
 

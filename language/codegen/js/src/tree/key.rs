@@ -15,6 +15,8 @@ pub enum Name {
 pub enum Key {
     /// Name (like `x` or `someThing`).
     Name(Name),
+    /// Private name (like `#x`).
+    Private(StringId),
     /// Dynamic key (like `["Content-Type"]`).
     Expression(LocalNodeId<Expression>),
     /// Named dynamic key (like `[x: string]: any`).

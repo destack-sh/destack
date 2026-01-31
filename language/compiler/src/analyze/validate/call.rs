@@ -93,7 +93,8 @@ impl Compiler {
                     });
                 }
             }
-            Expression::Member { left, name, .. } => {
+            Expression::Member { left, name, .. }
+            | Expression::PrivateMember { left, name, .. } => {
                 // short circuit when dynamic shapes are allowed
                 if !options.no_dynamic_shapes {
                     return;

@@ -1,8 +1,32 @@
 use crate::{DestackFormatter, FormatNode};
-use destack_ast::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
+use destack_ast::{
+    DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name, ScalarLiteral,
+};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
+
+use crate::literal::format_scalar_literal;
+use destack_source::Span;
+
+/// Format a dependency item name.
+fn format_dependency_item_name<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    name: Name,
+) -> FormatResult<()> {
+    match name {
+        Name::Identifier(name) | Name::Number(name) => {
+            write!(f, [name])?;
+        }
+        Name::String(name) => {
+            let literal = ScalarLiteral::String(name);
+            let span = Span::empty(f.context().file.id);
+            format_scalar_literal(&literal, span, f)?;
+        }
+    }
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
@@ -28,7 +52,9 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         // item
         else {
             // name
-            write!(f, [self.name])?;
+            if let Some(name) = self.name {
+                format_dependency_item_name(f, name)?;
+            }
             // alias
             if let Some(alias) = self.alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;

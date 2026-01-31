@@ -268,7 +268,7 @@ pub fn find_symbol_at_offset(
                         continue;
                     }
 
-                    let Some(name_id) = alias.or(name) else {
+                    let Some(name_id) = alias.or(name.map(|name| name.string())) else {
                         continue;
                     };
 

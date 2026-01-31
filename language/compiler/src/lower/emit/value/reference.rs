@@ -171,6 +171,11 @@ impl FunctionContext<'_> {
                 left,
                 name,
                 static_arguments,
+            }
+            | Expression::PrivateMember {
+                left,
+                name,
+                static_arguments,
             } => {
                 // reject static arguments on member borrows
                 if static_arguments.is_some() {

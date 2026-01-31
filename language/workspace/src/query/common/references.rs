@@ -312,7 +312,9 @@ fn dependency_item_name_span(
         DependencyItem::Remote { name, alias, .. }
         | DependencyItem::Local { name, alias, .. }
         | DependencyItem::UnresolvedRemote { name, alias, .. }
-        | DependencyItem::UnresolvedLocal { name, alias, .. } => (*name, *alias),
+        | DependencyItem::UnresolvedLocal { name, alias, .. } => {
+            (name.map(|name| name.string()), *alias)
+        }
         DependencyItem::Value { .. } => (None, None),
     };
 

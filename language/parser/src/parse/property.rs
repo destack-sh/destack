@@ -75,7 +75,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, false)?;
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
@@ -434,7 +434,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true)?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
         // must check before key parsing since static is already a modifier
@@ -573,6 +573,18 @@ impl Parser {
             (Some(key), Some(span))
         } else {
             (None, None)
+        };
+
+        // definite assignment assertion
+        let modifiers = if self.peek_token(TokenType::Not).is_ok() {
+            self.bump(); // eat !
+            let base = modifiers.unwrap_or_default();
+            Some(BindingModifier {
+                kind: Some(BindingKind::Must),
+                ..base
+            })
+        } else {
+            modifiers
         };
 
         // modifiers postfix
@@ -825,9 +837,22 @@ mod tests {
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
-            assert_string!(parser, *name, "#name");
+        assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Private(name)), value: Some(ty), default: None, .. } => {
+            assert_string!(parser, *name, "name");
             assert_expression_path!(parser, parser.tree.get(*ty), "string");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_definite_assignment() {
+        let mut test = TestParser::new_with_options("prop!: Foo", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_eq!(modifiers.kind, Some(BindingKind::Must));
+            assert_string!(parser, *name, "prop");
+            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
         });
     }
 

@@ -1,13 +1,46 @@
 use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, NodeTree, NodeType,
-    Property, ScopeKind, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
+    BindingModifier, DynamicKey, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member,
+    NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    TypeTable, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Apply private visibility to members with private keys.
+    pub(super) fn apply_private_member_visibility(
+        &self,
+        modifiers: Option<BindingModifier>,
+        key: Option<DynamicKey>,
+    ) -> Option<BindingModifier> {
+        // keep modifiers unchanged when the key is not private
+        if !matches!(key, Some(DynamicKey::Private(_))) {
+            return modifiers;
+        }
+
+        // ensure we have a modifier to update
+        let mut modifiers = modifiers.unwrap_or(BindingModifier {
+            kind: None,
+            abstraction: None,
+            variance: None,
+            anchor: None,
+            mutability: None,
+            visibility: None,
+            operator: None,
+            accessor: None,
+            timing: None,
+        });
+
+        // inject private visibility when not already specified
+        if modifiers.visibility.is_none() {
+            modifiers.visibility = Some(Visibility::Private);
+        }
+
+        Some(modifiers)
+    }
+
     /// Bind a property to a DIR property.
     pub(super) fn bind_property(
         &self,
@@ -302,6 +335,7 @@ impl Compiler {
                         types,
                     )
                 });
+                let modifiers = self.apply_private_member_visibility(modifiers, key);
                 let value = value.map(|value| {
                     self.bind_expression(
                         module,
@@ -381,6 +415,7 @@ impl Compiler {
                         types,
                     )
                 });
+                let modifiers = self.apply_private_member_visibility(modifiers, key);
 
                 // bind the implicit this local for method bodies
                 let this_name = self.program.strings.intern("this");

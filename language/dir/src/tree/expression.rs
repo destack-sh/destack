@@ -205,6 +205,12 @@ pub enum Expression {
         name: StringId,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
+    /// Private member access (like `a.#foo` or `a.#foo<T>`).
+    PrivateMember {
+        left: LocalNodeId<Expression>,
+        name: StringId,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+    },
     /// Call to a function.
     Call {
         left: LocalNodeId<Expression>,
@@ -262,6 +268,8 @@ pub enum Expression {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         target_symbol: GlobalSymbolId,
     },
+    /// Private identifier.
+    PrivateIdentifier { name: StringId },
 
     /// Import meta intrinsic value.
     ImportMeta,
@@ -485,6 +493,7 @@ impl Expression {
             Expression::Assign { .. } => "assign",
             Expression::AssignBinary { .. } => "assign binary",
             Expression::Member { .. } => "member",
+            Expression::PrivateMember { .. } => "private member",
             Expression::Call { .. } => "call",
             Expression::Index { .. } => "index",
             Expression::Instantiation { .. } => "instantiation",
@@ -497,6 +506,7 @@ impl Expression {
             Expression::LocalReference { .. } => "local reference",
             Expression::ModuleReference { .. } => "module reference",
             Expression::GlobalReference { .. } => "global reference",
+            Expression::PrivateIdentifier { .. } => "private identifier",
             Expression::ImportMeta => "import meta",
             Expression::This => "this",
 

@@ -30,6 +30,9 @@ pub(crate) fn format_binding_modifiers_prefix<'ast>(
         match variance {
             VarianceModifier::In => write!(f, [token("in"), space()])?,
             VarianceModifier::Out => write!(f, [token("out"), space()])?,
+            VarianceModifier::InOut => {
+                write!(f, [token("in"), space(), token("out"), space()])?;
+            }
         }
     }
     // visibility

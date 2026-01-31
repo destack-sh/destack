@@ -728,6 +728,7 @@ impl Compiler {
         // only keep literal keys for static lookup
         match key {
             DynamicKey::Name(name) => Some(StaticKey::Name(*name)),
+            DynamicKey::Private(_) => None,
             DynamicKey::Number(name) => Some(StaticKey::Number(*name)),
             DynamicKey::Expression(_) | DynamicKey::NamedExpression { .. } => None,
         }

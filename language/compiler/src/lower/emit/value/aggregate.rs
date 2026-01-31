@@ -673,6 +673,12 @@ impl FunctionContext<'_> {
                         message: "struct field not found".to_string(),
                     })
             }
+            dir::DynamicKey::Private(_) => Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "private field key not supported in struct layout".to_string(),
+            }),
             dir::DynamicKey::Number(num_str) => {
                 // parse numeric key as source index
                 let index_str = self.env.strings.get(*num_str);

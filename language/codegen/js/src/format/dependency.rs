@@ -1,11 +1,32 @@
-use crate::{DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId};
+use crate::{
+    DependencyItem, DependencyKind, DependencyMode, Keyword, LocalNodeId, Name, ScalarLiteral,
+};
 use destack_base::StringId;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::format::argument::list_like;
+use crate::format::literal::format_scalar_literal;
 use crate::{CodegenJsFormatter, FormatNode};
+
+/// Format a dependency item name.
+fn format_dependency_item_name<'ast>(
+    f: &mut CodegenJsFormatter<'ast, '_>,
+    name: Name,
+) -> FormatResult<()> {
+    match name {
+        Name::Identifier(name) => {
+            write!(f, [name])?;
+        }
+        Name::String(name) => {
+            let literal = ScalarLiteral::String(name);
+            format_scalar_literal(&literal, f)?;
+        }
+    }
+
+    Ok(())
+}
 
 impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
@@ -28,7 +49,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
         // item mode (regular)
         else {
             if let Some(name) = self.name {
-                write!(f, [name])?;
+                format_dependency_item_name(f, name)?;
             }
             if let Some(alias) = self.alias {
                 write!(f, [space(), Keyword::As, space(), alias])?;

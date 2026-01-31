@@ -18,6 +18,8 @@ pub enum VarianceModifier {
     In,
     /// Covariant type parameter.
     Out,
+    /// Invariant type parameter.
+    InOut,
 }
 
 /// The scope of a binding (dynamic or static).

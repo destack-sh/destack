@@ -1928,7 +1928,7 @@ fn import_clause_info(
         }
 
         if let Some(name_id) = item.name {
-            existing_names.push(ctx.ast.strings.get(name_id).to_string());
+            existing_names.push(ctx.ast.strings.get(name_id.string()).to_string());
         }
         if let Some(alias_id) = item.alias {
             existing_names.push(ctx.ast.strings.get(alias_id).to_string());
