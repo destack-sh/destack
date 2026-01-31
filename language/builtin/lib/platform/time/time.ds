@@ -1,14 +1,14 @@
 /// Time bindings for the native runtime.
-declare namespace time {
+export declare namespace time {
     /// Return wall clock time in nanoseconds since the runtime epoch.
-    @binding("destack.time.wall_ns")
+    @binding("destack.time.wallNs")
     export function wallNs(): uint64;
 
     /// Return monotonic time in nanoseconds since process start.
-    @binding("destack.time.mono_ns")
+    @binding("destack.time.monoNs")
     export function monoNs(): uint64;
 
     /// Sleep for at least the given duration in nanoseconds.
-    @binding("destack.time.sleep_ns")
+    @binding("destack.time.sleepNs")
     export function sleepNs(duration: uint64): void;
 }

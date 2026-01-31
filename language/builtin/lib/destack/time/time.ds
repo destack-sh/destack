@@ -1,19 +1,19 @@
-import { time as platformTime } from "../../platform/time/index.ds";
+import * as platform from "../../platform/index.ds";
 
 /// Time API for the Destack runtime.
 export namespace time {
     /// Return wall clock time in nanoseconds since the runtime epoch.
     export function wallNs(): uint64 {
-        platformTime.wallNs()
+        platform.time.wallNs()
     }
 
     /// Return monotonic time in nanoseconds since process start.
     export function monoNs(): uint64 {
-        platformTime.monoNs()
+        platform.time.monoNs()
     }
 
     /// Sleep for at least the given duration in nanoseconds.
     export function sleepNs(duration: uint64): void {
-        platformTime.sleepNs(duration)
+        platform.time.sleepNs(duration)
     }
 }

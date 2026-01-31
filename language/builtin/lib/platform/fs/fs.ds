@@ -12,7 +12,7 @@ import {
 } from "./types.ds";
 
 /// Filesystem bindings for the native runtime.
-declare namespace fs {
+export declare namespace fs {
     /// Open a file and return a handle.
     @binding("destack.fs.open")
     export function open(
