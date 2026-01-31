@@ -8,7 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::{CanonicalSymbolMode, TypeWalkContext, TypeWalkKey};
+use super::{CanonicalSymbolMode, TypeCollector, TypeWalkContext, TypeWalkKey};
 use crate::{AnalyzeResult, Compiler};
 
 fn base_visitor_options() -> TypeVisitorOptions {
@@ -754,6 +754,50 @@ impl Compiler {
             self.evaluate_type(module, profile, type_id, tree, symbols, types)?;
         }
         Ok(type_id)
+    }
+
+    /// Materialize an imported type by evaluating unevaluated components when needed.
+    pub(crate) fn materialize_imported_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        if !module.language_type.is_declaration() {
+            self.ensure_type_evaluated(module, profile, type_id, tree, symbols, types)?;
+            return Ok(());
+        }
+
+        // walk the type graph and evaluate unevaluated nodes before import
+        let mut pending = Vec::new();
+        let mut visited = HashSet::new();
+        let mut discovered = Vec::new();
+        pending.push(type_id);
+        while let Some(current_id) = pending.pop() {
+            if !visited.insert(current_id) {
+                continue;
+            }
+
+            // evaluate unevaluated types before walking children
+            if matches!(types.get_type(current_id), Type::Unevaluated(_)) {
+                self.evaluate_type(module, profile, current_id, tree, symbols, types)?;
+            }
+
+            // keep walking the type graph to discover unevaluated types
+            let ty = types.get_type(current_id).clone();
+            {
+                let mut visitor = TypeCollector::new(&mut discovered, base_visitor_options());
+                walk_type(&mut visitor, types, current_id, &ty);
+            }
+            if !discovered.is_empty() {
+                pending.extend(discovered.drain(..));
+            }
+        }
+
+        Ok(())
     }
 
     /// Resolve a type symbol from a type reference or type-as-value.

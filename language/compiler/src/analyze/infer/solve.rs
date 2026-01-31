@@ -403,8 +403,7 @@ impl Compiler {
                     normalized_source,
                     types,
                     options,
-                )
-                    == Assignability::Assignable
+                ) == Assignability::Assignable
                 {
                     Some(lower)
                 } else {
@@ -468,7 +467,9 @@ impl Compiler {
             NormalizationMode::Assign,
             RelationMode::ASSIGN,
         );
-        normalization_cache.apparent_assign.insert(type_id, normalized);
+        normalization_cache
+            .apparent_assign
+            .insert(type_id, normalized);
         normalized
     }
 
