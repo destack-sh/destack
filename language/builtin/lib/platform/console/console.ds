@@ -1,7 +1,7 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// Console bindings for native runtime.
-declare namespace console {
+export declare namespace console {
     /// Write a line to stdout.
     @binding("destack.console.log")
     export function log(value: string): Result<void, PlatformError>;

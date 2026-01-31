@@ -1,6 +1,6 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { fs as platformFs } from "../../platform/fs/index.ds";
+import * as platform from "../../platform/index.ds";
 import type {
     AccessMode,
     Dirent,
@@ -22,12 +22,12 @@ export namespace fs {
         flags: OpenFlags,
         mode: FileMode,
     ): Result<FileHandle, PlatformError> {
-        platformFs.open(path, flags, mode)
+        platform.fs.open(path, flags, mode)
     }
 
     /// Close an open file handle.
     export function close(handle: FileHandle): Result<void, PlatformError> {
-        platformFs.close(handle)
+        platform.fs.close(handle)
     }
 
     /// Read from a file into the provided slice at the given file offset.
@@ -36,7 +36,7 @@ export namespace fs {
         buffer: Slice<uint8>,
         offset: FileOffset,
     ): Result<uint64, PlatformError> {
-        platformFs.read(handle, buffer, offset)
+        platform.fs.read(handle, buffer, offset)
     }
 
     /// Write to a file from the provided slice at the given file offset.
@@ -45,7 +45,7 @@ export namespace fs {
         buffer: Slice<uint8>,
         offset: FileOffset,
     ): Result<uint64, PlatformError> {
-        platformFs.write(handle, buffer, offset)
+        platform.fs.write(handle, buffer, offset)
     }
 
     /// Read into multiple buffers at the given file offset.
@@ -54,7 +54,7 @@ export namespace fs {
         buffers: Slice<Slice<uint8>>,
         offset: FileOffset,
     ): Result<uint64, PlatformError> {
-        platformFs.readv(handle, buffers, offset)
+        platform.fs.readv(handle, buffers, offset)
     }
 
     /// Write from multiple buffers at the given file offset.
@@ -63,107 +63,107 @@ export namespace fs {
         buffers: Slice<Slice<uint8>>,
         offset: FileOffset,
     ): Result<uint64, PlatformError> {
-        platformFs.writev(handle, buffers, offset)
+        platform.fs.writev(handle, buffers, offset)
     }
 
     /// Stat a file by path.
     export function stat(path: string): Result<Stat, PlatformError> {
-        platformFs.stat(path)
+        platform.fs.stat(path)
     }
 
     /// Stat a file by handle.
     export function fstat(handle: FileHandle): Result<Stat, PlatformError> {
-        platformFs.fstat(handle)
+        platform.fs.fstat(handle)
     }
 
     /// Stat a file by path without following symlinks.
     export function lstat(path: string): Result<Stat, PlatformError> {
-        platformFs.lstat(path)
+        platform.fs.lstat(path)
     }
 
     /// Stat a filesystem by path.
     export function statfs(path: string): Result<StatFs, PlatformError> {
-        platformFs.statfs(path)
+        platform.fs.statfs(path)
     }
 
     /// Stat a filesystem by handle.
     export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError> {
-        platformFs.fstatfs(handle)
+        platform.fs.fstatfs(handle)
     }
 
     /// Check file access permissions.
     export function access(path: string, mode: AccessMode): Result<void, PlatformError> {
-        platformFs.access(path, mode)
+        platform.fs.access(path, mode)
     }
 
     /// Create a directory.
     export function mkdir(path: string, mode: FileMode): Result<void, PlatformError> {
-        platformFs.mkdir(path, mode)
+        platform.fs.mkdir(path, mode)
     }
 
     /// Remove a directory.
     export function rmdir(path: string): Result<void, PlatformError> {
-        platformFs.rmdir(path)
+        platform.fs.rmdir(path)
     }
 
     /// Open a directory and return a handle.
     export function opendir(path: string): Result<DirectoryHandle, PlatformError> {
-        platformFs.opendir(path)
+        platform.fs.opendir(path)
     }
 
     /// Read directory entries from an open directory handle.
     export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError> {
-        platformFs.readdir(handle)
+        platform.fs.readdir(handle)
     }
 
     /// Close a directory handle.
     export function closedir(handle: DirectoryHandle): Result<void, PlatformError> {
-        platformFs.closedir(handle)
+        platform.fs.closedir(handle)
     }
 
     /// Rename or move a file.
     export function rename(from: string, to: string): Result<void, PlatformError> {
-        platformFs.rename(from, to)
+        platform.fs.rename(from, to)
     }
 
     /// Unlink a file.
     export function unlink(path: string): Result<void, PlatformError> {
-        platformFs.unlink(path)
+        platform.fs.unlink(path)
     }
 
     /// Create a hard link.
     export function link(existingPath: string, newPath: string): Result<void, PlatformError> {
-        platformFs.link(existingPath, newPath)
+        platform.fs.link(existingPath, newPath)
     }
 
     /// Create a symbolic link.
     export function symlink(target: string, path: string): Result<void, PlatformError> {
-        platformFs.symlink(target, path)
+        platform.fs.symlink(target, path)
     }
 
     /// Read a symbolic link.
     export function readlink(path: string): Result<string, PlatformError> {
-        platformFs.readlink(path)
+        platform.fs.readlink(path)
     }
 
     /// Resolve a path to its canonical form.
     export function realpath(path: string): Result<string, PlatformError> {
-        platformFs.realpath(path)
+        platform.fs.realpath(path)
     }
 
     /// Change file permissions.
     export function chmod(path: string, mode: FileMode): Result<void, PlatformError> {
-        platformFs.chmod(path, mode)
+        platform.fs.chmod(path, mode)
     }
 
     /// Change file permissions by handle.
     export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError> {
-        platformFs.fchmod(handle, mode)
+        platform.fs.fchmod(handle, mode)
     }
 
     /// Change file owner and group.
     export function chown(path: string, uid: uint32, gid: uint32): Result<void, PlatformError> {
-        platformFs.chown(path, uid, gid)
+        platform.fs.chown(path, uid, gid)
     }
 
     /// Change file owner and group by handle.
@@ -172,7 +172,7 @@ export namespace fs {
         uid: uint32,
         gid: uint32,
     ): Result<void, PlatformError> {
-        platformFs.fchown(handle, uid, gid)
+        platform.fs.fchown(handle, uid, gid)
     }
 
     /// Update access and modification times.
@@ -181,7 +181,7 @@ export namespace fs {
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError> {
-        platformFs.utimes(path, atimeNs, mtimeNs)
+        platform.fs.utimes(path, atimeNs, mtimeNs)
     }
 
     /// Update access and modification times by handle.
@@ -190,7 +190,7 @@ export namespace fs {
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError> {
-        platformFs.futimes(handle, atimeNs, mtimeNs)
+        platform.fs.futimes(handle, atimeNs, mtimeNs)
     }
 
     /// Update access and modification times without following symlinks.
@@ -199,27 +199,27 @@ export namespace fs {
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError> {
-        platformFs.lutimes(path, atimeNs, mtimeNs)
+        platform.fs.lutimes(path, atimeNs, mtimeNs)
     }
 
     /// Truncate a file by path.
     export function truncate(path: string, size: FileOffset): Result<void, PlatformError> {
-        platformFs.truncate(path, size)
+        platform.fs.truncate(path, size)
     }
 
     /// Truncate a file by handle.
     export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError> {
-        platformFs.ftruncate(handle, size)
+        platform.fs.ftruncate(handle, size)
     }
 
     /// Synchronize a file's in-core state with storage.
     export function fsync(handle: FileHandle): Result<void, PlatformError> {
-        platformFs.fsync(handle)
+        platform.fs.fsync(handle)
     }
 
     /// Synchronize file data only.
     export function fdatasync(handle: FileHandle): Result<void, PlatformError> {
-        platformFs.fdatasync(handle)
+        platform.fs.fdatasync(handle)
     }
 
     /// Copy a file.
@@ -228,11 +228,11 @@ export namespace fs {
         to: string,
         flags: uint32,
     ): Result<void, PlatformError> {
-        platformFs.copyfile(from, to, flags)
+        platform.fs.copyfile(from, to, flags)
     }
 
     /// Create a temporary directory.
     export function mkdtemp(template: string): Result<string, PlatformError> {
-        platformFs.mkdtemp(template)
+        platform.fs.mkdtemp(template)
     }
 }

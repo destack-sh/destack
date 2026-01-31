@@ -1,25 +1,25 @@
 import type { PlatformError } from "../error/index.ds";
-import { console as platformConsole } from "../../platform/console/index.ds";
+import * as platform from "../../platform/index.ds";
 
 /// Console API for the Destack runtime.
 export namespace console {
     /// Write a line to stdout.
     export function log(value: string): Result<void, PlatformError> {
-        platformConsole.log(value)
+        platform.console.log(value)
     }
 
     /// Write an info line to stdout.
     export function info(value: string): Result<void, PlatformError> {
-        platformConsole.info(value)
+        platform.console.info(value)
     }
 
     /// Write a warning line to stderr.
     export function warn(value: string): Result<void, PlatformError> {
-        platformConsole.warn(value)
+        platform.console.warn(value)
     }
 
     /// Write an error line to stderr.
     export function error(value: string): Result<void, PlatformError> {
-        platformConsole.error(value)
+        platform.console.error(value)
     }
 }

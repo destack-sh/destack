@@ -39,6 +39,7 @@
         "lib/destack/time/index.ds",
         "lib/destack/time/time.ds",
         "lib/destack/timers/index.ds",
+        "lib/destack/timers/promises/index.ds",
         "lib/destack/timers/timers.ds",
         "lib/destack/url/index.ds",
         "lib/destack/url/url.ds",

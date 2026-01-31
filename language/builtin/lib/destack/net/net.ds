@@ -1,36 +1,36 @@
 import { Slice } from "native";
-import { net as platformNet } from "../../platform/net/index.ds";
+import * as platform from "../../platform/index.ds";
 import { ListenerHandle, SocketHandle } from "../resource/index.ds";
 
 /// Networking API for the Destack runtime.
 export namespace net {
     /// Connect to a remote host and return a socket handle.
     export function connect(host: string, port: uint16): SocketHandle {
-        platformNet.connect(host, port)
+        platform.net.connect(host, port)
     }
 
     /// Start listening on the given address.
     export function listen(host: string, port: uint16, backlog: uint32): ListenerHandle {
-        platformNet.listen(host, port, backlog)
+        platform.net.listen(host, port, backlog)
     }
 
     /// Accept a new connection from a listener.
     export function accept(listener: ListenerHandle): SocketHandle {
-        platformNet.accept(listener)
+        platform.net.accept(listener)
     }
 
     /// Close a socket handle.
     export function close(handle: SocketHandle): void {
-        platformNet.close(handle)
+        platform.net.close(handle)
     }
 
     /// Read from a socket into the provided slice.
     export function read(handle: SocketHandle, buffer: Slice<uint8>): uint64 {
-        platformNet.read(handle, buffer)
+        platform.net.read(handle, buffer)
     }
 
     /// Write to a socket from the provided slice.
     export function write(handle: SocketHandle, buffer: Slice<uint8>): uint64 {
-        platformNet.write(handle, buffer)
+        platform.net.write(handle, buffer)
     }
 }

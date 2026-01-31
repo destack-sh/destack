@@ -2,7 +2,7 @@ import { Slice } from "native";
 import { ListenerHandle, SocketHandle } from "../resource/resource.ds";
 
 /// Networking bindings for the native runtime.
-declare namespace net {
+export declare namespace net {
     /// Connect to a remote host and return a socket handle.
     @binding("destack.net.connect")
     export function connect(host: string, port: uint16): SocketHandle;

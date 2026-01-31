@@ -1,7 +1,7 @@
 import { Array } from "native";
 
 /// Process bindings for native runtime.
-declare namespace process {
+export declare namespace process {
     /// Return the process arguments.
     @binding("destack.process.args")
     export function args(): Array<string>;

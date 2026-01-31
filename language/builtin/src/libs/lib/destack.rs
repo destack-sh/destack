@@ -171,6 +171,12 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
+            LIB_DESTACK_TIMERS_PROMISES_INDEX_DS,
+            "lib",
+            "destack/timers/promises",
+            "index.ds"
+        ),
+        (
             LIB_DESTACK_TIMERS_TIMERS_DS,
             "lib",
             "destack/timers",
@@ -224,6 +230,7 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_TIME_INDEX_DS,
         LIB_DESTACK_TIME_TIME_DS,
         LIB_DESTACK_TIMERS_INDEX_DS,
+        LIB_DESTACK_TIMERS_PROMISES_INDEX_DS,
         LIB_DESTACK_TIMERS_TIMERS_DS,
         LIB_DESTACK_URL_INDEX_DS,
         LIB_DESTACK_URL_URL_DS,

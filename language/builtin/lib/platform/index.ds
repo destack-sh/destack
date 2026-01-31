@@ -1,9 +1,21 @@
-export * from "./console/index.ds";
-export * from "./error/index.ds";
-export * from "./process/index.ds";
-export * from "./resource/index.ds";
-export * from "./time/index.ds";
-export * from "./random/index.ds";
-export * from "./fs/index.ds";
-export * from "./net/index.ds";
-export * from "./timer/index.ds";
+export type { PlatformError } from "./error/index.ds";
+export { console } from "./console/index.ds";
+export { fs } from "./fs/index.ds";
+export { net } from "./net/index.ds";
+export { process } from "./process/index.ds";
+export { random } from "./random/index.ds";
+export type {
+    ResourceId,
+    FileHandle,
+    DirectoryHandle,
+    SocketHandle,
+    ListenerHandle,
+    ProcessHandle,
+    TimerHandle,
+    WatchHandle,
+    PipeHandle,
+    TtyHandle,
+    SignalHandle,
+} from "./resource/index.ds";
+export { time } from "./time/index.ds";
+export { timer } from "./timer/index.ds";
