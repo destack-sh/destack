@@ -75,7 +75,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, false)?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, false)?;
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
@@ -89,6 +89,53 @@ impl Parser {
         } else {
             false
         };
+
+        // late abstraction modifiers after async
+        if is_async {
+            let mut abstraction = modifiers.and_then(|modifiers| modifiers.abstraction);
+            let mut has_abstraction = abstraction.is_some();
+            loop {
+                if self.peek_keyword(Keyword::Abstract).is_ok() {
+                    self.bump(); // eat abstract
+                    abstraction = Some(match abstraction {
+                        None => AbstractionModifier::Abstract,
+                        Some(AbstractionModifier::Override) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                        Some(AbstractionModifier::Abstract) => AbstractionModifier::Abstract,
+                        Some(AbstractionModifier::AbstractOverride) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                    });
+                    has_abstraction = true;
+                    continue;
+                }
+                if self.peek_keyword(Keyword::Override).is_ok() {
+                    self.bump(); // eat override
+                    abstraction = Some(match abstraction {
+                        None => AbstractionModifier::Override,
+                        Some(AbstractionModifier::Abstract) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                        Some(AbstractionModifier::Override) => AbstractionModifier::Override,
+                        Some(AbstractionModifier::AbstractOverride) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                    });
+                    has_abstraction = true;
+                    continue;
+                }
+                break;
+            }
+
+            if has_abstraction {
+                let base = modifiers.unwrap_or_default();
+                modifiers = Some(BindingModifier {
+                    abstraction,
+                    ..base
+                });
+            }
+        }
 
         // mode
         let mode = {
@@ -434,7 +481,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, true)?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
         // must check before key parsing since static is already a modifier
@@ -525,6 +572,53 @@ impl Parser {
         } else {
             false
         };
+
+        // late abstraction modifiers after async
+        if is_async {
+            let mut abstraction = modifiers.and_then(|modifiers| modifiers.abstraction);
+            let mut has_abstraction = abstraction.is_some();
+            loop {
+                if self.peek_keyword(Keyword::Abstract).is_ok() {
+                    self.bump(); // eat abstract
+                    abstraction = Some(match abstraction {
+                        None => AbstractionModifier::Abstract,
+                        Some(AbstractionModifier::Override) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                        Some(AbstractionModifier::Abstract) => AbstractionModifier::Abstract,
+                        Some(AbstractionModifier::AbstractOverride) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                    });
+                    has_abstraction = true;
+                    continue;
+                }
+                if self.peek_keyword(Keyword::Override).is_ok() {
+                    self.bump(); // eat override
+                    abstraction = Some(match abstraction {
+                        None => AbstractionModifier::Override,
+                        Some(AbstractionModifier::Abstract) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                        Some(AbstractionModifier::Override) => AbstractionModifier::Override,
+                        Some(AbstractionModifier::AbstractOverride) => {
+                            AbstractionModifier::AbstractOverride
+                        }
+                    });
+                    has_abstraction = true;
+                    continue;
+                }
+                break;
+            }
+
+            if has_abstraction {
+                let base = modifiers.unwrap_or_default();
+                modifiers = Some(BindingModifier {
+                    abstraction,
+                    ..base
+                });
+            }
+        }
 
         // mode
         let mode = {
@@ -823,8 +917,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, BindingKind, Expression, FunctionAbstraction, FunctionMode, IntType,
-        Key, Member, Name, Parameter, Property, ScalarLiteral, TypeLiteral, Visibility,
+        AbstractionModifier, Asynchrony, BindingKind, Declaration, Expression, FunctionAbstraction,
+        FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
+        TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -885,6 +980,24 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_member_async_override_method() {
+        let mut test = TestParser::new_with_options(
+            "public async override foo(): void",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { modifiers, key: Some(Key::Name(Name::Identifier(name))), signature, .. } => {
+            let modifiers = modifiers.expect("expected modifiers");
+            assert_eq!(modifiers.visibility, Some(Visibility::Public));
+            assert_string!(parser, *name, "foo");
+            assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
+            assert_eq!(signature.asynchrony, Asynchrony::Async);
+        });
+    }
+
+    #[test]
     fn test_parse_property_with_value() {
         let mut test = TestParser::new("x: int32");
         let mut parser = test.prepare();
@@ -904,6 +1017,25 @@ mod tests {
         assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: None, default: Some(default), .. } => {
             assert_string!(parser, *name, "x");
             assert_node!(parser.tree, *default, Expression::ScalarLiteral(ScalarLiteral::Integer(42)));
+        });
+    }
+
+    #[test]
+    fn test_parse_property_with_typed_arrow_value() {
+        let mut test = TestParser::new_with_options(
+            "reproFunc: (_: any): any => { }",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let property = parser.eat_property().unwrap();
+        assert_node!(parser.tree, property, Property::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: Some(value), default: None, .. } => {
+            assert_string!(parser, *name, "reproFunc");
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(_), .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
+                });
+            });
         });
     }
 
@@ -1081,7 +1213,10 @@ mod tests {
 
     #[test]
     fn test_parse_member_comptime_block_newline() {
-        let mut test = TestParser::new("comptime\n{ assert(true) }");
+        let mut test = TestParser::new(
+            r#"comptime
+{ assert(true) }"#,
+        );
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
         assert_node!(parser.tree, member_id, Member::ComptimeBlock { modifiers: _, body } => {

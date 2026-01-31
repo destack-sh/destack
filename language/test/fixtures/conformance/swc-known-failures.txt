@@ -1,14 +1,6 @@
-typescript/custom/async-with-as/input.ts
-typescript/custom/default-followed-by-type/function/input.ts
-typescript/custom/issue-401-const-assertion-array-ts/input.ts
-typescript/custom/issue-401-const-assertion-literal-ts/input.ts
-typescript/custom/issue-401-const-assertion-object-ts/input.ts
 typescript/deno/dso/reflect/input.ts
-typescript/issue-11124/input.ts
 typescript/issue-1505/case2/input.tsx
-typescript/issue-1558/case1/input.ts
 typescript/issue-4911/3/input.ts
 typescript/issue-6430/index.ts
 typescript/issue-6601/index.tsx
 typescript/next/stack-overflow/1/input.ts
-typescript/types/conditional-infer-extends/distinguishing/input.ts

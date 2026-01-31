@@ -45,6 +45,7 @@ impl EvaluateExpressionContext {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Cache an expression type id and optional value for a cache context (if possible).
     pub(super) fn cache_expression_type_maybe(
@@ -64,7 +65,7 @@ impl Compiler {
         let Some(ty) = ty else {
             return;
         };
-        if !ty.is_unevaluated() && !(is_reference_expression && ty.is_unknown()) {
+        if !(ty.is_unevaluated() || (is_reference_expression && ty.is_unknown())) {
             types.set_expression_type_value_cache(cache_key, ty.clone());
         }
     }

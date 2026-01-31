@@ -349,6 +349,71 @@ impl Parser {
         IntrinsicType::try_from(name_str).ok()
     }
 
+    /// Check whether `infer ... extends ... ?` should parse as a conditional type.
+    fn infer_extends_starts_conditional(&self) -> bool {
+        // early exit: inside the conditional right side, treat extends as a constraint
+        if self.options.in_type_conditional_right {
+            return false;
+        }
+        // quick reject when extends is not next
+        if self.peek_keyword(Keyword::Extends).is_err() {
+            return false;
+        }
+
+        // scan until a conditional boundary or a terminating token
+        let mut index = self.pos() as usize + 1;
+        let mut paren_depth = 0usize;
+        let mut bracket_depth = 0usize;
+        let mut brace_depth = 0usize;
+
+        while let Some(token) = self.tokens.get(index) {
+            match token.token.ty {
+                TokenType::OpenParenthesis => paren_depth += 1,
+                TokenType::CloseParenthesis => {
+                    if paren_depth == 0 {
+                        break;
+                    }
+                    paren_depth -= 1;
+                }
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => {
+                    if bracket_depth == 0 {
+                        break;
+                    }
+                    bracket_depth -= 1;
+                }
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => {
+                    if brace_depth == 0 {
+                        break;
+                    }
+                    brace_depth -= 1;
+                }
+                TokenType::Maybe => {
+                    if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
+                        return true;
+                    }
+                }
+                TokenType::Comma
+                | TokenType::Semicolon
+                | TokenType::Colon
+                | TokenType::Arrow
+                | TokenType::ArrowWide
+                | TokenType::TemplateStringMiddle
+                | TokenType::TemplateStringEnd => {
+                    // stop at template literal boundaries to avoid crossing interpolations
+                    if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            index += 1;
+        }
+
+        false
+    }
+
     /// Eat a type infer expression.
     pub fn eat_type_infer_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // parse infer name
@@ -361,7 +426,9 @@ impl Parser {
         if self.options.in_type_conditional_right {
             constraint_options = constraint_options.in_type_conditional_right();
         }
-        let constraint = if self.peek_keyword(Keyword::Extends).is_ok() {
+        let constraint = if self.peek_keyword(Keyword::Extends).is_ok()
+            && !self.infer_extends_starts_conditional()
+        {
             self.bump(); // eat extends
             self.eat_newlines_maybe()?;
             Some(self.with_options(constraint_options, |parser| parser.eat_expression())?)
@@ -908,6 +975,67 @@ mod tests {
         });
     }
 
+    /// Parse conditional types where infer-extends is a constraint inside parentheses.
+    #[test]
+    fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
+        let mut test = TestParser::new_with_options(
+            "type X = T extends (infer U extends number) ? 1 : 0",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type X = T extends (infer U extends number) ? 1 : 0
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "T");
+                    assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::TypeInfer { name, constraint } => {
+                            assert_string!(parser, *name, "U");
+                            assert_node!(parser.tree, constraint.expect("expected constraint"), Expression::TypeLiteral(TypeLiteral::Number));
+                        });
+                    });
+                    assert_node!(parser.tree, *then_type, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    assert_node!(parser.tree, *else_type, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+            });
+        });
+    }
+
+    /// Parse conditional types where infer-extends starts a nested conditional.
+    #[test]
+    fn test_parse_type_conditional_infer_extends_parenthesized_conditional() {
+        let mut test = TestParser::new_with_options(
+            "type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type X = T extends (infer U extends number ? 1 : 0) ? 1 : 0
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, right, then_type, else_type } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "T");
+                    assert_node!(parser.tree, *right, Expression::Parenthesized { expression } => {
+                        assert_node!(parser.tree, *expression, Expression::TypeConditional { left, right, then_type, else_type } => {
+                            assert_node!(parser.tree, *left, Expression::TypeInfer { name, constraint } => {
+                                assert_string!(parser, *name, "U");
+                                assert!(constraint.is_none());
+                            });
+                            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                            assert_node!(parser.tree, *then_type, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                            assert_node!(parser.tree, *else_type, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                        });
+                    });
+                    assert_node!(parser.tree, *then_type, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    assert_node!(parser.tree, *else_type, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                });
+            });
+        });
+    }
+
     #[test]
     fn test_parse_type_expression_with_static_parameters() {
         let mut test = TestParser::new("type T<A, B>");
@@ -1158,7 +1286,11 @@ mod tests {
 
     #[test]
     fn test_parse_type_conditional_multiline_nested() {
-        let mut test = TestParser::new("type T = A extends B ?\n    C extends D ? E : F\n    : G");
+        let mut test = TestParser::new(
+            r#"type T = A extends B ?
+    C extends D ? E : F
+    : G"#,
+        );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
 
@@ -1193,7 +1325,11 @@ mod tests {
     #[test]
     fn test_parse_type_conditional_multiline_readonly_array() {
         let mut test = TestParser::new(
-            "type IsTuple<T> = T extends readonly unknown[]\n  ? number extends T[\"length\"]\n    ? false\n    : true\n  : false",
+            r#"type IsTuple<T> = T extends readonly unknown[]
+  ? number extends T["length"]
+    ? false
+    : true
+  : false"#,
         );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
@@ -1771,7 +1907,10 @@ mod tests {
     #[test]
     fn test_parse_leading_intersection_with_mapped_types_typescript_declaration() {
         let mut test = TestParser::new_with_options(
-            "type T = (\n  & { [K in keyof T]: T[K] }\n  & { [K in keyof T as K extends string ? K : never]: T[K] }\n)",
+            r#"type T = (
+  & { [K in keyof T]: T[K] }
+  & { [K in keyof T as K extends string ? K : never]: T[K] }
+)"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
@@ -1794,7 +1933,10 @@ mod tests {
     #[test]
     fn test_parse_leading_intersection_simple_typescript_declaration() {
         let mut test = TestParser::new_with_options(
-            "type T = (\n  & A\n  & B\n)",
+            r#"type T = (
+  & A
+  & B
+)"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
@@ -1817,7 +1959,10 @@ mod tests {
     #[test]
     fn test_parse_leading_intersection_with_mapped_type_and_path_typescript_declaration() {
         let mut test = TestParser::new_with_options(
-            "type T = (\n  & { [K in keyof T]: T[K] }\n  & A\n)",
+            r#"type T = (
+  & { [K in keyof T]: T[K] }
+  & A
+)"#,
             LanguageType::TypeScriptDeclaration,
         );
         let mut parser = test.prepare();
@@ -2589,6 +2734,56 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_literal_call_signature_with_parameters() {
+        let mut test = TestParser::new(
+            r#"type T = {
+    (num: number): number
+    (str: string): string
+}"#,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        let diagnostics = parser.diagnostics.drain();
+        assert!(
+            diagnostics.is_empty(),
+            "unexpected diagnostics: {diagnostics:?}"
+        );
+
+        // type T = { (num: number): number (str: string): string }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+                    // (num: number): number
+                    assert_node!(parser.tree, properties[0], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "num");
+                            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+                        });
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                    // (str: string): string
+                    assert_node!(parser.tree, properties[1], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                            assert_string!(parser, *name, "str");
+                            assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                        });
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_literal_construct_signature() {
         let mut test = TestParser::new("type T = { new (x: number): Foo }");
         let mut parser = test.prepare();
@@ -2608,6 +2803,116 @@ mod tests {
                             assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Number));
                         });
                         assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "Foo");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse type literal overloads with generic call signatures.
+    #[test]
+    fn test_parse_type_literal_generic_call_overloads() {
+        let mut test = TestParser::new_with_options(
+            r#"type Tmp = {
+    <N extends number>(num: N): typeof num
+    <S extends string>(str: S): typeof str
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Tmp = { <N extends number>(num: N): typeof num <S extends string>(str: S): typeof str }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+                    // <N extends number>(num: N): typeof num
+                    assert_node!(parser.tree, properties[0], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        let generics = signature.generics.as_ref().expect("expected generics");
+                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                        assert_eq!(static_parameters.len(), 1);
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "N");
+                            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Number));
+                        });
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "num");
+                            assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                                assert_path!(parser, *path, "N");
+                            });
+                        });
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeUnary { operator, right } => {
+                            assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                            assert_expression_path!(parser, parser.tree.get(*right), "num");
+                        });
+                    });
+                    // <S extends string>(str: S): typeof str
+                    assert_node!(parser.tree, properties[1], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        let generics = signature.generics.as_ref().expect("expected generics");
+                        let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                        assert_eq!(static_parameters.len(), 1);
+                        assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "S");
+                            assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::String));
+                        });
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                        assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty: Some(ty), .. } => {
+                            assert_string!(parser, *name, "str");
+                            assert_node!(parser.tree, *ty, Expression::Path { path, .. } => {
+                                assert_path!(parser, *path, "S");
+                            });
+                        });
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeUnary { operator, right } => {
+                            assert_eq!(*operator, TypeUnaryOperator::Typeof);
+                            assert_expression_path!(parser, parser.tree.get(*right), "str");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse type literal overloads with generic call signatures returning paths.
+    #[test]
+    fn test_parse_type_literal_generic_call_overloads_with_path_returns() {
+        let mut test = TestParser::new_with_options(
+            r#"type Tmp = {
+    <N extends number>(num: N): MyType
+    <S extends string>(str: S): MyType
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type Tmp = { <N extends number>(num: N): MyType <S extends string>(str: S): MyType }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 2);
+                    assert_node!(parser.tree, properties[0], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "MyType");
+                        });
+                    });
+                    assert_node!(parser.tree, properties[1], Property::Method { key, signature, body, .. } => {
+                        assert!(key.is_none());
+                        assert!(body.is_none());
+                        assert_eq!(signature.mode, Some(FunctionMode::Call));
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "MyType");
+                        });
                     });
                 });
             });

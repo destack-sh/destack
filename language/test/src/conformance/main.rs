@@ -9,10 +9,6 @@ use destack_test::harness::{Runner, TestOptions};
 #[derive(Parser, Debug)]
 #[command(name = "conformance", about = "Run parser conformance tests")]
 struct Args {
-    /// Update conformance known-failures files with current failures.
-    #[arg(long = "update-known-failures")]
-    update_conformance_known_failures: bool,
-
     /// Filter tests inside a selected conformance suite.
     #[arg(long)]
     suite_filter: Option<String>,
@@ -48,7 +44,7 @@ fn main() -> ExitCode {
     };
     let suite = ConformanceHarnessSuite::new(
         selection,
-        args.update_conformance_known_failures,
+        args.test.update_known_failures,
         args.suite_filter,
     );
     Runner::run_suite(&suite, &args.test)

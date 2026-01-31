@@ -324,9 +324,12 @@ impl Parser {
 
                 // value
                 let value_options = if self.options.in_static {
-                    self.options.not_in_position().in_type()
+                    self.options
+                        .not_in_position()
+                        .not_in_sequence_expression()
+                        .in_type()
                 } else {
-                    self.options.not_in_position()
+                    self.options.not_in_position().not_in_sequence_expression()
                 };
                 let value = self
                     .with_options(value_options, |parser| parser.eat_expression())
@@ -828,16 +831,22 @@ impl Parser {
             );
             Ok(argument_id)
         }
-        // nested spread argument (like {...b} in tree literals for #Compatibility)
+        // spread expression container (like {...expr} in tree literals for #Compatibility)
         else if self.peek_token(TokenType::OpenBrace).is_ok()
             && self.peek_next_token(TokenType::Spread).is_ok()
-            && self.peek_next_next_token(TokenType::Identifier).is_ok()
         {
             self.bump(); // eat open brace
             self.bump(); // eat spread
-            let value = self.with_options(self.options.in_statement_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            self.eat_newlines_maybe()?;
+            let value = self.with_options(
+                self.options
+                    .not_in_position()
+                    .not_in_tree_literal()
+                    .not_in_left_precedence()
+                    .not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
+            self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self.tree.insert(
                 Argument::Spread {

@@ -62,6 +62,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing the right side of a type conditional.
     /// Stops the parse at `?` so the outer conditional can consume it.
     pub in_type_conditional_right: bool = false,
+    /// Whether we're parsing a return type before an arrow body.
+    /// Stops lambdas from consuming the outer `=>`.
+    pub in_arrow_return_type: bool = false,
     /// Whether we're parsing a mapped type constraint.
     /// Disables `as` casts so the remap clause can be parsed separately.
     pub in_type_mapped_constraint: bool = false,
@@ -247,6 +250,15 @@ impl ParserOptions {
     pub(crate) fn in_type_conditional_right(self) -> Self {
         Self {
             in_type_conditional_right: true,
+            ..self
+        }
+    }
+
+    /// Set `in_arrow_return_type=true`.
+    #[inline]
+    pub(crate) fn in_arrow_return_type(self) -> Self {
+        Self {
+            in_arrow_return_type: true,
             ..self
         }
     }

@@ -2,9 +2,9 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword,
-    LocalNodeId, NodeType, Parameter, TokenType,
+    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, Expression,
+    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    Generics, Keyword, LocalNodeId, NodeType, Parameter, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -211,6 +211,9 @@ impl Parser {
                 if self.options.in_static {
                     return_type_options = return_type_options.in_static();
                 }
+                if !self.options.in_type {
+                    return_type_options = return_type_options.in_arrow_return_type();
+                }
                 let return_type =
                     self.with_options(return_type_options, |parser| parser.eat_expression())?;
                 let return_type_span = self.get_span_from(type_start);
@@ -266,12 +269,20 @@ impl Parser {
             }
             // function with body
             if kind == FunctionKind::Function && self.peek_token(TokenType::OpenBrace).is_ok() {
-                let options = self
+                let mut options = self
                     .options
                     .in_statement_position()
                     .in_before_block()
                     .with_generator(is_generator);
-                let body = self.with_options(options, |parser| parser.eat_expression())?;
+                options.allow_sequence_expression = true;
+                let body_start = self.mark();
+                let body = self.with_options(options, |parser| {
+                    let block_id = parser.eat_block()?;
+                    Ok(parser.tree.insert(
+                        Expression::Block(block_id),
+                        parser.get_span_from(body_start),
+                    ))
+                })?;
                 Some(body)
             }
             // lambda with body
@@ -281,12 +292,26 @@ impl Parser {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let options = self
+                let mut options = self
                     .options
                     .in_statement_position()
                     .in_before_block()
                     .with_generator(is_generator);
-                let body = self.with_options(options, |parser| parser.eat_expression())?;
+                // avoid swallowing commas from surrounding contexts
+                options.allow_sequence_expression = false;
+                let body_start = self.mark();
+                let body = self.with_options(options, |parser| {
+                    if parser.peek_block().is_ok() {
+                        let block_id = parser.eat_block()?;
+                        let body = parser.tree.insert(
+                            Expression::Block(block_id),
+                            parser.get_span_from(body_start),
+                        );
+                        Ok(body)
+                    } else {
+                        parser.eat_expression()
+                    }
+                })?;
                 Some(body)
             }
             // no body
@@ -354,15 +379,21 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
-        FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, TypeLiteral,
-        VarianceModifier, WhereClause,
+        FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, ScalarLiteral,
+        TypeLiteral, VarianceModifier, WhereClause,
     };
+
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_function_lambda_with_newlines() {
-        let mut test = TestParser::new("(x: number):\n\tnumber =>\n\tx");
+        let mut test = TestParser::new(
+            r#"(x: number):
+    number =>
+    x"#,
+        );
         let mut parser = test.prepare();
 
         let start = parser.mark();
@@ -436,6 +467,55 @@ mod tests {
             // x
             assert_node!(parser.tree, *body, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
+            });
+        });
+    }
+
+    /// Parse parenthesized void return types in arrow functions.
+    #[test]
+    fn test_parse_function_parenthesized_void_return_type() {
+        let mut test = TestParser::new_with_options("(): (void) => {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert!(body.is_some());
+                assert_node!(parser.tree, signature.return_type.unwrap(), Expression::Parenthesized { expression } => {
+                    assert_node!(parser.tree, *expression, Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
+    }
+
+    /// Parse default parameters followed by required parameters.
+    #[test]
+    fn test_parse_function_default_parameter_followed_by_required() {
+        let mut test = TestParser::new_with_options(
+            r#"function func(greeting: string = "Hello", target: string) {}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // function func(greeting: string = "Hello", target: string) {}
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                assert_eq!(signature.dynamic_parameters.len(), 2);
+                // greeting: string = "Hello"
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, default, .. } => {
+                    assert_string!(parser, *name, "greeting");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                    assert_node!(parser.tree, default.unwrap(), Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                        assert_string!(parser, *value, "Hello");
+                    });
+                });
+                // target: string
+                assert_node!(parser.tree, signature.dynamic_parameters[1], Parameter::Named { name, ty, default, .. } => {
+                    assert_string!(parser, *name, "target");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
+                    assert!(default.is_none());
+                });
             });
         });
     }

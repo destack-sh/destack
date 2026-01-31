@@ -6,9 +6,9 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, Declaration,
     DeclarationAbstraction, DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind,
-    Expression, IfCondition, IfKind, InfixOperator, Keyword, LiteralType, LocalNodeId, NodeType,
-    PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeKind, TypeUnaryOperator,
-    UnaryOperator,
+    Expression, FunctionKind, IfCondition, IfKind, InfixOperator, Keyword, LiteralType,
+    LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType, TypeBinaryOperator, TypeKind,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_source::LanguageType;
 
@@ -984,15 +984,16 @@ impl Parser {
                     Some(TokenType::Arrow | TokenType::ArrowWide)
                 );
                 let has_colon = matches!(next_token_type, Some(TokenType::Colon));
-                let is_colon_lambda_allowed = !self.options.in_before_type
-                    && has_colon
-                    && !(self.options.in_type
-                        && self.options.in_ternary_condition
-                        && has_top_level_comma);
+                let is_colon_lambda_allowed = has_colon
+                    && !self.options.in_before_type
+                    && !self.options.in_match_case
+                    && (!self.options.in_type
+                        || !self.options.in_ternary_condition
+                        || !has_top_level_comma);
                 let mut lambda_expression_id = None;
 
                 // parse lambda when we see a likely arrow or colon
-                if has_arrow || is_colon_lambda_allowed {
+                if (has_arrow || is_colon_lambda_allowed) && !self.options.in_arrow_return_type {
                     // avoid colon lambdas that are actually ternary type tuples
                     if self.options.in_ternary_condition && has_colon {
                         let speculative_start = self.mark();
@@ -1074,6 +1075,7 @@ impl Parser {
                     else {
                         let inner_start = self.pos();
                         let mut inner_options = self.options.nested().in_parenthesis();
+                        inner_options.allow_sequence_expression = true;
                         if self.options.in_type {
                             inner_options = inner_options.in_type();
                         }
@@ -1288,10 +1290,56 @@ impl Parser {
                 let speculative_start = self.mark();
                 let speculative_start_idx = self.tree.next_id();
                 if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
-                    self.tree.insert(
-                        Expression::Declaration(function_id),
-                        self.get_span_from(start),
-                    )
+                    // reject bodyless async lambdas in value position
+                    let should_accept = match self.tree.get(function_id) {
+                        Declaration::Function {
+                            signature, body, ..
+                        } => {
+                            !(signature.kind == FunctionKind::Lambda
+                                && body.is_none()
+                                && !self.options.in_type)
+                        }
+                        _ => true,
+                    };
+                    if should_accept {
+                        self.tree.insert(
+                            Expression::Declaration(function_id),
+                            self.get_span_from(start),
+                        )
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+
+                        // parse async as an identifier path
+                        let (path, last_span) = self
+                            .eat_path_with_last_span()
+                            .for_node_type(NodeType::Expression)?;
+
+                        // eat optional static arguments with backtracking on failure
+                        let static_arguments = self.eat_static_arguments_in_expression(false);
+
+                        // parse a direct call when static arguments are present
+                        if static_arguments.is_some()
+                            && self.peek_token(TokenType::OpenParenthesis).is_ok()
+                            && !self.options.in_new_receiver
+                        {
+                            let receiver = Expression::Path {
+                                path,
+                                static_arguments: None,
+                            };
+                            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                            self.tree.set_main_span(receiver_id, last_span);
+                            self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
+                        } else {
+                            let expression = Expression::Path {
+                                path,
+                                static_arguments,
+                            };
+                            let expression_id =
+                                self.tree.insert(expression, self.get_span_from(start));
+                            self.tree.set_main_span(expression_id, last_span);
+                            expression_id
+                        }
+                    }
                 } else {
                     self.restore(speculative_start, speculative_start_idx);
 
@@ -1809,9 +1857,10 @@ impl Parser {
             let has_indirect_call = self.peek_token(TokenType::Dot).is_ok()
                 && self.peek_next_token(TokenType::OpenParenthesis).is_ok();
             let can_direct_call = (has_direct_call || has_direct_call_after_newlines)
+                && !self.options.in_type
                 && !matches!(self.tree.get(left_expression_id), Expression::Maybe { .. })
                 && !self.options.in_new_receiver;
-            let should_parse_call = can_direct_call || has_indirect_call;
+            let should_parse_call = (can_direct_call || has_indirect_call) && !self.options.in_type;
             // unary postfix operations
             if let Ok(operator) = self.peek_unary_postfix_operator() {
                 let operator_start = self.mark();
@@ -2395,6 +2444,30 @@ impl Parser {
 
     /// Eat a TypeScript type assertion expression (`<T>expr`).
     fn eat_type_assertion(&mut self, start: ParserMark) -> ParseResult<LocalNodeId<Expression>> {
+        // handle `<const>expr` as a const assertion
+        let const_start = self.mark();
+        let const_start_idx = self.tree.next_id();
+        if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat <
+            self.eat_newlines_maybe()?;
+            if self.peek_keyword(Keyword::Const).is_ok() {
+                self.bump(); // eat const
+                self.eat_newlines_maybe()?;
+                if self.peek_token(TokenType::GreaterThan).is_ok() {
+                    self.bump(); // eat >
+                    let value = self.with_options(self.options.not_in_position(), |parser| {
+                        parser.eat_expression()
+                    })?;
+                    let expression = Expression::TypeUnary {
+                        operator: TypeUnaryOperator::AsConst,
+                        right: value,
+                    };
+                    return Ok(self.tree.insert(expression, self.get_span_from(start)));
+                }
+            }
+        }
+        self.restore(const_start, const_start_idx);
+
         let static_arguments = self.with_options(self.options.in_type(), |parser| {
             parser.eat_static_arguments()
         })?;
@@ -2432,12 +2505,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
-        Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind,
-        Expression, FunctionKind, IfCondition, ImportAliasTarget, ImportSource, IntType, Key,
-        Mutability, Name, Parameter, Pattern, PatternField, PostfixPosition, Property,
-        ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator,
-        UnaryOperator, VarianceBound,
+        Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
+        DeclarationDescriptor, Declarator, DependencyItem, DependencyKind, DependencyMode,
+        EnumField, EnumKind, Expression, FunctionKind, IfCondition, IfKind, ImportAliasTarget,
+        ImportSource, IntType, Key, Mutability, Name, Parameter, Pattern, PatternField,
+        PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -2564,7 +2637,11 @@ type = type * 2
     /// Parse an if extends condition without consuming the block.
     #[test]
     fn test_parse_if_extends_type_reference() {
-        let mut test = TestParser::new("if x extends Foo {\n    body\n}");
+        let mut test = TestParser::new(
+            r#"if x extends Foo {
+    body
+}"#,
+        );
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
@@ -2593,7 +2670,11 @@ type = type * 2
     /// Parse an if instanceof condition inside parentheses.
     #[test]
     fn test_parse_if_instanceof_type_reference() {
-        let mut test = TestParser::new("if (T instanceof Foo) {\n    value\n}");
+        let mut test = TestParser::new(
+            r#"if (T instanceof Foo) {
+    value
+}"#,
+        );
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
 
@@ -3205,7 +3286,11 @@ const shapes = (
     /// Parse a ternary if expression over multiple lines.
     #[test]
     fn test_parse_if_ternary_multiline() {
-        let mut test = TestParser::new("true\n\t? 1\n\t: 2");
+        let mut test = TestParser::new(
+            r#"true
+    ? 1
+    : 2"#,
+        );
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
@@ -3642,18 +3727,71 @@ f<x> !== g<y>;
     #[test]
     fn test_parse_tsx_generic_arrow_with_extends() {
         let mut test = TestParser::new_with_options(
-            r#"const x = <P extends object>(
-    a: React.ComponentType<P>
-): React.ComponentType<P & { a: string }> => React.memo();"#,
+            "<P extends object>(x: P) => <Foo />",
             LanguageType::TypeScriptXml,
         );
         let mut parser = test.prepare();
-        parser.parse();
-        assert!(
-            parser.errors.is_empty(),
-            "expected no parse errors: {:?}",
-            parser.errors
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "P");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::TypeLiteral(TypeLiteral::Object));
+                });
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "x");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "P");
+                    });
+                });
+                let body_id = body.expect("expected body");
+                assert_node!(parser.tree, body_id, Expression::TreeExpression { left, arguments, elements } => {
+                    let left_id = left.expect("expected tag");
+                    assert_node!(parser.tree, left_id, Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "Foo");
+                    });
+                    assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
+                    assert!(elements.as_ref().is_none_or(|items| items.is_empty()));
+                });
+            });
+        });
+    }
+
+    /// Parse ternaries with typed arrow functions in TSX context.
+    #[test]
+    fn test_parse_tsx_ternary_typed_arrow_function() {
+        let mut test = TestParser::new_with_options(
+            "Math.random() > 0.5 ? (): void => foo() : (): void => bar()",
+            LanguageType::TypeScriptXml,
         );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::If { kind, condition, then_expression, else_expression } => {
+            assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(condition, IfCondition::Expression { condition } => {
+                assert_node!(parser.tree, *condition, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                });
+            });
+            assert_node!(parser.tree, *then_expression, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+            let else_id = else_expression.expect("expected else branch");
+            assert_node!(parser.tree, else_id, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
     }
 
     /// Parse a lambda function value with a body and pattern parameters.
@@ -4165,7 +4303,11 @@ self
     /// Infix operators work across lines.
     #[test]
     fn test_parse_precedence_addition_across_lines() {
-        let mut test = TestParser::new("a +\n b +\n c");
+        let mut test = TestParser::new(
+            r#"a +
+ b +
+ c"#,
+        );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         // a + b + c (across lines)
@@ -4758,6 +4900,52 @@ self
         });
     }
 
+    /// Parse angle bracket const assertions.
+    #[test]
+    fn test_parse_type_assertion_const() {
+        let mut test = TestParser::new_with_options("<const>[10, 20]", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
+            assert_eq!(*operator, TypeUnaryOperator::AsConst);
+            assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
+                assert_eq!(elements.len(), 2);
+            });
+        });
+    }
+
+    /// Parse async identifiers with `as` casts.
+    #[test]
+    fn test_parse_async_as_cast() {
+        let mut test = TestParser::new_with_options("async as any", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
+            assert_eq!(*operator, TypeBinaryOperator::Cast);
+            assert_expression_path!(parser, parser.tree.get(*left), "async");
+            assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Any));
+        });
+    }
+
+    /// Parse async arrows with a parameter named `as`.
+    #[test]
+    fn test_parse_async_arrow_with_as_parameter() {
+        let mut test = TestParser::new_with_options("async as => {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.asynchrony, Asynchrony::Async);
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, .. } => {
+                    assert_string!(parser, *name, "as");
+                });
+                assert!(body.is_some());
+            });
+        });
+    }
+
     /// Parse a type asserts expression.
     #[test]
     fn test_parse_type_unary_postfix_asserts_expression() {
@@ -4983,6 +5171,174 @@ const value =
             assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
             // b
             assert_expression_path!(parser, parser.tree.get(expressions[1]), "b");
+        });
+    }
+
+    #[test]
+    fn test_parse_sequence_expression_with_ternary_tail() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options("a && (b = 1, c = 2), d ? e : f", options);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a && (b = 1, c = 2), d ? e : f
+        assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 2);
+            assert_node!(parser.tree, expressions[0], Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::And);
+            });
+            assert_node!(parser.tree, expressions[1], Expression::If { kind, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_sequence_expression_with_nested_ternary() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options(
+            "l === -1 && (s = !1, l = t + 1), a === 46 ? r === -1 ? r = t : n !== 1 && (n = 1) : r !== -1 && (n = -1)",
+            options,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // l === -1 && (s = !1, l = t + 1), a === 46 ? r === -1 ? r = t : n !== 1 && (n = 1) : r !== -1 && (n = -1)
+        assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
+            assert_eq!(expressions.len(), 2);
+            assert_node!(parser.tree, expressions[0], Expression::Binary { operator, .. } => {
+                assert_eq!(*operator, BinaryOperator::And);
+            });
+            assert_node!(parser.tree, expressions[1], Expression::If { kind, .. } => {
+                assert_eq!(*kind, IfKind::Ternary);
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_export_const_ternary_object_literal_arrow_value() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options(
+            r#"export const reproValue = true ? {} : {
+    reproFunc: (_: any): any => { },
+};"#,
+            options,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, declarators, .. } => {
+            assert_eq!(descriptor.export, Some(DependencyMode::Item));
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern, .. } => {
+                    assert_string!(parser, *name, "reproValue");
+                    assert!(pattern.is_none());
+                });
+                let value_id = value.expect("expected initializer");
+                assert_node!(parser.tree, value_id, Expression::If { kind, then_expression, else_expression, .. } => {
+                    assert_eq!(*kind, IfKind::Ternary);
+                    assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert!(properties.is_empty());
+                    });
+                    let else_expression = else_expression.expect("expected else branch");
+                    assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                        assert_node!(parser.tree, properties[0], Property::Field { key, value, default, .. } => {
+                            assert!(default.is_none());
+                            assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                                assert_string!(parser, *name, "reproFunc");
+                            });
+                            let value_id = value.expect("expected property value");
+                            assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
+                                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                                    let body_id = body.expect("expected function body");
+                                    assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                                        assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                            assert!(expressions.is_empty());
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_ternary_object_literal_arrow_value_expression() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options(
+            r#"true ? {} : {
+    reproFunc: (_: any): any => { },
+}"#,
+            options,
+        );
+        let mut parser = test.prepare();
+        let result = parser.with_options(
+            parser
+                .options
+                .not_in_position()
+                .not_in_sequence_expression(),
+            |parser| parser.eat_expression(),
+        );
+        match result {
+            Ok(expr_id) => {
+                assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
+                    assert_eq!(*kind, IfKind::Ternary);
+                    assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert!(properties.is_empty());
+                    });
+                    let else_expression = else_expression.expect("expected else branch");
+                    assert_node!(parser.tree, else_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 1);
+                        assert_node!(parser.tree, properties[0], Property::Field { key, value, default, .. } => {
+                            assert!(default.is_none());
+                            assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
+                                assert_string!(parser, *name, "reproFunc");
+                            });
+                            let value_id = value.expect("expected property value");
+                            assert_node!(parser.tree, value_id, Expression::Declaration(declaration_id) => {
+                                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                                    let body_id = body.expect("expected function body");
+                                    assert_node!(parser.tree, body_id, Expression::Block(block_id) => {
+                                        assert_node!(parser.tree, *block_id, Block { expressions, .. } => {
+                                            assert!(expressions.is_empty());
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+            Err(err) => panic!("unexpected error: {err:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_object_literal_with_typed_arrow_value() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options(
+            r#"{
+    reproFunc: (_: any): any => { },
+}"#,
+            options,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::ObjectExpression { properties, .. } => {
+            assert_eq!(properties.len(), 1);
+            assert_node!(parser.tree, properties[0], Property::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(value), .. } => {
+                assert_string!(parser, *name, "reproFunc");
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(_), .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert_eq!(signature.dynamic_parameters.len(), 1);
+                    });
+                });
+            });
         });
     }
 
