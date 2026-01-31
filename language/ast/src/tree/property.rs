@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability, Node, NodeType,
-    Visibility,
+    DeclarationKind, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability, Node,
+    NodeType, Visibility,
 };
 
 /// The type of a binding.
@@ -83,6 +83,8 @@ pub enum Timing {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
+    /// The declaration kind of the binding.
+    pub declaration: Option<DeclarationKind>,
     /// The abstraction modifier of the binding.
     pub abstraction: Option<AbstractionModifier>,
     /// The variance of a type parameter.

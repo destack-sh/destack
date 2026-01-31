@@ -8,59 +8,59 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   528  |   180  |     7  |   708 |  74.58% |
+| babel    |   617  |    91  |     7  |   708 |  87.15% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
 | swc      |   538  |     0  |     -  |   538 | 100.00% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5724  |  1522  |      7  |  7246 |  79.00% |
+| total    |  5813  |  1433  |      7  |  7246 |  80.22% |
 
-Total Blended Pass Rate: **79.00%**
+Total Blended Pass Rate: **80.22%**
 <!-- end:summary-results -->
 
 ### babel
 <!-- begin:babel-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| arrow-function       |    14  |     8  |       -  |    22 |  63.64% |
+| arrow-function       |    19  |     3  |       -  |    22 |  86.36% |
 | assert-predicate     |     6  |     4  |       -  |    10 |  60.00% |
 | assign               |     0  |     3  |       -  |     3 |   0.00% |
 | async-call           |     0  |     1  |       -  |     1 |   0.00% |
-| basic                |    29  |     8  |       -  |    37 |  78.38% |
+| basic                |    37  |     0  |       -  |    37 | 100.00% |
 | binary-expression    |     2  |     0  |       -  |     2 | 100.00% |
-| cast                 |    32  |     5  |       5  |    37 |  86.49% |
+| cast                 |    33  |     4  |       5  |    37 |  89.19% |
 | catch-clause         |     1  |     0  |       -  |     1 | 100.00% |
-| class                |    56  |    41  |       -  |    97 |  57.73% |
+| class                |    94  |     3  |       -  |    97 |  96.91% |
 | const                |     2  |     2  |       -  |     4 |  50.00% |
-| declare              |    20  |     7  |       -  |    27 |  74.07% |
+| declare              |    19  |     8  |       -  |    27 |  70.37% |
 | decorators           |     1  |     1  |       -  |     2 |  50.00% |
 | disallow-jsx-ambiguity |     1  |     2  |       -  |     3 |  33.33% |
 | dts                  |     3  |     2  |       -  |     5 |  60.00% |
 | enum                 |    13  |     0  |       -  |    13 | 100.00% |
-| errors               |    20  |     8  |       -  |    28 |  71.43% |
+| errors               |    26  |     2  |       -  |    28 |  92.86% |
 | expect-plugin        |     0  |     3  |       -  |     3 |   0.00% |
 | exponentiation       |     1  |     2  |       -  |     3 |  33.33% |
-| export               |     8  |     5  |       -  |    13 |  61.54% |
+| export               |    10  |     3  |       -  |    13 |  76.92% |
 | function             |    11  |     2  |       -  |    13 |  84.62% |
-| html-entities        |     3  |     1  |       -  |     4 |  75.00% |
-| import               |    16  |     5  |       -  |    21 |  76.19% |
-| interface            |    29  |    18  |       -  |    47 |  61.70% |
+| html-entities        |     4  |     0  |       -  |     4 | 100.00% |
+| import               |    18  |     3  |       -  |    21 |  85.71% |
+| interface            |    41  |     6  |       -  |    47 |  87.23% |
 | legacy-decorators    |     2  |     0  |       -  |     2 | 100.00% |
-| module-namespace     |     9  |     7  |       2  |    16 |  56.25% |
+| module-namespace     |    13  |     3  |       2  |    16 |  81.25% |
 | optional-chaining    |     1  |     0  |       -  |     1 | 100.00% |
 | regression           |    24  |     1  |       -  |    25 |  96.00% |
-| scope                |    61  |     5  |       -  |    66 |  92.42% |
-| static-blocks        |    16  |     4  |       -  |    20 |  80.00% |
-| tsx                  |     5  |     3  |       -  |     8 |  62.50% |
+| scope                |    62  |     4  |       -  |    66 |  93.94% |
+| static-blocks        |    20  |     0  |       -  |    20 | 100.00% |
+| tsx                  |     8  |     0  |       -  |     8 | 100.00% |
 | type-alias           |     6  |     1  |       -  |     7 |  85.71% |
-| type-arguments       |    29  |     4  |       -  |    33 |  87.88% |
-| type-arguments-bit-shift-left-like |     8  |     1  |       -  |     9 |  88.89% |
-| type-only-import-export-specifiers |    20  |     4  |       -  |    24 |  83.33% |
+| type-arguments       |    30  |     3  |       -  |    33 |  90.91% |
+| type-arguments-bit-shift-left-like |     9  |     0  |       -  |     9 | 100.00% |
+| type-only-import-export-specifiers |    21  |     3  |       -  |    24 |  87.50% |
 | types                |    74  |    21  |       -  |    95 |  77.89% |
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |
 | variable-declarator  |     2  |     1  |       -  |     3 |  66.67% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   528  |   180  |       7  |   708 |  74.58% |
+| total                |   617  |    91  |       7  |   708 |  87.15% |
 <!-- end:babel-results -->
 
 ### biome
@@ -140,7 +140,7 @@ Total Blended Pass Rate: **79.00%**
 
 ## Notes
 
-We do not expect to reach 100% conformance because:
+We do not expect to reach 100% _general_ conformance because:
 
 - **Modern TS modules only**: We target strict module semantics and do not support script mode.
 - **JS restrictions**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.

@@ -500,6 +500,7 @@ impl Dump for BindingModifier {
         dumper
             .object("BindingModifier")
             .field_optional("kind", &self.kind)
+            .field_optional("declaration", &self.declaration)
             .field_optional("abstraction", &self.abstraction)
             .field_optional("variance", &self.variance)
             .field_optional("anchor", &self.anchor)

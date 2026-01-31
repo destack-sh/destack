@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use destack_base::StringId;
 use destack_dir::{
-    BindingAnchor, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
-    DeclarationKind, Declarator, DependencyItem, DynamicKey, Expression, FlowGraphBuilder,
-    FunctionAbstraction, FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree,
-    NodeType, Parameter, Pattern, PatternField, ScalarLiteral, StaticKey, SymbolBinding,
-    SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
+    AbstractionModifier, BindingAnchor, BindingKind, BindingModifier, Declaration,
+    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DynamicKey, Expression,
+    FlowGraphBuilder, FunctionAbstraction, FunctionCardinality, FunctionMode, GlobalSymbolId,
+    LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, Member,
+    Mutability, NodeTree, NodeType, Parameter, Pattern, PatternField, ScalarLiteral, StaticKey,
+    SymbolBinding, SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -382,20 +382,37 @@ impl Compiler {
         // walk class members and validate overrides
         for member_id in members {
             let member = tree.get(*member_id);
-            let Member::Method {
-                modifiers,
-                key,
-                signature,
-                ..
-            } = member
-            else {
-                continue;
+            let (modifiers, key, has_override) = match member {
+                Member::Method {
+                    modifiers,
+                    key,
+                    signature,
+                    ..
+                } => {
+                    if signature.mode == Some(FunctionMode::Constructor) {
+                        continue;
+                    }
+                    let has_override = matches!(
+                        signature.abstraction,
+                        FunctionAbstraction::AbstractOverride
+                            | FunctionAbstraction::ConcreteOverride
+                    );
+                    (modifiers.as_ref(), key, has_override)
+                }
+                Member::Field { modifiers, key, .. } => {
+                    let has_override = modifiers.as_ref().is_some_and(|modifiers| {
+                        matches!(
+                            modifiers.abstraction,
+                            Some(
+                                AbstractionModifier::Override
+                                    | AbstractionModifier::AbstractOverride
+                            )
+                        )
+                    });
+                    (modifiers.as_ref(), key, has_override)
+                }
+                _ => continue,
             };
-
-            // skip constructors
-            if signature.mode == Some(FunctionMode::Constructor) {
-                continue;
-            }
 
             // resolve static member keys only
             let Some(member_key) = (*key).and_then(|key| self.static_key_for_dynamic_key(&key))
@@ -404,11 +421,7 @@ impl Compiler {
             };
 
             // decide whether this member overrides a base member
-            let is_static = Self::member_is_static_for_validation(modifiers.as_ref());
-            let has_override = matches!(
-                signature.abstraction,
-                FunctionAbstraction::AbstractOverride | FunctionAbstraction::ConcreteOverride
-            );
+            let is_static = Self::member_is_static_for_validation(modifiers);
             let overrides_base =
                 self.member_overrides_base_chain(base_symbol, is_static, &member_key, types);
 

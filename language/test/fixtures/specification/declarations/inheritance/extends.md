@@ -219,3 +219,41 @@ const cat: Cat = getDog();
 ```
 
 - type Dog is not assignable to type Cat
+
+## invalid extends
+
+### classes cannot extend multiple parents
+
+> Classes can only extend one class.
+
+```ds
+class First {}
+class Second {}
+
+class Combined extends First, Second {}
+```
+
+- contains: invalid lineage
+
+### classes cannot declare empty extends clauses
+
+> Classes cannot declare empty extends clauses.
+
+```ds
+class Counter extends {
+}
+```
+
+- contains: invalid lineage
+
+### structs cannot use extends
+
+> Structs cannot declare extends clauses.
+
+```ds
+struct Base {}
+
+struct Counter extends Base {}
+```
+
+- contains: invalid lineage

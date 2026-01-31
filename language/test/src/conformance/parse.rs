@@ -37,6 +37,7 @@ pub(super) enum TestArea {
 
 /// Early analysis error codes relevant for syntax-level conformance.
 const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
+    "EA500", // InvalidLineage
     "EA214", // ReservedIdentifier
     "EA215", // ObjectLiteralDefault
     "EA216", // ObjectPatternMultipleSpreads

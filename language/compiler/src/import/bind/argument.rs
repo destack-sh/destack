@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, BindingAnchor, BindingKind, BindingModifier,
-    BindingOperator, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability,
-    NodeTree, NodeType, Parameter, StaticKey, SymbolBinding, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
+    BindingOperator, DeclarationKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    Mutability, NodeTree, NodeType, Parameter, StaticKey, SymbolBinding, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, Timing, TypeTable, VarianceModifier, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -20,6 +20,10 @@ impl Compiler {
         let kind = modifiers.kind.map(|kind| match kind {
             ast::BindingKind::Must => BindingKind::Must,
             ast::BindingKind::Maybe => BindingKind::Maybe,
+        });
+        let declaration = modifiers.declaration.map(|kind| match kind {
+            ast::DeclarationKind::Declaration => DeclarationKind::Declaration,
+            ast::DeclarationKind::Definition => DeclarationKind::Definition,
         });
         let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
             ast::AbstractionModifier::Abstract => AbstractionModifier::Abstract,
@@ -55,6 +59,7 @@ impl Compiler {
         });
         BindingModifier {
             kind,
+            declaration,
             abstraction,
             variance,
             anchor,

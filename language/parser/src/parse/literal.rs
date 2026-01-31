@@ -494,6 +494,140 @@ impl Parser {
         Ok(properties)
     }
 
+    /// Peek whether `<...>` starts a generic arrow in tree literal positions.
+    pub(super) fn peek_tree_generic_arrow(&self) -> bool {
+        // only disambiguate when tree literals are enabled
+        if !self.language.supports_jsx() {
+            return false;
+        }
+
+        // only disambiguate for TypeScript and Destack sources
+        if !self.language.is_typescript() && !self.language.is_destack() {
+            return false;
+        }
+
+        // type or static contexts do not use tree literal parsing
+        if self.options.in_type || self.options.in_static {
+            return false;
+        }
+
+        self.peek_generic_arrow_after_type_parameters()
+    }
+
+    /// Peek whether `<...>(...)` forms a generic arrow function signature.
+    fn peek_generic_arrow_after_type_parameters(&self) -> bool {
+        // require `<` at the current position
+        if self.peek_token(TokenType::LessThan).is_err() {
+            return false;
+        }
+
+        // require an identifier in the type parameter list
+        let has_identifier = self.peek_next_token(TokenType::Identifier).is_ok();
+
+        // allow multiline identifiers in type context
+        let has_multiline_identifier =
+            if self.options.in_type && self.peek_next_token(TokenType::Newline).is_ok() {
+                let mut pos = self.pos() as usize;
+                while let Some(token) = self.tokens.get(pos + 1)
+                    && token.token.ty == TokenType::Newline
+                {
+                    pos += 1;
+                }
+                self.tokens
+                    .get(pos + 1)
+                    .is_some_and(|token| token.token.ty == TokenType::Identifier)
+            } else {
+                false
+            };
+        if !has_identifier && !has_multiline_identifier {
+            return false;
+        }
+
+        // allow `<T,>` as a generic arrow start
+        if self.peek_next_next_token(TokenType::Comma).is_ok() {
+            return true;
+        }
+
+        // find the closing `>` for the type parameter list
+        let mut angle_depth: usize = if self.has_split_token(TokenType::LessThan) {
+            1
+        } else {
+            0
+        };
+        let mut pos = self.pos() as usize;
+        let mut close_pos = None;
+        while let Some(token) = self.tokens.get(pos) {
+            match token.token.ty {
+                TokenType::LessThan => angle_depth += 1,
+                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                TokenType::GreaterThan => {
+                    angle_depth = angle_depth.saturating_sub(1);
+                    if angle_depth == 0 {
+                        close_pos = Some(pos as u32);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            pos += 1;
+        }
+        let Some(close_pos) = close_pos else {
+            return false;
+        };
+
+        // skip newlines after the type parameters
+        let after_close_pos = if self.options.in_type {
+            let mut pos = close_pos as usize;
+            while let Some(token) = self.tokens.get(pos + 1)
+                && token.token.ty == TokenType::Newline
+            {
+                pos += 1;
+            }
+            pos as u32
+        } else {
+            close_pos
+        };
+
+        // require `(` after the type parameters
+        let Some(after_close) = self.tokens.get(after_close_pos as usize + 1) else {
+            return false;
+        };
+        if after_close.token.ty != TokenType::OpenParenthesis {
+            return false;
+        }
+
+        // find the closing `)` for the parameters
+        let Ok(parenthesis_close) = self.find_matching_close(
+            Some(after_close_pos + 1),
+            TokenType::OpenParenthesis,
+            TokenType::CloseParenthesis,
+        ) else {
+            return false;
+        };
+
+        // skip newlines after the parameter list
+        let after_parenthesis_pos = if self.options.in_type {
+            let mut pos = parenthesis_close as usize;
+            while let Some(token) = self.tokens.get(pos + 1)
+                && token.token.ty == TokenType::Newline
+            {
+                pos += 1;
+            }
+            pos as u32
+        } else {
+            parenthesis_close
+        };
+
+        // require `:` or `=>` after the parameters
+        let Some(after_parenthesis) = self.tokens.get(after_parenthesis_pos as usize + 1) else {
+            return false;
+        };
+        matches!(
+            after_parenthesis.token.ty,
+            TokenType::Colon | TokenType::Arrow | TokenType::ArrowWide
+        )
+    }
+
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
     pub fn peek_tree_literal(&self) -> ParseResult<()> {
@@ -514,6 +648,10 @@ impl Parser {
             .tokens
             .get(pos + 1)
             .ok_or(ParseError::unexpected(self.peek()?.span))?;
+        // closing tags should only appear inside tree content
+        if next.token.ty == TokenType::Divide && !self.options.in_tree_literal {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
         if !matches!(
             next.token.ty,
             TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
@@ -611,7 +749,6 @@ impl Parser {
         } else {
             None
         };
-
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without arguments
@@ -734,7 +871,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Expression, FloatType, IfCondition, IfKind, IntType, Name, ScalarLiteral,
-        TemplateLiteral, TypeBinaryOperator, TypeLiteral,
+        TemplateLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1368,6 +1505,72 @@ mod tests {
             assert!(arguments.is_none());
             assert!(elements.is_some());
             assert_eq!(elements.as_ref().unwrap().len(), 0);
+        });
+    }
+
+    /// Parse tree literal with bit-shift-like static arguments on the tag.
+    #[test]
+    fn test_parse_tree_with_shift_left_static_arguments() {
+        let mut static_test =
+            TestParser::new_with_options(r#"<<T>(v: T) => void>"#, LanguageType::TypeScriptXml);
+        let mut static_parser = static_test.prepare();
+        let static_arguments = static_parser.eat_static_arguments().unwrap();
+        let static_diagnostics = static_parser.diagnostics.drain();
+        assert!(
+            static_diagnostics.is_empty(),
+            "unexpected static diagnostics: {static_diagnostics:?}"
+        );
+        assert_eq!(static_arguments.len(), 1);
+
+        let mut test = TestParser::new_with_options(
+            r#"<Component<<T>(v: T) => void> />"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let mut direct_test = TestParser::new_with_options(
+            r#"<Component<<T>(v: T) => void> />"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut direct_parser = direct_test.prepare();
+        assert!(direct_parser.peek_tree_literal().is_ok());
+        let direct_expression = direct_parser.eat_tree_literal().unwrap();
+        let direct_diagnostics = direct_parser.diagnostics.drain();
+        assert!(
+            direct_diagnostics.is_empty(),
+            "unexpected direct diagnostics: {direct_diagnostics:?}"
+        );
+        assert_node!(
+            direct_parser.tree,
+            direct_expression,
+            Expression::TreeExpression { .. }
+        );
+        assert!(parser.peek_tree_literal().is_ok());
+        let shift_token = parser
+            .tokens
+            .iter()
+            .find(|token| token.span.start == 10)
+            .expect("expected shift-left token");
+        assert_eq!(shift_token.token.ty, TokenType::ShiftLeft);
+
+        let expressions = parser.parse();
+        let diagnostics = parser.diagnostics.drain();
+        assert!(
+            diagnostics.is_empty(),
+            "unexpected diagnostics: {diagnostics:?}"
+        );
+        assert!(!expressions.is_empty());
+        let expression = match parser.tree.get(expressions[0]) {
+            Expression::Statement(expression) => *expression,
+            _ => expressions[0],
+        };
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                assert_path!(parser, *path, "Component");
+                let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                assert_eq!(static_arguments.len(), 1);
+            });
+            assert!(arguments.is_none());
+            assert!(elements.is_none());
         });
     }
 

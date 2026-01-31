@@ -2,7 +2,7 @@
 
 use destack_ast::{
     AbstractionModifier, Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction,
-    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Keyword,
+    FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Key, Keyword,
     LocalNodeId, Member, NodeType, Property, TokenType,
 };
 use destack_source::NodeSpanType;
@@ -77,7 +77,8 @@ impl Parser {
         }
 
         // modifiers prefix
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, false)?;
+        let mut modifiers =
+            self.eat_binding_modifiers_prefix_maybe(true, true, false, false, false)?;
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
@@ -198,12 +199,36 @@ impl Parser {
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
 
+        // private keys cannot have explicit visibility modifiers
+        if matches!(key, Some(Key::Private(_)))
+            && modifiers
+                .as_ref()
+                .is_some_and(|modifiers| modifiers.visibility.is_some())
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // reject optional + definite assignment combo
+        if modifiers
+            .as_ref()
+            .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
+            && self.peek_token(TokenType::Not).is_ok()
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // method
-        if is_async
+        let is_method = is_async
             || is_generator
             || self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis)
-        {
+            || self.peek_is(TokenType::OpenParenthesis);
+
+        // getters and setters require method syntax
+        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        if is_method {
             // abstraction
             let abstraction = modifiers
                 .and_then(|modifiers| modifiers.abstraction)
@@ -479,7 +504,8 @@ impl Parser {
         }
 
         // modifiers prefix
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, true)?;
+        let mut modifiers =
+            self.eat_binding_modifiers_prefix_maybe(true, true, true, true, true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
         // must check before key parsing since static is already a modifier
@@ -677,6 +703,24 @@ impl Parser {
 
         // modifiers postfix
         let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
+
+        // private keys cannot have explicit visibility modifiers
+        if matches!(key, Some(Key::Private(_)))
+            && modifiers
+                .as_ref()
+                .is_some_and(|modifiers| modifiers.visibility.is_some())
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // reject optional + definite assignment combo
+        if modifiers
+            .as_ref()
+            .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
+            && self.peek_token(TokenType::Not).is_ok()
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
 
         // method
         if is_async

@@ -1687,6 +1687,11 @@ impl Parser {
             // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
             // (also handles multiline in type context: `<\nT\n>(...) => ...`)
             else if token_type == TokenType::LessThan
+                && (!self.language.supports_jsx()
+                    || self.options.in_type
+                    || self.options.in_static
+                    || self.peek_tree_generic_arrow()
+                    || self.peek_tree_literal().is_err())
                 && {
                     let cond1 = self.peek_next_is(TokenType::Identifier);
                     let cond2 = self.options.in_type

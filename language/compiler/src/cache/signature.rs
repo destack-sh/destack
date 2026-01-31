@@ -5,15 +5,15 @@ use std::sync::Arc;
 use destack_base::{ImmutableStringPool, StringId};
 use destack_dir::{
     AbstractionModifier, AccessorKind, Argument, Asynchrony, BindingAnchor, BindingKind,
-    BindingModifier, BindingOperator, Declaration, Dumper, DumperOptions, DynamicKey, Export,
-    ExportKind, Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, Generics, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntrinsicType,
-    LocalTypeId, Mutability, NodeType, NodeVisitor, Parameter, Path, PrimitiveType, Property,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty, Symbol, SymbolKey,
-    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Timing, Type, TypeBinaryOperator,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedModifiers,
-    TypeMappedParameter, TypeModifier, TypePredicateSubject, TypeTable, TypeUnaryOperator,
-    VarianceBound, VarianceModifier, WhereClause,
+    BindingModifier, BindingOperator, Declaration, DeclarationKind, Dumper, DumperOptions,
+    DynamicKey, Export, ExportKind, Expression, FunctionAbstraction, FunctionCardinality,
+    FunctionKind, FunctionMode, FunctionSignature, Generics, GlobalNodeIdAny, GlobalSymbolId,
+    GlobalTypeId, IntrinsicType, LocalTypeId, Mutability, NodeType, NodeVisitor, Parameter, Path,
+    PrimitiveType, Property, ScalarLiteral, StaticArgument, StaticExpression, StaticKey,
+    StaticProperty, Symbol, SymbolKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Timing,
+    Type, TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject, TypeTable,
+    TypeUnaryOperator, VarianceBound, VarianceModifier, WhereClause,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
@@ -1519,6 +1519,10 @@ impl<'a> SignatureHasher<'a> {
             .map(|value| self.hash_binding_kind(value))
             .hash(&mut hasher);
         modifier
+            .declaration
+            .map(|value| self.hash_declaration_kind(value))
+            .hash(&mut hasher);
+        modifier
             .abstraction
             .map(|value| self.hash_binding_abstraction(value))
             .hash(&mut hasher);
@@ -1550,6 +1554,14 @@ impl<'a> SignatureHasher<'a> {
             .timing
             .map(|value| self.hash_binding_timing(value))
             .hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    /// Hash a declaration kind into a stable fingerprint.
+    fn hash_declaration_kind(&mut self, kind: DeclarationKind) -> u64 {
+        let mut hasher = FxHasher::default();
+        std::mem::discriminant(&kind).hash(&mut hasher);
 
         hasher.finish()
     }
