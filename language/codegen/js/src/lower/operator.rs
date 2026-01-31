@@ -115,6 +115,8 @@ impl ModuleLowerer<'_> {
                 });
             }
             dir::UnaryOperator::ElementwiseNot => unary(UnaryOperator::ElementwiseNot),
+            dir::UnaryOperator::Typeof => unary(UnaryOperator::Typeof),
+            dir::UnaryOperator::Void => unary(UnaryOperator::Void),
             dir::UnaryOperator::Dereference => {
                 // nothing to do here
                 right_id

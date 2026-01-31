@@ -23,6 +23,8 @@ impl Compiler {
             dir::UnaryOperator::ElementwiseNot => ast::UnaryOperator::ElementwiseNot,
             dir::UnaryOperator::Dereference => ast::UnaryOperator::Dereference,
             dir::UnaryOperator::Spread => ast::UnaryOperator::Spread,
+            dir::UnaryOperator::Typeof => ast::UnaryOperator::Typeof,
+            dir::UnaryOperator::Void => ast::UnaryOperator::Void,
         }
     }
 

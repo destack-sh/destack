@@ -18,6 +18,8 @@ impl<'ast> Format<DestackFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::Plus => token("+"),
             UnaryOperator::WrappingNegate => token("-%"),
             UnaryOperator::ElementwiseNot => token("~"),
+            UnaryOperator::Typeof => token("typeof"),
+            UnaryOperator::Void => token("void"),
             UnaryOperator::Dereference => token("*"),
             UnaryOperator::Spread => token("..."),
         };

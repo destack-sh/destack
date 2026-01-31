@@ -8,6 +8,8 @@ use crate::{ParseError, ParseResult, Parser};
 impl Parser {
     /// Eat a block or a single statement wrapped in a block.
     pub fn eat_block_or_statement(&mut self) -> ParseResult<LocalNodeId<Block>> {
+        self.eat_newlines_maybe()?;
+
         // if it's a block, just eat it
         if self.peek_block().is_ok() {
             return self.eat_block();

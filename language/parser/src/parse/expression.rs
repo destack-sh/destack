@@ -159,6 +159,14 @@ impl Parser {
     #[inline]
     pub fn peek_unary_prefix_operator(&self) -> ParseResult<UnaryOperator> {
         let token = self.peek()?;
+        if token.token.ty == TokenType::Identifier && !self.options.in_type {
+            let token_str = self.get_span_str(token.span);
+            if let Ok(keyword) = Keyword::from_str(token_str) {
+                if let Some(operator) = UnaryOperator::from_prefix_keyword(keyword) {
+                    return Ok(operator);
+                }
+            }
+        }
         let operator = UnaryOperator::from_prefix_token(token.token.ty)
             .ok_or(ParseError::unexpected(token.span))?;
 
@@ -4698,6 +4706,25 @@ self
         assert_eq!(parser.get_span_str(main_span), "++");
     }
 
+    #[test]
+    fn test_parse_unary_keyword_operators() {
+        let mut test = TestParser::new("typeof foo; void 0");
+        let mut parser = test.prepare();
+
+        let typeof_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, typeof_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Typeof);
+            assert_expression_path!(parser, parser.tree.get(*right), "foo");
+        });
+        parser.eat_statement_stop_with_newlines().unwrap();
+
+        let void_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, void_id, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Void);
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        });
+    }
+
     /// Binary operator spans point at the operator token.
     #[test]
     fn test_parse_binary_operator_span() {
@@ -5367,20 +5394,23 @@ const value =
         });
     }
 
-    /// Sequence expression with type literal elements.
+    /// Sequence expression with unary void.
     #[test]
-    fn test_parse_sequence_expression_with_type_literal() {
+    fn test_parse_sequence_expression_with_unary_void() {
         let options = LanguageType::JavaScript;
-        let mut test = TestParser::new_with_options("(a, void, 1)", options);
+        let mut test = TestParser::new_with_options("(a, void 0, 1)", options);
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        // (a, void, 1)
+        // (a, void 0, 1)
         assert_node!(parser.tree, expr_id, Expression::SequenceExpression { expressions } => {
             assert_eq!(expressions.len(), 3);
             // a
             assert_expression_path!(parser, parser.tree.get(expressions[0]), "a");
-            // void (type literal)
-            assert_node!(parser.tree, expressions[1], Expression::TypeLiteral(TypeLiteral::Void));
+            // void 0
+            assert_node!(parser.tree, expressions[1], Expression::Unary { operator, right } => {
+                assert_eq!(*operator, UnaryOperator::Void);
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
             // 1
             assert_node!(parser.tree, expressions[2], Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
         });

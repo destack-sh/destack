@@ -3,8 +3,8 @@ use std::str::FromStr;
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::{Lexer, TreeExpressionEntry, TreeState};
 use destack_ast::{
-    Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, is_identifier_continue,
-    is_identifier_start, is_whitespace,
+    Keyword, LiteralType, NumberBase, Token, TokenSpan, TokenType, UnaryOperator,
+    is_identifier_continue, is_identifier_start, is_whitespace,
 };
 
 use destack_source::{FileId, LanguageType, Span};
@@ -30,10 +30,11 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 15] = [
+pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 16] = [
     TokenType::Newline,
     TokenType::Assign,
     TokenType::Comma,
+    TokenType::Colon,
     TokenType::Semicolon,
     TokenType::Equal,
     TokenType::NotEqual,
@@ -295,7 +296,12 @@ impl Lexer<'_> {
                                             && Keyword::from_str(
                                                 self.get_span_str(prev_non_whitespace_token.span),
                                             )
-                                            .map(|k| k.is_control())
+                                            .map(|k| {
+                                                k.is_control()
+                                                    || k == Keyword::Delete
+                                                    || UnaryOperator::from_prefix_keyword(k)
+                                                        .is_some()
+                                            })
                                             .unwrap_or(false)
                                 } else {
                                     true

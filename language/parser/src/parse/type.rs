@@ -71,8 +71,6 @@ impl Parser {
             "unknown" => Some(TypeLiteral::Unknown),
             // object
             "object" => Some(TypeLiteral::Object),
-            // void
-            "void" => Some(TypeLiteral::Void),
             // null
             "null" => Some(TypeLiteral::Null),
             // any
@@ -114,6 +112,8 @@ impl Parser {
         match next_str {
             // boolean
             "boolean" => Ok(TypeLiteral::Boolean),
+            // void
+            "void" => Ok(TypeLiteral::Void),
             // character
             "character" => Ok(TypeLiteral::Character),
             // string

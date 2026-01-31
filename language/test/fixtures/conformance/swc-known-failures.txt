@@ -1,6 +1,1 @@
-typescript/deno/dso/reflect/input.ts
-typescript/issue-1505/case2/input.tsx
-typescript/issue-4911/3/input.ts
-typescript/issue-6430/index.ts
-typescript/issue-6601/index.tsx
-typescript/next/stack-overflow/1/input.ts
+
