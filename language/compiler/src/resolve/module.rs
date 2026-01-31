@@ -1610,29 +1610,13 @@ impl Compiler {
             .target_symbol
             .is_none()
         {
-            for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
-                // skip nonexport statements
-                if self.export_statement_parent(tree, item_id).is_none() {
-                    continue;
-                }
-
-                // skip nondefault value exports
-                let DependencyItem::Value { mode, value } = tree.get(item_id) else {
-                    continue;
-                };
-                if *mode != DependencyMode::Default {
-                    continue;
-                }
-
-                // resolve the target symbol for the default export
-                let value_expression = tree.get(*value);
-                if let Some(target_symbol) = value_expression.target_symbol() {
-                    symbols
-                        .get_symbol_mut(dir.default_symbol)
-                        .resolve_to(target_symbol);
-                    break;
-                }
-            }
+            let dependency_items = tree.iter_node_ids_of_type::<DependencyItem>();
+            self.resolve_default_export_from_dependency_items(
+                dir.default_symbol,
+                tree,
+                symbols,
+                dependency_items.into_iter(),
+            );
         }
 
         // resolve export targets for reexports
@@ -1686,29 +1670,12 @@ impl Compiler {
                     .get(&binding.scope)
                     .map(|items| items.as_slice())
                     .unwrap_or_default();
-                for item_id in dependency_items {
-                    // skip nonexport statements
-                    if self.export_statement_parent(tree, *item_id).is_none() {
-                        continue;
-                    }
-
-                    // skip nondefault value exports
-                    let DependencyItem::Value { mode, value } = tree.get(*item_id) else {
-                        continue;
-                    };
-                    if *mode != DependencyMode::Default {
-                        continue;
-                    }
-
-                    // resolve the target symbol for the default export
-                    let value_expression = tree.get(*value);
-                    if let Some(target_symbol) = value_expression.target_symbol() {
-                        symbols
-                            .get_symbol_mut(binding.default_symbol)
-                            .resolve_to(target_symbol);
-                        break;
-                    }
-                }
+                self.resolve_default_export_from_dependency_items(
+                    binding.default_symbol,
+                    tree,
+                    symbols,
+                    dependency_items.iter().copied(),
+                );
             }
 
             // resolve export targets for reexports
@@ -1739,6 +1706,40 @@ impl Compiler {
                 continue;
             };
             export.resolve_target(target_symbol);
+        }
+    }
+
+    /// Resolve a default export target from dependency items.
+    fn resolve_default_export_from_dependency_items(
+        &self,
+        default_symbol: LocalSymbolId,
+        tree: &NodeTree,
+        symbols: &mut SymbolTable,
+        dependency_items: impl Iterator<Item = LocalNodeId<DependencyItem>>,
+    ) {
+        // scan export statements for default assignments
+        for item_id in dependency_items {
+            // skip nonexport statements
+            if self.export_statement_parent(tree, item_id).is_none() {
+                continue;
+            }
+
+            // skip nondefault value exports
+            let DependencyItem::Value { mode, value } = tree.get(item_id) else {
+                continue;
+            };
+            if *mode != DependencyMode::Default {
+                continue;
+            }
+
+            // resolve the target symbol for the default export
+            let value_expression = tree.get(*value);
+            if let Some(target_symbol) = value_expression.target_symbol() {
+                symbols
+                    .get_symbol_mut(default_symbol)
+                    .resolve_to(target_symbol);
+                break;
+            }
         }
     }
 
