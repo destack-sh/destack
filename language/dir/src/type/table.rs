@@ -94,6 +94,15 @@ pub struct TypeTable {
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
     /// Whether a type originates from an imported module.
     pub(crate) imported_type_by_id: Vec<bool>,
+    /// Cached expression type ids by cache key.
+    #[serde(skip)]
+    pub(crate) expression_type_id_cache_by_key: IndexMap<u64, LocalTypeId>,
+    /// Cached expression type values by cache key.
+    #[serde(skip)]
+    pub(crate) expression_type_value_cache_by_key: IndexMap<u64, Type>,
+    /// Cached type reference results by cache key.
+    #[serde(skip)]
+    pub(crate) type_reference_cache_by_key: IndexMap<u64, Type>,
     /// Cached normalization results for assignability.
     pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, NormalizationCacheEntry>>,
     /// Cached normalization results for flow.
@@ -200,6 +209,9 @@ impl TypeTable {
             symbol_version_by_id: IndexMap::new(),
             source_id_by_type_id: Vec::new(),
             imported_type_by_id: Vec::new(),
+            expression_type_id_cache_by_key: IndexMap::new(),
+            expression_type_value_cache_by_key: IndexMap::new(),
+            type_reference_cache_by_key: IndexMap::new(),
             normalized_assignability_type_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
             normalized_alias_by_symbol: Vec::new(),
@@ -304,6 +316,36 @@ impl TypeTable {
     /// Get a type by its id.
     pub fn get_type(&self, type_id: LocalTypeId) -> &Type {
         self.types.get(type_id.0)
+    }
+
+    /// Return a cached expression type id for a cache key.
+    pub fn get_expression_type_id_cache(&self, key: u64) -> Option<LocalTypeId> {
+        self.expression_type_id_cache_by_key.get(&key).copied()
+    }
+
+    /// Store a cached expression type id for a cache key.
+    pub fn set_expression_type_id_cache(&mut self, key: u64, type_id: LocalTypeId) {
+        self.expression_type_id_cache_by_key.insert(key, type_id);
+    }
+
+    /// Return a cached expression type value for a cache key.
+    pub fn get_expression_type_value_cache(&self, key: u64) -> Option<&Type> {
+        self.expression_type_value_cache_by_key.get(&key)
+    }
+
+    /// Store a cached expression type value for a cache key.
+    pub fn set_expression_type_value_cache(&mut self, key: u64, ty: Type) {
+        self.expression_type_value_cache_by_key.insert(key, ty);
+    }
+
+    /// Return a cached type reference result for a cache key.
+    pub fn get_type_reference_cache(&self, key: u64) -> Option<&Type> {
+        self.type_reference_cache_by_key.get(&key)
+    }
+
+    /// Store a cached type reference result for a cache key.
+    pub fn set_type_reference_cache(&mut self, key: u64, ty: Type) {
+        self.type_reference_cache_by_key.insert(key, ty);
     }
 
     /// Iterate over all type ids.
