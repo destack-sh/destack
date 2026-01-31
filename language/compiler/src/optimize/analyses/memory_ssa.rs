@@ -6,8 +6,8 @@ use smallvec::SmallVec;
 use crate::optimize::common::{
     MemoryLocation, TypeKey, ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
     build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
-    location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_pointee_type,
-    tbaa_tags_may_alias,
+    location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_kind,
+    resolve_pointer_pointee_type, tbaa_tags_may_alias,
 };
 use crate::optimize::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
@@ -46,15 +46,26 @@ impl MemoryAccessLocation {
     fn from_pointer(
         ptr: mir::Value,
         access_type: Option<TypeKey>,
+        pointer_kind: Option<mir::ReferenceKind>,
+        pointer_address_space: Option<mir::AddressSpace>,
         pointer_width_bits: u16,
     ) -> Self {
-        Self::from_pointer_with_size(ptr, access_type, None, pointer_width_bits)
+        Self::from_pointer_with_size(
+            ptr,
+            access_type,
+            pointer_kind,
+            pointer_address_space,
+            None,
+            pointer_width_bits,
+        )
     }
 
     /// Create a pointer location with an explicit size override.
     fn from_pointer_with_size(
         ptr: mir::Value,
         access_type: Option<TypeKey>,
+        pointer_kind: Option<mir::ReferenceKind>,
+        pointer_address_space: Option<mir::AddressSpace>,
         size: Option<u64>,
         pointer_width_bits: u16,
     ) -> Self {
@@ -63,7 +74,13 @@ impl MemoryAccessLocation {
                 .as_ref()
                 .and_then(|access_type| access_type.byte_size(pointer_width_bits))
         });
-        MemoryAccessLocation::Pointer(MemoryLocation::new(ptr, inferred_size, access_type))
+        MemoryAccessLocation::Pointer(MemoryLocation::new(
+            ptr,
+            inferred_size,
+            access_type,
+            pointer_kind,
+            pointer_address_space,
+        ))
     }
 
     /// Return a pointer location if available.
@@ -875,10 +892,14 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Assume { .. } => SmallVec::new(),
             mir::Instruction::TensorLoad { view, .. } => {
                 let access_type = self.pointer_access_type(*view);
+                let pointer_kind = self.pointer_kind(*view);
+                let pointer_address_space = self.pointer_address_space(*view);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         *view,
                         access_type,
+                        pointer_kind,
+                        pointer_address_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -889,10 +910,14 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::TensorStore { view, .. }
             | mir::Instruction::TensorFill { view, .. } => {
                 let access_type = self.pointer_access_type(*view);
+                let pointer_kind = self.pointer_kind(*view);
+                let pointer_address_space = self.pointer_address_space(*view);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         *view,
                         access_type,
+                        pointer_kind,
+                        pointer_address_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -903,10 +928,14 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::TensorCopy { target, source } => {
                 let mut effects = SmallVec::new();
                 let target_access = self.pointer_access_type(*target);
+                let target_kind = self.pointer_kind(*target);
+                let target_space = self.pointer_address_space(*target);
                 let mut target_effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         *target,
                         target_access,
+                        target_kind,
+                        target_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -915,10 +944,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects.push(target_effect);
 
                 let source_access = self.pointer_access_type(*source);
+                let source_kind = self.pointer_kind(*source);
+                let source_space = self.pointer_address_space(*source);
                 let mut source_effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         *source,
                         source_access,
+                        source_kind,
+                        source_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -930,10 +963,14 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::Load { pointer, .. } => {
                 let access_type = self.pointer_access_type(*pointer);
+                let pointer_kind = self.pointer_kind(*pointer);
+                let pointer_space = self.pointer_address_space(*pointer);
                 let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(
                         *pointer,
                         access_type,
+                        pointer_kind,
+                        pointer_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -943,10 +980,14 @@ impl<'a> MemoryAccessCollector<'a> {
             }
             mir::Instruction::Store { pointer, .. } => {
                 let access_type = self.pointer_access_type(*pointer);
+                let pointer_kind = self.pointer_kind(*pointer);
+                let pointer_space = self.pointer_address_space(*pointer);
                 let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(
                         *pointer,
                         access_type,
+                        pointer_kind,
+                        pointer_space,
                         self.type_context.pointer_width_bits,
                     ),
                     false,
@@ -1014,9 +1055,13 @@ impl<'a> MemoryAccessCollector<'a> {
         let location = match access.target {
             mir::MemoryAccessTarget::Pointer(pointer) => {
                 let access_type = self.pointer_access_type(pointer);
+                let pointer_kind = self.pointer_kind(pointer);
+                let pointer_space = self.pointer_address_space(pointer);
                 MemoryAccessLocation::from_pointer_with_size(
                     pointer,
                     access_type,
+                    pointer_kind,
+                    pointer_space,
                     access.size,
                     self.type_context.pointer_width_bits,
                 )
@@ -1043,6 +1088,23 @@ impl<'a> MemoryAccessCollector<'a> {
                 effect
             }
         };
+
+        // ordered accesses act like volatile for optimization purposes
+        if access.ordering.is_some() {
+            effect.is_volatile = true;
+        }
+
+        // semantics and scopes imply atomic behavior, treat as volatile
+        if access.semantics.is_some() || access.scope.is_some() || access.memory_scope.is_some() {
+            effect.is_volatile = true;
+        }
+
+        // make-available/visible semantics act as barriers for optimization
+        if let Some(semantics) = access.semantics
+            && (semantics.is_make_available || semantics.is_make_visible)
+        {
+            effect.is_barrier = true;
+        }
 
         // apply location metadata
         let (location_set, address_spaces) =
@@ -1243,9 +1305,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 };
 
                 // skip non reference arguments
-                let mir::Type::Reference { .. } = self.tree.get(arg_type) else {
+                if !matches!(
+                    self.tree.get(arg_type),
+                    mir::Type::Reference { .. } | mir::Type::TensorReference { .. }
+                ) {
                     continue;
-                };
+                }
 
                 // read argument metadata
                 let arg_metadata = call_effects
@@ -1265,9 +1330,13 @@ impl<'a> MemoryAccessCollector<'a> {
                     .dereferenceable_bytes
                     .or(arg_metadata.attributes.dereferenceable_or_null_bytes);
                 let access_type = self.pointer_access_type(arg_value);
+                let pointer_kind = self.pointer_kind(arg_value);
+                let pointer_space = self.pointer_address_space(arg_value);
                 let location = MemoryAccessLocation::from_pointer_with_size(
                     arg_value,
                     access_type,
+                    pointer_kind,
+                    pointer_space,
                     size,
                     self.type_context.pointer_width_bits,
                 );
@@ -1440,10 +1509,16 @@ impl<'a> MemoryAccessCollector<'a> {
                     (Some(dst), Some(src)) => {
                         let dst_type = self.pointer_access_type(dst);
                         let src_type = self.pointer_access_type(src);
+                        let dst_kind = self.pointer_kind(dst);
+                        let src_kind = self.pointer_kind(src);
+                        let dst_space = self.pointer_address_space(dst);
+                        let src_space = self.pointer_address_space(src);
                         let mut read_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
                                 src,
                                 src_type,
+                                src_kind,
+                                src_space,
                                 size,
                                 self.type_context.pointer_width_bits,
                             ),
@@ -1456,6 +1531,8 @@ impl<'a> MemoryAccessCollector<'a> {
                             MemoryAccessLocation::from_pointer_with_size(
                                 dst,
                                 dst_type,
+                                dst_kind,
+                                dst_space,
                                 size,
                                 self.type_context.pointer_width_bits,
                             ),
@@ -1483,10 +1560,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 match dst {
                     Some(dst) => {
                         let dst_type = self.pointer_access_type(dst);
+                        let dst_kind = self.pointer_kind(dst);
+                        let dst_space = self.pointer_address_space(dst);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(
                                 dst,
                                 dst_type,
+                                dst_kind,
+                                dst_space,
                                 size,
                                 self.type_context.pointer_width_bits,
                             ),
@@ -1516,10 +1597,16 @@ impl<'a> MemoryAccessCollector<'a> {
                     (Some(left), Some(right)) => {
                         let left_type = self.pointer_access_type(left);
                         let right_type = self.pointer_access_type(right);
+                        let left_kind = self.pointer_kind(left);
+                        let right_kind = self.pointer_kind(right);
+                        let left_space = self.pointer_address_space(left);
+                        let right_space = self.pointer_address_space(right);
                         let mut left_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(
                                 left,
                                 left_type,
+                                left_kind,
+                                left_space,
                                 size,
                                 self.type_context.pointer_width_bits,
                             ),
@@ -1532,6 +1619,8 @@ impl<'a> MemoryAccessCollector<'a> {
                             MemoryAccessLocation::from_pointer_with_size(
                                 right,
                                 right_type,
+                                right_kind,
+                                right_space,
                                 size,
                                 self.type_context.pointer_width_bits,
                             ),
@@ -1558,10 +1647,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
                             true,
@@ -1587,10 +1680,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
                             true,
@@ -1616,10 +1713,14 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
                             false,
@@ -1659,20 +1760,24 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
-                            false,
+                            true,
                         );
                         self.apply_pointer_location(&mut effect, pointer);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
                         MemoryAccessLocation::Unknown,
-                        false,
+                        true,
                     )),
                 }
 
@@ -1688,20 +1793,24 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
-                            false,
+                            true,
                         );
                         self.apply_pointer_location(&mut effect, pointer);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
                         MemoryAccessLocation::Unknown,
-                        false,
+                        true,
                     )),
                 }
 
@@ -1724,20 +1833,24 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
+                        let pointer_kind = self.pointer_kind(pointer);
+                        let pointer_space = self.pointer_address_space(pointer);
                         let mut effect = MemoryAccessEffect::read_write(
                             MemoryAccessLocation::from_pointer(
                                 pointer,
                                 access_type,
+                                pointer_kind,
+                                pointer_space,
                                 self.type_context.pointer_width_bits,
                             ),
-                            false,
+                            true,
                         );
                         self.apply_pointer_location(&mut effect, pointer);
                         effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read_write(
                         MemoryAccessLocation::Unknown,
-                        false,
+                        true,
                     )),
                 }
 
@@ -1825,6 +1938,16 @@ impl<'a> MemoryAccessCollector<'a> {
         let pointee_type = resolve_pointer_pointee_type(pointer, self.tree, &self.value_types)?;
 
         Some(self.type_key(pointee_type))
+    }
+
+    /// Resolve the reference kind for a pointer value.
+    fn pointer_kind(&self, pointer: mir::Value) -> Option<mir::ReferenceKind> {
+        resolve_pointer_kind(pointer, self.tree, &self.value_types)
+    }
+
+    /// Resolve the address space for a pointer value.
+    fn pointer_address_space(&self, pointer: mir::Value) -> Option<mir::AddressSpace> {
+        resolve_pointer_address_space(pointer, self.tree, &self.value_types)
     }
 
     /// Get or compute a type key.
@@ -2338,6 +2461,55 @@ block0:
         // clobbering access should be the store to v0
         let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
+    }
+
+    /// Memory semantics metadata marks effects as volatile and barrier when needed.
+    #[test]
+    fn test_memory_ssa_semantics_marks_effects() {
+        let mut test = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    return v1
+}"#,
+        );
+
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
+        let load_inst = instructions[1];
+
+        let semantics =
+            mir::MemorySemantics::with_flags(mir::MemoryLocationSet::ANY, true, true, false);
+        let access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Read,
+            target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            scope: Some(mir::AtomicScope::Device),
+            memory_scope: Some(mir::MemoryScope::Device),
+            semantics: Some(semantics),
+            address_space: Some(mir::AddressSpace::Stack),
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+        test.insert_memory_accesses(load_inst, vec![access]);
+
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+
+        let access_id = memory_ssa
+            .access_for_instruction(load_inst)
+            .expect("missing load access");
+        let effect = access_effect(memory_ssa.as_ref(), access_id);
+        assert!(effect.is_volatile);
+        assert!(effect.is_barrier);
     }
 
     /// MemorySSA uses alias scopes to ignore disjoint accesses.
@@ -3070,6 +3242,43 @@ block0:
         let store_access = memory_ssa
             .access_for_instruction(volatile_store)
             .expect("missing volatile store access");
+
+        let load_effect = access_effect(memory_ssa, load_access);
+        let store_effect = access_effect(memory_ssa, store_access);
+
+        assert!(load_effect.is_volatile);
+        assert!(store_effect.is_volatile);
+    }
+
+    /// Atomic accesses are treated as volatile effects.
+    #[test]
+    fn test_memory_ssa_atomic_marks_effects() {
+        let test = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = intrinsic.atomic.load(v0, ordering=acquire, scope=device, memory_scope=device, semantics=any)
+    intrinsic.atomic.store(v0, v1, ordering=release, scope=device, memory_scope=device, semantics=any)
+    return v1
+}"#,
+        );
+
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
+
+        let block = test.tree.get(function.blocks[0]);
+        let atomic_load = block.instructions[1];
+        let atomic_store = block.instructions[2];
+
+        let load_access = memory_ssa
+            .access_for_instruction(atomic_load)
+            .expect("missing atomic load access");
+        let store_access = memory_ssa
+            .access_for_instruction(atomic_store)
+            .expect("missing atomic store access");
 
         let load_effect = access_effect(memory_ssa, load_access);
         let store_effect = access_effect(memory_ssa, store_access);

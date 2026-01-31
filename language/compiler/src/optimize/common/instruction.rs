@@ -51,18 +51,20 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::TensorCompare { .. }
         | Instruction::TensorConvert { .. }
         | Instruction::FieldGet { .. }
-        | Instruction::FieldAddr { .. }
         | Instruction::FieldSet { .. }
         | Instruction::ElementGet { .. }
-        | Instruction::ElementAddr { .. }
         | Instruction::ElementSet { .. } => true,
 
         // immutable global references
         Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
         | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionEnv { .. }
-        | Instruction::LocalAddr { .. } => true,
+        | Instruction::FunctionEnv { .. } => true,
+
+        // borrow producing address computations are not speculatable
+        Instruction::FieldAddr { .. }
+        | Instruction::ElementAddr { .. }
+        | Instruction::LocalAddr { .. } => false,
 
         // tensor loads read memory
         Instruction::TensorLoad { .. } => false,
@@ -104,7 +106,29 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
 /// Check if an instruction can be speculated without trapping.
 ///
 /// This is a stricter predicate than purity: some pure operations may trap.
-pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
+pub fn instruction_is_speculatable(instruction: &Instruction, tree: &mir::NodeTree) -> bool {
+    match instruction {
+        Instruction::FieldAddr { result_type, .. }
+        | Instruction::ElementAddr { result_type, .. }
+        | Instruction::LocalAddr { result_type, .. } => {
+            let ty = tree.get(*result_type);
+            matches!(
+                ty,
+                mir::Type::Reference {
+                    kind: mir::ReferenceKind::Raw,
+                    ..
+                } | mir::Type::TensorReference {
+                    kind: mir::ReferenceKind::Raw,
+                    ..
+                }
+            )
+        }
+        _ => instruction_is_speculatable_untyped(instruction),
+    }
+}
+
+/// Check if an instruction can be speculated without type context.
+fn instruction_is_speculatable_untyped(instruction: &Instruction) -> bool {
     // classify instructions by speculative safety
     match instruction {
         // assumptions must not be speculated across control flow
@@ -125,6 +149,18 @@ pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
         } => false,
         _ => instruction_is_pure(instruction),
     }
+}
+
+/// Check if an instruction computes an address value.
+///
+/// The result may be borrowed or raw depending on its reference type.
+pub fn instruction_is_borrow_address(instruction: &Instruction) -> bool {
+    matches!(
+        instruction,
+        Instruction::FieldAddr { .. }
+            | Instruction::ElementAddr { .. }
+            | Instruction::LocalAddr { .. }
+    )
 }
 
 /// Check if an instruction has side effects and cannot be removed even if unused.
@@ -1354,6 +1390,7 @@ pub fn apply_substitutions_in_function(
                     instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
                 if updated != instruction {
                     tree.replace(instruction_id, updated);
+                    remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                     changed = true;
                 }
             }
@@ -1481,6 +1518,35 @@ pub fn clone_instruction_metadata(
         tree.memory_table
             .insert_memory_accesses(cloned, cloned_accesses);
     }
+}
+
+/// Remap instruction memory access metadata in place using a substitution map.
+pub fn remap_instruction_memory_accesses(
+    tree: &mut mir::NodeTree,
+    instruction: mir::LocalNodeId<mir::Instruction>,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) {
+    // skip when no substitutions are provided
+    if substitutions.is_empty() {
+        return;
+    }
+
+    // read existing memory access metadata
+    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+        return;
+    };
+
+    let mut updated = accesses.to_vec();
+    for access in &mut updated {
+        if let mir::MemoryAccessTarget::Pointer(value) = access.target
+            && let Some(&remapped) = substitutions.get(&value)
+        {
+            access.target = mir::MemoryAccessTarget::Pointer(remapped);
+        }
+    }
+
+    tree.memory_table
+        .insert_memory_accesses(instruction, updated);
 }
 
 /// Definition metadata for instructions.

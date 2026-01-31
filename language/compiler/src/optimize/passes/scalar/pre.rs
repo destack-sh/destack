@@ -191,7 +191,7 @@ fn run_pre(
             let value_type = value_types.require_value_type(destination);
 
             // track whether the expression can be speculated
-            let is_speculatable = instruction_is_speculatable(instruction);
+            let is_speculatable = instruction_is_speculatable(instruction, tree);
 
             // record template for the expression
             templates

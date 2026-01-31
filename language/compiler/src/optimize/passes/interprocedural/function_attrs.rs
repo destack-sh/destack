@@ -688,6 +688,9 @@ fn memory_effect_for_access(access: &mir::MemoryAccessMetadata) -> mir::MemoryEf
     }
     if access.is_volatile
         || access.ordering.is_some()
+        || access.semantics.is_some()
+        || access.scope.is_some()
+        || access.memory_scope.is_some()
         || access.kind == mir::MemoryAccessKind::Fence
     {
         effect.nosync = false;
@@ -767,6 +770,11 @@ fn memory_effect_for_intrinsic(intrinsic: mir::Intrinsic) -> mir::MemoryEffect {
             effect
         }
         Intrinsic::AtomicFence => {
+            let mut effect = mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY);
+            effect.nosync = false;
+            effect
+        }
+        Intrinsic::Barrier => {
             let mut effect = mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY);
             effect.nosync = false;
             effect

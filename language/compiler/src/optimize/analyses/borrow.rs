@@ -88,13 +88,13 @@ pub struct BorrowMap {
     /// For each value, its borrow state.
     states: HashMap<Value, BorrowState>,
     /// For each reference value, what it borrows from.
-    reference_origins: HashMap<Value, Value>,
+    reference_origins: HashMap<Value, Vec<Value>>,
     /// For each reference value, where it was created.
     reference_locations: HashMap<Value, mir::LocalNodeId<Instruction>>,
     /// For each local slot, its borrow state.
     local_states: HashMap<mir::LocalNodeId<mir::Local>, BorrowState>,
     /// For each reference value, which local slot it borrows from.
-    local_reference_origins: HashMap<Value, mir::LocalNodeId<mir::Local>>,
+    local_reference_origins: HashMap<Value, Vec<mir::LocalNodeId<mir::Local>>>,
     /// For each local reference value, where it was created.
     local_reference_locations: HashMap<Value, mir::LocalNodeId<Instruction>>,
 }
@@ -118,14 +118,35 @@ impl BorrowMap {
         self.get(value).is_possibly_borrowed()
     }
 
-    /// Get the origin of a reference value.
+    /// Get the origin of a reference value when there is exactly one.
     pub fn reference_origin(&self, reference: Value) -> Option<Value> {
-        self.reference_origins.get(&reference).copied()
+        self.reference_origins
+            .get(&reference)
+            .and_then(|origins| origins.first().copied())
+    }
+
+    /// Get all possible origins for a reference value.
+    pub fn reference_origins(&self, reference: Value) -> Option<&[Value]> {
+        self.reference_origins
+            .get(&reference)
+            .map(|origins| origins.as_slice())
     }
 
     /// Get the local origin for a reference value.
     pub fn local_reference_origin(&self, reference: Value) -> Option<mir::LocalNodeId<mir::Local>> {
-        self.local_reference_origins.get(&reference).copied()
+        self.local_reference_origins
+            .get(&reference)
+            .and_then(|locals| locals.first().copied())
+    }
+
+    /// Get all possible local origins for a reference value.
+    pub fn local_reference_origins(
+        &self,
+        reference: Value,
+    ) -> Option<&[mir::LocalNodeId<mir::Local>]> {
+        self.local_reference_origins
+            .get(&reference)
+            .map(|locals| locals.as_slice())
     }
 
     /// Record a new borrow.
@@ -136,7 +157,7 @@ impl BorrowMap {
         at: mir::LocalNodeId<Instruction>,
     ) {
         self.states.insert(origin, BorrowState::Borrowed { at });
-        self.reference_origins.insert(reference, origin);
+        self.reference_origins.insert(reference, vec![origin]);
         self.reference_locations.insert(reference, at);
     }
 
@@ -149,7 +170,7 @@ impl BorrowMap {
     ) {
         self.local_states
             .insert(local, BorrowState::Borrowed { at });
-        self.local_reference_origins.insert(reference, local);
+        self.local_reference_origins.insert(reference, vec![local]);
         self.local_reference_locations.insert(reference, at);
     }
 
@@ -158,39 +179,122 @@ impl BorrowMap {
     /// Used when a reference is passed through a block parameter, the block
     /// parameter inherits the borrow relationship of the argument.
     pub fn transfer_borrow(&mut self, from_ref: Value, to_ref: Value) {
-        if let Some(&origin) = self.reference_origins.get(&from_ref)
+        if let Some(origins) = self.reference_origins.get(&from_ref)
             && let Some(&at) = self.reference_locations.get(&from_ref)
         {
-            self.reference_origins.insert(to_ref, origin);
+            self.reference_origins.insert(to_ref, origins.clone());
             self.reference_locations.insert(to_ref, at);
         }
 
-        if let Some(&local) = self.local_reference_origins.get(&from_ref)
+        if let Some(locals) = self.local_reference_origins.get(&from_ref)
             && let Some(&at) = self.local_reference_locations.get(&from_ref)
         {
-            self.local_reference_origins.insert(to_ref, local);
+            self.local_reference_origins.insert(to_ref, locals.clone());
             self.local_reference_locations.insert(to_ref, at);
+        }
+    }
+
+    /// Merge borrow origins from multiple references into a single reference.
+    pub fn merge_borrows(
+        &mut self,
+        destination: Value,
+        sources: &[Value],
+        at: mir::LocalNodeId<Instruction>,
+    ) {
+        let mut origins = Vec::new();
+        let mut locals = Vec::new();
+
+        for &source in sources {
+            if let Some(source_origins) = self.reference_origins.get(&source) {
+                for &origin in source_origins {
+                    if !origins.contains(&origin) {
+                        origins.push(origin);
+                    }
+                }
+            }
+
+            if let Some(source_locals) = self.local_reference_origins.get(&source) {
+                for &local in source_locals {
+                    if !locals.contains(&local) {
+                        locals.push(local);
+                    }
+                }
+            }
+        }
+
+        if !origins.is_empty() {
+            for &origin in &origins {
+                self.states.insert(origin, BorrowState::Borrowed { at });
+            }
+            self.reference_origins.insert(destination, origins);
+            self.reference_locations.insert(destination, at);
+        }
+
+        if !locals.is_empty() {
+            for &local in &locals {
+                self.local_states
+                    .insert(local, BorrowState::Borrowed { at });
+            }
+            self.local_reference_origins.insert(destination, locals);
+            self.local_reference_locations.insert(destination, at);
+        }
+    }
+
+    /// Merge borrow relationships from multiple block arguments into a parameter.
+    pub fn merge_param_borrows(&mut self, param: Value, sources: &[Value]) {
+        let mut merged_sources = Vec::new();
+        let mut borrow_location = None;
+
+        for &source in sources {
+            let has_borrow = self.reference_origins.contains_key(&source)
+                || self.local_reference_origins.contains_key(&source);
+            if !has_borrow {
+                continue;
+            }
+
+            if !merged_sources.contains(&source) {
+                merged_sources.push(source);
+            }
+
+            if borrow_location.is_none() {
+                borrow_location = self
+                    .reference_locations
+                    .get(&source)
+                    .copied()
+                    .or_else(|| self.local_reference_locations.get(&source).copied());
+            }
+        }
+
+        if let Some(at) = borrow_location {
+            self.merge_borrows(param, &merged_sources, at);
         }
     }
 
     /// Remove a borrow when its reference dies.
     pub fn expire_borrow(&mut self, reference: Value) {
-        if let Some(origin) = self.reference_origins.remove(&reference) {
+        if let Some(origins) = self.reference_origins.remove(&reference) {
             // only remove borrow state if no other references borrow from this origin
-            let has_other_borrows = self.reference_origins.values().any(|&orig| orig == origin);
-            if !has_other_borrows {
-                self.states.remove(&origin);
+            for origin in origins {
+                let has_other_borrows = self
+                    .reference_origins
+                    .values()
+                    .any(|origins| origins.contains(&origin));
+                if !has_other_borrows {
+                    self.states.remove(&origin);
+                }
             }
         }
         self.reference_locations.remove(&reference);
 
-        if let Some(local) = self.local_reference_origins.remove(&reference) {
-            let has_other_borrows = self
-                .local_reference_origins
-                .values()
-                .any(|&orig| orig == local);
-            if !has_other_borrows {
-                self.local_states.remove(&local);
+        if let Some(locals) = self.local_reference_origins.remove(&reference) {
+            for local in locals {
+                let has_other_borrows = self
+                    .local_reference_origins
+                    .values()
+                    .any(|locals| locals.contains(&local));
+                if !has_other_borrows {
+                    self.local_states.remove(&local);
+                }
             }
         }
         self.local_reference_locations.remove(&reference);
@@ -215,10 +319,11 @@ impl BorrowMap {
     ) -> impl Iterator<Item = (Value, Value, mir::LocalNodeId<Instruction>)> + '_ {
         self.reference_origins
             .iter()
-            .filter_map(|(&reference, &origin)| {
-                self.reference_locations
-                    .get(&reference)
-                    .map(|&loc| (reference, origin, loc))
+            .flat_map(|(&reference, origins)| {
+                let location = self.reference_locations.get(&reference).copied();
+                origins
+                    .iter()
+                    .filter_map(move |&origin| location.map(|loc| (reference, origin, loc)))
             })
     }
 
@@ -234,10 +339,11 @@ impl BorrowMap {
     > + '_ {
         self.local_reference_origins
             .iter()
-            .filter_map(|(&reference, &local)| {
-                self.local_reference_locations
-                    .get(&reference)
-                    .map(|&loc| (reference, local, loc))
+            .flat_map(|(&reference, locals)| {
+                let location = self.local_reference_locations.get(&reference).copied();
+                locals
+                    .iter()
+                    .filter_map(move |&local| location.map(|loc| (reference, local, loc)))
             })
     }
 }
@@ -275,8 +381,13 @@ impl Lattice for BorrowMap {
 
         // merge reference tracking
         let mut result_origins = self.reference_origins.clone();
-        for (&reference, &origin) in &other.reference_origins {
-            result_origins.entry(reference).or_insert(origin);
+        for (&reference, other_origins) in &other.reference_origins {
+            let entry = result_origins.entry(reference).or_default();
+            for &origin in other_origins {
+                if !entry.contains(&origin) {
+                    entry.push(origin);
+                }
+            }
         }
 
         let mut result_locations = self.reference_locations.clone();
@@ -285,8 +396,13 @@ impl Lattice for BorrowMap {
         }
 
         let mut result_local_origins = self.local_reference_origins.clone();
-        for (&reference, &local) in &other.local_reference_origins {
-            result_local_origins.entry(reference).or_insert(local);
+        for (&reference, other_locals) in &other.local_reference_origins {
+            let entry = result_local_origins.entry(reference).or_default();
+            for &local in other_locals {
+                if !entry.contains(&local) {
+                    entry.push(local);
+                }
+            }
         }
 
         let mut result_local_locations = self.local_reference_locations.clone();
@@ -352,14 +468,20 @@ impl BorrowAnalysis {
             |block_id, mut state, tree| {
                 let block = tree.get(block_id);
 
-                // transfer borrow relationships from predecessor jump args to block params
+                // transfer borrow relationships from predecessor args to block params
+                let mut param_sources = vec![Vec::new(); block.parameters.len()];
                 for &pred_id in cfg.predecessors(block_id) {
                     let pred_block = tree.get(pred_id);
                     let arguments =
                         terminator_arguments_for_successor(&pred_block.terminator, block_id);
-                    for (param, arg) in block.parameters.iter().zip(arguments) {
-                        state.transfer_borrow(*arg, param.value);
+                    for (index, arg) in arguments.iter().enumerate() {
+                        if let Some(slot) = param_sources.get_mut(index) {
+                            slot.push(*arg);
+                        }
                     }
+                }
+                for (param, sources) in block.parameters.iter().zip(param_sources) {
+                    state.merge_param_borrows(param.value, &sources);
                 }
 
                 // expire borrows whose references are not live-in to this block
@@ -378,7 +500,7 @@ impl BorrowAnalysis {
                 // process each instruction
                 for &inst_id in &block.instructions {
                     let inst = tree.get(inst_id);
-                    apply_instruction_effects(&mut state, inst_id, inst);
+                    apply_instruction_effects(&mut state, inst_id, inst, tree);
                 }
 
                 // expire borrows whose references are not live-out
@@ -403,14 +525,20 @@ impl BorrowAnalysis {
             let block = tree.get(block_id);
             let mut state = entry_state.clone();
 
-            // transfer borrow relationships from predecessor jump args to block params
+            // transfer borrow relationships from predecessor args to block params
+            let mut param_sources = vec![Vec::new(); block.parameters.len()];
             for &pred_id in cfg.predecessors(block_id) {
                 let pred_block = tree.get(pred_id);
                 let arguments =
                     terminator_arguments_for_successor(&pred_block.terminator, block_id);
-                for (param, arg) in block.parameters.iter().zip(arguments) {
-                    state.transfer_borrow(*arg, param.value);
+                for (index, arg) in arguments.iter().enumerate() {
+                    if let Some(slot) = param_sources.get_mut(index) {
+                        slot.push(*arg);
+                    }
                 }
+            }
+            for (param, sources) in block.parameters.iter().zip(param_sources) {
+                state.merge_param_borrows(param.value, &sources);
             }
 
             // expire borrows whose references are not live-in to this block
@@ -441,32 +569,73 @@ fn apply_instruction_effects(
     state: &mut BorrowMap,
     inst_id: mir::LocalNodeId<Instruction>,
     inst: &Instruction,
+    tree: &mir::NodeTree,
 ) {
     match inst {
         // field.addr creates a borrow of the aggregate
         Instruction::FieldAddr {
             destination,
             aggregate,
+            result_type,
             ..
         } => {
+            if !reference_is_borrowed(*result_type, tree) {
+                return;
+            }
             state.add_borrow(*destination, *aggregate, inst_id);
         }
 
         // element.addr creates a borrow of the array
         Instruction::ElementAddr {
-            destination, array, ..
+            destination,
+            array,
+            result_type,
+            ..
         } => {
+            if !reference_is_borrowed(*result_type, tree) {
+                return;
+            }
             state.add_borrow(*destination, *array, inst_id);
         }
         // local.addr creates a borrow of the local slot
         Instruction::LocalAddr {
-            destination, local, ..
+            destination,
+            local,
+            result_type,
         } => {
+            if !reference_is_borrowed(*result_type, tree) {
+                return;
+            }
             state.add_local_borrow(*destination, *local, inst_id);
+        }
+
+        // cast propagates borrow from the source reference
+        Instruction::Cast {
+            destination,
+            argument,
+            ..
+        } => {
+            state.transfer_borrow(*argument, *destination);
+        }
+
+        // select between references merges borrow origins
+        Instruction::Select {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            state.merge_borrows(*destination, &[*then_value, *else_value], inst_id);
         }
 
         _ => {}
     }
+}
+
+/// Return true when a reference type is borrowed.
+fn reference_is_borrowed(ty_id: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> bool {
+    let ty = tree.get(ty_id);
+    ty.is_borrowed_reference()
 }
 
 impl Analysis for BorrowAnalysis {
@@ -483,5 +652,29 @@ impl FunctionAnalysis for BorrowAnalysis {
         let cfg = analyses.get::<ControlFlowGraph>();
         let liveness = analyses.get::<LivenessAnalysis>();
         Self::build(function, tree, &cfg, &liveness)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reference_is_borrowed;
+    use destack_mir as mir;
+
+    /// Borrow analysis recognizes borrowed tensor references.
+    #[test]
+    fn test_reference_is_borrowed_tensor_reference() {
+        let mut tree = mir::NodeTree::new();
+        let element = tree.insert_type(mir::Type::Float { width: 32 });
+        let tensor_ref = tree.insert_type(mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Borrowed,
+            address_space: mir::AddressSpace::Stack,
+            mutability: mir::Mutability::Mutable,
+            element,
+            shape: vec![mir::TensorDimension::Static(4)],
+            layout: mir::TensorLayout::RowMajor,
+            is_nullable: false,
+        });
+
+        assert!(reference_is_borrowed(tensor_ref, &tree));
     }
 }

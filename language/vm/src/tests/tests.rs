@@ -1,7 +1,7 @@
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{Error, RuntimeResult};
 use crate::memory::Value;
 use crate::{ExecutionOutput, Isolate, IsolateOptions};
 
@@ -59,4 +59,15 @@ pub(crate) fn run_mir_ok(mir_text: &str, function: &str, args: &[Value]) -> Exec
 pub(crate) fn run_mir_expect(mir_text: &str, function: &str, args: &[Value], expected: Value) {
     let output = run_mir_ok(mir_text, function, args);
     assert_eq!(output.value, expected, "unexpected return value");
+}
+
+/// Run MIR and expect a specific runtime error.
+pub(crate) fn run_mir_expect_error(
+    mir_text: &str,
+    function: &str,
+    args: &[Value],
+    expected: Error,
+) {
+    let error = run_mir(mir_text, function, args).expect_err("expected execution error");
+    assert_eq!(error.error, expected, "unexpected execution error");
 }

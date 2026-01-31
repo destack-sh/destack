@@ -4,6 +4,7 @@ use destack_mir::{self as mir, Lifetime};
 
 use crate::optimize::{
     Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, borrowed_parameter_indices_for_function,
+    borrowed_parameter_indices_for_signature, signature_return_contains_borrowed_refs,
     type_contains_borrowed_refs,
 };
 
@@ -74,6 +75,28 @@ impl LifetimeAnalysis {
         param_index: u32,
     ) -> bool {
         self.get(function_id).includes_parameter(param_index)
+    }
+
+    /// Resolve lifetime bounds from a function signature type.
+    pub fn resolve_signature(
+        signature: mir::LocalNodeId<mir::Type>,
+        tree: &mir::NodeTree,
+    ) -> ResolvedLifetime {
+        let signature_type = tree.get(signature);
+        if !signature_return_contains_borrowed_refs(signature_type, tree) {
+            return ResolvedLifetime::None;
+        }
+
+        let Some(indices) = borrowed_parameter_indices_for_signature(signature_type, tree) else {
+            return ResolvedLifetime::Static;
+        };
+
+        if indices.is_empty() {
+            return ResolvedLifetime::Static;
+        }
+
+        let indices = indices.into_iter().map(|index| index as u32).collect();
+        ResolvedLifetime::Parameters(indices)
     }
 
     /// Build lifetime analysis for all functions in the tree.
@@ -345,6 +368,90 @@ block0(v0: i32):
 
         // no borrowed params: must be static
         assert!(lifetime.is_static());
+    }
+
+    /// Signature lifetime resolves to none when return has no borrowed refs.
+    #[test]
+    fn test_signature_lifetime_non_borrowed_return() {
+        let mut program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let int_ty = program.tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+            parameters: vec![int_ty],
+            result: int_ty,
+        });
+
+        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
+        assert!(lifetime.is_none());
+    }
+
+    /// Signature lifetime resolves to static when no borrowed parameters exist.
+    #[test]
+    fn test_signature_lifetime_static_without_borrowed_params() {
+        let mut program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let int_ty = program.tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            address_space: mir::AddressSpace::Generic,
+            mutability: mir::Mutability::Immutable,
+            pointee: int_ty,
+            is_nullable: false,
+        });
+        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+            parameters: vec![int_ty],
+            result: borrowed_ref,
+        });
+
+        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
+        assert!(lifetime.is_static());
+    }
+
+    /// Signature lifetime resolves to parameter indices when borrowed params exist.
+    #[test]
+    fn test_signature_lifetime_from_borrowed_params() {
+        let mut program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let int_ty = program.tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            address_space: mir::AddressSpace::Generic,
+            mutability: mir::Mutability::Immutable,
+            pointee: int_ty,
+            is_nullable: false,
+        });
+        let signature = program.tree.insert_type(mir::Type::FunctionPointer {
+            parameters: vec![int_ty, borrowed_ref],
+            result: borrowed_ref,
+        });
+
+        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
+        assert!(lifetime.includes_parameter(1));
+        assert!(!lifetime.includes_parameter(0));
     }
 
     /// lifetimeLifetime helper methods behave correctly.

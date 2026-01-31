@@ -6,7 +6,10 @@ use destack_mir::{
     UnaryOperator,
 };
 
-use super::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
+use super::{
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    terminator_substitute_uses,
+};
 
 /// Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,7 +67,8 @@ pub fn constant_matches_type(
     tree: &NodeTree,
 ) -> bool {
     match (constant_type, tree.get(destination_type)) {
-        (ConstantType::Null, Type::Reference { is_nullable, .. }) => *is_nullable,
+        (ConstantType::Null, Type::Reference { is_nullable, .. })
+        | (ConstantType::Null, Type::TensorReference { is_nullable, .. }) => *is_nullable,
         (ConstantType::Boolean, Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
@@ -204,6 +208,7 @@ pub fn apply_constant_parameters(
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if instruction != updated {
                 *tree.get_mut(instruction_id) = updated;
+                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
 
@@ -1254,16 +1259,26 @@ pub fn fold_cast(
 
             // convert float to signed int
             match value {
-                Constant::Float { bits, width: 32 } => Some(Constant::Int {
-                    value: f32::from_bits(bits as u32) as i64,
-                    width: target_width,
-                    is_signed: true,
-                }),
-                Constant::Float { bits, width: 64 } => Some(Constant::Int {
-                    value: f64::from_bits(bits) as i64,
-                    width: target_width,
-                    is_signed: true,
-                }),
+                Constant::Float { bits, width: 32 } => {
+                    let value = f32::from_bits(bits as u32) as f64;
+                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
+                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
+                    Some(Constant::Int {
+                        value: converted as i64,
+                        width: target_width,
+                        is_signed: true,
+                    })
+                }
+                Constant::Float { bits, width: 64 } => {
+                    let value = f64::from_bits(bits);
+                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
+                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
+                    Some(Constant::Int {
+                        value: converted as i64,
+                        width: target_width,
+                        is_signed: true,
+                    })
+                }
                 _ => Some(value),
             }
         }
@@ -1277,14 +1292,24 @@ pub fn fold_cast(
 
             // convert float to unsigned int
             match value {
-                Constant::Float { bits, width: 32 } => Some(Constant::UInt {
-                    value: f32::from_bits(bits as u32) as u64,
-                    width: target_width,
-                }),
-                Constant::Float { bits, width: 64 } => Some(Constant::UInt {
-                    value: f64::from_bits(bits) as u64,
-                    width: target_width,
-                }),
+                Constant::Float { bits, width: 32 } => {
+                    let value = f32::from_bits(bits as u32) as f64;
+                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
+                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
+                    Some(Constant::UInt {
+                        value: converted as u64,
+                        width: target_width,
+                    })
+                }
+                Constant::Float { bits, width: 64 } => {
+                    let value = f64::from_bits(bits);
+                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
+                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
+                    Some(Constant::UInt {
+                        value: converted as u64,
+                        width: target_width,
+                    })
+                }
                 _ => Some(value),
             }
         }
@@ -1383,6 +1408,54 @@ fn truncate_signed(value: i64, width: u8) -> i64 {
     else {
         masked as i64
     }
+}
+
+/// Compute integer bounds for a width and signedness.
+fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
+    if width == 0 || width > 64 {
+        return None;
+    }
+
+    if is_signed {
+        let shift = (width - 1) as u32;
+        let min = -(1_i128 << shift);
+        let max = (1_i128 << shift) - 1;
+        Some((min, max))
+    } else {
+        let shift = width as u32;
+        let max = (1_i128 << shift) - 1;
+        Some((0, max))
+    }
+}
+
+/// Convert a float to an integer when the conversion is in range and finite.
+fn float_to_int_checked(value: f64, min_bound: i128, max_bound: i128) -> Option<i128> {
+    if !value.is_finite() {
+        return None;
+    }
+
+    let min_float = min_bound as f64;
+    let max_float = max_bound as f64;
+    let max_rounded = max_float.trunc() as i128;
+    let max_is_rounded_up = max_rounded > max_bound;
+
+    let min_ok = value >= min_float;
+    let max_ok = if max_is_rounded_up {
+        value < max_float
+    } else {
+        value <= max_float
+    };
+
+    if !min_ok || !max_ok {
+        return None;
+    }
+
+    let truncated = value.trunc() as i128;
+    if truncated < min_bound || truncated > max_bound {
+        return None;
+    }
+
+    Some(truncated)
 }
 
 /// Truncate an unsigned integer to a target bit width.

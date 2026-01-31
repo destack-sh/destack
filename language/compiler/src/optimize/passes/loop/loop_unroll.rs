@@ -1733,7 +1733,7 @@ fn inner_update_info(
         // reject trailing instructions that depend on outer induction values
         for instruction_id in &trailing_instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction) {
+            if !instruction_is_speculatable(instruction, tree) {
                 return None;
             }
 

@@ -8,8 +8,9 @@ use crate::optimize::analyses::{
     ValueRange,
 };
 use crate::optimize::common::{
-    ValueTypeMap, constant_is_zero, instruction_is_speculatable, instruction_map,
-    instruction_substitute_uses_in_tree, resolve_substitution_chains, terminator_substitute_uses,
+    ValueTypeMap, clone_instruction_metadata, constant_is_zero, instruction_is_speculatable,
+    instruction_map, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -566,6 +567,7 @@ fn run_loop_strength_reduce(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
+                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
     }
@@ -1537,10 +1539,15 @@ impl<'a> ScevMaterializer<'a> {
                     None
                 } else {
                     let instruction_data = self.tree.get(instruction).clone();
-                    if !instruction_is_speculatable(&instruction_data) {
+                    if !instruction_is_speculatable(&instruction_data, self.tree) {
                         None
                     } else {
-                        self.clone_speculatable_instruction(function, &instruction_data, value)
+                        self.clone_speculatable_instruction(
+                            function,
+                            instruction,
+                            &instruction_data,
+                            value,
+                        )
                     }
                 }
             }
@@ -1561,6 +1568,7 @@ impl<'a> ScevMaterializer<'a> {
     fn clone_speculatable_instruction(
         &mut self,
         function: &mut mir::Function,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
         original: mir::Value,
     ) -> Option<mir::Value> {
@@ -1590,7 +1598,8 @@ impl<'a> ScevMaterializer<'a> {
         let cloned = instruction_map(instruction, &value_map, self.tree);
 
         // insert the cloned instruction in the preheader
-        self.insert_instruction(cloned);
+        let cloned_id = self.insert_instruction(cloned);
+        clone_instruction_metadata(self.tree, instruction_id, cloned_id, &value_map);
 
         Some(destination)
     }
@@ -1654,12 +1663,16 @@ impl<'a> ScevMaterializer<'a> {
     }
 
     /// Insert an instruction into the preheader block.
-    fn insert_instruction(&mut self, instruction: mir::Instruction) {
+    fn insert_instruction(
+        &mut self,
+        instruction: mir::Instruction,
+    ) -> mir::LocalNodeId<mir::Instruction> {
         // append the instruction to the preheader
         let instruction_id = self.tree.insert(instruction);
         let mut preheader_block = self.tree.get(self.preheader).clone();
         preheader_block.instructions.push(instruction_id);
         self.tree.replace(self.preheader, preheader_block);
+        instruction_id
     }
 
     /// Check if a value is available in the preheader.

@@ -4,9 +4,10 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
+use crate::optimize::common::instruction_requires_exact_access;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
-    terminator_substitute_uses, terminator_uses,
+    remap_instruction_memory_accesses, terminator_substitute_uses, terminator_uses,
 };
 
 declare_pass! {
@@ -390,12 +391,18 @@ fn analyze_uses(
 
                     // loads and stores are allowed, base pointer uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
+                        if instruction_requires_exact_access(tree, inst_id) {
+                            return None;
+                        }
                         if value == alloc_value {
                             base_loads.push(inst_id);
                         }
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
+                        if instruction_requires_exact_access(tree, inst_id) {
+                            return None;
+                        }
                         if value == alloc_value {
                             base_stores.push(inst_id);
                         }
@@ -780,6 +787,7 @@ fn apply_substitutions(
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
             tree.replace(inst_id, new_instruction);
+            remap_instruction_memory_accesses(tree, inst_id, substitutions);
         }
 
         // substitute in terminator
@@ -792,6 +800,24 @@ fn apply_substitutions(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+    use destack_mir as mir;
+
+    fn first_load_id(
+        test: &TestProgram,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> mir::LocalNodeId<mir::Instruction> {
+        let function = test.tree.get(function_id);
+        for block_id in &function.blocks {
+            let block = test.tree.get(*block_id);
+            for &instruction_id in &block.instructions {
+                if matches!(test.tree.get(instruction_id), mir::Instruction::Load { .. }) {
+                    return instruction_id;
+                }
+            }
+        }
+
+        panic!("missing load instruction");
+    }
 
     /// Simple struct splitting.
     ///
@@ -1225,5 +1251,36 @@ block0:
         let mut test = TestProgram::new(input);
         test.run_pass(&Sroa);
         test.assert_output(expected);
+    }
+
+    /// Volatile loads prevent splitting.
+    #[test]
+    fn test_skip_volatile_load() {
+        let input = r#"type @Point = { i32, i32 }
+function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = load v1
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.entry_function_id();
+        let load_id = first_load_id(&test, function_id);
+        test.insert_pointer_access_with_options(
+            load_id,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 }

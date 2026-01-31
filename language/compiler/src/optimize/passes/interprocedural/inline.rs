@@ -6,8 +6,9 @@ use destack_mir as mir;
 use crate::optimize::analyses::CallGraphScc;
 use crate::optimize::common::{
     CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap, block_execution_counts,
-    block_hotness_from_counts, build_value_definition_map, callsite_hotness, constant_for_value,
-    instruction_map_with_locals, instruction_substitute_uses_in_tree, scaled_profile_count,
+    block_hotness_from_counts, build_value_definition_map, callsite_hotness,
+    clone_instruction_metadata, constant_for_value, instruction_map_with_locals,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses, scaled_profile_count,
     terminator_remap, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
@@ -902,6 +903,7 @@ fn substitute_value_in_function(
             let instruction = tree.get(*instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             tree.replace(*instruction_id, updated);
+            remap_instruction_memory_accesses(tree, *instruction_id, &substitutions);
         }
 
         let mut updated_block = block.clone();
@@ -936,13 +938,7 @@ fn remap_inline_blocks(
             let new_id = tree.insert(remapped);
 
             // clone memory access metadata onto the new instruction
-            if let Some(accesses) = tree
-                .memory_table
-                .memory_accesses(instruction_id)
-                .map(|entries| entries.to_vec())
-            {
-                tree.memory_table.insert_memory_accesses(new_id, accesses);
-            }
+            clone_instruction_metadata(tree, instruction_id, new_id, value_map);
 
             // clone debug locations onto the new instruction
             if let Some(location) = tree
@@ -1518,6 +1514,90 @@ block2(v4: i32):
         let mut test = TestProgram::new(input);
         test.run_module_pass(&Inline);
         test.assert_output(expected);
+    }
+
+    /// Inlined memory access metadata remaps pointer targets.
+    #[test]
+    fn test_inline_remaps_memory_access_metadata() {
+        let input = r#"function @callee() -> i32 {
+local0: i32 ; owned
+block0:
+    v0: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v1: i32 = load v0
+    return v1
+}
+function @caller() -> i32 {
+block0:
+    v0: i32 = call @callee() -> fn() -> i32
+    return v0
+}"#;
+
+        let mut test = TestProgram::new(input);
+
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get(callee_id);
+        let mut callee_load = None;
+        let mut callee_pointer = None;
+        for block_id in &callee.blocks {
+            let block = test.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                    callee_load = Some(*instruction_id);
+                    callee_pointer = Some(*pointer);
+                    break;
+                }
+            }
+            if callee_load.is_some() {
+                break;
+            }
+        }
+
+        let callee_load = callee_load.expect("missing callee load");
+        let callee_pointer = callee_pointer.expect("missing callee pointer");
+        test.insert_pointer_access(
+            callee_load,
+            mir::MemoryAccessKind::Read,
+            callee_pointer,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        test.run_module_pass(&Inline);
+
+        let caller_id = test.function_id_by_name("caller");
+        let caller = test.tree.get(caller_id);
+        let mut inlined_load = None;
+        let mut inlined_pointer = None;
+        for block_id in &caller.blocks {
+            let block = test.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                    inlined_load = Some(*instruction_id);
+                    inlined_pointer = Some(*pointer);
+                    break;
+                }
+            }
+            if inlined_load.is_some() {
+                break;
+            }
+        }
+
+        let inlined_load = inlined_load.expect("missing inlined load");
+        let inlined_pointer = inlined_pointer.expect("missing inlined pointer");
+        let accesses = test
+            .tree
+            .memory_table
+            .memory_accesses(inlined_load)
+            .expect("missing inlined access metadata");
+        assert_eq!(accesses.len(), 1);
+        match accesses[0].target {
+            mir::MemoryAccessTarget::Pointer(value) => {
+                assert_eq!(value, inlined_pointer);
+            }
+            _ => panic!("unexpected access target"),
+        }
     }
 
     /// Large callees are not inlined.

@@ -24,6 +24,22 @@ impl TypeBasedAA {
 
     /// Query if two memory locations may alias based on their types.
     pub(super) fn alias(&self, loc_a: &MemoryLocation, loc_b: &MemoryLocation) -> AliasResult {
+        // raw pointers can alias anything
+        if matches!(
+            (loc_a.pointer_kind, loc_b.pointer_kind),
+            (Some(destack_mir::ReferenceKind::Raw), _) | (_, Some(destack_mir::ReferenceKind::Raw))
+        ) {
+            if let (Some(space_a), Some(space_b)) =
+                (loc_a.pointer_address_space, loc_b.pointer_address_space)
+            {
+                if space_a != space_b {
+                    return AliasResult::NoAlias;
+                }
+            }
+
+            return AliasResult::MayAlias;
+        }
+
         // need type info for both
         let (ty_a, ty_b) = match (&loc_a.access_type, &loc_b.access_type) {
             (Some(a), Some(b)) => (a, b),

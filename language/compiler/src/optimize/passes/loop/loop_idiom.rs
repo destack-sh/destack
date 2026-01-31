@@ -10,7 +10,8 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     BlockParamForwarding, TypeKey, UseDefMaps, ValueTypeMap, build_use_def_maps,
     build_value_definition_map, build_value_use_counts, constant_for_value, constant_is_zero,
-    instruction_has_side_effects, instruction_is_speculatable, unsigned_int_width_for_value,
+    instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
+    instruction_requires_exact_access, unsigned_int_width_for_value,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -572,6 +573,12 @@ fn match_memset_pattern(
 
         for &inst_id in &block.instructions {
             let inst = tree.get(inst_id);
+
+            // reject volatile or ordered memory accesses
+            if instruction_requires_exact_access(tree, inst_id) {
+                return None;
+            }
+
             if instruction_has_side_effects(inst) {
                 if let mir::Instruction::Store { pointer, value } = inst {
                     if store_ptr.is_some() {
@@ -586,7 +593,7 @@ fn match_memset_pattern(
                 return None;
             }
 
-            if !instruction_is_speculatable(inst) {
+            if !instruction_is_speculatable(inst, tree) && !instruction_is_borrow_address(inst) {
                 return None;
             }
         }
@@ -638,6 +645,12 @@ fn match_memcpy_pattern(
 
         for &inst_id in &block.instructions {
             let inst = tree.get(inst_id);
+
+            // reject volatile or ordered memory accesses
+            if instruction_requires_exact_access(tree, inst_id) {
+                return None;
+            }
+
             match inst {
                 mir::Instruction::Store { pointer, value } => {
                     if store_ptr.is_some() {
@@ -667,7 +680,7 @@ fn match_memcpy_pattern(
             if instruction_has_side_effects(inst) {
                 return None;
             }
-            if !instruction_is_speculatable(inst) {
+            if !instruction_is_speculatable(inst, tree) && !instruction_is_borrow_address(inst) {
                 return None;
             }
         }
@@ -1427,6 +1440,65 @@ block4:
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopIdiomRecognize);
         test.assert_output(expected);
+    }
+
+    /// Volatile stores are not lowered into memset.
+    #[test]
+    fn test_loop_idiom_skips_volatile_store() {
+        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
+block0(v0: [u8; 8], v1: u32):
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
+    jump block1(v2)
+block1(v4: u32):
+    v5: bool = icmp_ult v4, v1
+    branch v5, block2, block3
+block2:
+    v6: ref<borrowed u8> = element.addr v0, v4
+    v7: u8 = iconst 0u8
+    store v6, v7
+    v8: u32 = iadd v4, v3
+    jump block1(v8)
+block3:
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
+
+        let mut store_id = None;
+        let mut store_ptr = None;
+        for block_id in &function.blocks {
+            let block = test.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if let mir::Instruction::Store { pointer, .. } = test.tree.get(*instruction_id) {
+                    store_id = Some(*instruction_id);
+                    store_ptr = Some(*pointer);
+                    break;
+                }
+            }
+            if store_id.is_some() {
+                break;
+            }
+        }
+
+        let store_id = store_id.expect("missing store instruction");
+        let store_ptr = store_ptr.expect("missing store pointer");
+        test.insert_pointer_access_with_options(
+            store_id,
+            mir::MemoryAccessKind::Write,
+            store_ptr,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_unchanged(input);
     }
 
     /// Memcpy loops are lowered to intrinsic.memcpy.

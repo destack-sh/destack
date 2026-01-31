@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::common::instruction_substitute_uses_in_tree;
+use crate::optimize::common::{
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+};
 
 /// Check if a terminator uses a specific value.
 ///
@@ -836,6 +838,7 @@ pub fn apply_substitutions_in_dominated_blocks(
             // replace when a rewrite occurred
             if updated != instruction {
                 tree.replace(instruction_id, updated);
+                remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                 changed = true;
             }
         }

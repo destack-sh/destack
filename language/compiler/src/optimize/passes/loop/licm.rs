@@ -473,7 +473,7 @@ fn instruction_is_hoistable(
     constants: &ConstantPropagation,
 ) -> bool {
     // accept speculatable instructions immediately
-    if instruction_is_speculatable(instruction) {
+    if instruction_is_speculatable(instruction, tree) {
         return true;
     }
 

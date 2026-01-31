@@ -863,6 +863,7 @@ mod tests {
 
     use super::TestProgram;
     use crate::OptimizeError;
+    use crate::optimize::common::instruction_is_speculatable;
     use crate::optimize::passes::{InterproceduralSccp, LoadPre};
     use crate::optimize::{
         Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis, ModulePass,
@@ -1306,5 +1307,94 @@ block0(v0: i32, v1: i32):
 
         test.run_module_pass_with_options(&TestLayoutPass, options);
         test.assert_error(|e| matches!(e, OptimizeError::MissingRequiredMetadata { .. }));
+    }
+
+    /// Borrow address instructions are not speculatable.
+    #[test]
+    fn test_instruction_is_speculatable_rejects_borrow_addresses() {
+        let mut tree = mir::NodeTree::new();
+
+        let pointee = tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let borrowed_ref = tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            address_space: mir::AddressSpace::Stack,
+            mutability: mir::Mutability::Mutable,
+            pointee,
+            is_nullable: false,
+        });
+
+        let destination = mir::Value::new(0);
+        let local = mir::LocalNodeId::new(0);
+        let aggregate = mir::Value::new(1);
+        let array = mir::Value::new(2);
+        let index = mir::Value::new(3);
+
+        let local_addr = mir::Instruction::LocalAddr {
+            destination,
+            local,
+            result_type: borrowed_ref,
+        };
+        assert!(!instruction_is_speculatable(&local_addr, &tree));
+
+        let field_addr = mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index: 0,
+            result_type: borrowed_ref,
+        };
+        assert!(!instruction_is_speculatable(&field_addr, &tree));
+
+        let element_addr = mir::Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+            result_type: borrowed_ref,
+        };
+        assert!(!instruction_is_speculatable(&element_addr, &tree));
+    }
+
+    /// Raw address instructions are speculatable with typed checks.
+    #[test]
+    fn test_instruction_is_speculatable_allows_raw_addresses() {
+        let mut tree = mir::NodeTree::new();
+
+        let pointee = tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let raw_ref = tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Raw,
+            address_space: mir::AddressSpace::Stack,
+            mutability: mir::Mutability::Mutable,
+            pointee,
+            is_nullable: false,
+        });
+        let borrowed_ref = tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            address_space: mir::AddressSpace::Stack,
+            mutability: mir::Mutability::Mutable,
+            pointee,
+            is_nullable: false,
+        });
+
+        let destination = mir::Value::new(0);
+        let local = mir::LocalNodeId::new(0);
+
+        let raw_addr = mir::Instruction::LocalAddr {
+            destination,
+            local,
+            result_type: raw_ref,
+        };
+        let borrowed_addr = mir::Instruction::LocalAddr {
+            destination,
+            local,
+            result_type: borrowed_ref,
+        };
+
+        assert!(instruction_is_speculatable(&raw_addr, &tree));
+        assert!(!instruction_is_speculatable(&borrowed_addr, &tree));
     }
 }

@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
-use crate::optimize::common::MemoryLocation;
+use crate::optimize::common::{MemoryLocation, instruction_requires_exact_access};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
 };
@@ -104,7 +104,10 @@ fn run_dead_code_elimination(
         // record side effecting instructions as live
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if instruction_has_side_effects(instruction) && live.insert(instruction_id) {
+            if (instruction_has_side_effects(instruction)
+                || instruction_requires_exact_access(tree, instruction_id))
+                && live.insert(instruction_id)
+            {
                 worklist.push_back(instruction_id);
             }
         }
@@ -203,6 +206,10 @@ fn remove_dead_stores(
                     }
                 }
                 mir::Instruction::Store { pointer, .. } => {
+                    if instruction_requires_exact_access(tree, instruction_id) {
+                        continue;
+                    }
+
                     if store_overwritten_in_block(&instruction_ids, index, *pointer, tree, alias) {
                         dead_stores.insert(instruction_id);
                     }
@@ -432,6 +439,87 @@ block2:
         let mut test = TestProgram::new(input);
         test.run_pass(&DeadCodeEliminate);
         test.assert_output(expected);
+    }
+
+    /// Volatile loads are kept even when unused.
+    #[test]
+    fn test_preserve_volatile_load() {
+        let input = r#"function @test() -> void {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let load_id = test
+            .entry_instructions(function_id)
+            .into_iter()
+            .find(|instruction_id| {
+                matches!(
+                    test.tree.get(*instruction_id),
+                    mir::Instruction::Load { .. }
+                )
+            })
+            .expect("missing load");
+
+        test.insert_pointer_access_with_options(
+            load_id,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
+    }
+
+    /// Volatile stores are not removed even when overwritten.
+    #[test]
+    fn test_preserve_volatile_store_overwritten() {
+        let input = r#"function @test() -> void {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    store v0, v1
+    v2: i32 = iconst 2i32
+    store v0, v2
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let store_id = test
+            .entry_instructions(function_id)
+            .into_iter()
+            .find(|instruction_id| {
+                matches!(
+                    test.tree.get(*instruction_id),
+                    mir::Instruction::Store { .. }
+                )
+            })
+            .expect("missing store");
+
+        test.insert_pointer_access_with_options(
+            store_id,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Values used in branch terminators are preserved.

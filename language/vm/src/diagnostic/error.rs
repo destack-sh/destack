@@ -145,6 +145,9 @@ pub enum Error {
 
     /// Panic intrinsic called.
     Panic { message: String } = 34,
+
+    /// Float to integer conversion failed.
+    BadConversionToInteger = 35,
 }
 
 impl Error {
@@ -242,6 +245,7 @@ impl Error {
                     format!("panic: {message}")
                 }
             }
+            Self::BadConversionToInteger => "bad conversion to integer".to_string(),
         }
     }
 }

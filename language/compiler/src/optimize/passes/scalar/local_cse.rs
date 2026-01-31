@@ -4,11 +4,14 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
-use crate::optimize::common::{MemoryLocation, instruction_may_affect_memory};
+use crate::optimize::common::{
+    MemoryLocation, instruction_may_affect_memory, instruction_requires_exact_access,
+};
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
-    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -121,6 +124,12 @@ fn eliminate_common_subexpressions_in_block(
     for instruction_id in instruction_ids {
         let instruction = tree.get(instruction_id);
 
+        // treat exact accesses as barriers for load forwarding
+        if instruction_requires_exact_access(tree, instruction_id) {
+            load_table.clear();
+            continue;
+        }
+
         // handle local get forwarding
         if let mir::Instruction::LocalGet { destination, local } = instruction {
             if let Some(existing) = local_values.get(local) {
@@ -209,10 +218,12 @@ fn eliminate_common_subexpressions_in_block(
         }
 
         // rewrite instruction operands
-        let instruction = tree.get(instruction_id);
-        let new_instruction = instruction_substitute_uses(instruction, &substitutions);
-        if new_instruction != *instruction {
+        let instruction = tree.get(instruction_id).clone();
+        let new_instruction =
+            instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+        if new_instruction != instruction {
             tree.replace(instruction_id, new_instruction);
+            remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
         }
     }
 
@@ -631,5 +642,37 @@ block2(v5: i32):
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
         test.assert_output(expected);
+    }
+
+    /// Volatile or ordered accesses block load forwarding.
+    #[test]
+    fn test_load_forwarding_respects_exact_access() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    v2: ref<raw addrspace(stack) i32> = intrinsic.volatile.load(v0)
+    v3: i32 = load v0
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let volatile_id = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::VolatileLoad);
+
+        test.insert_pointer_access_with_options(
+            volatile_id,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 }

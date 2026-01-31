@@ -309,7 +309,7 @@ fn collect_store_groups(
         }
 
         // accept speculatable instructions
-        if instruction_is_speculatable(instruction) {
+        if instruction_is_speculatable(instruction, tree) {
             continue;
         }
 
@@ -459,7 +459,7 @@ fn collect_group_instructions(
             mir::Instruction::Store { .. }
                 | mir::Instruction::LocalSet { .. }
                 | mir::Instruction::Load { .. }
-        ) && !instruction_is_speculatable(instruction)
+        ) && !instruction_is_speculatable(instruction, tree)
         {
             return None;
         }

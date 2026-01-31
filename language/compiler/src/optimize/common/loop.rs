@@ -7,8 +7,9 @@ use crate::optimize::analyses::{
     MemorySSA,
 };
 use crate::optimize::common::{
-    clone_instruction_metadata, instruction_has_atomic_ordering, instruction_is_read_only_access,
-    instruction_is_speculatable, instruction_map, terminator_used_values,
+    clone_instruction_metadata, instruction_has_atomic_ordering, instruction_is_borrow_address,
+    instruction_is_read_only_access, instruction_is_speculatable, instruction_map,
+    terminator_used_values,
 };
 
 /// Guard branch metadata for loop headers.
@@ -105,7 +106,7 @@ pub fn block_is_speculatable_no_reads(
         let instruction = tree.get(instruction_id);
 
         // reject non speculatable instructions
-        if !instruction_is_speculatable(instruction) {
+        if !instruction_is_speculatable(instruction, tree) {
             return false;
         }
 
@@ -223,7 +224,9 @@ pub fn collect_loop_effects(
             // enforce read only instruction requirements
             if matches!(policy, LoopEffectPolicy::ReadOnly) {
                 let instruction = tree.get(*instruction_id);
-                if instruction_is_speculatable(instruction) {
+                if instruction_is_speculatable(instruction, tree)
+                    || instruction_is_borrow_address(instruction)
+                {
                     continue;
                 }
 
