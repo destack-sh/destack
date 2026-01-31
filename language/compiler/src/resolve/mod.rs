@@ -18,7 +18,6 @@ mod target;
 mod r#type;
 mod warning;
 
-pub(crate) use decorator::*;
 pub(crate) use discover::TargetDiscoveryIssue;
 pub use error::*;
 pub use operator::*;

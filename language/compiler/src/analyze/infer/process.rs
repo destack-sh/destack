@@ -66,8 +66,12 @@ impl Compiler {
         // select runtime roots for the inference pass
         let runtime_roots = self.collect_runtime_roots(&tree, &dir.roots);
 
-        // skip full inference for declaration-only modules or ambient-only modules
-        if module.language_type.is_declaration() || runtime_roots.is_empty() {
+        // skip inference for declaration-only modules when lib checks are disabled
+        let module_checks = self.module_check_options_for_module(module.id);
+        let skip_declaration_infer = module.language_type.is_declaration()
+            && (module_checks.skip_lib_check
+                || (module.is_builtin() && !self.options.validate_builtin_libs));
+        if skip_declaration_infer {
             // infer enum backing types (still required even for declaration-only modules)
             for root_id in dir.roots.iter() {
                 let Expression::Declaration { declaration } = tree.get(*root_id) else {
@@ -92,6 +96,17 @@ impl Compiler {
                 types.set_enum_backing_type(enum_symbol, backing_type);
             }
 
+            return Ok(());
+        }
+
+        // include declaration roots when checking declaration-only modules
+        let infer_roots = if module.language_type.is_declaration() {
+            dir.roots.to_vec()
+        } else {
+            runtime_roots.clone()
+        };
+
+        if infer_roots.is_empty() {
             return Ok(());
         }
 
@@ -139,7 +154,7 @@ impl Compiler {
         // infer each root expression
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
-            for root_id in runtime_roots.iter() {
+            for root_id in infer_roots.iter() {
                 self.collect(
                     &mut collector,
                     self.infer_expression(

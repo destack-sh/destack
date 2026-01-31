@@ -768,15 +768,26 @@ impl Compiler {
                 }
             })?;
 
-        // load the remote instance type from its module
+        // load remote tables for the instance type
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(profile).types.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+        let mut remote_types = remote_dir.types.write();
         let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
             return Ok(None);
         };
 
-        // import the remote instance type into the local table
+        // materialize and import the remote type
+        self.materialize_imported_type(
+            &remote_module,
+            profile,
+            remote_instance_id,
+            &remote_tree,
+            &remote_symbols,
+            &mut remote_types,
+        )?;
         let remote_instance_ty = remote_types.get_type(remote_instance_id);
         let local_instance_id = self.import_type_from_remote_for_node(
             node_id,
@@ -2589,13 +2600,23 @@ impl Compiler {
             return Err(AnalyzeError::from(error));
         }
 
-        // look up the type in the remote module's TypeTable
+        // load remote tables for the value type
         let remote_module = self.program.modules.get(remote_module_id);
         let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(profile).types.read();
-
-        // copy the type into our local TypeTable
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+        let mut remote_types = remote_dir.types.write();
         if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
+            // materialize and import the remote type
+            self.materialize_imported_type(
+                &remote_module,
+                profile,
+                remote_ty_id,
+                &remote_tree,
+                &remote_symbols,
+                &mut remote_types,
+            )?;
             let remote_ty = remote_types.get_type(remote_ty_id);
             let local_ty = self.import_type_from_remote_for_node(
                 node_id,
@@ -2605,9 +2626,7 @@ impl Compiler {
                 types,
             );
             Ok(local_ty)
-        }
-        // remote symbol doesn't have a value type, return unknown
-        else {
+        } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };

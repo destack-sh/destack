@@ -30,5 +30,5 @@ pub(crate) use shape::{ObjectShape, ObjectShapeSet};
 pub(crate) use walk::{
     REWRITER_TAG_INFER_MATERIALIZER, REWRITER_TAG_INFER_SUBSTITUTION,
     REWRITER_TAG_LITERAL_WIDENING, REWRITER_TAG_READONLY, REWRITER_TAG_STATIC_ARGUMENT,
-    TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
+    TypeCollector, TypeRewriteCache, TypeWalkContext, TypeWalkKey, rewrite_type_with_cache,
 };
