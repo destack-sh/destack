@@ -174,10 +174,17 @@ impl Compiler {
         // register instances
         {
             let _timing = self.timing_scope(tags::ANALYZE_INFER_REGISTER_INSTANCES);
-            self.collect(
-                &mut collector,
-                self.register_instances(&module, profile, &tree, &symbols, &mut types),
-            );
+
+            // skip instance registration when the module declares no instantiable symbols
+            let has_instantiable_symbols = symbols
+                .active_symbol_ids()
+                .any(|symbol_id| self.is_instantiable_symbol(symbol_id.into_global(module.id)));
+            if has_instantiable_symbols {
+                self.collect(
+                    &mut collector,
+                    self.register_instances(&module, profile, &tree, &symbols, &mut types),
+                );
+            }
         }
 
         // yield on any yields

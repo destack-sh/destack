@@ -18,6 +18,79 @@ use destack_workspace::{
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
+/// Collect node ids needed for resolve passes.
+struct ResolveModuleWorklist {
+    /// Expressions to resolve after dependency items are applied.
+    resolve_expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Expressions that define dependency items.
+    dependency_expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Declarations that require resolve passes.
+    declaration_ids: Vec<LocalNodeId<Declaration>>,
+    /// Dependency items grouped by declaring scope.
+    dependency_items_by_scope: FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+}
+
+impl ResolveModuleWorklist {
+    /// Build resolve worklists from the module tree.
+    fn from_tree(tree: &NodeTree) -> Self {
+        // collect declarations that need resolve passes
+        let mut declaration_ids = Vec::new();
+        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+            if matches!(
+                tree.get(declaration_id),
+                Declaration::Extension { .. }
+                    | Declaration::Type { .. }
+                    | Declaration::ImportAlias { .. }
+            ) {
+                declaration_ids.push(declaration_id);
+            }
+        }
+
+        // collect expressions for dependency and resolution passes
+        let mut resolve_expression_ids = Vec::new();
+        let mut dependency_expression_ids = Vec::new();
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            let expression = tree.get(expression_id);
+            if matches!(
+                expression,
+                Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. }
+            ) {
+                dependency_expression_ids.push(expression_id);
+            }
+            if matches!(
+                expression,
+                Expression::UnresolvedImport { .. }
+                    | Expression::UnresolvedReExport { .. }
+                    | Expression::UnresolvedPath { .. }
+                    | Expression::UnresolvedBreak { .. }
+                    | Expression::UnresolvedContinue { .. }
+            ) {
+                resolve_expression_ids.push(expression_id);
+            }
+        }
+
+        // group dependency items by scope for export resolution
+        let mut dependency_items_by_scope: FxHashMap<
+            LocalScopeId,
+            Vec<LocalNodeId<DependencyItem>>,
+        > = FxHashMap::default();
+        for item_id in tree.iter_node_ids_of_type::<DependencyItem>() {
+            let (item_scope, _) = tree.get_scope(item_id);
+            dependency_items_by_scope
+                .entry(item_scope)
+                .or_default()
+                .push(item_id);
+        }
+
+        Self {
+            resolve_expression_ids,
+            dependency_expression_ids,
+            declaration_ids,
+            dependency_items_by_scope,
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Prepare the per profile DIR by cloning from the base DIR.
@@ -144,6 +217,9 @@ impl Compiler {
         let tree = dir.tree.read();
         let mut symbols = dir.symbols.write();
         let dependency_items_by_scope = self.dependency_items_by_scope(&tree);
+        let export_items_by_scope = self.export_items_by_scope(&tree, &dependency_items_by_scope);
+        let export_assignments_by_scope =
+            self.export_assignments_by_scope(module_id, &tree, &export_items_by_scope);
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_PREPARE_EXPORTS);
             self.build_module_exports(
@@ -152,6 +228,8 @@ impl Compiler {
                 &tree,
                 &mut symbols,
                 &dependency_items_by_scope,
+                &export_items_by_scope,
+                &export_assignments_by_scope,
             );
         }
         {
@@ -162,6 +240,8 @@ impl Compiler {
                 &tree,
                 &mut symbols,
                 &dependency_items_by_scope,
+                &export_items_by_scope,
+                &export_assignments_by_scope,
             );
         }
 
@@ -431,46 +511,9 @@ impl Compiler {
         let skip_declaration_expressions = module.language_type.is_declaration()
             && module.is_builtin()
             && !self.options.validate_builtin_libs;
-        let (resolve_expression_ids, dependency_expression_ids, declaration_ids) = {
+        let worklist = {
             let tree = dir.tree.read();
-            // snapshot expression ids for resolve passes
-            let expression_ids = tree.iter_node_ids_of_type::<Expression>();
-            let mut declaration_ids = Vec::new();
-            for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
-                if matches!(
-                    tree.get(declaration_id),
-                    Declaration::Extension { .. }
-                        | Declaration::Type { .. }
-                        | Declaration::ImportAlias { .. }
-                ) {
-                    declaration_ids.push(declaration_id);
-                }
-            }
-            let mut dependency_expression_ids = Vec::new();
-            let mut resolve_expression_ids = Vec::new();
-            for expression_id in &expression_ids {
-                if matches!(
-                    tree.get(*expression_id),
-                    Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. }
-                ) {
-                    dependency_expression_ids.push(*expression_id);
-                }
-                if matches!(
-                    tree.get(*expression_id),
-                    Expression::UnresolvedImport { .. }
-                        | Expression::UnresolvedReExport { .. }
-                        | Expression::UnresolvedPath { .. }
-                        | Expression::UnresolvedBreak { .. }
-                        | Expression::UnresolvedContinue { .. }
-                ) {
-                    resolve_expression_ids.push(*expression_id);
-                }
-            }
-            (
-                resolve_expression_ids,
-                dependency_expression_ids,
-                declaration_ids,
-            )
+            ResolveModuleWorklist::from_tree(&tree)
         };
         let mut expression_cache = ResolveExpressionCache::default();
 
@@ -483,7 +526,7 @@ impl Compiler {
                     let mut tree = dir.tree.write();
                     let symbols = dir.symbols.read();
                     let mut collector = TaskResultCollector::new();
-                    for expression_id in &dependency_expression_ids {
+                    for expression_id in &worklist.dependency_expression_ids {
                         if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
                             continue;
                         }
@@ -520,7 +563,7 @@ impl Compiler {
             let mut tree = dir.tree.write();
             let symbols = dir.symbols.read();
             let mut collector = TaskResultCollector::new();
-            for expression_id in &resolve_expression_ids {
+            for expression_id in &worklist.resolve_expression_ids {
                 if !self.is_node_active(&tree, &symbols, (*expression_id).into_any()) {
                     continue;
                 }
@@ -549,7 +592,7 @@ impl Compiler {
             let mut tree = dir.tree.write();
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
-            for declaration_id in &declaration_ids {
+            for declaration_id in &worklist.declaration_ids {
                 if !self.is_node_active(&tree, &symbols, (*declaration_id).into_any()) {
                     continue;
                 }
@@ -569,11 +612,6 @@ impl Compiler {
             }
         }
 
-        let dependency_items_by_scope = {
-            let tree = dir.tree.read();
-            self.dependency_items_by_scope(&tree)
-        };
-
         {
             let _timing = self.timing_scope(tags::RESOLVE_MODULE_EXPORTS);
 
@@ -585,7 +623,7 @@ impl Compiler {
                 dir,
                 &tree,
                 &mut symbols,
-                &dependency_items_by_scope,
+                &worklist.dependency_items_by_scope,
             );
         }
 
@@ -723,24 +761,39 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &mut SymbolTable,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+        export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+        export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
         // cache the default export name
         let default_name = self.program.strings.intern("default");
 
         // build the binding export table
         let bindings = dir.module_bindings.read().clone();
-        let mut binding_exports = IndexMap::new();
+        if bindings.is_empty() {
+            *dir.module_binding_exports.write() = IndexMap::new();
+            return;
+        }
+        let mut binding_exports = IndexMap::with_capacity(bindings.len());
         for binding in bindings {
             // collect the export assignment if present
             let dependency_items = dependency_items_by_scope
                 .get(&binding.scope)
                 .map(|items| items.as_slice())
                 .unwrap_or_default();
-            let export_assignment_item =
-                self.collect_binding_export_assignment(module.id, &binding, tree, dependency_items);
+            let export_assignment_item = export_assignments_by_scope
+                .get(&binding.scope)
+                .copied()
+                .flatten();
+            let export_items = export_items_by_scope
+                .get(&binding.scope)
+                .map(|items| items.as_slice())
+                .unwrap_or_default();
 
             // insert exports declared by symbols
-            let mut exports = IndexMap::new();
+            let scope = symbols.get_scope_by_id(binding.scope);
+            let mut exports = IndexMap::with_capacity(
+                scope.named_symbols.len() + scope.anonymous_symbols.len() + dependency_items.len(),
+            );
             self.insert_binding_symbol_exports(
                 module.id,
                 &binding,
@@ -751,16 +804,18 @@ impl Compiler {
             );
 
             // insert exports declared by dependency items
-            self.insert_binding_dependency_exports(
-                module.id,
-                &binding,
-                tree,
-                symbols,
-                &mut exports,
-                export_assignment_item,
-                default_name,
-                dependency_items,
-            );
+            if !export_items.is_empty() {
+                self.insert_binding_dependency_exports(
+                    module.id,
+                    &binding,
+                    tree,
+                    symbols,
+                    &mut exports,
+                    export_assignment_item,
+                    default_name,
+                    export_items,
+                );
+            }
 
             // insert ambient exports for remaining names
             self.insert_binding_ambient_exports(module.id, &binding, symbols, &mut exports);
@@ -777,47 +832,6 @@ impl Compiler {
 
         // store the binding export table
         *dir.module_binding_exports.write() = binding_exports;
-    }
-
-    /// Collect the export assignment item for a module binding, if present.
-    fn collect_binding_export_assignment(
-        &self,
-        module_id: ModuleId,
-        _binding: &ModuleBinding,
-        tree: &NodeTree,
-        dependency_items: &[LocalNodeId<DependencyItem>],
-    ) -> Option<LocalNodeId<DependencyItem>> {
-        // scan export statements in the binding scope
-        let mut export_assignment_item: Option<LocalNodeId<DependencyItem>> = None;
-        for item_id in dependency_items {
-            // skip nonexport statements
-            if self.export_statement_parent(tree, *item_id).is_none() {
-                continue;
-            }
-
-            // skip nonassignment values
-            let DependencyItem::Value { mode, .. } = tree.get(*item_id) else {
-                continue;
-            };
-            if *mode != DependencyMode::Namespace {
-                continue;
-            }
-
-            // report conflicts and keep the first assignment
-            if let Some(existing) = export_assignment_item {
-                self.error(ImportError::ConflictingExport {
-                    node: (*item_id).into_global_any(module_id).into(),
-                    other_node: existing.into_global_any(module_id).into(),
-                    module: module_id,
-                    name: None,
-                });
-                continue;
-            }
-
-            export_assignment_item = Some(*item_id);
-        }
-
-        export_assignment_item
     }
 
     /// Insert symbol exports for a module binding.
@@ -984,15 +998,10 @@ impl Compiler {
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
         default_name: destack_base::StringId,
-        dependency_items: &[LocalNodeId<DependencyItem>],
+        export_items: &[LocalNodeId<DependencyItem>],
     ) {
-        // walk dependency items under export expressions in the binding scope
-        for item_id in dependency_items {
-            // skip nonexport dependency items
-            if self.export_item_parent(tree, *item_id).is_none() {
-                continue;
-            }
-
+        // dependency items are already filtered to export expressions
+        for item_id in export_items {
             // reject exports when export assignment is present
             if let Some(export_assignment_item) = export_assignment_item
                 && export_assignment_item != *item_id
@@ -1203,6 +1212,69 @@ impl Compiler {
         items_by_scope
     }
 
+    /// Group export items by their declaring scope.
+    fn export_items_by_scope(
+        &self,
+        tree: &NodeTree,
+        dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+    ) -> FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>> {
+        // filter dependency items to export statements
+        let mut items_by_scope: FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>> =
+            FxHashMap::default();
+        for (scope_id, items) in dependency_items_by_scope {
+            for item_id in items {
+                if self.export_item_parent(tree, *item_id).is_none() {
+                    continue;
+                }
+                items_by_scope.entry(*scope_id).or_default().push(*item_id);
+            }
+        }
+
+        items_by_scope
+    }
+
+    /// Collect export assignment items by their declaring scope.
+    fn export_assignments_by_scope(
+        &self,
+        module_id: ModuleId,
+        tree: &NodeTree,
+        export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+    ) -> FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>> {
+        // scan export statements for export assignments
+        let mut assignments_by_scope: FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>> =
+            FxHashMap::default();
+        for (scope_id, items) in export_items_by_scope {
+            let mut assignment_item: Option<LocalNodeId<DependencyItem>> = None;
+            for item_id in items {
+                if self.export_statement_parent(tree, *item_id).is_none() {
+                    continue;
+                }
+
+                let DependencyItem::Value { mode, .. } = tree.get(*item_id) else {
+                    continue;
+                };
+                if *mode != DependencyMode::Namespace {
+                    continue;
+                }
+
+                if let Some(existing) = assignment_item {
+                    self.error(ImportError::ConflictingExport {
+                        node: (*item_id).into_global_any(module_id).into(),
+                        other_node: existing.into_global_any(module_id).into(),
+                        module: module_id,
+                        name: None,
+                    });
+                    continue;
+                }
+
+                assignment_item = Some(*item_id);
+            }
+            assignments_by_scope.insert(*scope_id, assignment_item);
+        }
+
+        assignments_by_scope
+    }
+
     /// Build the export table for a module.
     fn build_module_exports(
         &self,
@@ -1211,6 +1283,8 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &mut SymbolTable,
         dependency_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+        export_items_by_scope: &FxHashMap<LocalScopeId, Vec<LocalNodeId<DependencyItem>>>,
+        export_assignments_by_scope: &FxHashMap<LocalScopeId, Option<LocalNodeId<DependencyItem>>>,
     ) {
         // cache the default export name
         let default_name = self.program.strings.intern("default");
@@ -1220,11 +1294,32 @@ impl Compiler {
             .get(&dir.namespace_scope)
             .map(|items| items.as_slice())
             .unwrap_or_default();
-        let export_assignment_item =
-            self.collect_export_assignment(module, dir, tree, dependency_items);
+        let export_assignment_item = export_assignments_by_scope
+            .get(&dir.namespace_scope)
+            .copied()
+            .flatten();
+        *dir.export_assignment.write() = export_assignment_item;
+        let export_items = export_items_by_scope
+            .get(&dir.namespace_scope)
+            .map(|items| items.as_slice())
+            .unwrap_or_default();
 
         // insert exports declared by symbols
         let mut exports = dir.exported_symbols.write();
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        if export_items.is_empty()
+            && namespace_scope.named_symbols.is_empty()
+            && namespace_scope.anonymous_symbols.is_empty()
+            && !self.module_is_ambient_lib(module)
+        {
+            exports.clear();
+            return;
+        }
+        exports.reserve(
+            namespace_scope.named_symbols.len()
+                + namespace_scope.anonymous_symbols.len()
+                + dependency_items.len(),
+        );
         self.insert_symbol_exports(
             module.id,
             dir,
@@ -1235,65 +1330,23 @@ impl Compiler {
         );
 
         // insert exports declared by dependency items
-        self.insert_dependency_exports(
-            module.id,
-            dir,
-            tree,
-            symbols,
-            &mut exports,
-            export_assignment_item,
-            default_name,
-            dependency_items,
-        );
+        if !export_items.is_empty() {
+            self.insert_dependency_exports(
+                module.id,
+                dir,
+                tree,
+                symbols,
+                &mut exports,
+                export_assignment_item,
+                default_name,
+                export_items,
+            );
+        }
 
         // add ambient exports when a builtin lib is global
         if self.module_is_ambient_lib(module) {
             self.insert_ambient_exports(module.id, dir, symbols, &mut exports);
         }
-    }
-
-    /// Collect the export assignment item if present.
-    fn collect_export_assignment(
-        &self,
-        module: &Module,
-        dir: &ModuleDir,
-        tree: &NodeTree,
-        dependency_items: &[LocalNodeId<DependencyItem>],
-    ) -> Option<LocalNodeId<DependencyItem>> {
-        // scan export statements for export assignments
-        let mut export_assignment_item: Option<LocalNodeId<DependencyItem>> = None;
-        for item_id in dependency_items {
-            // skip nonexport statements
-            if self.export_statement_parent(tree, *item_id).is_none() {
-                continue;
-            }
-
-            // skip nonassignment values
-            let DependencyItem::Value { mode, .. } = tree.get(*item_id) else {
-                continue;
-            };
-            if *mode != DependencyMode::Namespace {
-                continue;
-            }
-
-            // report conflicts and keep the first assignment
-            if let Some(existing) = export_assignment_item {
-                self.error(ImportError::ConflictingExport {
-                    node: (*item_id).into_global_any(module.id).into(),
-                    other_node: existing.into_global_any(module.id).into(),
-                    module: module.id,
-                    name: None,
-                });
-                continue;
-            }
-
-            export_assignment_item = Some(*item_id);
-        }
-
-        // record the export assignment on the module dir
-        *dir.export_assignment.write() = export_assignment_item;
-
-        export_assignment_item
     }
 
     /// Insert exports declared by symbols.
@@ -1443,15 +1496,10 @@ impl Compiler {
         exports: &mut IndexMap<(SymbolSpace, StaticKey), Export>,
         export_assignment_item: Option<LocalNodeId<DependencyItem>>,
         default_name: destack_base::StringId,
-        dependency_items: &[LocalNodeId<DependencyItem>],
+        export_items: &[LocalNodeId<DependencyItem>],
     ) {
-        // walk dependency items under export expressions
-        for item_id in dependency_items {
-            // skip nonexport dependency items
-            if self.export_item_parent(tree, *item_id).is_none() {
-                continue;
-            }
-
+        // dependency items are already filtered to export expressions
+        for item_id in export_items {
             // reject exports when export assignment is present
             if let Some(export_assignment_item) = export_assignment_item
                 && export_assignment_item != *item_id
@@ -2025,6 +2073,15 @@ impl Compiler {
                 }
             })
             .collect();
+
+        // update graph when no canonical work is needed
+        if symbols_to_resolve.is_empty() {
+            drop(symbols);
+            drop(tree);
+            drop(module);
+            self.update_module_graph(module_id, profile, module_version, profile_version)?;
+            return Ok(());
+        }
 
         // drop locks before resolving canonical symbols (may need to access other modules)
         drop(symbols);
