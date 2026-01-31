@@ -18,7 +18,7 @@ impl Parser {
         let start = self.mark();
 
         // empty statement (just semicolon, e.g., `for (x of y);`)
-        if self.peek_token(TokenType::Semicolon).is_ok() {
+        if self.peek_is(TokenType::Semicolon) {
             self.bump();
             let block_id = self.tree.insert(
                 Block {
@@ -36,7 +36,7 @@ impl Parser {
         })?;
 
         // consume trailing semicolon if present (e.g., `do x; while (true)`)
-        if self.peek_token(TokenType::Semicolon).is_ok() {
+        if self.peek_is(TokenType::Semicolon) {
             self.bump();
         }
 
@@ -54,9 +54,8 @@ impl Parser {
     /// Peek a block. Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {
-        if self.peek_token(TokenType::OpenBrace).is_ok()
-            || self.peek_keyword(Keyword::Do).is_ok()
-                && self.peek_next_token(TokenType::OpenBrace).is_ok()
+        if self.peek_is(TokenType::OpenBrace)
+            || self.peek_keyword(Keyword::Do).is_ok() && self.peek_next_is(TokenType::OpenBrace)
         {
             Ok(())
         } else {
@@ -70,7 +69,7 @@ impl Parser {
     /// Peek a next block. Optional `do` prefix for disambiguation.
     #[inline]
     pub fn peek_next_block(&self) -> ParseResult<()> {
-        if self.peek_next_token(TokenType::OpenBrace).is_ok()
+        if self.peek_next_is(TokenType::OpenBrace)
             || self.peek_next_keyword(Keyword::Do).is_ok()
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
         {
@@ -122,18 +121,21 @@ impl Parser {
         &mut self,
         format: BlockFormat,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
-        // parse expressions
-        let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
-        while self.peek().is_ok() {
+        let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
+
+        // parse expressions into statements with one-item lookahead
+        let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut pending_expression: Option<LocalNodeId<Expression>> = None;
+        while self.has_more_tokens() {
+            let next_token = self.peek_token_type();
             // break if we're at the end of the block
-            if self.peek().is_err()
-                || format == BlockFormat::Explicit && self.peek_token(TokenType::CloseBrace).is_ok()
-                || self.peek_token(TokenType::End).is_ok()
+            if next_token == TokenType::End
+                || format == BlockFormat::Explicit && next_token == TokenType::CloseBrace
             {
                 break;
             }
             // consume any expression stops (semicolon or newline)
-            else if self.peek_statement_stop().is_ok() {
+            else if self.is_statement_stop() {
                 self.eat_statement_stop_with_newlines()
                     .for_node_type(NodeType::Expression)?;
             }
@@ -144,30 +146,37 @@ impl Parser {
                         parser.try_eat_statement_expression()
                     })
                     .for_node_type(NodeType::Expression)?;
-                expressions.push(expression_id);
+                if let Some(pending_id) = pending_expression {
+                    let expression = self.tree.get(pending_id);
+                    if matches!(expression, Expression::Statement(_))
+                        || expression.is_top_level_statement()
+                    {
+                        statements.push(pending_id);
+                    } else {
+                        let statement_id = self.tree.insert(
+                            Expression::Statement(pending_id),
+                            self.tree.get_span(pending_id),
+                        );
+                        statements.push(statement_id);
+                    }
+                }
+                pending_expression = Some(expression_id);
             }
         }
 
-        // wrap expressions
-        let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
-        let expression_count = expressions.len();
-        for (i, expression_id) in expressions.into_iter().enumerate() {
+        // finalize the last pending expression
+        if let Some(expression_id) = pending_expression {
             let expression = self.tree.get(expression_id);
-            // keep existing statements
             if matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement()
             {
                 statements.push(expression_id);
-            }
-            // wrap other expressions in statements (except last)
-            else if i < expression_count - 1 || format == BlockFormat::Implicit {
+            } else if format == BlockFormat::Implicit {
                 let statement_id = self.tree.insert(
                     Expression::Statement(expression_id),
                     self.tree.get_span(expression_id),
                 );
                 statements.push(statement_id);
-            }
-            // keep as expression
-            else {
+            } else {
                 statements.push(expression_id);
             }
         }
@@ -182,7 +191,7 @@ impl Parser {
             parser.eat_expression()
         }) {
             Ok(expression_id) => {
-                if self.peek_token(TokenType::Semicolon).is_ok() {
+                if self.peek_token_type() == TokenType::Semicolon {
                     self.bump(); // eat semicolon
                     let expression_id = self.tree.insert(
                         Expression::Statement(expression_id),
@@ -223,11 +232,11 @@ impl Parser {
         // 1. `:identifier` → Destack style label, optionally followed by value
         // 2. `identifier` at statement stop → JS style label (no value)
         // 3. Otherwise → value expression (Destack extension, no label)
-        let (label, label_span, value_id) = if self.peek_token(TokenType::Colon).is_ok() {
+        let (label, label_span, value_id) = if self.peek_is(TokenType::Colon) {
             // Destack style: break :label [value]
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
-            let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+            let value_id = if self.peek().is_ok() && !self.is_statement_stop() {
                 let value_id = self.with_options(self.options.not_in_position(), |parser| {
                     parser.eat_expression()
                 })?;
@@ -236,7 +245,7 @@ impl Parser {
                 None
             };
             (Some(label), Some(label_span), value_id)
-        } else if self.peek_token(TokenType::Identifier).is_ok()
+        } else if self.peek_is(TokenType::Identifier)
             && self
                 .peek_next_token_in(&[
                     TokenType::Newline,
@@ -249,7 +258,7 @@ impl Parser {
             // JS style: break label (identifier followed by statement stop)
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span), None)
-        } else if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+        } else if self.peek().is_ok() && !self.is_statement_stop() {
             // Destack extension: break value (no label)
             let value_id = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
@@ -288,12 +297,12 @@ impl Parser {
         // label parsing:
         // 1. `:identifier` → Destack style label
         // 2. `identifier` at statement stop → JS style label
-        let (label, label_span) = if self.peek_token(TokenType::Colon).is_ok() {
+        let (label, label_span) = if self.peek_is(TokenType::Colon) {
             // Destack style: continue :label
             self.bump(); // eat colon
             let (label, label_span) = self.eat_identifier_with_span()?;
             (Some(label), Some(label_span))
-        } else if self.peek_token(TokenType::Identifier).is_ok()
+        } else if self.peek_is(TokenType::Identifier)
             && self
                 .peek_next_token_in(&[
                     TokenType::Newline,
@@ -334,7 +343,7 @@ impl Parser {
         self.eat_keyword(Keyword::Await)?;
 
         // check for await? (sugar for (await expr)?)
-        let is_maybe = self.peek_token(TokenType::Maybe).is_ok();
+        let is_maybe = self.peek_is(TokenType::Maybe);
         if is_maybe {
             self.bump(); // eat ?
         }
@@ -407,7 +416,7 @@ impl Parser {
 
         // check for restricted production: newline after yield triggers ASI
         // if there's a newline, don't look for `*` or value
-        if self.peek_statement_stop().is_ok() {
+        if self.is_statement_stop() {
             let yield_id = self.tree.insert(
                 Expression::Yield {
                     cardinality: YieldCardinality::Scalar,
@@ -419,7 +428,7 @@ impl Parser {
         }
 
         // cardinality: `yield*` or `yield *` (space before *, but no newline)
-        let cardinality = if self.peek_token(TokenType::Multiply).is_ok() {
+        let cardinality = if self.peek_is(TokenType::Multiply) {
             self.bump(); // eat *
             YieldCardinality::Generator
         } else {
@@ -428,7 +437,7 @@ impl Parser {
 
         // value (optional, like return/throw)
         // yield without value is valid JS: `function* a() { yield }`
-        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+        let value_id = if self.peek().is_ok() && !self.is_statement_stop() {
             let value_id = self.with_options(self.options.not_in_position(), |parser| {
                 parser.eat_expression()
             })?;
@@ -463,7 +472,7 @@ impl Parser {
         self.eat_keyword(Keyword::Throw)?;
 
         // value
-        if self.peek_statement_stop().is_ok() || self.peek().is_err() {
+        if self.is_statement_stop() || self.peek().is_err() {
             return Err(ParseError::unexpected_for(
                 self.get_span_from(start),
                 NodeType::Expression,
@@ -492,7 +501,7 @@ impl Parser {
         let start = self.mark();
         self.eat_keyword(Keyword::Return)?;
         // value
-        let value_id = if self.peek().is_ok() && self.peek_statement_stop().is_err() {
+        let value_id = if self.peek().is_ok() && !self.is_statement_stop() {
             let value_id = self
                 .with_options(self.options.not_in_position(), |parser| {
                     parser.eat_expression()

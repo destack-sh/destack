@@ -2,12 +2,14 @@ use destack_base::StringId;
 use destack_source::Span;
 use smallvec::SmallVec;
 
+use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 use destack_ast::{Path, TokenType};
 
 impl Parser {
     /// Eat a path.
     pub fn eat_path(&mut self) -> ParseResult<Path> {
+        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier
@@ -15,9 +17,9 @@ impl Parser {
         segments.push(first);
 
         // zero or more `.identifier` (ignoring newlines)
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // dot followed by identifier
-            if self.peek_token(TokenType::Dot).is_ok()
+            if self.peek_is(TokenType::Dot)
                 && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.ty == TokenType::Identifier
             {
@@ -26,7 +28,7 @@ impl Parser {
                 segments.push(seg);
             }
             // newline followed by dot
-            else if self.peek_token(TokenType::Newline).is_ok()
+            else if self.peek_is(TokenType::Newline)
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
@@ -53,6 +55,7 @@ impl Parser {
 
     /// Eat a path and return the span of its last segment.
     pub fn eat_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier
@@ -61,9 +64,9 @@ impl Parser {
         let mut last_span = first_span;
 
         // zero or more `.identifier` (ignoring newlines)
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // dot followed by identifier
-            if self.peek_token(TokenType::Dot).is_ok()
+            if self.peek_is(TokenType::Dot)
                 && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.ty == TokenType::Identifier
             {
@@ -73,7 +76,7 @@ impl Parser {
                 last_span = seg_span;
             }
             // newline followed by dot
-            else if self.peek_token(TokenType::Newline).is_ok()
+            else if self.peek_is(TokenType::Newline)
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
@@ -93,6 +96,7 @@ impl Parser {
 
     /// Eat a tree literal path.
     pub fn eat_tree_literal_path(&mut self) -> ParseResult<Path> {
+        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
@@ -100,9 +104,9 @@ impl Parser {
         segments.push(first);
 
         // zero or more `.identifier` (ignoring newlines)
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // dot followed by identifier
-            if self.peek_token(TokenType::Dot).is_ok()
+            if self.peek_is(TokenType::Dot)
                 && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.ty == TokenType::Identifier
             {
@@ -111,7 +115,7 @@ impl Parser {
                 segments.push(seg);
             }
             // newline followed by dot
-            else if self.peek_token(TokenType::Newline).is_ok()
+            else if self.peek_is(TokenType::Newline)
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
@@ -130,6 +134,7 @@ impl Parser {
 
     /// Eat a tree literal path and return the span of its last segment.
     pub fn eat_tree_literal_path_with_last_span(&mut self) -> ParseResult<(Path, Span)> {
+        let _timing = self.timing_scope(tags::PARSE_PATH);
         let mut segments: SmallVec<[StringId; 3]> = SmallVec::new();
 
         // first identifier (kebab-case supported)
@@ -138,9 +143,9 @@ impl Parser {
         let mut last_span = first_span;
 
         // zero or more `.identifier` (ignoring newlines)
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // dot followed by identifier
-            if self.peek_token(TokenType::Dot).is_ok()
+            if self.peek_is(TokenType::Dot)
                 && let Ok(after_dot) = self.peek_next()
                 && after_dot.token.ty == TokenType::Identifier
             {
@@ -150,7 +155,7 @@ impl Parser {
                 last_span = seg_span;
             }
             // newline followed by dot
-            else if self.peek_token(TokenType::Newline).is_ok()
+            else if self.peek_is(TokenType::Newline)
                 && self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()

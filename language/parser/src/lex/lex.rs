@@ -10,6 +10,19 @@ use destack_ast::{
 use destack_source::{FileId, LanguageType, Span};
 use destack_unicode::UnicodeEmoji;
 
+/// Result of lexing with additional flags.
+#[derive(Debug)]
+pub struct LexResult {
+    /// The semantic tokens (identifiers, keywords, literals, operators).
+    pub tokens: Vec<TokenSpan>,
+    /// The non-semantic tokens (whitespace, comments).
+    pub side_tokens: Vec<TokenSpan>,
+    /// The end-of-file token.
+    pub eof_token: TokenSpan,
+    /// Whether an `@` token was seen.
+    pub has_at: bool,
+}
+
 /// Result of parsing a single-quoted literal.
 enum SingleQuotedLiteral {
     Character {
@@ -156,9 +169,20 @@ impl Lexer<'_> {
         input: &str,
         language: LanguageType,
     ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
+        let result = Self::lex_with_flags(file_id, input, language);
+        (result.tokens, result.side_tokens, result.eof_token)
+    }
+
+    /// Lex the input string and return extra flags.
+    pub fn lex_with_flags(file_id: FileId, input: &str, language: LanguageType) -> LexResult {
         let mut lexer = Lexer::new(file_id, input, language);
         let eof_token = lexer.run();
-        (lexer.tokens, lexer.side_tokens, eof_token)
+        LexResult {
+            tokens: lexer.tokens,
+            side_tokens: lexer.side_tokens,
+            eof_token,
+            has_at: lexer.has_at,
+        }
     }
 
     /// Runs the lexer until the end of the input string.
@@ -180,6 +204,9 @@ impl Lexer<'_> {
             // push to appropriate vec based on token type
             if is_semantic(token.ty) {
                 self.tokens.push(token_span);
+                if token.ty == TokenType::At {
+                    self.has_at = true;
+                }
             } else {
                 self.side_tokens.push(token_span);
             }

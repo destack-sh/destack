@@ -1,16 +1,20 @@
 use core::fmt;
 use std::fmt::Debug;
+use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
 use destack_ast::{
-    BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, Token, TokenSpan, TokenType,
+    BlockFormat, Decorator, Expression, Keyword, LocalNodeId, NodeTree, NodeType, Token, TokenSpan,
+    TokenType,
 };
 use destack_base::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
 };
 
+use crate::parse::timing::{ParserTimingScope, ParserTimings, tags};
 use crate::{ParseError, ParseResult};
 
 /// Configure Parser behavior.
@@ -408,6 +412,10 @@ pub struct Parser {
     pub errors: Vec<ParseError>,
     /// Scratch storage for annotation tokens to avoid repeated allocations.
     pub(crate) annotation_tokens: Vec<TokenSpan>,
+    /// Optional parser timing collector.
+    pub(crate) timings: Option<Rc<ParserTimings>>,
+    /// Cached keyword lookup for identifier tokens.
+    pub(crate) token_keywords: Vec<Option<Keyword>>,
 }
 
 impl Debug for Parser {
@@ -422,7 +430,10 @@ impl Parser {
     #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
     pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
         // tokenize directly into semantic and side token vecs (no partition needed)
-        let (tokens, side_tokens, eof_token) = Lexer::lex(file.id, file.text(), language);
+        let lex_result = Lexer::lex_with_flags(file.id, file.text(), language);
+        let tokens = lex_result.tokens;
+        let side_tokens = lex_result.side_tokens;
+        let eof_token = lex_result.eof_token;
 
         // make parser with estimated capacity
         // roughly 1 AST node per 3 tokens on average
@@ -446,10 +457,14 @@ impl Parser {
             eof_token,
             errors: Vec::new(),
             annotation_tokens: Vec::with_capacity(token_capacity),
+            timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
+            token_keywords: Vec::new(),
         };
 
-        // pre-parse side annotations (decorators)
-        parser.eat_side_annotations();
+        // pre parse side annotations, decorators
+        if lex_result.has_at {
+            parser.eat_side_annotations();
+        }
 
         // move decorator tokens from main tokens to side tokens
         let side_span = parser.compute_side_span();
@@ -459,13 +474,12 @@ impl Parser {
                 .drain(..)
                 .partition(|token| !side_span.contains(&token.span));
             parser.tokens = new_tokens;
-            parser.side_tokens.extend(decorator_tokens);
-            parser
-                .side_tokens
-                .sort_by_key(|token| (token.span.start, token.span.end));
+            let side_tokens = std::mem::take(&mut parser.side_tokens);
+            parser.side_tokens = Self::merge_sorted_tokens(side_tokens, decorator_tokens);
         }
 
         // return the parser
+        parser.refresh_token_keywords();
         parser.reset();
         parser
     }
@@ -491,6 +505,99 @@ impl Parser {
         self.split_token = None;
         self.options = ParserOptions::default();
         self.errors.clear();
+    }
+
+    /// Start a parser timing scope.
+    pub(crate) fn timing_scope(
+        &self,
+        tag: crate::parse::timing::ParserTimingTag,
+    ) -> ParserTimingScope {
+        ParserTimingScope::new(self.timings.clone(), tag)
+    }
+
+    /// Snapshot timing entries recorded by the parser.
+    pub fn timing_snapshot(&self) -> Option<Vec<crate::parse::timing::ParserTimingEntry>> {
+        self.timings.as_ref().map(|timings| timings.snapshot())
+    }
+
+    /// Rebuild the keyword cache for the current token list.
+    pub(crate) fn refresh_token_keywords(&mut self) {
+        self.token_keywords = self
+            .tokens
+            .iter()
+            .map(|token| {
+                if token.token.ty != TokenType::Identifier {
+                    return None;
+                }
+                Keyword::from_str(self.get_span_str(token.span)).ok()
+            })
+            .collect();
+    }
+
+    /// Return true when a split token is active.
+    #[inline]
+    pub(crate) fn has_active_split(&self) -> bool {
+        self.split_token.is_some() && !self.split_token_consumed
+    }
+
+    /// Get the current token index.
+    #[inline]
+    pub(crate) fn pos_index(&self) -> usize {
+        self.pos
+    }
+
+    /// Look up a keyword at a token index.
+    #[inline]
+    pub(crate) fn keyword_for_index(&self, index: usize) -> Option<Keyword> {
+        self.token_keywords.get(index).copied().flatten()
+    }
+
+    /// Get the token index used by peek_next.
+    #[inline]
+    pub(crate) fn index_for_next(&self) -> usize {
+        if self.has_active_split() {
+            self.pos
+        } else {
+            self.pos + 1
+        }
+    }
+
+    /// Get the token index used by peek_next_next.
+    #[inline]
+    pub(crate) fn index_for_next_next(&self) -> usize {
+        if self.has_active_split() {
+            self.pos + 1
+        } else {
+            self.pos + 2
+        }
+    }
+
+    /// Merge two token lists already sorted by span.
+    fn merge_sorted_tokens(
+        side_tokens: Vec<TokenSpan>,
+        decorator_tokens: Vec<TokenSpan>,
+    ) -> Vec<TokenSpan> {
+        let mut merged = Vec::with_capacity(side_tokens.len() + decorator_tokens.len());
+        let mut side_index = 0;
+        let mut decorator_index = 0;
+        while side_index < side_tokens.len() && decorator_index < decorator_tokens.len() {
+            let side = side_tokens[side_index];
+            let decorator = decorator_tokens[decorator_index];
+            if (side.span.start, side.span.end) <= (decorator.span.start, decorator.span.end) {
+                merged.push(side);
+                side_index += 1;
+            } else {
+                merged.push(decorator);
+                decorator_index += 1;
+            }
+        }
+        if side_index < side_tokens.len() {
+            merged.extend_from_slice(&side_tokens[side_index..]);
+        }
+        if decorator_index < decorator_tokens.len() {
+            merged.extend_from_slice(&decorator_tokens[decorator_index..]);
+        }
+        merged
     }
 
     /// Parse everything as an implicit namespace (without creating the namespace).
@@ -539,6 +646,39 @@ impl Parser {
         })
     }
 
+    /// Check if there are any blank annotations (multiple newlines) in main tokens.
+    fn has_blank_annotation_tokens(&self) -> bool {
+        let mut seen_newline = false;
+        for token in &self.tokens {
+            let token_ty = token.token.ty;
+            if token_ty == TokenType::Whitespace {
+                continue;
+            }
+            if token_ty == TokenType::Newline {
+                if seen_newline {
+                    return true;
+                }
+                seen_newline = true;
+                continue;
+            }
+            seen_newline = false;
+        }
+
+        false
+    }
+
+    /// Return true when annotations should be attached.
+    pub(crate) fn should_attach_annotations(&self) -> bool {
+        if self.has_annotation_tokens() {
+            return true;
+        }
+        if self.has_blank_annotation_tokens() {
+            return true;
+        }
+
+        !self.tree.get_nodes::<Decorator>().is_empty()
+    }
+
     /// Get a span covering the entire file.
     fn file_span(&self) -> Span {
         Span::new(self.file_id, 0, self.eof_token.span.end)
@@ -566,6 +706,7 @@ impl Parser {
         if self.is_finished {
             return;
         }
+        let _timing = self.timing_scope(tags::PARSE_POSITIONS_BUILD);
         self.tree.build_position_index();
     }
 
@@ -694,6 +835,57 @@ impl Parser {
         self.tokens
             .get(self.pos)
             .ok_or(ParseError::unexpected(self.eof_token.span))
+    }
+
+    /// Peek the next token type, defaulting to End at EOF.
+    #[inline]
+    pub fn peek_token_type(&self) -> TokenType {
+        if let Some(split) = self.split_token
+            && !self.split_token_consumed
+        {
+            return split.token.ty;
+        }
+        self.tokens
+            .get(self.pos)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End)
+    }
+
+    /// Peek the next token type, skipping an active split token.
+    #[inline]
+    pub fn peek_next_token_type(&self) -> TokenType {
+        let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
+        let offset = if has_active_split { 0 } else { 1 };
+        self.tokens
+            .get(self.pos + offset)
+            .map(|token| token.token.ty)
+            .unwrap_or(TokenType::End)
+    }
+
+    /// Return true when the next token matches the given type.
+    #[inline]
+    pub fn peek_is(&self, token_type: TokenType) -> bool {
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_is requires semantic token type"
+        );
+        self.peek_token_type() == token_type
+    }
+
+    /// Return true when the next-next token matches the given type.
+    #[inline]
+    pub fn peek_next_is(&self, token_type: TokenType) -> bool {
+        debug_assert!(
+            is_semantic(token_type),
+            "peek_next_is requires semantic token type"
+        );
+        self.peek_next_token_type() == token_type
+    }
+
+    /// Return true when more tokens remain before End.
+    #[inline]
+    pub fn has_more_tokens(&self) -> bool {
+        self.peek_token_type() != TokenType::End
     }
 
     /// Peek the next next Token or error.
@@ -941,7 +1133,7 @@ impl Parser {
 
     /// Eat a token maybe.
     pub fn eat_token_maybe(&mut self, token_type: TokenType) -> ParseResult<bool> {
-        if self.peek_token(token_type).is_ok() {
+        if self.peek_is(token_type) {
             self.bump();
             Ok(true)
         } else {
@@ -1024,7 +1216,7 @@ impl Parser {
     ///  2) Otherwise, we try to recover forward until the bail token.
     pub fn try_eat_token(&mut self, expected: TokenType, bail: TokenType) -> ParseResult<()> {
         // we're good if it's the expected token
-        if self.peek_token(expected).is_ok() {
+        if self.peek_is(expected) {
             self.bump();
             return Ok(());
         }
@@ -1059,25 +1251,14 @@ impl Parser {
         span: &Span,
         search: NodeSearchMode,
     ) -> Option<EnclosingSpan> {
-        let mut enclosing_spans = self
-            .tree
-            .source_map
-            .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-            .into_iter()
-            .filter(|s| s.span.start == span.start)
-            .collect::<Vec<_>>();
-        match search {
-            NodeSearchMode::BiggestOutermost => {
-                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
-            }
-            NodeSearchMode::SmallestOutermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
-            }
-            NodeSearchMode::SmallestInnermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
-            }
-        }
-        enclosing_spans.into_iter().next()
+        self.select_enclosing_span(
+            self.tree
+                .source_map
+                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
+                .into_iter()
+                .filter(|s| s.span.start == span.start),
+            search,
+        )
     }
 
     /// Get the node ending at a token.
@@ -1086,25 +1267,14 @@ impl Parser {
         span: &Span,
         search: NodeSearchMode,
     ) -> Option<EnclosingSpan> {
-        let mut enclosing_spans = self
-            .tree
-            .source_map
-            .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-            .into_iter()
-            .filter(|s| s.span.end == span.end)
-            .collect::<Vec<_>>();
-        match search {
-            NodeSearchMode::BiggestOutermost => {
-                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
-            }
-            NodeSearchMode::SmallestOutermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
-            }
-            NodeSearchMode::SmallestInnermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
-            }
-        }
-        enclosing_spans.into_iter().next()
+        self.select_enclosing_span(
+            self.tree
+                .source_map
+                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
+                .into_iter()
+                .filter(|s| s.span.end == span.end),
+            search,
+        )
     }
 
     /// Get the node enclosing a token.
@@ -1114,28 +1284,65 @@ impl Parser {
         search: NodeSearchMode,
         filter: impl Fn(&EnclosingSpan) -> bool,
     ) -> Option<EnclosingSpan> {
-        let mut enclosing_spans = self
-            .tree
-            .source_map
-            .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-            .into_iter()
-            .filter(filter)
-            .collect::<Vec<_>>();
-        if enclosing_spans.is_empty() {
-            return None;
+        self.select_enclosing_span(
+            self.tree
+                .source_map
+                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
+                .into_iter()
+                .filter(filter),
+            search,
+        )
+    }
+
+    /// Select the best enclosing span for the search mode without sorting.
+    fn select_enclosing_span(
+        &self,
+        spans: impl Iterator<Item = EnclosingSpan>,
+        search: NodeSearchMode,
+    ) -> Option<EnclosingSpan> {
+        let mut best = None;
+        for span in spans {
+            match best {
+                Some(current) => {
+                    if self.is_better_enclosing_span(search, &span, &current) {
+                        best = Some(span);
+                    } else {
+                        best = Some(current);
+                    }
+                }
+                None => best = Some(span),
+            }
         }
+
+        best
+    }
+
+    /// Return true when candidate outranks current for the search mode.
+    fn is_better_enclosing_span(
+        &self,
+        search: NodeSearchMode,
+        candidate: &EnclosingSpan,
+        current: &EnclosingSpan,
+    ) -> bool {
+        let candidate_len = candidate.length;
+        let current_len = current.length;
+        let candidate_idx = candidate.idx;
+        let current_idx = current.idx;
+
         match search {
             NodeSearchMode::BiggestOutermost => {
-                enclosing_spans.sort_by_key(|span| (-(span.length as i64), -(span.idx as i64)));
+                candidate_len > current_len
+                    || (candidate_len == current_len && candidate_idx > current_idx)
             }
             NodeSearchMode::SmallestOutermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, -(span.idx as i64)));
+                candidate_len < current_len
+                    || (candidate_len == current_len && candidate_idx > current_idx)
             }
             NodeSearchMode::SmallestInnermost => {
-                enclosing_spans.sort_by_key(|span| (span.length as i64, (span.idx as i64)));
+                candidate_len < current_len
+                    || (candidate_len == current_len && candidate_idx < current_idx)
             }
         }
-        enclosing_spans.into_iter().next()
     }
 
     /// Check if two spans are on the same line.
@@ -1143,6 +1350,20 @@ impl Parser {
     pub fn is_same_line(&self, left: Span, right: Span) -> bool {
         self.file.is_same_line(left.start, right.end)
     }
+}
+
+fn timings_enabled_from_env() -> bool {
+    std::env::var("DESTACK_PARSER_TIMINGS")
+        .ok()
+        .and_then(|value| value.parse::<u8>().ok())
+        .map(|value| value > 0)
+        .or_else(|| {
+            std::env::var("DESTACK_TIMINGS")
+                .ok()
+                .and_then(|value| value.parse::<u8>().ok())
+                .map(|value| value > 0)
+        })
+        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, Copy)]

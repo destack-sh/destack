@@ -72,7 +72,7 @@ impl Parser {
             Asynchrony::Sync
         };
 
-        let in_parenthesis = self.peek_token(TokenType::OpenParenthesis).is_ok();
+        let in_parenthesis = self.peek_is(TokenType::OpenParenthesis);
 
         // for condition loop
         if asynchrony == Asynchrony::Sync
@@ -89,7 +89,7 @@ impl Parser {
             self.bump();
 
             // initialization
-            let initialization_id = if self.peek_token(TokenType::Semicolon).is_ok() {
+            let initialization_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
                 Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
@@ -97,7 +97,7 @@ impl Parser {
             self.eat_token(TokenType::Semicolon)?;
 
             // condition
-            let condition_id = if self.peek_token(TokenType::Semicolon).is_ok() {
+            let condition_id = if self.peek_is(TokenType::Semicolon) {
                 None
             } else {
                 Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)
@@ -105,7 +105,7 @@ impl Parser {
             self.eat_token(TokenType::Semicolon)?;
 
             // increment
-            let increment_id = if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+            let increment_id = if self.peek_is(TokenType::CloseParenthesis) {
                 None
             } else {
                 Some(self.with_options(self.options.nested(), |parser| parser.eat_expression())?)

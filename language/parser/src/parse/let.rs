@@ -114,7 +114,7 @@ impl Parser {
             declarators.push(declarator_id);
 
             // Check for comma to continue parsing more declarators
-            if self.peek_token(TokenType::Comma).is_ok() {
+            if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
             } else {
@@ -164,7 +164,7 @@ impl Parser {
             declarators.push(declarator_id);
 
             // check for comma to continue parsing more declarators
-            if self.peek_token(TokenType::Comma).is_ok() {
+            if self.peek_is(TokenType::Comma) {
                 self.bump(); // eat comma
                 self.eat_newlines_maybe()?;
             } else {
@@ -213,7 +213,7 @@ impl Parser {
         };
 
         // value
-        let value = if self.peek_token(TokenType::Assign).is_ok() {
+        let value = if self.peek_is(TokenType::Assign) {
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
             Some(self.with_options(

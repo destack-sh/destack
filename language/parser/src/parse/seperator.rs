@@ -63,8 +63,8 @@ impl Parser {
     /// Eat 0 or more newlines.
     #[inline]
     pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
-        while self.peek_newline().is_ok() {
-            self.eat_newline()?;
+        while self.peek_is(TokenType::Newline) {
+            self.bump();
         }
         Ok(())
     }

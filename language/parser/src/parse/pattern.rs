@@ -7,7 +7,7 @@ impl Parser {
     /// Eat a pattern that might be paranthesized (skip the parenthesis if present).
     pub fn eat_pattern_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
         let start = self.mark();
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        if self.peek_is(TokenType::OpenParenthesis) {
             self.bump(); // eat open parenthesis
             self.eat_newlines_maybe()?;
             let pattern_id = self.eat_pattern()?;
@@ -36,6 +36,7 @@ impl Parser {
     /// geom.Mesh<2, float32> { vertices: [2, ...] }
     /// ```
     pub fn eat_pattern(&mut self) -> ParseResult<LocalNodeId<Pattern>> {
+        let _timing = self.timing_scope(tags::PARSE_PATTERN);
         let start = self.mark();
 
         // mutability
@@ -52,7 +53,7 @@ impl Parser {
                     .insert(Pattern::Wildcard, self.get_span_from(start))
             }
             // reference of
-            else if self.peek_token(TokenType::ElementwiseAnd).is_ok() {
+            else if self.peek_is(TokenType::ElementwiseAnd) {
                 self.bump(); // eat &
                 let mutability = self.eat_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
@@ -65,7 +66,7 @@ impl Parser {
                 )
             }
             // value of
-            else if self.peek_token(TokenType::ElementwiseXor).is_ok() {
+            else if self.peek_is(TokenType::ElementwiseXor) {
                 self.bump(); // eat ^
                 let mutability = self.eat_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
@@ -78,7 +79,7 @@ impl Parser {
                 )
             }
             // tuple (without type, no struct tuples)
-            else if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+            else if self.peek_is(TokenType::OpenParenthesis) {
                 self.bump(); // eat open parenthesis
                 self.eat_newlines_maybe()?;
                 let fields = self
@@ -91,7 +92,7 @@ impl Parser {
                 self.tree.insert(pattern, self.get_span_from(start))
             }
             // struct (without type)
-            else if self.peek_token(TokenType::OpenBrace).is_ok() {
+            else if self.peek_is(TokenType::OpenBrace) {
                 self.bump(); // eat open brace
                 self.eat_newlines_maybe()?;
                 let fields = self
@@ -104,7 +105,7 @@ impl Parser {
                 self.tree.insert(pattern, self.get_span_from(start))
             }
             // array or slice
-            else if self.peek_token(TokenType::OpenBracket).is_ok() {
+            else if self.peek_is(TokenType::OpenBracket) {
                 self.bump(); // eat open bracket
                 self.eat_newlines_maybe()?;
                 let fields = self
@@ -135,7 +136,7 @@ impl Parser {
             // binding with expression or pattern
             else if !self.options.in_before_type
                 && self.peek_identifier().is_ok()
-                && self.peek_next_token(TokenType::Colon).is_ok()
+                && self.peek_next_is(TokenType::Colon)
             {
                 let (name, name_span) = self.eat_binding_identifier_with_span()?;
                 self.bump(); // eat colon
@@ -161,7 +162,7 @@ impl Parser {
                     .eat_path_with_last_span()
                     .for_node_type(NodeType::Pattern)?;
                 // tuple with path
-                if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+                if self.peek_is(TokenType::OpenParenthesis) {
                     self.bump(); // eat open parenthesis
                     self.eat_newlines_maybe()?;
                     let fields = self
@@ -183,9 +184,7 @@ impl Parser {
                     self.tree.insert(pattern, self.get_span_from(start))
                 }
                 // struct with path
-                else if !self.options.in_before_block
-                    && self.peek_token(TokenType::OpenBrace).is_ok()
-                {
+                else if !self.options.in_before_block && self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat open brace
                     self.eat_newlines_maybe()?;
                     let fields = self
@@ -241,14 +240,14 @@ impl Parser {
         // ------------------------------------------------------------
 
         // must
-        if self.peek_token(TokenType::Not).is_ok() {
+        if self.peek_is(TokenType::Not) {
             self.bump(); // eat !
             let pattern = Pattern::Must(pattern_id);
             let pattern_id = self.tree.insert(pattern, self.get_span_from(start));
             Ok(pattern_id)
         }
         // range
-        else if self.peek_token(TokenType::Range).is_ok() {
+        else if self.peek_is(TokenType::Range) {
             self.bump(); // eat range
             let end_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
             let pattern = Pattern::Range {
@@ -260,12 +259,10 @@ impl Parser {
             Ok(pattern_id)
         }
         // union
-        else if self.peek_token(TokenType::ElementwiseOr).is_ok()
-            && !self.options.in_union_pattern
-        {
+        else if self.peek_is(TokenType::ElementwiseOr) && !self.options.in_union_pattern {
             // eat all union "fields" (just unnamed patterns)
             let mut patterns: Vec<LocalNodeId<Pattern>> = vec![pattern_id];
-            while self.peek_token(TokenType::ElementwiseOr).is_ok() {
+            while self.peek_is(TokenType::ElementwiseOr) {
                 self.bump(); // eat '|'
                 let field_pattern_id = self
                     .with_options(self.options.in_union_pattern(), |parser| {
@@ -291,8 +288,8 @@ impl Parser {
         terminator: TokenType,
     ) -> ParseResult<Vec<LocalNodeId<PatternField>>> {
         let mut fields: Vec<LocalNodeId<PatternField>> = Vec::new();
-        while self.peek().is_ok() {
-            if self.peek_token(terminator).is_ok() {
+        while self.has_more_tokens() {
+            if self.peek_token_type() == terminator {
                 break;
             }
 
@@ -301,22 +298,22 @@ impl Parser {
             let mut name_span = None;
             let pattern_field = {
                 // elision: empty slot before separator (like `[,a]` or `[,,b]`)
-                if self.peek_token(seperator).is_ok() {
+                if self.peek_token_type() == seperator {
                     PatternField::Elision
                 }
                 // positional wildcard for tuples/arrays
                 else if terminator != TokenType::CloseBrace
                     && self.peek_identifier_str("_").is_ok()
-                    && self.peek_next_token(TokenType::Colon).is_err()
+                    && !self.peek_next_is(TokenType::Colon)
                 {
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     PatternField::Positional { pattern }
                 }
                 // computed property (object patterns only)
                 else if terminator == TokenType::CloseBrace
-                    && (self.peek_token(TokenType::OpenBracket).is_ok()
+                    && (self.peek_is(TokenType::OpenBracket)
                         || (self.peek_mutability().is_ok()
-                            && self.peek_next_token(TokenType::OpenBracket).is_ok()))
+                            && self.peek_next_is(TokenType::OpenBracket)))
                 {
                     let mutability = self.eat_mutability_maybe()?;
                     self.eat_token(TokenType::OpenBracket)?;
@@ -327,7 +324,7 @@ impl Parser {
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::Colon)?;
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
-                    let default = if self.peek_token(TokenType::Assign).is_ok() {
+                    let default = if self.peek_is(TokenType::Assign) {
                         self.bump(); // eat assign
                         let default = self
                             .with_options(self.options.not_in_position(), |parser| {
@@ -347,13 +344,13 @@ impl Parser {
                 // named or named alias or spread
                 else if self.peek_name().is_ok()
                     || self.peek_mutability().is_ok()
-                    || self.peek_token(TokenType::Spread).is_ok()
+                    || self.peek_is(TokenType::Spread)
                 {
                     // mutability
                     let mutability = self.eat_mutability_maybe()?;
 
                     // spread
-                    if self.peek_token(TokenType::Spread).is_ok() {
+                    if self.peek_is(TokenType::Spread) {
                         self.bump(); // eat spread
                         let name = if self.peek_name().is_ok() {
                             let (name, span) = self.eat_name_with_span()?;
@@ -365,9 +362,7 @@ impl Parser {
                         PatternField::Spread { mutability, name }
                     }
                     // alias or pattern
-                    else if self.peek_name().is_ok()
-                        && self.peek_next_token(TokenType::Colon).is_ok()
-                    {
+                    else if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
                         let (name, _name_span) = self.eat_name_with_span()?;
                         self.bump(); // eat colon
                         // named alias
@@ -377,7 +372,7 @@ impl Parser {
                                 .for_node_type(NodeType::Pattern)?;
                             name_span = Some(alias_span);
                             // default
-                            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                            let default = if self.peek_is(TokenType::Assign) {
                                 self.bump(); // eat assign
                                 let default = self
                                     .with_options(self.options.not_in_position(), |parser| {
@@ -398,7 +393,7 @@ impl Parser {
                         else {
                             let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                             // default
-                            let default = if self.peek_token(TokenType::Assign).is_ok() {
+                            let default = if self.peek_is(TokenType::Assign) {
                                 self.bump(); // eat assign
                                 let default = self
                                     .with_options(self.options.not_in_position(), |parser| {
@@ -421,7 +416,7 @@ impl Parser {
                         let (name, span) = self.eat_name_with_span()?;
                         name_span = Some(span);
                         // default
-                        let default = if self.peek_token(TokenType::Assign).is_ok() {
+                        let default = if self.peek_is(TokenType::Assign) {
                             self.bump(); // eat assign
                             let default = self
                                 .with_options(self.options.not_in_position(), |parser| {
@@ -454,7 +449,7 @@ impl Parser {
             fields.push(pattern_field_id);
 
             // separator or newline
-            if self.peek_token(seperator).is_ok() || self.peek_token(TokenType::Newline).is_ok() {
+            if self.peek_token_type() == seperator || self.peek_is(TokenType::Newline) {
                 self.bump(); // eat separator
                 self.eat_newlines_maybe()?;
             } else {

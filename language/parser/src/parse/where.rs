@@ -1,4 +1,5 @@
 //! Parse use and where declarations.
+use crate::parse::timing::tags;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{Keyword, LocalNodeId, TokenType, WhereClause};
@@ -40,6 +41,7 @@ impl Parser {
     /// )
     /// ```
     pub fn eat_where(&mut self) -> ParseResult<Vec<LocalNodeId<WhereClause>>> {
+        let _timing = self.timing_scope(tags::PARSE_WHERE);
         self.eat_keyword(Keyword::Where)?;
         let clauses = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_where_body()
@@ -53,18 +55,18 @@ impl Parser {
         let mut clauses: Vec<LocalNodeId<WhereClause>> = Vec::new();
 
         // parenthesized list with newlines
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        if self.peek_is(TokenType::OpenParenthesis) {
             self.eat_token(TokenType::OpenParenthesis)?;
             self.eat_newlines_maybe()?;
-            while self.peek().is_ok() {
+            while self.has_more_tokens() {
                 self.eat_newlines_maybe()?;
-                if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+                if self.peek_is(TokenType::CloseParenthesis) {
                     break;
                 }
                 let next_clause = self.eat_where_clause()?;
                 clauses.push(next_clause);
                 // optional comma with newlines
-                if self.peek_token(TokenType::Comma).is_ok() {
+                if self.peek_is(TokenType::Comma) {
                     self.eat_token(TokenType::Comma)?;
                 }
             }
@@ -72,11 +74,11 @@ impl Parser {
         }
         // plain list separated by commas
         else {
-            while self.peek().is_ok() {
+            while self.has_more_tokens() {
                 let clause = self.eat_where_clause()?;
                 clauses.push(clause);
                 // required comma
-                if self.peek_token(TokenType::Comma).is_ok() {
+                if self.peek_is(TokenType::Comma) {
                     self.eat_token(TokenType::Comma)?;
                 } else {
                     break;

@@ -24,10 +24,10 @@ impl Parser {
             let mut progress = false;
 
             // modifier disambiguation for abstraction keywords
-            let abstraction_is_modifier = self.peek_next_token(TokenType::Colon).is_err()
-                && self.peek_next_token(TokenType::Maybe).is_err()
-                && self.peek_next_token(TokenType::LessThan).is_err()
-                && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+            let abstraction_is_modifier = !self.peek_next_is(TokenType::Colon)
+                && !self.peek_next_is(TokenType::Maybe)
+                && !self.peek_next_is(TokenType::LessThan)
+                && !self.peek_next_is(TokenType::OpenParenthesis);
 
             // variance for static parameters
             if self.options.in_static || allow_variance_modifier {
@@ -41,7 +41,7 @@ impl Parser {
                     has_modifiers = true;
                     progress = true;
                 } else if self.peek_identifier_str("out").is_ok()
-                    && (self.peek_next_token(TokenType::Identifier).is_ok()
+                    && (self.peek_next_is(TokenType::Identifier)
                         || self.peek_next_keyword(Keyword::In).is_ok())
                 {
                     self.bump(); // eat out
@@ -104,8 +104,8 @@ impl Parser {
             // mutability
             // allow treating readonly as a key in property contexts
             let readonly_is_modifier = if allow_readonly_key {
-                self.peek_next_token(TokenType::Identifier).is_ok()
-                    || self.peek_next_token(TokenType::OpenBracket).is_ok()
+                self.peek_next_is(TokenType::Identifier)
+                    || self.peek_next_is(TokenType::OpenBracket)
             } else {
                 true
             };
@@ -138,10 +138,10 @@ impl Parser {
             // accessor
             let accessor_is_modifier = accessor_is_modifier
                 && self.peek_keyword(Keyword::Accessor).is_ok()
-                && self.peek_next_token(TokenType::Colon).is_err()
-                && self.peek_next_token(TokenType::Maybe).is_err()
-                && self.peek_next_token(TokenType::LessThan).is_err()
-                && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+                && !self.peek_next_is(TokenType::Colon)
+                && !self.peek_next_is(TokenType::Maybe)
+                && !self.peek_next_is(TokenType::LessThan)
+                && !self.peek_next_is(TokenType::OpenParenthesis);
             if modifiers.accessor.is_none() && accessor_is_modifier {
                 self.bump(); // eat accessor
                 modifiers.accessor = Some(AccessorKind::Accessor);
@@ -174,7 +174,7 @@ impl Parser {
         &mut self,
         modifiers: Option<BindingModifier>,
     ) -> ParseResult<Option<BindingModifier>> {
-        if self.peek_token(TokenType::Maybe).is_ok() {
+        if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat maybe
             if let Some(modifiers) = modifiers {
                 Ok(Some(BindingModifier {
@@ -232,7 +232,7 @@ impl Parser {
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(true, false, false)?;
 
         // variadic
-        let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {
+        let is_variadic = if self.peek_is(TokenType::Spread) {
             self.bump(); // eat range or range wide
             true
         } else {
@@ -248,7 +248,7 @@ impl Parser {
             // ...[name] is just a name, not a pattern
             if is_variadic
                 && (self.options.in_type || self.options.in_variant)
-                && self.peek_token(TokenType::OpenBracket).is_ok()
+                && self.peek_is(TokenType::OpenBracket)
             {
                 self.bump(); // eat [
                 self.eat_newlines_maybe()?;
@@ -280,7 +280,7 @@ impl Parser {
         };
 
         // ? maybe
-        if self.peek_token(TokenType::Maybe).is_ok() {
+        if self.peek_is(TokenType::Maybe) {
             self.bump(); // eat maybe
             if modifiers.is_none() {
                 modifiers = Some(BindingModifier::default());
@@ -318,7 +318,7 @@ impl Parser {
         // = value
         let parameter = {
             // has default value
-            if !is_variadic && self.peek_token(TokenType::Assign).is_ok() {
+            if !is_variadic && self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
 
@@ -412,19 +412,19 @@ impl Parser {
     pub fn eat_parameters_body(&mut self) -> ParseResult<Vec<LocalNodeId<Parameter>>> {
         let mut parameters: Vec<LocalNodeId<Parameter>> = Vec::new();
         self.eat_newlines_maybe()?;
-        while self.peek_token(TokenType::Identifier).is_ok()
+        while self.peek_is(TokenType::Identifier)
             || (self.options.in_static && self.peek_keyword(Keyword::In).is_ok())
             // spread
-            || self.peek_token(TokenType::Spread).is_ok()
+            || self.peek_is(TokenType::Spread)
             // pattern
-            || self.peek_token(TokenType::OpenParenthesis).is_ok()
-            || self.peek_token(TokenType::OpenBracket).is_ok()
-            || self.peek_token(TokenType::OpenBrace).is_ok()
+            || self.peek_is(TokenType::OpenParenthesis)
+            || self.peek_is(TokenType::OpenBracket)
+            || self.peek_is(TokenType::OpenBrace)
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
             self.eat_newlines_maybe()?;
-            if self.peek_item_stop().is_ok() {
+            if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
             } else {
                 break;
@@ -439,7 +439,7 @@ impl Parser {
     ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
         let mark = self.mark();
         self.eat_newlines_maybe()?;
-        if self.peek_token(TokenType::LessThan).is_ok() {
+        if self.peek_is(TokenType::LessThan) {
             Ok(Some(self.eat_static_parameters()?))
         } else {
             self.rewind(mark);
@@ -454,7 +454,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // empty static parameters are not allowed
-        if self.peek_token(TokenType::GreaterThan).is_ok() {
+        if self.peek_is(TokenType::GreaterThan) {
             return Err(ParseError::expected(
                 self.get_span_from(start),
                 TokenType::Identifier,
@@ -475,7 +475,7 @@ impl Parser {
     pub fn eat_dynamic_parameters_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Parameter>>>> {
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        if self.peek_is(TokenType::OpenParenthesis) {
             return Ok(Some(self.eat_dynamic_parameters()?));
         }
         Ok(None)
@@ -487,7 +487,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // empty dynamic parameters
-        if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+        if self.peek_is(TokenType::CloseParenthesis) {
             self.bump(); // eat close parenthesis
             return Ok(vec![]);
         }
@@ -558,16 +558,16 @@ impl Parser {
         }
 
         // spread argument
-        if self.peek_token(TokenType::Spread).is_ok() {
+        if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
             let (label, label_span, value) = if self.options.in_type
-                && self.peek_token(TokenType::Identifier).is_ok()
-                && (self.peek_next_token(TokenType::Colon).is_ok()
-                    || self.peek_next_token(TokenType::Maybe).is_ok()
+                && self.peek_is(TokenType::Identifier)
+                && (self.peek_next_is(TokenType::Colon)
+                    || self.peek_next_is(TokenType::Maybe)
                         && self.peek_next_next_token(TokenType::Colon).is_ok())
             {
                 let (label, label_span) = self.eat_identifier_with_span()?;
-                if self.peek_token(TokenType::Maybe).is_ok() {
+                if self.peek_is(TokenType::Maybe) {
                     self.bump(); // eat ?
                     if modifiers.is_none() {
                         modifiers = Some(BindingModifier::default());
@@ -599,13 +599,13 @@ impl Parser {
         }
         // labeled tuple element (only in type context): label: type
         else if self.options.in_type
-            && self.peek_token(TokenType::Identifier).is_ok()
-            && (self.peek_next_token(TokenType::Colon).is_ok()
-                || self.peek_next_token(TokenType::Maybe).is_ok()
+            && self.peek_is(TokenType::Identifier)
+            && (self.peek_next_is(TokenType::Colon)
+                || self.peek_next_is(TokenType::Maybe)
                     && self.peek_next_next_token(TokenType::Colon).is_ok())
         {
             let (label, label_span) = self.eat_identifier_with_span()?;
-            if self.peek_token(TokenType::Maybe).is_ok() {
+            if self.peek_is(TokenType::Maybe) {
                 self.bump(); // eat ?
                 if modifiers.is_none() {
                     modifiers = Some(BindingModifier::default());
@@ -633,7 +633,7 @@ impl Parser {
                 .with_options(self.options.not_in_sequence_expression(), |parser| {
                     parser.eat_expression()
                 })?;
-            if self.options.in_type && self.peek_token(TokenType::Maybe).is_ok() {
+            if self.options.in_type && self.peek_is(TokenType::Maybe) {
                 let is_tuple_optional = self
                     .peek_token_after_newlines(self.pos(), TokenType::Comma)
                     .is_ok()
@@ -683,7 +683,7 @@ impl Parser {
     pub fn eat_tree_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
         // named argument (name: value)
-        if self.peek_name().is_ok() && self.peek_next_token(TokenType::Colon).is_ok() {
+        if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
             let (name, name_span) = self
                 .eat_name_with_span()
                 .for_node_type(NodeType::Argument)?;
@@ -706,7 +706,7 @@ impl Parser {
             Ok(argument_id)
         }
         // spread argument (...expr)
-        else if self.peek_token(TokenType::Spread).is_ok() {
+        else if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
@@ -723,11 +723,11 @@ impl Parser {
             Ok(argument_id)
         }
         // expression container ({expr}) - TSX syntax where {} are delimiters, not part of expr
-        else if self.peek_token(TokenType::OpenBrace).is_ok() {
+        else if self.peek_is(TokenType::OpenBrace) {
             self.bump(); // eat {
             self.eat_newlines_maybe()?;
             // if empty container (e.g., {/* comment */} where comment is filtered out)
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_is(TokenType::CloseBrace) {
                 self.bump(); // eat }
                 // insert a stub expression for empty container
                 let value = self
@@ -744,7 +744,7 @@ impl Parser {
             }
 
             // spread child: {...expr}
-            if self.peek_token(TokenType::Spread).is_ok() {
+            if self.peek_is(TokenType::Spread) {
                 self.bump(); // eat spread
                 let value = self.with_options(
                     self.options
@@ -816,7 +816,7 @@ impl Parser {
     pub fn eat_tree_literal_argument(&mut self) -> ParseResult<LocalNodeId<Argument>> {
         let start = self.mark();
         // spread argument
-        if self.peek_token(TokenType::Spread).is_ok() {
+        if self.peek_is(TokenType::Spread) {
             self.bump(); // eat spread
             let value = self.with_options(self.options.in_statement_position(), |parser| {
                 parser.eat_expression()
@@ -832,9 +832,7 @@ impl Parser {
             Ok(argument_id)
         }
         // spread expression container (like {...expr} in tree literals for #Compatibility)
-        else if self.peek_token(TokenType::OpenBrace).is_ok()
-            && self.peek_next_token(TokenType::Spread).is_ok()
-        {
+        else if self.peek_is(TokenType::OpenBrace) && self.peek_next_is(TokenType::Spread) {
             self.bump(); // eat open brace
             self.bump(); // eat spread
             self.eat_newlines_maybe()?;
@@ -863,13 +861,11 @@ impl Parser {
             let name = self.eat_tree_literal_identifier()?;
 
             // named argument with value
-            let value = if self.peek_token(TokenType::Colon).is_ok()
-                || self.peek_token(TokenType::Assign).is_ok()
-            {
+            let value = if self.peek_is(TokenType::Colon) || self.peek_is(TokenType::Assign) {
                 self.bump(); // eat colon or assign
                 self.eat_newlines_maybe()?;
                 // tsx expression container: attr={expr}
-                if self.peek_token(TokenType::OpenBrace).is_ok() {
+                if self.peek_is(TokenType::OpenBrace) {
                     self.bump(); // eat {
                     self.eat_newlines_maybe()?;
                     let value = self.with_options(
@@ -892,7 +888,7 @@ impl Parser {
                     )
                 }
                 // shorthand array attribute
-                else if self.peek_token(TokenType::OpenBracket).is_ok() {
+                else if self.peek_is(TokenType::OpenBracket) {
                     let value_start = self.mark();
                     let elements = self.with_options(
                         self.options.not_in_position().not_in_tree_literal(),
@@ -933,9 +929,7 @@ impl Parser {
     pub fn eat_static_arguments_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
-        if self.peek_token(TokenType::LessThan).is_ok()
-            || self.peek_token(TokenType::ShiftLeft).is_ok()
-        {
+        if self.peek_is(TokenType::LessThan) || self.peek_is(TokenType::ShiftLeft) {
             return Ok(Some(self.eat_static_arguments()?));
         }
         Ok(None)
@@ -945,13 +939,14 @@ impl Parser {
     /// Only positional and spread arguments are allowed (no named arguments).
     /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         let start = self.mark();
 
         // handle both `<` and `<<` (ShiftLeft) as opening token
         // `<<` occurs when the first argument is a generic arrow function like `<T>() => ...`
-        if self.peek_token(TokenType::LessThan).is_ok() {
+        if self.peek_is(TokenType::LessThan) {
             self.bump(); // eat `<`
-        } else if self.peek_token(TokenType::ShiftLeft).is_ok() {
+        } else if self.peek_is(TokenType::ShiftLeft) {
             // split `<<` into `<` (consumed) + `<` (pending as split token)
             // the pending `<` will be seen by the first argument as its generic opening
             self.split_shift_left();
@@ -961,7 +956,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // empty static arguments are not allowed
-        if self.peek_token(TokenType::GreaterThan).is_ok() {
+        if self.peek_is(TokenType::GreaterThan) {
             return Err(ParseError::expected(
                 self.get_span_from(start),
                 TokenType::Identifier,
@@ -986,7 +981,7 @@ impl Parser {
     pub fn eat_dynamic_arguments_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
-        if self.peek_token(TokenType::OpenParenthesis).is_ok() {
+        if self.peek_is(TokenType::OpenParenthesis) {
             return Ok(Some(self.eat_dynamic_arguments()?));
         }
         Ok(None)
@@ -995,11 +990,12 @@ impl Parser {
     /// Eat dynamic arguments (including the `(` and `)` tokens).
     /// Only positional and spread arguments are allowed (no named arguments).
     pub fn eat_dynamic_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        let _timing = self.timing_scope(tags::PARSE_ARGUMENT);
         self.eat_token(TokenType::OpenParenthesis)?;
         self.eat_newlines_maybe()?;
 
         // empty dynamic arguments
-        if self.peek_token(TokenType::CloseParenthesis).is_ok() {
+        if self.peek_is(TokenType::CloseParenthesis) {
             self.bump(); // eat close parenthesis
             return Ok(vec![]);
         }
@@ -1030,14 +1026,14 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
         self.eat_newlines_maybe()?;
-        while self.peek().is_ok() {
-            if self.peek_token(terminator).is_ok() {
+        while self.has_more_tokens() {
+            if self.peek_token_type() == terminator {
                 break;
             }
             let argument_id = self.eat_positional_argument()?;
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
-            if self.peek_item_stop().is_ok() {
+            if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
             } else {
                 break;
@@ -1062,14 +1058,14 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let mut arguments: Vec<LocalNodeId<Argument>> = Vec::new();
         self.eat_newlines_maybe()?;
-        while self.peek().is_ok() {
-            if self.peek_token(terminator).is_ok() {
+        while self.has_more_tokens() {
+            if self.peek_token_type() == terminator {
                 break;
             }
             let argument_id = self.eat_tree_argument()?;
             arguments.push(argument_id);
             self.eat_newlines_maybe()?;
-            if self.peek_item_stop().is_ok() {
+            if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
             } else {
                 break;

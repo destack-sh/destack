@@ -184,6 +184,14 @@ impl Compiler {
             expressions
         };
         self.program.diagnostics.merge_from(&parser.diagnostics);
+        if self.stats.timings_enabled() {
+            if let Some(entries) = parser.timing_snapshot() {
+                for entry in entries {
+                    self.stats
+                        .record_timing_samples(entry.name, entry.duration, entry.count);
+                }
+            }
+        }
 
         // record stats
         self.stats.record_parse();

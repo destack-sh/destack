@@ -29,7 +29,7 @@ impl Parser {
         self.eat_newlines_maybe()?;
 
         // bare index
-        if self.peek_token(TokenType::CloseBracket).is_ok() {
+        if self.peek_is(TokenType::CloseBracket) {
             self.bump(); // eat close bracket
             let index_span = self.get_span_from(start);
             let span = Span::new(index_span.file, receiver_span.start, index_span.end);

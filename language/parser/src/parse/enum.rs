@@ -44,6 +44,7 @@ impl Parser {
         kind: EnumKind,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
+        let _timing = self.timing_scope(tags::PARSE_ENUM);
         // keyword
         self.eat_keyword(Keyword::Enum)?;
 
@@ -112,13 +113,13 @@ impl Parser {
         // eat everything
         let mut fields: Vec<LocalNodeId<EnumField>> = Vec::new();
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok() {
+            if self.peek_is(TokenType::CloseBrace) {
                 break;
             }
             // consume any stop
-            else if self.peek_any_stop().is_ok() {
+            else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
             }
             // enum field
@@ -142,13 +143,13 @@ impl Parser {
 
     /// Peek an enum field.
     fn peek_enum_field(&self) -> ParseResult<()> {
-        let is_computed_name = self.peek_token(TokenType::OpenBracket).is_ok();
+        let is_computed_name = self.peek_is(TokenType::OpenBracket);
         let is_bare_name = (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
-            && (self.peek_next_token(TokenType::Assign).is_ok()
-                || self.peek_next_token(TokenType::Newline).is_ok()
-                || self.peek_next_token(TokenType::Comma).is_ok()
-                || self.peek_next_token(TokenType::Semicolon).is_ok()
-                || self.peek_next_token(TokenType::CloseBrace).is_ok());
+            && (self.peek_next_is(TokenType::Assign)
+                || self.peek_next_is(TokenType::Newline)
+                || self.peek_next_is(TokenType::Comma)
+                || self.peek_next_is(TokenType::Semicolon)
+                || self.peek_next_is(TokenType::CloseBrace));
 
         if is_computed_name || is_bare_name {
             Ok(())
@@ -168,7 +169,7 @@ impl Parser {
             .for_node_type(NodeType::EnumField)?;
 
         // optional `= <expr>` value
-        let value = if self.peek_token(TokenType::Assign).is_ok() {
+        let value = if self.peek_is(TokenType::Assign) {
             self.eat_token(TokenType::Assign)?;
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
@@ -190,12 +191,12 @@ impl Parser {
 
     /// Eat an enum field name, including computed string/number names.
     fn eat_enum_field_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
-        if self.peek_token(TokenType::OpenBracket).is_ok() {
+        if self.peek_is(TokenType::OpenBracket) {
             let start = self.mark();
             self.bump(); // eat open bracket
             self.eat_newlines_maybe()?;
 
-            let name = if self.peek_token(TokenType::Literal).is_ok()
+            let name = if self.peek_is(TokenType::Literal)
                 && matches!(
                     self.peek()?.token.literal,
                     Some(LiteralType::String { .. } | LiteralType::Character { .. })
@@ -211,7 +212,7 @@ impl Parser {
                 let string_id = self.strings.intern(key_str);
                 self.bump();
                 Name::Number(string_id)
-            } else if self.peek_token(TokenType::TemplateString).is_ok() {
+            } else if self.peek_is(TokenType::TemplateString) {
                 let template = self.eat_template_literal()?;
                 match template {
                     TemplateLiteral::String { string } => Name::String(string),

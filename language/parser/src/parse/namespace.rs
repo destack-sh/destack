@@ -36,6 +36,7 @@ impl Parser {
         start: ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
+        let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
         // keyword
         let is_module = if self.peek_keyword(Keyword::Namespace).is_ok() {
             self.bump(); // eat namespace
@@ -51,7 +52,7 @@ impl Parser {
             (vec![(Name::String(name_id), span)], Some(span))
         } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
             let mut names = vec![(name, span)];
-            while self.peek_token(TokenType::Dot).is_ok() {
+            while self.peek_is(TokenType::Dot) {
                 self.bump(); // eat dot
                 let (segment, segment_span) = self.eat_identifier_with_span()?;
                 names.push((Name::Identifier(segment), segment_span));

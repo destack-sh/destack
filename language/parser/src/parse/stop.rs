@@ -2,6 +2,33 @@ use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{TokenSpan, TokenType};
 
 impl Parser {
+    /// Return true when the next token is a statement stop.
+    #[inline]
+    pub fn is_statement_stop(&self) -> bool {
+        matches!(
+            self.peek_token_type(),
+            TokenType::Newline | TokenType::Semicolon | TokenType::End
+        )
+    }
+
+    /// Return true when the next token is an item stop.
+    #[inline]
+    pub fn is_item_stop(&self) -> bool {
+        matches!(
+            self.peek_token_type(),
+            TokenType::Comma | TokenType::Newline | TokenType::End
+        )
+    }
+
+    /// Return true when the next token is any stop.
+    #[inline]
+    pub fn is_any_stop(&self) -> bool {
+        matches!(
+            self.peek_token_type(),
+            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
+        )
+    }
+
     /// Peek an item stop (comma or newline).
     #[inline]
     pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {

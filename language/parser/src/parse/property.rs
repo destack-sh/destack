@@ -7,6 +7,7 @@ use destack_ast::{
 };
 use destack_source::NodeSpanType;
 
+use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 /// The keywords that can appear before a binding.
@@ -57,10 +58,11 @@ impl Parser {
     /// private static foo(): void
     /// ```
     pub fn eat_property(&mut self) -> ParseResult<LocalNodeId<Property>> {
+        let _timing = self.timing_scope(tags::PARSE_PROPERTY);
         let start = self.mark();
 
         // spread property
-        if self.peek_token(TokenType::Spread).is_ok() {
+        if self.peek_is(TokenType::Spread) {
             let start = self.mark();
             self.bump(); // eat spread
             let value = self.with_options(
@@ -79,10 +81,10 @@ impl Parser {
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
-            && (self.peek_next_token(TokenType::Identifier).is_ok()
-                || self.peek_next_token(TokenType::Multiply).is_ok()
-                || self.peek_next_token(TokenType::OpenParenthesis).is_ok()
-                || self.peek_next_token(TokenType::LessThan).is_ok())
+            && (self.peek_next_is(TokenType::Identifier)
+                || self.peek_next_is(TokenType::Multiply)
+                || self.peek_next_is(TokenType::OpenParenthesis)
+                || self.peek_next_is(TokenType::LessThan))
         {
             self.bump(); // eat async keyword
             true
@@ -140,31 +142,29 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-            {
+            if self.peek_keyword(Keyword::Get).is_ok() && self.peek_next_is(TokenType::Identifier) {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_is(TokenType::Identifier)
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
             }
             // constructor
             else if self.peek_keyword(Keyword::Constructor).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+                && (self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::OpenParenthesis))
             {
                 self.bump(); // eat constructor keyword
                 Some(FunctionMode::Constructor)
             }
             // new constructor
             else if self.peek_keyword(Keyword::New).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+                && (self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::OpenParenthesis))
             {
                 self.bump(); // eat new keyword
                 Some(FunctionMode::New)
@@ -184,7 +184,7 @@ impl Parser {
         };
 
         // definite assignment assertion
-        let modifiers = if self.peek_token(TokenType::Not).is_ok() {
+        let modifiers = if self.peek_is(TokenType::Not) {
             self.bump(); // eat !
             let base = modifiers.unwrap_or_default();
             Some(BindingModifier {
@@ -201,8 +201,8 @@ impl Parser {
         // method
         if is_async
             || is_generator
-            || self.peek_token(TokenType::LessThan).is_ok()
-            || self.peek_token(TokenType::OpenParenthesis).is_ok()
+            || self.peek_is(TokenType::LessThan)
+            || self.peek_is(TokenType::OpenParenthesis)
         {
             // abstraction
             let abstraction = modifiers
@@ -353,7 +353,7 @@ impl Parser {
             };
 
             // default
-            let default = if self.peek_token(TokenType::Assign).is_ok() {
+            let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
                 let default = self.with_options(
@@ -400,15 +400,13 @@ impl Parser {
     pub fn eat_properties(&mut self) -> ParseResult<Vec<LocalNodeId<Property>>> {
         // eat everything
         let mut properties: Vec<LocalNodeId<Property>> = Vec::new();
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok()
-                || self.peek_token(TokenType::End).is_ok()
-            {
+            if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
                 break;
             }
             // consume any stop
-            else if self.peek_any_stop().is_ok() {
+            else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
                 continue;
             }
@@ -466,7 +464,7 @@ impl Parser {
         let start = self.mark();
 
         // embed (type embedding via ...Type)
-        if self.peek_token(TokenType::Spread).is_ok() {
+        if self.peek_is(TokenType::Spread) {
             let start = self.mark();
             self.bump(); // eat spread
             let value = self.with_options(
@@ -503,9 +501,7 @@ impl Parser {
         }
 
         // type member: `type Name = ...` or `type Name: Bound`
-        if self.peek_keyword(Keyword::Type).is_ok()
-            && self.peek_next_token(TokenType::Identifier).is_ok()
-        {
+        if self.peek_keyword(Keyword::Type).is_ok() && self.peek_next_is(TokenType::Identifier) {
             self.bump(); // eat type keyword
             // name is just an identifier (path)
             let path_start = self.mark();
@@ -528,7 +524,7 @@ impl Parser {
                 None
             };
             // optional value: `= Type`
-            let value = if self.peek_token(TokenType::Assign).is_ok() {
+            let value = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 Some(self.with_options(self.options.in_type(), |parser| parser.eat_expression())?)
             } else {
@@ -562,10 +558,10 @@ impl Parser {
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok()
-            && (self.peek_next_token(TokenType::Identifier).is_ok()
-                || self.peek_next_token(TokenType::Multiply).is_ok()
-                || self.peek_next_token(TokenType::OpenParenthesis).is_ok()
-                || self.peek_next_token(TokenType::LessThan).is_ok())
+            && (self.peek_next_is(TokenType::Identifier)
+                || self.peek_next_is(TokenType::Multiply)
+                || self.peek_next_is(TokenType::OpenParenthesis)
+                || self.peek_next_is(TokenType::LessThan))
         {
             self.bump(); // eat async keyword
             true
@@ -623,31 +619,29 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
-            {
+            if self.peek_keyword(Keyword::Get).is_ok() && self.peek_next_is(TokenType::Identifier) {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
-                && self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next_is(TokenType::Identifier)
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
             }
             // constructor
             else if self.peek_keyword(Keyword::Constructor).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+                && (self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::OpenParenthesis))
             {
                 self.bump(); // eat constructor keyword
                 Some(FunctionMode::Constructor)
             }
             // new constructor
             else if self.peek_keyword(Keyword::New).is_ok()
-                && (self.peek_next_token(TokenType::LessThan).is_ok()
-                    || self.peek_next_token(TokenType::OpenParenthesis).is_ok())
+                && (self.peek_next_is(TokenType::LessThan)
+                    || self.peek_next_is(TokenType::OpenParenthesis))
             {
                 self.bump(); // eat new keyword
                 Some(FunctionMode::New)
@@ -670,7 +664,7 @@ impl Parser {
         };
 
         // definite assignment assertion
-        let modifiers = if self.peek_token(TokenType::Not).is_ok() {
+        let modifiers = if self.peek_is(TokenType::Not) {
             self.bump(); // eat !
             let base = modifiers.unwrap_or_default();
             Some(BindingModifier {
@@ -687,8 +681,8 @@ impl Parser {
         // method
         if is_async
             || is_generator
-            || self.peek_token(TokenType::LessThan).is_ok()
-            || self.peek_token(TokenType::OpenParenthesis).is_ok()
+            || self.peek_is(TokenType::LessThan)
+            || self.peek_is(TokenType::OpenParenthesis)
         {
             // abstraction
             let abstraction = modifiers
@@ -843,7 +837,7 @@ impl Parser {
             };
 
             // default
-            let default = if self.peek_token(TokenType::Assign).is_ok() {
+            let default = if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
                 self.eat_newlines_maybe()?;
                 let default = self.with_options(
@@ -888,15 +882,13 @@ impl Parser {
     /// Eat members (class/struct/interface/extension body).
     pub fn eat_members(&mut self) -> ParseResult<Vec<LocalNodeId<Member>>> {
         let mut members: Vec<LocalNodeId<Member>> = Vec::new();
-        while self.peek().is_ok() {
+        while self.has_more_tokens() {
             // stop on closing brace
-            if self.peek_token(TokenType::CloseBrace).is_ok()
-                || self.peek_token(TokenType::End).is_ok()
-            {
+            if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
                 break;
             }
             // consume any stop
-            else if self.peek_any_stop().is_ok() {
+            else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
                 continue;
             }
