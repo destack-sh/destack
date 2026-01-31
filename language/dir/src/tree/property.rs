@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalSymbolId, Mutability, Node,
-    NodeType, StaticExpression, Visibility,
+    DeclarationKind, DynamicKey, Expression, FunctionSignature, LocalNodeId, LocalSymbolId,
+    Mutability, Node, NodeType, StaticExpression, Visibility,
 };
 
 /// Static property in some static context.
@@ -110,6 +110,8 @@ pub enum Timing {
 pub struct BindingModifier {
     /// The kind of the binding.
     pub kind: Option<BindingKind>,
+    /// The declaration kind of the binding.
+    pub declaration: Option<DeclarationKind>,
     /// The abstraction modifier of the binding.
     pub abstraction: Option<AbstractionModifier>,
     /// The variance of a type parameter.

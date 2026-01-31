@@ -7,16 +7,19 @@ use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::collapsible_match)]
 impl Compiler {
-    /// Check if a binding modifier indicates a parameter property (visibility or readonly).
+    /// Check whether a binding modifier indicates a parameter property.
     fn is_parameter_property(&self, modifiers: &BindingModifier) -> bool {
         modifiers.visibility.is_some() || modifiers.mutability == Some(Mutability::Immutable)
     }
 
-    /// Check if a parameter's parent is a constructor.
+    /// Check whether a parameter belongs to a constructor.
     fn is_in_constructor(&self, tree: &NodeTree, parameter_id: LocalNodeId<Parameter>) -> bool {
+        // read the parent node
         let Some(parent) = tree.get_parent(parameter_id.id) else {
             return false;
         };
+
+        // validate constructor ownership
         match parent.ty {
             NodeType::Member => {
                 let member = tree.get(LocalNodeId::<Member>::new(parent.id));
@@ -55,14 +58,25 @@ impl Compiler {
         id: LocalNodeId<Parameter>,
         parameter: &Parameter,
     ) {
+        // normalize parameter property state
+        let modifiers = parameter.modifiers();
+        let is_parameter_property =
+            modifiers.is_some_and(|modifiers| self.is_parameter_property(modifiers));
+
         // parameter properties only allowed in constructors
-        if let Some(m) = parameter.modifiers()
-            && self.is_parameter_property(m)
-            && !self.is_in_constructor(tree, id)
-        {
-            self.error(AnalyzeError::InvalidParameterProperty {
-                node: GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile)),
-            });
+        if is_parameter_property && !self.is_in_constructor(tree, id) {
+            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidParameterProperty { node });
+        }
+
+        // parameter properties cannot use binding patterns
+        let is_binding_pattern = matches!(
+            parameter,
+            Parameter::Pattern { .. } | Parameter::Variadic { .. }
+        );
+        if is_parameter_property && is_binding_pattern {
+            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidParameterProperty { node });
         }
     }
 }

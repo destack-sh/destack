@@ -212,3 +212,16 @@ declare function getUser(): User;
 
 const named: Named = getUser();
 ```
+
+## invalid implements
+
+### classes cannot declare empty implements clauses
+
+> Classes cannot declare empty implements clauses.
+
+```ds
+class Counter implements {
+}
+```
+
+- contains: invalid lineage

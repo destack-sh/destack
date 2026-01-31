@@ -23,6 +23,7 @@ impl Compiler {
         // ensure we have a modifier to update
         let mut modifiers = modifiers.unwrap_or(BindingModifier {
             kind: None,
+            declaration: None,
             abstraction: None,
             variance: None,
             anchor: None,

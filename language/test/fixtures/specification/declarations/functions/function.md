@@ -36,6 +36,20 @@ function greet(name: string): string {
 }
 ```
 
+## invalid declarations
+
+### declare functions cannot have bodies
+
+> Declared functions cannot include bodies.
+
+```ds
+declare function greet(): string {
+    return "hi";
+}
+```
+
+- contains: invalid function
+
 ## noImplicitReturns
 
 ### noImplicitReturns rejects missing return in block body

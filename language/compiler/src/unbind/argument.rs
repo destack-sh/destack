@@ -18,6 +18,10 @@ impl Compiler {
             dir::BindingKind::Must => ast::BindingKind::Must,
             dir::BindingKind::Maybe => ast::BindingKind::Maybe,
         });
+        let declaration = modifiers.declaration.map(|kind| match kind {
+            dir::DeclarationKind::Declaration => ast::DeclarationKind::Declaration,
+            dir::DeclarationKind::Definition => ast::DeclarationKind::Definition,
+        });
         let abstraction = modifiers.abstraction.map(|abstraction| match abstraction {
             dir::AbstractionModifier::Abstract => ast::AbstractionModifier::Abstract,
             dir::AbstractionModifier::Override => ast::AbstractionModifier::Override,
@@ -54,6 +58,7 @@ impl Compiler {
         });
         ast::BindingModifier {
             kind,
+            declaration,
             abstraction,
             variance,
             anchor,

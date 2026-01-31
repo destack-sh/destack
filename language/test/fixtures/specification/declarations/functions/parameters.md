@@ -44,3 +44,16 @@ repeat(1);
 ```
 
 - contains: is not assignable
+
+## invalid parameter properties
+
+### function parameters cannot be parameter properties
+
+> Parameter property modifiers are only allowed in constructors.
+
+```ds
+function build(public value: number) {
+}
+```
+
+- contains: parameter property

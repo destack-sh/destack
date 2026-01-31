@@ -127,3 +127,264 @@ const value = counter.make();
 ```
 
 - contains: does not exist
+
+## invalid members
+
+### abstract fields cannot have initializers
+
+> Abstract fields are declarations only and cannot include initializers.
+
+```ds
+abstract class Counter {
+    abstract value: int32 = 1;
+}
+```
+
+- contains: invalid member modifier
+
+### readonly does not apply to methods
+
+> Readonly modifiers are only valid on fields.
+
+```ds
+class Counter {
+    readonly increment(): int32 {
+        1
+    }
+}
+```
+
+- contains: invalid member modifier
+
+### declare fields cannot include initializers
+
+> Declared fields cannot include initializers.
+
+```ds
+class Counter {
+    declare value: int32 = 1;
+}
+```
+
+- contains: invalid member modifier
+
+### override constructors are invalid
+
+> Constructors cannot use override modifiers.
+
+```ds
+class Base {}
+
+class Counter extends Base {
+    override constructor() {}
+}
+```
+
+- contains: invalid constructor
+
+### abstract methods cannot have bodies
+
+> Abstract methods are declarations only.
+
+```ds
+abstract class Counter {
+    abstract increment(): void {}
+}
+```
+
+- contains: invalid abstract method
+
+### abstract methods require abstract classes
+
+> Abstract methods can only appear in abstract classes.
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": false } }
+```
+
+```ds
+class Counter {
+    abstract increment(): void;
+}
+```
+
+- contains: invalid abstract method
+
+### static abstract methods are invalid
+
+> Static methods cannot be abstract.
+
+```ds
+abstract class Counter {
+    static abstract increment(): void;
+}
+```
+
+- contains: invalid member modifier
+
+### constructors cannot have static parameters
+
+> Constructors cannot declare static parameters.
+
+```ds
+class Counter {
+    constructor<T>(value: T) {}
+}
+```
+
+- contains: invalid constructor
+
+### declare methods cannot have bodies
+
+> Declared methods cannot include bodies.
+
+```ds
+class Counter {
+    declare increment(): void {}
+}
+```
+
+- contains: invalid member modifier
+
+### declare accessors are invalid
+
+> Declared members cannot use accessors.
+
+```ds
+class Counter {
+    declare get value(): number;
+}
+```
+
+- contains: invalid member modifier
+
+### declare override is invalid
+
+> Declared members cannot be overrides.
+
+```ds
+class Base {
+    greet(): void {}
+}
+
+class Counter extends Base {
+    declare override greet(): void;
+}
+```
+
+- contains: invalid member modifier
+
+### abstract fields require abstract classes
+
+> Abstract fields only appear in abstract classes.
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": false } }
+```
+
+```ds
+class Counter {
+    abstract value: int32;
+}
+```
+
+- contains: invalid member modifier
+
+### private abstract fields are invalid
+
+> Private fields cannot be abstract.
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": false } }
+```
+
+```ds
+abstract class Counter {
+    abstract #value: int32;
+}
+```
+
+- contains: invalid member modifier
+
+### auto accessors cannot be combined with readonly
+
+> Auto accessors cannot combine with readonly modifiers.
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": false } }
+```
+
+```ds
+class Counter {
+    accessor readonly value: int32;
+}
+```
+
+- contains: invalid member modifier
+
+### declare abstract fields are invalid
+
+> Declared fields cannot be abstract.
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": false } }
+```
+
+```ds
+abstract class Counter {
+    declare abstract value: int32;
+}
+```
+
+- contains: invalid member modifier
+
+### index signatures cannot use modifiers
+
+> Index signatures cannot use visibility or static modifiers.
+
+```ds
+class Counter {
+    public [key: string]: int32;
+}
+```
+
+- contains: invalid member modifier
+
+### static blocks cannot use modifiers
+
+> Static class blocks cannot be modified.
+
+```ds
+class Counter {
+    public static {
+        const value = 1;
+        value;
+    }
+}
+```
+
+- contains: static class blocks cannot have any modifier
+
+### parameter properties require identifiers
+
+> Parameter properties cannot use binding patterns.
+
+```ds
+class Counter {
+    constructor(public {}: {}) {}
+}
+```
+
+- contains: parameter property
+
+### parameter properties cannot be rest parameters
+
+> Parameter properties cannot be variadic.
+
+```ds
+class Counter {
+    constructor(public ...values: int32[]) {}
+}
+```
+
+- contains: parameter property
