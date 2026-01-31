@@ -359,10 +359,21 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
     let total_all = timings
         .iter()
         .fold(Duration::ZERO, |acc, entry| acc + entry.total);
-    let total_modules = timings.iter().map(|entry| entry.module_count).sum::<usize>();
+    let total_modules = timings
+        .iter()
+        .map(|entry| entry.module_count)
+        .sum::<usize>();
     let total_lines = timings.iter().map(|entry| entry.total_lines).sum::<usize>();
-    let min_lines = timings.iter().map(|entry| entry.min_lines).min().unwrap_or(0);
-    let max_lines = timings.iter().map(|entry| entry.max_lines).max().unwrap_or(0);
+    let min_lines = timings
+        .iter()
+        .map(|entry| entry.min_lines)
+        .min()
+        .unwrap_or(0);
+    let max_lines = timings
+        .iter()
+        .map(|entry| entry.max_lines)
+        .max()
+        .unwrap_or(0);
     let mean_lines = if total_modules == 0 {
         0.0
     } else {
@@ -539,7 +550,8 @@ fn output_table(timings: &[LibTiming], options: &BenchOptions) {
         min = format_count(min_lines),
         max = format_count(max_lines),
         mean = format_mean_lines(mean_lines),
-        lines_per_sec = format_lines_per_sec(total_lines as f64 / total_all.as_secs_f64().max(0.000_001)),
+        lines_per_sec =
+            format_lines_per_sec(total_lines as f64 / total_all.as_secs_f64().max(0.000_001)),
         lib_width = widths.lib,
         import_width = widths.import,
         resolve_width = widths.resolve,
