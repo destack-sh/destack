@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::time::{Duration, Instant};
 
 use destack_builtin::{BuiltinLib, BuiltinLibKind, LIBS, STD_LIB};
@@ -77,6 +77,8 @@ pub enum BenchRun {
     AnalyzeFull,
     /// Analyze a combined lib set in one program.
     AnalyzeCombined,
+    /// List builtin lib modules in dependency order.
+    ListModules,
 }
 
 impl BenchRun {
@@ -84,6 +86,7 @@ impl BenchRun {
     fn default_timeout(self) -> Duration {
         match self {
             Self::AnalyzeFull => Duration::from_secs(300),
+            Self::ListModules => Duration::from_secs(30),
             _ => Duration::from_secs(60),
         }
     }
@@ -189,6 +192,7 @@ pub fn run_bench(options: &BenchOptions) {
         BenchRun::AnalyzeFast => run_analyze_all_builtin_libs_fast(options),
         BenchRun::AnalyzeFull => run_analyze_all_builtin_libs_full(options),
         BenchRun::AnalyzeCombined => run_analyze_builtin_libs_combined(options),
+        BenchRun::ListModules => run_list_builtin_lib_modules(options),
     }
 }
 
@@ -580,4 +584,196 @@ fn run_builtin_libs_combined(options: &BenchOptions) {
     }
 
     output_results(std::slice::from_ref(&timing), options);
+}
+
+/// List builtin lib modules in dependency order.
+fn run_list_builtin_lib_modules(options: &BenchOptions) {
+    // resolve the combined lib list
+    let mut libs = if let Some(list) = options.combined_libs.as_ref() {
+        list.clone()
+    } else {
+        builtin_lib_list_from_env()
+    };
+
+    // ensure std and globals are always present
+    if !libs.iter().any(|name| name == "std") {
+        libs.push("std".to_string());
+    }
+    if !libs.iter().any(|name| name == "globals") {
+        libs.push("globals".to_string());
+    }
+
+    // include a baseline es lib for runtime libraries that require them
+    let has_es = libs.iter().any(|name| name.starts_with("es"));
+    let has_decorators = libs.iter().any(|name| name.starts_with("decorators"));
+    if !has_es && !has_decorators {
+        libs.push("es2020".to_string());
+    }
+
+    let lib_refs: Vec<&str> = libs.iter().map(|name| name.as_str()).collect();
+    let test = test_program_for_mode(options.mode).with_profile_libs(&lib_refs);
+    let timeout = options.effective_timeout();
+
+    let (import_modules, _import_duration) = import_lib_modules(&test, &lib_refs, timeout);
+
+    let mut entries = Vec::new();
+    let mut lib_stats = BTreeMap::new();
+    let mut histogram = LineHistogram::new();
+    let mut seen_modules = HashSet::new();
+    for module_id in import_modules {
+        if !seen_modules.insert(module_id) {
+            continue;
+        }
+
+        let module_ref = test.program.modules.get(module_id);
+        let module = module_ref.read();
+        let display = module
+            .path
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| module.uri.to_string());
+        let line_count = test
+            .program
+            .files
+            .get_maybe(module.file_id)
+            .map(|file| file.line_count() as usize)
+            .unwrap_or(0);
+        let label = builtin_lib_label_for_module(&display);
+        lib_stats
+            .entry(label)
+            .or_insert_with(LibLineStats::default)
+            .push(line_count);
+        histogram.observe(line_count);
+        entries.push((display, line_count));
+    }
+
+    entries.sort_by(|left, right| left.0.cmp(&right.0));
+
+    println!(
+        "builtin lib modules: {} (libs: {})",
+        entries.len(),
+        libs.join(", ")
+    );
+
+    println!("line stats by lib:");
+    for (label, stats) in lib_stats {
+        let mean_lines = stats.mean_lines();
+        println!(
+            "  {label}: modules={} lines={} min={} max={} mean={mean_lines:.1}",
+            stats.modules, stats.total_lines, stats.min_lines, stats.max_lines
+        );
+    }
+
+    println!("per-module line histogram:");
+    for bucket in histogram.buckets() {
+        println!("  {:>8}: {}", bucket.label, bucket.count);
+    }
+
+    for (entry, line_count) in entries {
+        println!("- {entry} ({line_count} lines)");
+    }
+}
+
+#[derive(Default)]
+struct LibLineStats {
+    modules: usize,
+    total_lines: usize,
+    min_lines: usize,
+    max_lines: usize,
+}
+
+impl LibLineStats {
+    fn push(&mut self, lines: usize) {
+        if self.modules == 0 {
+            self.min_lines = lines;
+            self.max_lines = lines;
+        } else {
+            self.min_lines = self.min_lines.min(lines);
+            self.max_lines = self.max_lines.max(lines);
+        }
+        self.modules += 1;
+        self.total_lines += lines;
+    }
+
+    fn mean_lines(&self) -> f64 {
+        if self.modules == 0 {
+            0.0
+        } else {
+            self.total_lines as f64 / self.modules as f64
+        }
+    }
+}
+
+struct LineHistogram {
+    buckets: Vec<LineBucket>,
+}
+
+impl LineHistogram {
+    fn new() -> Self {
+        Self {
+            buckets: vec![
+                LineBucket::new("0-9", 9),
+                LineBucket::new("10-49", 49),
+                LineBucket::new("50-99", 99),
+                LineBucket::new("100-499", 499),
+                LineBucket::new("500-999", 999),
+                LineBucket::new("1000-4999", 4_999),
+                LineBucket::new("5000+", usize::MAX),
+            ],
+        }
+    }
+
+    fn observe(&mut self, lines: usize) {
+        for bucket in &mut self.buckets {
+            if lines <= bucket.max {
+                bucket.count += 1;
+                break;
+            }
+        }
+    }
+
+    fn buckets(&self) -> &[LineBucket] {
+        &self.buckets
+    }
+}
+
+struct LineBucket {
+    label: &'static str,
+    max: usize,
+    count: usize,
+}
+
+impl LineBucket {
+    fn new(label: &'static str, max: usize) -> Self {
+        Self {
+            label,
+            max,
+            count: 0,
+        }
+    }
+}
+
+fn builtin_lib_label_for_module(display: &str) -> String {
+    let Some(rest) = display.strip_prefix("builtin://") else {
+        return "other".to_string();
+    };
+
+    let mut segments = rest.split('/');
+    let Some(head) = segments.next() else {
+        return "other".to_string();
+    };
+    if head == "std" {
+        return "std".to_string();
+    }
+    if head == "globals" {
+        return "globals".to_string();
+    }
+    if head != "lib" {
+        return head.to_string();
+    }
+
+    let Some(lib_name) = segments.next() else {
+        return "lib".to_string();
+    };
+    format!("lib/{lib_name}")
 }
