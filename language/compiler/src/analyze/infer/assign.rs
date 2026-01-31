@@ -112,6 +112,29 @@ impl Compiler {
         )
     }
 
+    /// Check assignability assuming apparent type normalization is already applied.
+    pub(crate) fn is_type_assignable_normalized(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Assignability {
+        // same type id: trivially assignable
+        if target_id == source_id {
+            return Assignability::Assignable;
+        }
+
+        let _timing = self.timing_scope(tags::ANALYZE_INFER_ASSIGN_CHECK);
+
+        self.is_type_assignable_inner(
+            module, profile, symbols, target_id, source_id, types, options,
+        )
+    }
+
     /// Inner assignability check on Type values.
     fn is_type_assignable_inner(
         &self,
