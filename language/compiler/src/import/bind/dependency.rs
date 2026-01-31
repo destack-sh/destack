@@ -2,7 +2,7 @@ use destack_ast::{self as ast};
 use destack_base::StringId;
 use destack_dir::{
     DependencyItem, DependencyKind, DependencyMode, DependencySource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, Mutability, Name, NodeTree, NodeType, StaticKey, SymbolSpace,
+    LocalScopeId, LocalScopeMark, Mutability, NodeTree, NodeType, StaticKey, SymbolSpace,
     SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 

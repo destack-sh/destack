@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use crate::resolve::cache::ResolveExpressionCache;
-use crate::resolve::cache::ResolveDependencyItemCache;
+use crate::resolve::cache::{ResolveDependencyItemCache, ResolveExpressionCache};
 use crate::timing::tags;
 use crate::{Compiler, ImportError, ResolveError, ResolveResult, TaskResultCollector};
 use destack_builtin::builtin_lib;
@@ -496,11 +495,11 @@ impl Compiler {
                                 profile,
                                 *expression_id,
                                 &mut tree,
-                                    &symbols,
-                                    &mut expression_cache,
-                                ),
-                            );
-                        }
+                                &symbols,
+                                &mut expression_cache,
+                            ),
+                        );
+                    }
                     if let Some(dependency) = collector.try_into_yield_any() {
                         return Err(ResolveError::Yield { dependency });
                     }

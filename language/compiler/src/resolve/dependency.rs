@@ -14,7 +14,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::resolve::cache::{
     BindingExportCacheKey, ExportAssignmentTarget, NamespaceExportSymbolCacheKey,
-    NamespaceSymbolCacheKey, RemoteSymbolCacheKey, ReexportChainCacheKey,
+    NamespaceSymbolCacheKey, ReexportChainCacheKey, RemoteSymbolCacheKey,
     ResolveDependencyItemCache, TargetCacheKey,
 };
 use crate::timing::tags;
@@ -375,7 +375,10 @@ impl Compiler {
 
                 // read the export entry for the requested key
                 let export = if let Some(cache) = cache.as_deref_mut() {
-                    cache.module_exports_for(module_id, dir).get(&(space, key)).cloned()
+                    cache
+                        .module_exports_for(module_id, dir)
+                        .get(&(space, key))
+                        .cloned()
                 } else {
                     let exports = dir.exported_symbols.read();
                     exports.get(&(space, key)).cloned()
@@ -1632,7 +1635,8 @@ impl Compiler {
                     target,
                     ..
                 } => {
-                    let Some(name) = alias.or(*name) else {
+                    let name = name.map(|name| name.string());
+                    let Some(name) = alias.or(name) else {
                         continue;
                     };
 
@@ -1664,7 +1668,8 @@ impl Compiler {
                     target_module,
                     ..
                 } => {
-                    let Some(name) = alias.or(*name) else {
+                    let name = name.map(|name| name.string());
+                    let Some(name) = alias.or(name) else {
                         continue;
                     };
                     redirects_by_scope
