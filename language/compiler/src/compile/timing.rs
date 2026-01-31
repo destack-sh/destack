@@ -79,6 +79,12 @@ pub mod tags {
         TimingTag::new("import.module.parse.cache.write");
     pub const IMPORT_MODULE_PARSE_LEX: TimingTag = TimingTag::new("import.module.parse.lex");
     pub const IMPORT_MODULE_PARSE_TREE: TimingTag = TimingTag::new("import.module.parse.tree");
+    pub const IMPORT_MODULE_PARSE_MAIN: TimingTag = TimingTag::new("import.module.parse.main");
+    pub const IMPORT_MODULE_PARSE_FINISH: TimingTag = TimingTag::new("import.module.parse.finish");
+    pub const IMPORT_MODULE_PARSE_ANNOTATIONS: TimingTag =
+        TimingTag::new("import.module.parse.annotations");
+    pub const IMPORT_MODULE_PARSE_POSITIONS: TimingTag =
+        TimingTag::new("import.module.parse.positions");
     pub const IMPORT_MODULE_BIND: TimingTag = TimingTag::new("import.module.bind");
     pub const IMPORT_MODULE_DESUGAR: TimingTag = TimingTag::new("import.module.desugar");
     pub const IMPORT_MODULE_VALIDATE: TimingTag = TimingTag::new("import.module.validate");

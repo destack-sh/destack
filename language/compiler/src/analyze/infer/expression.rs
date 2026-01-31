@@ -3425,9 +3425,8 @@ impl Compiler {
                     tree,
                     types,
                 ) {
-                    let declared_signature_ty_id = declared_signature_ty_id.expect(
-                        "declared signature type required for skipped signature inference",
-                    );
+                    let declared_signature_ty_id = declared_signature_ty_id
+                        .expect("declared signature type required for skipped signature inference");
                     self.bind_declared_signature(
                         module,
                         property_id.into_any(),
@@ -3522,9 +3521,9 @@ impl Compiler {
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
-                let is_readonly = modifiers.as_ref().is_some_and(|m| {
-                    matches!(m.mutability, Some(Mutability::Immutable))
-                });
+                let is_readonly = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
                 if let Some(key) = static_key {
                     Ok(Some(ObjectLiteralField {
                         field: TypeField {

@@ -547,10 +547,26 @@ impl Parser {
     /// Finish parsing. You don't need to call this manually if using Parser::parse().
     pub fn finish(&mut self) {
         if !self.is_finished {
-            self.attach_annotations();
-            self.tree.build_position_index();
+            self.finish_annotations();
+            self.finish_positions();
             self.is_finished = true;
         }
+    }
+
+    /// Attach annotation nodes after parsing.
+    pub fn finish_annotations(&mut self) {
+        if self.is_finished {
+            return;
+        }
+        self.attach_annotations();
+    }
+
+    /// Build the position index after parsing.
+    pub fn finish_positions(&mut self) {
+        if self.is_finished {
+            return;
+        }
+        self.tree.build_position_index();
     }
 
     /// Get the current position in the tokens.

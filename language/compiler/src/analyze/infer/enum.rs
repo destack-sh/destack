@@ -218,63 +218,138 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<EnumFieldValue> {
+        // prefer local symbol tables when possible
         if target_symbol.module_id == module.id {
-            // ensure the target is an enum field on this enum
-            let target_entry = symbols.get_symbol(target_symbol.local_id);
-            let primary = target_entry.primary_declaration?;
-            if primary.local_id.ty != NodeType::EnumField {
-                return None;
-            }
-            let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
-            let scope_owner = scope.owner_id?;
-            let scope_owner = scope_owner.into_global(module.id);
-            if scope_owner != enum_symbol
-                && !self.symbols_share_merge_group(enum_symbol, scope_owner, symbols)
-            {
-                return None;
-            }
-
-            if types.get_enum_field_value(target_symbol).is_none() {
-                let tree = module.dir(profile).tree.read();
-                let _ = self.ensure_enum_field_values_for_symbol(
-                    module,
-                    profile,
-                    enum_symbol,
-                    &tree,
-                    symbols,
-                    types,
-                );
-            }
-
-            return types.get_enum_field_value(target_symbol);
+            return self.enum_field_value_for_symbol_reference_in_tables(
+                module,
+                profile,
+                enum_symbol,
+                target_symbol,
+                symbols,
+                types,
+            );
         }
 
         // load remote module data for enum field values
-        self.require_analyze_module_infer(target_symbol.module_id, profile)
+        self.require_analyze_module_declare(target_symbol.module_id, profile)
             .map_err(AnalyzeError::from)
             .ok()?;
         let remote_module = self.program.modules.get(target_symbol.module_id);
         let remote_module = remote_module.read();
         let remote_dir = remote_module.dir(profile);
         let remote_symbols = remote_dir.symbols.read();
-        let remote_types = remote_dir.types.read();
+        let mut remote_types = remote_dir.types.write();
+
+        self.enum_field_value_for_symbol_reference_in_tables(
+            &remote_module,
+            profile,
+            enum_symbol,
+            target_symbol,
+            &remote_symbols,
+            &mut remote_types,
+        )
+    }
+
+    /// Resolve an enum field value from symbol tables and type tables.
+    fn enum_field_value_for_symbol_reference_in_tables(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        target_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<EnumFieldValue> {
+        // validate module ownership for symbol table lookups
+        debug_assert_eq!(target_symbol.module_id, module.id);
 
         // ensure the target is an enum field on this enum
-        let target_entry = remote_symbols.get_symbol(target_symbol.local_id);
+        let target_entry = symbols.get_symbol(target_symbol.local_id);
         let primary = target_entry.primary_declaration?;
         if primary.local_id.ty != NodeType::EnumField {
             return None;
         }
-        let scope = remote_symbols.get_scope_by_symbol(target_symbol.local_id);
+
+        // confirm the field is owned by the enum or merge group
+        let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
         let scope_owner = scope.owner_id?;
-        let scope_owner = scope_owner.into_global(remote_module.id);
+        let scope_owner = scope_owner.into_global(module.id);
         if scope_owner != enum_symbol
-            && !self.symbols_share_merge_group(enum_symbol, scope_owner, &remote_symbols)
+            && !self.symbols_share_merge_group(enum_symbol, scope_owner, symbols)
         {
             return None;
         }
 
-        remote_types.get_enum_field_value(target_symbol)
+        // reuse cached values when possible
+        if let Some(value) = types.get_enum_field_value(target_symbol) {
+            return Some(value);
+        }
+
+        // ensure backing values are inferred
+        let _ = self.enum_backing_type_for_symbol_in_tables(module, profile, enum_symbol, types);
+
+        types.get_enum_field_value(target_symbol)
+    }
+
+    /// Resolve the enum backing type for a symbol, loading remote data when needed.
+    pub(super) fn enum_backing_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> Option<EnumBackingType> {
+        // prefer local type tables when possible
+        if enum_symbol.module_id == module.id {
+            return self.enum_backing_type_for_symbol_in_tables(
+                module,
+                profile,
+                enum_symbol,
+                types,
+            );
+        }
+
+        // load remote module data for backing types
+        self.require_analyze_module_declare(enum_symbol.module_id, profile)
+            .map_err(AnalyzeError::from)
+            .ok()?;
+        let remote_module = self.program.modules.get(enum_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let mut remote_types = remote_dir.types.write();
+
+        self.enum_backing_type_for_symbol_in_tables(
+            &remote_module,
+            profile,
+            enum_symbol,
+            &mut remote_types,
+        )
+    }
+
+    /// Resolve the enum backing type for a local symbol using available tables.
+    fn enum_backing_type_for_symbol_in_tables(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> Option<EnumBackingType> {
+        // validate module ownership for symbol table lookups
+        debug_assert_eq!(enum_symbol.module_id, module.id);
+
+        // reuse cached backing types
+        if let Some(backing) = types.get_enum_backing_type(enum_symbol) {
+            return Some(backing);
+        }
+
+        // ensure backing values are inferred
+        if let Err(error) =
+            self.ensure_enum_backing_type_for_symbol(module, profile, enum_symbol, types)
+        {
+            self.error(error);
+        }
+
+        types.get_enum_backing_type(enum_symbol)
     }
 
     /// Check whether two symbols share the same merge group.
@@ -296,40 +371,59 @@ impl Compiler {
         }
     }
 
-    /// Ensure enum field values are available for a symbol when possible.
-    fn ensure_enum_field_values_for_symbol(
+    /// Ensure enum backing type and field values are available for a symbol when possible.
+    pub(super) fn ensure_enum_backing_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
         enum_symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, tree, symbols);
+    ) -> AnalyzeResult<Option<EnumBackingType>> {
+        if let Some(backing) = types.get_enum_backing_type(enum_symbol) {
+            return Ok(Some(backing));
+        }
+
+        // resolve backing types in remote modules when needed
+        if enum_symbol.module_id != module.id {
+            self.require_analyze_module_declare(enum_symbol.module_id, profile)
+                .map_err(AnalyzeError::from)?;
+            let remote_module = self.program.modules.get(enum_symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_dir = remote_module.dir(profile);
+            let mut remote_types = remote_dir.types.write();
+
+            if let Some(backing) = remote_types.get_enum_backing_type(enum_symbol) {
+                return Ok(Some(backing));
+            }
+
+            return self.ensure_enum_backing_type_for_symbol(
+                &remote_module,
+                profile,
+                enum_symbol,
+                &mut remote_types,
+            );
+        }
+
+        // resolve backing types in local modules
+        let tree = module.dir(profile).tree.read();
+        let symbols = module.dir(profile).symbols.read();
+        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, &tree, &symbols);
         if fields.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
-        let values_ready = fields.iter().all(|field_id| {
-            let field = tree.get(*field_id);
-            let field_symbol = field.symbol.into_global(module.id);
-            types.get_enum_field_value(field_symbol).is_some()
-        });
-        if values_ready {
-            return Ok(());
-        }
-
-        let _ = self.infer_enum_field_values(
+        let backing_type = self.infer_enum_field_values(
             module,
             profile,
             enum_symbol,
             &fields,
-            tree,
-            symbols,
+            &tree,
+            &symbols,
             types,
         )?;
-        Ok(())
+        types.set_enum_backing_type(enum_symbol, backing_type);
+
+        Ok(Some(backing_type))
     }
 
     /// Collect enum field ids for a symbol in a single tree.

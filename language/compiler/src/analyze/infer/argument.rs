@@ -1125,7 +1125,7 @@ impl Compiler {
         literal: &ScalarLiteral,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         // resolve the enum symbol for the constraint when possible
         let enum_symbol = self.enum_symbol_for_type(types.get_type(constraint_ty_id), types);
@@ -1133,14 +1133,9 @@ impl Compiler {
             return Ok(false);
         };
 
-        // ensure remote enums are inferred before checking their values
-        if enum_symbol.module_id != module.id {
-            self.require_analyze_module_infer(enum_symbol.module_id, profile)
-                .map_err(AnalyzeError::from)?;
-        }
-
         // select the module context for the enum
         let matches = if enum_symbol.module_id == module.id {
+            let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types);
             self.enum_literal_matches_symbol(enum_symbol, literal, tree, symbols, types)
         } else {
             let remote_module = self.program.modules.get(enum_symbol.module_id);
@@ -1148,7 +1143,13 @@ impl Compiler {
             let remote_dir = remote_module.dir(profile);
             let remote_tree = remote_dir.tree.read();
             let remote_symbols = remote_dir.symbols.read();
-            let remote_types = remote_dir.types.read();
+            let mut remote_types = remote_dir.types.write();
+            let _ = self.enum_backing_type_for_symbol(
+                &remote_module,
+                profile,
+                enum_symbol,
+                &mut remote_types,
+            );
             self.enum_literal_matches_symbol(
                 enum_symbol,
                 literal,
