@@ -249,7 +249,32 @@ pub enum Type {
 impl Type {
     /// Whether the type is evaluated.
     pub fn is_evaluated(&self) -> bool {
-        !matches!(self, Type::Unevaluated { .. } | Type::InferVar { .. })
+        !matches!(self, Type::Unevaluated(_) | Type::InferVar { .. })
+    }
+
+    /// Whether the type is unevaluated.
+    pub fn is_unevaluated(&self) -> bool {
+        matches!(self, Type::Unevaluated(_))
+    }
+
+    /// Whether the type is an error.
+    pub fn is_error(&self) -> bool {
+        matches!(self, Type::Error)
+    }
+
+    /// Whether the type is an unknown literal.
+    pub fn is_unknown(&self) -> bool {
+        matches!(
+            self,
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown
+            }
+        )
+    }
+
+    /// Whether the type is an error or unknown literal.
+    pub fn is_error_or_unknown(&self) -> bool {
+        self.is_error() || self.is_unknown()
     }
 
     /// Get the type symbol if this type is a direct reference to a declared type.
