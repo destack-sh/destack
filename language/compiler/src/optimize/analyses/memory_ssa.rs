@@ -871,6 +871,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::VectorExtract { .. }
             | mir::Instruction::VectorInsert { .. }
             | mir::Instruction::VectorShuffle { .. }
+            | mir::Instruction::VectorSelect { .. }
             | mir::Instruction::VectorReduce { .. }
             | mir::Instruction::VectorCompare { .. }
             | mir::Instruction::VectorConvert { .. }
@@ -888,6 +889,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::TensorGather { .. }
             | mir::Instruction::TensorScatter { .. }
             | mir::Instruction::TensorCompare { .. }
+            | mir::Instruction::TensorSelect { .. }
             | mir::Instruction::TensorConvert { .. }
             | mir::Instruction::Assume { .. } => SmallVec::new(),
             mir::Instruction::TensorLoad { view, .. } => {
@@ -1818,13 +1820,20 @@ impl<'a> MemoryAccessCollector<'a> {
                 effects
             }
             mir::Intrinsic::AtomicCas
+            | mir::Intrinsic::AtomicCasWeak
+            | mir::Intrinsic::AtomicExchange
             | mir::Intrinsic::AtomicFetchAdd
             | mir::Intrinsic::AtomicFetchSub
             | mir::Intrinsic::AtomicFetchAnd
             | mir::Intrinsic::AtomicFetchOr
             | mir::Intrinsic::AtomicFetchXor
             | mir::Intrinsic::AtomicFetchMin
-            | mir::Intrinsic::AtomicFetchMax => {
+            | mir::Intrinsic::AtomicFetchMax
+            | mir::Intrinsic::AtomicFetchUmin
+            | mir::Intrinsic::AtomicFetchUmax
+            | mir::Intrinsic::AtomicFetchFadd
+            | mir::Intrinsic::AtomicFetchFmin
+            | mir::Intrinsic::AtomicFetchFmax => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
                 let pointer = args.first().copied();

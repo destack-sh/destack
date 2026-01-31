@@ -689,6 +689,54 @@ pub(crate) fn execute_cast(
             }
         }
 
+        mir::CastOperator::FloatToSignedIntSaturating => {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
+            };
+            match argument.tag() {
+                ValueTag::Float64 => {
+                    let f = f64::from_bits(argument.raw_data());
+                    let (min_bound, max_bound) =
+                        integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
+                    let converted = float_to_int_saturating(f, min_bound, max_bound);
+                    Value::int(converted as i64, target_width)
+                }
+                ValueTag::Float32 => {
+                    let f = f32::from_bits(argument.raw_data() as u32);
+                    let (min_bound, max_bound) =
+                        integer_bounds(target_width, true).ok_or(Error::InvalidCast)?;
+                    let converted = float_to_int_saturating(f as f64, min_bound, max_bound);
+                    Value::int(converted as i64, target_width)
+                }
+                _ => argument,
+            }
+        }
+
+        mir::CastOperator::FloatToUnsignedIntSaturating => {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
+            };
+            match argument.tag() {
+                ValueTag::Float64 => {
+                    let f = f64::from_bits(argument.raw_data());
+                    let (min_bound, max_bound) =
+                        integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
+                    let converted = float_to_int_saturating(f, min_bound, max_bound);
+                    Value::uint(converted as u64, target_width)
+                }
+                ValueTag::Float32 => {
+                    let f = f32::from_bits(argument.raw_data() as u32);
+                    let (min_bound, max_bound) =
+                        integer_bounds(target_width, false).ok_or(Error::InvalidCast)?;
+                    let converted = float_to_int_saturating(f as f64, min_bound, max_bound);
+                    Value::uint(converted as u64, target_width)
+                }
+                _ => argument,
+            }
+        }
+
         mir::CastOperator::SignedIntToFloat => {
             let target_width = match target_type {
                 mir::Type::Float { width } => *width,
@@ -877,4 +925,47 @@ fn float_to_int_checked(value: f64, min_bound: i128, max_bound: i128) -> Option<
     }
 
     Some(truncated)
+}
+
+/// Convert a float to an integer using saturating semantics.
+fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
+    if value.is_nan() {
+        return 0;
+    }
+
+    if !value.is_finite() {
+        return if value.is_sign_negative() {
+            min_bound
+        } else {
+            max_bound
+        };
+    }
+
+    let min_float = min_bound as f64;
+    let max_float = max_bound as f64;
+    let max_rounded = max_float.trunc() as i128;
+    let max_is_rounded_up = max_rounded > max_bound;
+
+    if value <= min_float {
+        return min_bound;
+    }
+
+    if max_is_rounded_up {
+        if value >= max_float {
+            return max_bound;
+        }
+    } else if value >= max_float {
+        return max_bound;
+    }
+
+    let truncated = value.trunc() as i128;
+    if truncated < min_bound {
+        return min_bound;
+    }
+
+    if truncated > max_bound {
+        return max_bound;
+    }
+
+    truncated
 }

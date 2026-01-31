@@ -1751,6 +1751,80 @@ pub(crate) fn handle_tensor_compare(
     next!(state, block, pc)
 }
 
+/// Handle tensor.select.
+pub(crate) fn handle_tensor_select(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    let ThreadedInstructionData::TensorSelect {
+        dest,
+        mask,
+        then_value,
+        else_value,
+        dest_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    let mask_value = state.get(*mask);
+    let then_value = state.get(*then_value);
+    let else_value = state.get(*else_value);
+    let mask_slots = match aggregate_slots(state, mask_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let then_slots = match aggregate_slots(state, then_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let else_slots = match aggregate_slots(state, else_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    if mask_slots.len() != dest_layout.storage_len
+        || then_slots.len() != dest_layout.storage_len
+        || else_slots.len() != dest_layout.storage_len
+    {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching tensor elements".to_string(),
+            actual: format!(
+                "{} vs {} vs {}",
+                mask_slots.len(),
+                then_slots.len(),
+                else_slots.len()
+            ),
+        });
+    }
+
+    let mut output = Vec::with_capacity(dest_layout.storage_len);
+    for ((mask_value, then_slot), else_slot) in mask_slots
+        .iter()
+        .zip(then_slots.iter())
+        .zip(else_slots.iter())
+    {
+        if !matches!(mask_value.tag(), ValueTag::Bool) {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "tensor.select mask element to be bool".to_string(),
+                actual: format!("{mask_value:?}"),
+            });
+        }
+        let select = mask_value.raw_data() != 0;
+        output.push(if select { *then_slot } else { *else_slot });
+    }
+
+    let result = state.interpreter.allocate_aggregate(output);
+    state.set(*dest, result);
+    next!(state, block, pc)
+}
+
 /// Handle tensor.cast.
 pub(crate) fn handle_tensor_cast(
     state: &mut ThreadedState<'_, '_>,

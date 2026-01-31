@@ -7,11 +7,11 @@ mod format;
 mod metadata;
 pub mod parse;
 mod tree;
-mod verify;
+mod validate;
 
 pub use build::*;
 pub use dump::*;
 pub use format::*;
 pub use metadata::*;
 pub use tree::*;
-pub use verify::*;
+pub use validate::*;

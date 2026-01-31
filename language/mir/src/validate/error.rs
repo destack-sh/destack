@@ -2,77 +2,77 @@ use std::fmt;
 
 use crate::{Block, Instruction, Local, LocalNodeId, LocalNodeIdAny, Node, NodeType, Value};
 
-/// Anchor for a verification error.
+/// Anchor for a validation error.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct VerifyAnchor {
+pub struct ValidateAnchor {
     /// The MIR node tied to this error.
     pub node: LocalNodeIdAny,
 }
 
-impl VerifyAnchor {
+impl ValidateAnchor {
     /// Create an anchor for a MIR node.
     pub fn node<T: Node>(node: LocalNodeId<T>) -> Self {
         Self { node: node.into() }
     }
 }
 
-/// Error produced when MIR verification fails.
+/// Error produced when MIR validation fails.
 #[derive(Debug, Clone)]
-pub enum VerifyError {
+pub enum ValidateError {
     /// A function with no blocks still has an entry block.
     FunctionHasEntryWithoutBlocks {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A function is missing its entry block.
     MissingEntryBlock {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// The entry block is not listed in the function blocks.
     EntryBlockNotInFunction {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// Entry block parameters do not match function parameters.
     EntryBlockParameterMismatch {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A block id is listed more than once.
     DuplicateBlockId {
         /// The duplicate block id.
         block_id: LocalNodeId<Block>,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A local id is listed more than once.
     DuplicateLocalId {
         /// The duplicate local id.
         local_id: LocalNodeId<Local>,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// An instruction id is listed more than once.
     DuplicateInstructionId {
         /// The duplicate instruction id.
         instruction_id: LocalNodeId<Instruction>,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A value is defined more than once.
     DuplicateValueDefinition {
         /// The duplicate value.
         value: Value,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A value definition is missing a type entry.
     MissingValueType {
         /// The value missing a type.
         value: Value,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A node reference does not point to the expected node type.
     InvalidNodeReference {
@@ -83,14 +83,14 @@ pub enum VerifyError {
         /// The referenced node id.
         node_id: u32,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A local reference is not defined in the function.
     LocalReferenceNotInFunction {
         /// The unknown local id.
         local_id: LocalNodeId<Local>,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// An argument slice points outside the argument buffer.
     ArgumentSliceOutOfBounds {
@@ -101,21 +101,21 @@ pub enum VerifyError {
         /// The argument buffer length.
         len: usize,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A value is used before it is defined.
     UseOfUndefinedValue {
         /// The undefined value.
         value: Value,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A terminator references an unknown block target.
     UnknownBlockTarget {
         /// The unknown block id.
         block_id: LocalNodeId<Block>,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A block is called with the wrong number of arguments.
     BlockArgumentCountMismatch {
@@ -126,7 +126,7 @@ pub enum VerifyError {
         /// The actual argument count.
         got: usize,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A resume edge has the wrong number of arguments.
     ResumeArgumentCountMismatch {
@@ -137,14 +137,14 @@ pub enum VerifyError {
         /// The actual argument count.
         got: usize,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A switch case value is repeated.
     DuplicateSwitchCaseValue {
         /// The duplicated case value.
         value: i64,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A call has the wrong number of arguments.
     CallArgumentCountMismatch {
@@ -153,7 +153,7 @@ pub enum VerifyError {
         /// The actual argument count.
         got: usize,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// An aggregate constructor has the wrong number of elements.
     AggregateArgumentCountMismatch {
@@ -162,7 +162,7 @@ pub enum VerifyError {
         /// The actual argument count.
         got: usize,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// An aggregate constructor uses the wrong type kind.
     AggregateTypeMismatch {
@@ -171,99 +171,101 @@ pub enum VerifyError {
         /// The found type kind.
         found: &'static str,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// Metadata violates a required invariant.
     MetadataInvariantViolation {
         /// The invariant description.
         message: String,
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A call returns a value for a void function.
     CallReturnValueNotAllowedForVoid {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A void function returns a value.
     ReturnValueNotAllowedForVoid {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A non void function does not return a value.
     ReturnValueRequiredForNonVoid {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
     /// A tail call returns the wrong kind of value for the current function.
     TailCallReturnTypeMismatch {
         /// The anchor for this error.
-        anchor: VerifyAnchor,
+        anchor: ValidateAnchor,
     },
 }
 
-impl VerifyError {
+impl ValidateError {
     /// Return the anchor associated with this error.
-    pub fn anchor(&self) -> Option<VerifyAnchor> {
+    pub fn anchor(&self) -> Option<ValidateAnchor> {
         match self {
-            VerifyError::FunctionHasEntryWithoutBlocks { anchor }
-            | VerifyError::MissingEntryBlock { anchor }
-            | VerifyError::EntryBlockNotInFunction { anchor }
-            | VerifyError::EntryBlockParameterMismatch { anchor }
-            | VerifyError::DuplicateBlockId { anchor, .. }
-            | VerifyError::DuplicateLocalId { anchor, .. }
-            | VerifyError::DuplicateInstructionId { anchor, .. }
-            | VerifyError::DuplicateValueDefinition { anchor, .. }
-            | VerifyError::MissingValueType { anchor, .. }
-            | VerifyError::InvalidNodeReference { anchor, .. }
-            | VerifyError::LocalReferenceNotInFunction { anchor, .. }
-            | VerifyError::ArgumentSliceOutOfBounds { anchor, .. }
-            | VerifyError::UseOfUndefinedValue { anchor, .. }
-            | VerifyError::UnknownBlockTarget { anchor, .. }
-            | VerifyError::BlockArgumentCountMismatch { anchor, .. }
-            | VerifyError::ResumeArgumentCountMismatch { anchor, .. }
-            | VerifyError::DuplicateSwitchCaseValue { anchor, .. }
-            | VerifyError::CallArgumentCountMismatch { anchor, .. }
-            | VerifyError::AggregateArgumentCountMismatch { anchor, .. }
-            | VerifyError::AggregateTypeMismatch { anchor, .. }
-            | VerifyError::MetadataInvariantViolation { anchor, .. }
-            | VerifyError::CallReturnValueNotAllowedForVoid { anchor }
-            | VerifyError::ReturnValueNotAllowedForVoid { anchor }
-            | VerifyError::ReturnValueRequiredForNonVoid { anchor }
-            | VerifyError::TailCallReturnTypeMismatch { anchor } => Some(*anchor),
+            ValidateError::FunctionHasEntryWithoutBlocks { anchor }
+            | ValidateError::MissingEntryBlock { anchor }
+            | ValidateError::EntryBlockNotInFunction { anchor }
+            | ValidateError::EntryBlockParameterMismatch { anchor }
+            | ValidateError::DuplicateBlockId { anchor, .. }
+            | ValidateError::DuplicateLocalId { anchor, .. }
+            | ValidateError::DuplicateInstructionId { anchor, .. }
+            | ValidateError::DuplicateValueDefinition { anchor, .. }
+            | ValidateError::MissingValueType { anchor, .. }
+            | ValidateError::InvalidNodeReference { anchor, .. }
+            | ValidateError::LocalReferenceNotInFunction { anchor, .. }
+            | ValidateError::ArgumentSliceOutOfBounds { anchor, .. }
+            | ValidateError::UseOfUndefinedValue { anchor, .. }
+            | ValidateError::UnknownBlockTarget { anchor, .. }
+            | ValidateError::BlockArgumentCountMismatch { anchor, .. }
+            | ValidateError::ResumeArgumentCountMismatch { anchor, .. }
+            | ValidateError::DuplicateSwitchCaseValue { anchor, .. }
+            | ValidateError::CallArgumentCountMismatch { anchor, .. }
+            | ValidateError::AggregateArgumentCountMismatch { anchor, .. }
+            | ValidateError::AggregateTypeMismatch { anchor, .. }
+            | ValidateError::MetadataInvariantViolation { anchor, .. }
+            | ValidateError::CallReturnValueNotAllowedForVoid { anchor }
+            | ValidateError::ReturnValueNotAllowedForVoid { anchor }
+            | ValidateError::ReturnValueRequiredForNonVoid { anchor }
+            | ValidateError::TailCallReturnTypeMismatch { anchor } => Some(*anchor),
         }
     }
 }
 
-impl fmt::Display for VerifyError {
+impl fmt::Display for ValidateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            VerifyError::FunctionHasEntryWithoutBlocks { .. } => {
+            ValidateError::FunctionHasEntryWithoutBlocks { .. } => {
                 write!(f, "function with no blocks must not have an entry block")
             }
-            VerifyError::MissingEntryBlock { .. } => write!(f, "function must have an entry block"),
-            VerifyError::EntryBlockNotInFunction { .. } => {
+            ValidateError::MissingEntryBlock { .. } => {
+                write!(f, "function must have an entry block")
+            }
+            ValidateError::EntryBlockNotInFunction { .. } => {
                 write!(f, "entry block must be in function blocks")
             }
-            VerifyError::EntryBlockParameterMismatch { .. } => {
+            ValidateError::EntryBlockParameterMismatch { .. } => {
                 write!(f, "entry block parameters must match function parameters")
             }
-            VerifyError::DuplicateBlockId { block_id, .. } => {
+            ValidateError::DuplicateBlockId { block_id, .. } => {
                 write!(f, "duplicate block id block{}", block_id.id)
             }
-            VerifyError::DuplicateLocalId { local_id, .. } => {
+            ValidateError::DuplicateLocalId { local_id, .. } => {
                 write!(f, "duplicate local id local{}", local_id.id)
             }
-            VerifyError::DuplicateInstructionId { instruction_id, .. } => {
+            ValidateError::DuplicateInstructionId { instruction_id, .. } => {
                 write!(f, "duplicate instruction id inst{}", instruction_id.id)
             }
-            VerifyError::DuplicateValueDefinition { value, .. } => {
+            ValidateError::DuplicateValueDefinition { value, .. } => {
                 write!(f, "duplicate value definition v{}", value.id())
             }
-            VerifyError::MissingValueType { value, .. } => {
+            ValidateError::MissingValueType { value, .. } => {
                 write!(f, "missing type for value v{}", value.id())
             }
-            VerifyError::InvalidNodeReference {
+            ValidateError::InvalidNodeReference {
                 expected,
                 found,
                 node_id,
@@ -278,26 +280,26 @@ impl fmt::Display for VerifyError {
                     "invalid node reference id{node_id} expected {expected:?} got none"
                 ),
             },
-            VerifyError::LocalReferenceNotInFunction { local_id, .. } => {
+            ValidateError::LocalReferenceNotInFunction { local_id, .. } => {
                 write!(
                     f,
                     "local reference local{} not defined in function",
                     local_id.id
                 )
             }
-            VerifyError::ArgumentSliceOutOfBounds {
+            ValidateError::ArgumentSliceOutOfBounds {
                 start, count, len, ..
             } => write!(
                 f,
                 "argument slice out of bounds start {start} count {count} len {len}"
             ),
-            VerifyError::UseOfUndefinedValue { value, .. } => {
+            ValidateError::UseOfUndefinedValue { value, .. } => {
                 write!(f, "use of undefined value v{}", value.id())
             }
-            VerifyError::UnknownBlockTarget { block_id, .. } => {
+            ValidateError::UnknownBlockTarget { block_id, .. } => {
                 write!(f, "unknown block target block{}", block_id.id)
             }
-            VerifyError::BlockArgumentCountMismatch {
+            ValidateError::BlockArgumentCountMismatch {
                 block_label,
                 expected,
                 got,
@@ -306,7 +308,7 @@ impl fmt::Display for VerifyError {
                 f,
                 "block argument count mismatch for {block_label} expected {expected} got {got}"
             ),
-            VerifyError::ResumeArgumentCountMismatch {
+            ValidateError::ResumeArgumentCountMismatch {
                 block_label,
                 expected,
                 got,
@@ -315,46 +317,46 @@ impl fmt::Display for VerifyError {
                 f,
                 "resume argument count mismatch for {block_label} expected {expected} got {got}"
             ),
-            VerifyError::DuplicateSwitchCaseValue { value, .. } => {
+            ValidateError::DuplicateSwitchCaseValue { value, .. } => {
                 write!(f, "duplicate switch case value {value}")
             }
-            VerifyError::CallArgumentCountMismatch { expected, got, .. } => {
+            ValidateError::CallArgumentCountMismatch { expected, got, .. } => {
                 write!(
                     f,
                     "call argument count mismatch expected {expected} got {got}"
                 )
             }
-            VerifyError::AggregateArgumentCountMismatch { expected, got, .. } => {
+            ValidateError::AggregateArgumentCountMismatch { expected, got, .. } => {
                 write!(
                     f,
                     "aggregate argument count mismatch expected {expected} got {got}"
                 )
             }
-            VerifyError::AggregateTypeMismatch {
+            ValidateError::AggregateTypeMismatch {
                 expected, found, ..
             } => {
                 write!(f, "aggregate type mismatch expected {expected} got {found}")
             }
-            VerifyError::MetadataInvariantViolation { message, .. } => {
+            ValidateError::MetadataInvariantViolation { message, .. } => {
                 write!(f, "metadata invariant violation: {message}")
             }
-            VerifyError::CallReturnValueNotAllowedForVoid { .. } => {
+            ValidateError::CallReturnValueNotAllowedForVoid { .. } => {
                 write!(f, "call return value not allowed for void function")
             }
-            VerifyError::ReturnValueNotAllowedForVoid { .. } => {
+            ValidateError::ReturnValueNotAllowedForVoid { .. } => {
                 write!(f, "return value not allowed for void function")
             }
-            VerifyError::ReturnValueRequiredForNonVoid { .. } => {
+            ValidateError::ReturnValueRequiredForNonVoid { .. } => {
                 write!(f, "return value required for non void function")
             }
-            VerifyError::TailCallReturnTypeMismatch { .. } => {
+            ValidateError::TailCallReturnTypeMismatch { .. } => {
                 write!(f, "tail call return type mismatch")
             }
         }
     }
 }
 
-impl std::error::Error for VerifyError {}
+impl std::error::Error for ValidateError {}
 
-/// Result type for MIR verification.
-pub type VerifyResult<T> = Result<T, VerifyError>;
+/// Result type for MIR validation.
+pub type ValidateResult<T> = Result<T, ValidateError>;

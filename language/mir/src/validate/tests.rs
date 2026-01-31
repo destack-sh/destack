@@ -7,11 +7,11 @@ use crate::{
     Local, Mutability, Ownership, Repeatability, Type, Value,
 };
 
-use super::{Verifier, VerifierOptions};
+use super::{Validator, ValidatorOptions};
 
 /// Local references must resolve to locals declared on the function.
 #[test]
-fn test_verify_rejects_local_not_in_function() {
+fn test_validate_rejects_local_not_in_function() {
     let mut tree = crate::NodeTree::new();
     let pool = StringPool::new();
     let name = pool.intern("test");
@@ -44,10 +44,10 @@ fn test_verify_rejects_local_not_in_function() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::basic());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::basic());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     let expected = format!("local reference local{} not defined in function", local.id);
     assert_eq!(error.to_string(), expected);
 }
@@ -237,10 +237,10 @@ fn test_reject_duplicate_instruction_id() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::basic());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::basic());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     let expected = format!("duplicate instruction id inst{}", assume.id);
     assert_eq!(error.to_string(), expected);
 }
@@ -275,10 +275,10 @@ fn test_reject_duplicate_local_id() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::basic());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::basic());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     let expected = format!("duplicate local id local{}", local.id);
     assert_eq!(error.to_string(), expected);
 }
@@ -317,10 +317,10 @@ fn test_reject_argument_slice_out_of_bounds() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::strict());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
         "argument slice out of bounds start 0 count 1 len 0"
@@ -365,10 +365,10 @@ fn test_reject_call_effect_argument_count_mismatch() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::strict());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: call effects argument count mismatch expected 0 got 1"
@@ -421,10 +421,10 @@ fn test_reject_pure_effect_with_suspend() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::strict());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: pure effect cannot suspend"
@@ -477,10 +477,10 @@ fn test_reject_repeatable_effect_with_no_replay() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
-    let error = verifier
-        .verify_function(function_id)
-        .expect_err("expected verification failure");
+    let validator = Validator::new_with_options(&tree, ValidatorOptions::strict());
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
         "metadata invariant violation: no_replay requires non_repeatable effect"

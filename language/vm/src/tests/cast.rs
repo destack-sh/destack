@@ -165,6 +165,78 @@ block0:
     run_mir_expect_error(mir, "f2u_nan", &[], Error::BadConversionToInteger);
 }
 
+/// Float64 to signed integer saturating conversion.
+#[test]
+fn test_float_to_signed_int_saturating() {
+    let mir = r#"
+function @f2i_sat(v0: f64) -> i32 {
+block0(v0: f64):
+    v1: i32 = fcvt_to_sint_sat v0 -> i32
+    return v1
+}"#;
+    run_mir_expect(mir, "f2i_sat", &[Value::float64(42.9)], Value::int32(42));
+    run_mir_expect(mir, "f2i_sat", &[Value::float64(-42.9)], Value::int32(-42));
+    run_mir_expect(
+        mir,
+        "f2i_sat",
+        &[Value::float64(1e40)],
+        Value::int32(i32::MAX),
+    );
+    run_mir_expect(
+        mir,
+        "f2i_sat",
+        &[Value::float64(-1e40)],
+        Value::int32(i32::MIN),
+    );
+}
+
+/// Float64 to signed integer saturates NaN to zero.
+#[test]
+fn test_float_to_signed_int_saturating_nan() {
+    let mir = r#"
+function @f2i_sat_nan() -> i32 {
+block0:
+    v0: f64 = iconst 0.0f64
+    v1: f64 = fdiv v0, v0
+    v2: i32 = fcvt_to_sint_sat v1 -> i32
+    return v2
+}"#;
+    run_mir_expect(mir, "f2i_sat_nan", &[], Value::int32(0));
+}
+
+/// Float64 to unsigned integer saturating conversion.
+#[test]
+fn test_float_to_unsigned_int_saturating() {
+    let mir = r#"
+function @f2u_sat(v0: f64) -> u32 {
+block0(v0: f64):
+    v1: u32 = fcvt_to_uint_sat v0 -> u32
+    return v1
+}"#;
+    run_mir_expect(mir, "f2u_sat", &[Value::float64(42.9)], Value::uint32(42));
+    run_mir_expect(mir, "f2u_sat", &[Value::float64(-1.0)], Value::uint32(0));
+    run_mir_expect(
+        mir,
+        "f2u_sat",
+        &[Value::float64(1e40)],
+        Value::uint32(u32::MAX),
+    );
+}
+
+/// Float64 to unsigned integer saturates NaN to zero.
+#[test]
+fn test_float_to_unsigned_int_saturating_nan() {
+    let mir = r#"
+function @f2u_sat_nan() -> u32 {
+block0:
+    v0: f64 = iconst 0.0f64
+    v1: f64 = fdiv v0, v0
+    v2: u32 = fcvt_to_uint_sat v1 -> u32
+    return v2
+}"#;
+    run_mir_expect(mir, "f2u_sat_nan", &[], Value::uint32(0));
+}
+
 /// Signed integer to float64.
 #[test]
 fn test_signed_int_to_float() {

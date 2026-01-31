@@ -341,6 +341,8 @@ const balance: float32 = 100.50;
 Destack keeps `number` as the JS-compatible numeric supertype (aliased to `float64`).
 `int`/`uint` and `float` use the compiler's default widths (32-bit ints, 64-bit floats by default).
 Pointer-sized integers are spelled `isize` and `usize`.
+Explicit float to integer conversions are checked and trap on NaN or out of range values.
+Saturating float to integer intrinsics clamp to bounds and map NaN to 0.
 
 ### Newtypes
 

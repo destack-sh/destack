@@ -592,6 +592,31 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_u32_bracket_list(mask, f)
             }
+            Instruction::VectorSelect {
+                destination,
+                mask,
+                then_value,
+                else_value,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("vector.select"),
+                        space(),
+                        mask,
+                        token(","),
+                        space(),
+                        then_value,
+                        token(","),
+                        space(),
+                        else_value
+                    ]
+                )
+            }
 
             Instruction::VectorReduce {
                 destination,
@@ -922,6 +947,31 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token(","),
                         space(),
                         right
+                    ]
+                )
+            }
+            Instruction::TensorSelect {
+                destination,
+                mask,
+                then_value,
+                else_value,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.select"),
+                        space(),
+                        mask,
+                        token(","),
+                        space(),
+                        then_value,
+                        token(","),
+                        space(),
+                        else_value
                     ]
                 )
             }

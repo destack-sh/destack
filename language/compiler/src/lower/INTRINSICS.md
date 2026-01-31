@@ -75,6 +75,16 @@ These allow the optimizer to assume no overflow occurs.
 | `add.sat` | `(T, T) -> T` | Saturating add |
 | `sub.sat` | `(T, T) -> T` | Saturating subtract |
 
+### Saturating float to int conversions
+
+These intrinsics map to MIR cast operators and never trap.
+NaN converts to 0 and out of range values clamp to bounds.
+
+| Intrinsic | Signature | Description |
+|-----------|-----------|-------------|
+| `fcvt_to_sint.sat` | `(F) -> T` | Saturating float to signed integer |
+| `fcvt_to_uint.sat` | `(F) -> T` | Saturating float to unsigned integer |
+
 ## Memory
 
 | Intrinsic | Signature | Description |
@@ -181,7 +191,8 @@ No intrinsics needed; Lower handles these like other well-known types (`String`,
 
 ## Atomics
 
-All atomic operations require a `MemoryOrdering` argument.
+Atomic operations require explicit ordering and scope metadata.
+Ordering, scope, memory scope, and semantics must be compile time constants.
 
 | Ordering | Description |
 |----------|-------------|
@@ -189,21 +200,28 @@ All atomic operations require a `MemoryOrdering` argument.
 | `acquire` | Reads can't be reordered before this |
 | `release` | Writes can't be reordered after this |
 | `acq_rel` | Both acquire and release |
-| `seq_cst` | Sequentially consistent (strongest, default) |
+| `seq_cst` | Sequentially consistent (strongest) |
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|
-| `atomic.load` | `(ptr<T>) -> T` | Atomic load |
-| `atomic.store` | `(ptr<T>, T) -> ()` | Atomic store |
-| `atomic.cas` | `(ptr<T>, expected, new) -> T` | Compare-and-swap, returns old value |
-| `atomic.fetch.add` | `(ptr<T>, T) -> T` | Fetch-and-add, returns old value |
-| `atomic.fetch.sub` | `(ptr<T>, T) -> T` | Fetch-and-subtract, returns old value |
-| `atomic.fetch.and` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-and, returns old value |
-| `atomic.fetch.or` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-or, returns old value |
-| `atomic.fetch.xor` | `(ptr<T>, T) -> T` | Fetch-and-bitwise-xor, returns old value |
-| `atomic.fetch.min` | `(ptr<T>, T) -> T` | Fetch-and-min (signed), returns old value |
-| `atomic.fetch.max` | `(ptr<T>, T) -> T` | Fetch-and-max (signed), returns old value |
-| `atomic.fence` | `() -> ()` | Memory fence/barrier |
+| `atomic.load` | `(ptr<T>, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Atomic load |
+| `atomic.store` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> ()` | Atomic store |
+| `atomic.cas` | `(ptr<T>, expected, new, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> (T, bool)` | Compare-and-swap, returns old value and success flag |
+| `atomic.cas.weak` | `(ptr<T>, expected, new, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> (T, bool)` | Weak compare-and-swap (may fail spuriously) |
+| `atomic.xchg` | `(ptr<T>, value, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Exchange, returns old value |
+| `atomic.fetch.add` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add, returns old value |
+| `atomic.fetch.sub` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-subtract, returns old value |
+| `atomic.fetch.and` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-and, returns old value |
+| `atomic.fetch.or` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-or, returns old value |
+| `atomic.fetch.xor` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-bitwise-xor, returns old value |
+| `atomic.fetch.min` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (signed), returns old value |
+| `atomic.fetch.max` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (signed), returns old value |
+| `atomic.fetch.umin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (unsigned), returns old value |
+| `atomic.fetch.umax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (unsigned), returns old value |
+| `atomic.fetch.fadd` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-add (float), returns old value |
+| `atomic.fetch.fmin` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-min (float), returns old value |
+| `atomic.fetch.fmax` | `(ptr<T>, T, order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> T` | Fetch-and-max (float), returns old value |
+| `atomic.fence` | `(order, scope, memoryScope, locations, isVolatile, isMakeAvailable, isMakeVisible) -> ()` | Memory fence/barrier |
 
 ## Float Math
 
@@ -267,7 +285,7 @@ type @Vec8i32 = vec<8, i32>   ; 8-lane i32 vector
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|
-| `shuffle` | `(vec<N, T>, vec<N, T>, mask<M>) -> vec<M, T>` | Shuffle lanes according to mask |
+| `shuffle` | `(vec<N, T>, vec<N, T>, vec<M, int>) -> vec<M, T>` | Shuffle lanes according to mask |
 | `select` | `(vec<N, bool>, vec<N, T>, vec<N, T>) -> vec<N, T>` | Per-lane conditional select |
 | `splat` | `(T) -> vec<N, T>` | Broadcast scalar to all lanes |
 | `reduce.add` | `(vec<N, T>) -> T` | Horizontal sum of all lanes |
@@ -278,7 +296,12 @@ type @Vec8i32 = vec<8, i32>   ; 8-lane i32 vector
 | `reduce.or` | `(vec<N, T>) -> T` | Bitwise OR of all lanes |
 | `reduce.xor` | `(vec<N, T>) -> T` | Bitwise XOR of all lanes |
 
+Lower currently wires `splat`, `select`, and `reduce.*` to MIR vector instructions.
+The `shuffle` intrinsic is reserved but not lowered yet.
+
 ### Scalarization Fallback
+
+Lower does not yet scalarize vector operations, and the example below is a planned fallback path.
 
 When the target lacks SIMD support (or the vector width exceeds hardware capabilities), Lower scalarizes vector operations to scalar loops:
 

@@ -615,6 +615,8 @@ fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
             | mir::Intrinsic::AtomicLoad
             | mir::Intrinsic::AtomicStore
             | mir::Intrinsic::AtomicCas
+            | mir::Intrinsic::AtomicCasWeak
+            | mir::Intrinsic::AtomicExchange
             | mir::Intrinsic::AtomicFetchAdd
             | mir::Intrinsic::AtomicFetchSub
             | mir::Intrinsic::AtomicFetchAnd
@@ -622,6 +624,11 @@ fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
             | mir::Intrinsic::AtomicFetchXor
             | mir::Intrinsic::AtomicFetchMin
             | mir::Intrinsic::AtomicFetchMax
+            | mir::Intrinsic::AtomicFetchUmin
+            | mir::Intrinsic::AtomicFetchUmax
+            | mir::Intrinsic::AtomicFetchFadd
+            | mir::Intrinsic::AtomicFetchFmin
+            | mir::Intrinsic::AtomicFetchFmax
             | mir::Intrinsic::AtomicFence
     )
 }

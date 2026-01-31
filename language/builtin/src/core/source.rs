@@ -82,12 +82,12 @@ builtin_source!(INTRINSIC_IMPORT_META, "intrinsic", "import-meta.ds");
 builtin_source!(INTRINSIC_DECORATOR, "intrinsic", "decorator.ds");
 builtin_source!(INTRINSIC_BIT, "intrinsic", "bit.ds");
 builtin_source!(INTRINSIC_ARITHMETIC, "intrinsic", "arithmetic.ds");
+builtin_source!(INTRINSIC_CAST, "intrinsic", "cast.ds");
 builtin_source!(INTRINSIC_MATH, "intrinsic", "math.ds");
 builtin_source!(INTRINSIC_MEMORY, "intrinsic", "memory.ds");
 builtin_source!(INTRINSIC_ATOMIC, "intrinsic", "atomic.ds");
 builtin_source!(INTRINSIC_CONTROL, "intrinsic", "control.ds");
-// TODO #Incomplete: add when vec<N, T> type is available
-// builtin_source!(INTRINSIC_SIMD, "intrinsic", "simd.ds");
+builtin_source!(INTRINSIC_SIMD, "intrinsic", "simd.ds");
 
 /// All core source files in load order.
 ///
@@ -116,12 +116,12 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     INTRINSIC_IMPORT_META,
     INTRINSIC_BIT,
     INTRINSIC_ARITHMETIC,
+    INTRINSIC_CAST,
     INTRINSIC_MATH,
     INTRINSIC_MEMORY,
     INTRINSIC_ATOMIC,
     INTRINSIC_CONTROL,
-    // TODO #Incomplete: add when vec<N, T> type is available
-    // INTRINSIC_SIMD,
+    INTRINSIC_SIMD,
     INTRINSIC_INDEX,
     // reflect
     REFLECT_PROPERTY,

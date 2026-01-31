@@ -476,6 +476,26 @@ pub fn expression_key_from_instruction(
             then_value: *then_value,
             else_value: *else_value,
         }),
+        mir::Instruction::VectorSelect {
+            mask,
+            then_value,
+            else_value,
+            ..
+        } => Some(ExpressionKey::Select {
+            condition: *mask,
+            then_value: *then_value,
+            else_value: *else_value,
+        }),
+        mir::Instruction::TensorSelect {
+            mask,
+            then_value,
+            else_value,
+            ..
+        } => Some(ExpressionKey::Select {
+            condition: *mask,
+            then_value: *then_value,
+            else_value: *else_value,
+        }),
 
         // field access (pure, no side effects)
         mir::Instruction::FieldGet {

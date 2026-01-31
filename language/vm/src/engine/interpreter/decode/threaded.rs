@@ -272,6 +272,15 @@ pub enum ThreadedInstructionData {
         right: mir::Value,
     },
 
+    /// Elementwise binary operation on vector or tensor values.
+    BinaryElementwise {
+        dest: mir::Value,
+        op: mir::BinaryOperator,
+        left: mir::Value,
+        right: mir::Value,
+        result_type: mir::LocalNodeId<mir::Type>,
+    },
+
     /// Specialized binary operation (operator baked into handler).
     BinarySpecialized {
         dest: mir::Value,
@@ -299,6 +308,14 @@ pub enum ThreadedInstructionData {
         dest: mir::Value,
         op: mir::UnaryOperator,
         arg: mir::Value,
+    },
+
+    /// Elementwise unary operation on vector or tensor values.
+    UnaryElementwise {
+        dest: mir::Value,
+        op: mir::UnaryOperator,
+        arg: mir::Value,
+        result_type: mir::LocalNodeId<mir::Type>,
     },
 
     /// Type cast.
@@ -514,6 +531,14 @@ pub enum ThreadedInstructionData {
         mask: Vec<u32>,
     },
 
+    /// Select vector lanes based on a boolean mask.
+    VectorSelect {
+        dest: mir::Value,
+        mask: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
+    },
+
     /// Reduce a vector to a scalar.
     VectorReduce {
         dest: mir::Value,
@@ -705,6 +730,15 @@ pub enum ThreadedInstructionData {
         right: mir::Value,
         left_type: mir::LocalNodeId<mir::Type>,
         right_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Select tensor elements based on a boolean mask.
+    TensorSelect {
+        dest: mir::Value,
+        mask: mir::Value,
+        then_value: mir::Value,
+        else_value: mir::Value,
         dest_type: mir::LocalNodeId<mir::Type>,
     },
 
@@ -910,12 +944,14 @@ impl ThreadedInstructionData {
         match self {
             ThreadedInstructionData::Const { .. } => "const",
             ThreadedInstructionData::Binary { .. } => "binary",
+            ThreadedInstructionData::BinaryElementwise { .. } => "binary_elementwise",
             ThreadedInstructionData::BinarySpecialized { .. } => "binary_specialized",
             ThreadedInstructionData::BinaryConstRight { .. } => "binary_const_right",
             ThreadedInstructionData::BinaryConstRightSpecialized { .. } => {
                 "binary_const_right_specialized"
             }
             ThreadedInstructionData::Unary { .. } => "unary",
+            ThreadedInstructionData::UnaryElementwise { .. } => "unary_elementwise",
             ThreadedInstructionData::Cast { .. } => "cast",
             ThreadedInstructionData::Select { .. } => "select",
             ThreadedInstructionData::Call { .. } => "call",
@@ -948,6 +984,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::VectorExtract { .. } => "vector_extract",
             ThreadedInstructionData::VectorInsert { .. } => "vector_insert",
             ThreadedInstructionData::VectorShuffle { .. } => "vector_shuffle",
+            ThreadedInstructionData::VectorSelect { .. } => "vector_select",
             ThreadedInstructionData::VectorReduce { .. } => "vector_reduce",
             ThreadedInstructionData::VectorCompare { .. } => "vector_compare",
             ThreadedInstructionData::VectorConvert { .. } => "vector_convert",
@@ -969,6 +1006,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::TensorGather { .. } => "tensor_gather",
             ThreadedInstructionData::TensorScatter { .. } => "tensor_scatter",
             ThreadedInstructionData::TensorCompare { .. } => "tensor_compare",
+            ThreadedInstructionData::TensorSelect { .. } => "tensor_select",
             ThreadedInstructionData::TensorConvert { .. } => "tensor_convert",
             ThreadedInstructionData::ManagedAlloc { .. } => "managed_alloc",
             ThreadedInstructionData::ManagedAllocArray { .. } => "managed_alloc_array",

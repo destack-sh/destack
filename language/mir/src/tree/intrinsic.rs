@@ -137,8 +137,14 @@ pub enum Intrinsic {
     /// `(ptr<T>, T) -> ()`
     AtomicStore,
     /// Atomic compare-and-swap.
-    /// `(ptr<T>, expected: T, new: T) -> T`
+    /// `(ptr<T>, expected: T, new: T) -> (T, bool)`
     AtomicCas,
+    /// Atomic compare-and-swap (weak).
+    /// `(ptr<T>, expected: T, new: T) -> (T, bool)`
+    AtomicCasWeak,
+    /// Atomic exchange.
+    /// `(ptr<T>, value: T) -> T`
+    AtomicExchange,
     /// Atomic fetch-and-add, returns old value.
     /// `(ptr<T>, T) -> T`
     AtomicFetchAdd,
@@ -160,6 +166,21 @@ pub enum Intrinsic {
     /// Atomic fetch-and-max (signed), returns old value.
     /// `(ptr<T>, T) -> T`
     AtomicFetchMax,
+    /// Atomic fetch-and-min (unsigned), returns old value.
+    /// `(ptr<T>, T) -> T`
+    AtomicFetchUmin,
+    /// Atomic fetch-and-max (unsigned), returns old value.
+    /// `(ptr<T>, T) -> T`
+    AtomicFetchUmax,
+    /// Atomic fetch-and-add (float), returns old value.
+    /// `(ptr<T>, T) -> T`
+    AtomicFetchFadd,
+    /// Atomic fetch-and-min (float), returns old value.
+    /// `(ptr<T>, T) -> T`
+    AtomicFetchFmin,
+    /// Atomic fetch-and-max (float), returns old value.
+    /// `(ptr<T>, T) -> T`
+    AtomicFetchFmax,
     /// Memory fence/barrier.
     /// `() -> ()`
     AtomicFence,
@@ -330,6 +351,8 @@ impl Intrinsic {
             Intrinsic::AtomicLoad => "atomic.load",
             Intrinsic::AtomicStore => "atomic.store",
             Intrinsic::AtomicCas => "atomic.cas",
+            Intrinsic::AtomicCasWeak => "atomic.cas.weak",
+            Intrinsic::AtomicExchange => "atomic.xchg",
             Intrinsic::AtomicFetchAdd => "atomic.fetch.add",
             Intrinsic::AtomicFetchSub => "atomic.fetch.sub",
             Intrinsic::AtomicFetchAnd => "atomic.fetch.and",
@@ -337,6 +360,11 @@ impl Intrinsic {
             Intrinsic::AtomicFetchXor => "atomic.fetch.xor",
             Intrinsic::AtomicFetchMin => "atomic.fetch.min",
             Intrinsic::AtomicFetchMax => "atomic.fetch.max",
+            Intrinsic::AtomicFetchUmin => "atomic.fetch.umin",
+            Intrinsic::AtomicFetchUmax => "atomic.fetch.umax",
+            Intrinsic::AtomicFetchFadd => "atomic.fetch.fadd",
+            Intrinsic::AtomicFetchFmin => "atomic.fetch.fmin",
+            Intrinsic::AtomicFetchFmax => "atomic.fetch.fmax",
             Intrinsic::AtomicFence => "atomic.fence",
             Intrinsic::Barrier => "barrier",
 
@@ -464,6 +492,8 @@ impl Intrinsic {
                 | Intrinsic::AtomicLoad
                 | Intrinsic::AtomicStore
                 | Intrinsic::AtomicCas
+                | Intrinsic::AtomicCasWeak
+                | Intrinsic::AtomicExchange
                 | Intrinsic::AtomicFetchAdd
                 | Intrinsic::AtomicFetchSub
                 | Intrinsic::AtomicFetchAnd
@@ -471,6 +501,11 @@ impl Intrinsic {
                 | Intrinsic::AtomicFetchXor
                 | Intrinsic::AtomicFetchMin
                 | Intrinsic::AtomicFetchMax
+                | Intrinsic::AtomicFetchUmin
+                | Intrinsic::AtomicFetchUmax
+                | Intrinsic::AtomicFetchFadd
+                | Intrinsic::AtomicFetchFmin
+                | Intrinsic::AtomicFetchFmax
                 | Intrinsic::AtomicFence
                 | Intrinsic::Barrier
         )
@@ -526,6 +561,8 @@ impl FromStr for Intrinsic {
             "atomic.load" => Ok(Intrinsic::AtomicLoad),
             "atomic.store" => Ok(Intrinsic::AtomicStore),
             "atomic.cas" => Ok(Intrinsic::AtomicCas),
+            "atomic.cas.weak" => Ok(Intrinsic::AtomicCasWeak),
+            "atomic.xchg" => Ok(Intrinsic::AtomicExchange),
             "atomic.fetch.add" => Ok(Intrinsic::AtomicFetchAdd),
             "atomic.fetch.sub" => Ok(Intrinsic::AtomicFetchSub),
             "atomic.fetch.and" => Ok(Intrinsic::AtomicFetchAnd),
@@ -533,6 +570,11 @@ impl FromStr for Intrinsic {
             "atomic.fetch.xor" => Ok(Intrinsic::AtomicFetchXor),
             "atomic.fetch.min" => Ok(Intrinsic::AtomicFetchMin),
             "atomic.fetch.max" => Ok(Intrinsic::AtomicFetchMax),
+            "atomic.fetch.umin" => Ok(Intrinsic::AtomicFetchUmin),
+            "atomic.fetch.umax" => Ok(Intrinsic::AtomicFetchUmax),
+            "atomic.fetch.fadd" => Ok(Intrinsic::AtomicFetchFadd),
+            "atomic.fetch.fmin" => Ok(Intrinsic::AtomicFetchFmin),
+            "atomic.fetch.fmax" => Ok(Intrinsic::AtomicFetchFmax),
             "atomic.fence" => Ok(Intrinsic::AtomicFence),
             "barrier" => Ok(Intrinsic::Barrier),
             "sqrt" => Ok(Intrinsic::Sqrt),
@@ -710,13 +752,26 @@ impl Intrinsic {
                 args: 3,
                 has_result: true,
             },
+            Intrinsic::AtomicCasWeak => IntrinsicSignature::Atomic {
+                args: 3,
+                has_result: true,
+            },
+            Intrinsic::AtomicExchange => IntrinsicSignature::Atomic {
+                args: 2,
+                has_result: true,
+            },
             Intrinsic::AtomicFetchAdd
             | Intrinsic::AtomicFetchSub
             | Intrinsic::AtomicFetchAnd
             | Intrinsic::AtomicFetchOr
             | Intrinsic::AtomicFetchXor
             | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax => IntrinsicSignature::Atomic {
+            | Intrinsic::AtomicFetchMax
+            | Intrinsic::AtomicFetchUmin
+            | Intrinsic::AtomicFetchUmax
+            | Intrinsic::AtomicFetchFadd
+            | Intrinsic::AtomicFetchFmin
+            | Intrinsic::AtomicFetchFmax => IntrinsicSignature::Atomic {
                 args: 2,
                 has_result: true,
             },
@@ -865,15 +920,25 @@ impl Intrinsic {
             // atomic load, volatile load: pointee type
             Intrinsic::AtomicLoad | Intrinsic::VolatileLoad => IntrinsicResultType::Pointee(0),
 
+            // atomic compare-and-swap returns (old value, success)
+            Intrinsic::AtomicCas | Intrinsic::AtomicCasWeak => {
+                IntrinsicResultType::PointeeAndBool(0)
+            }
+
             // atomic fetch operations: pointee type (returns old value)
-            Intrinsic::AtomicCas
+            Intrinsic::AtomicExchange
             | Intrinsic::AtomicFetchAdd
             | Intrinsic::AtomicFetchSub
             | Intrinsic::AtomicFetchAnd
             | Intrinsic::AtomicFetchOr
             | Intrinsic::AtomicFetchXor
             | Intrinsic::AtomicFetchMin
-            | Intrinsic::AtomicFetchMax => IntrinsicResultType::Pointee(0),
+            | Intrinsic::AtomicFetchMax
+            | Intrinsic::AtomicFetchUmin
+            | Intrinsic::AtomicFetchUmax
+            | Intrinsic::AtomicFetchFadd
+            | Intrinsic::AtomicFetchFmin
+            | Intrinsic::AtomicFetchFmax => IntrinsicResultType::Pointee(0),
 
             // transmute and addrspace cast: explicit target type (caller must know)
             Intrinsic::Transmute | Intrinsic::AddrSpaceCast => IntrinsicResultType::Explicit,
@@ -915,6 +980,10 @@ pub enum IntrinsicResultType {
     /// Used for checked arithmetic (add_overflow, etc.).
     CheckedArithmetic,
 
+    /// Result type is a tuple (T, bool) where T is the pointee of pointer argument N.
+    /// Used for atomic compare-and-swap.
+    PointeeAndBool(u8),
+
     /// Result type is bool.
     Bool,
 
@@ -947,18 +1016,26 @@ impl IntrinsicResultType {
 
     /// Whether this requires looking up the pointee of a pointer type.
     pub fn needs_pointee(self) -> bool {
-        matches!(self, IntrinsicResultType::Pointee(_))
+        matches!(
+            self,
+            IntrinsicResultType::Pointee(_) | IntrinsicResultType::PointeeAndBool(_)
+        )
     }
 
     /// Whether this requires creating or finding a tuple type.
     pub fn needs_tuple(self) -> bool {
-        matches!(self, IntrinsicResultType::CheckedArithmetic)
+        matches!(
+            self,
+            IntrinsicResultType::CheckedArithmetic | IntrinsicResultType::PointeeAndBool(_)
+        )
     }
 
     /// Get the argument index this references, if any.
     pub fn referenced_arg(self) -> Option<u8> {
         match self {
-            IntrinsicResultType::SameAsArgument(n) | IntrinsicResultType::Pointee(n) => Some(n),
+            IntrinsicResultType::SameAsArgument(n)
+            | IntrinsicResultType::Pointee(n)
+            | IntrinsicResultType::PointeeAndBool(n) => Some(n),
             IntrinsicResultType::CheckedArithmetic => Some(0),
             _ => None,
         }

@@ -695,6 +695,38 @@ impl OwnershipAnalysis {
                 };
                 self.set_origin_for_destination(state, *destination, origin, tree);
             }
+            Instruction::VectorSelect {
+                destination,
+                then_value,
+                else_value,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = match (
+                    state.origin_for_value(*then_value),
+                    state.origin_for_value(*else_value),
+                ) {
+                    (Some(left), Some(right)) if left == right => Some(left),
+                    _ => None,
+                };
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::TensorSelect {
+                destination,
+                then_value,
+                else_value,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = match (
+                    state.origin_for_value(*then_value),
+                    state.origin_for_value(*else_value),
+                ) {
+                    (Some(left), Some(right)) if left == right => Some(left),
+                    _ => None,
+                };
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
             Instruction::Load { destination, .. } => {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
@@ -1359,6 +1391,38 @@ fn process_instruction(
             set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::Select {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = match (
+                state.origin_for_value(*then_value),
+                state.origin_for_value(*else_value),
+            ) {
+                (Some(left), Some(right)) if left == right => Some(left),
+                _ => None,
+            };
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::VectorSelect {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = match (
+                state.origin_for_value(*then_value),
+                state.origin_for_value(*else_value),
+            ) {
+                (Some(left), Some(right)) if left == right => Some(left),
+                _ => None,
+            };
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::TensorSelect {
             destination,
             then_value,
             else_value,

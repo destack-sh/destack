@@ -328,6 +328,8 @@ impl<'a> Dumper<'a> {
             CastOperator::SignExtend => "sext",
             CastOperator::FloatToSignedInt => "fptosi",
             CastOperator::FloatToUnsignedInt => "fptoui",
+            CastOperator::FloatToSignedIntSaturating => "fptosi.sat",
+            CastOperator::FloatToUnsignedIntSaturating => "fptoui.sat",
             CastOperator::SignedIntToFloat => "sitofp",
             CastOperator::UnsignedIntToFloat => "uitofp",
             CastOperator::FloatTruncate => "fptrunc",
@@ -690,6 +692,20 @@ impl<'a> Dumper<'a> {
                     self.write(&lane.to_string());
                 }
                 self.write("]");
+            }
+            Instruction::VectorSelect {
+                destination,
+                mask,
+                then_value,
+                else_value,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.select ");
+                self.write(&self.format_value(*mask));
+                self.write(", ");
+                self.write(&self.format_value(*then_value));
+                self.write(", ");
+                self.write(&self.format_value(*else_value));
             }
 
             Instruction::VectorReduce {
@@ -1262,6 +1278,20 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_value(*left));
                 self.write(", ");
                 self.write(&self.format_value(*right));
+            }
+            Instruction::TensorSelect {
+                destination,
+                mask,
+                then_value,
+                else_value,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.select ");
+                self.write(&self.format_value(*mask));
+                self.write(", ");
+                self.write(&self.format_value(*then_value));
+                self.write(", ");
+                self.write(&self.format_value(*else_value));
             }
             Instruction::TensorConvert {
                 destination,
