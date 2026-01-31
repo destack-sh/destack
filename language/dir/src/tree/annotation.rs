@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Argument, Expression, LocalNodeId, Node, NodeType, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// The position of an annotation.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -34,9 +34,6 @@ pub enum Annotation {
     /// Decorators serve both as metadata (when resolving to a newtype) and
     /// transformations (when resolving to a function).
     ///
-    /// `left` can be any expression (Path, MemberAccess, etc.) and `arguments`
-    /// are the decorator's own arguments (for factory patterns or metadata values).
-    ///
     /// Semantics at runtime (when decorator resolves to a function):
     /// - `@foo` (no args) → `foo(target)`
     /// - `@foo(x)` (with args) → `foo(x)(target)` (factory pattern)
@@ -52,8 +49,7 @@ pub enum Annotation {
     /// - `@internal` - metadata decorator (stripped from output)
     Decorator {
         position: AnnotationPosition,
-        left: LocalNodeId<Expression>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
+        expression: LocalNodeId<Expression>,
     },
 }
 

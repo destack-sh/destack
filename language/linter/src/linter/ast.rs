@@ -16,6 +16,15 @@ struct LintSeverityOverride {
     is_forbidden: bool,
 }
 
+/// The parsed shape of a decorator expression in the AST.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DecoratorCall<'a> {
+    /// The decorator callee expression.
+    pub callee: ast::LocalNodeId<ast::Expression>,
+    /// The decorator arguments when the expression is a call.
+    pub arguments: Option<&'a [ast::LocalNodeId<ast::Argument>]>,
+}
+
 /// Context for AST-level linting of a single module. Unfurls ModuleAst.
 pub struct LintModuleAstContext<'a> {
     /// The program containing this module.
@@ -174,6 +183,73 @@ impl<'a> LintModuleAstContext<'a> {
         effective
     }
 
+    /// Unwrap parenthesized decorator expressions.
+    fn unwrap_decorator_expression(
+        &self,
+        expression_id: ast::LocalNodeId<ast::Expression>,
+    ) -> ast::LocalNodeId<ast::Expression> {
+        let mut current = expression_id;
+        loop {
+            let expression = self.tree.get(current);
+            let Expression::Parenthesized { expression } = expression else {
+                return current;
+            };
+            current = *expression;
+        }
+    }
+
+    /// Resolve decorator call information for a decorator node.
+    pub(crate) fn decorator_call(
+        &self,
+        decorator_id: ast::LocalNodeId<ast::Decorator>,
+    ) -> DecoratorCall<'_> {
+        let decorator = self.tree.get(decorator_id);
+        let expression_id = self.unwrap_decorator_expression(decorator.expression);
+        match self.tree.get(expression_id) {
+            Expression::Call {
+                left,
+                dynamic_arguments,
+                ..
+            } => DecoratorCall {
+                callee: self.unwrap_decorator_expression(*left),
+                arguments: Some(dynamic_arguments.as_slice()),
+            },
+            _ => DecoratorCall {
+                callee: expression_id,
+                arguments: None,
+            },
+        }
+    }
+
+    /// Resolve the decorator path if the decorator is a path or call expression.
+    pub(crate) fn decorator_path(
+        &self,
+        decorator_id: ast::LocalNodeId<ast::Decorator>,
+    ) -> Option<&ast::Path> {
+        let call = self.decorator_call(decorator_id);
+        match self.tree.get(call.callee) {
+            Expression::Path { path, .. } => Some(path),
+            _ => None,
+        }
+    }
+
+    /// Resolve the decorator name as a dot-separated string.
+    pub(crate) fn decorator_name(
+        &self,
+        decorator_id: ast::LocalNodeId<ast::Decorator>,
+    ) -> Option<String> {
+        let path = self.decorator_path(decorator_id)?;
+        if path.segments.is_empty() {
+            return None;
+        }
+
+        let mut segments = Vec::new();
+        for segment in &path.segments {
+            segments.push(self.strings.get(*segment).to_string());
+        }
+        Some(segments.join("."))
+    }
+
     /// Parse a decorator annotation and return the severity override if it matches this lint.
     fn parse_decorator(
         &self,
@@ -186,12 +262,15 @@ impl<'a> LintModuleAstContext<'a> {
         };
 
         // check decorator name (must be single segment: allow, warn, deny, forbid)
-        let decorator = self.tree.get(*node);
-        if decorator.left.segments.len() != 1 {
+        let call = self.decorator_call(*node);
+        let Expression::Path { path, .. } = self.tree.get(call.callee) else {
+            return None;
+        };
+        if path.segments.len() != 1 {
             return None;
         }
 
-        let name = self.strings.get(decorator.left.segments[0]);
+        let name = self.strings.get(path.segments[0]);
         let (severity, is_forbidden) = match name.as_ref() {
             "allow" => (LintSeverity::Off, false),
             "warn" => (LintSeverity::Warning, false),
@@ -201,7 +280,7 @@ impl<'a> LintModuleAstContext<'a> {
         };
 
         // extract the string argument (lint ID or code)
-        let arguments = decorator.arguments.as_ref()?;
+        let arguments = call.arguments?;
         let first_argument = self.tree.get(*arguments.first()?);
         let Argument::Positional { value, .. } = first_argument else {
             return None;

@@ -142,15 +142,15 @@ impl Parser {
 
     /// Peek an enum field.
     fn peek_enum_field(&self) -> ParseResult<()> {
-        if self.peek_token(TokenType::OpenBracket).is_ok() {
-            Ok(())
-        } else if (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
+        let is_computed_name = self.peek_token(TokenType::OpenBracket).is_ok();
+        let is_bare_name = (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
                 || self.peek_next_token(TokenType::Comma).is_ok()
                 || self.peek_next_token(TokenType::Semicolon).is_ok()
-                || self.peek_next_token(TokenType::CloseBrace).is_ok())
-        {
+                || self.peek_next_token(TokenType::CloseBrace).is_ok());
+
+        if is_computed_name || is_bare_name {
             Ok(())
         } else {
             Err(ParseError::expected(

@@ -1,8 +1,8 @@
 use crate::Compiler;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Annotation, AnnotationPosition, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
+    Annotation, AnnotationPosition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    NodeTree, NodeType, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -106,65 +106,20 @@ impl Compiler {
             ast::Annotation::Decorator { node, position } => {
                 let decorator = ast.tree.get(*node);
                 let position = self.bind_annotation_position(*position);
-
-                // bind the path as a Path expression
-                let path = self.bind_path(module, ast, &decorator.left);
-                let static_arguments = decorator.static_arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                scope,
-                                *argument,
-                                Some(annotation_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpaceOrder::TypeThenValue,
-                            )
-                        })
-                        .collect()
-                });
-                let left_id = tree.reserve_from_source(
-                    NodeType::Expression,
-                    node.id, // use decorator node as source
+                let expression = self.bind_expression(
+                    module,
+                    ast,
                     scope,
+                    decorator.expression,
                     Some(annotation_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpaceOrder::ValueThenType,
                 );
-                tree.insert(
-                    left_id,
-                    Expression::UnresolvedPath {
-                        path,
-                        static_arguments,
-                        space_order: SymbolSpaceOrder::ValueThenType,
-                    },
-                );
-                let left = LocalNodeId::new(left_id.id);
-
-                let arguments = decorator.arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                scope,
-                                *argument,
-                                Some(annotation_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpaceOrder::ValueThenType,
-                            )
-                        })
-                        .collect()
-                });
                 Annotation::Decorator {
                     position,
-                    left,
-                    arguments,
+                    expression,
                 }
             }
         };

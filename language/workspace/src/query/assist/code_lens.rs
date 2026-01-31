@@ -355,16 +355,38 @@ fn decorator_on_node(ast: &ModuleAst, node_id: u32, name: &str) -> bool {
         };
 
         let decorator = ast.tree.get::<ast::Decorator>(*node);
-        let Some(last_segment) = decorator.left.segments.last() else {
+        let Some(decorator_name_id) = decorator_name_id(ast, decorator) else {
             continue;
         };
-        let decorator_name = ast.strings.get(*last_segment);
+        let decorator_name = ast.strings.get(decorator_name_id);
         if decorator_name.as_str() == name {
             return true;
         }
     }
 
     false
+}
+
+/// Resolve the last segment of a decorator name when it is path-like.
+fn decorator_name_id(
+    ast: &ModuleAst,
+    decorator: &ast::Decorator,
+) -> Option<destack_base::StringId> {
+    let mut expression_id = decorator.expression;
+    loop {
+        match ast.tree.get(expression_id) {
+            ast::Expression::Parenthesized { expression } => {
+                expression_id = *expression;
+            }
+            ast::Expression::Call { left, .. } => {
+                expression_id = *left;
+            }
+            ast::Expression::Path { path, .. } => {
+                return path.segments.last().copied();
+            }
+            _ => return None,
+        }
+    }
 }
 
 /// Resolve a code lens (compute its command if deferred).

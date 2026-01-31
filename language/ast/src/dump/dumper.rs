@@ -1776,7 +1776,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
         decorator: &Decorator,
     ) {
         self.node("Decorator", _id.id)
-            .field("left", &decorator.left)
+            .field("expression", &decorator.expression.id)
             .end();
         self.with_depth(|dumper| {
             walk_decorator(dumper, _tree, _id, decorator);

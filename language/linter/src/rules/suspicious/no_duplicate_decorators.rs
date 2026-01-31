@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{arguments_are_equal, paths_equal};
+use crate::rules::common::expression_is_equal;
 use crate::{LintDiagnostic, LintFix, LintModuleAstContext, LintRule, declare_lint};
 
 declare_lint! {
@@ -63,14 +63,10 @@ impl LintRule for NoDuplicateDecorators {
                     }
 
                     // extract decorator name for the message
-                    let decorator = ctx.tree.get(*node);
-                    let name = decorator
-                        .left
-                        .segments
-                        .first()
-                        .map(|id| ctx.strings.get(*id))
-                        .map(|s| s.as_ref().to_string())
-                        .unwrap_or_else(|| "unknown".to_string());
+                    // ("unknown" shouldn't happen, but not our business here)
+                    let name = ctx
+                        .decorator_name(*node)
+                        .unwrap_or_else(|| "<unknown>".to_string());
 
                     let span = ctx.tree.get_span(*annotation_id);
                     let fix = LintFix::safe("Remove duplicate decorator").delete(span);
@@ -105,28 +101,7 @@ fn decorators_equal(
     let left = ctx.tree.get(left_id);
     let right = ctx.tree.get(right_id);
 
-    // compare paths
-    if !paths_equal(ctx, &left.left, &right.left) {
-        return false;
-    }
-
-    // compare static arguments
-    match (&left.static_arguments, &right.static_arguments) {
-        (None, None) => {}
-        (Some(left_args), Some(right_args)) => {
-            if !arguments_are_equal(ctx, left_args, right_args) {
-                return false;
-            }
-        }
-        _ => return false,
-    }
-
-    // compare arguments
-    match (&left.arguments, &right.arguments) {
-        (None, None) => true,
-        (Some(left_args), Some(right_args)) => arguments_are_equal(ctx, left_args, right_args),
-        _ => false,
-    }
+    expression_is_equal(ctx, left.expression, right.expression)
 }
 
 #[cfg(test)]

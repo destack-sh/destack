@@ -200,16 +200,14 @@ impl Compiler {
         decorator_map: &HashMap<dir::GlobalSymbolId, dir::WellKnownDecorator>,
     ) -> Option<DiagnosticDirectiveOverride> {
         let annotation = tree.get(annotation_id);
-        let dir::Annotation::Decorator {
-            left, arguments, ..
-        } = annotation
-        else {
+        let dir::Annotation::Decorator { expression, .. } = annotation else {
             return None;
         };
 
         // resolve decorator marker symbol
-        let left_expr = tree.get(*left);
-        let target_symbol = match left_expr {
+        let call = self.decorator_call(tree, *expression);
+        let callee_expr = tree.get(call.callee);
+        let target_symbol = match callee_expr {
             dir::Expression::LocalReference { target_symbol, .. }
             | dir::Expression::ModuleReference { target_symbol, .. }
             | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
@@ -231,9 +229,7 @@ impl Compiler {
         };
 
         // read the first argument as a warning specifier
-        let Some(arguments) = arguments else {
-            return None;
-        };
+        let arguments = call.arguments?;
         let first_argument_id = arguments.first()?;
         let argument = tree.get(*first_argument_id);
         let value_id = match argument {

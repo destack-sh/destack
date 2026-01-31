@@ -99,17 +99,10 @@ impl Compiler {
 
         // gather parent nodes for @if annotations
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
-            let left_id = match tree.get(annotation_id) {
-                Annotation::Decorator { left, .. } => *left,
-                _ => continue,
-            };
-            let is_static_if = match tree.get(left_id) {
-                Expression::UnresolvedPath { path, .. } => {
-                    path.segments.len() == 1 && path.segments[0] == if_name
-                }
-                _ => false,
-            };
-            if !is_static_if {
+            if self
+                .decorator_call_named(&tree, annotation_id, if_name)
+                .is_none()
+            {
                 continue;
             }
 
@@ -314,18 +307,10 @@ impl Compiler {
 
         // walk all annotations looking for @if decorators
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
-            // skip non decorator annotations
-            let Annotation::Decorator { left, .. } = tree.get(annotation_id) else {
-                continue;
-            };
-
-            // skip non path decorator expressions
-            let Expression::UnresolvedPath { path, .. } = tree.get(*left) else {
-                continue;
-            };
-
-            // skip decorators that are not @if
-            if path.segments.len() != 1 || path.segments[0] != if_name {
+            if self
+                .decorator_call_named(tree, annotation_id, if_name)
+                .is_none()
+            {
                 continue;
             }
 
@@ -366,22 +351,10 @@ impl Compiler {
 
         // mark @if annotations inactive
         for annotation_id in tree.iter_node_ids_of_type::<Annotation>() {
-            // resolve the decorator target expression
-            let left_id = match tree.get(annotation_id) {
-                Annotation::Decorator { left, .. } => *left,
-                _ => continue,
-            };
-
-            // resolve the decorator name
-            let is_static_if = match tree.get(left_id) {
-                Expression::UnresolvedPath { path, .. } => {
-                    path.segments.len() == 1 && path.segments[0] == if_name
-                }
-                _ => false,
-            };
-
-            // skip decorators that are not @if
-            if !is_static_if {
+            if self
+                .decorator_call_named(tree, annotation_id, if_name)
+                .is_none()
+            {
                 continue;
             }
 
@@ -638,29 +611,15 @@ impl Compiler {
         let annotations = tree.get_annotations(node_id.id);
         let if_name = self.program.strings.intern("if");
         for annotation_id in annotations {
-            // skip non decorator annotations
-            let Annotation::Decorator {
-                left, arguments, ..
-            } = tree.get(annotation_id)
-            else {
+            let Some(call) = self.decorator_call_named(tree, annotation_id, if_name) else {
                 continue;
             };
-
-            // skip non path decorator expressions
-            let Expression::UnresolvedPath { path, .. } = tree.get(*left) else {
-                continue;
-            };
-
-            // skip decorators that are not @if
-            if path.segments.len() != 1 || path.segments[0] != if_name {
-                continue;
-            }
 
             // record the @if usage
             saw_if = true;
 
             // validate the decorator arguments
-            let Some(arguments) = arguments.as_ref() else {
+            let Some(arguments) = call.arguments else {
                 return Err(self.invalid_static_if(
                     module_id,
                     profile_id,

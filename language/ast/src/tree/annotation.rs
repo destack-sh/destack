@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Argument, LocalNodeId, Node, NodeType, Path, StringId};
+use crate::{Expression, LocalNodeId, Node, NodeType, StringId};
 
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnnotationPosition {
@@ -138,15 +138,12 @@ impl Node for Comment {
 /// ```
 /// @foo
 /// @foo(1, 2, 3)
+/// @foo<T>()
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Decorator {
-    /// The decorator name / path.
-    pub left: Path,
-    /// The static arguments (if any).
-    pub static_arguments: Option<Vec<LocalNodeId<Argument>>>,
-    /// The arguments (if any).
-    pub arguments: Option<Vec<LocalNodeId<Argument>>>,
+    /// The decorator expression.
+    pub expression: LocalNodeId<Expression>,
 }
 
 impl Node for Decorator {
