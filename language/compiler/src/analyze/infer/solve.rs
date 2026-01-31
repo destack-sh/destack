@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use destack_dir::{
     Constraint, InferTable, InferVar, InferVarId, LocalTypeId, SymbolTable, Type, TypeLiteral,
     TypeRewriter, TypeRewriterOptions, TypeTable, rewrite_type,
 };
 use destack_workspace::{Module, ProfileId};
+use indexmap::IndexSet;
 
 use crate::analyze::common::{
-    MaterializationMode, REWRITER_TAG_INFER_MATERIALIZER, TypeRewriteCache, TypeWalkContext,
-    rewrite_type_with_cache,
+    MaterializationMode, NormalizationMode, REWRITER_TAG_INFER_MATERIALIZER, RelationMode,
+    TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeOptions, Assignability, Compiler};
@@ -29,6 +32,22 @@ impl Bounds {
             lower: var.lower_bounds.clone(),
             upper: var.upper_bounds.clone(),
             default: var.default,
+        }
+    }
+}
+
+/// Cache assignability normalization results during a solve pass.
+#[derive(Default)]
+struct SolveNormalizationCache {
+    /// Cached apparent types keyed by source type id.
+    apparent_assign: HashMap<LocalTypeId, LocalTypeId>,
+}
+
+impl SolveNormalizationCache {
+    /// Create an empty normalization cache.
+    fn new() -> Self {
+        Self {
+            apparent_assign: HashMap::new(),
         }
     }
 }
@@ -192,6 +211,7 @@ impl Compiler {
         let mut solution = InferSolution {
             resolved: vec![None; infer.vars.len()],
         };
+        let mut normalization_cache = SolveNormalizationCache::new();
 
         // collect initial bounds
         let mut bounds: Vec<_> = infer.vars.iter().map(Bounds::from_var).collect();
@@ -200,6 +220,7 @@ impl Compiler {
         for constraint in &infer.constraints {
             Self::apply_constraint(constraint, types, &mut bounds);
         }
+        self.dedupe_bounds(&mut bounds);
 
         // resolve bounds to a fixed point
         let mut did_resolve = true;
@@ -220,6 +241,7 @@ impl Compiler {
                     &solution,
                     types,
                     options,
+                    &mut normalization_cache,
                 ) {
                     solution.resolved[index] = Some(resolved);
                     did_resolve = true;
@@ -248,12 +270,14 @@ impl Compiler {
         let Type::InferVar { id } = types.get_type(ty_id) else {
             return Some(ty_id);
         };
+        let mut normalization_cache = SolveNormalizationCache::new();
 
         // collect bounds for the current inference table
         let mut bounds: Vec<_> = infer.vars.iter().map(Bounds::from_var).collect();
         for constraint in &infer.constraints {
             Self::apply_constraint(constraint, types, &mut bounds);
         }
+        self.dedupe_bounds(&mut bounds);
 
         // resolve the specific inference variable against the collected bounds
         let bound = bounds.get(id.0 as usize)?;
@@ -270,6 +294,7 @@ impl Compiler {
             &solution,
             types,
             options,
+            &mut normalization_cache,
         )
     }
 
@@ -344,6 +369,7 @@ impl Compiler {
         solution: &InferSolution,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
+        normalization_cache: &mut SolveNormalizationCache,
     ) -> Option<LocalTypeId> {
         // resolve lower and upper bounds
         let lower = self.resolve_joined_bounds(&bound.lower, solution, types, JoinKind::Union);
@@ -353,7 +379,31 @@ impl Compiler {
         // prefer a consistent bound when possible
         match (lower, upper) {
             (Some(lower), Some(upper)) => {
-                if self.is_type_assignable(module, profile, symbols, upper, lower, types, options)
+                let normalized_target = self.normalize_apparent_type_for_assignability_cached(
+                    module,
+                    profile,
+                    upper,
+                    symbols,
+                    types,
+                    normalization_cache,
+                );
+                let normalized_source = self.normalize_apparent_type_for_assignability_cached(
+                    module,
+                    profile,
+                    lower,
+                    symbols,
+                    types,
+                    normalization_cache,
+                );
+                if self.is_type_assignable_normalized(
+                    module,
+                    profile,
+                    symbols,
+                    normalized_target,
+                    normalized_source,
+                    types,
+                    options,
+                )
                     == Assignability::Assignable
                 {
                     Some(lower)
@@ -385,12 +435,41 @@ impl Compiler {
             resolved.push(bound);
         }
 
+        self.dedupe_type_list(&mut resolved);
         if resolved.is_empty() {
             return None;
         }
 
         // join the resolved types
         Some(self.join_types(resolved, types, kind))
+    }
+
+    /// Normalize a type for assignability using the per-solve cache.
+    fn normalize_apparent_type_for_assignability_cached(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        normalization_cache: &mut SolveNormalizationCache,
+    ) -> LocalTypeId {
+        if let Some(cached) = normalization_cache.apparent_assign.get(&type_id) {
+            return *cached;
+        }
+
+        // normalize apparent types for assignability
+        let normalized = self.normalize_apparent_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
+        normalization_cache.apparent_assign.insert(type_id, normalized);
+        normalized
     }
 
     /// Replace inference variables with resolved types when possible.
@@ -404,6 +483,20 @@ impl Compiler {
             Type::InferVar { id } => solution.get(*id).unwrap_or(ty_id),
             _ => ty_id,
         }
+    }
+
+    /// Deduplicate lower and upper bound lists.
+    fn dedupe_bounds(&self, bounds: &mut [Bounds]) {
+        for bound in bounds {
+            self.dedupe_type_list(&mut bound.lower);
+            self.dedupe_type_list(&mut bound.upper);
+        }
+    }
+
+    /// Deduplicate a list of type ids while preserving order.
+    fn dedupe_type_list(&self, list: &mut Vec<LocalTypeId>) {
+        let mut seen = IndexSet::new();
+        list.retain(|id| seen.insert(*id));
     }
 
     /// Join multiple types into a union or intersection.
