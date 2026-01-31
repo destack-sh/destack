@@ -85,7 +85,7 @@ impl Compiler {
     }
 
     /// Build a cache key for a type reference when arguments are hashable.
-    pub(super) fn type_reference_cache_key(
+    pub(crate) fn type_reference_cache_key(
         &self,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
@@ -98,6 +98,24 @@ impl Compiler {
         validate_static_argument_bounds.hash(&mut hasher);
         enforce_implicit_managed.hash(&mut hasher);
         resolve_static_arguments.hash(&mut hasher);
+        self.hash_static_arguments_for_cache(static_arguments, &mut hasher)?;
+        Some(hasher.finish())
+    }
+
+    /// Build a cache key for resolved static arguments when inputs are hashable.
+    pub(crate) fn static_argument_resolution_cache_key(
+        &self,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        treat_type_arguments_as_types: bool,
+        options_cache_key: u64,
+    ) -> Option<u64> {
+        let mut hasher = FxHasher::default();
+        symbol.hash(&mut hasher);
+        validate_static_argument_bounds.hash(&mut hasher);
+        treat_type_arguments_as_types.hash(&mut hasher);
+        options_cache_key.hash(&mut hasher);
         self.hash_static_arguments_for_cache(static_arguments, &mut hasher)?;
         Some(hasher.finish())
     }

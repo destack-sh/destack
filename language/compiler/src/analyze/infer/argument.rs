@@ -1929,6 +1929,21 @@ impl Compiler {
         // treat type arguments as types for type references
         let treat_type_arguments_as_types = true;
 
+        // check for cached resolved static arguments
+        let options_cache_key = options.cache_key();
+        let cache_key = self.static_argument_resolution_cache_key(
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            treat_type_arguments_as_types,
+            options_cache_key,
+        );
+        if let Some(cache_key) = cache_key
+            && let Some(cached) = types.get_static_argument_resolution_cache(cache_key)
+        {
+            return Ok(cached);
+        }
+
         // skip non instantiable symbols
         if !self.is_instantiable_symbol(symbol) && symbol.ty() != SymbolType::Extension {
             return Ok(None);
@@ -2003,8 +2018,20 @@ impl Compiler {
             types,
         );
 
-        // clear the in progress marker
+        // clear the in progress marker, resolve cached arguments when needed
         types.clear_static_argument_resolution_in_progress(symbol, &argument_snapshot);
+        if let Some(cache_key) = cache_key
+            && let Ok(resolved) = &result
+        {
+            let should_cache = resolved
+                .as_ref()
+                .map(|arguments| arguments.iter().all(StaticArgument::is_evaluated))
+                .unwrap_or(true);
+            if should_cache {
+                types.set_static_argument_resolution_cache(cache_key, resolved.clone());
+            }
+        }
+
         result
     }
 

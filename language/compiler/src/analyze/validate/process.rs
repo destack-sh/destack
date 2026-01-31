@@ -2,7 +2,7 @@ use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 use destack_dir::{Declaration, Member, Parameter};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleDir, ProfileId};
+use destack_workspace::{ModuleDir, ModuleSource, ProfileId};
 
 impl Compiler {
     /// Ensure a module has been validated after analysis.
@@ -55,6 +55,17 @@ impl Compiler {
         // skip validation when module language is disabled
         if !self.module_language_allowed(module_id) {
             return Ok(());
+        }
+
+        // skip lib validation for declaration modules when configured
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        if module.language_type.is_declaration() {
+            let module_checks = self.module_check_options_for_module(module_id);
+            if module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)) {
+                self.update_module_signature(module_id, profile, module_version, profile_version)?;
+                return Ok(());
+            }
         }
 
         // resolve cache handle

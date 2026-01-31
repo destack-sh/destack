@@ -6,11 +6,11 @@ use crate::{
     TaskResultCollector,
 };
 use destack_dir::{
-    Declaration, Expression, FlowGraphBuilder, InferTable, IntType, PrimitiveType, Type,
-    TypeLiteral,
+    Declaration, DeclarationKind, Expression, FlowGraphBuilder, InferTable, IntType, PrimitiveType,
+    Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleContent, ModuleGraphKey, ModuleSource, ModuleType, ProfileId};
+use destack_workspace::{ModuleContent, ModuleGraphKey, ModuleType, ProfileId};
 
 use super::super::common::json_value_to_type;
 
@@ -44,11 +44,6 @@ impl Compiler {
         )?;
         let _timing = self.timing_scope(tags::ANALYZE_MODULE_INFER);
 
-        self.require_analyze_module_declare(module_id, profile)?;
-        self.require_analyze_module_export(module_id, profile)?;
-        self.require_export_inference_dependencies(module_id, profile)?;
-        self.require_export_inference_for_ambient_libs(profile)?;
-
         // analyze data modules specially
         if !self.is_code_module(module_id) {
             return self.analyze_data_module_infer(module_id, profile);
@@ -59,20 +54,20 @@ impl Compiler {
             return Ok(());
         }
 
+        self.require_analyze_module_declare(module_id, profile)?;
+
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
-        let mut collector = TaskResultCollector::new();
-        let options = self.analyze_context_options_for_module(module.id);
-        let module_checks = self.module_check_options_for_module(module.id);
 
-        // skip full inference for declaration-only modules
-        if module.language_type.is_declaration()
-            && (module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)))
-        {
+        // select runtime roots for the inference pass
+        let runtime_roots = self.collect_runtime_roots(&tree, &dir.roots);
+
+        // skip full inference for declaration-only modules or ambient-only modules
+        if module.language_type.is_declaration() || runtime_roots.is_empty() {
             // infer enum backing types (still required even for declaration-only modules)
             for root_id in dir.roots.iter() {
                 let Expression::Declaration { declaration } = tree.get(*root_id) else {
@@ -100,6 +95,21 @@ impl Compiler {
             return Ok(());
         }
 
+        drop(types);
+        drop(symbols);
+        drop(tree);
+
+        self.require_analyze_module_export(module_id, profile)?;
+        self.require_export_inference_dependencies(module_id, profile)?;
+        self.require_export_inference_for_ambient_libs(profile)?;
+
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        let mut types = dir.types.write();
+        let mut collector = TaskResultCollector::new();
+        let options = self.analyze_context_options_for_module(module.id);
+
         // require builtins for inference
         self.require_resolve_builtins(profile)?;
 
@@ -107,27 +117,29 @@ impl Compiler {
         let mut infer = InferTable::default();
         let mut ctx = InferContext::new(profile, options);
 
-        // build a module level flow graph and flow table
-        let graph = {
-            let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
-            FlowGraphBuilder::new(module.id, &tree).build_roots(&dir.roots)
-        };
-        let flow = {
-            let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
-            self.compute_flow_table_for_graph(
-                &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
-            )?
-        };
-        ctx.flow = Some(FlowContext {
-            module_id: module.id,
-            graph: Arc::new(graph),
-            table: Arc::new(flow),
-        });
+        // build a module level flow graph and flow table when needed
+        if self.roots_require_flow(&tree, &runtime_roots) {
+            let graph = {
+                let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
+                FlowGraphBuilder::new(module.id, &tree).build_roots(&runtime_roots)
+            };
+            let flow = {
+                let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
+                self.compute_flow_table_for_graph(
+                    &module, &graph, &tree, &symbols, &mut types, &mut infer, &ctx,
+                )?
+            };
+            ctx.flow = Some(FlowContext {
+                module_id: module.id,
+                graph: Arc::new(graph),
+                table: Arc::new(flow),
+            });
+        }
 
         // infer each root expression
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPRESSION_INFER);
-            for root_id in dir.roots.iter() {
+            for root_id in runtime_roots.iter() {
                 self.collect(
                     &mut collector,
                     self.infer_expression(
@@ -158,6 +170,27 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Collect root expressions that can produce runtime behavior.
+    fn collect_runtime_roots(
+        &self,
+        tree: &destack_dir::NodeTree,
+        roots: &[destack_dir::LocalNodeId<destack_dir::Expression>],
+    ) -> Vec<destack_dir::LocalNodeId<destack_dir::Expression>> {
+        let mut runtime_roots = Vec::new();
+        for root_id in roots {
+            let Expression::Declaration { declaration } = tree.get(*root_id) else {
+                runtime_roots.push(*root_id);
+                continue;
+            };
+            let declaration = tree.get(*declaration);
+            if declaration.descriptor().kind == DeclarationKind::Definition {
+                runtime_roots.push(*root_id);
+            }
+        }
+
+        runtime_roots
     }
 
     /// Ensure export inference tasks are complete for direct module dependencies.

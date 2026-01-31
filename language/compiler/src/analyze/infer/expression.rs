@@ -553,18 +553,23 @@ impl Compiler {
         infer: &mut InferTable,
         context: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        // build a flow graph and flow table for the function body
-        let graph = FlowGraphBuilder::new(module.id, tree).build(body_id);
-        let flow = self
-            .compute_flow_table_for_graph(module, &graph, tree, symbols, types, infer, context)?;
-
-        // seed the inference context with flow information
+        // build a flow graph and flow table for the function body when needed
         let previous_flow = context.flow.clone();
-        context.flow = Some(FlowContext {
-            module_id: module.id,
-            graph: Arc::new(graph),
-            table: Arc::new(flow),
-        });
+        if self.expression_requires_flow(tree, body_id) {
+            let graph = FlowGraphBuilder::new(module.id, tree).build(body_id);
+            let flow = self.compute_flow_table_for_graph(
+                module, &graph, tree, symbols, types, infer, context,
+            )?;
+
+            // seed the inference context with flow information
+            context.flow = Some(FlowContext {
+                module_id: module.id,
+                graph: Arc::new(graph),
+                table: Arc::new(flow),
+            });
+        } else {
+            context.flow = None;
+        }
 
         // infer the expression using the flow context
         let result =

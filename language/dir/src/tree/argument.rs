@@ -44,6 +44,16 @@ impl Parameter {
         }
     }
 
+    /// Report whether the parameter has a default value.
+    pub fn has_default(&self) -> bool {
+        match self {
+            Parameter::Named { default, .. } | Parameter::Pattern { default, .. } => {
+                default.is_some()
+            }
+            Parameter::Variadic { .. } => false,
+        }
+    }
+
     /// Get the symbol of the parameter.
     pub fn symbol(&self) -> LocalSymbolId {
         match self {

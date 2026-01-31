@@ -76,7 +76,6 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut collector = TaskResultCollector::new();
         let module_checks = self.module_check_options_for_module(module.id);
-
         {
             let _timing = self.timing_scope(tags::ANALYZE_DECLARE_TYPES);
 
@@ -200,18 +199,13 @@ impl Compiler {
         module: &destack_workspace::Module,
         module_checks: ModuleCheckOptions,
     ) -> bool {
-        // eager evaluation is only skipped for declaration libs with skip lib check
+        // eager evaluation is required for non-declaration modules
         if !module.language_type.is_declaration() {
             return true;
         }
-        if self.options.validate_builtin_libs {
-            return true;
-        }
-        if module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)) {
-            return false;
-        }
 
-        true
+        // eager evaluation is only required when lib checks are enabled
+        !(module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)))
     }
 
     /// Evaluate unevaluated types to a fixed point.
