@@ -220,6 +220,50 @@ impl NodeVisitor for ExportInferenceReferenceCollector<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Decide whether declared types should be deferred for a module.
+    fn should_defer_declaration_types(&self, module: &Module) -> bool {
+        if !module.language_type.is_declaration() {
+            return false;
+        }
+
+        let module_checks = self.module_check_options_for_module(module.id);
+        module_checks.skip_lib_check || module.is_builtin()
+    }
+
+    /// Resolve or defer a type expression into a type id.
+    fn resolve_or_defer_type_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if !defer_type_evaluation {
+            return self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            );
+        }
+
+        let global_id = expression_id.into_global_any(module.id);
+        if let Some(existing) = types.get_declared_type_id(global_id) {
+            return Ok(existing);
+        }
+
+        let ty_id = types.insert_type_from(Type::Unevaluated(expression_id), expression_id);
+        types.set_declared_type(global_id, ty_id);
+        Ok(ty_id)
+    }
+
     /// Check whether TypeScript overload implementations must be restricted.
     fn should_enforce_single_overload(&self, module: &Module) -> bool {
         module.language_type.is_typescript() && !module.language_type.is_declaration()
@@ -298,6 +342,9 @@ impl Compiler {
                 value,
                 ..
             } => {
+                // decide whether to defer declared types
+                let defer_type_evaluation = self.should_defer_declaration_types(module);
+
                 // declare static parameters
                 if let Some(parameters) = static_parameters.as_ref() {
                     for parameter_id in parameters {
@@ -335,13 +382,16 @@ impl Compiler {
                     });
 
                 // resolve the declared type eagerly for type-only parameters
-                let declared_ty_id = if has_comptime_parameters {
-                    types.insert_type_from(Type::Unevaluated(*value), *value)
-                } else {
-                    self.try_evaluate_expression_to_type(
-                        module, profile, *value, tree, symbols, types, true, true,
-                    )?
-                };
+                let should_defer = defer_type_evaluation || has_comptime_parameters;
+                let declared_ty_id = self.resolve_or_defer_type_expression(
+                    module,
+                    profile,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    should_defer,
+                )?;
                 types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
 
                 // register the instance type for this symbol
@@ -797,6 +847,9 @@ impl Compiler {
                 body,
                 ..
             } => {
+                // decide whether to defer declared types
+                let defer_type_evaluation = self.should_defer_declaration_types(module);
+
                 // resolve declaration merge state
                 let symbol_entry = symbols.get_symbol(descriptor.symbol);
                 let allow_merge = module.language_type.supports_declaration_merging()
@@ -858,6 +911,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    defer_type_evaluation,
                 )?;
                 let fn_ty_id = types.insert_type_from_any(ty, declaration_id.into_any());
 
@@ -904,18 +958,23 @@ impl Compiler {
                 members,
                 ..
             } => {
+                // decide whether to defer declared types
+                let defer_type_evaluation = self.should_defer_declaration_types(module);
+
                 // declare generics and heritage
                 self.declare_generics(module, profile, generics, tree, symbols, types)?;
-                self.try_evaluate_expression_to_type(
-                    module,
-                    profile,
-                    *target_type,
-                    tree,
-                    symbols,
-                    types,
-                    true,
-                    true,
-                )?;
+                if !defer_type_evaluation {
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        *target_type,
+                        tree,
+                        symbols,
+                        types,
+                        true,
+                        true,
+                    )?;
+                }
                 self.declare_heritage(
                     module,
                     profile,
@@ -972,6 +1031,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // defer generic constraint evaluation for declaration modules
+        if self.should_defer_declaration_types(module) {
+            return Ok(());
+        }
+
         // evaluate static parameter constraints
         if let Some(parameters) = generics.static_parameters.as_ref() {
             for parameter_id in parameters {
@@ -992,6 +1056,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // defer parameter evaluation for declaration modules
+        if self.should_defer_declaration_types(module) {
+            return Ok(());
+        }
+
         // resolve the declared type for the parameter
         let declared_type_id = types.get_declared_type_id(parameter_id.into_global_any(module.id));
         let Some(declared_type_id) = declared_type_id else {
@@ -1015,31 +1084,36 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // defer heritage evaluation for declaration modules
+        let defer_type_evaluation = self.should_defer_declaration_types(module);
+
         // resolve heritage targets from evaluated types when possible
         let collect_symbol = |expression_id: LocalNodeId<Expression>,
                               symbols: &SymbolTable,
                               types: &mut TypeTable|
          -> AnalyzeResult<Option<GlobalSymbolId>> {
-            let ty_id = self.try_evaluate_expression_to_type(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?;
-            let type_symbol = self.unwrap_type_value_symbol(types, ty_id);
-
-            // prefer evaluated type references when available
-            if let Some(type_symbol) = type_symbol {
-                return Ok(Some(self.merged_type_symbol_id(
+            if !defer_type_evaluation {
+                let ty_id = self.try_evaluate_expression_to_type(
                     module,
-                    symbols,
                     profile,
-                    type_symbol,
-                )));
+                    expression_id,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )?;
+                let type_symbol = self.unwrap_type_value_symbol(types, ty_id);
+
+                // prefer evaluated type references when available
+                if let Some(type_symbol) = type_symbol {
+                    return Ok(Some(self.merged_type_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        type_symbol,
+                    )));
+                }
             }
 
             // fall back to the syntactic target symbol
@@ -1214,6 +1288,9 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShapeSet> {
+        // defer member type evaluation for declaration modules
+        let defer_type_evaluation = self.should_defer_declaration_types(module);
+
         // enforce single implementations for TypeScript methods and constructors
         if self.should_enforce_single_overload(module) {
             let mut method_implementations: HashMap<StaticKey, usize> = HashMap::new();
@@ -1293,12 +1370,24 @@ impl Compiler {
                     // handle index signatures
                     if let Some(DynamicKey::NamedExpression { name, key }) = key {
                         // resolve index signature types
-                        let key_type = self.try_evaluate_expression_to_type(
-                            module, profile, *key, tree, symbols, types, true, true,
+                        let key_type = self.resolve_or_defer_type_expression(
+                            module,
+                            profile,
+                            *key,
+                            tree,
+                            symbols,
+                            types,
+                            defer_type_evaluation,
                         )?;
                         let value_type = if let Some(value) = value {
-                            self.try_evaluate_expression_to_type(
-                                module, profile, *value, tree, symbols, types, true, true,
+                            self.resolve_or_defer_type_expression(
+                                module,
+                                profile,
+                                *value,
+                                tree,
+                                symbols,
+                                types,
+                                defer_type_evaluation,
                             )?
                         } else {
                             let ty = Type::TypeLiteral {
@@ -1328,8 +1417,14 @@ impl Compiler {
 
                     // resolve the field type
                     let value_ty_id = if let Some(value) = value {
-                        let value_ty_id = self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types, true, true,
+                        let value_ty_id = self.resolve_or_defer_type_expression(
+                            module,
+                            profile,
+                            *value,
+                            tree,
+                            symbols,
+                            types,
+                            defer_type_evaluation,
                         )?;
                         types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                         value_ty_id
@@ -1389,6 +1484,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            defer_type_evaluation,
                         )?;
                         let signature_ty_id =
                             types.insert_type_from_any(ty, (*member_id).into_any());
@@ -1467,6 +1563,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        defer_type_evaluation,
                     )?;
                     let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
 
@@ -1545,12 +1642,21 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<ObjectShape> {
+        // defer member type evaluation for declaration modules
+        let defer_type_evaluation = self.should_defer_declaration_types(module);
         let mut shape = ObjectShape::default();
 
         // collect member contributions
         for member_id in members {
-            let member_shape =
-                self.declare_member(module, profile, *member_id, tree, symbols, types)?;
+            let member_shape = self.declare_member(
+                module,
+                profile,
+                *member_id,
+                tree,
+                symbols,
+                types,
+                defer_type_evaluation,
+            )?;
             shape.extend_from_shape(&member_shape);
         }
 
@@ -1566,6 +1672,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        defer_type_evaluation: bool,
     ) -> AnalyzeResult<ObjectShape> {
         let member = tree.get(member_id);
         let mut shape = ObjectShape::default();
@@ -1580,12 +1687,24 @@ impl Compiler {
             } => {
                 // handle index signatures
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                    let key_type = self.try_evaluate_expression_to_type(
-                        module, profile, *key, tree, symbols, types, true, true,
+                    let key_type = self.resolve_or_defer_type_expression(
+                        module,
+                        profile,
+                        *key,
+                        tree,
+                        symbols,
+                        types,
+                        defer_type_evaluation,
                     )?;
                     let value_type = if let Some(value) = value {
-                        self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types, true, true,
+                        self.resolve_or_defer_type_expression(
+                            module,
+                            profile,
+                            *value,
+                            tree,
+                            symbols,
+                            types,
+                            defer_type_evaluation,
                         )?
                     } else {
                         let ty = Type::TypeLiteral {
@@ -1614,8 +1733,14 @@ impl Compiler {
 
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
-                    let value_ty_id = self.try_evaluate_expression_to_type(
-                        module, profile, *value, tree, symbols, types, true, true,
+                    let value_ty_id = self.resolve_or_defer_type_expression(
+                        module,
+                        profile,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                        defer_type_evaluation,
                     )?;
                     types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                     value_ty_id
@@ -1675,6 +1800,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        defer_type_evaluation,
                     )?;
                     let ty_id = types.insert_type_from_any(ty, member_id.into_any());
 
@@ -1709,6 +1835,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    defer_type_evaluation,
                 )?;
                 let ty_id = types.insert_type_from_any(ty, member_id.into_any());
 
@@ -1888,6 +2015,9 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
+        // defer field type evaluation for declaration modules
+        let defer_type_evaluation = self.should_defer_declaration_types(module);
+
         // collect field types in source order
         let mut dynamic_parameters = Vec::new();
         for member_id in members {
@@ -1910,8 +2040,14 @@ impl Compiler {
                     .into_global_any(module.id)
                     .into_anchored(Some(profile)),
             })?;
-            let field_ty_id = self.try_evaluate_expression_to_type(
-                module, profile, value_id, tree, symbols, types, true, true,
+            let field_ty_id = self.resolve_or_defer_type_expression(
+                module,
+                profile,
+                value_id,
+                tree,
+                symbols,
+                types,
+                defer_type_evaluation,
             )?;
             dynamic_parameters.push(field_ty_id);
         }
@@ -1938,6 +2074,36 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // skip export inference for declaration modules
+        if module.language_type.is_declaration() {
+            for export in exported_symbols.values() {
+                let Some((export_symbol, value_symbol)) =
+                    self.export_inference_value_symbol(symbols, module.id, export)
+                else {
+                    continue;
+                };
+
+                if let Some(value_ty_id) = self.export_known_value_type_id(types, value_symbol) {
+                    types.set_value_type(export_symbol, value_ty_id);
+                    continue;
+                }
+
+                let Some(declarator_id) =
+                    self.direct_binding_declarator_for_symbol(module, value_symbol, tree, symbols)
+                else {
+                    continue;
+                };
+
+                if let Some(declared_type_id) =
+                    types.get_declared_type_id(declarator_id.into_global_any(module.id))
+                {
+                    types.set_value_type(export_symbol, declared_type_id);
+                }
+            }
+
+            return Ok(());
+        }
+
         // prepare surface inference for exported values
         let options = self.analyze_context_options_for_module(module.id);
         let mut infer = InferTable::default();

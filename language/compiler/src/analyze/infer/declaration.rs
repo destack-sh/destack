@@ -4,11 +4,12 @@ use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
-    Declarator, DependencyItem, DependencyMode, DynamicKey, Expression, FunctionCardinality,
-    FunctionKind, FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope,
-    InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget,
-    Mutability, NodeTree, NodeType, NormalizationMode, Parameter, Pattern, PrimitiveType,
-    StaticKey, SymbolSpace, SymbolTable, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyMode, DynamicKey,
+    Expression, FunctionCardinality, FunctionKind, FunctionSignature, GlobalNodeIdAny,
+    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Member, ModuleTarget, Mutability, NodeTree, NodeType, NormalizationMode,
+    Parameter, Pattern, PrimitiveType, StaticKey, SymbolSpace, SymbolTable, Type, TypeField,
+    TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -54,6 +55,11 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // load the declaration node
         let declaration = tree.get(declaration_id);
+
+        // skip inference for ambient declarations
+        if declaration.descriptor().kind == DeclarationKind::Declaration {
+            return Ok(());
+        }
 
         // dispatch by declaration kind
         match declaration {
@@ -360,138 +366,250 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
-                // apply decorator options for this function
-                let function_options = {
-                    let symbol = symbols.get_symbol(descriptor.symbol);
-                    ctx.options.with_symbol_decorators(&symbol.decorators)
-                };
-
-                // infer the function signature
-                let declared_signature_ty_id =
-                    types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
-                let mut signature_ctx = ctx.fork().with_options(function_options);
-                let fn_ty_id = self.infer_signature(
+                self.infer_function_declaration(
                     module,
-                    declaration_id.into_any(),
-                    descriptor.symbol.into_global(module.id),
+                    declaration_id,
+                    descriptor,
                     signature,
-                    ctx.expected_type,
-                    declared_signature_ty_id,
+                    *body,
                     tree,
                     symbols,
                     types,
                     infer,
-                    &mut signature_ctx,
+                    ctx,
                 )?;
+            }
+        }
 
-                // merge the inferred signature into the symbol value type
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
-                    || module.language_type.is_destack()
-                    || symbol_entry.origin.is_global_augmentation();
-                self.merge_function_value_type(
+        Ok(())
+    }
+
+    /// Infer a function declaration.
+    fn infer_function_declaration(
+        &self,
+        module: &Module,
+        declaration_id: LocalNodeId<Declaration>,
+        descriptor: &DeclarationDescriptor,
+        signature: &FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<()> {
+        // apply decorator options for this function
+        let function_options = {
+            let symbol = symbols.get_symbol(descriptor.symbol);
+            ctx.options.with_symbol_decorators(&symbol.decorators)
+        };
+
+        // infer the function signature
+        let declared_signature_ty_id =
+            types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
+        let mut signature_ctx = ctx.fork().with_options(function_options);
+        let should_skip_signature_infer = self.should_skip_declared_signature_infer(
+            module,
+            signature,
+            declared_signature_ty_id,
+            ctx.expected_type,
+            tree,
+            types,
+        );
+        let fn_ty_id = if should_skip_signature_infer {
+            let declared_signature_ty_id = declared_signature_ty_id
+                .expect("declared signature type required for skipped signature inference");
+            if !ctx.is_surface_inference {
+                types.set_inferred_type(
+                    declaration_id.into_global_any(module.id),
+                    declared_signature_ty_id,
+                );
+            }
+            declared_signature_ty_id
+        } else {
+            self.infer_signature(
+                module,
+                declaration_id.into_any(),
+                descriptor.symbol.into_global(module.id),
+                signature,
+                ctx.expected_type,
+                declared_signature_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut signature_ctx,
+            )?
+        };
+
+        // merge the inferred signature into the symbol value type
+        let symbol_entry = symbols.get_symbol(descriptor.symbol);
+        let allow_merge = module.language_type.supports_declaration_merging()
+            || module.language_type.is_destack()
+            || symbol_entry.origin.is_global_augmentation();
+        self.merge_function_value_type(
+            module,
+            ctx.profile,
+            declaration_id,
+            descriptor.symbol,
+            fn_ty_id,
+            declared_signature_ty_id,
+            symbols,
+            types,
+            allow_merge,
+        );
+
+        // infer the body when needed
+        let should_infer_body = self.should_infer_function_body(module, signature, body);
+        if let Some(body) = body
+            && should_infer_body
+        {
+            // prepare return type tracking for the body
+            let return_type = self.function_return_type(fn_ty_id, types);
+            let ctx = ctx
+                .reset()
+                .without_const_context()
+                .with_options(function_options)
+                .in_function_with_signature(declaration_id.into_any(), signature);
+            let mut context_return_type = return_type;
+            let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
+                let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
                     module,
                     ctx.profile,
-                    declaration_id,
-                    descriptor.symbol,
-                    fn_ty_id,
-                    declared_signature_ty_id,
+                    declaration_id.into_any(),
+                    return_type,
                     symbols,
                     types,
-                    allow_merge,
+                );
+                context_return_type = Some(return_ty_id);
+                ctx.with_return_type(Some(return_ty_id))
+                    .with_generator_types(Some(yield_ty_id), Some(next_ty_id))
+            } else {
+                ctx.with_return_type(return_type)
+            };
+
+            // only propagate return type expectations into expression bodies
+            let body_expression = !matches!(tree.get(body), Expression::Block { .. });
+            if body_expression {
+                ctx = ctx.with_expected_type(context_return_type);
+            } else {
+                ctx = ctx.with_expected_type(None);
+            }
+
+            // infer the function body with implicit return typing
+            let body_ty_id =
+                self.infer_body(module, body, tree, symbols, types, infer, &mut ctx)?;
+
+            // commit inferred return types for widening
+            let committed_body_ty_id = self.commit_inferred_return_type(
+                module,
+                &ctx,
+                context_return_type,
+                body_ty_id,
+                types,
+            );
+
+            // constrain implicit return types against the declared return type
+            if let Some(return_ty_id) = context_return_type
+                && has_implicit_return(body, tree)
+            {
+                infer.push_constraint(Constraint::Subtype {
+                    sub_type: committed_body_ty_id,
+                    super_type: return_ty_id,
+                    variance: None,
+                });
+
+                let normalized_return_ty_id = self.normalize_type_for_assignability(
+                    module,
+                    ctx.profile,
+                    return_ty_id,
+                    symbols,
+                    types,
                 );
 
-                // infer the body when present
-                if let Some(body) = body {
-                    // prepare return type tracking for the body
-                    let return_type = self.function_return_type(fn_ty_id, types);
-                    let ctx = ctx
-                        .reset()
-                        .without_const_context()
-                        .with_options(function_options)
-                        .in_function_with_signature(declaration_id.into_any(), signature);
-                    let mut context_return_type = return_type;
-                    let mut ctx = if signature.cardinality == FunctionCardinality::Generator {
-                        let (yield_ty_id, return_ty_id, next_ty_id) = self.generator_context_types(
-                            module,
-                            ctx.profile,
-                            declaration_id.into_any(),
-                            return_type,
-                            symbols,
-                            types,
-                        );
-                        context_return_type = Some(return_ty_id);
-                        ctx.with_return_type(Some(return_ty_id))
-                            .with_generator_types(Some(yield_ty_id), Some(next_ty_id))
-                    } else {
-                        ctx.with_return_type(return_type)
-                    };
-
-                    // only propagate return type expectations into expression bodies
-                    let body_expression = !matches!(tree.get(*body), Expression::Block { .. });
-                    if body_expression {
-                        ctx = ctx.with_expected_type(context_return_type);
-                    } else {
-                        ctx = ctx.with_expected_type(None);
-                    }
-
-                    // infer the function body with implicit return typing
-                    let body_ty_id =
-                        self.infer_body(module, *body, tree, symbols, types, infer, &mut ctx)?;
-
-                    // commit inferred return types for widening
-                    let committed_body_ty_id = self.commit_inferred_return_type(
+                if !self.is_infer_var_type(return_ty_id, types)
+                    && !self.is_infer_var_type(committed_body_ty_id, types)
+                    && self.is_type_assignable(
                         module,
-                        &ctx,
-                        context_return_type,
-                        body_ty_id,
+                        ctx.profile,
+                        symbols,
+                        normalized_return_ty_id,
+                        committed_body_ty_id,
                         types,
-                    );
-
-                    // constrain implicit return types against the declared return type
-                    if let Some(return_ty_id) = context_return_type
-                        && has_implicit_return(*body, tree)
-                    {
-                        infer.push_constraint(Constraint::Subtype {
-                            sub_type: committed_body_ty_id,
-                            super_type: return_ty_id,
-                            variance: None,
-                        });
-
-                        let normalized_return_ty_id = self.normalize_type_for_assignability(
-                            module,
-                            ctx.profile,
-                            return_ty_id,
-                            symbols,
-                            types,
-                        );
-
-                        if !self.is_infer_var_type(return_ty_id, types)
-                            && !self.is_infer_var_type(committed_body_ty_id, types)
-                            && self.is_type_assignable(
-                                module,
-                                ctx.profile,
-                                symbols,
-                                normalized_return_ty_id,
-                                committed_body_ty_id,
-                                types,
-                                &function_options,
-                            ) == Assignability::NotAssignable
-                        {
-                            self.error(AnalyzeError::UnassignableType {
-                                node: body
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(ctx.profile)),
-                                expected_ty: return_ty_id.into_global(module.id),
-                                actual_ty: body_ty_id.into_global(module.id),
-                            });
-                        }
-                    }
+                        &function_options,
+                    ) == Assignability::NotAssignable
+                {
+                    self.error(AnalyzeError::UnassignableType {
+                        node: body
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        expected_ty: return_ty_id.into_global(module.id),
+                        actual_ty: body_ty_id.into_global(module.id),
+                    });
                 }
             }
         }
 
         Ok(())
+    }
+
+    /// Decide whether a function body should be inferred.
+    fn should_infer_function_body(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        body: Option<LocalNodeId<Expression>>,
+    ) -> bool {
+        let Some(_) = body else {
+            return false;
+        };
+
+        if module.language_type.is_declaration() {
+            return false;
+        }
+
+        let module_checks = self.module_check_options_for_module(module.id);
+        if module_checks.skip_lib_check
+            && matches!(module.source, ModuleSource::Builtin(_))
+            && signature.return_type.is_some()
+        {
+            return false;
+        }
+
+        true
+    }
+
+    /// Decide whether declared signatures can skip inference.
+    fn should_skip_declared_signature_infer(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        declared_signature_ty_id: Option<LocalTypeId>,
+        expected_fn_ty_id: Option<LocalTypeId>,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> bool {
+        if expected_fn_ty_id.is_some() {
+            return false;
+        }
+
+        if !module.language_type.is_declaration() {
+            return false;
+        }
+
+        let module_checks = self.module_check_options_for_module(module.id);
+        let allow_skip = module_checks.skip_lib_check
+            || (matches!(module.source, ModuleSource::Builtin(_))
+                && !self.options.validate_builtin_libs);
+        if !allow_skip {
+            return false;
+        }
+
+        if declared_signature_ty_id.is_none() {
+            return false;
+        }
+
+        self.signature_is_fully_declared(module, signature, tree, types)
     }
 
     /// Infer a member declaration.
@@ -1159,6 +1277,53 @@ impl Compiler {
         }
 
         Ok(ty_id)
+    }
+
+    /// Check whether a signature is fully declared without defaults.
+    fn signature_is_fully_declared(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> bool {
+        // require explicit return type
+        let Some(return_type_node_id) = signature.return_type else {
+            return false;
+        };
+
+        // require declared return type
+        if types
+            .get_declared_type_id(return_type_node_id.into_global_any(module.id))
+            .is_none()
+        {
+            return false;
+        }
+
+        // require declared `this` parameter type when present
+        if let Some(this_parameter_id) = signature.this_parameter
+            && types
+                .get_declared_type_id(this_parameter_id.into_global_any(module.id))
+                .is_none()
+        {
+            return false;
+        }
+
+        // require declared parameter types without defaults
+        for parameter_id in signature.dynamic_parameters.iter() {
+            let parameter = tree.get(*parameter_id);
+            if parameter.has_default() {
+                return false;
+            }
+            if types
+                .get_declared_type_id(parameter_id.into_global_any(module.id))
+                .is_none()
+            {
+                return false;
+            }
+        }
+
+        true
     }
 
     /// Enforce no-managed decorators on function signatures.

@@ -4,10 +4,11 @@ use indexmap::IndexMap;
 
 use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, DynamicKey, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph,
-    FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, Pattern,
-    PatternField, ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    BinaryOperator, Declaration, DynamicKey, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment,
+    FlowGraph, FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId,
+    NodeTree, NodeVisitor, NodeVisitorOptions, Pattern, PatternField, ScalarLiteral, StaticKey,
+    SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -16,8 +17,143 @@ use super::r#type::TypeGuardTarget;
 
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 
+/// Track whether a tree walk encounters flow sensitive constructs.
+#[derive(Debug, Default)]
+struct FlowSensitiveVisitor {
+    /// The visitor options.
+    options: NodeVisitorOptions,
+    /// Whether we found flow sensitive constructs.
+    requires_flow: bool,
+}
+
+impl FlowSensitiveVisitor {
+    /// Create a new flow requirement visitor.
+    fn new() -> Self {
+        Self {
+            options: NodeVisitorOptions::default(),
+            requires_flow: false,
+        }
+    }
+
+    /// Report whether the current traversal requires flow typing.
+    fn requires_flow(&self) -> bool {
+        self.requires_flow
+    }
+
+    fn mark_flow_required(&mut self) {
+        self.requires_flow = true;
+    }
+}
+
+impl NodeVisitor for FlowSensitiveVisitor {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // stop once flow is required
+        if self.requires_flow {
+            return;
+        }
+
+        // detect control flow constructs
+        if matches!(
+            expression,
+            Expression::If { .. }
+                | Expression::Loop { .. }
+                | Expression::ForEach { .. }
+                | Expression::For { .. }
+                | Expression::Match { .. }
+                | Expression::Try { .. }
+                | Expression::Return { .. }
+                | Expression::Break { .. }
+                | Expression::UnresolvedBreak { .. }
+                | Expression::Continue { .. }
+                | Expression::UnresolvedContinue { .. }
+                | Expression::Throw { .. }
+        ) {
+            self.mark_flow_required();
+            return;
+        }
+
+        // detect short circuit operators
+        if matches!(
+            expression,
+            Expression::Binary {
+                operator: BinaryOperator::And | BinaryOperator::Or | BinaryOperator::Coalesce,
+                ..
+            }
+        ) {
+            self.mark_flow_required();
+            return;
+        }
+
+        // visit nested expressions
+        walk_expression(self, tree, id, expression);
+    }
+
+    fn visit_declaration(
+        &mut self,
+        tree: &NodeTree,
+        _id: LocalNodeId<Declaration>,
+        declaration: &Declaration,
+    ) {
+        // stop once flow is required
+        if self.requires_flow {
+            return;
+        }
+
+        // only visit declarations that execute immediately
+        match declaration {
+            Declaration::Global { expressions, .. }
+            | Declaration::Namespace { expressions, .. } => {
+                for expression_id in expressions {
+                    let expression = tree.get(*expression_id);
+                    self.visit_expression(tree, *expression_id, expression);
+                    if self.requires_flow {
+                        return;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Report whether an expression body needs flow typing.
+    pub fn expression_requires_flow(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut visitor = FlowSensitiveVisitor::new();
+        let expression = tree.get(expression_id);
+        visitor.visit_expression(tree, expression_id, expression);
+
+        visitor.requires_flow()
+    }
+
+    /// Report whether any root expression needs flow typing.
+    pub fn roots_require_flow(&self, tree: &NodeTree, roots: &[LocalNodeId<Expression>]) -> bool {
+        let mut visitor = FlowSensitiveVisitor::new();
+        for root_id in roots {
+            let expression = tree.get(*root_id);
+            visitor.visit_expression(tree, *root_id, expression);
+            if visitor.requires_flow() {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// Compute a flow table for a control flow graph.
     pub fn compute_flow_table_for_graph(
         &self,

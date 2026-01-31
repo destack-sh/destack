@@ -792,6 +792,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        defer_type_evaluation: bool,
     ) -> AnalyzeResult<Type> {
         let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_SIGNATURE);
 
@@ -810,8 +811,9 @@ impl Compiler {
                     };
                     types.insert_type_from(ty, *parameter_id)
                 });
-
-            self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+            if !defer_type_evaluation {
+                self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+            }
 
             dynamic_parameters.push(declared_type_id);
         }
@@ -826,8 +828,9 @@ impl Compiler {
                     };
                     types.insert_type_from(ty, this_parameter_id)
                 });
-
-            self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+            if !defer_type_evaluation {
+                self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+            }
 
             Some(declared_type_id)
         } else {
@@ -836,16 +839,20 @@ impl Compiler {
 
         // evaluate return type
         let return_type = if let Some(return_type_id) = signature.return_type {
-            Some(self.try_evaluate_expression_to_type(
-                module,
-                profile,
-                return_type_id,
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?)
+            if defer_type_evaluation {
+                Some(self.declared_type_id_for_expression_or_insert(module, return_type_id, types))
+            } else {
+                Some(self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    return_type_id,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )?)
+            }
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
@@ -862,6 +869,23 @@ impl Compiler {
             dynamic_parameters,
             return_type,
         })
+    }
+
+    /// Return a declared type id for an expression, inserting an unevaluated type if needed.
+    fn declared_type_id_for_expression_or_insert(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let global_id = expression_id.into_global_any(module.id);
+        if let Some(existing) = types.get_declared_type_id(global_id) {
+            return existing;
+        }
+
+        let ty_id = types.insert_type_from(Type::Unevaluated(expression_id), expression_id);
+        types.set_declared_type(global_id, ty_id);
+        ty_id
     }
 
     /// Evaluate static arguments for a type reference.
@@ -1899,7 +1923,6 @@ impl Compiler {
         let module_checks = self.module_check_options_for_module(module.id);
         let is_user_module = matches!(module.source, ModuleSource::User);
         let defer_reference_resolution = module.language_type.is_declaration()
-            && !self.options.validate_builtin_libs
             && (module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)));
 
         let expression = tree.get(expression_id);
@@ -2183,6 +2206,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
+                                false,
                             )?
                         } else {
                             // #Incomplete: only function declarations are evaluable as types (?)
@@ -3152,6 +3176,7 @@ impl Compiler {
                                             tree,
                                             symbols,
                                             types,
+                                            false,
                                         )?;
                                         let ty_id = types.insert_type_from(ty, property_id);
                                         match signature.mode {
@@ -3189,6 +3214,7 @@ impl Compiler {
                                         tree,
                                         symbols,
                                         types,
+                                        false,
                                     )?;
                                     let ty_id = types.insert_type_from(ty, property_id);
 

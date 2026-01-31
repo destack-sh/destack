@@ -103,6 +103,9 @@ pub struct TypeTable {
     /// Cached type reference results by cache key.
     #[serde(skip)]
     pub(crate) type_reference_cache_by_key: IndexMap<u64, Type>,
+    /// Cached resolved static arguments by cache key.
+    #[serde(skip)]
+    pub(crate) static_argument_resolution_cache_by_key: IndexMap<u64, Option<Vec<StaticArgument>>>,
     /// Cached normalization results for assignability.
     pub(crate) normalized_assignability_type_by_id: Vec<IndexMap<u64, NormalizationCacheEntry>>,
     /// Cached normalization results for flow.
@@ -212,6 +215,7 @@ impl TypeTable {
             expression_type_id_cache_by_key: IndexMap::new(),
             expression_type_value_cache_by_key: IndexMap::new(),
             type_reference_cache_by_key: IndexMap::new(),
+            static_argument_resolution_cache_by_key: IndexMap::new(),
             normalized_assignability_type_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
             normalized_alias_by_symbol: Vec::new(),
@@ -346,6 +350,26 @@ impl TypeTable {
     /// Store a cached type reference result for a cache key.
     pub fn set_type_reference_cache(&mut self, key: u64, ty: Type) {
         self.type_reference_cache_by_key.insert(key, ty);
+    }
+
+    /// Return cached resolved static arguments for a cache key.
+    pub fn get_static_argument_resolution_cache(
+        &self,
+        key: u64,
+    ) -> Option<Option<Vec<StaticArgument>>> {
+        self.static_argument_resolution_cache_by_key
+            .get(&key)
+            .cloned()
+    }
+
+    /// Store cached resolved static arguments for a cache key.
+    pub fn set_static_argument_resolution_cache(
+        &mut self,
+        key: u64,
+        resolved: Option<Vec<StaticArgument>>,
+    ) {
+        self.static_argument_resolution_cache_by_key
+            .insert(key, resolved);
     }
 
     /// Iterate over all type ids.
