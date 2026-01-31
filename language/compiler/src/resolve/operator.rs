@@ -74,6 +74,9 @@ impl OperatorLanguageSymbolExt for UnaryOperator {
 
             // spread
             UnaryOperator::Spread => None,
+
+            // keyword operators
+            UnaryOperator::Typeof | UnaryOperator::Void => None,
         }
     }
 }

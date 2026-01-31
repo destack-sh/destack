@@ -2906,6 +2906,8 @@ impl Compiler {
             | UnaryOperator::PreIncrement
             | UnaryOperator::PreDecrement
             | UnaryOperator::Not
+            | UnaryOperator::Typeof
+            | UnaryOperator::Void
             | UnaryOperator::Spread => true,
         }
     }

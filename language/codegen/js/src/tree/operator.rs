@@ -17,6 +17,10 @@ pub enum UnaryOperator {
     ElementwiseNot,
     /// `!`
     Not,
+    /// `typeof`
+    Typeof,
+    /// `void`
+    Void,
 }
 
 impl UnaryOperator {
@@ -31,6 +35,8 @@ impl UnaryOperator {
                 | Self::Plus
                 | Self::Negate
                 | Self::ElementwiseNot
+                | Self::Typeof
+                | Self::Void
         )
     }
 

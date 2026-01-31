@@ -16,6 +16,8 @@ impl Compiler {
             ast::UnaryOperator::Plus => UnaryOperator::Plus,
             ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
+            ast::UnaryOperator::Typeof => UnaryOperator::Typeof,
+            ast::UnaryOperator::Void => UnaryOperator::Void,
             ast::UnaryOperator::Dereference => UnaryOperator::Dereference,
             ast::UnaryOperator::Spread => UnaryOperator::Spread,
         }

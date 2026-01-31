@@ -1124,14 +1124,17 @@ impl Compiler {
 
         // resolve the guard symbol from the typeof argument
         let typeof_id = self.unwrap_parenthesized_expression(typeof_id, tree);
-        let Expression::TypeUnary {
-            operator: TypeUnaryOperator::Typeof,
-            right,
-        } = tree.get(typeof_id)
-        else {
-            return Ok(None);
+        let right_id = match tree.get(typeof_id) {
+            Expression::TypeUnary {
+                operator: TypeUnaryOperator::Typeof,
+                right,
+            } => self.unwrap_parenthesized_expression(*right, tree),
+            Expression::Unary {
+                operator: UnaryOperator::Typeof,
+                right,
+            } => self.unwrap_parenthesized_expression(*right, tree),
+            _ => return Ok(None),
         };
-        let right_id = self.unwrap_parenthesized_expression(*right, tree);
         let symbol =
             self.reference_symbol_for_expression(module, right_id, context.profile, tree, symbols);
         let Some(symbol) = symbol else {
@@ -2003,6 +2006,10 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::TypeUnary {
                 operator: TypeUnaryOperator::Typeof,
+                ..
+            } => Some(expression_id),
+            Expression::Unary {
+                operator: UnaryOperator::Typeof,
                 ..
             } => Some(expression_id),
             _ => None,

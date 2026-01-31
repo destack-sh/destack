@@ -16,6 +16,8 @@ impl<'ast> Format<CodegenJsFormatContext<'ast>> for UnaryOperator {
             UnaryOperator::Negate => token("-"),
             UnaryOperator::Plus => token("+"),
             UnaryOperator::ElementwiseNot => token("~"),
+            UnaryOperator::Typeof => token("typeof"),
+            UnaryOperator::Void => token("void"),
         };
         write!(f, [token])
     }

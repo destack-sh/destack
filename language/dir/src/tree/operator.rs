@@ -22,6 +22,10 @@ pub enum UnaryOperator {
     WrappingNegate,
     /// `~`
     ElementwiseNot,
+    /// `typeof`
+    Typeof,
+    /// `void`
+    Void,
     /// `*`
     Dereference,
     /// `...`

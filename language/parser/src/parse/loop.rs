@@ -391,6 +391,34 @@ for await (const item of items) {
     }
 
     #[test]
+    fn test_parse_for_loop_with_inline_if_body() {
+        let mut test = TestParser::new(
+            r###"
+for (var r in t)
+    if (r !== "default" && !Object.prototype.hasOwnProperty.call(e, r)) i(e, t, r)
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let for_id = parser.eat_for().unwrap();
+        assert_node!(parser.tree, for_id, Expression::ForEach { binding: ForEachBinding::Pattern { pattern }, iterator, body, .. } => {
+            // r
+            assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: Some(mutability), name, pattern: None } => {
+                assert_eq!(*mutability, Mutability::Mutable);
+                assert_string!(parser, *name, "r");
+            });
+            // t
+            assert_expression_path!(parser, parser.tree.get(*iterator), "t");
+            // body
+            assert_node!(parser.tree, *body, Block { expressions, .. } => {
+                assert_eq!(expressions.len(), 1);
+                assert_node!(parser.tree, expressions[0], Expression::If { .. } => {});
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_for_loop_with_label() {
         let mut test = TestParser::new(
             r###"

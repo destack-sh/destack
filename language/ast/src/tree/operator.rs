@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::TokenType;
+use crate::{Keyword, TokenType};
 
 /// The operator group (for precedence).
 ///
@@ -181,6 +181,10 @@ pub enum UnaryOperator {
     WrappingNegate = 1904,
     /// `~`
     ElementwiseNot = 1903,
+    /// `typeof`
+    Typeof = 1900,
+    /// `void`
+    Void = 1899,
     /// `*`
     Dereference = 1902,
     /// `...`
@@ -212,6 +216,8 @@ impl UnaryOperator {
             | UnaryOperator::Negate
             | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
+            | UnaryOperator::Typeof
+            | UnaryOperator::Void
             | UnaryOperator::Dereference
             | UnaryOperator::Spread => true,
             UnaryOperator::PostIncrement | UnaryOperator::PostDecrement => false,
@@ -241,6 +247,16 @@ impl UnaryOperator {
         }
     }
 
+    /// Convert a prefix keyword to a UnaryOperator (if a direct mapping exists).
+    #[inline]
+    pub fn from_prefix_keyword(keyword: Keyword) -> Option<UnaryOperator> {
+        match keyword {
+            Keyword::Typeof => Some(UnaryOperator::Typeof),
+            Keyword::Void => Some(UnaryOperator::Void),
+            _ => None,
+        }
+    }
+
     /// Convert a postfix token to a UnaryOperator (if a direct mapping exists).
     #[inline]
     pub fn from_postfix_token(token_type: TokenType) -> Option<UnaryOperator> {
@@ -256,7 +272,7 @@ impl UnaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeBinaryOperator {
     /// `as`
-    // NOTE: cast binds between elementwise and comparison for TS-style parsing
+    // NOTE #Cleanup: cast binds between elementwise and comparison for TS-style parsing
     Cast = 1355,
     /// `in`
     In = 1006,

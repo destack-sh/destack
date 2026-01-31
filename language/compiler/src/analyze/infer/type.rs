@@ -1206,6 +1206,12 @@ impl Compiler {
             }),
             // constant folding for numeric negation
             UnaryOperator::Negate => self.try_fold_negate(right),
+            UnaryOperator::Typeof => Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+            UnaryOperator::Void => Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
             _ => right.clone(),
         }
     }

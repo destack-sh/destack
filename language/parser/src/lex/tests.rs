@@ -415,6 +415,24 @@ fn test_lex_regex_literal_in_context() {
 }
 
 #[test]
+fn test_lex_regex_literal_after_colon() {
+    assert_tokenize_eq_roundtrip!(
+        "({src:/foo/})",
+        Token::new(TokenType::OpenParenthesis, 1, None),
+        Token::new(TokenType::OpenBrace, 1, None),
+        Token::new(TokenType::Identifier, 3, None),
+        Token::new(TokenType::Colon, 1, None),
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::RegexString { has_flags: false })
+        ),
+        Token::new(TokenType::CloseBrace, 1, None),
+        Token::new(TokenType::CloseParenthesis, 1, None),
+    );
+}
+
+#[test]
 fn test_lex_regex_literal_in_tree() {
     assert_tokenize_eq_roundtrip!(
         r"

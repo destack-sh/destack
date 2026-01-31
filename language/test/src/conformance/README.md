@@ -10,12 +10,12 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   528  |   180  |     7  |   708 |  74.58% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
-| swc      |   532  |     6  |     -  |   538 |  98.88% |
+| swc      |   538  |     0  |     -  |   538 | 100.00% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5718  |  1528  |      7  |  7246 |  78.91% |
+| total    |  5724  |  1522  |      7  |  7246 |  79.00% |
 
-Total Blended Pass Rate: **78.91%**
+Total Blended Pass Rate: **79.00%**
 <!-- end:summary-results -->
 
 ### babel
@@ -87,7 +87,7 @@ Total Blended Pass Rate: **78.91%**
 | custom               |    56  |     0  |       -  |    56 | 100.00% |
 | declare              |     5  |     0  |       -  |     5 | 100.00% |
 | decorators           |     2  |     0  |       -  |     2 | 100.00% |
-| deno                 |     6  |     1  |       -  |     7 |  85.71% |
+| deno                 |     7  |     0  |       -  |     7 | 100.00% |
 | enum                 |    11  |     0  |       -  |    11 | 100.00% |
 | eof-issue            |     1  |     0  |       -  |     1 | 100.00% |
 | errors               |    25  |     0  |       -  |    25 | 100.00% |
@@ -100,10 +100,10 @@ Total Blended Pass Rate: **78.91%**
 | import-assertions    |     7  |     0  |       -  |     7 | 100.00% |
 | instantiation-expr   |     8  |     0  |       -  |     8 | 100.00% |
 | interface            |    16  |     0  |       -  |    16 | 100.00% |
-| issue                |   132  |     4  |       -  |   136 |  97.06% |
+| issue                |   136  |     0  |       -  |   136 | 100.00% |
 | meta-property        |     3  |     0  |       -  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |       -  |     9 | 100.00% |
-| next                 |     1  |     1  |       -  |     2 |  50.00% |
+| next                 |     2  |     0  |       -  |     2 | 100.00% |
 | nullish-coalescing-operator |     7  |     0  |       -  |     7 | 100.00% |
 | object               |     2  |     0  |       -  |     2 | 100.00% |
 | optional-chaining    |    18  |     0  |       -  |    18 | 100.00% |
@@ -123,7 +123,7 @@ Total Blended Pass Rate: **78.91%**
 | variance-annotations |     2  |     0  |       -  |     2 | 100.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   532  |     6  |       -  |   538 |  98.88% |
+| total                |   538  |     0  |       -  |   538 | 100.00% |
 <!-- end:swc-results -->
 
 ### test262
