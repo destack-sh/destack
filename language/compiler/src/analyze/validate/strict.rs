@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringId;
 use destack_dir::{
     BindingAnchor, BindingKind, BindingModifier, Declaration, DeclarationDescriptor,
-    DeclarationKind, DependencyItem, DynamicKey, Expression, FlowGraphBuilder, FunctionAbstraction,
-    FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalSymbolId,
-    LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree, NodeType, Parameter, Pattern,
-    PatternField, ScalarLiteral, StaticKey, SymbolBinding, SymbolSpace, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    DeclarationKind, Declarator, DependencyItem, DynamicKey, Expression, FlowGraphBuilder,
+    FunctionAbstraction, FunctionCardinality, FunctionMode, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, Member, Mutability, NodeTree,
+    NodeType, Parameter, Pattern, PatternField, ScalarLiteral, StaticKey, SymbolBinding,
+    SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -145,6 +145,9 @@ impl Compiler {
         if check_fallthrough {
             self.validate_switch_fallthrough(module, profile, tree);
         }
+
+        // check implicit any in declaration modules
+        self.validate_declaration_implicit_any(module, profile, tree, symbols, types);
     }
 
     /// Validate restriction options on inferred types.
@@ -1368,5 +1371,130 @@ impl Compiler {
             }
             _ => false,
         }
+    }
+
+    /// Validate implicit any usage in declaration modules.
+    fn validate_declaration_implicit_any(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+        if !options.no_implicit_any {
+            return;
+        }
+        if !module.language_type.is_declaration() {
+            return;
+        }
+
+        // check untyped declarators without initializers
+        for (id, declarator) in tree.iter_nodes_of_type::<Declarator>() {
+            if !self.is_node_active(tree, symbols, id.into_any()) {
+                continue;
+            }
+            let declared_ty_id = types.get_declared_type_id(id.into_global(module.id).into());
+            self.report_implicit_any_for_declarator(
+                module,
+                profile,
+                id,
+                declared_ty_id,
+                declarator.value.is_some(),
+            );
+        }
+
+        // check untyped parameters without defaults
+        for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(tree, symbols, id.into_any()) {
+                continue;
+            }
+
+            let declared_ty_id = types.get_declared_type_id(id.into_global_any(module.id));
+            let has_default = match parameter {
+                Parameter::Named { default, .. } => default.is_some(),
+                Parameter::Pattern { default, .. } => default.is_some(),
+                Parameter::Variadic { .. } => false,
+            };
+            let symbol = parameter.symbol().into_global(module.id);
+            self.report_implicit_any_for_parameter(
+                module,
+                profile,
+                id,
+                symbol,
+                declared_ty_id,
+                None,
+                has_default,
+                symbols,
+                types,
+            );
+        }
+    }
+
+    /// Report an implicit any diagnostic for a parameter when required.
+    pub(crate) fn report_implicit_any_for_parameter(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        parameter_id: LocalNodeId<Parameter>,
+        symbol: GlobalSymbolId,
+        declared_type: Option<LocalTypeId>,
+        expected_type: Option<LocalTypeId>,
+        has_default: bool,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+        if !options.no_implicit_any {
+            return;
+        }
+        if declared_type.is_some() || expected_type.is_some() || has_default {
+            return;
+        }
+        if symbol.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol.local_id);
+            if symbol.is_static_parameter() {
+                return;
+            }
+        } else if self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+            return;
+        }
+        if matches!(module.source, ModuleSource::Builtin(_)) {
+            return;
+        }
+
+        self.error(AnalyzeError::ImplicitAny {
+            node: parameter_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        });
+    }
+
+    /// Report an implicit any diagnostic for a declarator when required.
+    pub(crate) fn report_implicit_any_for_declarator(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declarator_id: LocalNodeId<Declarator>,
+        declared_type: Option<LocalTypeId>,
+        has_initializer: bool,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+        if !options.no_implicit_any {
+            return;
+        }
+        if declared_type.is_some() || has_initializer {
+            return;
+        }
+        if matches!(module.source, ModuleSource::Builtin(_)) {
+            return;
+        }
+
+        self.error(AnalyzeError::ImplicitAny {
+            node: declarator_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        });
     }
 }

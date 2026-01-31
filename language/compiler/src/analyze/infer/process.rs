@@ -6,11 +6,11 @@ use crate::{
     TaskResultCollector,
 };
 use destack_dir::{
-    Declaration, DeclarationKind, Expression, FlowGraphBuilder, InferTable, IntType, PrimitiveType,
-    Type, TypeLiteral,
+    Declaration, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId, NodeTree,
+    PrimitiveType, Type, TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleContent, ModuleGraphKey, ModuleType, ProfileId};
+use destack_workspace::{Module, ModuleContent, ModuleGraphKey, ModuleType, ProfileId};
 
 use super::super::common::json_value_to_type;
 
@@ -63,15 +63,7 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
 
-        // select runtime roots for the inference pass
-        let runtime_roots = self.collect_runtime_roots(&tree, &dir.roots);
-
-        // skip inference for declaration-only modules when lib checks are disabled
-        let module_checks = self.module_check_options_for_module(module.id);
-        let skip_declaration_infer = module.language_type.is_declaration()
-            && (module_checks.skip_lib_check
-                || (module.is_builtin() && !self.options.validate_builtin_libs));
-        if skip_declaration_infer {
+        if module.language_type.is_declaration() {
             // infer enum backing types (still required even for declaration-only modules)
             for root_id in dir.roots.iter() {
                 let Expression::Declaration { declaration } = tree.get(*root_id) else {
@@ -99,12 +91,9 @@ impl Compiler {
             return Ok(());
         }
 
-        // include declaration roots when checking declaration-only modules
-        let infer_roots = if module.language_type.is_declaration() {
-            dir.roots.to_vec()
-        } else {
-            runtime_roots.clone()
-        };
+        // select runtime roots for the inference pass
+        let runtime_roots = self.collect_runtime_roots(&module, &tree, &dir.roots);
+        let infer_roots = runtime_roots.clone();
 
         if infer_roots.is_empty() {
             return Ok(());
@@ -133,10 +122,18 @@ impl Compiler {
         let mut ctx = InferContext::new(profile, options);
 
         // build a module level flow graph and flow table when needed
-        if self.roots_require_flow(&tree, &runtime_roots) {
+        let flow_roots = {
+            let _timing = self.timing_scope(tags::ANALYZE_FLOW_REQUIREMENTS);
+            runtime_roots
+                .iter()
+                .copied()
+                .filter(|root_id| self.expression_requires_flow(&tree, *root_id))
+                .collect::<Vec<_>>()
+        };
+        if !flow_roots.is_empty() {
             let graph = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_GRAPH_BUILD);
-                FlowGraphBuilder::new(module.id, &tree).build_roots(&runtime_roots)
+                FlowGraphBuilder::new(module.id, &tree).build_roots(&flow_roots)
             };
             let flow = {
                 let _timing = self.timing_scope(tags::ANALYZE_FLOW_TABLE_COMPUTE);
@@ -179,7 +176,7 @@ impl Compiler {
         }
 
         // solve constraints (and commit inferred types)
-        {
+        if !infer.vars.is_empty() || !infer.constraints.is_empty() {
             let _timing = self.timing_scope(tags::ANALYZE_INFER_SOLVE_CONSTRAINTS);
             self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
         }
@@ -190,17 +187,13 @@ impl Compiler {
     /// Collect root expressions that can produce runtime behavior.
     fn collect_runtime_roots(
         &self,
-        tree: &destack_dir::NodeTree,
-        roots: &[destack_dir::LocalNodeId<destack_dir::Expression>],
-    ) -> Vec<destack_dir::LocalNodeId<destack_dir::Expression>> {
+        module: &Module,
+        tree: &NodeTree,
+        roots: &[LocalNodeId<Expression>],
+    ) -> Vec<LocalNodeId<Expression>> {
         let mut runtime_roots = Vec::new();
         for root_id in roots {
-            let Expression::Declaration { declaration } = tree.get(*root_id) else {
-                runtime_roots.push(*root_id);
-                continue;
-            };
-            let declaration = tree.get(*declaration);
-            if declaration.descriptor().kind == DeclarationKind::Definition {
+            if self.expression_requires_infer(module, *root_id, tree) {
                 runtime_roots.push(*root_id);
             }
         }

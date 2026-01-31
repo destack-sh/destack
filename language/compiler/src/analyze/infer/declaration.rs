@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyMode, DynamicKey,
@@ -23,6 +23,45 @@ pub(super) enum DeclaratorConstraint {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Decide whether an expression needs inference work.
+    pub(super) fn expression_requires_infer(
+        &self,
+        _module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let expression = tree.get(expression_id);
+        match expression {
+            Expression::Declaration { declaration } => {
+                self.declaration_requires_infer(_module, *declaration, tree)
+            }
+            _ => true,
+        }
+    }
+
+    /// Decide whether a declaration needs inference work.
+    pub(super) fn declaration_requires_infer(
+        &self,
+        _module: &Module,
+        declaration_id: LocalNodeId<Declaration>,
+        tree: &NodeTree,
+    ) -> bool {
+        let declaration = tree.get(declaration_id);
+        if declaration.descriptor().kind == DeclarationKind::Declaration {
+            return false;
+        }
+
+        match declaration {
+            Declaration::Type { .. } | Declaration::ImportAlias { .. } => false,
+            Declaration::Global { expressions, .. }
+            | Declaration::Namespace { expressions, .. } => expressions
+                .iter()
+                .copied()
+                .any(|expression_id| self.expression_requires_infer(_module, expression_id, tree)),
+            _ => true,
+        }
+    }
+
     /// Commit inferred return types at function boundaries.
     fn commit_inferred_return_type(
         &self,
@@ -70,15 +109,17 @@ impl Compiler {
                 expressions,
             } => {
                 for expression_id in expressions {
-                    self.infer_expression(
-                        module,
-                        *expression_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    if self.expression_requires_infer(module, *expression_id, tree) {
+                        self.infer_expression(
+                            module,
+                            *expression_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
                 }
             }
             // namespace
@@ -100,15 +141,17 @@ impl Compiler {
                 )?;
 
                 for expression_id in expressions {
-                    self.infer_expression(
-                        module,
-                        *expression_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    if self.expression_requires_infer(module, *expression_id, tree) {
+                        self.infer_expression(
+                            module,
+                            *expression_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
                 }
             }
 
@@ -404,11 +447,20 @@ impl Compiler {
             ctx.options.with_symbol_decorators(&symbol.decorators)
         };
 
+        // enforce runtime constraints up front
+        self.check_signature_runtime_constraints(
+            module,
+            ctx.profile,
+            declaration_id.into_any(),
+            signature,
+            function_options,
+        );
+
         // infer the function signature
         let declared_signature_ty_id =
             types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
         let mut signature_ctx = ctx.fork().with_options(function_options);
-        let should_skip_signature_infer = self.should_skip_declared_signature_infer(
+        let should_use_declared_signature = self.should_use_declared_signature(
             module,
             signature,
             declared_signature_ty_id,
@@ -416,16 +468,20 @@ impl Compiler {
             tree,
             types,
         );
-        let fn_ty_id = if should_skip_signature_infer {
+        let fn_ty_id = if should_use_declared_signature {
             let declared_signature_ty_id = declared_signature_ty_id
                 .expect("declared signature type required for skipped signature inference");
-            if !ctx.is_surface_inference {
-                types.set_inferred_type(
-                    declaration_id.into_global_any(module.id),
-                    declared_signature_ty_id,
-                );
-            }
-            declared_signature_ty_id
+            self.bind_declared_signature(
+                module,
+                declaration_id.into_any(),
+                signature,
+                declared_signature_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                &mut signature_ctx,
+            )?
         } else {
             self.infer_signature(
                 module,
@@ -579,8 +635,8 @@ impl Compiler {
         true
     }
 
-    /// Decide whether declared signatures can skip inference.
-    fn should_skip_declared_signature_infer(
+    /// Decide whether a signature can reuse declared types.
+    pub(super) fn should_use_declared_signature(
         &self,
         module: &Module,
         signature: &FunctionSignature,
@@ -590,18 +646,6 @@ impl Compiler {
         types: &TypeTable,
     ) -> bool {
         if expected_fn_ty_id.is_some() {
-            return false;
-        }
-
-        if !module.language_type.is_declaration() {
-            return false;
-        }
-
-        let module_checks = self.module_check_options_for_module(module.id);
-        let allow_skip = module_checks.skip_lib_check
-            || (matches!(module.source, ModuleSource::Builtin(_))
-                && !self.options.validate_builtin_libs);
-        if !allow_skip {
             return false;
         }
 
@@ -689,7 +733,7 @@ impl Compiler {
                         types.insert_type_from_any(ty, member_id.into_any())
                     };
                     let _is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
-                        modifiers.mutability == Some(destack_dir::Mutability::Immutable)
+                        modifiers.mutability == Some(Mutability::Immutable)
                     });
 
                     if let Some(default) = default {
@@ -834,23 +878,55 @@ impl Compiler {
                     }
                 }
 
+                // enforce runtime constraints up front
+                self.check_signature_runtime_constraints(
+                    module,
+                    ctx.profile,
+                    member_id.into_any(),
+                    signature,
+                    method_options,
+                );
+
                 // infer the method signature
                 let declared_signature_ty_id =
                     types.get_signature_type_for_node(member_id.into_global_any(module.id));
                 let mut signature_ctx = ctx.fork().with_options(method_options);
-                let method_ty_id = self.infer_signature(
+                let method_ty_id = if self.should_use_declared_signature(
                     module,
-                    member_id.into_any(),
-                    member.symbol().into_global(module.id),
                     signature,
-                    None,
                     declared_signature_ty_id,
+                    None,
                     tree,
-                    symbols,
                     types,
-                    infer,
-                    &mut signature_ctx,
-                )?;
+                ) {
+                    let declared_signature_ty_id = declared_signature_ty_id
+                        .expect("declared signature type required for skipped signature inference");
+                    self.bind_declared_signature(
+                        module,
+                        member_id.into_any(),
+                        signature,
+                        declared_signature_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut signature_ctx,
+                    )?
+                } else {
+                    self.infer_signature(
+                        module,
+                        member_id.into_any(),
+                        member.symbol().into_global(module.id),
+                        signature,
+                        None,
+                        declared_signature_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut signature_ctx,
+                    )?
+                };
 
                 // prepare the return type for body inference
                 let mut return_type = self.function_return_type(method_ty_id, types);
@@ -1029,19 +1105,6 @@ impl Compiler {
         let module_options = self.analyze_context_options_for_module(module.id);
         let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
 
-        // reject runtime features in no-runtime mode
-        if options.no_runtime
-            && matches!(module.source, ModuleSource::User)
-            && (signature.asynchrony == Asynchrony::Async
-                || signature.cardinality == FunctionCardinality::Generator)
-        {
-            self.error(AnalyzeError::RuntimeDisabled {
-                node: node_id
-                    .into_global(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
-        }
-
         // walk generics
         let where_clauses = signature
             .generics
@@ -1155,22 +1218,22 @@ impl Compiler {
                 Parameter::Variadic { .. } => false,
             };
 
+            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+
             // report implicit any when no type info is available
-            if options.no_implicit_any
-                && declared_ty_id.is_none()
-                && expected_param_ty_id.is_none()
-                && !has_default
-                && !matches!(module.source, ModuleSource::Builtin(_))
-            {
-                self.error(AnalyzeError::ImplicitAny {
-                    node: parameter_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-            }
+            self.report_implicit_any_for_parameter(
+                module,
+                ctx.profile,
+                *parameter_id,
+                param_symbol,
+                declared_ty_id,
+                expected_param_ty_id,
+                has_default,
+                symbols,
+                types,
+            );
 
             // select the parameter type or fall back to inference
-            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
             let param_ty_id = declared_ty_id.or(expected_param_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
                     infer,
@@ -1277,6 +1340,126 @@ impl Compiler {
         }
 
         Ok(ty_id)
+    }
+
+    /// Bind declared signature types without inference.
+    pub(super) fn bind_declared_signature(
+        &self,
+        module: &Module,
+        node_id: LocalNodeIdAny,
+        signature: &FunctionSignature,
+        declared_signature_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // infer where clauses to validate constraints
+        let where_clauses = signature
+            .generics
+            .as_ref()
+            .and_then(|generics| generics.where_clauses.as_deref());
+        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
+
+        let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
+            let declared_ty_id = types
+                .get_declared_type_id(this_parameter_id.into_global_any(module.id))
+                .unwrap_or_else(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, this_parameter_id)
+                });
+            let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
+            types.set_value_type(param_symbol, declared_ty_id);
+            Some(declared_ty_id)
+        } else {
+            None
+        };
+
+        let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
+        for parameter_id in signature.dynamic_parameters.iter() {
+            let declared_ty_id = types
+                .get_declared_type_id(parameter_id.into_global_any(module.id))
+                .unwrap_or_else(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, *parameter_id)
+                });
+            let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+            types.set_value_type(param_symbol, declared_ty_id);
+
+            if matches!(tree.get(*parameter_id), Parameter::Pattern { .. }) {
+                self.infer_parameter(
+                    module,
+                    *parameter_id,
+                    Some(declared_ty_id),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+            }
+
+            dynamic_param_types.push(declared_ty_id);
+        }
+
+        // resolve return type
+        let return_type_node_id = signature.return_type;
+        let return_type = return_type_node_id
+            .and_then(|return_type_node_id| {
+                types.get_declared_type_id(return_type_node_id.into_global_any(module.id))
+            })
+            .or_else(|| self.function_return_type(declared_signature_ty_id, types));
+
+        // enforce no-managed decorators on signature types
+        let options = ctx.options;
+        let module_options = self.analyze_context_options_for_module(module.id);
+        let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
+        if enforce_decorator_no_managed {
+            self.check_no_managed_signature(
+                module,
+                ctx.profile,
+                signature,
+                this_parameter,
+                &dynamic_param_types,
+                return_type,
+                return_type_node_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        // record signature type for lowering
+        if !ctx.is_surface_inference {
+            types.set_inferred_type(node_id.into_global(module.id), declared_signature_ty_id);
+        }
+
+        Ok(declared_signature_ty_id)
+    }
+
+    /// Enforce no-runtime constraints for a signature.
+    pub(super) fn check_signature_runtime_constraints(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        signature: &FunctionSignature,
+        options: AnalyzeOptions,
+    ) {
+        if options.no_runtime
+            && matches!(module.source, ModuleSource::User)
+            && (signature.asynchrony == Asynchrony::Async
+                || signature.cardinality == FunctionCardinality::Generator)
+        {
+            self.error(AnalyzeError::RuntimeDisabled {
+                node: node_id.into_global(module.id).into_anchored(Some(profile)),
+            });
+        }
     }
 
     /// Check whether a signature is fully declared without defaults.
@@ -1811,17 +1994,13 @@ impl Compiler {
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
 
         // report implicit any when no annotation or initializer exists
-        if options.no_implicit_any
-            && declared_ty_id.is_none()
-            && value.is_none()
-            && !matches!(module.source, ModuleSource::Builtin(_))
-        {
-            self.error(AnalyzeError::ImplicitAny {
-                node: declarator_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(ctx.profile)),
-            });
-        }
+        self.report_implicit_any_for_declarator(
+            module,
+            ctx.profile,
+            declarator_id,
+            declared_ty_id,
+            value.is_some(),
+        );
 
         // evaluate and prepare declared types before inference
         if let Some(declared_ty_id) = declared_ty_id {

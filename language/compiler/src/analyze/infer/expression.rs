@@ -22,8 +22,9 @@ use destack_dir::{
     LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource,
     Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PatternField, PrimitiveType,
     Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StringId,
-    SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind,
-    TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol, YieldCardinality,
+    SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
+    TypeField, TypeKind, TypeLiteral, TypeTable, TypeUnaryOperator, WellKnownSymbol,
+    YieldCardinality,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -626,6 +627,13 @@ impl Compiler {
         let ty_id: LocalTypeId = match expression {
             // declaration: analyze the declaration
             Expression::Declaration { declaration } => {
+                if !self.declaration_requires_infer(module, *declaration, tree) {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                }
+
                 self.infer_declaration(module, *declaration, tree, symbols, types, infer, ctx)?;
                 let declaration = tree.get(*declaration);
 
@@ -847,8 +855,7 @@ impl Compiler {
                 right,
             } => {
                 let (left_ty_id, right_ty_id) = match operator {
-                    destack_dir::TypeBinaryOperator::Extends
-                    | destack_dir::TypeBinaryOperator::Implements => {
+                    TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
                         let left_ty_id = self.try_evaluate_expression_to_type(
                             module,
                             ctx.profile,
@@ -871,7 +878,7 @@ impl Compiler {
                         )?;
                         (left_ty_id, right_ty_id)
                     }
-                    destack_dir::TypeBinaryOperator::Satisfies => {
+                    TypeBinaryOperator::Satisfies => {
                         let right_ty_id = self.resolve_type_expression(
                             module,
                             ctx.profile,
@@ -3405,20 +3412,55 @@ impl Compiler {
                     })
                     .and_then(|key| self.expected_field_type(expected_object_ty_id, &key, types));
 
-                // infer the method signature with contextual typing
-                let method_ty_id = self.infer_signature(
+                // enforce runtime constraints up front
+                self.check_signature_runtime_constraints(
                     module,
+                    ctx.profile,
                     property_id.into_any(),
-                    symbol.into_global(module.id),
                     signature,
+                    ctx.options,
+                );
+
+                // infer the method signature with contextual typing
+                let declared_signature_ty_id =
+                    types.get_signature_type_for_node(property_id.into_global_any(module.id));
+                let method_ty_id = if self.should_use_declared_signature(
+                    module,
+                    signature,
+                    declared_signature_ty_id,
                     expected_method_ty_id,
-                    None,
                     tree,
-                    symbols,
                     types,
-                    infer,
-                    ctx,
-                )?;
+                ) {
+                    let declared_signature_ty_id = declared_signature_ty_id.expect(
+                        "declared signature type required for skipped signature inference",
+                    );
+                    self.bind_declared_signature(
+                        module,
+                        property_id.into_any(),
+                        signature,
+                        declared_signature_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                } else {
+                    self.infer_signature(
+                        module,
+                        property_id.into_any(),
+                        symbol.into_global(module.id),
+                        signature,
+                        expected_method_ty_id,
+                        declared_signature_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                };
 
                 // body
                 if let Some(body) = body {
@@ -3486,9 +3528,9 @@ impl Compiler {
                 });
                 let is_optional = modifiers
                     .as_ref()
-                    .is_some_and(|m| matches!(m.kind, Some(destack_dir::BindingKind::Maybe)));
+                    .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
                 let is_readonly = modifiers.as_ref().is_some_and(|m| {
-                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
+                    matches!(m.mutability, Some(Mutability::Immutable))
                 });
                 if let Some(key) = static_key {
                     Ok(Some(ObjectLiteralField {

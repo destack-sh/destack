@@ -2,7 +2,7 @@ use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
     Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
-    StaticProperty, SymbolTable, Type, TypeLiteral, TypeTable,
+    StaticProperty, SymbolTable, Timing, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -62,7 +62,7 @@ impl Compiler {
     /// Resolve the static parameter kind from a parameter node.
     fn static_parameter_kind_for_parameter(&self, parameter: &Parameter) -> StaticParameterKind {
         let timing = parameter.modifiers().and_then(|modifiers| modifiers.timing);
-        if matches!(timing, Some(destack_dir::Timing::Comptime)) {
+        if matches!(timing, Some(Timing::Comptime)) {
             StaticParameterKind::Value
         } else {
             StaticParameterKind::Type
