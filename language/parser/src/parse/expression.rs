@@ -291,6 +291,24 @@ impl Parser {
     /// Check whether a parsed static argument list can be followed in expression position.
     #[inline]
     pub fn can_follow_type_arguments_in_expression(&self) -> bool {
+        if self.peek_token(TokenType::End).is_ok() {
+            return true;
+        }
+        if self.options.in_static && self.peek_token(TokenType::GreaterThan).is_ok() {
+            return true;
+        }
+        if self.options.in_ternary_condition
+            && (self.peek_token(TokenType::Colon).is_ok()
+                || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Colon).is_ok())
+        {
+            return true;
+        }
+        if self.options.in_type
+            && (self.peek_token(TokenType::Arrow).is_ok()
+                || self.peek_token(TokenType::ArrowWide).is_ok())
+        {
+            return true;
+        }
         if self.peek_any_stop().is_ok() {
             return true;
         }
@@ -333,6 +351,45 @@ impl Parser {
             return true;
         }
         false
+    }
+
+    /// Check whether static arguments can be followed by an object literal.
+    #[inline]
+    fn can_follow_type_arguments_in_object_literal(&self) -> bool {
+        self.peek_token(TokenType::OpenBrace).is_ok()
+    }
+
+    /// Eat static arguments in expression position if the follow token allows it.
+    fn eat_static_arguments_in_expression(
+        &mut self,
+        allow_object_literal: bool,
+    ) -> Option<Vec<LocalNodeId<Argument>>> {
+        if self.peek_token(TokenType::LessThan).is_err()
+            && self.peek_token(TokenType::ShiftLeft).is_err()
+        {
+            return None;
+        }
+
+        let speculative_start = self.mark();
+        let speculative_start_idx = self.tree.next_id();
+        match self.eat_static_arguments() {
+            Ok(static_arguments) => {
+                let mut can_follow = self.can_follow_type_arguments_in_expression();
+                if allow_object_literal && self.can_follow_type_arguments_in_object_literal() {
+                    can_follow = true;
+                }
+                if can_follow {
+                    Some(static_arguments)
+                } else {
+                    self.restore(speculative_start, speculative_start_idx);
+                    None
+                }
+            }
+            Err(_) => {
+                self.restore(speculative_start, speculative_start_idx);
+                None
+            }
+        }
     }
 
     /// Make an expression from an infix operator.
@@ -1229,21 +1286,7 @@ impl Parser {
                         .for_node_type(NodeType::Expression)?;
 
                     // eat optional static arguments with backtracking on failure
-                    let static_arguments = if self.peek_token(TokenType::LessThan).is_ok()
-                        || self.peek_token(TokenType::ShiftLeft).is_ok()
-                    {
-                        let speculative_start = self.mark();
-                        let speculative_start_idx = self.tree.next_id();
-                        match self.eat_static_arguments() {
-                            Ok(static_arguments) => Some(static_arguments),
-                            Err(_) => {
-                                self.restore(speculative_start, speculative_start_idx);
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    };
+                    let static_arguments = self.eat_static_arguments_in_expression(false);
 
                     // parse a direct call when static arguments are present
                     if static_arguments.is_some()
@@ -1657,21 +1700,7 @@ impl Parser {
                 // speculatively unwrap postfix static parameterisation with `<` or `<<`
                 //  (might also be just a comparison operator)
                 //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
-                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok()
-                    || self.peek_token(TokenType::ShiftLeft).is_ok()
-                {
-                    let speculative_start = self.mark();
-                    let speculative_start_idx = self.tree.next_id();
-                    match self.eat_static_arguments() {
-                        Ok(static_arguments) => Some(static_arguments),
-                        Err(_) => {
-                            self.restore(speculative_start, speculative_start_idx);
-                            None
-                        }
-                    }
-                } else {
-                    None
-                };
+                let static_arguments = self.eat_static_arguments_in_expression(true);
 
                 // immediately parse call if we have static arguments
                 // (so we can stuff the arguments into the call expression)
@@ -1828,19 +1857,7 @@ impl Parser {
                 let (name, name_span) = self.eat_identifier_with_span()?;
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
-                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-                    let speculative_start = self.mark();
-                    let speculative_start_idx = self.tree.next_id();
-                    match self.eat_static_arguments() {
-                        Ok(static_arguments) => Some(static_arguments),
-                        Err(_) => {
-                            self.restore(speculative_start, speculative_start_idx);
-                            None
-                        }
-                    }
-                } else {
-                    None
-                };
+                let static_arguments = self.eat_static_arguments_in_expression(false);
                 left_expression_id = self.tree.insert(
                     Expression::PrivateMember {
                         left: left_expression_id,
@@ -1857,19 +1874,7 @@ impl Parser {
                 let (name, name_span) = self.eat_identifier_with_span()?;
                 // speculatively unwrap postfix static parameterisation with `<`
                 //  (might also be just a comparison operator)
-                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
-                    let speculative_start = self.mark();
-                    let speculative_start_idx = self.tree.next_id();
-                    match self.eat_static_arguments() {
-                        Ok(static_arguments) => Some(static_arguments),
-                        Err(_) => {
-                            self.restore(speculative_start, speculative_start_idx);
-                            None
-                        }
-                    }
-                } else {
-                    None
-                };
+                let static_arguments = self.eat_static_arguments_in_expression(false);
                 left_expression_id = self.tree.insert(
                     Expression::Member {
                         left: left_expression_id,
@@ -3408,6 +3413,37 @@ const shapes = (
         });
     }
 
+    /// Instantiation expressions should parse in mixed operator contexts.
+    #[test]
+    fn test_parse_instantiation_expression_more_exprs() {
+        let mut test = TestParser::new_with_options(
+            r#"
+f<x>, g<y>;
+[f<x>];
+f<x> ? g<y> : h<z>;
+f<x> ^ g<y>;
+f<x> & g<y>;
+f<x> | g<y>;
+f<x> && g<y>;
+f<x> || g<y>;
+{ f<x> }
+f<x> ?? g<y>;
+f<x> == g<y>;
+f<x> === g<y>;
+f<x> != g<y>;
+f<x> !== g<y>;
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.parse();
+        assert!(
+            parser.errors.is_empty(),
+            "expected no parse errors: {:?}",
+            parser.errors
+        );
+    }
+
     /// Parse a TypeScript call with string literal type arguments.
     #[test]
     fn test_parse_call_with_string_literal_type_arguments() {
@@ -3587,6 +3623,24 @@ const shapes = (
         });
     }
 
+    /// TSX generic arrows with extends constraints should parse as functions.
+    #[test]
+    fn test_parse_tsx_generic_arrow_with_extends() {
+        let mut test = TestParser::new_with_options(
+            r#"const x = <P extends object>(
+    a: React.ComponentType<P>
+): React.ComponentType<P & { a: string }> => React.memo();"#,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        parser.parse();
+        assert!(
+            parser.errors.is_empty(),
+            "expected no parse errors: {:?}",
+            parser.errors
+        );
+    }
+
     /// Parse a lambda function value with a body and pattern parameters.
     #[test]
     fn test_parse_lambda_function_value_with_pattern_parameters() {
@@ -3745,6 +3799,28 @@ geom.Mesh<2, 4> {
                 );
             }
         );
+    }
+
+    /// Comparison operators should not be parsed as static arguments.
+    #[test]
+    fn test_parse_static_arguments_disambiguate_relational() {
+        let mut test = TestParser::new("fn(x < y, x > y)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Call { left, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "fn");
+            assert_eq!(dynamic_arguments.len(), 2);
+            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::LessThan);
+                });
+            });
+            assert_node!(parser.tree, dynamic_arguments[1], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, .. } => {
+                    assert_eq!(*operator, BinaryOperator::GreaterThan);
+                });
+            });
+        });
     }
 
     /// Parse a let binding with a type with static parameters as value.

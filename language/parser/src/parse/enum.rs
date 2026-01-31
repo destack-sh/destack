@@ -3,8 +3,9 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Declaration, DeclarationDescriptor, EnumField, EnumKind, Generics, Heritage, Keyword,
-    LocalNodeId, Member, NodeType, TokenType,
+    LiteralType, LocalNodeId, Member, Name, NodeType, TemplateLiteral, TokenType,
 };
+use destack_source::Span;
 
 impl Parser {
     /// Eat an enum declaration.
@@ -141,7 +142,9 @@ impl Parser {
 
     /// Peek an enum field.
     fn peek_enum_field(&self) -> ParseResult<()> {
-        if self.peek_name().is_ok()
+        if self.peek_token(TokenType::OpenBracket).is_ok() {
+            Ok(())
+        } else if (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
             && (self.peek_next_token(TokenType::Assign).is_ok()
                 || self.peek_next_token(TokenType::Newline).is_ok()
                 || self.peek_next_token(TokenType::Comma).is_ok()
@@ -161,7 +164,7 @@ impl Parser {
     fn eat_enum_field(&mut self) -> ParseResult<LocalNodeId<EnumField>> {
         let start = self.mark();
         let (name, name_span) = self
-            .eat_name_with_span()
+            .eat_enum_field_name_with_span()
             .for_node_type(NodeType::EnumField)?;
 
         // optional `= <expr>` value
@@ -183,6 +186,55 @@ impl Parser {
         // set main span to the name identifier
         self.tree.set_main_span(field_id, name_span);
         Ok(field_id)
+    }
+
+    /// Eat an enum field name, including computed string/number names.
+    fn eat_enum_field_name_with_span(&mut self) -> ParseResult<(Name, Span)> {
+        if self.peek_token(TokenType::OpenBracket).is_ok() {
+            let start = self.mark();
+            self.bump(); // eat open bracket
+            self.eat_newlines_maybe()?;
+
+            let name = if self.peek_token(TokenType::Literal).is_ok()
+                && matches!(
+                    self.peek()?.token.literal,
+                    Some(LiteralType::String { .. } | LiteralType::Character { .. })
+                ) {
+                let token = *self.peek()?;
+                let content = self.get_string_literal_str(token).to_owned();
+                let string_id = self.strings.intern(&content);
+                self.bump();
+                Name::String(string_id)
+            } else if self.peek_numeric_literal().is_ok() {
+                let token = *self.peek_numeric_literal()?;
+                let key_str = self.file.span_str(token.span);
+                let string_id = self.strings.intern(key_str);
+                self.bump();
+                Name::Number(string_id)
+            } else if self.peek_token(TokenType::TemplateString).is_ok() {
+                let template = self.eat_template_literal()?;
+                match template {
+                    TemplateLiteral::String { string } => Name::String(string),
+                    TemplateLiteral::InterpolatedString { .. } => {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
+                }
+            } else {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            };
+
+            self.eat_newlines_maybe()?;
+            self.eat_token(TokenType::CloseBracket)?;
+            Ok((name, self.get_span_from(start)))
+        } else if self.peek_numeric_literal().is_ok() {
+            let token = *self.peek_numeric_literal()?;
+            let key_str = self.file.span_str(token.span);
+            let string_id = self.strings.intern(key_str);
+            self.bump();
+            Ok((Name::Number(string_id), token.span))
+        } else {
+            self.eat_name_with_span()
+        }
     }
 }
 
@@ -309,6 +361,41 @@ enum Foo extends Day {
             assert_node!(parser.tree, fields[1], EnumField { name, value } => {
                 assert_string!(parser, name.string(), "Qux");
                 assert_node!(parser.tree, value.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+            });
+        });
+    }
+
+    /// Computed string enum keys should parse as string names.
+    #[test]
+    fn test_parse_enum_computed_string_names() {
+        let mut test = TestParser::new(
+            r###"
+enum CHAR {
+    ['\v'] = 0x0B,
+    ["\f"] = 0x0C,
+    [`\r`] = 0x0D,
+}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let start = parser.mark();
+        let enum_id = parser
+            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .unwrap();
+        assert_node!(parser.tree, enum_id, Declaration::Enum { fields, .. } => {
+            assert_eq!(fields.len(), 3);
+            assert_node!(parser.tree, fields[0], EnumField { name, value } => {
+                assert_string!(parser, name.string(), "\\v");
+                assert!(value.is_some());
+            });
+            assert_node!(parser.tree, fields[1], EnumField { name, value } => {
+                assert_string!(parser, name.string(), "\\f");
+                assert!(value.is_some());
+            });
+            assert_node!(parser.tree, fields[2], EnumField { name, value } => {
+                assert_string!(parser, name.string(), "\\r");
+                assert!(value.is_some());
             });
         });
     }

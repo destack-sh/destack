@@ -77,32 +77,21 @@ impl Parser {
                 };
 
                 // handle base-specific prefixes
-                let parsed = match base {
-                    NumberBase::Decimal => content.parse::<i64>(),
-                    NumberBase::Binary => i64::from_str_radix(content.trim_start_matches("0b"), 2),
-                    NumberBase::Octal => i64::from_str_radix(content.trim_start_matches("0o"), 8),
-                    NumberBase::Hexadecimal => {
-                        i64::from_str_radix(content.trim_start_matches("0x"), 16)
-                    }
+                let digits = match base {
+                    NumberBase::Decimal => content,
+                    NumberBase::Binary => Cow::Borrowed(content.trim_start_matches("0b")),
+                    NumberBase::Octal => Cow::Borrowed(content.trim_start_matches("0o")),
+                    NumberBase::Hexadecimal => Cow::Borrowed(content.trim_start_matches("0x")),
                 };
+
+                // parse with saturation to avoid overflow errors in parsing
+                let parsed = self.parse_int_literal_saturating(&digits, base);
 
                 // int
                 if is_bigint {
-                    parsed.map(ScalarLiteral::Bigint).map_err(|_| {
-                        ParseError::expected_for(
-                            literal_span.span,
-                            TokenType::Literal,
-                            NodeType::Expression,
-                        )
-                    })
+                    Ok(ScalarLiteral::Bigint(parsed))
                 } else {
-                    parsed.map(ScalarLiteral::Integer).map_err(|_| {
-                        ParseError::expected_for(
-                            literal_span.span,
-                            TokenType::Literal,
-                            NodeType::Expression,
-                        )
-                    })
+                    Ok(ScalarLiteral::Integer(parsed))
                 }
             }
 
@@ -236,6 +225,40 @@ impl Parser {
                 Ok(ScalarLiteral::String(string_id))
             }
         }
+    }
+
+    /// Parse an integer literal with saturation for values outside i64.
+    fn parse_int_literal_saturating(&self, digits: &str, base: NumberBase) -> i64 {
+        // select radix for the literal base
+        let radix = match base {
+            NumberBase::Decimal => 10,
+            NumberBase::Binary => 2,
+            NumberBase::Octal => 8,
+            NumberBase::Hexadecimal => 16,
+        };
+
+        // accumulate digits with overflow detection
+        let mut value: u128 = 0;
+        let max_value = i64::MAX as u128;
+        for ch in digits.chars() {
+            let Some(digit) = ch.to_digit(radix) else {
+                return i64::MAX;
+            };
+            let digit = digit as u128;
+            let next = value
+                .checked_mul(radix as u128)
+                .and_then(|value| value.checked_add(digit));
+            let Some(next) = next else {
+                return i64::MAX;
+            };
+            if next > max_value {
+                return i64::MAX;
+            }
+            value = next;
+        }
+
+        // finalize with saturation
+        value as i64
     }
 
     /// Peek a template literal.
@@ -741,6 +764,22 @@ mod tests {
         assert_eq!(
             parser.eat_scalar_literal().unwrap(),
             ScalarLiteral::Bigint(2)
+        );
+    }
+
+    /// Parse large integer literals without overflow errors.
+    #[test]
+    fn test_parse_integer_literal_saturating() {
+        let mut test = TestParser::new("9999999999999999999999999 9999999999999999999999999n");
+        let mut parser = test.prepare();
+
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Integer(i64::MAX)
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Bigint(i64::MAX)
         );
     }
 
