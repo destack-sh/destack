@@ -591,7 +591,7 @@ fn latch_is_speculatable(
         let instruction = tree.get(*instruction_id);
 
         // accept speculatable instructions
-        if instruction_is_speculatable(instruction) {
+        if instruction_is_speculatable(instruction, tree) {
             continue;
         }
 

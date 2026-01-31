@@ -280,6 +280,9 @@ fn value_needs_drop(
         mir::Type::Reference {
             kind: mir::ReferenceKind::Owned,
             ..
+        } | mir::Type::TensorReference {
+            kind: mir::ReferenceKind::Owned,
+            ..
         } | mir::Type::Struct {
             copyability: mir::Copyability::Linear,
             ..

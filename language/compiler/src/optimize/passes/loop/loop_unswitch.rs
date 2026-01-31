@@ -8,9 +8,9 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     CallsiteHotness, CallsiteHotnessPolicy, SuccessorArguments, block_execution_counts,
-    block_hotness_from_counts, bool_from_range, build_value_definition_map, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map_with_locals,
-    terminator_arguments_for_successor_checked, terminator_remap,
+    block_hotness_from_counts, bool_from_range, build_value_definition_map,
+    clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,
+    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -244,6 +244,8 @@ struct HoistedCondition {
     instruction: mir::Instruction,
     /// The original destination value.
     destination: mir::Value,
+    /// Instruction id for metadata cloning.
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     /// Remapping for invariant operands.
     value_map: HashMap<mir::Value, mir::Value>,
 }
@@ -531,7 +533,7 @@ fn try_hoist_invariant_condition(
     // resolve the instruction defining the condition
     let instruction_id = value_definitions.get(&condition)?;
     let instruction = tree.get(*instruction_id);
-    if !instruction_is_speculatable(instruction) {
+    if !instruction_is_speculatable(instruction, tree) {
         return None;
     }
 
@@ -554,6 +556,7 @@ fn try_hoist_invariant_condition(
     Some(HoistedCondition {
         instruction: instruction.clone(),
         destination: condition,
+        instruction_id: *instruction_id,
         value_map,
     })
 }
@@ -754,6 +757,7 @@ fn unswitch_loop(
         let hoisted_inst =
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
         let hoisted_id = tree.insert(hoisted_inst);
+        clone_instruction_metadata(tree, hoisted.instruction_id, hoisted_id, &value_map);
         preheader.instructions.push(hoisted_id);
         new_value
     } else {

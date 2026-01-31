@@ -7,9 +7,9 @@ use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
     CallsiteHotness, CallsiteHotnessPolicy, EdgeSplitPolicy, block_execution_counts,
     block_hotness_from_counts, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, build_use_def_maps, collect_reachable_blocks,
-    ensure_edge_block, instruction_is_speculatable, instruction_map, scaled_profile_count,
-    terminator_edges, terminator_substitute_uses,
+    block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,
+    collect_reachable_blocks, ensure_edge_block, instruction_is_speculatable, instruction_map,
+    scaled_profile_count, terminator_edges, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -429,7 +429,7 @@ fn duplicate_hot_edges(
         let mut all_speculatable = true;
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction) {
+            if !instruction_is_speculatable(instruction, tree) {
                 all_speculatable = false;
                 break;
             }
@@ -495,6 +495,7 @@ fn duplicate_hot_edges(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
+                clone_instruction_metadata(tree, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 

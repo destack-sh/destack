@@ -382,7 +382,7 @@ fn store_can_move_to_entry(
         let instruction = tree.get(instruction_id);
 
         // require speculatable instructions before the store
-        if !instruction_is_speculatable(instruction) {
+        if !instruction_is_speculatable(instruction, tree) {
             return false;
         }
 

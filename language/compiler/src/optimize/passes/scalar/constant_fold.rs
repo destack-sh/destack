@@ -6,7 +6,8 @@ use destack_mir as mir;
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::common::{
     constant_from_global, fold_binary, fold_cast, fold_intrinsic, fold_unary,
-    instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    terminator_substitute_uses,
 };
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, resolve_substitution_chains,
@@ -295,6 +296,7 @@ fn run_constant_fold(
                 // replace instructions when substitutions apply
                 if updated != instruction {
                     tree.replace(instruction_id, updated);
+                    remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
                 }
             }
         }

@@ -19,6 +19,10 @@ pub struct MemoryLocation {
     pub size: Option<u64>,
     /// Type being accessed, for TBAA.
     pub access_type: Option<TypeKey>,
+    /// Reference kind for the pointer, when known.
+    pub pointer_kind: Option<mir::ReferenceKind>,
+    /// Address space for the pointer, when known.
+    pub pointer_address_space: Option<mir::AddressSpace>,
 }
 
 /// Return true when a memory effect is trackable by optimizations.
@@ -98,6 +102,8 @@ pub fn collect_non_escaping_stack_allocs(
 
     // collect escaping stack allocations
     let mut escaping = HashSet::new();
+    let local_defs = collect_local_defs(function, tree);
+    let param_defs = collect_block_param_defs(function, tree);
 
     // scan blocks for escaping uses
     for &block_id in &function.blocks {
@@ -125,6 +131,8 @@ pub fn collect_non_escaping_stack_allocs(
                                 record_stack_escape(
                                     arg,
                                     definitions,
+                                    &local_defs,
+                                    &param_defs,
                                     tree,
                                     &stack_allocs,
                                     &mut escaping,
@@ -135,7 +143,15 @@ pub fn collect_non_escaping_stack_allocs(
                 }
                 mir::Instruction::Store { value, .. } => {
                     // mark stored stack pointers as escaping
-                    record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        *value,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
                 _ => {}
             }
@@ -144,11 +160,27 @@ pub fn collect_non_escaping_stack_allocs(
         // scan terminators for escaping values
         match &block.terminator {
             mir::Terminator::Return { value: Some(value) } => {
-                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                record_stack_escape(
+                    *value,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
             }
             mir::Terminator::Jump { arguments, .. } => {
                 for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::Branch {
@@ -157,14 +189,30 @@ pub fn collect_non_escaping_stack_allocs(
                 ..
             } => {
                 for &arg in then_arguments.iter().chain(else_arguments.iter()) {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
                 for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::Switch {
@@ -173,11 +221,27 @@ pub fn collect_non_escaping_stack_allocs(
                 ..
             } => {
                 for &arg in default_arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
                 for case in cases {
                     for &arg in &case.arguments {
-                        record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                        record_stack_escape(
+                            arg,
+                            definitions,
+                            &local_defs,
+                            &param_defs,
+                            tree,
+                            &stack_allocs,
+                            &mut escaping,
+                        );
                     }
                 }
             }
@@ -186,16 +250,40 @@ pub fn collect_non_escaping_stack_allocs(
                 resume_arguments,
                 ..
             } => {
-                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                record_stack_escape(
+                    *value,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
                 for &arg in resume_arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::TailCall { arguments, .. }
             | mir::Terminator::TailCallVirtual { arguments, .. }
             | mir::Terminator::TailCallInterface { arguments, .. } => {
                 for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::TailCallIndirect {
@@ -204,12 +292,36 @@ pub fn collect_non_escaping_stack_allocs(
                 arguments,
                 ..
             } => {
-                record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
+                record_stack_escape(
+                    *callee,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &stack_allocs,
+                    &mut escaping,
+                );
                 if let Some(env) = env {
-                    record_stack_escape(*env, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        *env,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
                 for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    record_stack_escape(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
                 }
             }
             mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
@@ -243,6 +355,8 @@ fn call_argument_escapes(call_effects: Option<&mir::CallEffects>, index: usize) 
 fn record_stack_escape(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::NodeTree,
     stack_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
@@ -252,6 +366,8 @@ fn record_stack_escape(
     record_stack_escape_value(
         value,
         definitions,
+        local_defs,
+        param_defs,
         tree,
         stack_allocs,
         escaping,
@@ -260,43 +376,261 @@ fn record_stack_escape(
 }
 
 /// Record stack escapes from a value and its derived operands.
+#[allow(clippy::too_many_arguments)]
 fn record_stack_escape_value(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
     tree: &mir::NodeTree,
     stack_allocs: &HashSet<mir::Value>,
     escaping: &mut HashSet<mir::Value>,
     visited: &mut HashSet<mir::Value>,
+) {
+    let mut bases = HashSet::new();
+    collect_stack_alloc_bases_for_value(
+        value,
+        definitions,
+        local_defs,
+        param_defs,
+        tree,
+        stack_allocs,
+        visited,
+        &mut bases,
+    );
+
+    escaping.extend(bases);
+}
+
+/// Collect local definitions for stack escape tracking.
+pub(crate) fn collect_local_defs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> {
+    let mut defs: HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            if let mir::Instruction::LocalSet { local, value } = tree.get(instruction_id) {
+                defs.entry(*local).or_default().push(*value);
+            }
+        }
+    }
+
+    defs
+}
+
+/// Collect block parameter definitions from predecessor arguments.
+pub(crate) fn collect_block_param_defs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, Vec<mir::Value>> {
+    let mut defs: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        match &block.terminator {
+            mir::Terminator::Jump { target, arguments } => {
+                add_param_defs(&mut defs, *target, arguments, tree);
+            }
+            mir::Terminator::Branch {
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+                ..
+            } => {
+                add_param_defs(&mut defs, *then_target, then_arguments, tree);
+                add_param_defs(&mut defs, *else_target, else_arguments, tree);
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                add_param_defs(&mut defs, success.target, &success.arguments, tree);
+                add_param_defs(&mut defs, failure.target, &failure.arguments, tree);
+            }
+            mir::Terminator::Switch {
+                cases,
+                default,
+                default_arguments,
+                ..
+            } => {
+                add_param_defs(&mut defs, *default, default_arguments, tree);
+                for case in cases {
+                    add_param_defs(&mut defs, case.target, &case.arguments, tree);
+                }
+            }
+            mir::Terminator::Yield {
+                resume,
+                resume_arguments,
+                ..
+            } => {
+                add_param_defs(&mut defs, *resume, resume_arguments, tree);
+            }
+            _ => {}
+        }
+    }
+
+    defs
+}
+
+/// Add predecessor arguments as block parameter definitions.
+fn add_param_defs(
+    defs: &mut HashMap<mir::Value, Vec<mir::Value>>,
+    target: mir::LocalNodeId<mir::Block>,
+    args: &[mir::Value],
+    tree: &mir::NodeTree,
+) {
+    let target_block = tree.get(target);
+    let target_params = &target_block.parameters;
+    for (param, arg) in target_params.iter().zip(args.iter()) {
+        defs.entry(param.value).or_default().push(*arg);
+    }
+}
+
+/// Collect stack allocation bases reachable from a value.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn collect_stack_alloc_bases_for_value(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    visited: &mut HashSet<mir::Value>,
+    bases: &mut HashSet<mir::Value>,
 ) {
     // avoid repeating work for values
     if !visited.insert(value) {
         return;
     }
 
-    // resolve the stack base and mark it as escaping
+    // resolve the stack base
     if let Some(base) = stack_alloc_base(value, definitions, tree) {
         if stack_allocs.contains(&base) {
-            escaping.insert(base);
+            bases.insert(base);
         }
         return;
     }
 
     // look through derived values
     let Some(instruction_id) = definitions.get(&value) else {
+        // walk block parameter definitions when present
+        if let Some(params) = param_defs.get(&value) {
+            for &arg in params {
+                collect_stack_alloc_bases_for_value(
+                    arg,
+                    definitions,
+                    local_defs,
+                    param_defs,
+                    tree,
+                    stack_allocs,
+                    visited,
+                    bases,
+                );
+            }
+        }
         return;
     };
+
     let instruction = tree.get(*instruction_id);
     match instruction {
         mir::Instruction::Struct { fields, .. } => {
             let args = tree.get_arguments(*fields);
             for &arg in args {
-                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+                collect_stack_alloc_bases_for_value(
+                    arg,
+                    definitions,
+                    local_defs,
+                    param_defs,
+                    tree,
+                    stack_allocs,
+                    visited,
+                    bases,
+                );
             }
         }
         mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
             let args = tree.get_arguments(*elements);
             for &arg in args {
-                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+                collect_stack_alloc_bases_for_value(
+                    arg,
+                    definitions,
+                    local_defs,
+                    param_defs,
+                    tree,
+                    stack_allocs,
+                    visited,
+                    bases,
+                );
+            }
+        }
+        mir::Instruction::Select {
+            then_value,
+            else_value,
+            ..
+        } => {
+            collect_stack_alloc_bases_for_value(
+                *then_value,
+                definitions,
+                local_defs,
+                param_defs,
+                tree,
+                stack_allocs,
+                visited,
+                bases,
+            );
+            collect_stack_alloc_bases_for_value(
+                *else_value,
+                definitions,
+                local_defs,
+                param_defs,
+                tree,
+                stack_allocs,
+                visited,
+                bases,
+            );
+        }
+        mir::Instruction::FieldGet { aggregate, .. } => {
+            collect_stack_alloc_bases_for_value(
+                *aggregate,
+                definitions,
+                local_defs,
+                param_defs,
+                tree,
+                stack_allocs,
+                visited,
+                bases,
+            );
+        }
+        mir::Instruction::ElementGet { array, .. } => {
+            collect_stack_alloc_bases_for_value(
+                *array,
+                definitions,
+                local_defs,
+                param_defs,
+                tree,
+                stack_allocs,
+                visited,
+                bases,
+            );
+        }
+        mir::Instruction::LocalGet { local, .. } => {
+            if let Some(values) = local_defs.get(local) {
+                for &arg in values {
+                    collect_stack_alloc_bases_for_value(
+                        arg,
+                        definitions,
+                        local_defs,
+                        param_defs,
+                        tree,
+                        stack_allocs,
+                        visited,
+                        bases,
+                    );
+                }
             }
         }
         _ => {}
@@ -310,6 +644,8 @@ impl MemoryLocation {
             ptr,
             size: None,
             access_type: None,
+            pointer_kind: None,
+            pointer_address_space: None,
         }
     }
 
@@ -319,24 +655,49 @@ impl MemoryLocation {
             ptr,
             size: Some(size),
             access_type: None,
+            pointer_kind: None,
+            pointer_address_space: None,
         }
     }
 
     /// Create a location with type information.
     pub fn with_type(ptr: mir::Value, access_type: TypeKey) -> Self {
+        let (pointer_kind, pointer_address_space) = match &access_type {
+            TypeKey::Reference {
+                kind,
+                address_space,
+                ..
+            }
+            | TypeKey::TensorReference {
+                kind,
+                address_space,
+                ..
+            } => (Some(*kind), Some(*address_space)),
+            _ => (None, None),
+        };
         Self {
             ptr,
             size: None,
             access_type: Some(access_type),
+            pointer_kind,
+            pointer_address_space,
         }
     }
 
     /// Create a fully specified location.
-    pub fn new(ptr: mir::Value, size: Option<u64>, access_type: Option<TypeKey>) -> Self {
+    pub fn new(
+        ptr: mir::Value,
+        size: Option<u64>,
+        access_type: Option<TypeKey>,
+        pointer_kind: Option<mir::ReferenceKind>,
+        pointer_address_space: Option<mir::AddressSpace>,
+    ) -> Self {
         Self {
             ptr,
             size,
             access_type,
+            pointer_kind,
+            pointer_address_space,
         }
     }
 }
@@ -462,13 +823,68 @@ pub fn instruction_has_atomic_ordering(
     tree: &mir::NodeTree,
     instruction: mir::LocalNodeId<mir::Instruction>,
 ) -> bool {
+    // intrinsic atomic operations carry ordering on the instruction
+    if let mir::Instruction::Intrinsic {
+        ordering: Some(_), ..
+    } = tree.get(instruction)
+    {
+        return true;
+    }
+
     // read access metadata for this instruction
     let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
         return false;
     };
 
-    // check for ordered accesses
-    accesses.iter().any(|access| access.ordering.is_some())
+    // check for ordered or fenced accesses
+    accesses.iter().any(|access| {
+        access.ordering.is_some()
+            || access.semantics.is_some()
+            || matches!(access.kind, mir::MemoryAccessKind::Fence)
+    })
+}
+
+/// Return true when an instruction requires exact memory access semantics.
+pub fn instruction_requires_exact_access(
+    tree: &mir::NodeTree,
+    instruction: mir::LocalNodeId<mir::Instruction>,
+) -> bool {
+    // intrinsics with atomic metadata must preserve access semantics
+    if let mir::Instruction::Intrinsic {
+        ordering: Some(_), ..
+    } = tree.get(instruction)
+    {
+        return true;
+    }
+
+    if let mir::Instruction::Intrinsic {
+        semantics: Some(_), ..
+    } = tree.get(instruction)
+    {
+        return true;
+    }
+
+    if let mir::Instruction::Intrinsic { scope: Some(_), .. }
+    | mir::Instruction::Intrinsic {
+        memory_scope: Some(_),
+        ..
+    } = tree.get(instruction)
+    {
+        return true;
+    }
+
+    // read memory access metadata for the instruction
+    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+        return false;
+    };
+
+    // require exact access semantics for volatile, ordered, or fenced operations
+    accesses.iter().any(|access| {
+        access.is_volatile
+            || access.ordering.is_some()
+            || access.semantics.is_some()
+            || matches!(access.kind, mir::MemoryAccessKind::Fence)
+    })
 }
 
 /// Check if two memory locations are compatible for value forwarding.
@@ -640,6 +1056,22 @@ pub fn resolve_pointer_address_space(
     match ty {
         mir::Type::Reference { address_space, .. } => Some(*address_space),
         mir::Type::TensorReference { address_space, .. } => Some(*address_space),
+        _ => None,
+    }
+}
+
+/// Resolve a pointer's reference kind when it is statically known.
+pub fn resolve_pointer_kind(
+    pointer: mir::Value,
+    tree: &mir::NodeTree,
+    value_types: &ValueTypeMap,
+) -> Option<mir::ReferenceKind> {
+    // resolve the reference kind from the pointer type
+    let ty_id = value_types.require_value_type(pointer);
+    let ty = tree.get(ty_id);
+    match ty {
+        mir::Type::Reference { kind, .. } => Some(*kind),
+        mir::Type::TensorReference { kind, .. } => Some(*kind),
         _ => None,
     }
 }
@@ -920,14 +1352,7 @@ impl<'a> PointerDecomposer<'a> {
         // in strict borrow mode, &mut T parameters are noalias
         if self.strict_borrow_mode {
             let ty = self.tree.get(parameter.ty);
-            matches!(
-                ty,
-                mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
-                    mutability: mir::Mutability::Mutable,
-                    ..
-                }
-            )
+            ty.is_mutable_borrowed_reference()
         } else {
             false
         }
@@ -1099,7 +1524,7 @@ mod tests {
         assert!(loc3.size.is_none());
         assert_eq!(loc3.access_type, Some(ty.clone()));
 
-        let loc4 = MemoryLocation::new(mir::Value::new(3), Some(4), Some(ty.clone()));
+        let loc4 = MemoryLocation::new(mir::Value::new(3), Some(4), Some(ty.clone()), None, None);
         assert_eq!(loc4.ptr, mir::Value::new(3));
         assert_eq!(loc4.size, Some(4));
         assert_eq!(loc4.access_type, Some(ty));

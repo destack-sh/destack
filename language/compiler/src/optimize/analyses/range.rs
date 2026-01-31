@@ -2019,56 +2019,27 @@ fn integer_range_from_float(
         return None;
     }
 
+    if can_be_nan || can_be_pos_inf || can_be_neg_inf {
+        return None;
+    }
+
     // resolve integer bounds for the target type
     let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
 
-    // collect integer bounds from all possible float cases
-    let mut min_value: Option<i128> = None;
-    let mut max_value: Option<i128> = None;
+    let bounds = bounds?;
 
-    // widen the integer bounds for each new value
-    let mut include_value = |value| match min_value {
-        Some(current_min) => {
-            let current_max = max_value.unwrap();
-            let next_min = current_min.min(value);
-            let next_max = current_max.max(value);
-            min_value = Some(next_min);
-            max_value = Some(next_max);
-        }
-        None => {
-            min_value = Some(value);
-            max_value = Some(value);
-        }
-    };
-
-    // clamp finite bounds into integer range
-    if let Some(bounds) = bounds {
-        let mut finite_min = float_to_int_saturating(bounds.min, min_bound, max_bound);
-        let mut finite_max = float_to_int_saturating(bounds.max, min_bound, max_bound);
-
-        if finite_min > finite_max {
-            std::mem::swap(&mut finite_min, &mut finite_max);
-        }
-
-        include_value(finite_min);
-        include_value(finite_max);
+    if !float_within_int_bounds(bounds.min, min_bound, max_bound)
+        || !float_within_int_bounds(bounds.max, min_bound, max_bound)
+    {
+        return None;
     }
 
-    // include NaN conversions
-    if can_be_nan {
-        include_value(0);
-    }
+    let mut min_value = bounds.min.trunc() as i128;
+    let mut max_value = bounds.max.trunc() as i128;
 
-    // include saturating infinities
-    if can_be_pos_inf {
-        include_value(max_bound);
+    if min_value > max_value {
+        std::mem::swap(&mut min_value, &mut max_value);
     }
-    if can_be_neg_inf {
-        include_value(min_bound);
-    }
-
-    let min_value = min_value?;
-    let max_value = max_value?;
 
     Some(ValueRange::Integer {
         min: min_value,
@@ -2078,27 +2049,25 @@ fn integer_range_from_float(
     })
 }
 
-/// Convert a float to an integer using saturating cast semantics.
-fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128 {
-    if value.is_nan() {
-        return 0;
+/// Return true when a float is finite and within the target integer range.
+fn float_within_int_bounds(value: f64, min_bound: i128, max_bound: i128) -> bool {
+    if !value.is_finite() {
+        return false;
     }
 
-    if value.is_infinite() {
-        if value.is_sign_negative() {
-            return min_bound;
-        }
-        return max_bound;
-    }
+    let min_float = min_bound as f64;
+    let max_float = max_bound as f64;
+    let max_rounded = max_float.trunc() as i128;
+    let max_is_rounded_up = max_rounded > max_bound;
 
-    let truncated = value.trunc();
-    if truncated < min_bound as f64 {
-        min_bound
-    } else if truncated > max_bound as f64 {
-        max_bound
+    let min_ok = value >= min_float;
+    let max_ok = if max_is_rounded_up {
+        value < max_float
     } else {
-        truncated as i128
-    }
+        value <= max_float
+    };
+
+    min_ok && max_ok
 }
 
 /// Evaluate comparison ranges for floats and return constant booleans when possible.
@@ -3320,7 +3289,7 @@ block0:
         );
     }
 
-    /// Float to signed int casts clamp and truncate the range.
+    /// Float to signed int casts truncate finite constants.
     #[test]
     fn test_range_float_to_int_cast() {
         let test = TestProgram::new(
@@ -3692,7 +3661,7 @@ block3(v3: f32):
         );
     }
 
-    /// Float to int casts saturate to the target range.
+    /// Float to int casts are unknown when values may be out of range.
     #[test]
     fn test_range_float_to_int_cast_bounds() {
         let test = TestProgram::new(
@@ -3723,20 +3692,10 @@ block3(v3: f32):
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
-        let range = exit_ranges.get(value).unwrap();
-
-        assert_eq!(
-            range,
-            &ValueRange::Integer {
-                min: 1,
-                max: i32::MAX as i128,
-                width: 32,
-                is_signed: true
-            }
-        );
+        assert!(exit_ranges.get(value).is_none());
     }
 
-    /// Float to int casts saturate positive infinity to the maximum.
+    /// Float to int casts are unknown when the input may be infinite.
     #[test]
     fn test_range_float_to_int_cast_positive_infinite() {
         let test = TestProgram::new(
@@ -3760,20 +3719,10 @@ block0:
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
-        let range = exit_ranges.get(value).unwrap();
-
-        assert_eq!(
-            range,
-            &ValueRange::Integer {
-                min: i32::MAX as i128,
-                max: i32::MAX as i128,
-                width: 32,
-                is_signed: true
-            }
-        );
+        assert!(exit_ranges.get(value).is_none());
     }
 
-    /// Float to int casts clamp negative ranges to the minimum.
+    /// Float to int casts are unknown when values may be out of range.
     #[test]
     fn test_range_float_to_int_cast_negative_bounds() {
         let test = TestProgram::new(
@@ -3804,20 +3753,10 @@ block3(v3: f32):
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
-        let range = exit_ranges.get(value).unwrap();
-
-        assert_eq!(
-            range,
-            &ValueRange::Integer {
-                min: i32::MIN as i128,
-                max: -1,
-                width: 32,
-                is_signed: true
-            }
-        );
+        assert!(exit_ranges.get(value).is_none());
     }
 
-    /// Float to int casts saturate negative infinity to the minimum.
+    /// Float to int casts are unknown when the input may be infinite.
     #[test]
     fn test_range_float_to_int_cast_negative_infinite() {
         let test = TestProgram::new(
@@ -3841,20 +3780,10 @@ block0:
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
-        let range = exit_ranges.get(value).unwrap();
-
-        assert_eq!(
-            range,
-            &ValueRange::Integer {
-                min: i32::MIN as i128,
-                max: i32::MIN as i128,
-                width: 32,
-                is_signed: true
-            }
-        );
+        assert!(exit_ranges.get(value).is_none());
     }
 
-    /// NaN only float to int casts yield zero.
+    /// NaN only float to int casts are unknown.
     #[test]
     fn test_range_float_to_int_cast_nan_only() {
         let test = TestProgram::new(
@@ -3879,16 +3808,6 @@ block0:
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
-        let range = exit_ranges.get(value).unwrap();
-
-        assert_eq!(
-            range,
-            &ValueRange::Integer {
-                min: 0,
-                max: 0,
-                width: 32,
-                is_signed: true
-            }
-        );
+        assert!(exit_ranges.get(value).is_none());
     }
 }

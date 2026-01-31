@@ -8,7 +8,8 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap, build_value_definition_map,
-    collect_non_escaping_stack_allocs, range_relation, stack_alloc_base,
+    collect_block_param_defs, collect_local_defs, collect_non_escaping_stack_allocs,
+    collect_stack_alloc_bases_for_value, range_relation, stack_alloc_base,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -138,7 +139,17 @@ fn run_dead_store_eliminate(
     let definitions = build_value_definition_map(function, tree);
     let constants = build_integer_constant_map(function, tree);
     let non_escaping_stack_allocs = collect_non_escaping_stack_allocs(function, tree, &definitions);
-    let stack_alloc_reads = collect_stack_alloc_reads(function, memory_ssa, &definitions, tree);
+    let local_defs = collect_local_defs(function, tree);
+    let param_defs = collect_block_param_defs(function, tree);
+    let stack_alloc_reads = collect_stack_alloc_reads(
+        function,
+        memory_ssa,
+        &definitions,
+        &local_defs,
+        &param_defs,
+        &non_escaping_stack_allocs,
+        tree,
+    );
 
     // determine dead stores
     let mut dead_stores = HashSet::new();
@@ -439,6 +450,9 @@ fn collect_stack_alloc_reads(
     function: &mir::Function,
     memory_ssa: &MemorySSA,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    local_defs: &HashMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>>,
+    param_defs: &HashMap<mir::Value, Vec<mir::Value>>,
+    stack_allocs: &HashSet<mir::Value>,
     tree: &mir::NodeTree,
 ) -> HashSet<mir::Value> {
     // collect stack bases with reads
@@ -465,10 +479,18 @@ fn collect_stack_alloc_reads(
                     continue;
                 };
 
-                // resolve stack base for the pointer
-                if let Some(base) = stack_alloc_base(location.ptr, definitions, tree) {
-                    reads.insert(base);
-                }
+                // resolve stack bases for the pointer
+                let mut visited = HashSet::new();
+                collect_stack_alloc_bases_for_value(
+                    location.ptr,
+                    definitions,
+                    local_defs,
+                    param_defs,
+                    tree,
+                    stack_allocs,
+                    &mut visited,
+                    &mut reads,
+                );
             }
         }
     }

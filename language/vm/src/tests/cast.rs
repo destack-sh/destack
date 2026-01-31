@@ -1,5 +1,6 @@
+use crate::diagnostic::Error;
 use crate::memory::Value;
-use crate::tests::run_mir_expect;
+use crate::tests::{run_mir_expect, run_mir_expect_error};
 
 /// Truncate i64 to i32 correctly masks the value.
 #[test]
@@ -73,6 +74,37 @@ block0(v0: f64):
     run_mir_expect(mir, "f2i", &[Value::float64(-42.9)], Value::int32(-42));
 }
 
+/// Float64 to signed integer traps on NaN.
+#[test]
+fn test_float_to_signed_int_nan_traps() {
+    let mir = r#"
+function @f2i_nan() -> i32 {
+block0:
+    v0: f64 = iconst 0.0f64
+    v1: f64 = fdiv v0, v0
+    v2: i32 = fcvt_to_sint v1 -> i32
+    return v2
+}"#;
+    run_mir_expect_error(mir, "f2i_nan", &[], Error::BadConversionToInteger);
+}
+
+/// Float64 to signed integer traps on out of range values.
+#[test]
+fn test_float_to_signed_int_overflow_traps() {
+    let mir = r#"
+function @f2i_overflow(v0: f64) -> i32 {
+block0(v0: f64):
+    v1: i32 = fcvt_to_sint v0 -> i32
+    return v1
+}"#;
+    run_mir_expect_error(
+        mir,
+        "f2i_overflow",
+        &[Value::float64(1e40)],
+        Error::BadConversionToInteger,
+    );
+}
+
 /// Float64 to unsigned integer.
 #[test]
 fn test_float_to_unsigned_int() {
@@ -83,6 +115,54 @@ block0(v0: f64):
     return v1
 }"#;
     run_mir_expect(mir, "f2u", &[Value::float64(42.9)], Value::uint32(42));
+}
+
+/// Float64 to unsigned integer traps on negative inputs.
+#[test]
+fn test_float_to_unsigned_int_negative_traps() {
+    let mir = r#"
+function @f2u_negative(v0: f64) -> u32 {
+block0(v0: f64):
+    v1: u32 = fcvt_to_uint v0 -> u32
+    return v1
+}"#;
+    run_mir_expect_error(
+        mir,
+        "f2u_negative",
+        &[Value::float64(-1.0)],
+        Error::BadConversionToInteger,
+    );
+}
+
+/// Float64 to unsigned integer traps on out of range values.
+#[test]
+fn test_float_to_unsigned_int_overflow_traps() {
+    let mir = r#"
+function @f2u_overflow(v0: f64) -> u32 {
+block0(v0: f64):
+    v1: u32 = fcvt_to_uint v0 -> u32
+    return v1
+}"#;
+    run_mir_expect_error(
+        mir,
+        "f2u_overflow",
+        &[Value::float64(1e40)],
+        Error::BadConversionToInteger,
+    );
+}
+
+/// Float64 to unsigned integer traps on NaN.
+#[test]
+fn test_float_to_unsigned_int_nan_traps() {
+    let mir = r#"
+function @f2u_nan() -> u32 {
+block0:
+    v0: f64 = iconst 0.0f64
+    v1: f64 = fdiv v0, v0
+    v2: u32 = fcvt_to_uint v1 -> u32
+    return v2
+}"#;
+    run_mir_expect_error(mir, "f2u_nan", &[], Error::BadConversionToInteger);
 }
 
 /// Signed integer to float64.

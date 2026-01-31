@@ -8,8 +8,9 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
-    callsite_hotness, constant_arguments_for_parameters, instruction_map_with_locals,
-    required_parameter_indices, run_function_passes_always, terminator_remap,
+    callsite_hotness, clone_instruction_metadata, constant_arguments_for_parameters,
+    instruction_map_with_locals, required_parameter_indices, run_function_passes_always,
+    terminator_remap,
 };
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
@@ -470,13 +471,7 @@ fn clone_function(
             let new_id = tree.insert(remapped);
 
             // preserve memory access metadata for the cloned instruction
-            if let Some(accesses) = tree
-                .memory_table
-                .memory_accesses(instruction_id)
-                .map(|entries| entries.to_vec())
-            {
-                tree.memory_table.insert_memory_accesses(new_id, accesses);
-            }
+            clone_instruction_metadata(tree, instruction_id, new_id, &value_map);
 
             // preserve debug locations for the cloned instruction
             if let Some(location) = tree
@@ -748,6 +743,99 @@ block0:
 
         assert!(effects.argument_metadata.is_empty());
         assert_eq!(signature, &expected_signature);
+    }
+
+    /// Specialization remaps memory access metadata for cloned functions.
+    #[test]
+    fn test_argument_specialize_remaps_memory_access_metadata() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+local0: i32 ; owned
+block0(v0: i32):
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v2: i32 = load v1
+    return v2
+}
+function @root() -> i32 {
+block0:
+    v0: i32 = iconst 1i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get(callee_id);
+        let mut callee_load = None;
+        let mut callee_pointer = None;
+        for block_id in &callee.blocks {
+            let block = test.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                    callee_load = Some(*instruction_id);
+                    callee_pointer = Some(*pointer);
+                    break;
+                }
+            }
+            if callee_load.is_some() {
+                break;
+            }
+        }
+
+        let callee_load = callee_load.expect("missing callee load");
+        let callee_pointer = callee_pointer.expect("missing callee pointer");
+        test.insert_pointer_access(
+            callee_load,
+            mir::MemoryAccessKind::Read,
+            callee_pointer,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        test.run_module_pass(&ArgumentSpecialize);
+
+        let root_id = test.function_id_by_name("root");
+        let specialized_ids: Vec<_> = test
+            .tree
+            .iter_nodes::<mir::Function>()
+            .map(|(id, _)| id)
+            .filter(|id| *id != callee_id && *id != root_id)
+            .collect();
+        assert_eq!(specialized_ids.len(), 1);
+        let specialized_id = specialized_ids[0];
+        let specialized = test.tree.get(specialized_id);
+        let mut specialized_load = None;
+        let mut specialized_pointer = None;
+        for block_id in &specialized.blocks {
+            let block = test.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if let mir::Instruction::Load { pointer, .. } = test.tree.get(*instruction_id) {
+                    specialized_load = Some(*instruction_id);
+                    specialized_pointer = Some(*pointer);
+                    break;
+                }
+            }
+            if specialized_load.is_some() {
+                break;
+            }
+        }
+
+        let specialized_load = specialized_load.expect("missing specialized load");
+        let specialized_pointer = specialized_pointer.expect("missing specialized pointer");
+        let accesses = test
+            .tree
+            .memory_table
+            .memory_accesses(specialized_load)
+            .expect("missing specialized access metadata");
+        assert_eq!(accesses.len(), 1);
+        match accesses[0].target {
+            mir::MemoryAccessTarget::Pointer(value) => {
+                assert_eq!(value, specialized_pointer);
+            }
+            _ => panic!("unexpected access target"),
+        }
     }
 
     /// Cold callsites do not trigger specialization with profile data.

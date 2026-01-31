@@ -328,6 +328,7 @@ impl OwnershipAnalysis {
         let ty = tree.get(type_id);
         match ty {
             Type::Reference { pointee, .. } => Some(*pointee),
+            Type::TensorReference { element, .. } => Some(*element),
             _ => None,
         }
     }

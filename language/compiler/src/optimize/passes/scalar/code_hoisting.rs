@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
     ExpressionKey, apply_substitutions_in_dominated_blocks, build_use_def_maps,
-    expression_key_from_instruction, instruction_is_speculatable, instruction_map,
-    instruction_substitute_uses_in_tree,
+    clone_instruction_metadata, expression_key_from_instruction, instruction_is_speculatable,
+    instruction_map, instruction_substitute_uses_in_tree,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -278,6 +278,7 @@ fn hoist_common_prefix(
             // clone instruction with updated destinations and operands
             let hoisted_instruction = instruction_map(&candidate.instruction, &value_map, tree);
             let hoisted_id = tree.insert(hoisted_instruction);
+            clone_instruction_metadata(tree, candidate.then_id, hoisted_id, &value_map);
             new_header_instructions.push(hoisted_id);
 
             // record substitutions for both branches
@@ -448,7 +449,7 @@ fn build_expression_index(
         };
 
         // skip non speculatable instructions
-        if !instruction_is_speculatable(&instruction) {
+        if !instruction_is_speculatable(&instruction, tree) {
             continue;
         }
 

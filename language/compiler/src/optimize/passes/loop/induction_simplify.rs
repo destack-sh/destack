@@ -6,8 +6,8 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis, ScalarEvolution, Scev};
 use crate::optimize::common::{
     BlockParamForwarding, TypeKey, constant_is_zero, fold_binary,
-    instruction_substitute_uses_in_tree, resolve_substitution_chains,
-    terminator_arguments_for_successor, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_arguments_for_successor, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -341,6 +341,7 @@ fn run_induction_simplify(
             // replace instructions that changed
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
+                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
     }

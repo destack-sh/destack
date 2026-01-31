@@ -344,7 +344,7 @@ fn load_can_move_to_entry(
         }
 
         // accept speculatable instructions
-        if instruction_is_speculatable(instruction) {
+        if instruction_is_speculatable(instruction, tree) {
             continue;
         }
 

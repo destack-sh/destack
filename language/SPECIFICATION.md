@@ -327,7 +327,11 @@ Unlike TypeScript's single `number` type, Destack's precise integers behave like
 they have defined overflow semantics (wrapping, saturating, or trapping), proper bitwise operations.
 (Of course, when transpiled to )
 
-Assignments from `number` to a precise numeric type (`int32`, `float64`, and so on) require an explicit conversion.
+Assignments from `number` to a precise numeric type (`int32`, `float64`, and so on) require an explicit conversion:
+ - Explicit float to integer casts are checked at runtime.
+ - Finite values in range truncate toward zero.
+ - NaN or out of range values trap.
+ - Unsigned targets treat negative values as out of range.
 
 #### Characters and Strings
 

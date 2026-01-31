@@ -9,9 +9,7 @@ use mir::{Instruction, Value};
 use crate::OptimizeError;
 use crate::optimize::{
     AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
-    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime,
-    borrowed_parameter_indices_for_signature, forward_dataflow,
-    signature_return_contains_borrowed_refs,
+    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
 };
 
 declare_pass! {
@@ -209,7 +207,7 @@ impl StackPointerMap {
                     let lifetime = lifetime_analysis.get(*target);
                     self.apply_lifetime_result(*dest, lifetime, &args);
                 } else {
-                    self.apply_signature_fallback(*dest, *signature, tree, &args, None);
+                    self.apply_signature_lifetime(*dest, *signature, tree, &args, None);
                 }
             }
             Instruction::CallIndirect {
@@ -223,7 +221,7 @@ impl StackPointerMap {
                 if let Some(targets) = call_targets.targets_for_instruction(instruction_id) {
                     self.apply_call_targets(*dest, args, targets, lifetime_analysis);
                 } else {
-                    self.apply_signature_fallback(*dest, *signature, tree, args, *env);
+                    self.apply_signature_lifetime(*dest, *signature, tree, args, *env);
                 }
             }
             // calls without destination: nothing to track
@@ -277,8 +275,8 @@ impl StackPointerMap {
         }
     }
 
-    /// Apply signature-based fallback when lifetime metadata is missing.
-    fn apply_signature_fallback(
+    /// Apply signature-based lifetime inference when call targets are unknown.
+    fn apply_signature_lifetime(
         &mut self,
         destination: Value,
         signature: mir::LocalNodeId<mir::Type>,
@@ -286,23 +284,19 @@ impl StackPointerMap {
         arguments: &[Value],
         env: Option<Value>,
     ) {
-        let signature_type = tree.get(signature);
-        let return_borrows = signature_return_contains_borrowed_refs(signature_type, tree);
-        if !return_borrows {
-            return;
-        }
-
-        if let Some(param_indices) = borrowed_parameter_indices_for_signature(signature_type, tree)
-        {
-            let param_indices: Vec<u32> = param_indices
-                .into_iter()
-                .map(|index| index as u32)
-                .collect();
-            self.propagate_from_param_indices(destination, arguments, &param_indices, env);
-        } else if let Some(env) = env
-            && self.get(env).is_maybe_stack()
-        {
-            self.0.insert(destination, self.get(env));
+        let lifetime = LifetimeAnalysis::resolve_signature(signature, tree);
+        match lifetime {
+            ResolvedLifetime::Parameters(param_indices) => {
+                self.propagate_from_param_indices(destination, arguments, &param_indices, env);
+            }
+            ResolvedLifetime::Static | ResolvedLifetime::None => {
+                // env can carry hidden borrows for indirect calls
+                if let Some(env) = env
+                    && self.get(env).is_maybe_stack()
+                {
+                    self.0.insert(destination, self.get(env));
+                }
+            }
         }
     }
 

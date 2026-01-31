@@ -479,11 +479,38 @@ impl BasicAA {
 
         match access.target {
             mir::MemoryAccessTarget::Pointer(pointer) => {
-                let access_loc = MemoryLocation::new(pointer, access.size, None);
+                let access_loc = MemoryLocation::new(pointer, access.size, None, None, None);
                 !self.alias(&access_loc, loc, tree).is_no_alias()
             }
-            mir::MemoryAccessTarget::Local(_) => false,
-            mir::MemoryAccessTarget::Global(_) | mir::MemoryAccessTarget::Unknown => true,
+            mir::MemoryAccessTarget::Local(local) => {
+                let mut decomposer = PointerDecomposer::new(
+                    &self.function.constants,
+                    &self.function.definitions,
+                    tree,
+                    &self.function.parameters,
+                    self.strict_borrow_mode,
+                    &self.value_types,
+                    self.type_context,
+                );
+                let ptr = decomposer.decompose(loc.ptr);
+                let access_base = PointerBase::Local(local);
+                !self.different_identified_bases(&access_base, &ptr.base)
+            }
+            mir::MemoryAccessTarget::Global(global) => {
+                let mut decomposer = PointerDecomposer::new(
+                    &self.function.constants,
+                    &self.function.definitions,
+                    tree,
+                    &self.function.parameters,
+                    self.strict_borrow_mode,
+                    &self.value_types,
+                    self.type_context,
+                );
+                let ptr = decomposer.decompose(loc.ptr);
+                let access_base = PointerBase::Global(global);
+                !self.different_identified_bases(&access_base, &ptr.base)
+            }
+            mir::MemoryAccessTarget::Unknown => true,
         }
     }
 
@@ -682,9 +709,10 @@ impl BasicAA {
             };
 
             // skip non reference arguments
-            let mir::Type::Reference { .. } = tree.get(arg_type) else {
-                continue;
-            };
+            match tree.get(arg_type) {
+                mir::Type::Reference { .. } | mir::Type::TensorReference { .. } => {}
+                _ => continue,
+            }
 
             // read argument metadata
             let arg_metadata = call_effects
@@ -871,10 +899,11 @@ impl BasicAA {
             PointerBase::Parameter { index, .. } => {
                 // extract address space from parameter type when possible
                 let parameter = self.function.parameters.get(index as usize)?;
-                let mir::Type::Reference { address_space, .. } = tree.get(parameter.ty) else {
-                    return None;
-                };
-                Some(*address_space)
+                match tree.get(parameter.ty) {
+                    mir::Type::Reference { address_space, .. }
+                    | mir::Type::TensorReference { address_space, .. } => Some(*address_space),
+                    _ => None,
+                }
             }
             _ => None,
         }
@@ -1125,6 +1154,69 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         assert_eq!(mod_ref, ModRefInfo::NO_MOD_REF);
+    }
+
+    #[test]
+    fn test_memory_metadata_local_target_aliases_stack_pointer() {
+        let mut program = TestProgram::new(
+            r#"function @test() -> void {
+    local0: i32 ; owned, mut
+block0:
+    v0: ref<raw addrspace(stack) i32> = local.addr local0
+    v1: i8 = iconst 0i8
+    v2: i64 = iconst 4i64
+    intrinsic.memset(v0, v1, v2)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let local_id = *program
+            .tree
+            .get(function_id)
+            .locals
+            .first()
+            .expect("missing local");
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+
+        let pointer_value = program
+            .tree
+            .get(program.entry_block_id(function_id))
+            .instructions
+            .iter()
+            .find_map(|&instruction_id| match program.tree.get(instruction_id) {
+                mir::Instruction::LocalAddr { destination, .. } => Some(*destination),
+                _ => None,
+            })
+            .expect("missing local.addr");
+
+        program.tree.memory_table.insert_memory_accesses(
+            memset_inst,
+            vec![mir::MemoryAccessMetadata {
+                kind: mir::MemoryAccessKind::Write,
+                target: mir::MemoryAccessTarget::Local(local_id),
+                size: Some(4),
+                alignment: None,
+                is_volatile: false,
+                is_invariant: false,
+                is_non_temporal: false,
+                ordering: None,
+                scope: None,
+                memory_scope: None,
+                semantics: None,
+                address_space: None,
+                alias_scopes: Vec::new(),
+                noalias_scopes: Vec::new(),
+                tbaa_tag: None,
+            }],
+        );
+
+        let function = program.tree.get(function_id);
+        let aa = build_basic_aa(function, &program, false);
+        let loc = MemoryLocation::from_ptr(pointer_value);
+        let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
+
+        assert!(mod_ref.is_mod());
     }
 
     #[test]

@@ -4,7 +4,9 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::ControlFlowGraph;
-use crate::optimize::common::{instruction_is_speculatable, instruction_map};
+use crate::optimize::common::{
+    clone_instruction_metadata, instruction_is_speculatable, instruction_map,
+};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -456,6 +458,7 @@ fn clone_block_instructions(
         let instruction = tree.get(instruction_id).clone();
         let cloned = instruction_map(&instruction, value_map, tree);
         let cloned_id = tree.insert(cloned);
+        clone_instruction_metadata(tree, instruction_id, cloned_id, value_map);
         target.push(cloned_id);
     }
 }
@@ -468,7 +471,7 @@ fn instructions_speculatable(
     // scan instructions for unsafe operations
     for &instruction_id in instructions {
         let instruction = tree.get(instruction_id);
-        if !instruction_is_speculatable(instruction) {
+        if !instruction_is_speculatable(instruction, tree) {
             return false;
         }
     }
@@ -528,6 +531,108 @@ block3(v12: i32):
         let mut test = TestProgram::new(input);
         test.run_pass(&IfConvert);
         test.assert_output(expected);
+    }
+
+    /// Cloned instructions keep memory access metadata with remapped values.
+    #[test]
+    fn test_if_convert_clones_memory_access_metadata() {
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1, v2), block2(v1, v2)
+block1(v3: i32, v4: i32):
+    v5: i32 = iadd v3, v4
+    jump block3(v5)
+block2(v6: i32, v7: i32):
+    v8: i32 = isub v6, v7
+    jump block3(v8)
+block3(v9: i32):
+    return v9
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let function = test.tree.get(function_id);
+        let header_block_id = function.blocks[0];
+        let then_block_id = function.blocks[1];
+        let else_block_id = function.blocks[2];
+
+        let then_instruction = test.instructions_in_block(then_block_id)[0];
+        let else_instruction = test.instructions_in_block(else_block_id)[0];
+        let then_param = test.tree.get(then_block_id).parameters[0].value;
+        let else_param = test.tree.get(else_block_id).parameters[1].value;
+
+        test.insert_pointer_access_with_options(
+            then_instruction,
+            mir::MemoryAccessKind::Read,
+            then_param,
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            false,
+            None,
+        );
+        test.insert_pointer_access_with_options(
+            else_instruction,
+            mir::MemoryAccessKind::Read,
+            else_param,
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            false,
+            None,
+        );
+
+        test.run_pass(&IfConvert);
+
+        let header_block = test.tree.get(header_block_id);
+        let then_arg = header_block.parameters[1].value;
+        let else_arg = header_block.parameters[2].value;
+        let mut saw_then = false;
+        let mut saw_else = false;
+
+        for &instruction_id in &header_block.instructions {
+            let instruction = test.tree.get(instruction_id);
+            match instruction {
+                mir::Instruction::Binary {
+                    operator: mir::BinaryOperator::Add,
+                    ..
+                } => {
+                    let accesses = test
+                        .tree
+                        .memory_table
+                        .memory_accesses(instruction_id)
+                        .expect("missing metadata for hoisted add");
+                    assert_eq!(accesses.len(), 1);
+                    assert_eq!(
+                        accesses[0].target,
+                        mir::MemoryAccessTarget::Pointer(then_arg)
+                    );
+                    saw_then = true;
+                }
+                mir::Instruction::Binary {
+                    operator: mir::BinaryOperator::Subtract,
+                    ..
+                } => {
+                    let accesses = test
+                        .tree
+                        .memory_table
+                        .memory_accesses(instruction_id)
+                        .expect("missing metadata for hoisted sub");
+                    assert_eq!(accesses.len(), 1);
+                    assert_eq!(
+                        accesses[0].target,
+                        mir::MemoryAccessTarget::Pointer(else_arg)
+                    );
+                    saw_else = true;
+                }
+                _ => {}
+            }
+        }
+
+        assert!(saw_then);
+        assert!(saw_else);
     }
 
     /// Convert larger diamonds when balanced and speculatable.

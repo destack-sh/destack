@@ -8,6 +8,7 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     block_parameters_used_outside_block, block_uses_available_in_predecessor,
+    clone_instruction_metadata,
 };
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_dominated_blocks,
@@ -2255,7 +2256,7 @@ fn tail_duplicate_blocks(
         let mut all_speculatable = true;
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id);
-            if !instruction_is_speculatable(instruction) {
+            if !instruction_is_speculatable(instruction, tree) {
                 all_speculatable = false;
                 break;
             }
@@ -2341,6 +2342,7 @@ fn tail_duplicate_blocks(
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
                 let new_id = tree.insert(cloned);
+                clone_instruction_metadata(tree, *instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 

@@ -6,7 +6,7 @@ use mir::{BinaryOperator, Constant, Instruction};
 
 use destack_base::StringPool;
 
-use crate::optimize::common::build_signature_type;
+use crate::optimize::common::{build_signature_type, clone_instruction_metadata};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
@@ -352,6 +352,7 @@ fn clone_function_as_impl(
         for &old_instr_id in &old_block.instructions {
             let old_instr = tree.get(old_instr_id).clone();
             let new_instr_id = tree.insert(old_instr);
+            clone_instruction_metadata(tree, old_instr_id, new_instr_id, &HashMap::new());
             new_instructions.push(new_instr_id);
         }
 

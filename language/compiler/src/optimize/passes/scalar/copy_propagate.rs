@@ -6,7 +6,7 @@ use mir::Terminator;
 
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
-    resolve_substitution_chains, terminator_substitute_uses,
+    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -263,6 +263,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
             // replace instructions when substitutions apply
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
+                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
     }

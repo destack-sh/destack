@@ -141,11 +141,27 @@ impl<'a> BorrowCheckContext<'a> {
     /// Determine mutability directly from a reference type.
     fn mutability_from_reference_type(&self, ty_id: mir::LocalNodeId<Type>) -> bool {
         let ty = self.tree.get(ty_id);
-        let Type::Reference { mutability, .. } = ty else {
-            panic!("expected reference type for {ty_id:?}, found {ty:?}");
-        };
+        match ty {
+            Type::Reference { mutability, .. } | Type::TensorReference { mutability, .. } => {
+                *mutability == Mutability::Mutable
+            }
+            _ => {
+                panic!("expected reference type for {ty_id:?}, found {ty:?}");
+            }
+        }
+    }
 
-        *mutability == Mutability::Mutable
+    /// Check if a value has a borrowed reference type.
+    fn is_borrowed_reference_value(&self, value: Value) -> bool {
+        let ty_id = self.value_types.require_value_type(value);
+        let ty = self.tree.get(ty_id);
+        ty.is_borrowed_reference()
+    }
+
+    /// Check if a reference type is borrowed.
+    fn is_borrowed_reference_type(&self, ty_id: mir::LocalNodeId<Type>) -> bool {
+        let ty = self.tree.get(ty_id);
+        ty.is_borrowed_reference()
     }
 
     /// Reset borrows for a new block and seed from BorrowAnalysis.
@@ -208,20 +224,19 @@ impl<'a> BorrowCheckContext<'a> {
     ///
     /// If the origin has borrows, we include its provenance chain in ours.
     fn build_provenance(&self, origin: Value) -> HashSet<Value> {
-        // find any borrow where the reference is our origin
+        let mut provenance = HashSet::new();
+
+        // accumulate provenance from all borrows that reference this origin
         for borrow in self.active_borrows.values() {
             if borrow.reference == origin {
-                // origin is itself a reference: inherit its provenance plus origin
-                let mut provenance = HashSet::new();
                 if let Some(parent_origin) = borrow.origin {
                     provenance.insert(parent_origin);
                 }
                 provenance.extend(borrow.provenance.iter().copied());
-                return provenance;
             }
         }
-        // origin has no provenance chain
-        HashSet::new()
+
+        provenance
     }
 
     /// Register a new borrow.
@@ -247,6 +262,31 @@ impl<'a> BorrowCheckContext<'a> {
         );
 
         // track in borrows_of for direct origin
+        self.borrows_of.entry(origin).or_default().insert(id);
+    }
+
+    /// Register a borrow with explicit provenance.
+    fn add_borrow_with_provenance(
+        &mut self,
+        reference: Value,
+        origin: Value,
+        is_mutable: bool,
+        at: mir::LocalNodeId<Instruction>,
+        provenance: HashSet<Value>,
+    ) {
+        let id = self.alloc_borrow_id();
+
+        self.active_borrows.insert(
+            id,
+            ActiveBorrow {
+                reference,
+                origin: Some(origin),
+                is_mutable,
+                created_at: at,
+                provenance,
+            },
+        );
+
         self.borrows_of.entry(origin).or_default().insert(id);
     }
 
@@ -302,6 +342,68 @@ impl<'a> BorrowCheckContext<'a> {
                 existing_borrow: self.anchor(existing_at),
                 existing_is_mutable,
             });
+        }
+    }
+
+    /// Collect locals borrowed by a reference value.
+    fn local_borrows_for_reference(
+        &self,
+        reference: Value,
+    ) -> HashMap<mir::LocalNodeId<mir::Local>, bool> {
+        let mut locals = HashMap::new();
+
+        for (local, ids) in &self.local_borrows {
+            for id in ids {
+                let Some(borrow) = self.active_borrows.get(id) else {
+                    continue;
+                };
+                if borrow.reference == reference {
+                    locals
+                        .entry(*local)
+                        .and_modify(|is_mutable| *is_mutable |= borrow.is_mutable)
+                        .or_insert(borrow.is_mutable);
+                }
+            }
+        }
+
+        locals
+    }
+
+    /// Propagate borrows from an existing reference to a new reference.
+    fn propagate_reference_borrows(
+        &mut self,
+        destination: Value,
+        source: Value,
+        at: mir::LocalNodeId<Instruction>,
+    ) {
+        let mut origins: HashMap<Value, (bool, HashSet<Value>)> = HashMap::new();
+
+        for borrow in self.active_borrows.values() {
+            if borrow.reference != source {
+                continue;
+            }
+
+            let Some(origin) = borrow.origin else {
+                continue;
+            };
+
+            let entry = origins
+                .entry(origin)
+                .or_insert((borrow.is_mutable, borrow.provenance.clone()));
+
+            if borrow.is_mutable {
+                entry.0 = true;
+            }
+            entry.1.extend(borrow.provenance.iter().copied());
+        }
+
+        for (origin, (is_mutable, provenance)) in origins {
+            self.add_borrow_with_provenance(destination, origin, is_mutable, at, provenance);
+        }
+
+        let locals = self.local_borrows_for_reference(source);
+        for (local, is_mutable) in locals {
+            self.add_local_borrow(destination, local, is_mutable, at);
         }
     }
 
@@ -484,8 +586,9 @@ impl<'a> BorrowCheckContext<'a> {
     ) {
         let ty_id = self.value_types.require_value_type(value);
         let ty = self.tree.get(ty_id);
-        let Type::Reference { kind, .. } = ty else {
-            return;
+        let kind = match ty {
+            Type::Reference { kind, .. } | Type::TensorReference { kind, .. } => kind,
+            _ => return,
         };
 
         if matches!(kind, ReferenceKind::Raw | ReferenceKind::Borrowed) {
@@ -783,6 +886,10 @@ fn check_instruction(
             result_type,
             ..
         } => {
+            if !checker.is_borrowed_reference_type(*result_type) {
+                return;
+            }
+
             // derive mutability from reference type
             let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(
@@ -801,6 +908,10 @@ fn check_instruction(
             result_type,
             ..
         } => {
+            if !checker.is_borrowed_reference_type(*result_type) {
+                return;
+            }
+
             // derive mutability from reference type
             let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(*destination, *array, is_mutable, instruction_id, context);
@@ -832,12 +943,13 @@ fn check_instruction(
             result_type,
         } => {
             // only references participate in borrow checking
-            let ty = checker.tree.get(*result_type);
-            if matches!(ty, Type::Reference { .. }) {
-                let is_mutable = checker.mutability_from_reference_type(*result_type);
-                checker.check_local_borrow_conflict(*local, is_mutable, instruction_id, context);
-                checker.add_local_borrow(*destination, *local, is_mutable, instruction_id);
+            if !checker.is_borrowed_reference_type(*result_type) {
+                return;
             }
+
+            let is_mutable = checker.mutability_from_reference_type(*result_type);
+            checker.check_local_borrow_conflict(*local, is_mutable, instruction_id, context);
+            checker.add_local_borrow(*destination, *local, is_mutable, instruction_id);
         }
 
         // raw.drop invalidates any borrows from this value
@@ -928,8 +1040,35 @@ fn check_instruction(
             }
         }
 
-        // cast preserves type info
-        Instruction::Cast { .. } => {}
+        // cast preserves borrow provenance for references
+        Instruction::Cast {
+            destination,
+            argument,
+            ..
+        } => {
+            if !checker.is_borrowed_reference_value(*destination) {
+                return;
+            }
+
+            checker.propagate_reference_borrows(*destination, *argument, instruction_id);
+        }
+
+        // select between references merges borrow provenance
+        Instruction::Select {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            if !checker.is_borrowed_reference_value(*destination) {
+                return;
+            }
+
+            checker.propagate_reference_borrows(*destination, *then_value, instruction_id);
+            if then_value != else_value {
+                checker.propagate_reference_borrows(*destination, *else_value, instruction_id);
+            }
+        }
 
         // allocations produce references
         Instruction::ManagedAlloc { .. }
@@ -1927,6 +2066,100 @@ block0:
         // v3 borrows from v2 which is a cast of v0
         // dropping v0 while v3 is live should be detected
         test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Select between two borrows preserves both origins.
+    #[test]
+    fn test_select_merges_borrow_origins() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 10i32
+    v4: i32 = iconst 20i32
+    store v1, v3
+    store v2, v4
+    v5: ref<borrowed i32> = field.addr v1, 0
+    v6: ref<borrowed i32> = field.addr v2, 0
+    v7: ref<borrowed i32> = select v0, v5, v6
+    raw.drop v1
+    v8: i32 = load v7
+    return v8
+}"#;
+
+        let options = strict_options();
+
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
+        // v7 may borrow from v1, so dropping v1 is invalid
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Cast propagation carries borrow info across blocks.
+    #[test]
+    fn test_cast_propagates_borrow_across_blocks() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
+    store v0, v1
+    v2: ref<borrowed i32> = field.addr v0, 0
+    jump block1(v2)
+block1(v3: ref<borrowed i32>):
+    v4: ref<borrowed i32> = bitcast v3 -> ref<borrowed i32>
+    raw.drop v0
+    v5: i32 = load v4
+    return v5
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        // v4 borrows from v0 through v3, so dropping v0 is invalid
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+    }
+
+    /// Local borrows propagate through select.
+    #[test]
+    fn test_select_propagates_local_borrows() {
+        let input = r#"function @test(v0: bool) -> i32 {
+    local0: i32 ; owned, mut
+block0(v0: bool):
+    v1: i32 = iconst 42i32
+    local.set local0, v1
+    v2: ref<borrowed i32> = local.addr local0
+    v3: ref<borrowed i32> = select v0, v2, v2
+    v4: i32 = iconst 7i32
+    local.set local0, v4
+    v5: i32 = load v3
+    return v5
+}"#;
+
+        let options = strict_options();
+
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
+        // local0 is borrowed via v3, so the local.set should error
+        test.assert_error(|e| matches!(e, OptimizeError::LocalSetWhileBorrowed { .. }));
+    }
+
+    /// Raw references do not participate in borrow checking.
+    #[test]
+    fn test_raw_reference_skips_borrow_tracking() {
+        let input = r#"function @test() -> i32 {
+    local0: i32 ; owned, mut
+block0:
+    v0: i32 = iconst 1i32
+    local.set local0, v0
+    v1: ref<raw addrspace(stack) i32> = local.addr local0
+    v2: i32 = iconst 2i32
+    local.set local0, v2
+    v3: i32 = load v1
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Call to function with inferred single-param lifetime tracks borrow correctly.

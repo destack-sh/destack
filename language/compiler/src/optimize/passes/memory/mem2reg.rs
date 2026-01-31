@@ -6,7 +6,8 @@ use mir::{Instruction, Terminator};
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
-    compute_dominance_frontiers, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    compute_dominance_frontiers, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -528,6 +529,7 @@ fn rename_variables(
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
+                remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
             }
         }
 

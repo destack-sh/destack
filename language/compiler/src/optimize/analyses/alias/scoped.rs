@@ -70,14 +70,7 @@ impl ScopedNoAliasAA {
 
         // check if the parameter type is a mutable borrow
         let ty = tree.get(parameter.ty);
-        matches!(
-            ty,
-            mir::Type::Reference {
-                kind: mir::ReferenceKind::Borrowed,
-                mutability: mir::Mutability::Mutable,
-                ..
-            }
-        )
+        ty.is_mutable_borrowed_reference()
     }
 
     /// Query if two memory locations may alias.

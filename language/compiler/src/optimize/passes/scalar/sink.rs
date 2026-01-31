@@ -7,6 +7,7 @@ use crate::optimize::analyses::{AliasAnalysis, ControlFlowGraph, DominatorTree, 
 use crate::optimize::common::{
     MemoryLocation, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
     instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
+    instruction_requires_exact_access,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -139,8 +140,13 @@ fn run_sink(
             // read the instruction for analysis
             let instruction = tree.get(instruction_id);
 
+            // do not sink instructions that require exact access semantics
+            if instruction_requires_exact_access(tree, instruction_id) {
+                continue;
+            }
+
             // determine if the instruction can be sunk
-            let can_sink = if instruction_is_speculatable(instruction) {
+            let can_sink = if instruction_is_speculatable(instruction, tree) {
                 // pure instructions can always be sunk
                 true
             } else if instruction_is_memory_read(instruction) {
@@ -491,6 +497,50 @@ block1:
         let mut test = TestProgram::new(input);
         test.run_pass(&Sink);
         test.assert_output(expected);
+    }
+
+    /// Volatile loads are not sunk across control flow.
+    #[test]
+    fn test_preserve_volatile_load() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = load v1
+    branch v0, block1, block2
+block1:
+    return v2
+block2:
+    v3: i32 = iconst 0i32
+    return v3
+}"#;
+
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let load_id = test
+            .entry_instructions(function_id)
+            .into_iter()
+            .find(|instruction_id| {
+                matches!(
+                    test.tree.get(*instruction_id),
+                    mir::Instruction::Load { .. }
+                )
+            })
+            .expect("missing load");
+
+        test.insert_pointer_access_with_options(
+            load_id,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+            true,
+            None,
+        );
+
+        test.run_pass(&Sink);
+        test.assert_unchanged(input);
     }
 
     /// Instruction is not sunk into block with multiple predecessors.

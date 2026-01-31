@@ -13,7 +13,8 @@ use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
     constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
-    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 /// Maximum recursion depth for chained field.set/element.set simplification.
@@ -388,10 +389,12 @@ fn run_instruction_combine(
                 }
 
                 // rewrite instruction operands
-                let instruction = tree.get(instruction_id);
-                let new_instruction = instruction_substitute_uses(instruction, &substitutions);
-                if new_instruction != *instruction {
+                let instruction = tree.get(instruction_id).clone();
+                let new_instruction =
+                    instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+                if new_instruction != instruction {
                     tree.replace(instruction_id, new_instruction);
+                    remap_instruction_memory_accesses(tree, instruction_id, &substitutions);
                 }
             }
         }

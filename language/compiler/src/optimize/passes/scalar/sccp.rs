@@ -5,7 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::common::{
     ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
-    fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree,
+    remap_instruction_memory_accesses, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -1112,6 +1113,7 @@ fn function_substitute_constant_uses(
             // update instruction when rewritten
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
+                remap_instruction_memory_accesses(tree, instruction_id, substitutions);
                 changed = true;
             }
         }
