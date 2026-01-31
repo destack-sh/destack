@@ -2110,12 +2110,11 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Annotation::Decorator {
                 position,
-                left,
-                arguments: _,
+                expression,
             } => {
                 self.node("Annotation::Decorator", id.id)
                     .field("position", position)
-                    .field("left", &left.id)
+                    .field("expression", &expression.id)
                     .end();
             }
         }

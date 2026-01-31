@@ -23,6 +23,15 @@ struct LintSeverityOverride {
     is_forbidden: bool,
 }
 
+/// The parsed shape of a decorator expression in the DIR.
+#[derive(Debug, Clone, Copy)]
+struct DecoratorCall<'a> {
+    /// The decorator callee expression.
+    callee: dir::LocalNodeId<dir::Expression>,
+    /// The decorator arguments when the expression is a call.
+    arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
+}
+
 /// Context for DIR-level linting of a single module. Unfurls ModuleDir.
 pub struct LintModuleDirContext<'a> {
     /// The program containing this module.
@@ -337,23 +346,58 @@ impl<'a> LintModuleDirContext<'a> {
         effective
     }
 
+    /// Unwrap parenthesized decorator expressions.
+    fn unwrap_decorator_expression(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> dir::LocalNodeId<dir::Expression> {
+        let mut current = expression_id;
+        loop {
+            let expression = self.tree.get(current);
+            let dir::Expression::Parenthesized { expression } = expression else {
+                return current;
+            };
+            current = *expression;
+        }
+    }
+
+    /// Resolve decorator call information for an annotation.
+    fn decorator_call(
+        &self,
+        annotation_id: dir::LocalNodeId<dir::Annotation>,
+    ) -> Option<DecoratorCall<'_>> {
+        let annotation = self.tree.get(annotation_id);
+        let dir::Annotation::Decorator { expression, .. } = annotation else {
+            return None;
+        };
+        let expression_id = self.unwrap_decorator_expression(*expression);
+        match self.tree.get(expression_id) {
+            dir::Expression::Call {
+                left,
+                dynamic_arguments,
+                ..
+            } => Some(DecoratorCall {
+                callee: self.unwrap_decorator_expression(*left),
+                arguments: Some(dynamic_arguments.as_slice()),
+            }),
+            _ => Some(DecoratorCall {
+                callee: expression_id,
+                arguments: None,
+            }),
+        }
+    }
+
     /// Parse a decorator annotation and return the severity override if it matches this lint.
     fn parse_decorator(
         &self,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
         meta: &LintMeta,
     ) -> Option<LintSeverityOverride> {
-        let annotation = self.tree.get(annotation_id);
-        let dir::Annotation::Decorator {
-            left, arguments, ..
-        } = annotation
-        else {
-            return None;
-        };
+        let call = self.decorator_call(annotation_id)?;
 
         // extract path from the decorator expression
-        let left_expression = self.tree.get(*left);
-        let path = match left_expression {
+        let callee_expression = self.tree.get(call.callee);
+        let path = match callee_expression {
             dir::Expression::LocalReference { path, .. }
             | dir::Expression::ModuleReference { path, .. }
             | dir::Expression::GlobalReference { path, .. }
@@ -376,7 +420,7 @@ impl<'a> LintModuleDirContext<'a> {
         };
 
         // extract the string argument (lint ID or code)
-        let arguments = arguments.as_ref()?;
+        let arguments = call.arguments?;
         let first_argument = self.tree.get(*arguments.first()?);
         let dir::Argument::Positional { value, .. } = first_argument else {
             return None;

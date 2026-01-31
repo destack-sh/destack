@@ -1534,15 +1534,14 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("expected decorator annotation for {name}"));
 
         // resolve decorator metadata
-        let Annotation::Decorator {
-            left, arguments, ..
-        } = tree.get(decorator_id)
-        else {
+        let Annotation::Decorator { expression, .. } = tree.get(decorator_id) else {
             panic!("expected decorator annotation for {name}");
         };
 
+        let call = self.compiler.decorator_call(&tree, *expression);
+
         // resolve the decorator target symbol
-        let target_symbol = match tree.get(*left) {
+        let target_symbol = match tree.get(call.callee) {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
@@ -1550,8 +1549,8 @@ impl TestProgram {
         };
 
         // resolve the first argument kind
-        let first_argument_is_string_literal = arguments
-            .as_ref()
+        let first_argument_is_string_literal = call
+            .arguments
             .and_then(|arguments| arguments.first().copied())
             .map(|argument_id| match tree.get(argument_id) {
                 Argument::Positional { value, .. }

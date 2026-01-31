@@ -1584,6 +1584,33 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_type_template_literal_with_static_arguments() {
+        let mut test = TestParser::new("type T = `foo-${Capitalize<K>}`");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = `foo-${Capitalize<K>}`
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeTemplateLiteral { strings, spans } => {
+                    assert_eq!(strings.len(), 2);
+                    assert_eq!(spans.len(), 1);
+                    assert_string!(parser, strings[0], "foo-");
+                    assert_string!(parser, strings[1], "");
+                    assert_node!(parser.tree, spans[0], Expression::Path { path, static_arguments } => {
+                        assert_path!(parser, *path, "Capitalize");
+                        let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                        assert_eq!(static_arguments.len(), 1);
+                        assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                            assert_expression_path!(parser, parser.tree.get(*value), "K");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_type_mapped_expression() {
         let mut test =
             TestParser::new("type T = { readonly [K in keyof T as `foo-${K}`]-?: T[K] }");

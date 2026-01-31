@@ -53,6 +53,9 @@ pub(crate) struct ParserOptions {
     /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.
     pub in_tree_literal: bool = false,
+    /// Whether we're parsing a decorator expression.
+    /// Disables declaration and control flow keyword parsing to keep decorators as expressions.
+    pub in_decorator: bool = false,
     /// Whether we're parsing a ternary if expression.
     /// Disallows some shorthand syntax like lambdas that looks like a ternary part.
     pub in_ternary_condition: bool = false,
@@ -293,6 +296,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_decorator=true`.
+    #[inline]
+    pub(crate) fn in_decorator(self) -> Self {
+        Self {
+            in_decorator: true,
+            ..self
+        }
+    }
+
     /// Set `left_precedence=precedence`.
     #[inline]
     pub(crate) fn in_left_precedence(self, precedence: u16) -> Self {
@@ -338,6 +350,7 @@ impl ParserOptions {
             in_comptime: self.in_comptime,
             forbid_yield: self.forbid_yield,
             allow_sequence_expression: self.allow_sequence_expression,
+            in_decorator: self.in_decorator,
             ..Self::default()
         }
     }

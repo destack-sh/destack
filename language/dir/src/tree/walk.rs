@@ -1568,17 +1568,10 @@ pub fn walk_annotation<V: NodeVisitor + ?Sized>(
         } => {}
         Annotation::Decorator {
             position: _,
-            left,
-            arguments,
+            expression,
         } => {
-            let left_node = tree.get(*left);
-            visitor.visit_expression(tree, *left, left_node);
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
-                }
-            }
+            let expression_node = tree.get(*expression);
+            visitor.visit_expression(tree, *expression, expression_node);
         }
     }
 }

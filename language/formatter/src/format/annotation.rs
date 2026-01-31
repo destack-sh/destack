@@ -1,12 +1,11 @@
 use destack_fir::format::{Format, FormatResult, hard_line_break};
 use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use destack_fir::write;
 
-use crate::argument::list_like;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator, Doc, DocStyle,
-    LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
+    Expression, LocalNodeId, Node, NodeTree, NodeTreeImpl, NodeType,
 };
 
 impl<'ast> DestackFormatContext<'ast> {
@@ -389,28 +388,49 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
         _node_id: LocalNodeId<Decorator>,
         f: &mut DestackFormatter<'ast, '_>,
     ) -> FormatResult<()> {
-        write!(f, [token("@"), self.left])?;
-        if let Some(static_arguments) = &self.static_arguments
-            && !static_arguments.is_empty()
-        {
-            write!(f, [list_like("<", ">", ",", static_arguments)])?;
+        let tree = f.context().tree;
+        let needs_parentheses = decorator_needs_parentheses(tree, self.expression);
+        write!(f, [token("@")])?;
+        if needs_parentheses {
+            write!(f, [token("(")])?;
         }
-        if let Some(arguments) = &self.arguments
-            && !arguments.is_empty()
-        {
-            write!(
-                f,
-                [group(&format_args![
-                    token("("),
-                    soft_block_indent(&format_with(|f| f
-                        .join_with(&format_args![&token(","), soft_line_break_or_space()])
-                        .entries(arguments)
-                        .finish())),
-                    token(")")
-                ])]
-            )?;
+        write!(f, [self.expression])?;
+        if needs_parentheses {
+            write!(f, [token(")")])?;
         }
         Ok(())
+    }
+}
+
+fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
+    match tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_some(),
+        Expression::Call { left, .. } => !is_identifier_or_static_member_only(tree, *left),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_some() || !is_identifier_or_static_member_only(tree, *left),
+        _ => true,
+    }
+}
+
+fn is_identifier_or_static_member_only(
+    tree: &NodeTree,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    match tree.get(expression_id) {
+        Expression::Path {
+            static_arguments, ..
+        } => static_arguments.is_none(),
+        Expression::Member {
+            left,
+            static_arguments,
+            ..
+        } => static_arguments.is_none() && is_identifier_or_static_member_only(tree, *left),
+        _ => false,
     }
 }
 

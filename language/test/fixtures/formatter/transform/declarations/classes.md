@@ -676,7 +676,7 @@ class MyComponent { }
 
 ### multiple decorators
 
-Decorator calls without arguments lose their empty parentheses.
+Decorator calls keep their empty parentheses.
 
 ```ds
 @Injectable()
@@ -685,8 +685,42 @@ class Service { }
 ```
 
 ```ds expected
-@Injectable
+@Injectable()
 @Singleton
+class Service { }
+```
+
+### decorator expressions with calls
+
+Complex decorator expressions use parentheses for clarity.
+
+```ds
+@factory().decorator
+@factory().decorator()
+@decorator().member
+@decorator().member()
+class Service { }
+```
+
+```ds expected
+@(factory().decorator)
+@(factory().decorator())
+@(decorator().member)
+@(decorator().member())
+class Service { }
+```
+
+### decorator instantiation expressions
+
+Decorator instantiation expressions use parentheses.
+
+```ds
+@decorator<T>
+class Service { }
+```
+
+```ds expected
+@(decorator<T>)
 class Service { }
 ```
 

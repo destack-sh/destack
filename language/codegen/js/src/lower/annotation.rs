@@ -36,8 +36,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Annotation::Decorator {
                 position: _,
-                left: _,
-                arguments: _,
+                expression: _,
             } => {
                 // NOTE #Incomplete: properly generate JS decorators after elaborate phase
                 //  (or would that be a special js::Expression::Decorated or something..?)

@@ -64,6 +64,39 @@ function bits(value: int): int {
 }
 ```
 
+## Decorator expressions
+
+### decorator expressions accept call chains
+
+> decorator expressions accept call chains and member access.
+
+```ds
+function factory(): { decorator: () => void } {
+    return { decorator: () => { } }
+}
+
+function decorator(): { member: () => void } {
+    return { member: () => { } }
+}
+
+@factory().decorator()
+@factory().decorator
+@decorator().member()
+@decorator().member
+function demo(): void { }
+```
+
+### decorator expressions accept static arguments
+
+> decorator expressions accept static arguments without a call.
+
+```ds
+function decorator<T>(): void { }
+
+@decorator<int>
+function demo(): void { }
+```
+
 ### hot decorator rejects arguments
 
 > hot does not accept arguments.

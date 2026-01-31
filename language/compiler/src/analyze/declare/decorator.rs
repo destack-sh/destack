@@ -269,16 +269,14 @@ impl Compiler {
         let annotations = tree.get_annotations(node_id.id);
         for annotation_id in annotations {
             let annotation = tree.get(annotation_id);
-            let Annotation::Decorator {
-                left, arguments, ..
-            } = annotation
-            else {
+            let Annotation::Decorator { expression, .. } = annotation else {
                 continue;
             };
 
             // resolve decorator marker symbol
-            let left_expr = tree.get(*left);
-            let target_symbol = match left_expr {
+            let call = self.decorator_call(tree, *expression);
+            let callee_expr = tree.get(call.callee);
+            let target_symbol = match callee_expr {
                 Expression::LocalReference { target_symbol, .. }
                 | Expression::ModuleReference { target_symbol, .. }
                 | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
@@ -287,6 +285,7 @@ impl Compiler {
             let Some(target_symbol) = target_symbol else {
                 continue;
             };
+
             // compare well-known markers using canonical symbol ids
             let target_symbol = self.canonical_symbol_id(
                 module,
@@ -319,7 +318,7 @@ impl Compiler {
                 annotation_id,
                 node_id,
                 marker,
-                arguments.as_ref(),
+                call.arguments,
                 decorators,
                 symbol_id,
                 captures,
@@ -377,7 +376,7 @@ impl Compiler {
         annotation_id: LocalNodeId<Annotation>,
         node_id: LocalNodeIdAny,
         marker: WellKnownDecorator,
-        arguments: Option<&Vec<LocalNodeId<Argument>>>,
+        arguments: Option<&[LocalNodeId<Argument>]>,
         decorators: &mut SymbolDecorators,
         symbol_id: GlobalSymbolId,
         captures: &mut CaptureTable,
@@ -890,7 +889,7 @@ impl Compiler {
         tree: &NodeTree,
         annotation_id: LocalNodeId<Annotation>,
         decorator_name: &str,
-        arguments: Option<&Vec<LocalNodeId<Argument>>>,
+        arguments: Option<&[LocalNodeId<Argument>]>,
     ) -> Option<Vec<LocalNodeId<Expression>>> {
         // map arguments to expression values
         let mut values = Vec::new();

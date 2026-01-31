@@ -374,6 +374,12 @@ impl Parser {
         let speculative_start_idx = self.tree.next_id();
         match self.eat_static_arguments() {
             Ok(static_arguments) => {
+                // in type or decorator context, type arguments are always valid
+                if self.options.in_type || self.options.in_decorator {
+                    return Some(static_arguments);
+                }
+
+                // validate that a follow token makes sense for a type argument list
                 let mut can_follow = self.can_follow_type_arguments_in_expression();
                 if allow_object_literal && self.can_follow_type_arguments_in_object_literal() {
                     can_follow = true;
@@ -713,7 +719,9 @@ impl Parser {
         let start = self.mark();
 
         // labelled statement or expression (like `label: while(...)` or `label: loop {}`)
-        if self.peek_token(TokenType::Identifier).is_ok()
+        // decorators treat keywords as identifiers, so skip label parsing there
+        if !self.options.in_decorator
+            && self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
             // label targets that are always expressions
@@ -756,107 +764,110 @@ impl Parser {
 
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
 
-        // export
-        if self.peek_keyword(Keyword::Export).is_ok() {
-            self.bump(); // eat export
-            let mode = if self.peek_keyword(Keyword::Default).is_ok() {
-                self.bump(); // eat default
-                Some(DependencyMode::Default)
-            } else if self.peek_token(TokenType::Assign).is_ok() {
-                self.bump(); // eat assign
-                Some(DependencyMode::Namespace)
+        // decorators parse as expressions only, skip declaration modifiers
+        if !self.options.in_decorator {
+            // export
+            if self.peek_keyword(Keyword::Export).is_ok() {
+                self.bump(); // eat export
+                let mode = if self.peek_keyword(Keyword::Default).is_ok() {
+                    self.bump(); // eat default
+                    Some(DependencyMode::Default)
+                } else if self.peek_token(TokenType::Assign).is_ok() {
+                    self.bump(); // eat assign
+                    Some(DependencyMode::Namespace)
+                } else {
+                    Some(DependencyMode::Item)
+                };
+
+                // export namespace
+                let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
+                    && self.peek_next_keyword(Keyword::Namespace).is_ok();
+                if is_export_namespace {
+                    self.rewind(start);
+                    let export = self.eat_export()?;
+                    return Ok(export);
+                }
+
+                // just parse the export if followed by dependency items or module export
+                let keyword = self.peek_any_keyword().ok();
+                let is_not_declaration_keyword =
+                    keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
+                let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
+                    && (self.peek_next_token(TokenType::OpenBrace).is_ok()
+                        || self.peek_next_token(TokenType::Multiply).is_ok());
+                if mode == Some(DependencyMode::Namespace)
+                    || is_export_type_binding
+                    || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
+                    || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
+                {
+                    self.rewind(start);
+                    let export = self.eat_export()?;
+                    return Ok(export);
+                }
+
+                descriptor.export = mode;
+            }
+
+            // kind (declare must not be followed by newline, similar to abstract)
+            let is_declare_identifier = self.peek_next_token(TokenType::Identifier).is_ok()
+                && self.peek_next().is_ok_and(|token| {
+                    let token_str = self.get_token_str(*token);
+                    token_str == "global"
+                        || self.language.supports_module_declaration() && token_str == "module"
+                });
+            descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
+                && self.peek_next_token(TokenType::Newline).is_err()
+                && (self
+                    .peek_next_any_keyword()
+                    .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                    || is_declare_identifier)
+            {
+                self.bump(); // eat declare
+                DeclarationKind::Declaration
             } else {
-                Some(DependencyMode::Item)
+                DeclarationKind::Definition
             };
 
-            // export namespace
-            let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
-                && self.peek_next_keyword(Keyword::Namespace).is_ok();
-            if is_export_namespace {
-                self.rewind(start);
-                let export = self.eat_export()?;
-                return Ok(export);
-            }
-
-            // just parse the export if followed by dependency items or module export
-            let keyword = self.peek_any_keyword().ok();
-            let is_not_declaration_keyword =
-                keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
-            let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
-                && (self.peek_next_token(TokenType::OpenBrace).is_ok()
-                    || self.peek_next_token(TokenType::Multiply).is_ok());
-            if mode == Some(DependencyMode::Namespace)
-                || is_export_type_binding
-                || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
-                || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
+            // abstraction
+            descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+                && !self.options.in_variant
+                && self.peek_next_token(TokenType::Newline).is_err()
+                && self
+                    .peek_next_any_keyword()
+                    .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
             {
-                self.rewind(start);
-                let export = self.eat_export()?;
-                return Ok(export);
+                self.bump(); // eat abstract
+                DeclarationAbstraction::Abstract
+            } else {
+                DeclarationAbstraction::Concrete
+            };
+
+            // anchor
+            descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
+                self.bump(); // eat static
+                BindingAnchor::Static
+            } else {
+                BindingAnchor::Instance
+            };
+
+            // global declaration
+            if (descriptor.kind == DeclarationKind::Declaration || self.language.is_declaration())
+                && self.peek_identifier_str("global").is_ok()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
+                    .is_ok()
+            {
+                let mut global_descriptor = descriptor;
+                if global_descriptor.kind == DeclarationKind::Definition {
+                    // global declarations are always declarations
+                    global_descriptor.kind = DeclarationKind::Declaration;
+                }
+                let global_id = self.eat_global(start, global_descriptor)?;
+                return Ok(self.tree.insert(
+                    Expression::Declaration(global_id),
+                    self.get_span_from(start),
+                ));
             }
-
-            descriptor.export = mode;
-        }
-
-        // kind (declare must not be followed by newline, similar to abstract)
-        let is_declare_identifier = self.peek_next_token(TokenType::Identifier).is_ok()
-            && self.peek_next().is_ok_and(|token| {
-                let token_str = self.get_token_str(*token);
-                token_str == "global"
-                    || self.language.supports_module_declaration() && token_str == "module"
-            });
-        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
-            && self.peek_next_token(TokenType::Newline).is_err()
-            && (self
-                .peek_next_any_keyword()
-                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                || is_declare_identifier)
-        {
-            self.bump(); // eat declare
-            DeclarationKind::Declaration
-        } else {
-            DeclarationKind::Definition
-        };
-
-        // abstraction
-        descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
-            && !self.options.in_variant
-            && self.peek_next_token(TokenType::Newline).is_err()
-            && self
-                .peek_next_any_keyword()
-                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-        {
-            self.bump(); // eat abstract
-            DeclarationAbstraction::Abstract
-        } else {
-            DeclarationAbstraction::Concrete
-        };
-
-        // anchor
-        descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
-            self.bump(); // eat static
-            BindingAnchor::Static
-        } else {
-            BindingAnchor::Instance
-        };
-
-        // global declaration
-        if (descriptor.kind == DeclarationKind::Declaration || self.language.is_declaration())
-            && self.peek_identifier_str("global").is_ok()
-            && self
-                .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
-                .is_ok()
-        {
-            let mut global_descriptor = descriptor;
-            if global_descriptor.kind == DeclarationKind::Definition {
-                // global declarations are always declarations
-                global_descriptor.kind = DeclarationKind::Declaration;
-            }
-            let global_id = self.eat_global(start, global_descriptor)?;
-            return Ok(self.tree.insert(
-                Expression::Declaration(global_id),
-                self.get_span_from(start),
-            ));
         }
 
         //
@@ -868,7 +879,11 @@ impl Parser {
         let mut left_expression_id: LocalNodeId<Expression> = {
             let token = *self.peek()?;
             let token_type = token.token.ty;
-            let keyword = self.peek_any_keyword().ok();
+            let keyword = if self.options.in_decorator {
+                None
+            } else {
+                self.peek_any_keyword().ok()
+            };
             let next_token_type = self
                 .peek_next()
                 .ok()

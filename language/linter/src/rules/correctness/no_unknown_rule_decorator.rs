@@ -63,20 +63,21 @@ impl LintRule for NoUnknownRuleDecorator {
                 continue;
             };
 
-            let decorator = ctx.tree.get(*node);
-
             // check decorator name (must be single segment: allow, warn, deny, forbid)
-            if decorator.left.segments.len() != 1 {
+            let Some(path) = ctx.decorator_path(*node) else {
+                continue;
+            };
+            if path.segments.len() != 1 {
                 continue;
             }
 
-            let name = ctx.strings.get(decorator.left.segments[0]);
+            let name = ctx.strings.get(path.segments[0]);
             if !RULE_DECORATORS.contains(&name.as_ref()) {
                 continue;
             }
 
             // extract the string argument (lint ID or code)
-            let Some(arguments) = &decorator.arguments else {
+            let Some(arguments) = ctx.decorator_call(*node).arguments else {
                 continue;
             };
             let Some(first_argument_id) = arguments.first() else {

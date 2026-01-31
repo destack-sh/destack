@@ -1559,16 +1559,6 @@ pub fn walk_decorator<V: NodeVisitor + ?Sized>(
     decorator: &Decorator,
 ) {
     visitor.visit_any(tree, NodeType::Decorator, id.id);
-    if let Some(arguments) = &decorator.static_arguments {
-        for argument in arguments {
-            let argument_node = tree.get(*argument);
-            visitor.visit_argument(tree, *argument, argument_node);
-        }
-    }
-    if let Some(arguments) = &decorator.arguments {
-        for argument in arguments {
-            let argument_node = tree.get(*argument);
-            visitor.visit_argument(tree, *argument, argument_node);
-        }
-    }
+    let expression = tree.get(decorator.expression);
+    visitor.visit_expression(tree, decorator.expression, expression);
 }
