@@ -10,12 +10,12 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   528  |   180  |     7  |   708 |  74.58% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
-| swc      |   517  |    21  |     -  |   538 |  96.10% |
+| swc      |   524  |    14  |     -  |   538 |  97.40% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5703  |  1543  |      7  |  7246 |  78.71% |
+| total    |  5710  |  1536  |      7  |  7246 |  78.80% |
 
-Total Blended Pass Rate: **78.71%**
+Total Blended Pass Rate: **78.80%**
 <!-- end:summary-results -->
 
 ### babel
@@ -84,7 +84,7 @@ Total Blended Pass Rate: **78.71%**
 | cast                 |    16  |     0  |       -  |    16 | 100.00% |
 | class                |    39  |     0  |       -  |    39 | 100.00% |
 | const                |     1  |     0  |       -  |     1 | 100.00% |
-| custom               |    50  |     6  |       -  |    56 |  89.29% |
+| custom               |    51  |     5  |       -  |    56 |  91.07% |
 | declare              |     5  |     0  |       -  |     5 | 100.00% |
 | decorators           |     2  |     0  |       -  |     2 | 100.00% |
 | deno                 |     6  |     1  |       -  |     7 |  85.71% |
@@ -100,7 +100,7 @@ Total Blended Pass Rate: **78.71%**
 | import-assertions    |     7  |     0  |       -  |     7 | 100.00% |
 | instantiation-expr   |     8  |     0  |       -  |     8 | 100.00% |
 | interface            |    16  |     0  |       -  |    16 | 100.00% |
-| issue                |   124  |    12  |       -  |   136 |  91.18% |
+| issue                |   130  |     6  |       -  |   136 |  95.59% |
 | meta-property        |     3  |     0  |       -  |     3 | 100.00% |
 | module-namespace     |     9  |     0  |       -  |     9 | 100.00% |
 | next                 |     1  |     1  |       -  |     2 |  50.00% |
@@ -123,7 +123,7 @@ Total Blended Pass Rate: **78.71%**
 | variance-annotations |     2  |     0  |       -  |     2 | 100.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   517  |    21  |       -  |   538 |  96.10% |
+| total                |   524  |    14  |       -  |   538 |  97.40% |
 <!-- end:swc-results -->
 
 ### test262

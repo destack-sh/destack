@@ -2,6 +2,24 @@ use std::borrow::Cow;
 
 use destack_unicode::xid::UnicodeXID;
 
+// Checks for ECMA 262 other identifier start characters.
+#[inline]
+fn is_other_identifier_start(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0E33}' | '\u{2118}' | '\u{212E}' | '\u{309B}' | '\u{309C}'
+    )
+}
+
+// Checks for ECMA 262 other identifier continue characters.
+#[inline]
+fn is_other_identifier_continue(c: char) -> bool {
+    matches!(
+        c,
+        '\u{00B7}' | '\u{0387}' | '\u{1369}'..='\u{1371}' | '\u{19DA}'
+    )
+}
+
 /// Checks if `c` is considered whitespace per EcmaScript `WhiteSpace` or `LineTerminator`.
 pub fn is_whitespace(c: char) -> bool {
     matches!(
@@ -44,13 +62,17 @@ pub fn is_whitespace(c: char) -> bool {
 /// Checks if `c` is valid as a first character of an identifier.
 #[inline]
 pub fn is_identifier_start(c: char) -> bool {
-    c == '_' || c == '$' || UnicodeXID::is_xid_start(c)
+    c == '_' || c == '$' || UnicodeXID::is_xid_start(c) || is_other_identifier_start(c)
 }
 
 /// Checks if `c` is valid as a non-first character of an identifier.
 #[inline]
 pub fn is_identifier_continue(c: char) -> bool {
-    c == '$' || UnicodeXID::is_xid_continue(c)
+    c == '$'
+        || c == '_'
+        || UnicodeXID::is_xid_continue(c)
+        || is_other_identifier_start(c)
+        || is_other_identifier_continue(c)
 }
 
 /// Checks if the passed string is lexically an identifier.
@@ -164,6 +186,10 @@ mod tests {
         assert!(is_identifier("$"));
         assert!(is_identifier("$foo"));
         assert!(is_identifier("foo\u{200C}bar"));
+        assert!(is_identifier("foo\u{00B7}bar"));
+        assert!(is_identifier("\u{309B}"));
+        assert!(is_identifier("\u{309C}"));
+        assert!(is_identifier("ำ"));
     }
 
     /// Invalid identifiers should be rejected correctly.

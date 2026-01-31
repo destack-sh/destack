@@ -170,14 +170,20 @@ impl Parser {
     #[inline]
     pub fn peek_string_literal(&self) -> ParseResult<&TokenSpan> {
         let token = self.peek()?;
-        if token.token.ty == TokenType::Literal
-            && token.token.literal
-                == Some(LiteralType::String {
+        if token.token.ty == TokenType::Literal {
+            match token.token.literal {
+                Some(LiteralType::String {
                     is_terminated: true,
                     has_invalid_escape: false,
-                })
-        {
-            Ok(token)
+                }) => Ok(token),
+                Some(LiteralType::Character { is_terminated, .. })
+                    if is_terminated
+                        && (self.language.is_typescript() || self.language.is_javascript()) =>
+                {
+                    Ok(token)
+                }
+                _ => Err(ParseError::expected(token.span, TokenType::Literal)),
+            }
         } else {
             Err(ParseError::expected(token.span, TokenType::Literal))
         }
@@ -202,14 +208,20 @@ impl Parser {
     #[inline]
     pub fn peek_next_string_literal(&self) -> ParseResult<&TokenSpan> {
         let token = self.peek_next_token(TokenType::Literal)?;
-        if token.token.ty == TokenType::Literal
-            && token.token.literal
-                == Some(LiteralType::String {
+        if token.token.ty == TokenType::Literal {
+            match token.token.literal {
+                Some(LiteralType::String {
                     is_terminated: true,
                     has_invalid_escape: false,
-                })
-        {
-            Ok(token)
+                }) => Ok(token),
+                Some(LiteralType::Character { is_terminated, .. })
+                    if is_terminated
+                        && (self.language.is_typescript() || self.language.is_javascript()) =>
+                {
+                    Ok(token)
+                }
+                _ => Err(ParseError::expected(token.span, TokenType::Literal)),
+            }
         } else {
             Err(ParseError::expected(token.span, TokenType::Literal))
         }
