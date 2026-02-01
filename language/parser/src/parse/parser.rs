@@ -543,7 +543,8 @@ impl Parser {
             type_literal_identifiers,
         };
 
-        // pre parse side annotations, decorators
+        // NOTE #Performance: avoid the need to rebuild caches after decorator tokens are moved
+        parser.refresh_token_indexes();
         if lex_result.has_at {
             parser.eat_side_annotations();
         }

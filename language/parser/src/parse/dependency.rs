@@ -118,6 +118,7 @@ impl Parser {
         } else {
             vec![]
         };
+
         if has_binding {
             self.eat_keyword(Keyword::From)?;
         }

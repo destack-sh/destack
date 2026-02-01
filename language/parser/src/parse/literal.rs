@@ -5,7 +5,7 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
-    Argument, Expression, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
+    Argument, Expression, Keyword, LiteralType, LocalNodeId, NodeType, NumberBase, Path, Property,
     ScalarLiteral, StringId, TemplateLiteral, TokenSpan, TokenType,
 };
 
@@ -372,6 +372,7 @@ impl Parser {
         Ok(self.tree.insert(expression, self.get_span_from(start)))
     }
 
+    /// Eat the parts of a template literal.
     fn eat_template_literal_parts<T>(
         &mut self,
         mut parse_span: impl FnMut(&mut Parser) -> ParseResult<T>,
@@ -417,6 +418,11 @@ impl Parser {
                     self.eat_newlines_maybe()?;
                     let span = parse_span(self)?;
                     self.eat_newlines_maybe()?;
+                    if !self.peek_is(TokenType::TemplateStringMiddle)
+                        && !self.peek_is(TokenType::TemplateStringEnd)
+                    {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
                     spans.push(span);
                 }
             }
@@ -470,7 +476,8 @@ impl Parser {
         let elements = if self.peek_is(TokenType::CloseBracket) {
             vec![]
         } else {
-            self.with_options(self.options.not_in_position(), |parser| {
+            let element_options = self.options.not_in_position().not_in_left_precedence();
+            self.with_options(element_options, |parser| {
                 parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
             })?
         };
@@ -559,21 +566,19 @@ impl Parser {
             return false;
         }
 
-        // only disambiguate for TypeScript and Destack sources
-        if !self.language.is_typescript() && !self.language.is_destack() {
-            return false;
-        }
-
         // type or static contexts do not use tree literal parsing
         if self.options.in_type || self.options.in_static {
             return false;
         }
 
-        self.peek_generic_arrow_after_type_parameters()
+        // require JSX disambiguators for JS, but allow lenient parsing in TS/DS
+        let require_tree_disambiguator = self.language.is_javascript();
+
+        self.peek_generic_arrow_after_type_parameters(require_tree_disambiguator)
     }
 
     /// Peek whether `<...>(...)` forms a generic arrow function signature.
-    fn peek_generic_arrow_after_type_parameters(&self) -> bool {
+    fn peek_generic_arrow_after_type_parameters(&self, require_tree_disambiguator: bool) -> bool {
         // require `<` at the current position
         if self.peek_token(TokenType::LessThan).is_err() {
             return false;
@@ -601,17 +606,16 @@ impl Parser {
             return false;
         }
 
-        // allow `<T,>` as a generic arrow start
-        if self.peek_next_next_token(TokenType::Comma).is_ok() {
-            return true;
-        }
-
-        // find the closing `>` for the type parameter list
+        // find the closing `>` for the type parameter list and track TSX disambiguators
         let mut angle_depth: usize = if self.has_split_token(TokenType::LessThan) {
             1
         } else {
             0
         };
+        let mut paren_depth = 0usize;
+        let mut bracket_depth = 0usize;
+        let mut brace_depth = 0usize;
+        let mut has_tree_disambiguator = false;
         let mut pos = self.pos() as usize;
         let mut close_pos = None;
         while let Some(token) = self.tokens.get(pos) {
@@ -625,13 +629,39 @@ impl Parser {
                         break;
                     }
                 }
+                TokenType::OpenParenthesis => paren_depth += 1,
+                TokenType::CloseParenthesis => paren_depth = paren_depth.saturating_sub(1),
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
+                TokenType::Comma | TokenType::Assign => {
+                    if angle_depth == 1
+                        && paren_depth == 0
+                        && bracket_depth == 0
+                        && brace_depth == 0
+                    {
+                        has_tree_disambiguator = true;
+                    }
+                }
                 _ => {}
+            }
+            if angle_depth == 1
+                && paren_depth == 0
+                && bracket_depth == 0
+                && brace_depth == 0
+                && self.keyword_for_index(pos) == Some(Keyword::Extends)
+            {
+                has_tree_disambiguator = true;
             }
             pos += 1;
         }
         let Some(close_pos) = close_pos else {
             return false;
         };
+        if require_tree_disambiguator && !has_tree_disambiguator {
+            return false;
+        }
 
         // skip newlines after the type parameters
         let after_close_pos = if self.options.in_type {
@@ -844,44 +874,47 @@ impl Parser {
 
                 // eat children until closing fragment
                 let mut elements: Vec<LocalNodeId<Argument>> = vec![];
+                let mut found_closing = false;
                 while self.has_more_tokens() {
                     // skip whitespace before checking for closing tag
                     self.skip_tree_whitespace()?;
 
                     // stop at closing fragment (</)
                     if self.peek_is(TokenType::LessThan) && self.peek_next_is(TokenType::Divide) {
-                        // special case for empty fragment (/>)
+                        // close fragment for fragment literals
                         if path.is_none()
                             && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
                         {
                             self.bump(); // eat <
                             self.bump(); // eat /
                             self.bump(); // eat >
+                            found_closing = true;
                             break;
                         }
+
+                        // fragment close is invalid for non fragment tags
+                        if path.is_some()
+                            && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
+                        {
+                            return Err(ParseError::unexpected(self.peek()?.span));
+                        }
+
+                        // named closing tag is invalid for fragment literals
+                        if path.is_none() {
+                            return Err(ParseError::unexpected(self.peek()?.span));
+                        }
+
                         // check if closing fragment has same path
-                        else if let Some(path) = &path {
-                            let speculative_start = (self.mark(), self.tree.next_id());
-                            // speculatively eat </path
+                        if let Some(path) = &path {
                             self.bump(); // eat <
                             self.bump(); // eat /
-                            match self.eat_tree_literal_path() {
-                                Ok(closing_path) => {
-                                    // found our closing tag
-                                    if closing_path == *path {
-                                        self.eat_token(TokenType::GreaterThan)?;
-                                        break;
-                                    }
-                                    // not our closing tag
-                                    else {
-                                        self.restore(speculative_start.0, speculative_start.1);
-                                    }
-                                }
-                                Err(_) => {
-                                    // something else
-                                    self.restore(speculative_start.0, speculative_start.1);
-                                }
-                            };
+                            let closing_path = self.eat_tree_literal_path()?;
+                            if closing_path == *path {
+                                self.eat_token(TokenType::GreaterThan)?;
+                                found_closing = true;
+                                break;
+                            }
+                            return Err(ParseError::unexpected(self.peek()?.span));
                         }
                     }
 
@@ -896,6 +929,10 @@ impl Parser {
                     )?;
                     elements.push(element);
                     self.skip_tree_whitespace()?; // skip whitespace-only tree content
+                }
+
+                if !found_closing {
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
                 Some(elements)

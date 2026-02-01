@@ -834,12 +834,15 @@ impl Parser {
                 token_str == "global"
                     || self.language.supports_module_declaration() && token_str == "module"
             });
+        let is_declare_await_using = self.peek_next_keyword(Keyword::Await).is_ok()
+            && self.peek_next_next_keyword(Keyword::Using).is_ok();
         descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
             && !self.peek_next_is(TokenType::Newline)
             && (self
                 .peek_next_any_keyword()
                 .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                || is_declare_identifier)
+                || is_declare_identifier
+                || is_declare_await_using)
         {
             self.bump(); // eat declare
             DeclarationKind::Declaration
@@ -976,7 +979,7 @@ impl Parser {
                     }
                 }
             }
-            Keyword::Interface if is_declaration_start => {
+            Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
                 Ok(Some(self.tree.insert(
@@ -3985,6 +3988,57 @@ f<x> !== g<y>;
                     assert_eq!(*operator, BinaryOperator::ElementwiseOr);
                 });
             });
+        });
+    }
+
+    /// Parse a TypeScript call with shift-left static arguments.
+    #[test]
+    fn test_parse_call_with_shift_left_static_arguments() {
+        let mut test =
+            TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert!(dynamic_arguments.is_empty());
+            let static_args = static_arguments.as_ref().expect("expected static arguments");
+            assert_eq!(static_args.len(), 1);
+            assert_node!(parser.tree, static_args[0], Argument::Positional { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        assert!(body.is_none());
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse shift-left static arguments in decorator context.
+    #[test]
+    fn test_parse_call_with_shift_left_static_arguments_in_decorator_context() {
+        let mut test =
+            TestParser::new_with_options("f<<T>(v: T) => void>()", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let options = parser
+            .options
+            .not_in_position()
+            .in_left_precedence(u16::MAX)
+            .not_in_sequence_expression()
+            .in_decorator();
+        let expr_id = parser
+            .with_options(options, |parser| parser.eat_expression())
+            .unwrap();
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parse errors: {:#?}",
+            parser.errors
+        );
+        assert_node!(parser.tree, expr_id, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert!(dynamic_arguments.is_empty());
+            let static_args = static_arguments.as_ref().expect("expected static arguments");
+            assert_eq!(static_args.len(), 1);
         });
     }
 

@@ -859,7 +859,8 @@ impl Parser {
         else if self.peek_is(TokenType::OpenBrace) {
             self.bump(); // eat {
             self.eat_newlines_maybe()?;
-            // if empty container (e.g., {/* comment */} where comment is filtered out)
+
+            // empty container (including comment-only containers)
             if self.peek_is(TokenType::CloseBrace) {
                 self.bump(); // eat }
                 // insert a stub expression for empty container
@@ -921,6 +922,24 @@ impl Parser {
         }
         // positional argument (bare expression like nested <Element />)
         else {
+            // jsx content without braces must be text or nested tags
+            if self.language.supports_jsx() {
+                let token = self.peek()?;
+                let is_tree_text = token.token.ty == TokenType::Literal
+                    && matches!(
+                        token.token.literal,
+                        Some(LiteralType::TreeString)
+                            | Some(LiteralType::Character {
+                                is_html_entity: true,
+                                ..
+                            })
+                    );
+                let is_tree_literal =
+                    token.token.ty == TokenType::LessThan && self.peek_tree_literal().is_ok();
+                if !is_tree_text && !is_tree_literal {
+                    return Err(ParseError::unexpected(token.span));
+                }
+            }
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
                 |parser| parser.eat_expression(),
