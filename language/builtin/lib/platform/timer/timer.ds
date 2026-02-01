@@ -1,16 +1,17 @@
 import { TimerHandle } from "../resource/resource.ds";
+import type { PlatformError } from "../error/index.ds";
 
 /// Timer bindings for the native runtime.
 export declare namespace timer {
     /// Schedule a one-shot timer.
     @binding("destack.timer.once")
-    export function once(delayNs: uint64): TimerHandle;
+    export function once(delayNs: uint64): Result<TimerHandle, PlatformError>;
 
     /// Schedule a repeating timer.
     @binding("destack.timer.interval")
-    export function interval(periodNs: uint64): TimerHandle;
+    export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>;
 
     /// Cancel a scheduled timer.
     @binding("destack.timer.cancel")
-    export function cancel(handle: TimerHandle): void;
+    export function cancel(handle: TimerHandle): Result<void, PlatformError>;
 }

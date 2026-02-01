@@ -32,6 +32,12 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
+            LIB_PLATFORM_ERROR_ERROR_DS,
+            "lib",
+            "platform/error",
+            "error.ds"
+        ),
+        (
             LIB_PLATFORM_ERROR_INDEX_DS,
             "lib",
             "platform/error",
@@ -106,6 +112,7 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
     &[
         LIB_PLATFORM_CONSOLE_CONSOLE_DS,
         LIB_PLATFORM_CONSOLE_INDEX_DS,
+        LIB_PLATFORM_ERROR_ERROR_DS,
         LIB_PLATFORM_ERROR_INDEX_DS,
         LIB_PLATFORM_FS_FS_DS,
         LIB_PLATFORM_FS_INDEX_DS,

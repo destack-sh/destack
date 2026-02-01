@@ -1,0 +1,69 @@
+/// Error code returned by platform bindings.
+export enum PlatformErrorCode {
+    /// Unclassified invalid argument.
+    InvalidArgument = 1000,
+    /// Invalid argument type.
+    InvalidArgumentType = 1001,
+    /// Invalid argument value.
+    InvalidArgumentValue = 1002,
+    /// Null pointer passed across the platform boundary.
+    NullPointer = 1100,
+    /// Feature is not supported.
+    NotSupported = 1200,
+    /// Generic I/O error.
+    Io = 2000,
+    /// I/O read failed.
+    IoReadFailed = 2100,
+    /// I/O write failed.
+    IoWriteFailed = 2101,
+    /// Generic network error.
+    Net = 3000,
+    /// Connection refused.
+    NetConnectionRefused = 3100,
+    /// Connection timed out.
+    NetTimedOut = 3101,
+    /// Connection reset.
+    NetConnectionReset = 3102,
+    /// Generic process error.
+    Process = 4000,
+    /// Process spawn failed.
+    ProcessSpawnFailed = 4100,
+    /// Randomness error.
+    Random = 5000,
+    /// Time source error.
+    Time = 6000,
+    /// Generic platform error.
+    Generic = 9000,
+}
+
+/// Error returned by platform bindings.
+export newtype PlatformError = {
+    kind:
+        | "invalidArgument"
+        | "nullPointer"
+        | "notSupported"
+        | "io"
+        | "net"
+        | "process"
+        | "random"
+        | "time"
+        | "generic",
+    message: string,
+    name?: string,
+    code?: PlatformErrorCode,
+    systemCode?: string,
+    errno?: int32,
+    syscall?: string,
+    path?: string,
+    dest?: string,
+    fd?: int32,
+    address?: string,
+    port?: uint16,
+    hostname?: string,
+    signal?: string,
+    exitCode?: int32,
+    cause?: string,
+    argument?: string,
+    pointer?: string,
+    feature?: string,
+};
