@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    BindingModifier, Declaration, FunctionMode, GlobalNodeIdAny, LocalNodeId, Member, Mutability,
-    NodeTree, NodeType, Parameter, Property,
+    BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability, NodeTree,
+    NodeType, Parameter, Property,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -65,7 +65,7 @@ impl Compiler {
 
         // parameter properties only allowed in constructors
         if is_parameter_property && !self.is_in_constructor(tree, id) {
-            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
 
@@ -75,7 +75,7 @@ impl Compiler {
             Parameter::Pattern { .. } | Parameter::Variadic { .. }
         );
         if is_parameter_property && is_binding_pattern {
-            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
         }
     }

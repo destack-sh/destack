@@ -35,7 +35,7 @@ impl Compiler {
                 arguments,
             } => {
                 let loader_override = self.loader_from_import_attributes(arguments.as_ref(), tree);
-                let remote_target = self.resolve_import_with_loader(
+                let Some(remote_target) = self.resolve_import_maybe(
                     module,
                     dir,
                     profile,
@@ -43,7 +43,10 @@ impl Compiler {
                     *source,
                     *target,
                     loader_override,
-                )?;
+                )?
+                else {
+                    return Ok(());
+                };
                 Expression::Import {
                     source: *source,
                     kind: *kind,
@@ -59,14 +62,18 @@ impl Compiler {
                 kind,
                 items,
             } => {
-                let remote_target = self.resolve_import(
+                let Some(remote_target) = self.resolve_import_maybe(
                     module,
                     dir,
                     profile,
                     expression_id.into_global_any(module.id),
                     DependencySource::ExportStatement,
                     *target,
-                )?;
+                    None,
+                )?
+                else {
+                    return Ok(());
+                };
                 Expression::ReExport {
                     target: *target,
                     target_module: remote_target,

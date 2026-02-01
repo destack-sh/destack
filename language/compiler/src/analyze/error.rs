@@ -176,7 +176,7 @@ pub enum AnalyzeError {
     InvalidComptimeExpression { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
-    // 2xx: Callable / member / operator errors
+    // 2xx: Callable / member / operator / object errors
     // -------------------------------------------------------------------------
     /// Calling non-callable.
     #[error(code = "EA200", message = "calling non-callable")]
@@ -298,6 +298,43 @@ pub enum AnalyzeError {
         message = "export as namespace is only allowed in declaration modules"
     )]
     ExportNamespaceOutsideDeclaration { node: AnchoredGlobalNodeId },
+
+    /// Invalid type parameter modifier.
+    #[error(code = "EA219", message = "invalid type parameter modifier")]
+    InvalidTypeParameterModifier { node: AnchoredGlobalNodeId },
+
+    /// Readonly type must target an array or tuple.
+    #[error(
+        code = "EA220",
+        message = "readonly type must target an array or tuple"
+    )]
+    InvalidReadonlyType { node: AnchoredGlobalNodeId },
+
+    /// Optional tuple elements must be last.
+    #[error(code = "EA221", message = "optional tuple elements must be last")]
+    InvalidTupleElementOrder { node: AnchoredGlobalNodeId },
+
+    /// Intrinsic types cannot be indexed.
+    #[error(code = "EA222", message = "intrinsic types cannot be indexed")]
+    InvalidIntrinsicTypeIndex { node: AnchoredGlobalNodeId },
+
+    /// Destructuring declarations require initializers.
+    #[error(
+        code = "EA223",
+        message = "destructuring declarations require initializers"
+    )]
+    MissingDestructuringInitializer { node: AnchoredGlobalNodeId },
+
+    /// Declare bindings cannot have initializers.
+    #[error(code = "EA224", message = "declare bindings cannot have initializers")]
+    InvalidDeclareInitializer { node: AnchoredGlobalNodeId },
+
+    /// Type-only imports cannot mix default and named bindings.
+    #[error(
+        code = "EA225",
+        message = "type-only imports cannot mix default and named bindings"
+    )]
+    InvalidTypeOnlyImportBindings { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 3xx: Control flow
@@ -459,6 +496,13 @@ pub enum AnalyzeError {
         node: AnchoredGlobalNodeId,
         other_node: Option<AnchoredGlobalNodeId>,
     },
+
+    /// Named fields are not allowed in array or tuple patterns.
+    #[error(
+        code = "EA403",
+        message = "named fields are not allowed in array or tuple patterns"
+    )]
+    InvalidPatternNamedField { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 5xx: Class / interface / function structure

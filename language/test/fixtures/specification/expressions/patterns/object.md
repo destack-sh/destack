@@ -42,3 +42,13 @@ let { x, y } = point;
 ```
 
 - contains: not assignable
+
+### object destructuring requires an initializer
+
+> Destructuring declarations require an initializer.
+
+```ts
+const { x }: { x: number };
+```
+
+- contains: destructuring declarations require initializers

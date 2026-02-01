@@ -17,6 +17,15 @@ use crate::{
     TaskResultCollector, TaskStatus, TaskWarning,
 };
 
+/// How unresolved imports should be handled during resolve.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResolveMode {
+    /// Emit errors for unresolved imports.
+    Strict,
+    /// Emit warnings for unresolved imports and continue.
+    Lenient,
+}
+
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
     thread::available_parallelism()
@@ -36,6 +45,8 @@ pub struct CompilerOptions {
     pub follow_imports: bool,
     /// Options for resolving imports.
     pub import_resolve: destack_resolver::ResolveOptions,
+    /// How unresolved imports should be handled during resolve.
+    pub resolve_mode: ResolveMode,
 
     /// Default integer width (if not specified).
     pub default_int_width: u16,
@@ -90,6 +101,7 @@ impl Default for CompilerOptions {
 
             follow_imports: true,
             import_resolve: destack_resolver::ResolveOptions::default(),
+            resolve_mode: ResolveMode::Strict,
 
             default_int_width: 32,
             default_float_width: 64,
@@ -122,6 +134,7 @@ impl std::fmt::Debug for CompilerOptions {
             .field("workers", &self.workers)
             .field("follow_imports", &self.follow_imports)
             .field("import_resolve", &self.import_resolve)
+            .field("resolve_mode", &self.resolve_mode)
             .field("default_int_width", &self.default_int_width)
             .field("default_float_width", &self.default_float_width)
             .field("inject_prelude", &self.inject_prelude)

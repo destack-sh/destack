@@ -85,3 +85,23 @@ import * as foo from "foo";
 foo.value satisfies number;
 foo.make(1) satisfies string;
 ```
+
+## declare namespace restrictions
+
+### declare namespaces reject initializers and bodies
+
+> Declare namespaces cannot include initializers or bodies.
+
+```ts
+declare namespace Bad {
+    const value = 1;
+    function run() {}
+    class C {
+        field: number = 1;
+    }
+}
+```
+
+- contains: declare bindings cannot have initializers
+- contains: invalid function
+- contains: invalid member modifier

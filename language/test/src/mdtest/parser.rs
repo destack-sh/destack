@@ -715,7 +715,7 @@ const x = 1
             tests[0].files[0].options.get("line-width"),
             Some(&"40".to_string())
         );
-        assert!(tests[0].files[0].options.get("libs").is_none());
+        assert!(!tests[0].files[0].options.contains_key("libs"));
     }
 
     /// Reject conflicting test options across code blocks.

@@ -21,4 +21,11 @@ pub enum ResolveWarning {
     /// Import that resolves but is only used for side effects.
     #[warning(code = "WR102", message = "side effect only import")]
     SideEffectOnlyImport { node: AnchoredGlobalNodeId },
+
+    /// Unresolved module (for lenient resolve mode only).
+    #[warning(code = "WR103", message = "unresolved module '{target}'")]
+    UnresolvedModule {
+        node: AnchoredGlobalNodeId,
+        target: destack_dir::StringId,
+    },
 }

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveError};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveMode};
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId,
@@ -43,6 +43,14 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA216", // ObjectPatternMultipleSpreads
     "EA217", // ObjectPatternSpreadNotLast
     "EA218", // ExportNamespaceOutsideDeclaration
+    "EA219", // InvalidTypeParameterModifier
+    "EA220", // InvalidReadonlyType
+    "EA221", // InvalidTupleElementOrder
+    "EA222", // InvalidIntrinsicTypeIndex
+    "EA223", // MissingDestructuringInitializer
+    "EA224", // InvalidDeclareInitializer
+    "EA225", // InvalidTypeOnlyImportBindings
+    "EA403", // InvalidPatternNamedField
     "EA300", // InvalidBreak
     "EA301", // InvalidContinue
     "EA302", // InvalidAwait
@@ -59,8 +67,8 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
 
 /// Early resolve error codes relevant for conformance testing.
 const EARLY_RESOLVE_CODES: &[&str] = &[
-    ResolveError::ALL_CODES[10], // ER010: MissingTarget
-    ResolveError::ALL_CODES[11], // ER011: InvalidTarget
+    "ER201", // MissingTarget
+    "ER202", // InvalidTarget
 ];
 
 impl TestArea {
@@ -190,30 +198,14 @@ fn parse_file_with_parser(
     let mut parser = Parser::lex_file(file.clone(), language);
     let _ = parser.parse();
 
-    // check for errors relevant to the test area
-    let has_relevant_error = parser
+    // collect parse errors for relevance checks
+    let errors: Vec<_> = parser
         .diagnostics
         .iter()
         .into_iter()
-        .any(|d| d.severity == DiagnosticSeverity::Error && area.is_relevant_error(&d.code));
-
-    if has_relevant_error && std::env::var("DESTACK_CONFORMANCE_DEBUG").is_ok() {
-        eprintln!("conformance parse error: {}", path.display());
-        for diagnostic in parser
-            .diagnostics
-            .iter()
-            .into_iter()
-            .filter(|d| d.severity == DiagnosticSeverity::Error)
-        {
-            let span = diagnostic.primary_span.span;
-            let snippet = file.span_str(span).replace('\n', "\\n");
-            eprintln!(
-                "  {} {} [{}..{}] {snippet}",
-                diagnostic.code, diagnostic.message, span.start, span.end
-            );
-        }
-        eprintln!();
-    }
+        .filter(|d| d.severity == DiagnosticSeverity::Error)
+        .collect();
+    let has_relevant_error = errors.iter().any(|d| area.is_relevant_error(&d.code));
 
     if has_relevant_error {
         ParseOutcome::Error
@@ -295,6 +287,7 @@ fn parse_file_with_compiler(
         CompilerOptions {
             workers: 1,
             follow_imports: false,
+            resolve_mode: ResolveMode::Lenient,
             inject_prelude: false,
             load_libs: false,
             source_map: false,
@@ -329,12 +322,14 @@ fn parse_file_with_compiler(
         return ParseOutcome::Error;
     }
 
-    // check for errors relevant to the test area
-    let has_relevant_error = program
+    // collect compiler errors for relevance checks
+    let errors: Vec<_> = program
         .diagnostics
         .iter()
         .into_iter()
-        .any(|d| d.severity == DiagnosticSeverity::Error && area.is_relevant_error(&d.code));
+        .filter(|d| d.severity == DiagnosticSeverity::Error)
+        .collect();
+    let has_relevant_error = errors.iter().any(|d| area.is_relevant_error(&d.code));
 
     if has_relevant_error {
         ParseOutcome::Error

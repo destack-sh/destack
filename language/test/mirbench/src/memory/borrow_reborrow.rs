@@ -17,7 +17,7 @@ declare_program! {
 }
 
 /// Return the borrowed reference unchanged.
-fn borrow_passthrough<'a>(value: &'a i64) -> &'a i64 {
+fn borrow_passthrough(value: &i64) -> &i64 {
     // forward borrow
     value
 }

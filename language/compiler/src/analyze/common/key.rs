@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use destack_base::StringId;
 use destack_dir::{
-    DynamicKey, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId, NodeTree, NodeType,
-    PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    DynamicKey, Expression, GlobalSymbolId, LocalTypeId, NodeTree, NodeType, PrimitiveType,
+    ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
@@ -273,7 +273,7 @@ impl Compiler {
                     let mut current_id = primary_declaration.local_id;
                     while let Some(parent) = tree.get_parent(current_id.id) {
                         if parent.ty == NodeType::Declarator {
-                            let global_parent = GlobalNodeIdAny::new(symbols.module_id, parent);
+                            let global_parent = parent.into_global(symbols.module_id);
                             return types.get_declared_type_id(global_parent);
                         }
                         current_id = parent;

@@ -159,10 +159,7 @@ fn run_test_with_timeout<S: ConformanceSuite + 'static>(
 
     // abort on timeouts to prevent runaway test threads
     if abort_on_timeout && matches!(outcome, TestResult::TimedOut) {
-        eprintln!(
-            "timeout in {}::{} (aborting to avoid runaway threads)",
-            suite_name, test_name
-        );
+        eprintln!("timeout in {suite_name}::{test_name} (aborting to avoid runaway threads)");
         std::process::exit(2);
     }
 

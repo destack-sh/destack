@@ -681,6 +681,10 @@ impl Compiler {
             // collect yields and return on non yield errors
             let resolved_item = match resolved_item {
                 Ok(resolved_item) => resolved_item,
+                Err(error @ ResolveError::UnresolvedModule { .. }) => {
+                    self.handle_unresolved_module(error);
+                    continue;
+                }
                 Err(error) => {
                     if let Some(error) = collector.try_collect::<(), _>(Err(error)) {
                         return Err(error);

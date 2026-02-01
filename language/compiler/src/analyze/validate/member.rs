@@ -1,8 +1,8 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     AbstractionModifier, BindingAnchor, BindingKind, Declaration, DeclarationAbstraction,
-    DeclarationKind, DynamicKey, Expression, FunctionAbstraction, FunctionMode, GlobalNodeIdAny,
-    LocalNodeId, Member, Mutability, NodeTree, NodeType, Parameter, TypeLiteral,
+    DeclarationKind, DynamicKey, Expression, FunctionAbstraction, FunctionMode, LocalNodeId,
+    Member, Mutability, NodeTree, NodeType, Parameter, TypeLiteral,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -36,6 +36,7 @@ impl Compiler {
         // detect the enclosing declaration kind
         let is_class = class_descriptor.is_some();
         let is_interface = interface_descriptor.is_some();
+        let is_declare_namespace = self.is_in_declare_namespace(tree, id.into_any());
 
         // validate by member kind
         match member {
@@ -65,22 +66,19 @@ impl Compiler {
 
                 // constructor cannot have static parameters
                 if is_constructor && has_static_parameters {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // abstract methods cannot have bodies
                 if is_abstract && body.is_some() {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMethod { node, abstraction });
                 }
 
                 // abstract methods require abstract classes
                 if is_abstract && !self.is_in_abstract_class(tree, id) {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMethod { node, abstraction });
                 }
 
@@ -88,15 +86,13 @@ impl Compiler {
                 if modifiers
                     .is_some_and(|modifiers| modifiers.mutability == Some(Mutability::Immutable))
                 {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
 
                 // override is invalid on constructors
                 if is_constructor && is_override {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
@@ -106,7 +102,8 @@ impl Compiler {
                     let is_static = modifiers
                         .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
                     let is_declare_class = class_descriptor
-                        .is_some_and(|descriptor| descriptor.kind == DeclarationKind::Declaration);
+                        .is_some_and(|descriptor| descriptor.kind == DeclarationKind::Declaration)
+                        || is_declare_namespace;
                     let is_declare_member =
                         modifiers.is_some_and(|modifiers| modifiers.declaration.is_some());
                     let is_accessor = matches!(
@@ -116,29 +113,25 @@ impl Compiler {
 
                     // static abstract methods are invalid
                     if is_static && is_abstract {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare members cannot have bodies
                     if (is_declare_class || is_declare_member) && body.is_some() {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare accessors are invalid
                     if is_declare_member && is_accessor {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare cannot combine with override
                     if is_declare_member && is_override {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
                 }
@@ -147,8 +140,7 @@ impl Compiler {
                 if is_interface {
                     // interface methods cannot have bodies
                     if body.is_some() {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
@@ -182,7 +174,8 @@ impl Compiler {
                 if is_class {
                     // collect class field flags
                     let is_declare_class = class_descriptor
-                        .is_some_and(|descriptor| descriptor.kind == DeclarationKind::Declaration);
+                        .is_some_and(|descriptor| descriptor.kind == DeclarationKind::Declaration)
+                        || is_declare_namespace;
                     let is_declare_member =
                         modifiers.is_some_and(|modifiers| modifiers.declaration.is_some());
                     let is_abstract_class = class_descriptor.is_some_and(|descriptor| {
@@ -197,43 +190,37 @@ impl Compiler {
 
                     // abstract fields require abstract classes
                     if is_abstract_field && !is_abstract_class {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // abstract fields cannot have initializers
                     if is_abstract_field && has_default {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // private fields cannot be abstract
                     if is_private_key && has_abstraction {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // auto accessor constraints
                     if has_accessor && (has_kind || is_readonly || has_abstraction) {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare fields cannot have initializers
                     if (is_declare_class || is_declare_member) && has_default {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // declare fields cannot be abstract
                     if is_declare_member && has_abstraction {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
@@ -246,8 +233,7 @@ impl Compiler {
                                 || modifiers.anchor == Some(BindingAnchor::Static)
                         })
                     {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
                 }
@@ -267,15 +253,13 @@ impl Compiler {
 
                     // interface fields cannot use modifiers
                     if invalid_modifiers {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
                     // interface fields cannot have initializers
                     if has_default {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
                 }
@@ -296,8 +280,7 @@ impl Compiler {
 
                     // report invalid modifiers on static blocks
                     if has_invalid_modifier {
-                        let node = GlobalNodeIdAny::new(module.id, id.into_any())
-                            .into_anchored(Some(profile));
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidStaticBlockModifier { node });
                     }
                 }
@@ -370,7 +353,7 @@ impl Compiler {
                 || modifiers.declaration.is_some()
         });
         if invalid_modifiers {
-            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
 
@@ -380,8 +363,7 @@ impl Compiler {
         if is_getter || is_setter {
             // accessors cannot be generic or declare a this parameter
             if signature.generics.is_some() || signature.this_parameter.is_some() {
-                let node =
-                    GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
                 self.error(AnalyzeError::InvalidMemberModifier { node });
             }
 
@@ -389,8 +371,7 @@ impl Compiler {
             if is_getter {
                 // getters cannot take parameters
                 if !signature.dynamic_parameters.is_empty() {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
             }
@@ -411,8 +392,7 @@ impl Compiler {
                             .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
                 }
                 if invalid_setter {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
 
@@ -420,8 +400,7 @@ impl Compiler {
                 if let Some(return_type) = signature.return_type
                     && !Self::is_void_type_expression(tree, return_type)
                 {
-                    let node =
-                        GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }
             }
@@ -429,7 +408,7 @@ impl Compiler {
 
         // reject async signatures in interfaces
         if signature.asynchrony == destack_dir::Asynchrony::Async {
-            let node = GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
     }

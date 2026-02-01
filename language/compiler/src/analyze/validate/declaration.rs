@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode, GlobalNodeIdAny,
-    LocalNodeId, TypeTable,
+    BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode,
+    LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -11,6 +11,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        tree: &NodeTree,
         types: &TypeTable,
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
@@ -23,8 +24,7 @@ impl Compiler {
                 ..
             } => {
                 // resolve the interface node for diagnostics
-                let node =
-                    GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
                 // interfaces cannot be abstract
                 if descriptor.abstraction == DeclarationAbstraction::Abstract {
@@ -55,20 +55,40 @@ impl Compiler {
                 descriptor, body, ..
             } => {
                 // resolve the function node for diagnostics
-                let node =
-                    GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
                 // declare functions cannot have a body
-                let is_declare = descriptor.kind == DeclarationKind::Declaration;
+                let is_declare = descriptor.kind == DeclarationKind::Declaration
+                    || self.is_in_declare_namespace(tree, id.into_any());
                 if is_declare && body.is_some() {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
             }
 
+            Declaration::Type {
+                static_parameters, ..
+            } => {
+                // reject invalid type parameter modifiers in type aliases
+                if let Some(static_parameters) = static_parameters {
+                    for parameter_id in static_parameters {
+                        let parameter = tree.get(*parameter_id);
+                        let modifiers = parameter.modifiers();
+                        let has_const_modifier = modifiers.is_some_and(|modifiers| {
+                            modifiers.operator == Some(BindingOperator::AsConst)
+                        });
+                        if has_const_modifier {
+                            let node = parameter_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile));
+                            self.error(AnalyzeError::InvalidTypeParameterModifier { node });
+                        }
+                    }
+                }
+            }
+
             Declaration::Struct { heritage, .. } => {
                 // resolve the struct node for diagnostics
-                let node =
-                    GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
                 // structs cannot use extends
                 let has_extends = heritage
@@ -92,8 +112,7 @@ impl Compiler {
 
             Declaration::Class { heritage, .. } => {
                 // resolve the class node for diagnostics
-                let node =
-                    GlobalNodeIdAny::new(module.id, id.into_any()).into_anchored(Some(profile));
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
                 // classes can only extend one class
                 let has_multiple_extends =
@@ -134,5 +153,28 @@ impl Compiler {
 
             _ => {}
         }
+    }
+
+    /// Check whether a node is nested inside a declare namespace.
+    /// NOTE #Performance: store "declaredness" on Scope/Symbol directly (from import/bind)?
+    pub(super) fn is_in_declare_namespace(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        // walk up the parent chain
+        let mut current = tree.get_parent(node_id.id);
+        while let Some(parent) = current {
+            if parent.ty == NodeType::Declaration {
+                let declaration = tree.get(parent.into_typed::<Declaration>());
+                if matches!(
+                    declaration,
+                    Declaration::Namespace {
+                        descriptor,
+                        ..
+                    } if descriptor.kind == DeclarationKind::Declaration
+                ) {
+                    return true;
+                }
+            }
+            current = tree.get_parent(parent.id);
+        }
+        false
     }
 }
