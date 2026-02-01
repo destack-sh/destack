@@ -53,7 +53,7 @@ impl std::fmt::Debug for Value {
             ValueTag::Float64 => write!(f, "Float64({})", f64::from_bits(self.data)),
             ValueTag::Char => {
                 let char_val = char::from_u32(self.data as u32).unwrap_or('\u{FFFD}');
-                write!(f, "Char('{}')", char_val)
+                write!(f, "Char('{char_val}')")
             }
             ValueTag::ManagedReference => {
                 let handle = self.as_heap_handle().unwrap();

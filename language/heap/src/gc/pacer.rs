@@ -1,7 +1,7 @@
 use super::GcOptions;
 
 /// GC pacing targets derived from live heap size.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct GcPacer {
     /// Estimated live heap size in bytes.
     pub live_bytes: u64,
@@ -9,16 +9,6 @@ pub struct GcPacer {
     pub heap_goal_bytes: u64,
     /// Trigger point for starting a cycle.
     pub trigger_bytes: u64,
-}
-
-impl Default for GcPacer {
-    fn default() -> Self {
-        Self {
-            live_bytes: 0,
-            heap_goal_bytes: 0,
-            trigger_bytes: 0,
-        }
-    }
 }
 
 impl GcPacer {
