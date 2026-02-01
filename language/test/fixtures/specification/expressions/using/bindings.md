@@ -20,6 +20,16 @@ let result: void = using value = 1;
 result satisfies void;
 ```
 
+### declare using is invalid
+
+> Declare bindings cannot have initializers.
+
+```ts
+declare using value = 1;
+```
+
+- contains: declare bindings cannot have initializers
+
 ## await using bindings
 
 ### await using is allowed in async functions

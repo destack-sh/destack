@@ -1,6 +1,6 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
-use destack_dir::{AnchoredGlobalNodeId, GlobalNodeIdAny, LocalNodeIdAny};
+use destack_dir::{AnchoredGlobalNodeId, LocalNodeIdAny};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Target, TargetId};
 
@@ -130,15 +130,10 @@ impl Compiler {
         let dir_tree = module.dir(profile).tree.read();
         let dir_node_type = dir_tree.get_node_type(dir_node_id);
 
-        Some(
-            GlobalNodeIdAny::new(
-                module_id,
-                LocalNodeIdAny {
-                    id: dir_node_id,
-                    ty: dir_node_type,
-                },
-            )
-            .into_anchored(Some(profile)),
-        )
+        let node = LocalNodeIdAny {
+            id: dir_node_id,
+            ty: dir_node_type,
+        };
+        Some(node.into_anchored(module_id, Some(profile)))
     }
 }

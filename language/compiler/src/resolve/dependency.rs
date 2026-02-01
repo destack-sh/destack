@@ -19,7 +19,8 @@ use crate::resolve::cache::{
 };
 use crate::timing::tags;
 use crate::{
-    Compiler, ImportError, ResolveError, ResolveResult, SymbolDescriptor, can_merge_declarations,
+    Compiler, ImportError, ResolveError, ResolveResult, ResolveWarning, SymbolDescriptor,
+    can_merge_declarations,
 };
 
 /// Track visited entries while walking reexport chains.
@@ -677,7 +678,13 @@ impl Compiler {
                 let target_module = if let Some(target_module) = target_module {
                     target_module
                 } else {
-                    self.resolve_import(module, dir, profile, item_node, source, target)?
+                    let Some(target_module) = self.resolve_import_maybe(
+                        module, dir, profile, item_node, source, target, None,
+                    )?
+                    else {
+                        return Ok(None);
+                    };
+                    target_module
                 };
 
                 // namespace reexports produce a namespace symbol directly
@@ -892,14 +899,19 @@ impl Compiler {
         let target_module = if let Some(target_module) = target_module {
             target_module
         } else if let Some(target) = target {
-            self.resolve_import(
+            let Some(target_module) = self.resolve_import_maybe(
                 module,
                 dir,
                 profile,
                 item_id.into_global_any(module.id),
                 source.unwrap_or(DependencySource::ExportStatement),
                 target,
+                None,
             )?
+            else {
+                return Ok(None);
+            };
+            target_module
         } else {
             return Ok(None);
         };
@@ -1018,6 +1030,62 @@ impl Compiler {
         // check relative prefix markers
         let target_str = self.program.strings.get(target);
         target_str.starts_with("./") || target_str.starts_with("../")
+    }
+
+    /// Emit diagnostics for unresolved modules based on resolve mode.
+    pub(super) fn handle_unresolved_module(&self, error: ResolveError) {
+        let (node, target) = match error {
+            ResolveError::UnresolvedModule { node, target } => (node, target),
+            error => {
+                self.error(error);
+                return;
+            }
+        };
+
+        // map unresolved modules to the configured diagnostic severity
+        match self.options.resolve_mode {
+            crate::ResolveMode::Strict => {
+                self.error(ResolveError::UnresolvedModule { node, target });
+            }
+            crate::ResolveMode::Lenient => {
+                self.warning(ResolveWarning::UnresolvedModule { node, target });
+            }
+        }
+    }
+
+    /// Resolve an import, returning `None` for unresolved modules.
+    /// (This is mainly used for debug-only lenient resolve mode.)
+    pub(super) fn resolve_import_maybe(
+        &self,
+        module: &Module,
+        dir: &ModuleDir,
+        profile: ProfileId,
+        node: GlobalNodeIdAny,
+        source: DependencySource,
+        target: StringId,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> ResolveResult<Option<ModuleTarget>> {
+        let resolved = if let Some(loader_override) = loader_override {
+            self.resolve_import_with_loader(
+                module,
+                dir,
+                profile,
+                node,
+                source,
+                target,
+                Some(loader_override),
+            )
+        } else {
+            self.resolve_import(module, dir, profile, node, source, target)
+        };
+        match resolved {
+            Ok(target) => Ok(Some(target)),
+            Err(error @ ResolveError::UnresolvedModule { .. }) => {
+                self.handle_unresolved_module(error);
+                Ok(None)
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// Try to resolve an import of some target specifier synchronously.
@@ -1865,14 +1933,19 @@ impl Compiler {
                 // resolve the target module or binding
                 let remote_target = {
                     let _timing = self.timing_scope(tags::RESOLVE_DEPENDENCY_ITEM_IMPORT);
-                    self.resolve_import(
+                    let Some(remote_target) = self.resolve_import_maybe(
                         module,
                         dir,
                         profile,
                         item_id.into_global_any(module.id),
                         *source,
                         *target,
+                        None,
                     )?
+                    else {
+                        return Ok(None);
+                    };
+                    remote_target
                 };
 
                 // resolve target symbol based on mode

@@ -487,10 +487,11 @@ impl Compiler {
                         continue;
                     }
                     Err(_) => {
-                        return Err(ResolveError::UnresolvedModule {
+                        self.handle_unresolved_module(ResolveError::UnresolvedModule {
                             node: dependency.node.into_anchored(Some(profile_id)),
                             target: dependency.target,
                         });
+                        continue;
                     }
                 };
                 cache.pending.push_back(remote_module_id);

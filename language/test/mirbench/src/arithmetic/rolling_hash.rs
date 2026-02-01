@@ -18,7 +18,7 @@ declare_program! {
 /// Compute the expected value for the rolling hash benchmark.
 fn rolling_hash(length: i64) -> Value {
     // init ring buffer
-    let mut buffer = vec![0i64; 8];
+    let mut buffer = [0i64; 8];
     let mut head = 0usize;
 
     // init state

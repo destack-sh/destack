@@ -317,7 +317,7 @@ impl SampleSummary {
         };
         let median_ms = if samples_ms.is_empty() {
             0.0
-        } else if samples_ms.len() % 2 == 0 {
+        } else if samples_ms.len().is_multiple_of(2) {
             let upper = samples_ms.len() / 2;
             let lower = upper - 1;
             (samples_ms[lower] + samples_ms[upper]) * 0.5
@@ -507,8 +507,10 @@ impl Suite for OptimizeValidateSuite {
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
         // use vm friendly pipeline options
-        let mut options = PipelineOptions::default();
-        options.target = PipelineTarget::Vm;
+        let options = PipelineOptions {
+            target: PipelineTarget::Vm,
+            ..Default::default()
+        };
         let module_id = module_id_for_fixture(&self.root, &case.path, package_id);
 
         // run all configured optimization levels
@@ -724,8 +726,10 @@ impl Suite for OptimizeExecuteSuite {
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
         // use vm friendly pipeline options
-        let mut options = PipelineOptions::default();
-        options.target = PipelineTarget::Vm;
+        let options = PipelineOptions {
+            target: PipelineTarget::Vm,
+            ..Default::default()
+        };
 
         // optimize and validate each configured level
         let mut ran_any = false;
@@ -916,8 +920,10 @@ impl Suite for OptimizePerfSuite {
         let package_id = PackageId::from_synthetic_path(&self.root);
         let target_id = TargetId::new(package_id, "native");
         // use vm friendly pipeline options
-        let mut options = PipelineOptions::default();
-        options.target = PipelineTarget::Vm;
+        let options = PipelineOptions {
+            target: PipelineTarget::Vm,
+            ..Default::default()
+        };
 
         // optimize and execute each configured level
         let mut ran_any = false;
@@ -1145,7 +1151,7 @@ fn count_mir_instructions(tree: &mir::NodeTree) -> u64 {
 /// Estimate MIR text size by formatting the tree.
 fn count_mir_bytes(tree: &mir::NodeTree, strings: &ImmutableStringPool) -> u64 {
     let formatted = mir::format_mir(tree, strings, mir::MirFormatOptions::default());
-    formatted.as_bytes().len() as u64
+    formatted.len() as u64
 }
 
 /// Build a perf report from collected samples.
@@ -1332,11 +1338,11 @@ fn print_perf_table(samples: &[PerfSample]) {
             cells.push(format!("{:?}", sample.level));
         }
         cells.extend([
-            format!("{:.2}", sample.compile_ms),
-            format!("{:.2}", runtime),
-            format!("{:.2}", baseline_runtime),
-            format!("{:+.2}", runtime_delta),
-            format!("{:.2}x", runtime_speedup),
+            format!("{compile_ms:.2}", compile_ms = sample.compile_ms),
+            format!("{runtime:.2}"),
+            format!("{baseline_runtime:.2}"),
+            format!("{runtime_delta:+.2}"),
+            format!("{runtime_speedup:.2}x"),
             sample.mir_instructions.to_string(),
             sample.mir_bytes.to_string(),
             sample.threaded_instructions.to_string(),
@@ -1704,6 +1710,7 @@ struct OptimizeOutput {
 }
 
 /// Optimize a source program with optional pass filtering and timing.
+#[allow(clippy::too_many_arguments)]
 fn optimize_source_variant(
     source: &str,
     module_id: ModuleId,
@@ -1994,6 +2001,7 @@ fn run_module_pass_filtered(
 }
 
 /// Run a pipeline while capturing pass timings.
+#[allow(clippy::too_many_arguments)]
 fn run_pipeline_with_timings(
     tree: &mut mir::NodeTree,
     ctx: &mut PipelineContext<'_>,
@@ -2175,6 +2183,7 @@ fn run_pipeline_with_timings(
 }
 
 /// Run a matrix case and return a mismatch reason if any.
+#[allow(clippy::too_many_arguments)]
 fn run_matrix_case(
     program: &program::Program,
     target_id: &TargetId,
@@ -2287,6 +2296,7 @@ fn find_value_definition(tree: &mir::NodeTree, value: mir::Value) -> String {
 }
 
 /// Run matrix diagnostics for the given pipeline.
+#[allow(clippy::too_many_arguments)]
 fn run_matrix_pipeline(
     program: &program::Program,
     target_id: &TargetId,

@@ -18,9 +18,9 @@ declare_program! {
 /// Compute the expected value for the router table benchmark.
 fn router_table(iterations: i64) -> Value {
     // init tables
-    let mut route_table = vec![0i64; 16];
-    let mut host_table = vec![0i64; 8];
-    let mut method_table = vec![0i64; 4];
+    let mut route_table = [0i64; 16];
+    let mut host_table = [0i64; 8];
+    let mut method_table = [0i64; 4];
 
     let mut table_index = 0usize;
     while table_index < route_table.len() {

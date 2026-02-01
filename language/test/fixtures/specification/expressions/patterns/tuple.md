@@ -20,3 +20,13 @@ right satisfies int32;
 let (_, value) = (1, 2);
 value satisfies int32;
 ```
+
+### tuple patterns cannot use named fields in TypeScript
+
+> Named fields are not allowed in tuple patterns in TypeScript.
+
+```ts:main.ts
+let (x: y) = (1, 2);
+```
+
+- contains: named fields are not allowed in array or tuple patterns

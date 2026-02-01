@@ -1,6 +1,6 @@
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
-use destack_dir::{Declaration, Member, Parameter};
+use destack_dir::{Declaration, Expression, Member, Parameter, Pattern};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleDir, ModuleSource, ProfileId};
 
@@ -116,7 +116,7 @@ impl Compiler {
             if !symbol.is_active() {
                 continue;
             }
-            self.validate_declaration(&module, profile, &types, id, declaration);
+            self.validate_declaration(&module, profile, &tree, &types, id, declaration);
         }
 
         // validate parameters
@@ -136,8 +136,21 @@ impl Compiler {
             self.validate_member(&module, profile, &tree, id, member);
         }
 
-        // validate expression level syntax rules
-        self.validate_expressions(&module, profile, &tree);
+        // validate expressions
+        for (id, expression) in tree.iter_nodes_of_type::<Expression>() {
+            if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                continue;
+            }
+            self.validate_expression(&module, profile, &tree, id, expression);
+        }
+
+        // validate patterns
+        for (id, pattern) in tree.iter_nodes_of_type::<Pattern>() {
+            if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                continue;
+            }
+            self.validate_pattern(&module, profile, &tree, pattern);
+        }
 
         // validate option dependent checks
         self.validate_strict_checks(&module, profile, &tree, &symbols, &types);

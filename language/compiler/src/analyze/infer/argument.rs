@@ -2133,10 +2133,9 @@ impl Compiler {
                 } else if let Some(default_expression) =
                     static_parameter.default_expression.as_ref()
                 {
-                    GlobalNodeIdAny::new(
-                        default_expression.module_id,
-                        default_expression.local_id.into_any(),
-                    )
+                    default_expression
+                        .local_id
+                        .into_global_any(default_expression.module_id)
                 } else {
                     node_id.into_global(module.id)
                 };

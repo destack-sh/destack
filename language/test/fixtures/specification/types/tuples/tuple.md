@@ -29,3 +29,16 @@ const x: [number, string, boolean] = [1, "hello", true]
 ```ds
 const x = [1, "hello"]
 ```
+
+## tuple optional ordering
+
+### optional elements must be last
+
+> Optional tuple elements must be last in the tuple.
+
+```ts
+type Bad = [string?, number];
+type BadLabeled = [x?: number, y: string];
+```
+
+- contains: optional tuple elements must be last
