@@ -408,6 +408,7 @@ impl<'a> Validator<'a> {
             Type::Array { .. } => "array",
             Type::Tuple { .. } => "tuple",
             Type::Struct { .. } => "struct",
+            Type::Newtype { .. } => "newtype",
             Type::Vector { .. } => "vector",
             Type::Tensor { .. } => "tensor",
             Type::TensorReference { .. } => "tensor_ref",

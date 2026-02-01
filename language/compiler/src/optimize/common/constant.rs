@@ -692,6 +692,10 @@ fn constant_tree_from_scalar(
     // read type
     let ty = tree.get(ty);
 
+    if let Type::Newtype { inner, .. } = ty {
+        return constant_tree_from_scalar(constant, *inner, tree);
+    }
+
     // accept scalar types only
     if ty.is_scalar() {
         return ConstantTree::Scalar(constant.clone());
@@ -759,6 +763,9 @@ fn constant_tree_from_zero(
             };
 
             ConstantTree::Scalar(Constant::Float { bits: 0, width })
+        }
+        Type::Newtype { inner, .. } => {
+            constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
         }
         Type::Array {
             element, length, ..

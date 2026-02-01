@@ -54,6 +54,11 @@ pub enum TypeKey {
         fields: Vec<(Option<StringId>, TypeKey)>,
         copyability: mir::Copyability,
     },
+    /// Nominal newtype wrapper.
+    Newtype {
+        inner: Box<TypeKey>,
+        copyability: mir::Copyability,
+    },
     /// Vector type with fixed lanes.
     Vector {
         element: Box<TypeKey>,
@@ -176,6 +181,11 @@ impl TypeKey {
                 }
             }
 
+            mir::Type::Newtype { inner, copyability } => TypeKey::Newtype {
+                inner: Box::new(Self::from_type_inner(*inner, tree, visiting)),
+                copyability: *copyability,
+            },
+
             mir::Type::Vector {
                 element,
                 lanes,
@@ -252,6 +262,7 @@ impl TypeKey {
             TypeKey::Int { width, .. } => bytes_for_width(*width),
             TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
             TypeKey::Float { width } => bytes_for_width(*width),
+            TypeKey::Newtype { inner, .. } => inner.byte_size(pointer_width_bits),
             TypeKey::Array {
                 element,
                 length,
@@ -439,6 +450,18 @@ fn types_are_equal_inner(
                         && types_are_equal_inner(field_a.ty, field_b.ty, tree, visiting)
                 })
         }
+
+        // newtypes: compare inner type
+        (
+            mir::Type::Newtype {
+                inner: i1,
+                copyability: c1,
+            },
+            mir::Type::Newtype {
+                inner: i2,
+                copyability: c2,
+            },
+        ) => c1 == c2 && types_are_equal_inner(*i1, *i2, tree, visiting),
 
         // function pointers: compare parameter and result types
         (

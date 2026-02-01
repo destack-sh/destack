@@ -13,6 +13,10 @@ pub fn type_contains_borrowed_refs(ty: &mir::Type, tree: &mir::NodeTree) -> bool
             let field_ty = tree.get(field.ty);
             type_contains_borrowed_refs(field_ty, tree)
         }),
+        mir::Type::Newtype { inner, .. } => {
+            let inner_ty = tree.get(*inner);
+            type_contains_borrowed_refs(inner_ty, tree)
+        }
         mir::Type::Tuple { elements, .. } => elements.iter().any(|elem_id| {
             let elem = tree.get(*elem_id);
             type_contains_borrowed_refs(elem, tree)

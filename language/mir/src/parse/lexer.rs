@@ -186,6 +186,7 @@ impl<'a> Lexer<'a> {
             "addrspace" => TokenType::AddrSpace,
             "fn" => TokenType::Fn,
             "struct" => TokenType::Struct,
+            "newtype" => TokenType::Newtype,
             "true" | "false" => TokenType::BoolLiteral,
             "owned" | "borrowed" | "copy" => TokenType::Ownership,
             "mut" => TokenType::Mut,

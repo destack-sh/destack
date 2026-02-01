@@ -286,6 +286,9 @@ fn value_needs_drop(
         } | mir::Type::Struct {
             copyability: mir::Copyability::Linear,
             ..
+        } | mir::Type::Newtype {
+            copyability: mir::Copyability::Linear,
+            ..
         } | mir::Type::Tuple {
             copyability: mir::Copyability::Linear,
             ..

@@ -371,6 +371,7 @@ impl OwnershipAnalysis {
             Type::Array { copyability, .. }
             | Type::Tuple { copyability, .. }
             | Type::Struct { copyability, .. }
+            | Type::Newtype { copyability, .. }
             | Type::Vector { copyability, .. }
             | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
         }
@@ -1113,6 +1114,7 @@ fn value_is_copy(value: Value, tree: &mir::NodeTree, value_types: &ValueTypeMap)
         Type::Array { copyability, .. }
         | Type::Tuple { copyability, .. }
         | Type::Struct { copyability, .. }
+        | Type::Newtype { copyability, .. }
         | Type::Vector { copyability, .. }
         | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
     }

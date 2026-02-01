@@ -85,6 +85,8 @@ pub(crate) fn compute_type_layout(
             copyability: _,
         } => compute_struct_layout_from_fields(tree, fields, pointer_bytes),
 
+        Type::Newtype { inner, .. } => compute_type_layout(tree, *inner, pointer_bytes),
+
         Type::Vector {
             element,
             lanes,

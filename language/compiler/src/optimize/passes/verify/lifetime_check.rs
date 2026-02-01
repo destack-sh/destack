@@ -302,6 +302,7 @@ fn field_type_for_value(
             field.ty
         }),
         Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
+        Type::Newtype { inner, .. } => field_type_for_value(tree, *inner, index),
         _ => None,
     }
 }
@@ -312,11 +313,11 @@ fn element_type_for_value(
 ) -> Option<mir::LocalNodeId<Type>> {
     // resolve element types for arrays
     let array_type = tree.get(array_type);
-    let Type::Array { element, .. } = array_type else {
-        return None;
-    };
-
-    Some(*element)
+    match array_type {
+        Type::Array { element, .. } => Some(*element),
+        Type::Newtype { inner, .. } => element_type_for_value(tree, *inner),
+        _ => None,
+    }
 }
 
 fn value_contains_borrowed_refs(value: Value, tree: &mir::NodeTree, types: &ValueTypeMap) -> bool {

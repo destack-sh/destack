@@ -184,6 +184,12 @@ fn format_type_inner<'a>(
             }
             write!(f, [space(), token("}")])
         }
+        Type::Newtype {
+            inner,
+            copyability: _,
+        } => {
+            write!(f, [token("newtype"), token("<"), inner, token(">")])
+        }
         Type::Vector {
             element,
             lanes,
