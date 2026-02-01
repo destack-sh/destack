@@ -90,6 +90,14 @@ static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
 // can't use `in` in for each expressions
 static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [BinaryOperator::In];
 
+/// Result of parsing declaration modifiers.
+enum DescriptorParseResult {
+    /// Parsed declaration descriptor.
+    Descriptor(DeclarationDescriptor),
+    /// Parsed expression that consumed the modifiers.
+    Expression(LocalNodeId<Expression>),
+}
+
 /// Make an infix operator (in context).
 #[inline]
 fn to_infix_operator(
@@ -741,6 +749,639 @@ impl Parser {
         false
     }
 
+    /// Eat declaration modifiers and return a descriptor or a parsed expression.
+    fn eat_declaration_descriptor(
+        &mut self,
+        start: ParserMark,
+    ) -> ParseResult<DescriptorParseResult> {
+        let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
+
+        // decorators parse as expressions only, skip declaration modifiers
+        if self.options.in_decorator {
+            return Ok(DescriptorParseResult::Descriptor(descriptor));
+        }
+
+        let pos = self.pos_index();
+        if !self.peek_is(TokenType::Identifier) {
+            return Ok(DescriptorParseResult::Descriptor(descriptor));
+        }
+        let keyword = if self.has_active_split() {
+            self.peek_any_keyword().ok()
+        } else {
+            self.keyword_for_index(pos)
+        };
+        let is_modifier_keyword = matches!(
+            keyword,
+            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+        );
+        let is_global_identifier = self
+            .global_identifier
+            .is_some_and(|id| self.identifier_for_index(pos) == Some(id));
+        let is_module_identifier = self.language.supports_module_declaration()
+            && self
+                .module_identifier
+                .is_some_and(|id| self.identifier_for_index(pos) == Some(id));
+        if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
+            return Ok(DescriptorParseResult::Descriptor(descriptor));
+        }
+
+        // export
+        if self.peek_keyword(Keyword::Export).is_ok() {
+            self.bump(); // eat export
+            let mode = if self.peek_keyword(Keyword::Default).is_ok() {
+                self.bump(); // eat default
+                Some(DependencyMode::Default)
+            } else if self.peek_is(TokenType::Assign) {
+                self.bump(); // eat assign
+                Some(DependencyMode::Namespace)
+            } else {
+                Some(DependencyMode::Item)
+            };
+
+            // export namespace
+            let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
+                && self.peek_next_keyword(Keyword::Namespace).is_ok();
+            if is_export_namespace {
+                self.rewind(start);
+                let export = self.eat_export()?;
+                return Ok(DescriptorParseResult::Expression(export));
+            }
+
+            // just parse the export if followed by dependency items or module export
+            let keyword = self.peek_any_keyword().ok();
+            let is_not_declaration_keyword =
+                keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
+            let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
+                && (self.peek_next_is(TokenType::OpenBrace)
+                    || self.peek_next_is(TokenType::Multiply));
+            if mode == Some(DependencyMode::Namespace)
+                || is_export_type_binding
+                || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
+                || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
+            {
+                self.rewind(start);
+                let export = self.eat_export()?;
+                return Ok(DescriptorParseResult::Expression(export));
+            }
+
+            descriptor.export = mode;
+        }
+
+        // kind (declare must not be followed by newline, similar to abstract)
+        let is_declare_identifier = self.peek_next_is(TokenType::Identifier)
+            && self.peek_next().is_ok_and(|token| {
+                let token_str = self.get_token_str(*token);
+                token_str == "global"
+                    || self.language.supports_module_declaration() && token_str == "module"
+            });
+        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
+            && !self.peek_next_is(TokenType::Newline)
+            && (self
+                .peek_next_any_keyword()
+                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                || is_declare_identifier)
+        {
+            self.bump(); // eat declare
+            DeclarationKind::Declaration
+        } else {
+            DeclarationKind::Definition
+        };
+
+        // abstraction
+        descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+            && !self.options.in_variant
+            && !self.peek_next_is(TokenType::Newline)
+            && self
+                .peek_next_any_keyword()
+                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+        {
+            self.bump(); // eat abstract
+            DeclarationAbstraction::Abstract
+        } else {
+            DeclarationAbstraction::Concrete
+        };
+
+        // anchor
+        descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
+            self.bump(); // eat static
+            BindingAnchor::Static
+        } else {
+            BindingAnchor::Instance
+        };
+
+        // global declaration
+        if (descriptor.kind == DeclarationKind::Declaration || self.language.is_declaration())
+            && self.peek_identifier_str("global").is_ok()
+            && self
+                .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
+                .is_ok()
+        {
+            let mut global_descriptor = descriptor;
+            if global_descriptor.kind == DeclarationKind::Definition {
+                // global declarations are always declarations
+                global_descriptor.kind = DeclarationKind::Declaration;
+            }
+            let global_id = self.eat_global(start, global_descriptor)?;
+            let expression_id = self.tree.insert(
+                Expression::Declaration(global_id),
+                self.get_span_from(start),
+            );
+            return Ok(DescriptorParseResult::Expression(expression_id));
+        }
+
+        Ok(DescriptorParseResult::Descriptor(descriptor))
+    }
+
+    /// Eat a keyword-led expression when possible.
+    fn eat_keyword_expression(
+        &mut self,
+        start: ParserMark,
+        descriptor: DeclarationDescriptor,
+        keyword: Keyword,
+        next_token_type: TokenType,
+        is_declaration_start: bool,
+    ) -> ParseResult<Option<LocalNodeId<Expression>>> {
+        match keyword {
+            Keyword::Namespace if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let namespace_id = self.eat_namespace(start, descriptor)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(namespace_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::Struct | Keyword::Class if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let struct_id = self.eat_struct_or_class(start, descriptor)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(struct_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::Enum if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(enum_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::Const => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                if next_keyword == Some(Keyword::Enum) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Const)?;
+                    let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
+                    Ok(Some(self.tree.insert(
+                        Expression::Declaration(enum_id),
+                        self.get_span_from(start),
+                    )))
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_let(start, descriptor)?))
+                }
+            }
+            Keyword::Newtype => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                if next_keyword == Some(Keyword::Interface) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    self.eat_keyword(Keyword::Newtype)?;
+                    let interface_id = self.eat_interface(start, descriptor, TypeKind::Nominal)?;
+                    Ok(Some(self.tree.insert(
+                        Expression::Declaration(interface_id),
+                        self.get_span_from(start),
+                    )))
+                } else {
+                    let can_start_type_alias = matches!(
+                        next_token_type,
+                        TokenType::Identifier
+                            | TokenType::OpenBrace
+                            | TokenType::OpenParenthesis
+                            | TokenType::OpenBracket
+                            | TokenType::Literal
+                    );
+                    if can_start_type_alias {
+                        let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                        Ok(Some(self.eat_type(start, descriptor)?))
+                    } else {
+                        Ok(None)
+                    }
+                }
+            }
+            Keyword::Interface if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(interface_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::Extension if is_declaration_start => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let extension_id = self.eat_extension(start, descriptor)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(extension_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::Async => {
+                let can_start_signature = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::LessThan
+                        | TokenType::At
+                        | TokenType::Multiply
+                );
+                if !can_start_signature {
+                    return Ok(None);
+                }
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let speculative_start = self.mark();
+                let speculative_start_idx = self.tree.next_id();
+                if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
+                    let should_accept = match self.tree.get(function_id) {
+                        Declaration::Function {
+                            signature, body, ..
+                        } => {
+                            !(signature.kind == FunctionKind::Lambda
+                                && body.is_none()
+                                && !self.options.in_type)
+                        }
+                        _ => true,
+                    };
+                    if should_accept {
+                        Ok(Some(self.tree.insert(
+                            Expression::Declaration(function_id),
+                            self.get_span_from(start),
+                        )))
+                    } else {
+                        self.restore(speculative_start, speculative_start_idx);
+                        let (path, last_span) = self
+                            .eat_path_with_last_span()
+                            .for_node_type(NodeType::Expression)?;
+                        let static_arguments = self.eat_static_arguments_in_expression(false);
+                        if static_arguments.is_some()
+                            && self.peek_is(TokenType::OpenParenthesis)
+                            && !self.options.in_new_receiver
+                        {
+                            let receiver = Expression::Path {
+                                path,
+                                static_arguments: None,
+                            };
+                            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                            self.tree.set_main_span(receiver_id, last_span);
+                            Ok(Some(self.eat_call(
+                                receiver_id,
+                                static_arguments,
+                                PostfixPosition::Direct,
+                            )?))
+                        } else {
+                            let expression = Expression::Path {
+                                path,
+                                static_arguments,
+                            };
+                            let expression_id =
+                                self.tree.insert(expression, self.get_span_from(start));
+                            self.tree.set_main_span(expression_id, last_span);
+                            Ok(Some(expression_id))
+                        }
+                    }
+                } else {
+                    self.restore(speculative_start, speculative_start_idx);
+                    let (path, last_span) = self
+                        .eat_path_with_last_span()
+                        .for_node_type(NodeType::Expression)?;
+                    let static_arguments = self.eat_static_arguments_in_expression(false);
+                    if static_arguments.is_some()
+                        && self.peek_is(TokenType::OpenParenthesis)
+                        && !self.options.in_new_receiver
+                    {
+                        let receiver = Expression::Path {
+                            path,
+                            static_arguments: None,
+                        };
+                        let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+                        self.tree.set_main_span(receiver_id, last_span);
+                        Ok(Some(self.eat_call(
+                            receiver_id,
+                            static_arguments,
+                            PostfixPosition::Direct,
+                        )?))
+                    } else {
+                        let expression = Expression::Path {
+                            path,
+                            static_arguments,
+                        };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, last_span);
+                        Ok(Some(expression_id))
+                    }
+                }
+            }
+            Keyword::Function | Keyword::Abstract | Keyword::Override => {
+                let can_start_signature = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::LessThan
+                        | TokenType::At
+                        | TokenType::Multiply
+                );
+                if !can_start_signature {
+                    return Ok(None);
+                }
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(function_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::New if self.options.in_type => {
+                let can_start_signature = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::LessThan
+                        | TokenType::At
+                        | TokenType::Multiply
+                );
+                if can_start_signature {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    let function_id = self.eat_function(start, descriptor, false, false)?;
+                    Ok(Some(self.tree.insert(
+                        Expression::Declaration(function_id),
+                        self.get_span_from(start),
+                    )))
+                } else {
+                    Ok(None)
+                }
+            }
+            Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.in_variant => {
+                let can_start_signature = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::LessThan
+                        | TokenType::At
+                        | TokenType::Multiply
+                );
+                if !can_start_signature {
+                    return Ok(None);
+                }
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                let function_id = self.eat_function(start, descriptor, false, false)?;
+                Ok(Some(self.tree.insert(
+                    Expression::Declaration(function_id),
+                    self.get_span_from(start),
+                )))
+            }
+            Keyword::This => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat this
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::This, self.get_span_from(start)),
+                ))
+            }
+            Keyword::New if !self.options.in_type => {
+                let can_start_new_expression = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenParenthesis
+                        | TokenType::OpenBrace
+                        | TokenType::LessThan
+                );
+                if can_start_new_expression {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                    Ok(Some(self.eat_new()?))
+                } else {
+                    Ok(None)
+                }
+            }
+            Keyword::Delete if next_token_type == TokenType::Identifier => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                Ok(Some(self.eat_delete()?))
+            }
+            Keyword::Import
+                if self.options.in_type && next_token_type == TokenType::OpenParenthesis =>
+            {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_type_import_expression()?))
+            }
+            Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                Ok(Some(self.eat_import_call_expression(start)?))
+            }
+            Keyword::Import => {
+                let can_start_import_binding = matches!(
+                    next_token_type,
+                    TokenType::Multiply
+                        | TokenType::Identifier
+                        | TokenType::OpenBrace
+                        | TokenType::Literal
+                );
+                if !can_start_import_binding {
+                    return Ok(None);
+                }
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
+                if descriptor.export.is_some() && self.peek_import_equals_after_import() {
+                    Ok(Some(self.eat_export_import_equals(start, descriptor)?))
+                } else {
+                    Ok(Some(self.eat_import()?))
+                }
+            }
+            Keyword::Infer if self.options.in_type => Ok(Some(self.eat_type_infer_expression()?)),
+            Keyword::Asserts if self.options.in_type => {
+                Ok(Some(self.eat_type_predicate_asserts()?))
+            }
+            Keyword::Let | Keyword::Var => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                Ok(Some(self.eat_let(start, descriptor)?))
+            }
+            Keyword::Using => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+            }
+            Keyword::Type | Keyword::Readonly => {
+                let can_start_type_alias = matches!(
+                    next_token_type,
+                    TokenType::Identifier
+                        | TokenType::OpenBrace
+                        | TokenType::OpenParenthesis
+                        | TokenType::OpenBracket
+                        | TokenType::Literal
+                );
+                if can_start_type_alias {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
+                    Ok(Some(self.eat_type(start, descriptor)?))
+                } else {
+                    Ok(None)
+                }
+            }
+            Keyword::If => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_if()?))
+            }
+            Keyword::While => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            Keyword::Do if self.is_do_while_block(next_token_type) => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_while()?))
+            }
+            Keyword::For => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_for()?))
+            }
+            Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_loop()?))
+            }
+            Keyword::Try => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_try()?))
+            }
+            Keyword::Switch => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            Keyword::Match if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_match()?))
+            }
+            Keyword::Break => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_break()?))
+            }
+            Keyword::Continue => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_continue()?))
+            }
+            Keyword::Await => {
+                let next_keyword = if next_token_type == TokenType::Identifier {
+                    self.keyword_for_index(self.index_for_next())
+                } else {
+                    None
+                };
+                if next_keyword == Some(Keyword::Using) {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
+                    Ok(Some(self.eat_using(
+                        start,
+                        descriptor,
+                        Asynchrony::Async,
+                    )?))
+                } else {
+                    let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                    Ok(Some(self.eat_await()?))
+                }
+            }
+            Keyword::Comptime if self.language.is_destack() => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                Ok(Some(self.eat_comptime()?))
+            }
+            Keyword::Yield if self.options.in_generator => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_yield()?))
+            }
+            Keyword::Throw => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_throw()?))
+            }
+            Keyword::Return => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                Ok(Some(self.eat_return()?))
+            }
+            Keyword::Debugger => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
+                self.bump(); // eat `debugger`
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::Debugger, self.get_span_from(start)),
+                ))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Eat an identifier path expression with optional static arguments.
+    fn eat_identifier_expression_path(
+        &mut self,
+        start: ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        let _identifier_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
+        let (path, last_span) = self
+            .eat_path_with_last_span()
+            .for_node_type(NodeType::Expression)?;
+
+        // speculatively unwrap postfix static parameterisation with `<` or `<<`
+        //  (might also be just a comparison operator)
+        //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
+        let static_arguments = self.eat_static_arguments_in_expression(true);
+
+        // immediately parse call if we have static arguments
+        // (so we can stuff the arguments into the call expression)
+        if static_arguments.is_some()
+            && self.peek_is(TokenType::OpenParenthesis)
+            && !self.options.in_new_receiver
+        {
+            let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
+            let receiver = Expression::Path {
+                path,
+                static_arguments: None,
+            };
+            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
+            self.tree.set_main_span(receiver_id, last_span);
+            self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)
+        } else {
+            let expression = Expression::Path {
+                path,
+                static_arguments,
+            };
+            let expression_id = self.tree.insert(expression, self.get_span_from(start));
+            self.tree.set_main_span(expression_id, last_span);
+            Ok(expression_id)
+        }
+    }
+
+    /// Return true if the current `do` token starts a do-while block.
+    fn is_do_while_block(&mut self, next_token_type: TokenType) -> bool {
+        if next_token_type != TokenType::OpenBrace {
+            return false;
+        }
+        let open_index = self.index_for_next();
+        let matching = self
+            .matching_pairs
+            .get(open_index)
+            .copied()
+            .unwrap_or(u32::MAX);
+        if matching == u32::MAX {
+            return false;
+        }
+        let after_close = match self.skip_newlines(matching) {
+            Ok(pos) => pos,
+            Err(_) => return false,
+        };
+        let after_close_index = after_close as usize + 1;
+        let Some(after_token) = self.tokens.get(after_close_index) else {
+            return false;
+        };
+        if after_token.token.ty != TokenType::Identifier {
+            return false;
+        }
+        self.keyword_for_index(after_close_index) == Some(Keyword::While)
+    }
+
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_EXPRESSION);
@@ -758,18 +1399,29 @@ impl Parser {
             && self.peek_is(TokenType::Identifier)
             && self.peek_next_is(TokenType::Colon)
         {
+            let next_next_index = self.index_for_next_next();
+            let next_next_token = self.tokens.get(next_next_index);
+            let next_next_keyword = next_next_token
+                .filter(|token| token.token.ty == TokenType::Identifier)
+                .and_then(|_| self.keyword_for_index(next_next_index));
             // label targets that are always expressions
-            let is_labelled_expression = self.peek_next_next_keyword(Keyword::While).is_ok()
-                || self.peek_next_next_keyword(Keyword::Do).is_ok()
-                || self.peek_next_next_keyword(Keyword::For).is_ok()
-                || self.peek_next_next_keyword(Keyword::Loop).is_ok()
-                || self.peek_next_next_keyword(Keyword::If).is_ok()
-                || self.peek_next_next_keyword(Keyword::Switch).is_ok()
-                || self.peek_next_next_keyword(Keyword::Try).is_ok()
-                || self.peek_next_next_keyword(Keyword::With).is_ok();
+            let is_labelled_expression = matches!(
+                next_next_keyword,
+                Some(
+                    Keyword::While
+                        | Keyword::Do
+                        | Keyword::For
+                        | Keyword::Loop
+                        | Keyword::If
+                        | Keyword::Switch
+                        | Keyword::Try
+                        | Keyword::With
+                )
+            );
 
             // labelled blocks are only allowed in statement position
-            let is_labelled_block = self.peek_next_next_token(TokenType::OpenBrace).is_ok();
+            let is_labelled_block =
+                next_next_token.is_some_and(|token| token.token.ty == TokenType::OpenBrace);
             let can_parse_label = if self.options.in_statement_position
                 && !self.language.is_destack()
             {
@@ -796,123 +1448,10 @@ impl Parser {
         // ------------------------------------------------------------
         //
 
-        let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
-
-        // decorators parse as expressions only, skip declaration modifiers
-        if !self.options.in_decorator {
-            let has_keyword = self.peek_is(TokenType::Identifier)
-                && (self.keyword_for_index(self.pos_index()).is_some()
-                    || self.peek_identifier_str("global").is_ok()
-                    || self.language.supports_module_declaration()
-                        && self.peek_identifier_str("module").is_ok());
-            if !has_keyword {
-                // skip modifier checks for non keyword identifiers
-            } else {
-                // export
-                if self.peek_keyword(Keyword::Export).is_ok() {
-                    self.bump(); // eat export
-                    let mode = if self.peek_keyword(Keyword::Default).is_ok() {
-                        self.bump(); // eat default
-                        Some(DependencyMode::Default)
-                    } else if self.peek_is(TokenType::Assign) {
-                        self.bump(); // eat assign
-                        Some(DependencyMode::Namespace)
-                    } else {
-                        Some(DependencyMode::Item)
-                    };
-
-                    // export namespace
-                    let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
-                        && self.peek_next_keyword(Keyword::Namespace).is_ok();
-                    if is_export_namespace {
-                        self.rewind(start);
-                        let export = self.eat_export()?;
-                        return Ok(export);
-                    }
-
-                    // just parse the export if followed by dependency items or module export
-                    let keyword = self.peek_any_keyword().ok();
-                    let is_not_declaration_keyword =
-                        keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
-                    let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
-                        && (self.peek_next_is(TokenType::OpenBrace)
-                            || self.peek_next_is(TokenType::Multiply));
-                    if mode == Some(DependencyMode::Namespace)
-                        || is_export_type_binding
-                        || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
-                        || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
-                    {
-                        self.rewind(start);
-                        let export = self.eat_export()?;
-                        return Ok(export);
-                    }
-
-                    descriptor.export = mode;
-                }
-
-                // kind (declare must not be followed by newline, similar to abstract)
-                let is_declare_identifier = self.peek_next_is(TokenType::Identifier)
-                    && self.peek_next().is_ok_and(|token| {
-                        let token_str = self.get_token_str(*token);
-                        token_str == "global"
-                            || self.language.supports_module_declaration() && token_str == "module"
-                    });
-                descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
-                    && !self.peek_next_is(TokenType::Newline)
-                    && (self
-                        .peek_next_any_keyword()
-                        .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                        || is_declare_identifier)
-                {
-                    self.bump(); // eat declare
-                    DeclarationKind::Declaration
-                } else {
-                    DeclarationKind::Definition
-                };
-
-                // abstraction
-                descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
-                    && !self.options.in_variant
-                    && !self.peek_next_is(TokenType::Newline)
-                    && self
-                        .peek_next_any_keyword()
-                        .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                {
-                    self.bump(); // eat abstract
-                    DeclarationAbstraction::Abstract
-                } else {
-                    DeclarationAbstraction::Concrete
-                };
-
-                // anchor
-                descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
-                    self.bump(); // eat static
-                    BindingAnchor::Static
-                } else {
-                    BindingAnchor::Instance
-                };
-
-                // global declaration
-                if (descriptor.kind == DeclarationKind::Declaration
-                    || self.language.is_declaration())
-                    && self.peek_identifier_str("global").is_ok()
-                    && self
-                        .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
-                        .is_ok()
-                {
-                    let mut global_descriptor = descriptor;
-                    if global_descriptor.kind == DeclarationKind::Definition {
-                        // global declarations are always declarations
-                        global_descriptor.kind = DeclarationKind::Declaration;
-                    }
-                    let global_id = self.eat_global(start, global_descriptor)?;
-                    return Ok(self.tree.insert(
-                        Expression::Declaration(global_id),
-                        self.get_span_from(start),
-                    ));
-                }
-            }
-        }
+        let descriptor = match self.eat_declaration_descriptor(start)? {
+            DescriptorParseResult::Descriptor(descriptor) => descriptor,
+            DescriptorParseResult::Expression(expression_id) => return Ok(expression_id),
+        };
 
         //
         // ------------------------------------------------------------
@@ -922,31 +1461,10 @@ impl Parser {
 
         let mut left_expression_id: LocalNodeId<Expression> = {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY);
-            let token = *self.peek()?;
-            let token_type = token.token.ty;
-            let keyword = if self.options.in_decorator {
-                None
-            } else if token_type == TokenType::Identifier {
-                if self.has_active_split() {
-                    self.peek_any_keyword().ok()
-                } else {
-                    self.keyword_for_index(self.pos_index())
-                }
-            } else {
-                None
-            };
-            let next_token_type = self.peek_next_token_type();
-            let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
-            let is_module_declaration = token_type == TokenType::Identifier
-                && keyword.is_none()
-                && self.language.supports_module_declaration()
-                && self.peek_identifier_str("module").is_ok();
-            let _keyword_timing = if keyword.is_some() {
-                Some(self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD))
-            } else {
-                None
-            };
+            let token_type = self.peek_token_type();
 
+            #[cfg(debug_assertions)]
+            let token = *self.peek()?;
             #[cfg(debug_assertions)]
             let _token_str = self.get_span_str(token.span);
             #[cfg(debug_assertions)]
@@ -966,893 +1484,724 @@ impl Parser {
             // ------------------------------------------------------------
             //
 
-            // eat leading elementwise operator
-            if token_type == TokenType::ElementwiseOr
-                || token_type == TokenType::ElementwiseAnd && !self.language.is_destack()
-            {
-                self.bump(); // eat elementwise operator
-                let leading_binary_operator = match token_type {
-                    TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
-                    TokenType::ElementwiseAnd => BinaryOperator::ElementwiseAnd,
-                    _ => unreachable!(),
-                };
+            // identifier paths and keyword expressions
+            match token_type {
+                TokenType::Identifier => {
+                    let next_token_type = self.peek_next_token_type();
+                    let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
+                    let module_identifier_matches = !self.options.in_decorator
+                        && self.language.supports_module_declaration()
+                        && self.module_identifier.is_some_and(|id| {
+                            self.identifier_for_index(self.pos_index()) == Some(id)
+                        });
+                    let mut primary_expression_id = None;
 
-                // eat expression
-                let expression_id = self.eat_expression()?;
-
-                // allow leading elementwise operators in type expressions
-                let expression = self.tree.get(expression_id);
-                if !matches!(
-                    expression,
-                    Expression::Binary { operator, .. }
-                        if *operator == leading_binary_operator
-                ) && !self.options.in_type
-                {
-                    return Err(ParseError::unexpected(self.get_span_from(start)));
-                }
-
-                // expand span
-                self.tree.set_span(expression_id, self.get_span_from(start));
-
-                // forward the expression (no need to parse further here)
-                return Ok(expression_id);
-            }
-            // shorthand lambda function value
-            else if token_type == TokenType::Identifier
-                && !self.options.in_type
-                && !self.options.in_match_case
-                && (next_token_type == TokenType::Arrow || next_token_type == TokenType::ArrowWide)
-            {
-                let lambda_id = self.eat_function(start, descriptor, false, false)?;
-                self.tree.insert(
-                    Expression::Declaration(lambda_id),
-                    self.get_span_from(start),
-                )
-            }
-            // parenthesis
-            // may be tuple, lambda, or parenthesized expression
-            else if token_type == TokenType::OpenParenthesis {
-                let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
-                // find the matching close and the following token
-                let open_pos = self.pos();
-                let closing_pos = self.find_matching_close(
-                    None,
-                    TokenType::OpenParenthesis,
-                    TokenType::CloseParenthesis,
-                )?;
-                let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
-
-                // detect top level commas for Destack tuples
-                let has_top_level_comma = self.language.is_destack()
-                    && self.has_token_before_matching_close(
-                        open_pos,
-                        closing_pos,
-                        TokenType::Comma,
-                        self.options.in_type,
-                    )?;
-
-                // detect lambda when followed by arrow or colon
-                let next_token_type = self
-                    .tokens
-                    .get(closing_pos_for_follow as usize + 1)
-                    .map(|token| token.token.ty);
-                let has_arrow = matches!(
-                    next_token_type,
-                    Some(TokenType::Arrow | TokenType::ArrowWide)
-                );
-                let has_colon = matches!(next_token_type, Some(TokenType::Colon));
-                let is_colon_lambda_allowed = has_colon
-                    && !self.options.in_before_type
-                    && !self.options.in_match_case
-                    && (!self.options.in_type
-                        || !self.options.in_ternary_condition
-                        || !has_top_level_comma);
-                let mut lambda_expression_id = None;
-
-                // parse lambda when we see a likely arrow or colon
-                if (has_arrow || is_colon_lambda_allowed) && !self.options.in_arrow_return_type {
-                    // avoid colon lambdas that are actually ternary type tuples
-                    if self.options.in_ternary_condition && has_colon {
-                        let speculative_start = self.mark();
-                        let speculative_start_idx = self.tree.next_id();
-                        if let Ok(lambda_id) = self.eat_function(start, descriptor, false, false) {
-                            let should_accept = match self.tree.get(lambda_id) {
-                                Declaration::Function { body, .. } => {
-                                    body.is_some() || self.options.in_type
-                                }
-                                _ => true,
-                            };
-                            if should_accept {
-                                lambda_expression_id = Some(self.tree.insert(
-                                    Expression::Declaration(lambda_id),
-                                    self.get_span_from(start),
-                                ));
-                            } else {
-                                self.restore(speculative_start, speculative_start_idx);
-                            }
-                        } else {
-                            self.restore(speculative_start, speculative_start_idx);
-                        }
-                    } else {
-                        let lambda_id = self.eat_function(start, descriptor, false, false)?;
-                        lambda_expression_id = Some(self.tree.insert(
+                    // shorthand lambda function value
+                    if !self.options.in_type
+                        && !self.options.in_match_case
+                        && (next_token_type == TokenType::Arrow
+                            || next_token_type == TokenType::ArrowWide)
+                    {
+                        let lambda_id =
+                            self.eat_function(start, descriptor.clone(), false, false)?;
+                        primary_expression_id = Some(self.tree.insert(
                             Expression::Declaration(lambda_id),
                             self.get_span_from(start),
                         ));
                     }
-                }
 
-                // tuple or parenthesized expression
-                if let Some(lambda_expression_id) = lambda_expression_id {
-                    lambda_expression_id
-                } else {
-                    self.bump(); // eat open parenthesis
-                    self.eat_newlines_maybe()?;
+                    let has_active_split = self.has_active_split();
+                    let keyword = if self.options.in_decorator {
+                        None
+                    } else if has_active_split {
+                        self.peek_any_keyword().ok()
+                    } else {
+                        self.keyword_for_index(self.pos_index())
+                    };
+                    let is_unary_keyword = matches!(keyword, Some(Keyword::Typeof | Keyword::Void));
+                    let is_type_unary_keyword =
+                        matches!(keyword, Some(Keyword::Typeof | Keyword::Keyof));
 
-                    // empty tuple or sequence when we immediately see a closing parenthesis
-                    if self.peek_is(TokenType::CloseParenthesis) {
-                        self.bump(); // eat closing parenthesis
-
-                        // in Destack: empty tuple
-                        if self.language.is_destack() {
-                            self.tree.insert(
-                                Expression::TupleExpression { elements: vec![] },
+                    // fast path for non-keyword identifiers
+                    if primary_expression_id.is_none()
+                        && keyword.is_none()
+                        && !has_active_split
+                        && !self.options.in_decorator
+                    {
+                        if module_identifier_matches && is_declaration_start {
+                            let namespace_id = self.eat_namespace(start, descriptor.clone())?;
+                            primary_expression_id = Some(self.tree.insert(
+                                Expression::Declaration(namespace_id),
                                 self.get_span_from(start),
-                            )
-                        }
-                        // in JS or TS: empty sequence expression
-                        else {
-                            self.tree.insert(
-                                Expression::SequenceExpression {
-                                    expressions: vec![],
-                                },
-                                self.get_span_from(start),
-                            )
+                            ));
+                        } else {
+                            let should_try_type_literal =
+                                if self.options.in_type || self.options.in_static {
+                                    true
+                                } else {
+                                    self.identifier_for_index(self.pos_index())
+                                        .is_some_and(|id| {
+                                            let ids = &self.type_literal_identifiers;
+                                            id == ids.undefined
+                                                || id == ids.unknown
+                                                || id == ids.object
+                                                || id == ids.null_
+                                                || id == ids.any
+                                                || id == ids.never
+                                        })
+                                };
+                            if should_try_type_literal
+                                && let Ok(type_literal) = self.peek_type_literal()
+                            {
+                                let _literal_timing =
+                                    self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                                let type_literal = self.eat_type_literal(Some(type_literal))?;
+                                primary_expression_id = Some(self.tree.insert(
+                                    Expression::TypeLiteral(type_literal),
+                                    self.get_span_from(start),
+                                ));
+                            } else {
+                                primary_expression_id =
+                                    Some(self.eat_identifier_expression_path(start)?);
+                            }
                         }
                     }
-                    // tuple when we see a named element or top level comma
-                    else if (self.language.is_destack()
-                        && self.peek_is(TokenType::Identifier)
-                        && self.peek_next_is(TokenType::Colon))
-                        || has_top_level_comma
+
+                    // unary prefix operations
+                    if primary_expression_id.is_none() && is_unary_keyword && !self.options.in_type
                     {
-                        let tuple_elements = self
-                            .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
-                            .for_node_type(NodeType::Expression)?;
-                        self.eat_newlines_maybe()?;
-                        self.eat_token(TokenType::CloseParenthesis)?;
+                        let operator = match keyword {
+                            Some(Keyword::Typeof) => UnaryOperator::Typeof,
+                            Some(Keyword::Void) => UnaryOperator::Void,
+                            _ => unreachable!(),
+                        };
+                        let operator_start = self.mark();
+                        self.bump(); // eat unary operator (always because right associative)
+                        let operator_span = self.get_span_from(operator_start);
+                        let mut right_options = self
+                            .options
+                            .not_in_position()
+                            .in_left_precedence(operator.precedence());
+                        if self.options.in_type_conditional_right {
+                            right_options = right_options.in_type_conditional_right();
+                        }
+                        let right =
+                            self.with_options(right_options, |parser| parser.eat_expression())?;
+                        let expression = Expression::Unary { operator, right };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, operator_span);
+                        primary_expression_id = Some(expression_id);
+                    }
+
+                    // type unary operations
+                    if primary_expression_id.is_none() && is_type_unary_keyword {
+                        let operator = match keyword {
+                            Some(Keyword::Typeof) => TypeUnaryOperator::Typeof,
+                            Some(Keyword::Keyof) => TypeUnaryOperator::Keyof,
+                            _ => unreachable!(),
+                        };
+                        let operator_start = self.mark();
+                        self.bump(); // eat type unary operator (always because right associative)
+                        let operator_span = self.get_span_from(operator_start);
+                        let mut right_options = self
+                            .options
+                            .not_in_position()
+                            .in_type()
+                            .in_left_precedence(operator.precedence());
+                        if self.options.in_type_conditional_right {
+                            right_options = right_options.in_type_conditional_right();
+                        }
+                        let right =
+                            self.with_options(right_options, |parser| parser.eat_expression())?;
+                        let expression = Expression::TypeUnary { operator, right };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, operator_span);
+                        primary_expression_id = Some(expression_id);
+                    }
+
+                    // do block expression or do-while block
+                    if primary_expression_id.is_none() && keyword == Some(Keyword::Do) {
+                        if self.is_do_while_block(next_token_type) {
+                            primary_expression_id = Some(self.eat_while()?);
+                        } else if next_token_type == TokenType::OpenBrace {
+                            let block_id = self.eat_block()?;
+                            primary_expression_id = Some(
+                                self.tree
+                                    .insert(Expression::Block(block_id), self.get_span_from(start)),
+                            );
+                        }
+                    }
+
+                    // keyword or contextual module declaration
+                    if primary_expression_id.is_none()
+                        && keyword.is_none()
+                        && module_identifier_matches
+                        && is_declaration_start
+                    {
+                        let namespace_id = self.eat_namespace(start, descriptor.clone())?;
+                        primary_expression_id = Some(self.tree.insert(
+                            Expression::Declaration(namespace_id),
+                            self.get_span_from(start),
+                        ));
+                    }
+                    if primary_expression_id.is_none()
+                        && let Some(keyword) = keyword
+                    {
+                        let _keyword_timing =
+                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
+                        if let Some(keyword_expression_id) = self.eat_keyword_expression(
+                            start,
+                            descriptor.clone(),
+                            keyword,
+                            next_token_type,
+                            is_declaration_start,
+                        )? {
+                            primary_expression_id = Some(keyword_expression_id);
+                        }
+                    }
+
+                    // type literal
+                    if primary_expression_id.is_none() {
+                        let should_try_type_literal =
+                            if self.options.in_type || self.options.in_static {
+                                true
+                            } else {
+                                self.identifier_for_index(self.pos_index())
+                                    .is_some_and(|id| {
+                                        let ids = &self.type_literal_identifiers;
+                                        id == ids.undefined
+                                            || id == ids.unknown
+                                            || id == ids.object
+                                            || id == ids.null_
+                                            || id == ids.any
+                                            || id == ids.never
+                                    })
+                            };
+                        if should_try_type_literal
+                            && let Ok(type_literal) = self.peek_type_literal()
+                        {
+                            let _literal_timing =
+                                self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                            let type_literal = self.eat_type_literal(Some(type_literal))?;
+                            primary_expression_id = Some(self.tree.insert(
+                                Expression::TypeLiteral(type_literal),
+                                self.get_span_from(start),
+                            ));
+                        }
+                    }
+
+                    if let Some(primary_expression_id) = primary_expression_id {
+                        primary_expression_id
+                    } else {
+                        self.eat_identifier_expression_path(start)?
+                    }
+                }
+                _ => {
+                    // eat leading elementwise operator
+                    if token_type == TokenType::ElementwiseOr
+                        || token_type == TokenType::ElementwiseAnd && !self.language.is_destack()
+                    {
+                        self.bump(); // eat elementwise operator
+                        let leading_binary_operator = match token_type {
+                            TokenType::ElementwiseOr => BinaryOperator::ElementwiseOr,
+                            TokenType::ElementwiseAnd => BinaryOperator::ElementwiseAnd,
+                            _ => unreachable!(),
+                        };
+
+                        // eat expression
+                        let expression_id = self.eat_expression()?;
+
+                        // allow leading elementwise operators in type expressions
+                        let expression = self.tree.get(expression_id);
+                        if !matches!(
+                            expression,
+                            Expression::Binary { operator, .. }
+                                if *operator == leading_binary_operator
+                        ) && !self.options.in_type
+                        {
+                            return Err(ParseError::unexpected(self.get_span_from(start)));
+                        }
+
+                        // expand span
+                        self.tree.set_span(expression_id, self.get_span_from(start));
+
+                        // forward the expression (no need to parse further here)
+                        return Ok(expression_id);
+                    }
+                    // parenthesis
+                    // may be tuple, lambda, or parenthesized expression
+                    else if token_type == TokenType::OpenParenthesis {
+                        let _group_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_GROUP);
+                        // find the matching close and the following token
+                        let open_pos = self.pos();
+                        let closing_pos = self.find_matching_close(
+                            None,
+                            TokenType::OpenParenthesis,
+                            TokenType::CloseParenthesis,
+                        )?;
+                        let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
+
+                        // detect top level commas for Destack tuples
+                        let has_top_level_comma = self.language.is_destack()
+                            && self.has_token_before_matching_close(
+                                open_pos,
+                                closing_pos,
+                                TokenType::Comma,
+                                self.options.in_type,
+                            )?;
+
+                        // detect lambda when followed by arrow or colon
+                        let next_token_type = self
+                            .tokens
+                            .get(closing_pos_for_follow as usize + 1)
+                            .map(|token| token.token.ty);
+                        let has_arrow = matches!(
+                            next_token_type,
+                            Some(TokenType::Arrow | TokenType::ArrowWide)
+                        );
+                        let has_colon = matches!(next_token_type, Some(TokenType::Colon));
+                        let is_colon_lambda_allowed = has_colon
+                            && !self.options.in_before_type
+                            && !self.options.in_match_case
+                            && (!self.options.in_type
+                                || !self.options.in_ternary_condition
+                                || !has_top_level_comma);
+                        let mut lambda_expression_id = None;
+
+                        // parse lambda when we see a likely arrow or colon
+                        if (has_arrow || is_colon_lambda_allowed)
+                            && !self.options.in_arrow_return_type
+                        {
+                            // avoid colon lambdas that are actually ternary type tuples
+                            if self.options.in_ternary_condition && has_colon {
+                                let speculative_start = self.mark();
+                                let speculative_start_idx = self.tree.next_id();
+                                if let Ok(lambda_id) =
+                                    self.eat_function(start, descriptor, false, false)
+                                {
+                                    let should_accept = match self.tree.get(lambda_id) {
+                                        Declaration::Function { body, .. } => {
+                                            body.is_some() || self.options.in_type
+                                        }
+                                        _ => true,
+                                    };
+                                    if should_accept {
+                                        lambda_expression_id = Some(self.tree.insert(
+                                            Expression::Declaration(lambda_id),
+                                            self.get_span_from(start),
+                                        ));
+                                    } else {
+                                        self.restore(speculative_start, speculative_start_idx);
+                                    }
+                                } else {
+                                    self.restore(speculative_start, speculative_start_idx);
+                                }
+                            } else {
+                                let lambda_id =
+                                    self.eat_function(start, descriptor, false, false)?;
+                                lambda_expression_id = Some(self.tree.insert(
+                                    Expression::Declaration(lambda_id),
+                                    self.get_span_from(start),
+                                ));
+                            }
+                        }
+
+                        // tuple or parenthesized expression
+                        if let Some(lambda_expression_id) = lambda_expression_id {
+                            lambda_expression_id
+                        } else {
+                            self.bump(); // eat open parenthesis
+                            self.eat_newlines_maybe()?;
+
+                            // empty tuple or sequence when we immediately see a closing parenthesis
+                            if self.peek_is(TokenType::CloseParenthesis) {
+                                self.bump(); // eat closing parenthesis
+
+                                // in Destack: empty tuple
+                                if self.language.is_destack() {
+                                    self.tree.insert(
+                                        Expression::TupleExpression { elements: vec![] },
+                                        self.get_span_from(start),
+                                    )
+                                }
+                                // in JS or TS: empty sequence expression
+                                else {
+                                    self.tree.insert(
+                                        Expression::SequenceExpression {
+                                            expressions: vec![],
+                                        },
+                                        self.get_span_from(start),
+                                    )
+                                }
+                            }
+                            // tuple when we see a named element or top level comma
+                            else if (self.language.is_destack()
+                                && self.peek_is(TokenType::Identifier)
+                                && self.peek_next_is(TokenType::Colon))
+                                || has_top_level_comma
+                            {
+                                let tuple_elements = self
+                                    .eat_sequence_literal_body(None, TokenType::CloseParenthesis)
+                                    .for_node_type(NodeType::Expression)?;
+                                self.eat_newlines_maybe()?;
+                                self.eat_token(TokenType::CloseParenthesis)?;
+                                self.tree.insert(
+                                    Expression::TupleExpression {
+                                        elements: tuple_elements,
+                                    },
+                                    self.get_span_from(start),
+                                )
+                            }
+                            // tuple or parenthesized expression for the remaining cases
+                            else {
+                                let inner_start = self.pos();
+                                let mut inner_options = self.options.nested().in_parenthesis();
+                                inner_options.allow_sequence_expression = true;
+                                if self.options.in_type {
+                                    inner_options = inner_options.in_type();
+                                }
+                                let expression_id = self.with_options(inner_options, |parser| {
+                                    parser.eat_expression()
+                                })?;
+                                self.eat_newlines_maybe()?;
+                                self.eat_token(TokenType::CloseParenthesis)?;
+                                match self.tree.get(expression_id) {
+                                    // if it was a tuple starting here, expand it to cover the entire span
+                                    //  (except if that tuple has its own parenthesis already when nesting)
+                                    Expression::TupleExpression { .. }
+                                        if self.tokens[inner_start as usize].token.ty
+                                            != TokenType::OpenParenthesis =>
+                                    {
+                                        self.tree
+                                            .set_span(expression_id, self.get_span_from(start));
+                                        expression_id
+                                    }
+                                    // if it was a sequence expression starting here, expand it to cover the entire span
+                                    Expression::SequenceExpression { .. }
+                                        if self.tokens[inner_start as usize].token.ty
+                                            != TokenType::OpenParenthesis =>
+                                    {
+                                        self.tree
+                                            .set_span(expression_id, self.get_span_from(start));
+                                        expression_id
+                                    }
+                                    // otherwise it was a manually parenthesized expression, wrap it
+                                    _ => self.tree.insert(
+                                        Expression::Parenthesized {
+                                            expression: expression_id,
+                                        },
+                                        self.get_span_from(start),
+                                    ),
+                                }
+                            }
+                        }
+                    }
+                    //
+                    // ------------------------------------------------------------
+                    // Unary operations (prefix, right associative)
+                    // ------------------------------------------------------------
+                    //
+
+                    // pointer types
+                    else if self.options.in_type && self.peek_is(TokenType::Multiply) {
+                        self.bump(); // eat *
+                        let mutability = self.eat_mutability_maybe()?;
+                        let right = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        let expression = Expression::PointerOf { mutability, right };
+                        self.tree.insert(expression, self.get_span_from(start))
+                    }
+                    // unary prefix operations
+                    else if let Ok(operator) = self.peek_unary_prefix_operator() {
+                        let operator_start = self.mark();
+                        self.bump(); // eat unary operator (always because right associative)
+                        let operator_span = self.get_span_from(operator_start);
+                        let mut right_options = self
+                            .options
+                            .not_in_position()
+                            .in_left_precedence(operator.precedence());
+                        if self.options.in_type_conditional_right {
+                            right_options = right_options.in_type_conditional_right();
+                        }
+                        let right =
+                            self.with_options(right_options, |parser| parser.eat_expression())?;
+                        let expression = Expression::Unary { operator, right };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, operator_span);
+                        expression_id
+                    }
+                    // type unary operations
+                    else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
+                        let operator_start = self.mark();
+                        self.bump(); // eat type unary operator (always because right associative)
+                        let operator_span = self.get_span_from(operator_start);
+                        let mut right_options = self
+                            .options
+                            .not_in_position()
+                            .in_type()
+                            .in_left_precedence(operator.precedence());
+                        if self.options.in_type_conditional_right {
+                            right_options = right_options.in_type_conditional_right();
+                        }
+                        let right =
+                            self.with_options(right_options, |parser| parser.eat_expression())?;
+                        let expression = Expression::TypeUnary { operator, right };
+                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
+                        self.tree.set_main_span(expression_id, operator_span);
+                        expression_id
+                    }
+                    // value (`^` or `^var` or `^T`)
+                    else if self.peek_is(TokenType::ElementwiseXor) && self.language.is_destack()
+                    {
+                        self.bump(); // eat ^
+                        let mutability = self.eat_mutability_maybe()?;
+                        let variance = self.eat_variance_bound_maybe()?;
+                        let right = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        let expression = Expression::ValueOf {
+                            mutability,
+                            variance,
+                            right,
+                        };
+                        self.tree.insert(expression, self.get_span_from(start))
+                    }
+                    // reference (`&` or `&var` or `&T`)
+                    else if self.peek_is(TokenType::ElementwiseAnd) && self.language.is_destack()
+                    {
+                        self.bump(); // eat &
+                        let mutability = self.eat_mutability_maybe()?;
+                        let variance = self.eat_variance_bound_maybe()?;
+                        let right = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_expression()
+                            })?;
+                        let expression = Expression::ReferenceOf {
+                            mutability,
+                            variance,
+                            right,
+                        };
+                        self.tree.insert(expression, self.get_span_from(start))
+                    }
+                    //
+                    // ------------------------------------------------------------
+                    // Literals / Aliases / Values
+                    // ------------------------------------------------------------
+                    //
+                    // array literal
+                    else if token_type == TokenType::OpenBracket {
+                        let elements = self
+                            .with_options(self.options.not_in_position(), |parser| {
+                                parser.eat_array_literal()
+                            })?;
                         self.tree.insert(
-                            Expression::TupleExpression {
-                                elements: tuple_elements,
-                            },
+                            Expression::ArrayExpression { elements },
                             self.get_span_from(start),
                         )
                     }
-                    // tuple or parenthesized expression for the remaining cases
-                    else {
-                        let inner_start = self.pos();
-                        let mut inner_options = self.options.nested().in_parenthesis();
-                        inner_options.allow_sequence_expression = true;
+                    // object literal
+                    else if token_type == TokenType::OpenBrace
+                        && (!self.options.in_statement_position
+                            || self.can_parse_object_literal_in_statement_position())
+                    {
+                        // prefer mapped types in type positions
                         if self.options.in_type {
-                            inner_options = inner_options.in_type();
+                            let speculative_start = self.mark();
+                            let speculative_start_idx = self.tree.next_id();
+                            if let Ok(mapped_id) = self.eat_type_mapped_expression() {
+                                mapped_id
+                            } else {
+                                self.restore(speculative_start, speculative_start_idx);
+                                let properties = self.with_options(
+                                    self.options.not_in_position().in_type(),
+                                    |parser| parser.eat_object_literal(),
+                                )?;
+                                self.tree.insert(
+                                    Expression::ObjectExpression {
+                                        ty: None,
+                                        properties,
+                                    },
+                                    self.get_span_from(start),
+                                )
+                            }
                         }
-                        let expression_id =
-                            self.with_options(inner_options, |parser| parser.eat_expression())?;
-                        self.eat_newlines_maybe()?;
-                        self.eat_token(TokenType::CloseParenthesis)?;
-                        match self.tree.get(expression_id) {
-                            // if it was a tuple starting here, expand it to cover the entire span
-                            //  (except if that tuple has its own parenthesis already when nesting)
-                            Expression::TupleExpression { .. }
-                                if self.tokens[inner_start as usize].token.ty
-                                    != TokenType::OpenParenthesis =>
-                            {
-                                self.tree.set_span(expression_id, self.get_span_from(start));
-                                expression_id
-                            }
-                            // if it was a sequence expression starting here, expand it to cover the entire span
-                            Expression::SequenceExpression { .. }
-                                if self.tokens[inner_start as usize].token.ty
-                                    != TokenType::OpenParenthesis =>
-                            {
-                                self.tree.set_span(expression_id, self.get_span_from(start));
-                                expression_id
-                            }
-                            // otherwise it was a manually parenthesized expression, wrap it
-                            _ => self.tree.insert(
-                                Expression::Parenthesized {
-                                    expression: expression_id,
+                        // fall back to object literal
+                        else {
+                            let properties = self
+                                .with_options(self.options.not_in_position(), |parser| {
+                                    parser.eat_object_literal()
+                                })?;
+                            self.tree.insert(
+                                Expression::ObjectExpression {
+                                    ty: None,
+                                    properties,
                                 },
                                 self.get_span_from(start),
-                            ),
+                            )
                         }
                     }
-                }
-            }
-            //
-            // ------------------------------------------------------------
-            // Unary operations (prefix, right associative)
-            // ------------------------------------------------------------
-            //
-
-            // pointer types
-            else if self.options.in_type && self.peek_is(TokenType::Multiply) {
-                self.bump(); // eat *
-                let mutability = self.eat_mutability_maybe()?;
-                let right = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
-                let expression = Expression::PointerOf { mutability, right };
-                self.tree.insert(expression, self.get_span_from(start))
-            }
-            // unary prefix operations
-            else if let Ok(operator) = self.peek_unary_prefix_operator() {
-                let operator_start = self.mark();
-                self.bump(); // eat unary operator (always because right associative)
-                let operator_span = self.get_span_from(operator_start);
-                let mut right_options = self
-                    .options
-                    .not_in_position()
-                    .in_left_precedence(operator.precedence());
-                if self.options.in_type_conditional_right {
-                    right_options = right_options.in_type_conditional_right();
-                }
-                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
-                let expression = Expression::Unary { operator, right };
-                let expression_id = self.tree.insert(expression, self.get_span_from(start));
-                self.tree.set_main_span(expression_id, operator_span);
-                expression_id
-            }
-            // type unary operations
-            else if let Ok(operator) = self.peek_type_unary_prefix_operator() {
-                let operator_start = self.mark();
-                self.bump(); // eat type unary operator (always because right associative)
-                let operator_span = self.get_span_from(operator_start);
-                let mut right_options = self
-                    .options
-                    .not_in_position()
-                    .in_type()
-                    .in_left_precedence(operator.precedence());
-                if self.options.in_type_conditional_right {
-                    right_options = right_options.in_type_conditional_right();
-                }
-                let right = self.with_options(right_options, |parser| parser.eat_expression())?;
-                let expression = Expression::TypeUnary { operator, right };
-                let expression_id = self.tree.insert(expression, self.get_span_from(start));
-                self.tree.set_main_span(expression_id, operator_span);
-                expression_id
-            }
-            // value (`^` or `^var` or `^T`)
-            else if self.peek_is(TokenType::ElementwiseXor) && self.language.is_destack() {
-                self.bump(); // eat ^
-                let mutability = self.eat_mutability_maybe()?;
-                let variance = self.eat_variance_bound_maybe()?;
-                let right = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
-                let expression = Expression::ValueOf {
-                    mutability,
-                    variance,
-                    right,
-                };
-                self.tree.insert(expression, self.get_span_from(start))
-            }
-            // reference (`&` or `&var` or `&T`)
-            else if self.peek_is(TokenType::ElementwiseAnd) && self.language.is_destack() {
-                self.bump(); // eat &
-                let mutability = self.eat_mutability_maybe()?;
-                let variance = self.eat_variance_bound_maybe()?;
-                let right = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_expression()
-                })?;
-                let expression = Expression::ReferenceOf {
-                    mutability,
-                    variance,
-                    right,
-                };
-                self.tree.insert(expression, self.get_span_from(start))
-            }
-            //
-            // ------------------------------------------------------------
-            // Declarations
-            // ------------------------------------------------------------
-            //
-
-            // namespace or module declaration
-            else if (keyword == Some(Keyword::Namespace) || is_module_declaration)
-                && is_declaration_start
-            {
-                let namespace_id = self.eat_namespace(start, descriptor)?;
-                self.tree.insert(
-                    Expression::Declaration(namespace_id),
-                    self.get_span_from(start),
-                )
-            }
-            // struct / class
-            else if (keyword == Some(Keyword::Struct) || keyword == Some(Keyword::Class))
-                && is_declaration_start
-            {
-                let struct_id = self.eat_struct_or_class(start, descriptor)?;
-                self.tree.insert(
-                    Expression::Declaration(struct_id),
-                    self.get_span_from(start),
-                )
-            }
-            // enum
-            else if keyword == Some(Keyword::Enum) && is_declaration_start {
-                let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
-                self.tree
-                    .insert(Expression::Declaration(enum_id), self.get_span_from(start))
-            }
-            // const enum
-            else if keyword == Some(Keyword::Const)
-                && self.peek_next_keyword(Keyword::Enum).is_ok()
-            {
-                self.eat_keyword(Keyword::Const)?;
-                let enum_id = self.eat_enum(start, EnumKind::Const, descriptor)?;
-                self.tree
-                    .insert(Expression::Declaration(enum_id), self.get_span_from(start))
-            }
-            // newtype interface (nominal interface)
-            else if keyword == Some(Keyword::Newtype)
-                && self.peek_next_keyword(Keyword::Interface).is_ok()
-            {
-                self.eat_keyword(Keyword::Newtype)?;
-                let interface_id = self.eat_interface(start, descriptor, TypeKind::Nominal)?;
-                self.tree.insert(
-                    Expression::Declaration(interface_id),
-                    self.get_span_from(start),
-                )
-            }
-            // interface (structural interface)
-            else if keyword == Some(Keyword::Interface) && is_declaration_start {
-                let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
-                self.tree.insert(
-                    Expression::Declaration(interface_id),
-                    self.get_span_from(start),
-                )
-            }
-            // extension
-            else if keyword == Some(Keyword::Extension)
-                && DECLARATION_START_TOKENS.contains(&next_token_type)
-            {
-                let extension_id = self.eat_extension(start, descriptor)?;
-                self.tree.insert(
-                    Expression::Declaration(extension_id),
-                    self.get_span_from(start),
-                )
-            }
-            // async function or async identifier with static arguments
-            else if keyword == Some(Keyword::Async)
-                && [
-                    TokenType::Identifier,
-                    TokenType::OpenParenthesis,
-                    TokenType::LessThan,
-                    TokenType::At,
-                    TokenType::Multiply, // function* generator
-                ]
-                .contains(&next_token_type)
-            {
-                // prefer parsing an async function when possible
-                let speculative_start = self.mark();
-                let speculative_start_idx = self.tree.next_id();
-                if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
-                    // reject bodyless async lambdas in value position
-                    let should_accept = match self.tree.get(function_id) {
-                        Declaration::Function {
-                            signature, body, ..
-                        } => {
-                            !(signature.kind == FunctionKind::Lambda
-                                && body.is_none()
-                                && !self.options.in_type)
+                    // block
+                    else if self.peek_block().is_ok() {
+                        let block_id = self.eat_block()?;
+                        self.tree
+                            .insert(Expression::Block(block_id), self.get_span_from(start))
+                    }
+                    // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
+                    // (also handles multiline in type context: `<\nT\n>(...) => ...`)
+                    else if token_type == TokenType::LessThan
+                        && (!self.language.supports_jsx()
+                            || self.options.in_type
+                            || self.options.in_static
+                            || self.peek_tree_generic_arrow()
+                            || !self.is_tree_literal_start())
+                        && {
+                            let cond1 = self.peek_next_is(TokenType::Identifier);
+                            let cond2 = self.options.in_type
+                                && self.peek_next_is(TokenType::Newline)
+                                && self
+                                    .peek_token_after_newlines(self.pos(), TokenType::Identifier)
+                                    .is_ok();
+                            cond1 || cond2
                         }
-                        _ => true,
-                    };
-                    if should_accept {
+                        && (self.peek_next_next_token(TokenType::Comma).is_ok()
+                            || self
+                                .find_matching_close(
+                                    None,
+                                    TokenType::LessThan,
+                                    TokenType::GreaterThan,
+                                )
+                                .ok()
+                                .and_then(|gt_pos| {
+                                    // must be `<T>(...` pattern, skip newlines in type context
+                                    let after_gt_pos = if self.options.in_type {
+                                        self.skip_newlines(gt_pos).ok()?
+                                    } else {
+                                        gt_pos
+                                    };
+                                    let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
+                                    if after_gt.token.ty != TokenType::OpenParenthesis {
+                                        return None;
+                                    }
+                                    // find `)` and check for `:` or `=>` after (skip newlines in type context)
+                                    let parenthesis_close = self
+                                        .find_matching_close(
+                                            Some(after_gt_pos + 1),
+                                            TokenType::OpenParenthesis,
+                                            TokenType::CloseParenthesis,
+                                        )
+                                        .ok()?;
+                                    let after_close_pos = if self.options.in_type {
+                                        self.skip_newlines(parenthesis_close).ok()?
+                                    } else {
+                                        parenthesis_close
+                                    };
+                                    let after_parenthesis_close =
+                                        self.tokens.get(after_close_pos as usize + 1)?;
+                                    (after_parenthesis_close.token.ty == TokenType::Colon
+                                        || after_parenthesis_close.token.ty == TokenType::Arrow
+                                        || after_parenthesis_close.token.ty == TokenType::ArrowWide)
+                                        .then_some(true)
+                                })
+                                .is_some())
+                    {
+                        let function_id = self.eat_function(start, descriptor, false, false)?;
                         self.tree.insert(
                             Expression::Declaration(function_id),
                             self.get_span_from(start),
                         )
-                    } else {
-                        self.restore(speculative_start, speculative_start_idx);
-
-                        // parse async as an identifier path
-                        let (path, last_span) = self
-                            .eat_path_with_last_span()
-                            .for_node_type(NodeType::Expression)?;
-
-                        // eat optional static arguments with backtracking on failure
-                        let static_arguments = self.eat_static_arguments_in_expression(false);
-
-                        // parse a direct call when static arguments are present
-                        if static_arguments.is_some()
-                            && self.peek_is(TokenType::OpenParenthesis)
-                            && !self.options.in_new_receiver
-                        {
-                            let receiver = Expression::Path {
-                                path,
-                                static_arguments: None,
-                            };
-                            let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
-                            self.tree.set_main_span(receiver_id, last_span);
-                            self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
+                    }
+                    // typescript type assertion: <T>expr
+                    else if token_type == TokenType::LessThan
+                        && self.language.is_typescript()
+                        && !self.language.supports_jsx()
+                        && !self.options.in_type
+                    {
+                        self.eat_type_assertion(start)?
+                    }
+                    // tree literal
+                    else if self.language.supports_jsx()
+                        && token_type == TokenType::LessThan
+                        && !self.options.in_type
+                        && self.peek_tree_literal().is_ok()
+                    {
+                        self.with_options(self.options.not_in_position(), |parser| {
+                            parser.eat_tree_literal()
+                        })?
+                    }
+                    // template literal
+                    else if self.is_template_literal_start() {
+                        let _literal_timing =
+                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                        if self.options.in_type {
+                            self.eat_type_template_literal_expression()?
                         } else {
-                            let expression = Expression::Path {
-                                path,
-                                static_arguments,
-                            };
-                            let expression_id =
-                                self.tree.insert(expression, self.get_span_from(start));
-                            self.tree.set_main_span(expression_id, last_span);
-                            expression_id
+                            let template_literal = self.eat_template_literal()?;
+                            self.tree.insert(
+                                Expression::TemplateExpression {
+                                    value: template_literal,
+                                },
+                                self.get_span_from(start),
+                            )
                         }
                     }
-                } else {
-                    self.restore(speculative_start, speculative_start_idx);
-
-                    // parse async as an identifier path
-                    let (path, last_span) = self
-                        .eat_path_with_last_span()
-                        .for_node_type(NodeType::Expression)?;
-
-                    // eat optional static arguments with backtracking on failure
-                    let static_arguments = self.eat_static_arguments_in_expression(false);
-
-                    // parse a direct call when static arguments are present
-                    if static_arguments.is_some()
-                        && self.peek_is(TokenType::OpenParenthesis)
-                        && !self.options.in_new_receiver
-                    {
-                        let receiver = Expression::Path {
-                            path,
-                            static_arguments: None,
-                        };
-                        let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
-                        self.tree.set_main_span(receiver_id, last_span);
-                        self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
-                    } else {
-                        let expression = Expression::Path {
-                            path,
-                            static_arguments,
-                        };
-                        let expression_id = self.tree.insert(expression, self.get_span_from(start));
-                        self.tree.set_main_span(expression_id, last_span);
-                        expression_id
-                    }
-                }
-            }
-            // function
-            else if (keyword == Some(Keyword::Function)
-                || keyword == Some(Keyword::Abstract)
-                || keyword == Some(Keyword::Override)
-                || (self.options.in_type
-                    && keyword == Some(Keyword::New)
-                    && (next_token_type == TokenType::LessThan
-                        || next_token_type == TokenType::OpenParenthesis))
-                || (self.options.in_variant
-                    && (keyword == Some(Keyword::Get)
-                        || keyword == Some(Keyword::Set)
-                        || keyword == Some(Keyword::Constructor))))
-                && [
-                    TokenType::Identifier,
-                    TokenType::OpenParenthesis,
-                    TokenType::LessThan,
-                    TokenType::At,
-                    TokenType::Multiply, // function* generator
-                ]
-                .contains(&next_token_type)
-            {
-                let function_id = self.eat_function(start, descriptor, false, false)?;
-                self.tree.insert(
-                    Expression::Declaration(function_id),
-                    self.get_span_from(start),
-                )
-            }
-            //
-            // ------------------------------------------------------------
-            // Control flow(ish)
-            // ------------------------------------------------------------
-            //
-            // this
-            else if keyword == Some(Keyword::This) {
-                self.bump(); // eat this
-                self.tree
-                    .insert(Expression::This, self.get_span_from(start))
-            }
-            // new
-            else if keyword == Some(Keyword::New)
-                && !self.options.in_type
-                && [
-                    TokenType::Identifier,
-                    TokenType::OpenParenthesis,
-                    TokenType::OpenBrace,
-                    TokenType::LessThan,
-                ]
-                .contains(&next_token_type)
-            {
-                self.eat_new()?
-            }
-            // delete
-            else if keyword == Some(Keyword::Delete) && next_token_type == TokenType::Identifier {
-                self.eat_delete()?
-            }
-            // type import expression
-            else if self.options.in_type
-                && keyword == Some(Keyword::Import)
-                && next_token_type == TokenType::OpenParenthesis
-            {
-                self.eat_type_import_expression()?
-            }
-            // import call
-            else if keyword == Some(Keyword::Import)
-                && next_token_type == TokenType::OpenParenthesis
-            {
-                self.eat_import_call_expression(start)?
-            }
-            // import
-            else if keyword == Some(Keyword::Import)
-                && [
-                    TokenType::Multiply,
-                    TokenType::Identifier,
-                    TokenType::OpenBrace,
-                    TokenType::Literal,
-                ]
-                .contains(&next_token_type)
-            {
-                // export import equals binding
-                if descriptor.export.is_some() && self.peek_import_equals_after_import() {
-                    self.eat_export_import_equals(start, descriptor)?
-                } else {
-                    self.eat_import()?
-                }
-            }
-            // type infer
-            else if self.options.in_type && keyword == Some(Keyword::Infer) {
-                self.eat_type_infer_expression()?
-            }
-            // type predicate
-            else if self.options.in_type && keyword == Some(Keyword::Asserts) {
-                self.eat_type_predicate_asserts()?
-            }
-            // let
-            else if keyword == Some(Keyword::Let)
-                || keyword == Some(Keyword::Var)
-                || keyword == Some(Keyword::Const)
-            {
-                self.eat_let(start, descriptor)?
-            }
-            // using
-            else if keyword == Some(Keyword::Using) {
-                self.eat_using(start, descriptor, Asynchrony::Sync)?
-            }
-            // type
-            else if (keyword == Some(Keyword::Type)
-                || keyword == Some(Keyword::Readonly)
-                || keyword == Some(Keyword::Newtype))
-                && ([
-                    TokenType::Identifier,
-                    TokenType::OpenBrace,
-                    TokenType::OpenParenthesis,
-                    TokenType::OpenBracket,
-                    TokenType::Literal,
-                ]
-                .contains(&next_token_type))
-            {
-                self.eat_type(start, descriptor)?
-            }
-            // if
-            else if keyword == Some(Keyword::If) {
-                self.eat_if()?
-            }
-            // while
-            else if keyword == Some(Keyword::While)
-                || keyword == Some(Keyword::Do)
-                    // do must be followed by a while after open/close brace
-                    && self
-                        .find_open_and_matching_close(TokenType::OpenBrace, TokenType::CloseBrace)
-                        .ok()
-                        .map(|pos| {
-                            self.tokens
-                                .get(pos as usize + 1)
-                                .map(|token| Keyword::from_str(self.get_token_str(*token)) == Ok(Keyword::While))
-                                .unwrap_or(false)
-                        })
-                        .unwrap_or(false)
-            {
-                self.eat_while()?
-            }
-            // for
-            else if keyword == Some(Keyword::For) {
-                self.eat_for()?
-            }
-            // loop (Destack-only, for #Compatibility with TS)
-            else if keyword == Some(Keyword::Loop)
-                && self.language.is_destack()
-                && self.peek_next_block().is_ok()
-            {
-                self.eat_loop()?
-            }
-            // try
-            else if keyword == Some(Keyword::Try) {
-                self.eat_try()?
-            }
-            // match / switch
-            else if keyword == Some(Keyword::Switch)
-                || (keyword == Some(Keyword::Match) && self.language.is_destack())
-            {
-                self.eat_match()?
-            }
-            // break
-            else if keyword == Some(Keyword::Break) {
-                self.eat_break()?
-            }
-            // continue
-            else if keyword == Some(Keyword::Continue) {
-                self.eat_continue()?
-            }
-            // await using
-            else if keyword == Some(Keyword::Await)
-                && self.peek_next_keyword(Keyword::Using).is_ok()
-            {
-                self.eat_using(start, descriptor, Asynchrony::Async)?
-            }
-            // await
-            else if keyword == Some(Keyword::Await) {
-                self.eat_await()?
-            }
-            // comptime
-            else if keyword == Some(Keyword::Comptime) && self.language.is_destack() {
-                self.eat_comptime()?
-            }
-            // yield (only valid inside generator functions)
-            else if keyword == Some(Keyword::Yield) && self.options.in_generator {
-                self.eat_yield()?
-            }
-            // throw
-            else if keyword == Some(Keyword::Throw) {
-                self.eat_throw()?
-            }
-            // return
-            else if keyword == Some(Keyword::Return) {
-                self.eat_return()?
-            }
-            // debugger
-            else if keyword == Some(Keyword::Debugger) {
-                self.bump(); // eat `debugger`
-                self.tree
-                    .insert(Expression::Debugger, self.get_span_from(start))
-            }
-            //
-            // ------------------------------------------------------------
-            // Literals / Aliases / Values
-            // ------------------------------------------------------------
-            //
-            // array literal
-            else if token_type == TokenType::OpenBracket {
-                let elements = self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_array_literal()
-                })?;
-                self.tree.insert(
-                    Expression::ArrayExpression { elements },
-                    self.get_span_from(start),
-                )
-            }
-            // object literal
-            else if token_type == TokenType::OpenBrace
-                && (!self.options.in_statement_position
-                    || self.can_parse_object_literal_in_statement_position())
-            {
-                // prefer mapped types in type positions
-                if self.options.in_type {
-                    let speculative_start = self.mark();
-                    let speculative_start_idx = self.tree.next_id();
-                    if let Ok(mapped_id) = self.eat_type_mapped_expression() {
-                        mapped_id
-                    } else {
-                        self.restore(speculative_start, speculative_start_idx);
-                        let properties = self
-                            .with_options(self.options.not_in_position().in_type(), |parser| {
-                                parser.eat_object_literal()
-                            })?;
+                    // scalar literal
+                    else if self.is_scalar_literal_start() {
+                        let _literal_timing =
+                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                        let scalar_literal = self.eat_scalar_literal()?;
                         self.tree.insert(
-                            Expression::ObjectExpression {
-                                ty: None,
-                                properties,
-                            },
+                            Expression::ScalarLiteral(scalar_literal),
                             self.get_span_from(start),
                         )
                     }
+                    // type literal
+                    // (type literals are contextual, most are only parsed inside type context to avoid shadowing)
+                    else if token_type == TokenType::Not
+                        && let Ok(type_literal) = self.peek_type_literal()
+                    {
+                        let _literal_timing =
+                            self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
+                        let type_literal = self.eat_type_literal(Some(type_literal))?;
+                        self.tree.insert(
+                            Expression::TypeLiteral(type_literal),
+                            self.get_span_from(start),
+                        )
+                    }
+                    // private identifier
+                    else if token_type == TokenType::Hash
+                        && self.peek_next_is(TokenType::Identifier)
+                    {
+                        self.bump(); // eat #
+                        let (name, name_span) = self.eat_identifier_with_span()?;
+                        let expression_id = self.tree.insert(
+                            Expression::PrivateIdentifier { name },
+                            self.get_span_from(start),
+                        );
+                        self.tree.set_main_span(expression_id, name_span);
+                        expression_id
+                    }
+                    //
+                    // ------------------------------------------------------------
+                    // Error
+                    // ------------------------------------------------------------
+                    //
+                    else {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
                 }
-                // fall back to object literal
-                else {
-                    let properties = self
-                        .with_options(self.options.not_in_position(), |parser| {
-                            parser.eat_object_literal()
-                        })?;
-                    self.tree.insert(
-                        Expression::ObjectExpression {
-                            ty: None,
-                            properties,
-                        },
-                        self.get_span_from(start),
-                    )
-                }
-            }
-            // block
-            else if self.peek_block().is_ok() {
-                let block_id = self.eat_block()?;
-                self.tree
-                    .insert(Expression::Block(block_id), self.get_span_from(start))
-            }
-            // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
-            // (also handles multiline in type context: `<\nT\n>(...) => ...`)
-            else if token_type == TokenType::LessThan
-                && (!self.language.supports_jsx()
-                    || self.options.in_type
-                    || self.options.in_static
-                    || self.peek_tree_generic_arrow()
-                    || self.peek_tree_literal().is_err())
-                && {
-                    let cond1 = self.peek_next_is(TokenType::Identifier);
-                    let cond2 = self.options.in_type
-                        && self.peek_next_is(TokenType::Newline)
-                        && self
-                            .peek_token_after_newlines(self.pos(), TokenType::Identifier)
-                            .is_ok();
-                    cond1 || cond2
-                }
-                && (self.peek_next_next_token(TokenType::Comma).is_ok()
-                    || self
-                        .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
-                        .ok()
-                        .and_then(|gt_pos| {
-                            // must be `<T>(...` pattern, skip newlines in type context
-                            let after_gt_pos = if self.options.in_type {
-                                self.skip_newlines(gt_pos).ok()?
-                            } else {
-                                gt_pos
-                            };
-                            let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
-                            if after_gt.token.ty != TokenType::OpenParenthesis {
-                                return None;
-                            }
-                            // find `)` and check for `:` or `=>` after (skip newlines in type context)
-                            let parenthesis_close = self
-                                .find_matching_close(
-                                    Some(after_gt_pos + 1),
-                                    TokenType::OpenParenthesis,
-                                    TokenType::CloseParenthesis,
-                                )
-                                .ok()?;
-                            let after_close_pos = if self.options.in_type {
-                                self.skip_newlines(parenthesis_close).ok()?
-                            } else {
-                                parenthesis_close
-                            };
-                            let after_parenthesis_close =
-                                self.tokens.get(after_close_pos as usize + 1)?;
-                            (after_parenthesis_close.token.ty == TokenType::Colon
-                                || after_parenthesis_close.token.ty == TokenType::Arrow
-                                || after_parenthesis_close.token.ty == TokenType::ArrowWide)
-                                .then_some(true)
-                        })
-                        .is_some())
-            {
-                let function_id = self.eat_function(start, descriptor, false, false)?;
-                self.tree.insert(
-                    Expression::Declaration(function_id),
-                    self.get_span_from(start),
-                )
-            }
-            // typescript type assertion: <T>expr
-            else if token_type == TokenType::LessThan
-                && self.language.is_typescript()
-                && !self.language.supports_jsx()
-                && !self.options.in_type
-            {
-                self.eat_type_assertion(start)?
-            }
-            // tree literal
-            else if self.language.supports_jsx()
-                && token_type == TokenType::LessThan
-                && !self.options.in_type
-                && self.peek_tree_literal().is_ok()
-            {
-                self.with_options(self.options.not_in_position(), |parser| {
-                    parser.eat_tree_literal()
-                })?
-            }
-            // template literal
-            else if self.peek_template_literal().is_ok() {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
-                if self.options.in_type {
-                    self.eat_type_template_literal_expression()?
-                } else {
-                    let template_literal = self.eat_template_literal()?;
-                    self.tree.insert(
-                        Expression::TemplateExpression {
-                            value: template_literal,
-                        },
-                        self.get_span_from(start),
-                    )
-                }
-            }
-            // scalar literal
-            else if self.peek_scalar_literal().is_ok() {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
-                let scalar_literal = self.eat_scalar_literal()?;
-                self.tree.insert(
-                    Expression::ScalarLiteral(scalar_literal),
-                    self.get_span_from(start),
-                )
-            }
-            // type literal
-            // (type literals are contextual, most are only parsed inside type context to avoid shadowing)
-            else if let Ok(type_literal) = self.peek_type_literal() {
-                let _literal_timing = self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_LITERAL);
-                let type_literal = self.eat_type_literal(Some(type_literal))?;
-                self.tree.insert(
-                    Expression::TypeLiteral(type_literal),
-                    self.get_span_from(start),
-                )
-            }
-            // private identifier
-            else if token_type == TokenType::Hash && self.peek_next_is(TokenType::Identifier) {
-                self.bump(); // eat #
-                let (name, name_span) = self.eat_identifier_with_span()?;
-                let expression_id = self.tree.insert(
-                    Expression::PrivateIdentifier { name },
-                    self.get_span_from(start),
-                );
-                self.tree.set_main_span(expression_id, name_span);
-                expression_id
-            }
-            // alias / path / statically parameterized call
-            else if token_type == TokenType::Identifier {
-                let _identifier_timing =
-                    self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_IDENTIFIER);
-                let (path, last_span) = self
-                    .eat_path_with_last_span()
-                    .for_node_type(NodeType::Expression)?;
-
-                // speculatively unwrap postfix static parameterisation with `<` or `<<`
-                //  (might also be just a comparison operator)
-                //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
-                let static_arguments = self.eat_static_arguments_in_expression(true);
-
-                // immediately parse call if we have static arguments
-                // (so we can stuff the arguments into the call expression)
-                if static_arguments.is_some()
-                    && self.peek_is(TokenType::OpenParenthesis)
-                    && !self.options.in_new_receiver
-                {
-                    let _call_timing = self.timing_scope(tags::PARSE_EXPRESSION_POSTFIX_CALL);
-                    let receiver = Expression::Path {
-                        path,
-                        static_arguments: None,
-                    };
-                    let receiver_id = self.tree.insert(receiver, self.get_span_from(start));
-                    self.tree.set_main_span(receiver_id, last_span);
-                    self.eat_call(receiver_id, static_arguments, PostfixPosition::Direct)?
-                } else {
-                    let expression = Expression::Path {
-                        path,
-                        static_arguments,
-                    };
-                    let expression_id = self.tree.insert(expression, self.get_span_from(start));
-                    self.tree.set_main_span(expression_id, last_span);
-                    expression_id
-                }
-            }
-            //
-            // ------------------------------------------------------------
-            // Error
-            // ------------------------------------------------------------
-            //
-            else {
-                return Err(ParseError::unexpected(self.peek()?.span));
             }
         };
+
+        // statement expressions do not accept postfix or infix operators
+        if self.options.in_statement_position {
+            let expression = self.tree.get(left_expression_id);
+            if expression.is_top_level_statement() {
+                return Ok(left_expression_id);
+            }
+        }
 
         //
         // ------------------------------------------------------------
@@ -1877,7 +2226,7 @@ impl Parser {
                 );
             }
             // template literal postfix with `sql` (like `sql`SELECT * FROM users`)
-            else if self.peek_template_literal().is_ok() {
+            else if self.is_template_literal_start() {
                 let template_literal = self.eat_template_literal()?;
                 left_expression_id = self.tree.insert(
                     Expression::TaggedTemplateExpression {

@@ -119,6 +119,57 @@ impl IntervalTree {
         results
     }
 
+    /// Visit all intervals that contain the range [start, end_inclusive].
+    pub fn visit_containing(
+        &self,
+        start: u32,
+        end_inclusive: u32,
+        mut visit: impl FnMut(u32, u32, u32, u32),
+    ) {
+        if self.entries.is_empty() {
+            return;
+        }
+
+        // binary search to find the rightmost interval where interval.start <= start
+        let search_idx = self.entries.partition_point(|entry| entry.start <= start);
+        if search_idx == 0 {
+            return;
+        }
+
+        // start from the interval just before partition_point
+        let mut idx = search_idx - 1;
+
+        // find the smallest containing interval using parent pointers
+        loop {
+            let entry = &self.entries[idx];
+
+            if entry.end > end_inclusive {
+                // this interval contains the query, walk up parent chain
+                let mut collect_idx = idx;
+                loop {
+                    let current = &self.entries[collect_idx];
+                    visit(
+                        current.start,
+                        current.end,
+                        current.node_id,
+                        current.end - current.start,
+                    );
+                    if current.parent == u32::MAX {
+                        break;
+                    }
+                    collect_idx = current.parent as usize;
+                }
+                break;
+            }
+
+            // this interval doesn't contain the query, try its parent
+            if entry.parent == u32::MAX {
+                break;
+            }
+            idx = entry.parent as usize;
+        }
+    }
+
     /// Check if tree is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {

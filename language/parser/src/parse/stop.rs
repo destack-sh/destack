@@ -297,6 +297,27 @@ impl Parser {
             );
         }
 
+        // fast path for precomputed pairs
+        if !has_split_open {
+            let expected_close = match open_token {
+                TokenType::OpenParenthesis => Some(TokenType::CloseParenthesis),
+                TokenType::OpenBrace => Some(TokenType::CloseBrace),
+                TokenType::OpenBracket => Some(TokenType::CloseBracket),
+                _ => None,
+            };
+            if expected_close == Some(close_token)
+                && self
+                    .tokens
+                    .get(pos)
+                    .is_some_and(|token| token.token.ty == open_token)
+            {
+                let matching = self.matching_pairs.get(pos).copied().unwrap_or(u32::MAX);
+                if matching != u32::MAX {
+                    return Ok(matching);
+                }
+            }
+        }
+
         // seek until we find the matching close token
         while let Some(token) = self.tokens.get(pos) {
             // open: +1
@@ -418,13 +439,26 @@ impl Parser {
     /// Skip any newlines at and after a position.
     #[inline]
     pub fn skip_newlines(&mut self, pos: u32) -> ParseResult<u32> {
-        let mut pos = pos as usize;
-        while let Some(token) = self.tokens.get(pos + 1)
-            && token.token.ty == TokenType::Newline
-        {
-            pos += 1;
+        let pos = pos as usize;
+        let len = self.tokens.len();
+        if pos >= len {
+            return Ok(pos as u32);
         }
-        Ok(pos as u32)
+        let next = self
+            .next_non_newline
+            .get(pos)
+            .copied()
+            .unwrap_or(len as u32) as usize;
+        if next == pos + 1 {
+            return Ok(pos as u32);
+        }
+        if next >= len {
+            if pos + 1 >= len {
+                return Ok(pos as u32);
+            }
+            return Ok((len - 1) as u32);
+        }
+        Ok((next - 1) as u32)
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
@@ -433,11 +467,21 @@ impl Parser {
         pos: u32,
         target_token: TokenType,
     ) -> ParseResult<u32> {
-        let pos = self.skip_newlines(pos)?;
-        if let Some(token) = self.tokens.get(pos as usize + 1)
+        let pos = pos as usize;
+        let len = self.tokens.len();
+        let next = self
+            .next_non_newline
+            .get(pos)
+            .copied()
+            .unwrap_or(len as u32) as usize;
+        if let Some(token) = self.tokens.get(next)
             && token.token.ty == target_token
         {
-            Ok(pos)
+            if next == 0 {
+                Ok(0)
+            } else {
+                Ok((next - 1) as u32)
+            }
         } else {
             Err(ParseError::expected(self.peek()?.span, target_token))
         }

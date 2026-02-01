@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
 use destack_ast::{
-    BlockFormat, Decorator, Expression, Keyword, LocalNodeId, NodeTree, NodeType, Token, TokenSpan,
-    TokenType,
+    BlockFormat, Decorator, Expression, Keyword, LocalNodeId, NodeTree, NodeType, StringId, Token,
+    TokenSpan, TokenType,
 };
 use destack_base::LocalStringPool;
 use destack_source::{
@@ -16,6 +16,56 @@ use destack_source::{
 
 use crate::parse::timing::{ParserTimingScope, ParserTimings, tags};
 use crate::{ParseError, ParseResult};
+
+/// Cached string ids for type literal identifiers.
+pub(crate) struct TypeLiteralIdentifiers {
+    pub(crate) undefined: StringId,
+    pub(crate) unknown: StringId,
+    pub(crate) object: StringId,
+    pub(crate) null_: StringId,
+    pub(crate) any: StringId,
+    pub(crate) never: StringId,
+    pub(crate) boolean: StringId,
+    pub(crate) void: StringId,
+    pub(crate) character: StringId,
+    pub(crate) string: StringId,
+    pub(crate) bigint: StringId,
+    pub(crate) number: StringId,
+    pub(crate) int: StringId,
+    pub(crate) isize: StringId,
+    pub(crate) uint: StringId,
+    pub(crate) usize: StringId,
+    pub(crate) float: StringId,
+    pub(crate) symbol: StringId,
+    pub(crate) unique: StringId,
+}
+
+impl TypeLiteralIdentifiers {
+    /// Create cached ids for the current string pool.
+    fn new(strings: &mut LocalStringPool) -> Self {
+        Self {
+            undefined: strings.intern("undefined"),
+            unknown: strings.intern("unknown"),
+            object: strings.intern("object"),
+            null_: strings.intern("null"),
+            any: strings.intern("any"),
+            never: strings.intern("never"),
+            boolean: strings.intern("boolean"),
+            void: strings.intern("void"),
+            character: strings.intern("character"),
+            string: strings.intern("string"),
+            bigint: strings.intern("bigint"),
+            number: strings.intern("number"),
+            int: strings.intern("int"),
+            isize: strings.intern("isize"),
+            uint: strings.intern("uint"),
+            usize: strings.intern("usize"),
+            float: strings.intern("float"),
+            symbol: strings.intern("symbol"),
+            unique: strings.intern("unique"),
+        }
+    }
+}
 
 /// Configure Parser behavior.
 /// Useful for enabling/disabling features in some AST subtrees.
@@ -396,6 +446,8 @@ pub struct Parser {
     split_token_consumed: bool,
     /// Whether the parser is finished.
     is_finished: bool,
+    /// Whether the position index is built.
+    pub(crate) positions_built: bool,
     /// The parser options.
     pub(crate) options: ParserOptions,
 
@@ -412,10 +464,26 @@ pub struct Parser {
     pub errors: Vec<ParseError>,
     /// Scratch storage for annotation tokens to avoid repeated allocations.
     pub(crate) annotation_tokens: Vec<TokenSpan>,
+    /// Scratch storage for annotation line indices to avoid repeated allocations.
+    pub(crate) annotation_line_indices: Vec<u32>,
     /// Optional parser timing collector.
     pub(crate) timings: Option<Rc<ParserTimings>>,
     /// Cached keyword lookup for identifier tokens.
     pub(crate) token_keywords: Vec<Option<Keyword>>,
+    /// Cached identifier lookup for identifier tokens.
+    pub(crate) token_identifiers: Vec<Option<StringId>>,
+    /// Cached next non-newline token index for each position.
+    pub(crate) next_non_newline: Vec<u32>,
+    /// Cached matching close token index for (), {}, [].
+    pub(crate) matching_pairs: Vec<u32>,
+    /// Cached string id for `global`.
+    pub(crate) global_identifier: Option<StringId>,
+    /// Cached string id for `module`.
+    pub(crate) module_identifier: Option<StringId>,
+    /// Cached string id for `_`.
+    pub(crate) underscore_identifier: StringId,
+    /// Cached identifiers used by type literal parsing.
+    pub(crate) type_literal_identifiers: TypeLiteralIdentifiers,
 }
 
 impl Debug for Parser {
@@ -440,6 +508,11 @@ impl Parser {
         let estimated_nodes = tokens.len() / 3;
         let file_id = file.id;
         let token_capacity = tokens.len() + side_tokens.len();
+        let mut strings = LocalStringPool::new();
+        let type_literal_identifiers = TypeLiteralIdentifiers::new(&mut strings);
+        let global_identifier = Some(strings.intern("global"));
+        let module_identifier = Some(strings.intern("module"));
+        let underscore_identifier = strings.intern("_");
         let mut parser = Self {
             file,
             file_id,
@@ -449,16 +522,25 @@ impl Parser {
             split_token: None,
             split_token_consumed: false,
             is_finished: false,
+            positions_built: false,
             options: ParserOptions::default(),
             language,
             tree: NodeTree::with_capacity(estimated_nodes),
-            strings: LocalStringPool::new(),
+            strings,
             diagnostics: DiagnosticCollector::new(),
             eof_token,
             errors: Vec::new(),
             annotation_tokens: Vec::with_capacity(token_capacity),
+            annotation_line_indices: Vec::with_capacity(token_capacity),
             timings: timings_enabled_from_env().then(|| Rc::new(ParserTimings::default())),
             token_keywords: Vec::new(),
+            token_identifiers: Vec::new(),
+            next_non_newline: Vec::new(),
+            matching_pairs: Vec::new(),
+            global_identifier,
+            module_identifier,
+            underscore_identifier,
+            type_literal_identifiers,
         };
 
         // pre parse side annotations, decorators
@@ -479,7 +561,7 @@ impl Parser {
         }
 
         // return the parser
-        parser.refresh_token_keywords();
+        parser.refresh_token_indexes();
         parser.reset();
         parser
     }
@@ -505,6 +587,7 @@ impl Parser {
         self.split_token = None;
         self.options = ParserOptions::default();
         self.errors.clear();
+        self.positions_built = false;
     }
 
     /// Start a parser timing scope.
@@ -534,6 +617,79 @@ impl Parser {
             .collect();
     }
 
+    /// Rebuild the identifier cache for the current token list.
+    pub(crate) fn refresh_token_identifiers(&mut self) {
+        let tokens = &self.tokens;
+        let file = self.file.clone();
+        let strings = &mut self.strings;
+        let mut identifiers = Vec::with_capacity(tokens.len());
+        for token in tokens {
+            if token.token.ty != TokenType::Identifier {
+                identifiers.push(None);
+                continue;
+            }
+            let span_str = file.span_str(token.span);
+            identifiers.push(Some(strings.intern(span_str)));
+        }
+        self.token_identifiers = identifiers;
+    }
+
+    /// Rebuild cached token indexes for fast lookups.
+    pub(crate) fn refresh_token_indexes(&mut self) {
+        self.refresh_token_keywords();
+        self.refresh_token_identifiers();
+        self.refresh_next_non_newline();
+        self.refresh_matching_pairs();
+    }
+
+    /// Rebuild the next non-newline index table.
+    fn refresh_next_non_newline(&mut self) {
+        let len = self.tokens.len();
+        self.next_non_newline = vec![len as u32; len];
+        let mut next = len;
+        for idx in (0..len).rev() {
+            self.next_non_newline[idx] = next as u32;
+            if self.tokens[idx].token.ty != TokenType::Newline {
+                next = idx;
+            }
+        }
+    }
+
+    /// Rebuild the matching pair table for (), {}, [].
+    fn refresh_matching_pairs(&mut self) {
+        let len = self.tokens.len();
+        let mut pairs = vec![u32::MAX; len];
+        let mut paren_stack: Vec<usize> = Vec::new();
+        let mut brace_stack: Vec<usize> = Vec::new();
+        let mut bracket_stack: Vec<usize> = Vec::new();
+
+        for (idx, token) in self.tokens.iter().enumerate() {
+            match token.token.ty {
+                TokenType::OpenParenthesis => paren_stack.push(idx),
+                TokenType::CloseParenthesis => {
+                    if let Some(open) = paren_stack.pop() {
+                        pairs[open] = idx as u32;
+                    }
+                }
+                TokenType::OpenBrace => brace_stack.push(idx),
+                TokenType::CloseBrace => {
+                    if let Some(open) = brace_stack.pop() {
+                        pairs[open] = idx as u32;
+                    }
+                }
+                TokenType::OpenBracket => bracket_stack.push(idx),
+                TokenType::CloseBracket => {
+                    if let Some(open) = bracket_stack.pop() {
+                        pairs[open] = idx as u32;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.matching_pairs = pairs;
+    }
+
     /// Return true when a split token is active.
     #[inline]
     pub(crate) fn has_active_split(&self) -> bool {
@@ -550,6 +706,12 @@ impl Parser {
     #[inline]
     pub(crate) fn keyword_for_index(&self, index: usize) -> Option<Keyword> {
         self.token_keywords.get(index).copied().flatten()
+    }
+
+    /// Look up a pre-interned identifier at a token index.
+    #[inline]
+    pub(crate) fn identifier_for_index(&self, index: usize) -> Option<StringId> {
+        self.token_identifiers.get(index).copied().flatten()
     }
 
     /// Get the token index used by peek_next.
@@ -706,8 +868,12 @@ impl Parser {
         if self.is_finished {
             return;
         }
+        if self.positions_built {
+            return;
+        }
         let _timing = self.timing_scope(tags::PARSE_POSITIONS_BUILD);
         self.tree.build_position_index();
+        self.positions_built = true;
     }
 
     /// Get the current position in the tokens.
@@ -965,6 +1131,14 @@ impl Parser {
             "bump past end of tokens"
         );
         self.pos += distance as usize;
+    }
+
+    /// Advance the token position to a specific index.
+    #[inline]
+    pub(crate) fn advance_to(&mut self, pos: usize) {
+        debug_assert!(!self.is_finished, "parser is already finished");
+        debug_assert!(pos <= self.tokens.len(), "advance past end of tokens");
+        self.pos = pos;
     }
 
     /// Split a `<<` (ShiftLeft) token into two `<` tokens.
@@ -1251,13 +1425,11 @@ impl Parser {
         span: &Span,
         search: NodeSearchMode,
     ) -> Option<EnclosingSpan> {
-        self.select_enclosing_span(
-            self.tree
-                .source_map
-                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-                .into_iter()
-                .filter(|s| s.span.start == span.start),
+        self.select_enclosing_span_with_filter(
+            span.start,
+            span.end.saturating_sub(1),
             search,
+            |candidate| candidate.span.start == span.start,
         )
     }
 
@@ -1267,13 +1439,11 @@ impl Parser {
         span: &Span,
         search: NodeSearchMode,
     ) -> Option<EnclosingSpan> {
-        self.select_enclosing_span(
-            self.tree
-                .source_map
-                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-                .into_iter()
-                .filter(|s| s.span.end == span.end),
+        self.select_enclosing_span_with_filter(
+            span.start,
+            span.end.saturating_sub(1),
             search,
+            |candidate| candidate.span.end == span.end,
         )
     }
 
@@ -1284,36 +1454,40 @@ impl Parser {
         search: NodeSearchMode,
         filter: impl Fn(&EnclosingSpan) -> bool,
     ) -> Option<EnclosingSpan> {
-        self.select_enclosing_span(
-            self.tree
-                .source_map
-                .get_enclosing_spans(span.start, span.end.saturating_sub(1))
-                .into_iter()
-                .filter(filter),
+        self.select_enclosing_span_with_filter(
+            span.start,
+            span.end.saturating_sub(1),
             search,
+            filter,
         )
     }
 
-    /// Select the best enclosing span for the search mode without sorting.
-    fn select_enclosing_span(
+    /// Select the best enclosing span for a given span range and filter.
+    fn select_enclosing_span_with_filter(
         &self,
-        spans: impl Iterator<Item = EnclosingSpan>,
+        start: u32,
+        end_inclusive: u32,
         search: NodeSearchMode,
+        filter: impl Fn(&EnclosingSpan) -> bool,
     ) -> Option<EnclosingSpan> {
         let mut best = None;
-        for span in spans {
-            match best {
-                Some(current) => {
-                    if self.is_better_enclosing_span(search, &span, &current) {
-                        best = Some(span);
-                    } else {
-                        best = Some(current);
+        self.tree
+            .source_map
+            .visit_enclosing_spans(start, end_inclusive, |candidate| {
+                if !filter(&candidate) {
+                    return;
+                }
+                match best {
+                    Some(current) => {
+                        if self.is_better_enclosing_span(search, &candidate, &current) {
+                            best = Some(candidate);
+                        }
+                    }
+                    None => {
+                        best = Some(candidate);
                     }
                 }
-                None => best = Some(span),
-            }
-        }
-
+            });
         best
     }
 

@@ -119,7 +119,7 @@ impl Parser {
                     .insert(Pattern::Array { fields }, self.get_span_from(start))
             }
             // literal expression
-            else if self.peek_scalar_literal().is_ok() {
+            else if self.is_scalar_literal_start() {
                 let scalar_literal_id =
                     self.eat_scalar_literal().for_node_type(NodeType::Pattern)?;
                 let expression_id = self.tree.insert(

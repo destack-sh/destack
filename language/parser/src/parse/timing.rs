@@ -114,6 +114,16 @@ pub mod tags {
         ParserTimingTag::new("parse.expression.primary.group");
     pub const PARSE_EXPRESSION_POSTFIX_CALL: ParserTimingTag =
         ParserTimingTag::new("parse.expression.postfix.call");
+    pub const PARSE_KEYWORD_DECLARATION: ParserTimingTag =
+        ParserTimingTag::new("parse.keyword.declaration");
+    pub const PARSE_KEYWORD_BINDING: ParserTimingTag =
+        ParserTimingTag::new("parse.keyword.binding");
+    pub const PARSE_KEYWORD_CONTROL: ParserTimingTag =
+        ParserTimingTag::new("parse.keyword.control");
+    pub const PARSE_KEYWORD_DEPENDENCY: ParserTimingTag =
+        ParserTimingTag::new("parse.keyword.dependency");
+    pub const PARSE_KEYWORD_EXPRESSION: ParserTimingTag =
+        ParserTimingTag::new("parse.keyword.expression");
 
     pub const PARSE_ANNOTATIONS_INDEX: ParserTimingTag =
         ParserTimingTag::new("parse.annotations.index");
@@ -140,7 +150,13 @@ pub mod tags {
     pub const PARSE_DECLARATION: ParserTimingTag = ParserTimingTag::new("parse.declaration");
     pub const PARSE_ENUM: ParserTimingTag = ParserTimingTag::new("parse.enum");
     pub const PARSE_STRUCT: ParserTimingTag = ParserTimingTag::new("parse.struct");
+    pub const PARSE_INTERFACE: ParserTimingTag = ParserTimingTag::new("parse.interface");
+    pub const PARSE_TYPE_DECLARATION: ParserTimingTag =
+        ParserTimingTag::new("parse.type.declaration");
     pub const PARSE_NAMESPACE: ParserTimingTag = ParserTimingTag::new("parse.namespace");
+    pub const PARSE_LET: ParserTimingTag = ParserTimingTag::new("parse.let");
+    pub const PARSE_USING: ParserTimingTag = ParserTimingTag::new("parse.using");
+    pub const PARSE_DECLARATOR: ParserTimingTag = ParserTimingTag::new("parse.declarator");
     pub const PARSE_MATCH: ParserTimingTag = ParserTimingTag::new("parse.match");
     pub const PARSE_WHERE: ParserTimingTag = ParserTimingTag::new("parse.where");
     pub const PARSE_IMPORT: ParserTimingTag = ParserTimingTag::new("parse.import");

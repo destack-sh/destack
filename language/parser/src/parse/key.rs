@@ -19,9 +19,17 @@ impl Parser {
     /// Eat an identifier and return both the identifier and its span.
     #[inline]
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
+        let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
-        let s = self.file.span_str(token.span);
-        let string_id = self.strings.intern(s);
+        let string_id = if self.has_active_split() {
+            let string = self.file.span_str(token.span);
+            self.strings.intern(string)
+        } else {
+            self.identifier_for_index(index).unwrap_or_else(|| {
+                let string = self.file.span_str(token.span);
+                self.strings.intern(string)
+            })
+        };
         Ok((string_id, token.span))
     }
 
@@ -56,6 +64,20 @@ impl Parser {
     #[inline]
     pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
         let span = self.peek_token(TokenType::Identifier)?;
+        if !self.has_active_split() {
+            let expected = match string {
+                "global" => self.global_identifier,
+                "module" => self.module_identifier,
+                "_" => Some(self.underscore_identifier),
+                _ => None,
+            };
+            if let Some(expected) = expected {
+                if self.identifier_for_index(self.pos_index()) == Some(expected) {
+                    return Ok(span);
+                }
+                return Err(ParseError::expected(span.span, TokenType::Identifier));
+            }
+        }
         if self.get_token_str(*span) == string {
             Ok(span)
         } else {
@@ -67,8 +89,14 @@ impl Parser {
     #[inline]
     pub fn eat_identifier_str(&mut self, string: &str) -> ParseResult<StringId> {
         let span = *self.peek_identifier_str(string)?;
-        let s = self.file.get_span_str(span.span).unwrap_or_default();
-        let string_id = self.strings.intern(s);
+        if !self.has_active_split()
+            && let Some(id) = self.identifier_for_index(self.pos_index())
+        {
+            self.bump();
+            return Ok(id);
+        }
+        let string = self.file.get_span_str(span.span).unwrap_or_default();
+        let string_id = self.strings.intern(string);
         self.bump();
         Ok(string_id)
     }
