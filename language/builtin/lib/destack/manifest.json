@@ -44,7 +44,7 @@
         "lib/destack/url/index.ds",
         "lib/destack/url/url.ds",
         "lib/destack/util/index.ds",
-        "lib/destack/util/util.ds",
+        "lib/destack/util/inspect.ds",
         "lib/destack/vm/index.ds",
         "lib/destack/vm/vm.ds"
       ],

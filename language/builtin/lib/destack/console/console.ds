@@ -1,25 +1,26 @@
 import type { PlatformError } from "../error/index.ds";
+import { formatWithOptions } from "../util/index.ds";
 import * as platform from "../../platform/index.ds";
 
 /// Console API for the Destack runtime.
 export namespace console {
     /// Write a line to stdout.
-    export function log(value: string): Result<void, PlatformError> {
-        platform.console.log(value)
+    export function log(...values: unknown[]): Result<void, PlatformError> {
+        platform.console.log(formatWithOptions(null, ...values))
     }
 
     /// Write an info line to stdout.
-    export function info(value: string): Result<void, PlatformError> {
-        platform.console.info(value)
+    export function info(...values: unknown[]): Result<void, PlatformError> {
+        platform.console.info(formatWithOptions(null, ...values))
     }
 
     /// Write a warning line to stderr.
-    export function warn(value: string): Result<void, PlatformError> {
-        platform.console.warn(value)
+    export function warn(...values: unknown[]): Result<void, PlatformError> {
+        platform.console.warn(formatWithOptions(null, ...values))
     }
 
     /// Write an error line to stderr.
-    export function error(value: string): Result<void, PlatformError> {
-        platform.console.error(value)
+    export function error(...values: unknown[]): Result<void, PlatformError> {
+        platform.console.error(formatWithOptions(null, ...values))
     }
 }

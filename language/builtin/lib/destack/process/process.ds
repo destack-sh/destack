@@ -1,9 +1,11 @@
+import { Slice } from "native";
 import * as platform from "../../platform/index.ds";
+import type { PlatformError } from "../error/index.ds";
 
 /// Process API for the Destack runtime.
 export namespace process {
     /// Return the process arguments.
-    export function args(): Array<string> {
+    export function args(): Result<Slice<string>, PlatformError> {
         platform.process.args()
     }
 }

@@ -1,29 +1,42 @@
 import { Slice } from "native";
 import { ListenerHandle, SocketHandle } from "../resource/resource.ds";
+import type { PlatformError } from "../error/index.ds";
 
 /// Networking bindings for the native runtime.
 export declare namespace net {
     /// Connect to a remote host and return a socket handle.
     @binding("destack.net.connect")
-    export function connect(host: string, port: uint16): SocketHandle;
+    export function connect(host: string, port: uint16): Result<SocketHandle, PlatformError>;
 
     /// Start listening on the given address.
     @binding("destack.net.listen")
-    export function listen(host: string, port: uint16, backlog: uint32): ListenerHandle;
+    export function listen(
+        host: string,
+        port: uint16,
+        backlog: uint32,
+    ): Result<ListenerHandle, PlatformError>;
 
     /// Accept a new connection from a listener.
     @binding("destack.net.accept")
-    export function accept(listener: ListenerHandle): SocketHandle;
+    export function accept(
+        listener: ListenerHandle,
+    ): Result<SocketHandle, PlatformError>;
 
     /// Close a socket handle.
     @binding("destack.net.close")
-    export function close(handle: SocketHandle): void;
+    export function close(handle: SocketHandle): Result<void, PlatformError>;
 
     /// Read from a socket into the provided slice.
     @binding("destack.net.read")
-    export function read(handle: SocketHandle, buffer: Slice<uint8>): uint64;
+    export function read(
+        handle: SocketHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 
     /// Write to a socket from the provided slice.
     @binding("destack.net.write")
-    export function write(handle: SocketHandle, buffer: Slice<uint8>): uint64;
+    export function write(
+        handle: SocketHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
 }
