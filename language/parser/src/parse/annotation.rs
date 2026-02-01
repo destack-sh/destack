@@ -355,11 +355,14 @@ impl Parser {
 
         // find corresponding token group
         let token_idx = tokens.partition_point(|token| token.span.start < span.start);
-        let token_idx = tokens
+        let token_idx = if tokens
             .get(token_idx)
             .is_some_and(|token| token.span.start == span.start)
-            .then_some(token_idx)
-            .unwrap_or_else(|| unreachable!("annotation span not found in tokens: {span:?}"));
+        {
+            token_idx
+        } else {
+            unreachable!("annotation span not found in tokens: {span:?}")
+        };
         let mut group_end_idx = token_idx;
         while let Some(token) = tokens.get(group_end_idx).copied() {
             if token.span.end > span.end {
@@ -1224,9 +1227,16 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parse errors: {:#?}",
+            parser.errors
+        );
+        let decorators = parser.tree.get_nodes::<Decorator>();
+        assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         assert_eq!(expressions.len(), 1);
         let annotations = parser.tree.get_annotations(expressions[0].id);
-        assert_eq!(annotations.len(), 1);
+        assert_eq!(annotations.len(), 1, "annotations: {annotations:?}",);
         // @foo
         assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
             assert_eq!(*position, AnnotationPosition::BlockPrefix);
@@ -1352,6 +1362,54 @@ function foo() { }",
                     assert_eq!(static_arguments.len(), 1);
                     assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
                         assert_expression_path!(parser, parser.tree.get(*value), "T");
+                    });
+                    assert!(dynamic_arguments.is_empty());
+                });
+            });
+        });
+    }
+
+    /// Parse a decorator with a generic function type argument.
+    #[test]
+    fn test_attach_decorator_with_shift_left_static_arguments() {
+        let mut test = TestParser::new_with_options(
+            r"@f<<T>(v: T) => void>()
+class Foo {}",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        let decorators = parser.tree.get_nodes::<Decorator>();
+        assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
+        let decorator_span = parser.tree.get_span(decorators[0]);
+        assert_eq!(
+            parser.file.span_str(decorator_span),
+            "@f<<T>(v: T) => void>()",
+        );
+        assert_eq!(expressions.len(), 1);
+        let annotations = parser.tree.get_annotations(expressions[0].id);
+        assert_eq!(annotations.len(), 1, "annotations: {annotations:?}");
+        assert_node!(parser.tree, annotations[0], Annotation::Decorator { node, position } => {
+            assert_eq!(*position, AnnotationPosition::BlockPrefix);
+            assert_node!(parser.tree, *node, Decorator { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "f");
+                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                                assert_eq!(signature.kind, FunctionKind::Lambda);
+                                assert!(body.is_none());
+                                let generics = signature.generics.as_ref().expect("expected generics");
+                                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                                assert_eq!(static_parameters.len(), 1);
+                                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+                                    assert_string!(parser, *name, "T");
+                                });
+                            });
+                        });
                     });
                     assert!(dynamic_arguments.is_empty());
                 });

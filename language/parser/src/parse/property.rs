@@ -723,11 +723,17 @@ impl Parser {
         }
 
         // method
-        if is_async
+        let is_method = is_async
             || is_generator
             || self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis)
-        {
+            || self.peek_is(TokenType::OpenParenthesis);
+
+        // getters and setters require method syntax
+        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        if is_method {
             // abstraction
             let abstraction = modifiers
                 .and_then(|modifiers| modifiers.abstraction)

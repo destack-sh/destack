@@ -440,13 +440,56 @@ impl Parser {
 
     /// Check whether `infer ... extends ... ?` should parse as a conditional type.
     fn infer_extends_starts_conditional(&self) -> bool {
-        // early exit: inside the conditional right side, treat extends as a constraint
-        if self.options.in_type_conditional_right {
-            return false;
-        }
         // quick reject when extends is not next
         if self.peek_keyword(Keyword::Extends).is_err() {
             return false;
+        }
+
+        // prefer infer constraints on conditional right unless nested
+        let mut require_nested_close =
+            self.options.in_type_conditional_right && !self.options.in_parenthesis;
+        if require_nested_close {
+            // allow nested conditionals inside delimited lists
+            let mut index = self.pos() as isize - 1;
+            while index >= 0 {
+                let token = self.tokens.get(index as usize);
+                let Some(token) = token else {
+                    break;
+                };
+                let token_ty = token.token.ty;
+                if token_ty == TokenType::Newline {
+                    index -= 1;
+                    continue;
+                }
+                if token_ty == TokenType::Identifier
+                    && self.keyword_for_index(index as usize) == Some(Keyword::Infer)
+                {
+                    index -= 1;
+                    while index >= 0 {
+                        let token = self.tokens.get(index as usize);
+                        let Some(token) = token else {
+                            break;
+                        };
+                        let token_ty = token.token.ty;
+                        if token_ty == TokenType::Newline {
+                            index -= 1;
+                            continue;
+                        }
+                        if matches!(
+                            token_ty,
+                            TokenType::OpenBracket
+                                | TokenType::OpenBrace
+                                | TokenType::OpenParenthesis
+                                | TokenType::Comma
+                        ) {
+                            require_nested_close = false;
+                        }
+                        break;
+                    }
+                    break;
+                }
+                index -= 1;
+            }
         }
 
         // scan until a conditional boundary or a terminating token
@@ -480,7 +523,56 @@ impl Parser {
                 }
                 TokenType::Maybe => {
                     if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 {
-                        return true;
+                        if !require_nested_close {
+                            return true;
+                        }
+
+                        // confirm the conditional is nested inside a grouping
+                        let mut look_index = index + 1;
+                        let mut look_paren_depth = 0usize;
+                        let mut look_bracket_depth = 0usize;
+                        let mut look_brace_depth = 0usize;
+                        while let Some(look_token) = self.tokens.get(look_index) {
+                            match look_token.token.ty {
+                                TokenType::OpenParenthesis => look_paren_depth += 1,
+                                TokenType::CloseParenthesis => {
+                                    if look_paren_depth == 0 {
+                                        return true;
+                                    }
+                                    look_paren_depth -= 1;
+                                }
+                                TokenType::OpenBracket => look_bracket_depth += 1,
+                                TokenType::CloseBracket => {
+                                    if look_bracket_depth == 0 {
+                                        return true;
+                                    }
+                                    look_bracket_depth -= 1;
+                                }
+                                TokenType::OpenBrace => look_brace_depth += 1,
+                                TokenType::CloseBrace => {
+                                    if look_brace_depth == 0 {
+                                        return true;
+                                    }
+                                    look_brace_depth -= 1;
+                                }
+                                TokenType::Comma
+                                | TokenType::Semicolon
+                                | TokenType::Arrow
+                                | TokenType::ArrowWide
+                                | TokenType::TemplateStringMiddle
+                                | TokenType::TemplateStringEnd => {
+                                    if look_paren_depth == 0
+                                        && look_bracket_depth == 0
+                                        && look_brace_depth == 0
+                                    {
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            look_index += 1;
+                        }
+                        return false;
                     }
                 }
                 TokenType::Comma
@@ -501,6 +593,45 @@ impl Parser {
         }
 
         false
+    }
+
+    /// Eat type import arguments without allowing trailing commas.
+    fn eat_type_import_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
+        // open argument list
+        self.eat_token(TokenType::OpenParenthesis)?;
+        self.eat_newlines_maybe()?;
+
+        // empty argument list
+        if self.peek_is(TokenType::CloseParenthesis) {
+            self.bump(); // eat close parenthesis
+            return Ok(vec![]);
+        }
+
+        // positional arguments
+        let mut arguments = Vec::new();
+        loop {
+            let argument = self.eat_positional_argument()?;
+            arguments.push(argument);
+            self.eat_newlines_maybe()?;
+
+            // handle separators and trailing commas
+            if self.peek_is(TokenType::Comma) {
+                let comma_span = self.peek()?.span;
+                self.bump(); // eat comma
+                self.eat_newlines_maybe()?;
+                if self.peek_is(TokenType::CloseParenthesis) {
+                    let error = ParseError::unexpected(comma_span);
+                    self.error(&error);
+                    break;
+                }
+                continue;
+            }
+            break;
+        }
+
+        // close argument list
+        self.eat_token(TokenType::CloseParenthesis)?;
+        Ok(arguments)
     }
 
     /// Eat a type infer expression.
@@ -541,7 +672,7 @@ impl Parser {
 
         // arguments
         let arguments = self.with_options(self.options.nested().not_in_position(), |parser| {
-            parser.eat_dynamic_arguments()
+            parser.eat_type_import_arguments()
         })?;
 
         // target

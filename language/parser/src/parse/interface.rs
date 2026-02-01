@@ -59,6 +59,13 @@ impl Parser {
         self.eat_keyword(Keyword::Interface)
             .for_node_type(NodeType::Declaration)?;
 
+        // interface keyword cannot be followed by a newline
+        if self.peek_is(TokenType::Newline) {
+            let error = ParseError::unexpected(self.peek()?.span);
+            self.error(&error);
+            self.eat_newlines_maybe()?;
+        }
+
         // optional name / key
         let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
             descriptor = descriptor.with_name(name);
