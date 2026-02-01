@@ -63,9 +63,29 @@ impl Parser {
     /// Eat 0 or more newlines.
     #[inline]
     pub fn eat_newlines_maybe(&mut self) -> ParseResult<()> {
-        while self.peek_is(TokenType::Newline) {
-            self.bump();
+        if self.has_active_split() {
+            while self.peek_is(TokenType::Newline) {
+                self.bump();
+            }
+            return Ok(());
         }
+
+        let pos = self.pos_index();
+        if !self
+            .tokens
+            .get(pos)
+            .is_some_and(|token| token.token.ty == TokenType::Newline)
+        {
+            return Ok(());
+        }
+
+        let len = self.tokens.len();
+        let next = self
+            .next_non_newline
+            .get(pos)
+            .copied()
+            .unwrap_or(len as u32) as usize;
+        self.advance_to(next);
         Ok(())
     }
 

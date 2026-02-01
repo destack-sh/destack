@@ -69,14 +69,25 @@ impl Parser {
     /// Peek a keyword after any newlines.
     #[inline]
     pub fn peek_keyword_after_newlines(&self, keyword: Keyword) -> ParseResult<&TokenSpan> {
-        let mut pos = self.pos();
-        while let Some(token) = self.tokens.get(pos as usize)
-            && token.token.ty == TokenType::Newline
+        let pos = self.pos_index();
+        let len = self.tokens.len();
+        let pos = if self
+            .tokens
+            .get(pos)
+            .is_some_and(|token| token.token.ty != TokenType::Newline)
         {
-            pos += 1;
-        }
-        let current = self.tokens.get(pos as usize).unwrap();
-        if self.keyword_for_index(pos as usize) == Some(keyword) {
+            pos
+        } else {
+            self.next_non_newline
+                .get(pos)
+                .copied()
+                .unwrap_or(len as u32) as usize
+        };
+        let current = self
+            .tokens
+            .get(pos)
+            .ok_or_else(|| ParseError::expected(self.eof_token.span, TokenType::Identifier))?;
+        if self.keyword_for_index(pos) == Some(keyword) {
             Ok(current)
         } else {
             Err(ParseError::expected(current.span, TokenType::Identifier))

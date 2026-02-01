@@ -227,6 +227,56 @@ impl NodeSourceMap {
         }
     }
 
+    /// Visit all enclosing spans containing the given range.
+    pub fn visit_enclosing_spans(
+        &self,
+        start: u32,
+        end_inclusive: u32,
+        mut visit: impl FnMut(EnclosingSpan),
+    ) {
+        let file_id = self
+            .enclosing_spans
+            .first()
+            .map(|span| span.file)
+            .unwrap_or(crate::FileId(0));
+        match &self.interval_tree {
+            Some(tree) => {
+                tree.visit_containing(
+                    start,
+                    end_inclusive,
+                    |span_start, span_end, node_id, length| {
+                        let distance =
+                            start.abs_diff(span_start) + span_end.abs_diff(end_inclusive);
+                        visit(EnclosingSpan {
+                            idx: node_id,
+                            distance,
+                            length,
+                            span: Span {
+                                file: file_id,
+                                start: span_start,
+                                end: span_end,
+                            },
+                        });
+                    },
+                );
+            }
+            None => {
+                for (i, span) in self.enclosing_spans.iter().enumerate() {
+                    if span.contains(start) && span.contains(end_inclusive) {
+                        let distance =
+                            start.abs_diff(span.start) + span.end.abs_diff(end_inclusive);
+                        visit(EnclosingSpan {
+                            idx: i as u32,
+                            distance,
+                            length: span.end.saturating_sub(span.start),
+                            span: *span,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
     /// Get all enclosing spans containing the given range using a linear scan.
     fn get_enclosing_spans_linear(&self, start: u32, end_inclusive: u32) -> Vec<EnclosingSpan> {
         let mut spans = Vec::new();

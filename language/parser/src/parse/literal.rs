@@ -10,6 +10,64 @@ use destack_ast::{
 };
 
 impl Parser {
+    /// Return true when the current token starts a template literal.
+    #[inline]
+    pub fn is_template_literal_start(&self) -> bool {
+        self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart)
+    }
+
+    /// Return true when the current token starts a scalar literal.
+    #[inline]
+    pub fn is_scalar_literal_start(&self) -> bool {
+        self.peek_is(TokenType::Literal)
+    }
+
+    /// Return true when the current token starts a tree literal.
+    #[inline]
+    pub fn is_tree_literal_start(&self) -> bool {
+        if !self.peek_is(TokenType::LessThan) {
+            return false;
+        }
+
+        let pos = self.pos_index();
+        let len = self.tokens.len();
+        let next = self
+            .next_non_newline
+            .get(pos)
+            .copied()
+            .unwrap_or(len as u32) as usize;
+        let next_token = match self.tokens.get(next) {
+            Some(token) => token,
+            None => return false,
+        };
+        if next_token.token.ty == TokenType::Divide && !self.options.in_tree_literal {
+            return false;
+        }
+        if !matches!(
+            next_token.token.ty,
+            TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
+        ) {
+            return false;
+        }
+
+        if next_token.token.ty == TokenType::Identifier {
+            let after_identifier = self
+                .next_non_newline
+                .get(next)
+                .copied()
+                .unwrap_or(len as u32) as usize;
+            if self
+                .tokens
+                .get(after_identifier)
+                .is_some_and(|token| token.token.ty == TokenType::Comma)
+            {
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// Peek a scalar literal token.
     #[inline]
     pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {

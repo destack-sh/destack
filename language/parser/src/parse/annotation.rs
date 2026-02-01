@@ -82,20 +82,22 @@ impl Parser {
         }
 
         // build the index for fast node lookups before attaching annotations
-        {
+        if !self.positions_built {
             let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_INDEX);
             self.tree.build_position_index();
+            self.positions_built = true;
         }
 
         // collect tokens in source order, excluding whitespace
         let mut tokens = std::mem::take(&mut self.annotation_tokens);
-        let mut line_indices = Vec::with_capacity(tokens.capacity());
+        let mut line_indices = std::mem::take(&mut self.annotation_line_indices);
         {
             let _timing = self.timing_scope(tags::PARSE_ANNOTATIONS_COLLECT);
             self.collect_annotation_tokens(&mut tokens, &mut line_indices);
         }
         if tokens.is_empty() {
             self.annotation_tokens = tokens;
+            self.annotation_line_indices = line_indices;
             return;
         }
 
@@ -122,6 +124,7 @@ impl Parser {
             self.tree.sort_annotations();
         }
         self.annotation_tokens = tokens;
+        self.annotation_line_indices = line_indices;
     }
 
     /// Collect semantic and side tokens without whitespace in source order.
@@ -147,6 +150,17 @@ impl Parser {
             }
             tokens.push(token);
         };
+
+        // fast path when there are no side tokens
+        if self.side_tokens.is_empty() {
+            for token in &self.tokens {
+                if token.token.ty == TokenType::Whitespace {
+                    continue;
+                }
+                push_token(*token);
+            }
+            return;
+        }
 
         // merge both token streams by span start
         let mut main_index = 0;
@@ -394,13 +408,12 @@ impl Parser {
     /// Return whether a block comment stays on a single line.
     fn annotation_is_single_line_block_comment(&self, start_token: TokenSpan) -> bool {
         let raw = self.get_span_str(start_token.span);
-        let trimmed = raw.trim_end_matches(|c: char| c.is_whitespace());
-        let body = trimmed
-            .strip_prefix("/*")
-            .and_then(|slice| slice.strip_suffix("*/"))
-            .unwrap_or(trimmed);
-
-        !body.contains('\n') && !body.contains('\r')
+        for byte in raw.as_bytes() {
+            if *byte == b'\n' || *byte == b'\r' {
+                return false;
+            }
+        }
+        true
     }
 
     /// Find the previous targetable token within the enclosing span.

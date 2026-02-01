@@ -3,13 +3,93 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType,
-    Keyword, LocalNodeId, Mutability, Name, ScalarLiteral, TokenType, TypeBinaryOperator, TypeKind,
-    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Keyword, LocalNodeId, Mutability, Name, ScalarLiteral, StringId, TokenType, TypeBinaryOperator,
+    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
+    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
 impl Parser {
+    /// Map cached identifier ids to always-available type literals.
+    #[inline]
+    fn type_literal_always_available_id(&self, identifier_id: StringId) -> Option<TypeLiteral> {
+        let ids = &self.type_literal_identifiers;
+        if identifier_id == ids.undefined {
+            return Some(TypeLiteral::Undefined);
+        }
+        if identifier_id == ids.unknown {
+            return Some(TypeLiteral::Unknown);
+        }
+        if identifier_id == ids.object {
+            return Some(TypeLiteral::Object);
+        }
+        if identifier_id == ids.null_ {
+            return Some(TypeLiteral::Null);
+        }
+        if identifier_id == ids.any {
+            return Some(TypeLiteral::Any);
+        }
+        if identifier_id == ids.never {
+            return Some(TypeLiteral::Never);
+        }
+        None
+    }
+
+    /// Map cached identifier ids to type only literals.
+    #[inline]
+    fn type_literal_type_context_id(
+        &self,
+        identifier_id: StringId,
+        next_identifier_id: Option<StringId>,
+    ) -> Option<TypeLiteral> {
+        let ids = &self.type_literal_identifiers;
+        if identifier_id == ids.boolean {
+            return Some(TypeLiteral::Boolean);
+        }
+        if identifier_id == ids.void {
+            return Some(TypeLiteral::Void);
+        }
+        if identifier_id == ids.character {
+            return Some(TypeLiteral::Character);
+        }
+        if identifier_id == ids.string {
+            return Some(TypeLiteral::String);
+        }
+        if identifier_id == ids.bigint {
+            return Some(TypeLiteral::Bigint);
+        }
+        if identifier_id == ids.number {
+            return Some(TypeLiteral::Number);
+        }
+        if identifier_id == ids.int {
+            return Some(TypeLiteral::Int(IntType::Arbitrary {
+                width: None,
+                is_signed: true,
+            }));
+        }
+        if identifier_id == ids.isize {
+            return Some(TypeLiteral::Int(IntType::Pointer { is_signed: true }));
+        }
+        if identifier_id == ids.uint {
+            return Some(TypeLiteral::Int(IntType::Arbitrary {
+                width: None,
+                is_signed: false,
+            }));
+        }
+        if identifier_id == ids.usize {
+            return Some(TypeLiteral::Int(IntType::Pointer { is_signed: false }));
+        }
+        if identifier_id == ids.float {
+            return Some(TypeLiteral::Float(FloatType { width: None }));
+        }
+        if identifier_id == ids.symbol {
+            return Some(TypeLiteral::Symbol);
+        }
+        if identifier_id == ids.unique && next_identifier_id == Some(ids.symbol) {
+            return Some(TypeLiteral::UniqueSymbol);
+        }
+        None
+    }
     /// Eat a variance bound maybe.
     #[inline]
     pub fn eat_variance_bound_maybe(&mut self) -> ParseResult<Option<VarianceBound>> {
@@ -62,25 +142,18 @@ impl Parser {
     /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
     pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {
         let next = self.peek()?;
-        let next_str = self.get_span_str(next.span);
+        let next_type = next.token.ty;
+        let has_split = self.has_active_split();
+        let identifier_id = if !has_split && next_type == TokenType::Identifier {
+            self.identifier_for_index(self.pos_index())
+        } else {
+            None
+        };
 
         // always available type literals
-        let literal = match next_str {
-            // undefined
-            "undefined" => Some(TypeLiteral::Undefined),
-            // unknown
-            "unknown" => Some(TypeLiteral::Unknown),
-            // object
-            "object" => Some(TypeLiteral::Object),
-            // null
-            "null" => Some(TypeLiteral::Null),
-            // any
-            "any" => Some(TypeLiteral::Any),
-            // never
-            "never" => Some(TypeLiteral::Never),
-            _ => None,
-        };
-        if let Some(literal) = literal {
+        if let Some(identifier_id) = identifier_id
+            && let Some(literal) = self.type_literal_always_available_id(identifier_id)
+        {
             return Ok(literal);
         }
 
@@ -89,9 +162,22 @@ impl Parser {
             return Err(ParseError::unexpected(next.span));
         }
 
-        let next_type = next.token.ty;
         let next_next = self.peek_next();
         let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
+        if let Some(identifier_id) = identifier_id {
+            let next_identifier_id = if !has_split && next_next_type == Some(TokenType::Identifier)
+            {
+                self.identifier_for_index(self.index_for_next())
+            } else {
+                None
+            };
+            if let Some(literal) =
+                self.type_literal_type_context_id(identifier_id, next_identifier_id)
+            {
+                return Ok(literal);
+            }
+        }
+        let next_str = self.get_span_str(next.span);
         let next_next_str = next_next
             .as_ref()
             .map(|next| self.get_span_str(next.span))
@@ -244,6 +330,7 @@ impl Parser {
 
             // if followed by =, then it's a type alias
             if self.peek_is(TokenType::Assign) {
+                let _timing = self.timing_scope(tags::PARSE_TYPE_DECLARATION);
                 // =
                 self.eat_token(TokenType::Assign)?;
                 self.eat_newlines_maybe()?;

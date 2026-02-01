@@ -122,35 +122,31 @@ impl Parser {
         format: BlockFormat,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let _timing = self.timing_scope(tags::PARSE_BLOCK_BODY);
+        let nested_options = self.options.nested();
 
-        // parse expressions into statements with one-item lookahead
+        // parse expressions into statements with one item lookahead
         let mut statements: Vec<LocalNodeId<Expression>> = Vec::new();
-        let mut pending_expression: Option<LocalNodeId<Expression>> = None;
+        let mut pending_expression: Option<(LocalNodeId<Expression>, bool)> = None;
         while self.has_more_tokens() {
             let next_token = self.peek_token_type();
             // break if we're at the end of the block
-            if next_token == TokenType::End
-                || format == BlockFormat::Explicit && next_token == TokenType::CloseBrace
-            {
+            if next_token == TokenType::End || next_token == TokenType::CloseBrace {
                 break;
             }
             // consume any expression stops (semicolon or newline)
-            else if self.is_statement_stop() {
-                self.eat_statement_stop_with_newlines()
-                    .for_node_type(NodeType::Expression)?;
+            else if next_token == TokenType::Newline || next_token == TokenType::Semicolon {
+                self.bump(); // eat semicolon or newline
+                self.eat_newlines_maybe()?;
             }
             // eat expressions
             else {
-                let expression_id = self
-                    .with_options(self.options.nested(), |parser| {
-                        parser.try_eat_statement_expression()
+                let (expression_id, is_statement) = self
+                    .with_options(nested_options, |parser| {
+                        parser.try_eat_statement_expression_with_flag()
                     })
                     .for_node_type(NodeType::Expression)?;
-                if let Some(pending_id) = pending_expression {
-                    let expression = self.tree.get(pending_id);
-                    if matches!(expression, Expression::Statement(_))
-                        || expression.is_top_level_statement()
-                    {
+                if let Some((pending_id, pending_is_statement)) = pending_expression {
+                    if pending_is_statement {
                         statements.push(pending_id);
                     } else {
                         let statement_id = self.tree.insert(
@@ -160,15 +156,13 @@ impl Parser {
                         statements.push(statement_id);
                     }
                 }
-                pending_expression = Some(expression_id);
+                pending_expression = Some((expression_id, is_statement));
             }
         }
 
         // finalize the last pending expression
-        if let Some(expression_id) = pending_expression {
-            let expression = self.tree.get(expression_id);
-            if matches!(expression, Expression::Statement(_)) || expression.is_top_level_statement()
-            {
+        if let Some((expression_id, is_statement)) = pending_expression {
+            if is_statement {
                 statements.push(expression_id);
             } else if format == BlockFormat::Implicit {
                 let statement_id = self.tree.insert(
@@ -184,8 +178,10 @@ impl Parser {
     }
 
     /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
-    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
-    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+    /// Returns whether the expression should be treated as a statement.
+    pub fn try_eat_statement_expression_with_flag(
+        &mut self,
+    ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let start = self.mark();
         match self.with_options(self.options.in_statement_position(), |parser| {
             parser.eat_expression()
@@ -197,9 +193,12 @@ impl Parser {
                         Expression::Statement(expression_id),
                         self.get_span_from(start),
                     );
-                    Ok(expression_id)
+                    Ok((expression_id, true))
                 } else {
-                    Ok(expression_id)
+                    let expression = self.tree.get(expression_id);
+                    let is_statement = matches!(expression, Expression::Statement(_))
+                        || expression.is_top_level_statement();
+                    Ok((expression_id, is_statement))
                 }
             }
             Err(err) => {
@@ -210,9 +209,16 @@ impl Parser {
                 let error_id = self
                     .tree
                     .insert(Expression::Error, self.get_span_from(start));
-                Ok(error_id)
+                Ok((error_id, true))
             }
         }
+    }
+
+    /// Try to eat a statement expression (return Expression::Error if error and recovery is possible).
+    /// Wraps semicolon expressions in a Statement expression, otherwise just returns the expression.
+    pub fn try_eat_statement_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
+        let (expression_id, _is_statement) = self.try_eat_statement_expression_with_flag()?;
+        Ok(expression_id)
     }
 
     /// Eat a break expression.

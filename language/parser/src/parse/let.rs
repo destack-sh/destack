@@ -1,8 +1,9 @@
+use crate::parse::timing::tags;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Asynchrony, DeclarationDescriptor, Declarator, Expression, Keyword, LetKind, LocalNodeId,
-    Mutability, TokenType,
+    Mutability, Pattern, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -104,6 +105,7 @@ impl Parser {
         start: ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_LET);
         // kind and mutability
         let (kind, mutability) = self.eat_let_kind()?;
 
@@ -149,6 +151,7 @@ impl Parser {
         descriptor: DeclarationDescriptor,
         asynchrony: Asynchrony,
     ) -> ParseResult<LocalNodeId<Expression>> {
+        let _timing = self.timing_scope(tags::PARSE_USING);
         // optional await
         if asynchrony == Asynchrony::Async {
             self.eat_keyword(Keyword::Await)?;
@@ -188,16 +191,85 @@ impl Parser {
         &mut self,
         require_value: bool,
     ) -> ParseResult<LocalNodeId<Declarator>> {
+        let _timing = self.timing_scope(tags::PARSE_DECLARATOR);
         let start = self.mark();
 
         // pattern
-        let pattern_id = self.with_options(
-            self.options
-                .not_in_position()
-                .in_before_type()
-                .not_in_before_block(),
-            |parser| parser.eat_pattern(),
-        )?;
+        let pattern_id = if self.peek_is(TokenType::Identifier) {
+            // fast path for simple binding patterns
+            let next_token_type = self.peek_next_token_type();
+            let can_fast_path = matches!(
+                next_token_type,
+                TokenType::Colon
+                    | TokenType::Assign
+                    | TokenType::Comma
+                    | TokenType::Semicolon
+                    | TokenType::CloseBrace
+                    | TokenType::CloseParenthesis
+                    | TokenType::CloseBracket
+                    | TokenType::End
+                    | TokenType::Newline
+            );
+            if can_fast_path {
+                let has_active_split = self.has_active_split();
+                let keyword = if has_active_split {
+                    None
+                } else {
+                    self.keyword_for_index(self.pos_index())
+                };
+                let is_mutability_keyword = matches!(
+                    keyword,
+                    Some(
+                        Keyword::Var
+                            | Keyword::Mut
+                            | Keyword::Const
+                            | Keyword::Readonly
+                            | Keyword::Let
+                    )
+                );
+                if !is_mutability_keyword
+                    && !has_active_split
+                    && self.identifier_for_index(self.pos_index())
+                        != Some(self.underscore_identifier)
+                {
+                    let (name, name_span) = self.eat_binding_identifier_with_span()?;
+                    let pattern_id = self.tree.insert(
+                        Pattern::Binding {
+                            mutability: None,
+                            name,
+                            pattern: None,
+                        },
+                        self.get_span_from(start),
+                    );
+                    self.tree.set_main_span(pattern_id, name_span);
+                    pattern_id
+                } else {
+                    self.with_options(
+                        self.options
+                            .not_in_position()
+                            .in_before_type()
+                            .not_in_before_block(),
+                        |parser| parser.eat_pattern(),
+                    )?
+                }
+            } else {
+                self.with_options(
+                    self.options
+                        .not_in_position()
+                        .in_before_type()
+                        .not_in_before_block(),
+                    |parser| parser.eat_pattern(),
+                )?
+            }
+        } else {
+            self.with_options(
+                self.options
+                    .not_in_position()
+                    .in_before_type()
+                    .not_in_before_block(),
+                |parser| parser.eat_pattern(),
+            )?
+        };
 
         // type
         let (ty, ty_span) = if self.peek_colon().is_ok() {

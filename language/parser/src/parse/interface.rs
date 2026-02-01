@@ -54,6 +54,7 @@ impl Parser {
         mut descriptor: DeclarationDescriptor,
         kind: TypeKind,
     ) -> ParseResult<LocalNodeId<Declaration>> {
+        let _timing = self.timing_scope(tags::PARSE_INTERFACE);
         // keyword
         self.eat_keyword(Keyword::Interface)
             .for_node_type(NodeType::Declaration)?;
