@@ -62,6 +62,8 @@ pub enum TokenType {
     Fn,
     /// `struct`
     Struct,
+    /// `newtype`
+    Newtype,
 
     // symbols
     /// `@`

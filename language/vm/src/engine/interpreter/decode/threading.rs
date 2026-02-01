@@ -2947,6 +2947,7 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
             element: *element,
             length: *length,
         },
+        mir::Type::Newtype { inner, .. } => kind_from_type(tree, *inner),
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Vector { .. }
@@ -3072,6 +3073,7 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
             copyability: _,
         } => u32::try_from(elements.len()).ok(),
         mir::Type::Array { length, .. } => u32::try_from(*length).ok(),
+        mir::Type::Newtype { inner, .. } => slot_count_from_type(tree, *inner),
         mir::Type::Void => Some(1),
         mir::Type::Boolean
         | mir::Type::Int { .. }

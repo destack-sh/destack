@@ -187,6 +187,7 @@ impl<'a> Dumper<'a> {
                 fields,
                 copyability: _,
             } => format!("struct{{{}}}", fields.len()),
+            Type::Newtype { .. } => "newtype".to_string(),
             Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
             Type::TensorReference { shape, .. } => format!("tensor_ref<{}>", shape.len()),

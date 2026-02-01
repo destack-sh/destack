@@ -199,6 +199,13 @@ enum SignatureType {
         /// Copyability of the struct.
         copyability: mir::Copyability,
     },
+    /// Nominal newtype signature.
+    Newtype {
+        /// Inner type signature.
+        inner: Box<SignatureType>,
+        /// Copyability of the newtype.
+        copyability: mir::Copyability,
+    },
     /// Vector type signature.
     Vector {
         /// Element type signature.
@@ -325,6 +332,10 @@ impl SignatureType {
                     copyability: *copyability,
                 }
             }
+            mir::Type::Newtype { inner, copyability } => SignatureType::Newtype {
+                inner: Box::new(SignatureType::from_type(tree, *inner)),
+                copyability: *copyability,
+            },
             mir::Type::Vector {
                 element,
                 lanes,

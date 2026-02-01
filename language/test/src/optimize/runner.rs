@@ -2216,10 +2216,10 @@ fn run_matrix_case(
     // apply the case and execute
     apply(&mut tree, &strings_pool, &ctx);
 
-    // verify the resulting MIR tree
-    if let Err(error) = mir::Verifier::new(&tree).verify_tree() {
-        let message = format_verify_error(&tree, error);
-        return Some(format!("case '{label}': verification failed: {message}"));
+    // validate the resulting MIR tree
+    if let Err(error) = mir::Validator::new(&tree).validate_tree() {
+        let message = format_validate_error(&tree, error);
+        return Some(format!("case '{label}': validation failed: {message}"));
     }
 
     let context = format!("case '{label}'");
@@ -2235,11 +2235,11 @@ fn run_matrix_case(
     .err()
 }
 
-/// Format a verifier error with context when available.
-fn format_verify_error(tree: &mir::NodeTree, error: mir::VerifyError) -> String {
+/// Format a validator error with context when available.
+fn format_validate_error(tree: &mir::NodeTree, error: mir::ValidateError) -> String {
     // include instruction context for undefined value errors
     match error {
-        mir::VerifyError::UseOfUndefinedValue { value, anchor } => {
+        mir::ValidateError::UseOfUndefinedValue { value, anchor } => {
             if anchor.node.ty == mir::NodeType::Instruction {
                 let instruction_id = mir::LocalNodeId::<mir::Instruction>::new(anchor.node.id);
                 let instruction = tree.get(instruction_id);

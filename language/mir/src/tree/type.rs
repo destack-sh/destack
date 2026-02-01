@@ -263,6 +263,13 @@ pub enum Type {
         /// Copyability of this struct type.
         copyability: Copyability,
     },
+    /// Nominal newtype wrapping an inner type.
+    Newtype {
+        /// The wrapped inner type.
+        inner: LocalNodeId<Type>,
+        /// Copyability of this newtype.
+        copyability: Copyability,
+    },
 
     /// Fixed-width SIMD vector.
     Vector {
@@ -504,6 +511,7 @@ impl Type {
             Type::Array { copyability, .. }
             | Type::Tuple { copyability, .. }
             | Type::Struct { copyability, .. }
+            | Type::Newtype { copyability, .. }
             | Type::Vector { copyability, .. }
             | Type::Tensor { copyability, .. } => *copyability,
 

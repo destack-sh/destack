@@ -26,6 +26,7 @@ impl<'a> Parser<'a> {
                 | TokenType::TensorReferenceNullable
                 | TokenType::Tensor
                 | TokenType::Vector
+                | TokenType::Newtype
                 | TokenType::OpenBracket
                 | TokenType::OpenParen
                 | TokenType::OpenBrace
@@ -181,6 +182,16 @@ impl<'a> Parser<'a> {
                 Type::Vector {
                     element,
                     lanes,
+                    copyability: Copyability::default(),
+                }
+            }
+            TokenType::Newtype => {
+                self.bump();
+                self.eat_token(TokenType::LessThan)?;
+                let inner = self.parse_type()?;
+                self.eat_token(TokenType::GreaterThan)?;
+                Type::Newtype {
+                    inner,
                     copyability: Copyability::default(),
                 }
             }

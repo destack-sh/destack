@@ -667,6 +667,10 @@ fn type_key_for_alias(
                 .join(", ");
             format!("{{ {fields} }}")
         }
+        Type::Newtype { inner, .. } => {
+            let inner_key = type_key_for_alias(tree, strings, *inner);
+            format!("newtype<{inner_key}>")
+        }
         Type::Vector { element, lanes, .. } => {
             // format vector keys with element and lane count
             let element_key = type_key_for_alias(tree, strings, *element);
@@ -964,6 +968,9 @@ fn record_type_use_inner(
                 let field = tree.get(*field_id);
                 record_type_use_inner(tree, field.ty, counts, visited);
             }
+        }
+        Type::Newtype { inner, .. } => {
+            record_type_use_inner(tree, *inner, counts, visited);
         }
         Type::Vector { element, .. } => {
             record_type_use_inner(tree, *element, counts, visited);

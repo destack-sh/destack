@@ -73,6 +73,11 @@ pub(super) enum TypeKey {
         fields: Vec<LocalNodeId<Field>>,
         copyability: Copyability,
     },
+    /// Nominal newtype wrapper.
+    Newtype {
+        inner: LocalNodeId<Type>,
+        copyability: Copyability,
+    },
     /// Fixed-width SIMD vector.
     Vector {
         element: LocalNodeId<Type>,
@@ -155,6 +160,10 @@ impl TypeKey {
                 copyability,
             } => TypeKey::Struct {
                 fields: fields.clone(),
+                copyability: *copyability,
+            },
+            Type::Newtype { inner, copyability } => TypeKey::Newtype {
+                inner: *inner,
                 copyability: *copyability,
             },
             Type::Vector {
