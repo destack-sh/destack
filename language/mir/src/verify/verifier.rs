@@ -1951,13 +1951,24 @@ impl<'a> Verifier<'a> {
                 ..
             } => {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                self.verify_reference_result_type(
-                    *result_type,
-                    Some(*layout),
-                    Some(ReferenceKind::Raw),
-                    None,
-                    anchor,
-                )?;
+                let Type::Reference { kind, pointee, .. } = self.tree.get(*result_type) else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "raw.alloc result must be a reference type".to_string(),
+                        anchor,
+                    });
+                };
+                if *pointee != *layout {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "raw.alloc result type mismatches pointee".to_string(),
+                        anchor,
+                    });
+                }
+                if !matches!(kind, ReferenceKind::Raw | ReferenceKind::Owned) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "raw.alloc result type must be raw or owned".to_string(),
+                        anchor,
+                    });
+                }
             }
             Instruction::StackAlloc {
                 layout,

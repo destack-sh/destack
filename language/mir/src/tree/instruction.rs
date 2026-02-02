@@ -687,7 +687,7 @@ pub enum Instruction {
 
     // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
     /// Allocate raw memory on the heap (raw.alloc).
-    /// Returns a `ref<raw T>`. Caller must free with `raw.free` or `raw.drop`.
+    /// Returns a `ref<raw T>` or `ref<owned T>`. Caller must free with `raw.free` or `raw.drop`.
     RawAlloc {
         /// The SSA value to define with the allocated pointer.
         destination: Value,

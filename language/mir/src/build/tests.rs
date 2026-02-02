@@ -9,7 +9,7 @@ use super::ModuleBuilder;
 #[test]
 fn test_build_empty_function() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build empty function
@@ -35,7 +35,7 @@ block0:
 #[test]
 fn test_build_function_with_parameters() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build add function
@@ -65,7 +65,7 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_build_function_with_locals() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i64_type = module.type_i64();
 
     // build function with local
@@ -101,7 +101,7 @@ block0:
 #[test]
 fn test_build_function_with_branch() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
@@ -162,7 +162,7 @@ block3:
 #[test]
 fn test_ssa_define_use_single_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build function
@@ -199,7 +199,7 @@ block0:
 #[test]
 fn test_ssa_redefine_variable() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build function
@@ -239,7 +239,7 @@ block0:
 #[test]
 fn test_ssa_branch_with_phi() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
@@ -305,7 +305,7 @@ block3(v3: i32):
 #[test]
 fn test_ssa_trivial_phi_removal() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
@@ -368,7 +368,7 @@ block3:
 #[test]
 fn test_ssa_trivial_phi_unsealed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
@@ -430,7 +430,7 @@ block3:
 #[test]
 fn test_build_arithmetic_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build function
@@ -469,7 +469,7 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_build_comparison_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
 
@@ -509,7 +509,7 @@ fn test_type_construction() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
 
     // create various types
     let void_type = module.type_void();
@@ -565,7 +565,7 @@ fn test_type_construction() {
 #[test]
 fn test_seal_all_blocks() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build multi-block function
@@ -607,7 +607,7 @@ fn test_managed_reference_types() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
 
     // create managed reference types
     let i32_type = module.type_i32();
@@ -638,7 +638,7 @@ fn test_managed_reference_types() {
 #[test]
 fn test_build_managed_alloc() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let ref_type = module.type_managed_reference(i32_type);
 
@@ -667,7 +667,7 @@ block0:
 #[test]
 fn test_build_managed_alloc_array() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let array_ref_type = module.type_managed_reference(i32_type);
@@ -698,7 +698,7 @@ block0(v0: i64):
 #[test]
 fn test_build_raw_alloc_and_free() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let void_type = module.type_void();
     let raw_ref_type = module.type_raw_pointer(i32_type);
@@ -736,7 +736,7 @@ block0:
 #[test]
 fn test_build_stack_alloc() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let raw_ref_type = module.tree_mut().insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
@@ -773,7 +773,7 @@ fn test_build_intrinsics() {
     use crate::Intrinsic;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let f64_type = module.type_f64();
 
     // build function with intrinsics
@@ -811,7 +811,7 @@ fn test_build_void_intrinsic() {
     use crate::Intrinsic;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build function with void intrinsic
@@ -846,7 +846,7 @@ block0:
 #[test]
 fn test_build_struct() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let f64_type = module.type_f64();
 
@@ -883,7 +883,7 @@ block0(v0: i32, v1: f64):
 #[test]
 fn test_build_tuple() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
@@ -916,7 +916,7 @@ block0(v0: i32, v1: bool):
 #[test]
 fn test_build_array() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
 
@@ -952,7 +952,7 @@ block0:
 #[test]
 fn test_build_field_get_struct() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let f64_type = module.type_f64();
     let field0 = module.field(None, i32_type, 0);
@@ -986,7 +986,7 @@ block0(v0: { i32, f64 }):
 #[test]
 fn test_build_field_get_tuple() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copyability::Trivial);
@@ -1018,7 +1018,7 @@ block0(v0: (i32, bool)):
 #[test]
 fn test_build_element_get_array() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let array_type = module.type_array(i32_type, 3, Copyability::Trivial);
@@ -1060,7 +1060,7 @@ block0(v0: [i32; 3], v1: i64):
 #[test]
 fn test_ssa_passthrough_intermediate_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
 
@@ -1150,7 +1150,7 @@ block4:
 #[test]
 fn test_ssa_multiple_phis_at_merge() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
