@@ -215,6 +215,22 @@ fn test_lex_characters() {
 }
 
 #[test]
+fn test_lex_bigint_literal() {
+    assert_tokenize_eq_roundtrip!(
+        "0n",
+        Token::new(
+            TokenType::Literal,
+            2,
+            Some(LiteralType::Int {
+                base: NumberBase::Decimal,
+                is_empty: false,
+                is_bigint: true,
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_html_entities_outside_tree_not_decoded() {
     assert_tokenize_eq_roundtrip!(
         "&nbsp;",
