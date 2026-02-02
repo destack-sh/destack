@@ -2,7 +2,7 @@ use crate::timing::tags;
 use crate::{Compiler, ImportError, ImportResult};
 
 use destack_base::StringPool;
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
 use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
 
@@ -156,7 +156,13 @@ impl Compiler {
         let language_type = LanguageType::from(file.ty);
         let mut parser = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_LEX);
-            Parser::lex_file(file.clone(), language_type)
+            Parser::lex_file_with_settings(
+                file.clone(),
+                language_type,
+                ParserSettings {
+                    disallow_ambiguous_tree_literal: self.options.disallow_ambiguous_tree_literal,
+                },
+            )
         };
         let expressions = {
             let _timing = self.timing_scope(tags::IMPORT_MODULE_PARSE_TREE);

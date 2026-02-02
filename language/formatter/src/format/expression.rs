@@ -8,8 +8,8 @@ use destack_ast::{
     IfCondition, IfKind, ImportAliasTarget, ImportSource, Keyword, LetKind, LocalNodeId, MatchCase,
     MatchKind, MatchSelector, Member, Mutability, NodeTree, NodeType, OperatorPrecedence,
     Parameter, Pattern, PostfixPosition, Property, ScalarLiteral, TokenType, TypeBinaryOperator,
-    TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, WhereClause, WhileKind,
-    YieldCardinality,
+    TypeLiteral, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator, WhereClause,
+    WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError, GroupId, text};
@@ -1942,13 +1942,6 @@ fn needs_parens_in_postfix_position(tree: &NodeTree, expr_id: LocalNodeId<Expres
     expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Postfix as u16
 }
 
-/// Returns true if the expression needs parentheses when used as the operand
-/// of a prefix operator like `-` or a type assertion.
-#[inline]
-fn needs_parens_in_prefix_position(tree: &NodeTree, expr_id: LocalNodeId<Expression>) -> bool {
-    expression_precedence(tree.get(expr_id)) < OperatorPrecedence::Prefix as u16
-}
-
 /// Decide whether a sequence expression needs parentheses in its parent context.
 fn sequence_expression_needs_parens(
     context: &DestackFormatContext<'_>,
@@ -3372,33 +3365,6 @@ fn member_is_private_hash(
     };
 
     prev_token.token.ty == TokenType::Hash
-}
-
-/// Check whether a type assertion was written in angle bracket form (`<T>expr`).
-fn type_binary_is_angle_assertion(
-    context: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<Expression>,
-    operator: TypeBinaryOperator,
-) -> bool {
-    if operator != TypeBinaryOperator::Cast {
-        return false;
-    }
-
-    let language_type = context.options.language_type;
-    if !language_type.is_typescript() || language_type.supports_jsx() {
-        return false;
-    }
-
-    let span = context.get_span(node_id);
-    let Some(token) = context
-        .tokens
-        .iter()
-        .find(|token| token.span.start == span.start)
-    else {
-        return false;
-    };
-
-    token.token.ty == TokenType::LessThan
 }
 
 /// Decide whether postfix annotations on a path belong after the last segment.
@@ -6760,7 +6726,12 @@ pub(crate) fn format_expression<'ast>(
         // unary
         Expression::Unary { operator, right } => {
             if operator.is_prefix() {
-                write!(f, [operator, right])?;
+                let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
+                if needs_space {
+                    write!(f, [operator, space(), right])?;
+                } else {
+                    write!(f, [operator, right])?;
+                }
             } else {
                 write!(f, [right, operator])?;
             }
@@ -7134,32 +7105,19 @@ pub(crate) fn format_expression<'ast>(
             operator,
             right,
         } => {
-            if type_binary_is_angle_assertion(f.context(), node_id, *operator) {
-                let left_needs_parens = needs_parens_in_prefix_position(tree, *left);
-                let formatted_left = format_with(|f| {
-                    if left_needs_parens {
-                        write!(f, [token("("), *left, token(")")])?;
-                    } else {
-                        write!(f, [*left])?;
-                    }
-                    Ok(())
-                });
-                write!(f, [token("<"), *right, token(">"), formatted_left])?;
-            } else {
-                let has_postfix = f.context().has_postfix_annotation(*left);
-                write!(
-                    f,
-                    [group(&format_args![
-                        left,
-                        indent(&format_with(|f| {
-                            if !has_postfix {
-                                write!(f, [soft_line_break_or_space()])?;
-                            }
-                            write!(f, [operator, space(), right])
-                        }))
-                    ])]
-                )?;
-            }
+            let has_postfix = f.context().has_postfix_annotation(*left);
+            write!(
+                f,
+                [group(&format_args![
+                    left,
+                    indent(&format_with(|f| {
+                        if !has_postfix {
+                            write!(f, [soft_line_break_or_space()])?;
+                        }
+                        write!(f, [operator, space(), right])
+                    }))
+                ])]
+            )?;
         }
 
         // assign

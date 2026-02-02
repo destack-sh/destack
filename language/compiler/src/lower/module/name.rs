@@ -1318,7 +1318,7 @@ mod tests {
     /// Name keys return the string directly.
     #[test]
     fn test_static_key_name() {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
         let name = builder.intern("foo");
         let key = dir::StaticKey::Name(name);
 
@@ -1329,7 +1329,7 @@ mod tests {
     /// Number keys return the string directly.
     #[test]
     fn test_static_key_number() {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
         let num = builder.intern("42");
         let key = dir::StaticKey::Number(num);
 
@@ -1340,7 +1340,7 @@ mod tests {
     /// Well-known symbol keys get synthetic names with @ prefix.
     #[test]
     fn test_static_key_well_known_symbol() {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
         let key = dir::StaticKey::Symbol(dir::SymbolKey::WellKnown(
             dir::WellKnownSymbolKey::SymbolIterator,
         ));
@@ -1353,7 +1353,7 @@ mod tests {
     /// Registry symbol keys get synthetic names with @ prefix.
     #[test]
     fn test_static_key_registry_symbol() {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
         let registry_key = builder.intern("myKey");
         let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(registry_key));
 

@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use destack_base::StringPool;
+use destack_ast::{StringId, StringPool};
 use destack_dir::{GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
@@ -52,8 +52,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Map DIR symbols to MIR global bindings.
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Map string literal contents to MIR globals.
-    pub(crate) string_literal_globals:
-        HashMap<destack_base::StringId, mir::LocalNodeId<mir::Global>>,
+    pub(crate) string_literal_globals: HashMap<StringId, mir::LocalNodeId<mir::Global>>,
     /// Map closure environment layouts by function symbol.
     pub(crate) closure_env_layouts: HashMap<GlobalSymbolId, crate::lower::table::ClosureEnvLayout>,
     /// Cached empty closure environment type.
@@ -63,19 +62,22 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
     /// Synthetic name for call signatures in dispatch tables.
-    pub(crate) dispatch_call_name: destack_base::StringId,
+    pub(crate) dispatch_call_name: StringId,
     /// Synthetic name for construct signatures in dispatch tables.
-    pub(crate) dispatch_construct_name: destack_base::StringId,
+    pub(crate) dispatch_construct_name: StringId,
     /// Synthetic name for vtable header fields.
-    pub(crate) vtable_field_name: destack_base::StringId,
+    pub(crate) vtable_field_name: StringId,
+
     /// Track interface slot data for dispatch lowering.
     pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
     /// Track interface slot lowering in progress.
     pub(crate) interface_slots_in_progress: IndexSet<GlobalSymbolId>,
+
     /// Track nominal layout lowering by symbol.
     pub(crate) nominal_layouts_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
     /// Track nominal layout lowering in progress.
     pub(crate) nominal_layouts_in_progress: IndexSet<GlobalSymbolId>,
+
     /// Track class symbols that require vtable headers.
     pub(crate) vtable_layout_symbols: Option<HashSet<GlobalSymbolId>>,
     /// Track vtables that have been lowered.
@@ -84,18 +86,22 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) vtable_in_progress: IndexSet<GlobalSymbolId>,
     /// Precomputed dispatch table ids for class vtables.
     pub(crate) vtable_ids_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
+
     /// Track itabs that have been lowered.
     pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
     /// Track itab lowering in progress.
     pub(crate) itab_in_progress: IndexSet<(GlobalSymbolId, GlobalSymbolId)>,
+
     /// Track whether the dispatch registry is initialized.
     pub(crate) dispatch_registry_ready: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
     pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
+
     /// Ordered list of class symbols that require vtables.
     pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
     /// Predeclared vtable globals keyed by class symbol.
     pub(crate) vtable_globals_by_symbol: HashMap<GlobalSymbolId, VtableGlobal>,
+
     /// Ordered interface itab pairs for deterministic table ids.
     pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
     /// Precomputed itab ids keyed by concrete and interface symbols.
@@ -118,7 +124,7 @@ impl<'a> ModuleLowerer<'a> {
         pointer_bytes: u8,
     ) -> Self {
         // initialize the module builder
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::new_with_verify(compiler.options.verify_mir);
 
         // seed the mir string pool with program strings
         let strings = compiler.program.strings.as_ref().clone().into_immutable();

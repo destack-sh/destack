@@ -1,11 +1,13 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Argument, BindingKind, DeclarationKind, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector,
-    NodeTree, Pattern, PatternField, Property, TypeLiteral, TypeUnaryOperator,
+    DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
+    MatchSelector, Mutability, NodeTree, Pattern, PatternField, Property, ScalarLiteral,
+    SymbolTable, SymbolType, TemplateLiteral, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Validate a single expression node.
     pub(super) fn validate_expression(
@@ -13,10 +15,14 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
         match expression {
+            Expression::Assign { left, .. } => {
+                self.validate_assignment_target(module, profile, tree, *left);
+            }
             Expression::Match {
                 kind: MatchKind::Switch,
                 cases,
@@ -67,7 +73,26 @@ impl Compiler {
             }
             Expression::Import { kind, items, .. }
             | Expression::UnresolvedImport { kind, items, .. } => {
-                self.validate_type_only_import_bindings(module, profile, tree, *kind, items);
+                self.validate_dependency_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *kind,
+                    Some(items),
+                );
+            }
+            Expression::Export { kind, .. }
+            | Expression::ReExport { kind, .. }
+            | Expression::UnresolvedReExport { kind, .. } => {
+                self.validate_dependency_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *kind,
+                    None,
+                );
             }
             Expression::ObjectExpression { properties }
             | Expression::TaggedObjectExpression { properties, .. } => {
@@ -87,19 +112,39 @@ impl Compiler {
             }
             Expression::Let {
                 descriptor,
+                mutability,
                 declarators,
                 ..
             } => {
-                let is_declare_context = descriptor.kind == DeclarationKind::Declaration
-                    || self.is_in_declare_namespace(tree, expression_id.into_any());
-                self.validate_declare_binding_initializers(
-                    module,
-                    profile,
-                    tree,
-                    declarators,
-                    is_declare_context,
-                );
-                self.validate_destructuring_initializers(module, profile, tree, declarators);
+                let is_in_declare_namespace =
+                    self.is_in_declare_namespace(tree, expression_id.into_any());
+                let is_in_declare_module =
+                    self.is_in_declare_module(tree, expression_id.into_any());
+                let is_declare_context =
+                    descriptor.kind == DeclarationKind::Declaration || is_in_declare_namespace;
+                let allow_ambient_const_initializers = is_in_declare_module;
+                for declarator_id in declarators {
+                    self.validate_declare_binding_initializer(
+                        module,
+                        profile,
+                        tree,
+                        *declarator_id,
+                        *mutability,
+                        is_declare_context,
+                        allow_ambient_const_initializers,
+                    );
+                    self.validate_const_initializer(
+                        module,
+                        profile,
+                        tree,
+                        symbols,
+                        *declarator_id,
+                        *mutability,
+                        is_declare_context,
+                        allow_ambient_const_initializers,
+                    );
+                    self.validate_destructuring_initializer(module, profile, tree, *declarator_id);
+                }
             }
             Expression::Using { descriptor, .. } => {
                 let is_declare_context = descriptor.kind == DeclarationKind::Declaration
@@ -112,6 +157,58 @@ impl Compiler {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Validate assignment targets for assignment expressions.
+    fn validate_assignment_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        target: LocalNodeId<Expression>,
+    ) {
+        // reject non-assignable targets
+        if !self.is_valid_assignment_target(tree, target) {
+            let node = target
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidAssignmentTarget { node });
+        }
+    }
+
+    /// Check whether an expression is a valid assignment target.
+    fn is_valid_assignment_target(&self, tree: &NodeTree, target: LocalNodeId<Expression>) -> bool {
+        match tree.get(target) {
+            Expression::UnresolvedPath {
+                static_arguments: None,
+                ..
+            }
+            | Expression::LocalReference {
+                static_arguments: None,
+                ..
+            }
+            | Expression::ModuleReference {
+                static_arguments: None,
+                ..
+            }
+            | Expression::GlobalReference {
+                static_arguments: None,
+                ..
+            } => true,
+            Expression::Member {
+                static_arguments: None,
+                ..
+            } => true,
+            Expression::PrivateMember {
+                static_arguments: None,
+                ..
+            } => true,
+            Expression::Index { .. } => true,
+            Expression::Parenthesized { expression } => {
+                self.is_valid_assignment_target(tree, *expression)
+            }
+            _ => false,
         }
     }
 
@@ -133,6 +230,30 @@ impl Compiler {
                 self.validate_sequence_pattern_fields(module, profile, tree, fields);
             }
             _ => {}
+        }
+    }
+
+    /// Validate an import or export expression.
+    fn validate_dependency_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        kind: DependencyKind,
+        items: Option<&[LocalNodeId<DependencyItem>]>,
+    ) {
+        // reject type-only dependencies in JavaScript modules
+        if module.language_type.is_javascript() && kind == DependencyKind::Type {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+        }
+
+        // validate type-only import bindings
+        if let Some(items) = items {
+            self.validate_type_only_import_bindings(module, profile, tree, kind, items);
         }
     }
 
@@ -450,54 +571,211 @@ impl Compiler {
         }
     }
 
-    /// Validate declare binding initializers.
-    fn validate_declare_binding_initializers(
+    /// Validate a declare binding initializer.
+    fn validate_declare_binding_initializer(
         &self,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        declarators: &[LocalNodeId<Declarator>],
+        declarator_id: LocalNodeId<Declarator>,
+        mutability: Mutability,
         is_declare_context: bool,
+        allow_ambient_const_initializers: bool,
     ) {
         // only enforce in declare contexts
         if !is_declare_context {
             return;
         }
 
+        // allow ambient const initializers to handle their own rules
+        if mutability == Mutability::Immutable && allow_ambient_const_initializers {
+            return;
+        }
+
         // report initializers in declare bindings
-        for declarator_id in declarators {
-            let declarator = tree.get(*declarator_id);
-            if declarator.value.is_some() {
-                let node = declarator_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
-                self.error(AnalyzeError::InvalidDeclareInitializer { node });
-            }
+        let declarator = tree.get(declarator_id);
+        if declarator.value.is_some() {
+            let node = declarator_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidDeclareInitializer { node });
         }
     }
 
-    /// Validate destructuring declarations without initializers.
-    fn validate_destructuring_initializers(
+    /// Validate a const binding initializer.
+    fn validate_const_initializer(
         &self,
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        declarators: &[LocalNodeId<Declarator>],
+        symbols: &SymbolTable,
+        declarator_id: LocalNodeId<Declarator>,
+        mutability: Mutability,
+        is_declare_context: bool,
+        allow_ambient_const_initializers: bool,
     ) {
-        // scan declarators without values
-        for declarator_id in declarators {
-            let declarator = tree.get(*declarator_id);
-            if declarator.value.is_some() {
-                continue;
-            }
+        // only enforce for const bindings
+        if mutability != Mutability::Immutable {
+            return;
+        }
 
-            // destructuring bindings require initializers
-            if self.is_destructuring_pattern(tree, declarator.pattern) {
+        // report invalid ambient const initializers
+        if is_declare_context {
+            if !allow_ambient_const_initializers {
+                return;
+            }
+            let declarator = tree.get(declarator_id);
+            let Some(value) = declarator.value else {
+                return;
+            };
+            if !self.is_valid_ambient_const_initializer(module, profile, tree, symbols, value) {
                 let node = declarator_id
                     .into_global_any(module.id)
                     .into_anchored(Some(profile));
-                self.error(AnalyzeError::MissingDestructuringInitializer { node });
+                self.error(AnalyzeError::InvalidAmbientConstInitializer { node });
             }
+            return;
+        }
+
+        // report missing initializers in const bindings
+        let declarator = tree.get(declarator_id);
+        if declarator.value.is_some() {
+            return;
+        }
+
+        // destructuring bindings already report a dedicated initializer error
+        if self.is_destructuring_pattern(tree, declarator.pattern) {
+            return;
+        }
+
+        let node = declarator_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::MissingConstInitializer { node });
+    }
+
+    /// Check whether an ambient const initializer is valid.
+    fn is_valid_ambient_const_initializer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let expression = tree.get(expression_id);
+
+        // allow scalar literals
+        if let Expression::ScalarLiteral { value } = expression {
+            return matches!(
+                value,
+                ScalarLiteral::Boolean(_)
+                    | ScalarLiteral::Integer(_)
+                    | ScalarLiteral::Bigint(_)
+                    | ScalarLiteral::Float(_)
+                    | ScalarLiteral::String(_)
+                    | ScalarLiteral::Character(_)
+            );
+        }
+
+        // allow template literals without interpolations
+        if let Expression::TemplateExpression { value } = expression {
+            return matches!(value, TemplateLiteral::String { .. });
+        }
+
+        // allow unary minus on numeric and bigint literals
+        if let Expression::Unary {
+            operator: UnaryOperator::Negate,
+            right,
+        } = expression
+        {
+            let right_expression = tree.get(*right);
+            return matches!(
+                right_expression,
+                Expression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(_)
+                        | ScalarLiteral::Bigint(_)
+                        | ScalarLiteral::Float(_)
+                }
+            );
+        }
+
+        // allow enum member references
+        if let Expression::Member {
+            left,
+            static_arguments: None,
+            ..
+        } = expression
+        {
+            return self.is_ambient_const_enum_reference(module, profile, tree, symbols, *left);
+        }
+
+        false
+    }
+
+    /// Check whether an expression is an enum reference for ambient const initializers.
+    fn is_ambient_const_enum_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let target_symbol = match tree.get(expression_id) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            _ => return false,
+        };
+
+        self.symbol_is_enum(module, profile, symbols, target_symbol)
+    }
+
+    /// Check whether a symbol resolves to an enum declaration.
+    fn symbol_is_enum(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        symbol_id: GlobalSymbolId,
+    ) -> bool {
+        // check symbols from the current module
+        if symbol_id.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            return symbol.ty == SymbolType::Enum;
+        }
+
+        // check symbols from dependent modules
+        let target_module = self.program.modules.get(symbol_id.module_id);
+        let target_module = target_module.read();
+        let Some(target_dir) = target_module.dir_maybe(profile) else {
+            return false;
+        };
+        let target_symbols = target_dir.symbols.read();
+        let symbol = target_symbols.get_symbol(symbol_id.local_id);
+        symbol.ty == SymbolType::Enum
+    }
+
+    /// Validate a destructuring declaration without an initializer.
+    fn validate_destructuring_initializer(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        declarator_id: LocalNodeId<Declarator>,
+    ) {
+        let declarator = tree.get(declarator_id);
+        if declarator.value.is_some() {
+            return;
+        }
+
+        // destructuring bindings require initializers
+        if self.is_destructuring_pattern(tree, declarator.pattern) {
+            let node = declarator_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::MissingDestructuringInitializer { node });
         }
     }
 

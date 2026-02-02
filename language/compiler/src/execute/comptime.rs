@@ -145,7 +145,7 @@ impl<'a> ComptimeLowerer<'a> {
         let captures = dir.captures.read();
 
         // initialize the mir builder
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
 
         // seed the mir string pool with program strings
         let strings = compiler.program.strings.as_ref().clone().into_immutable();
