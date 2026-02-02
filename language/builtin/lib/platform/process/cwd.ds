@@ -1,0 +1,12 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Working directory bindings for the native runtime.
+declare namespace process {
+    /// Return the current working directory.
+    @binding("destack.process.cwd")
+    export function cwd(): Result<string, PlatformError>;
+
+    /// Change the current working directory.
+    @binding("destack.process.chdir")
+    export function chdir(path: string): Result<void, PlatformError>;
+}

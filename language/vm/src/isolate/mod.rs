@@ -8,3 +8,4 @@ pub use external::*;
 pub use globals::*;
 pub use isolate::*;
 pub(crate) use state::*;
+pub use string::{StringHandle, StringRef};

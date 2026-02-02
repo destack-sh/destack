@@ -11,37 +11,28 @@ macro_rules! binding {
     }};
 }
 
-/// Define a binding set for a host domain.
-#[macro_export]
-macro_rules! binding_set {
-    ($vis:vis $name:ident, $label:expr, |$registry:ident, $isolate:ident, $host:ident| $body:block) => {
-        #[doc = "Install the binding set into a registry."]
-        fn __install(
-            $registry: &mut $crate::platform::bindings::BindingRegistry,
-            $isolate: &mut destack_vm::Isolate,
-            $host: &$crate::platform::host::HostContext,
-        ) {
-            $body
-        }
-
-        #[doc = "Binding set for a host domain."]
-        $vis const $name: $crate::platform::bindings::BindingSet =
-            $crate::platform::bindings::BindingSet {
-                name: $label,
-                install: __install,
-            };
-    };
-}
-
-/// Define a native binding set for a host domain.
+/// Define a native binding set for a platform domain.
 #[macro_export]
 macro_rules! native_binding_set {
     ($vis:vis $name:ident, $label:expr, [$( $binding:expr ),* $(,)?]) => {
-        #[doc = "Native binding set for a host domain."]
+        #[doc = "Native binding set for a platform domain."]
         $vis const $name: $crate::platform::bindings::NativeBindingSet =
             $crate::platform::bindings::NativeBindingSet {
                 name: $label,
                 bindings: &[$($binding),*],
+            };
+    };
+}
+
+/// Define a VM binding set for a platform domain.
+#[macro_export]
+macro_rules! vm_binding_set {
+    ($vis:vis $name:ident, $label:expr, $install:expr $(,)?) => {
+        #[doc = "VM binding set for a platform domain."]
+        $vis const $name: $crate::platform::bindings::VmBindingSet =
+            $crate::platform::bindings::VmBindingSet {
+                name: $label,
+                install: $install,
             };
     };
 }

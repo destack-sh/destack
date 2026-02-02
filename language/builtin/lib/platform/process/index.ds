@@ -1,1 +1,9 @@
-export * from "./process.ds";
+export declare namespace process {}
+
+export * from "./args.ds";
+export * from "./cwd.ds";
+export * from "./env.ds";
+export * from "./exit.ds";
+export * from "./ids.ds";
+export * from "./signals.ds";
+export * from "./umask.ds";

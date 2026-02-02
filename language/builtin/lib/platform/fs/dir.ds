@@ -1,0 +1,67 @@
+import { Array } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { DirectoryHandle } from "../resource/index.ds";
+import { FileMode } from "./flags.ds";
+
+/// File type for directory entries.
+export enum DirentKind {
+    /// A regular file.
+    File = 1,
+    /// A directory.
+    Directory = 2,
+    /// A symbolic link.
+    Symlink = 3,
+    /// A block device.
+    BlockDevice = 4,
+    /// A character device.
+    CharDevice = 5,
+    /// A FIFO/pipe.
+    Fifo = 6,
+    /// A socket.
+    Socket = 7,
+    /// An unknown type.
+    Unknown = 255,
+}
+
+/// Directory entry metadata.
+export struct Dirent {
+    /// Entry name.
+    name: string,
+    /// Entry kind.
+    kind: DirentKind,
+}
+
+/// Directory bindings for the native runtime.
+declare namespace fs {
+    /// Create a directory.
+    @binding("destack.fs.mkdir")
+    export function mkdir(path: string, mode: FileMode): Result<void, PlatformError>;
+
+    /// Create a directory relative to a directory handle.
+    @binding("destack.fs.mkdirat")
+    export function mkdirat(
+        dir: DirectoryHandle,
+        path: string,
+        mode: FileMode,
+    ): Result<void, PlatformError>;
+
+    /// Remove a directory.
+    @binding("destack.fs.rmdir")
+    export function rmdir(path: string): Result<void, PlatformError>;
+
+    /// Open a directory and return a handle.
+    @binding("destack.fs.opendir")
+    export function opendir(path: string): Result<DirectoryHandle, PlatformError>;
+
+    /// Read directory entries from an open directory handle.
+    @binding("destack.fs.readdir")
+    export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>;
+
+    /// Close a directory handle.
+    @binding("destack.fs.closedir")
+    export function closedir(handle: DirectoryHandle): Result<void, PlatformError>;
+
+    /// Create a temporary directory.
+    @binding("destack.fs.mkdtemp")
+    export function mkdtemp(template: string): Result<string, PlatformError>;
+}

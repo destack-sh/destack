@@ -1,0 +1,52 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Shutdown mode for sockets.
+export enum SocketShutdown {
+    /// Shut down reads.
+    Read = 0,
+    /// Shut down writes.
+    Write = 1,
+    /// Shut down reads and writes.
+    ReadWrite = 2,
+}
+
+/// Socket bindings for the native runtime.
+declare namespace net {
+    /// Connect to a remote host and return a socket handle.
+    @binding("destack.net.connect")
+    export function connect(host: string, port: uint16): Result<SocketHandle, PlatformError>;
+
+    /// Close a socket handle.
+    @binding("destack.net.close")
+    export function close(handle: SocketHandle): Result<void, PlatformError>;
+
+    /// Read from a socket into the provided slice.
+    @binding("destack.net.read")
+    export function read(
+        handle: SocketHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
+
+    /// Write to a socket from the provided slice.
+    @binding("destack.net.write")
+    export function write(
+        handle: SocketHandle,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
+
+    /// Shut down a socket for reads, writes, or both.
+    @binding("destack.net.shutdown")
+    export function shutdown(
+        handle: SocketHandle,
+        how: SocketShutdown,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable nonblocking mode on a socket.
+    @binding("destack.net.setNonblocking")
+    export function setNonblocking(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+}

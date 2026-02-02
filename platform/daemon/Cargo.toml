@@ -26,6 +26,7 @@ destack_compiler = { workspace = true }
 destack_workspace = { workspace = true }
 destack_vm = { workspace = true }
 destack_runtime = { workspace = true }
+destack_heap = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }

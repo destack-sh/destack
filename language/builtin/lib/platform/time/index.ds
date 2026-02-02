@@ -1,1 +1,4 @@
-export * from "./time.ds";
+export declare namespace time {}
+
+export * from "./clock.ds";
+export * from "./sleep.ds";

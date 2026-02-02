@@ -1,1 +1,2 @@
-export * from "./resource.ds";
+export * from "./handles.ds";
+export * from "./id.ds";

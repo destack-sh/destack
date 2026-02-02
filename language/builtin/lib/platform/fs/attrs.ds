@@ -1,0 +1,54 @@
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle } from "../resource/index.ds";
+import { AccessMode, FileMode } from "./flags.ds";
+
+/// File attribute bindings for the native runtime.
+declare namespace fs {
+    /// Check file access permissions.
+    @binding("destack.fs.access")
+    export function access(path: string, mode: AccessMode): Result<void, PlatformError>;
+
+    /// Change file permissions.
+    @binding("destack.fs.chmod")
+    export function chmod(path: string, mode: FileMode): Result<void, PlatformError>;
+
+    /// Change file permissions by handle.
+    @binding("destack.fs.fchmod")
+    export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>;
+
+    /// Change file owner and group.
+    @binding("destack.fs.chown")
+    export function chown(path: string, uid: uint32, gid: uint32): Result<void, PlatformError>;
+
+    /// Change file owner and group by handle.
+    @binding("destack.fs.fchown")
+    export function fchown(
+        handle: FileHandle,
+        uid: uint32,
+        gid: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Update access and modification times.
+    @binding("destack.fs.utimes")
+    export function utimes(
+        path: string,
+        atimeNs: uint64,
+        mtimeNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Update access and modification times by handle.
+    @binding("destack.fs.futimes")
+    export function futimes(
+        handle: FileHandle,
+        atimeNs: uint64,
+        mtimeNs: uint64,
+    ): Result<void, PlatformError>;
+
+    /// Update access and modification times without following symlinks.
+    @binding("destack.fs.lutimes")
+    export function lutimes(
+        path: string,
+        atimeNs: uint64,
+        mtimeNs: uint64,
+    ): Result<void, PlatformError>;
+}

@@ -3,7 +3,7 @@ use std::fmt;
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use super::{ExternalHandler, IsolateState};
+use super::{ExternalHandler, IsolateState, StringRef};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
 use crate::interpreter::{InterpreterContext, InterpreterEngine};
@@ -208,6 +208,11 @@ impl Isolate {
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, value: Value) -> Result<String, Error> {
         self.state.string_value(value)
+    }
+
+    /// Read a UTF-8 string view from the heap.
+    pub fn string_value_ref(&self, value: Value) -> Result<StringRef<'_>, Error> {
+        self.state.string_value_ref(value)
     }
 
     /// Read a UTF-8 string from a managed handle.

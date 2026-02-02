@@ -1,0 +1,20 @@
+/// File offset in bytes.
+export newtype FileOffset = uint64;
+
+/// File size in bytes.
+export newtype FileSize = uint64;
+
+/// Open flags for file descriptors.
+export newtype OpenFlags = uint32;
+
+/// File permission mode bits.
+export newtype FileMode = uint32;
+
+/// Access mode bitmask for access checks.
+export newtype AccessMode = uint32;
+
+/// Flags for *at-style operations.
+export newtype AtFlags = uint32;
+
+/// Flags for file locking operations.
+export newtype FileLockFlags = uint32;

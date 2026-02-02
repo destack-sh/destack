@@ -1,0 +1,12 @@
+import type { PlatformError } from "../error/index.ds";
+import { ProcessId } from "./ids.ds";
+
+/// Signal number for process control.
+export newtype Signal = uint32;
+
+/// Process signal bindings for the native runtime.
+declare namespace process {
+    /// Send a signal to a process.
+    @binding("destack.process.kill")
+    export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
+}

@@ -5,6 +5,7 @@ use crate::memory::{HeapStore, RawCellStorage, Value, ValueTag};
 
 use super::super::state::InterpreterContext;
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> InterpreterContext<'a> {
     /// Execute an intrinsic with already-resolved argument values.
     ///

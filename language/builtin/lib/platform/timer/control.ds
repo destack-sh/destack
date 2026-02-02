@@ -1,0 +1,9 @@
+import { TimerHandle } from "../resource/index.ds";
+import type { PlatformError } from "../error/index.ds";
+
+/// Timer control bindings for the native runtime.
+declare namespace timer {
+    /// Cancel a scheduled timer.
+    @binding("destack.timer.cancel")
+    export function cancel(handle: TimerHandle): Result<void, PlatformError>;
+}

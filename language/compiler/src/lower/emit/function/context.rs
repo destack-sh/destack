@@ -14,7 +14,7 @@ use crate::lower::emit::{BreakContext, LoopContext, Terminates};
 use crate::lower::item::{GlobalBinding, LocalBinding};
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{ClosureEnvLayout, VirtualMethodKey, VtableGlobal};
-use crate::lower::r#type::TypeLowerer;
+use crate::lower::{RuntimeStatusLayout, r#type::TypeLowerer};
 
 /// Shared, immutable inputs for lowering a single function body.
 pub(crate) struct FunctionEnv<'a> {
@@ -50,6 +50,14 @@ pub(crate) struct FunctionEnv<'a> {
     /// Resolve MIR signature types for known functions.
     pub(crate) function_signature_types:
         &'a HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
+    /// Resolve binding symbols for ABI lowering.
+    pub(crate) binding_symbols: &'a HashSet<GlobalSymbolId>,
+    /// Enable ABI lowering for bindings.
+    pub(crate) binding_abi_lowering: bool,
+    /// Cached runtime status layout for binding ABI calls.
+    pub(crate) runtime_status_layout: Option<RuntimeStatusLayout>,
+    /// Cached runtime error take binding for ABI calls.
+    pub(crate) take_platform_error_function: Option<mir::LocalNodeId<mir::Function>>,
 
     /// Resolve globals by symbol for module-level variable references.
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,

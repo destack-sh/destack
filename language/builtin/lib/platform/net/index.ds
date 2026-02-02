@@ -1,1 +1,7 @@
-export * from "./net.ds";
+export declare namespace net {}
+
+export * from "./address.ds";
+export * from "./listener.ds";
+export * from "./reuse.ds";
+export * from "./socket.ds";
+export * from "./tcp.ds";

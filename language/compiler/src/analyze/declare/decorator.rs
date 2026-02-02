@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Annotation, Argument, CaptureDirective, CaptureKind, CapturePolicy, CaptureRule, CaptureTable,
-    Declaration, DeprecatedNotice, DynamicKey, ExperimentalNotice, Expression, ExternBinding,
-    GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LifetimeAnnotation, LocalNodeId,
-    LocalNodeIdAny, NodeTree, Property, SanitizerMarker, ScalarLiteral, SinkMarker,
+    Annotation, Argument, Binding, CaptureDirective, CaptureKind, CapturePolicy, CaptureRule,
+    CaptureTable, Declaration, DeprecatedNotice, DynamicKey, ExperimentalNotice, Expression,
+    ExternBinding, GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LifetimeAnnotation,
+    LocalNodeId, LocalNodeIdAny, NodeTree, Property, SanitizerMarker, ScalarLiteral, SinkMarker,
     SymbolDecorators, SymbolTable, TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
 };
 use destack_workspace::{Module, ProfileId};
@@ -438,31 +438,33 @@ impl Compiler {
                     return;
                 };
                 if let Some(name) = name {
-                    if decorators.intrinsic_binding.is_some() {
+                    if decorators.intrinsic_binding.is_some() || decorators.extern_binding.is_some()
+                    {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
                             annotation_id,
-                            "binding and intrinsic decorators cannot be combined",
+                            "binding cannot be combined with extern or intrinsic",
                         );
                         return;
                     }
 
-                    let binding = ExternBinding { name: Some(name) };
-                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                    let binding = Binding { name: Some(name) };
+                    self.merge_binding(module, profile, annotation_id, binding, decorators);
                 } else {
-                    if decorators.intrinsic_binding.is_some() {
+                    if decorators.intrinsic_binding.is_some() || decorators.extern_binding.is_some()
+                    {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
                             annotation_id,
-                            "binding and intrinsic decorators cannot be combined",
+                            "binding cannot be combined with extern or intrinsic",
                         );
                         return;
                     }
 
-                    let binding = ExternBinding { name: None };
-                    self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
+                    let binding = Binding { name: None };
+                    self.merge_binding(module, profile, annotation_id, binding, decorators);
                 }
             }
             WellKnownDecorator::Extern => {
@@ -477,12 +479,12 @@ impl Compiler {
                     return;
                 };
                 if let Some(name) = name {
-                    if decorators.intrinsic_binding.is_some() {
+                    if decorators.intrinsic_binding.is_some() || decorators.binding.is_some() {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
                             annotation_id,
-                            "extern and intrinsic decorators cannot be combined",
+                            "extern cannot be combined with binding or intrinsic",
                         );
                         return;
                     }
@@ -490,12 +492,12 @@ impl Compiler {
                     let binding = ExternBinding { name: Some(name) };
                     self.merge_extern_binding(module, profile, annotation_id, binding, decorators);
                 } else {
-                    if decorators.intrinsic_binding.is_some() {
+                    if decorators.intrinsic_binding.is_some() || decorators.binding.is_some() {
                         self.report_invalid_well_known_decorator(
                             module,
                             profile,
                             annotation_id,
-                            "extern and intrinsic decorators cannot be combined",
+                            "extern cannot be combined with binding or intrinsic",
                         );
                         return;
                     }
@@ -1596,6 +1598,30 @@ impl Compiler {
                 profile,
                 annotation_id,
                 "extern decorator is already set",
+            );
+        }
+    }
+
+    /// Merge a binding into the symbol metadata.
+    fn merge_binding(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        annotation_id: LocalNodeId<Annotation>,
+        binding: Binding,
+        decorators: &mut SymbolDecorators,
+    ) {
+        let Some(existing) = decorators.binding.as_ref() else {
+            decorators.binding = Some(binding);
+            return;
+        };
+
+        if existing != &binding {
+            self.report_invalid_well_known_decorator(
+                module,
+                profile,
+                annotation_id,
+                "binding decorator is already set",
             );
         }
     }

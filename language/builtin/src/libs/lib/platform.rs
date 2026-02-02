@@ -43,12 +43,65 @@ builtin_lib_sources_targeted!(
             "platform/error",
             "index.ds"
         ),
-        (LIB_PLATFORM_FS_FS_DS, "lib", "platform/fs", "fs.ds"),
+        (LIB_PLATFORM_FS_ATTRS_DS, "lib", "platform/fs", "attrs.ds"),
+        (LIB_PLATFORM_FS_DIR_DS, "lib", "platform/fs", "dir.ds"),
+        (LIB_PLATFORM_FS_FILE_DS, "lib", "platform/fs", "file.ds"),
+        (LIB_PLATFORM_FS_FLAGS_DS, "lib", "platform/fs", "flags.ds"),
         (LIB_PLATFORM_FS_INDEX_DS, "lib", "platform/fs", "index.ds"),
-        (LIB_PLATFORM_FS_TYPES_DS, "lib", "platform/fs", "types.ds"),
+        (LIB_PLATFORM_FS_PATH_DS, "lib", "platform/fs", "path.ds"),
+        (LIB_PLATFORM_FS_STAT_DS, "lib", "platform/fs", "stat.ds"),
         (LIB_PLATFORM_INDEX_DS, "lib", "platform", "index.ds"),
+        (
+            LIB_PLATFORM_NET_ADDRESS_DS,
+            "lib",
+            "platform/net",
+            "address.ds"
+        ),
         (LIB_PLATFORM_NET_INDEX_DS, "lib", "platform/net", "index.ds"),
-        (LIB_PLATFORM_NET_NET_DS, "lib", "platform/net", "net.ds"),
+        (
+            LIB_PLATFORM_NET_LISTENER_DS,
+            "lib",
+            "platform/net",
+            "listener.ds"
+        ),
+        (LIB_PLATFORM_NET_REUSE_DS, "lib", "platform/net", "reuse.ds"),
+        (
+            LIB_PLATFORM_NET_SOCKET_DS,
+            "lib",
+            "platform/net",
+            "socket.ds"
+        ),
+        (LIB_PLATFORM_NET_TCP_DS, "lib", "platform/net", "tcp.ds"),
+        (
+            LIB_PLATFORM_PROCESS_ARGS_DS,
+            "lib",
+            "platform/process",
+            "args.ds"
+        ),
+        (
+            LIB_PLATFORM_PROCESS_CWD_DS,
+            "lib",
+            "platform/process",
+            "cwd.ds"
+        ),
+        (
+            LIB_PLATFORM_PROCESS_ENV_DS,
+            "lib",
+            "platform/process",
+            "env.ds"
+        ),
+        (
+            LIB_PLATFORM_PROCESS_EXIT_DS,
+            "lib",
+            "platform/process",
+            "exit.ds"
+        ),
+        (
+            LIB_PLATFORM_PROCESS_IDS_DS,
+            "lib",
+            "platform/process",
+            "ids.ds"
+        ),
         (
             LIB_PLATFORM_PROCESS_INDEX_DS,
             "lib",
@@ -56,10 +109,16 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_PROCESS_PROCESS_DS,
+            LIB_PLATFORM_PROCESS_SIGNALS_DS,
             "lib",
             "platform/process",
-            "process.ds"
+            "signals.ds"
+        ),
+        (
+            LIB_PLATFORM_PROCESS_UMASK_DS,
+            "lib",
+            "platform/process",
+            "umask.ds"
         ),
         (
             LIB_PLATFORM_RANDOM_INDEX_DS,
@@ -68,10 +127,28 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_RANDOM_RANDOM_DS,
+            LIB_PLATFORM_RANDOM_SECURE_DS,
             "lib",
             "platform/random",
-            "random.ds"
+            "secure.ds"
+        ),
+        (
+            LIB_PLATFORM_RANDOM_STREAM_DS,
+            "lib",
+            "platform/random",
+            "stream.ds"
+        ),
+        (
+            LIB_PLATFORM_RESOURCE_HANDLES_DS,
+            "lib",
+            "platform/resource",
+            "handles.ds"
+        ),
+        (
+            LIB_PLATFORM_RESOURCE_ID_DS,
+            "lib",
+            "platform/resource",
+            "id.ds"
         ),
         (
             LIB_PLATFORM_RESOURCE_INDEX_DS,
@@ -80,10 +157,10 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_RESOURCE_RESOURCE_DS,
+            LIB_PLATFORM_TIME_CLOCK_DS,
             "lib",
-            "platform/resource",
-            "resource.ds"
+            "platform/time",
+            "clock.ds"
         ),
         (
             LIB_PLATFORM_TIME_INDEX_DS,
@@ -91,7 +168,18 @@ builtin_lib_sources_targeted!(
             "platform/time",
             "index.ds"
         ),
-        (LIB_PLATFORM_TIME_TIME_DS, "lib", "platform/time", "time.ds"),
+        (
+            LIB_PLATFORM_TIME_SLEEP_DS,
+            "lib",
+            "platform/time",
+            "sleep.ds"
+        ),
+        (
+            LIB_PLATFORM_TIMER_CONTROL_DS,
+            "lib",
+            "platform/timer",
+            "control.ds"
+        ),
         (
             LIB_PLATFORM_TIMER_INDEX_DS,
             "lib",
@@ -99,10 +187,10 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_PLATFORM_TIMER_TIMER_DS,
+            LIB_PLATFORM_TIMER_SCHEDULE_DS,
             "lib",
             "platform/timer",
-            "timer.ds"
+            "schedule.ds"
         ),
     ]
 );
@@ -114,22 +202,40 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_CONSOLE_INDEX_DS,
         LIB_PLATFORM_ERROR_ERROR_DS,
         LIB_PLATFORM_ERROR_INDEX_DS,
-        LIB_PLATFORM_FS_FS_DS,
+        LIB_PLATFORM_FS_ATTRS_DS,
+        LIB_PLATFORM_FS_DIR_DS,
+        LIB_PLATFORM_FS_FILE_DS,
+        LIB_PLATFORM_FS_FLAGS_DS,
         LIB_PLATFORM_FS_INDEX_DS,
-        LIB_PLATFORM_FS_TYPES_DS,
+        LIB_PLATFORM_FS_PATH_DS,
+        LIB_PLATFORM_FS_STAT_DS,
         LIB_PLATFORM_INDEX_DS,
+        LIB_PLATFORM_NET_ADDRESS_DS,
         LIB_PLATFORM_NET_INDEX_DS,
-        LIB_PLATFORM_NET_NET_DS,
+        LIB_PLATFORM_NET_LISTENER_DS,
+        LIB_PLATFORM_NET_REUSE_DS,
+        LIB_PLATFORM_NET_SOCKET_DS,
+        LIB_PLATFORM_NET_TCP_DS,
+        LIB_PLATFORM_PROCESS_ARGS_DS,
+        LIB_PLATFORM_PROCESS_CWD_DS,
+        LIB_PLATFORM_PROCESS_ENV_DS,
+        LIB_PLATFORM_PROCESS_EXIT_DS,
+        LIB_PLATFORM_PROCESS_IDS_DS,
         LIB_PLATFORM_PROCESS_INDEX_DS,
-        LIB_PLATFORM_PROCESS_PROCESS_DS,
+        LIB_PLATFORM_PROCESS_SIGNALS_DS,
+        LIB_PLATFORM_PROCESS_UMASK_DS,
         LIB_PLATFORM_RANDOM_INDEX_DS,
-        LIB_PLATFORM_RANDOM_RANDOM_DS,
+        LIB_PLATFORM_RANDOM_SECURE_DS,
+        LIB_PLATFORM_RANDOM_STREAM_DS,
+        LIB_PLATFORM_RESOURCE_HANDLES_DS,
+        LIB_PLATFORM_RESOURCE_ID_DS,
         LIB_PLATFORM_RESOURCE_INDEX_DS,
-        LIB_PLATFORM_RESOURCE_RESOURCE_DS,
+        LIB_PLATFORM_TIME_CLOCK_DS,
         LIB_PLATFORM_TIME_INDEX_DS,
-        LIB_PLATFORM_TIME_TIME_DS,
+        LIB_PLATFORM_TIME_SLEEP_DS,
+        LIB_PLATFORM_TIMER_CONTROL_DS,
         LIB_PLATFORM_TIMER_INDEX_DS,
-        LIB_PLATFORM_TIMER_TIMER_DS,
+        LIB_PLATFORM_TIMER_SCHEDULE_DS,
     ],
     &["native"],
 );

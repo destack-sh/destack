@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::ops::Deref;
 
 use crate::diagnostic::Error;
+
 use crate::memory::{
-    HeapHandle, ManagedHeap, RawCellStorage, RawHeap, RawPointer, STRING_FLAG_IS_ASCII,
-    STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout, Value, ValueTag,
+    HeapHandle, HeapReadBorrow, ManagedHeap, RawCellStorage, RawHeap, RawPointer,
+    STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout, Value,
+    ValueTag,
 };
 
 /// Managed string interner for literal storage.
@@ -13,6 +16,86 @@ pub(crate) struct StringInterner {
     literals: HashMap<String, HeapHandle>,
     /// Raw heap buffers for string payloads.
     buffers: HashMap<HeapHandle, RawPointer>,
+}
+
+/// Borrowed string view metadata.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct StringView {
+    /// Pointer to UTF-8 payload.
+    pub ptr: *const u8,
+    /// Length of payload in bytes.
+    pub len: usize,
+}
+
+impl StringView {
+    /// Return an empty string view.
+    pub(crate) fn empty() -> Self {
+        Self {
+            ptr: std::ptr::null(),
+            len: 0,
+        }
+    }
+}
+
+/// Borrowed string view tied to a heap read borrow.
+#[derive(Debug)]
+pub struct StringRef<'a> {
+    /// Heap borrow that keeps the string payload alive.
+    _heap: HeapReadBorrow<'a>,
+    /// Borrowed string payload.
+    data_ptr: *const u8,
+    /// Length of the borrowed string payload.
+    data_len: usize,
+}
+
+/// Managed string handle for external bindings.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StringHandle {
+    /// Raw value backing the string handle.
+    value: Value,
+}
+
+impl StringHandle {
+    /// Create a string handle from a raw value.
+    pub const fn new(value: Value) -> Self {
+        Self { value }
+    }
+
+    /// Return the raw value backing this handle.
+    pub const fn value(self) -> Value {
+        self.value
+    }
+}
+
+impl<'a> StringRef<'a> {
+    /// Create a new borrowed string view.
+    pub(crate) fn new(heap: HeapReadBorrow<'a>, data_ptr: *const u8, data_len: usize) -> Self {
+        Self {
+            _heap: heap,
+            data_ptr,
+            data_len,
+        }
+    }
+
+    /// Return the borrowed string slice.
+    pub fn as_str(&self) -> &str {
+        if self.data_len == 0 {
+            return "";
+        }
+
+        // safety: payload is validated as UTF-8 on creation
+        unsafe {
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.data_ptr, self.data_len))
+        }
+    }
+}
+
+impl Deref for StringRef<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
 }
 
 impl StringInterner {
@@ -78,6 +161,70 @@ impl StringInterner {
         raw_heap: &RawHeap,
         value: Value,
     ) -> Result<String, Error> {
+        // load the borrowed view and allocate an owned copy
+        let value = self.string_value_ref(managed_heap, raw_heap, value)?;
+        Ok(value.to_string())
+    }
+
+    /// Read a UTF-8 string from a managed handle.
+    pub(crate) fn string_value_for_handle(
+        &self,
+        managed_heap: &ManagedHeap,
+        raw_heap: &RawHeap,
+        handle: HeapHandle,
+    ) -> Result<String, Error> {
+        // load the borrowed view and allocate an owned copy
+        let value = self.string_value_ref_for_handle(managed_heap, raw_heap, handle)?;
+        Ok(value.to_string())
+    }
+
+    /// Read a UTF-8 string view from the heap.
+    pub(crate) fn string_value_ref<'a>(
+        &self,
+        managed_heap: &'a ManagedHeap,
+        raw_heap: &'a RawHeap,
+        value: Value,
+    ) -> Result<&'a str, Error> {
+        let view = self.string_value_view(managed_heap, raw_heap, value)?;
+        if view.len == 0 {
+            return Ok("");
+        }
+
+        // safety: payload is validated by string_value_view
+        Ok(
+            unsafe {
+                std::str::from_utf8_unchecked(std::slice::from_raw_parts(view.ptr, view.len))
+            },
+        )
+    }
+
+    /// Read a UTF-8 string view from a managed handle.
+    pub(crate) fn string_value_ref_for_handle<'a>(
+        &self,
+        managed_heap: &'a ManagedHeap,
+        raw_heap: &'a RawHeap,
+        handle: HeapHandle,
+    ) -> Result<&'a str, Error> {
+        let view = self.string_value_view_for_handle(managed_heap, raw_heap, handle)?;
+        if view.len == 0 {
+            return Ok("");
+        }
+
+        // safety: payload is validated by string_value_view_for_handle
+        Ok(
+            unsafe {
+                std::str::from_utf8_unchecked(std::slice::from_raw_parts(view.ptr, view.len))
+            },
+        )
+    }
+
+    /// Read a UTF-8 string view from the heap.
+    pub(crate) fn string_value_view(
+        &self,
+        managed_heap: &ManagedHeap,
+        raw_heap: &RawHeap,
+        value: Value,
+    ) -> Result<StringView, Error> {
         // ensure the value is a string
         let handle = match value.tag() {
             ValueTag::String => value.as_heap_handle().unwrap(),
@@ -89,17 +236,17 @@ impl StringInterner {
             }
         };
 
-        // load
-        self.string_value_for_handle(managed_heap, raw_heap, handle)
+        // load the borrowed view
+        self.string_value_view_for_handle(managed_heap, raw_heap, handle)
     }
 
-    /// Read a UTF-8 string from a managed handle.
-    pub(crate) fn string_value_for_handle(
+    /// Read a UTF-8 string view from a managed handle.
+    pub(crate) fn string_value_view_for_handle(
         &self,
         managed_heap: &ManagedHeap,
         raw_heap: &RawHeap,
         handle: HeapHandle,
-    ) -> Result<String, Error> {
+    ) -> Result<StringView, Error> {
         // reject null handles
         if handle.is_null() {
             return Err(Error::NullPointerDereference);
@@ -117,7 +264,7 @@ impl StringInterner {
             actual: format!("{length_value:?}"),
         })? as usize;
         if length == 0 {
-            return Ok(String::new());
+            return Ok(StringView::empty());
         }
 
         // load the raw payload buffer
@@ -134,12 +281,22 @@ impl StringInterner {
             RawCellStorage::Bytes(bytes) => bytes,
             _ => return Err(Error::InvalidHeapHandle),
         };
-        let value = String::from_utf8(bytes.clone()).map_err(|_| Error::TypeMismatch {
-            expected: "string".to_string(),
-            actual: "bytes".to_string(),
-        })?;
+        if length > bytes.len() {
+            return Err(Error::InvalidHeapHandle);
+        }
 
-        Ok(value)
+        let slice = &bytes[..length];
+        if std::str::from_utf8(slice).is_err() {
+            return Err(Error::TypeMismatch {
+                expected: "string".to_string(),
+                actual: "bytes".to_string(),
+            });
+        }
+
+        Ok(StringView {
+            ptr: slice.as_ptr(),
+            len: slice.len(),
+        })
     }
 
     /// Collect string literal handles as GC roots.

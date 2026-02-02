@@ -1,0 +1,31 @@
+import type { PlatformError } from "../error/index.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Socket address family.
+export enum SocketFamily {
+    /// IPv4 address.
+    IPv4 = 4,
+    /// IPv6 address.
+    IPv6 = 6,
+}
+
+/// Socket address metadata.
+export struct SocketAddress {
+    /// Host or IP address.
+    host: string,
+    /// Port number.
+    port: uint16,
+    /// Address family.
+    family: SocketFamily,
+}
+
+/// Socket address bindings for the native runtime.
+declare namespace net {
+    /// Read the local socket address.
+    @binding("destack.net.localAddress")
+    export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
+
+    /// Read the remote socket address.
+    @binding("destack.net.peerAddress")
+    export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
+}

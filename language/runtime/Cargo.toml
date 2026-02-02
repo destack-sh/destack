@@ -11,16 +11,39 @@ rust-version.workspace = true
 path = "src/lib.rs"
 doctest = false
 
+[features]
+generate_bindings = [
+    "dep:destack_builtin",
+    "dep:destack_compiler",
+    "dep:destack_workspace",
+]
+
+[[bin]]
+name = "generate-bindings"
+path = "src/generate/main.rs"
+required-features = ["generate_bindings"]
+
 [dependencies]
 # language
 destack_ast = { workspace = true }
+destack_base = { workspace = true }
+destack_builtin = { workspace = true, optional = true }
+destack_compiler = { workspace = true, optional = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
+destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
 destack_vm_abi = { workspace = true }
+destack_workspace = { workspace = true, optional = true }
+
+# general
+libc = { workspace = true }
+postcard = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 

@@ -1,0 +1,8 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Process exit bindings for the native runtime.
+declare namespace process {
+    /// Exit the current process with the given code.
+    @binding("destack.process.exit")
+    export function exit(code: uint32): Result<void, PlatformError>;
+}

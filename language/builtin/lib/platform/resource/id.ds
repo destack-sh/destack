@@ -1,0 +1,2 @@
+/// Opaque identifier for a runtime-managed resource.
+export newtype ResourceId = uint64;

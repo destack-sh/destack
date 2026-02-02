@@ -46,24 +46,25 @@ pub(crate) fn handle_vector_extract(
 
     // resolve inputs
     let vec_value = state.get(*vector);
-    let vec_slots = match aggregate_slots(state, vec_value) {
-        Ok(slots) => slots,
-        Err(error) => return ControlFlow::Error(error),
-    };
     let index_value = match value_to_usize(state.get(*index)) {
         Ok(index) => index,
         Err(error) => return ControlFlow::Error(error),
     };
-    if index_value >= vec_slots.len() {
-        return ControlFlow::Error(Error::IndexOutOfBounds {
-            index: index_value as u64,
-            length: vec_slots.len() as u64,
-        });
-    }
 
     // extract lane
-    let result = vec_slots[index_value];
-    drop(vec_slots);
+    let result = {
+        let vec_slots = match aggregate_slots(state, vec_value) {
+            Ok(slots) => slots,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        if index_value >= vec_slots.len() {
+            return ControlFlow::Error(Error::IndexOutOfBounds {
+                index: index_value as u64,
+                length: vec_slots.len() as u64,
+            });
+        }
+        vec_slots[index_value]
+    };
     state.set(*dest, result);
 
     // continue to next instruction

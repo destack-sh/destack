@@ -8,6 +8,13 @@ pub struct ExternBinding {
     pub name: Option<StringId>,
 }
 
+/// Binding metadata for a symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Binding {
+    /// The binding name override (defaults to the symbol name).
+    pub name: Option<StringId>,
+}
+
 /// Intrinsic binding metadata for a symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntrinsicBinding {
@@ -83,6 +90,8 @@ pub enum LifetimeAnnotation {
 /// Well-known decorator metadata attached to a symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SymbolDecorators {
+    /// The binding override.
+    pub binding: Option<Binding>,
     /// The external binding override.
     pub extern_binding: Option<ExternBinding>,
     /// The intrinsic binding override.

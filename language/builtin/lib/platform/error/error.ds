@@ -16,6 +16,42 @@ export enum PlatformErrorCode {
     IoReadFailed = 2100,
     /// I/O write failed.
     IoWriteFailed = 2101,
+    /// File or resource not found.
+    IoNotFound = 2102,
+    /// Permission denied.
+    IoPermissionDenied = 2103,
+    /// File or resource already exists.
+    IoAlreadyExists = 2104,
+    /// Path component is not a directory.
+    IoNotDirectory = 2105,
+    /// Path points to a directory where a file is required.
+    IoIsDirectory = 2106,
+    /// Directory is not empty.
+    IoNotEmpty = 2107,
+    /// Read-only file system.
+    IoReadOnly = 2108,
+    /// Path name is too long.
+    IoNameTooLong = 2109,
+    /// File is too large.
+    IoFileTooLarge = 2110,
+    /// Too many open files.
+    IoTooManyOpenFiles = 2111,
+    /// System file table is full.
+    IoFileTableOverflow = 2112,
+    /// Invalid data or format.
+    IoInvalidData = 2113,
+    /// Cross-device link not permitted.
+    IoCrossDevice = 2114,
+    /// Broken pipe.
+    IoBrokenPipe = 2115,
+    /// I/O timed out.
+    IoTimedOut = 2116,
+    /// I/O interrupted.
+    IoInterrupted = 2117,
+    /// Resource is busy.
+    IoBusy = 2118,
+    /// Operation would block.
+    IoWouldBlock = 2119,
     /// Generic network error.
     Net = 3000,
     /// Connection refused.
@@ -24,14 +60,36 @@ export enum PlatformErrorCode {
     NetTimedOut = 3101,
     /// Connection reset.
     NetConnectionReset = 3102,
+    /// Address already in use.
+    NetAddressInUse = 3103,
+    /// Address not available.
+    NetAddressNotAvailable = 3104,
+    /// Network unreachable.
+    NetNetworkUnreachable = 3105,
+    /// Host unreachable.
+    NetHostUnreachable = 3106,
+    /// Connection aborted.
+    NetConnectionAborted = 3107,
+    /// Broken pipe.
+    NetBrokenPipe = 3108,
+    /// DNS lookup failed.
+    NetDnsFailed = 3109,
     /// Generic process error.
     Process = 4000,
     /// Process spawn failed.
     ProcessSpawnFailed = 4100,
+    /// Process not found.
+    ProcessNotFound = 4101,
+    /// Process permission denied.
+    ProcessPermissionDenied = 4102,
     /// Randomness error.
     Random = 5000,
+    /// Randomness unavailable.
+    RandomUnavailable = 5100,
     /// Time source error.
     Time = 6000,
+    /// Time source unavailable.
+    TimeUnavailable = 6100,
     /// Generic platform error.
     Generic = 9000,
 }
@@ -67,3 +125,10 @@ export newtype PlatformError = {
     pointer?: string,
     feature?: string,
 };
+
+/// Error bindings for runtime error propagation.
+export declare namespace error {
+    /// Take a runtime platform error by id.
+    @binding("destack.error.takePlatformError")
+    export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;
+}

@@ -1,0 +1,13 @@
+import { TimerHandle } from "../resource/index.ds";
+import type { PlatformError } from "../error/index.ds";
+
+/// Timer scheduling bindings for the native runtime.
+declare namespace timer {
+    /// Schedule a one-shot timer.
+    @binding("destack.timer.once")
+    export function once(delayNs: uint64): Result<TimerHandle, PlatformError>;
+
+    /// Schedule a repeating timer.
+    @binding("destack.timer.interval")
+    export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>;
+}

@@ -1,0 +1,29 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Process identifier.
+export newtype ProcessId = uint32;
+
+/// User identifier.
+export newtype UserId = uint32;
+
+/// Group identifier.
+export newtype GroupId = uint32;
+
+/// Process identity bindings for the native runtime.
+declare namespace process {
+    /// Return the current process identifier.
+    @binding("destack.process.pid")
+    export function pid(): Result<ProcessId, PlatformError>;
+
+    /// Return the parent process identifier.
+    @binding("destack.process.ppid")
+    export function ppid(): Result<ProcessId, PlatformError>;
+
+    /// Return the current user identifier.
+    @binding("destack.process.uid")
+    export function uid(): Result<UserId, PlatformError>;
+
+    /// Return the current group identifier.
+    @binding("destack.process.gid")
+    export function gid(): Result<GroupId, PlatformError>;
+}

@@ -6,6 +6,11 @@ use crate::{LowerError, LowerResult, TaskDependencyError};
 
 use crate::lower::ModuleLowerer;
 
+pub(crate) struct BindingResolution {
+    pub(crate) name: String,
+    pub(crate) is_binding: bool,
+}
+
 impl ModuleLowerer<'_> {
     /// Declare external functions referenced by this module.
     pub(crate) fn lower_external_calls(&mut self) -> LowerResult<()> {
@@ -73,15 +78,16 @@ impl ModuleLowerer<'_> {
             return Ok(*function_id);
         }
 
-        // resolve the extern symbol name
-        let extern_name = self
-            .extern_name_for_symbol(expression_id, target_symbol)?
+        // resolve the extern/binding symbol name
+        let binding = self
+            .binding_name_for_symbol(expression_id, target_symbol)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile)),
-                message: "missing @extern binding for call target".to_string(),
+                message: "missing @binding or @extern decorator for call target".to_string(),
             })?;
+        let extern_name = binding.name;
 
         // anchor diagnostic spans for type lowering
         let anchor = expression_id
@@ -102,6 +108,42 @@ impl ModuleLowerer<'_> {
             None => self.type_lowerer.ty_void,
         };
 
+        if binding.is_binding && self.binding_abi_lowering {
+            let binding_info = self.binding_result_info(signature, expression_id, target_symbol)?;
+            let abi_info = self.runtime_status_layout(expression_id)?;
+            let mut abi_parameters = Vec::with_capacity(parameter_types.len() + 1);
+
+            self.ensure_take_platform_error_function(expression_id, binding_info.err_value_type)?;
+
+            if !binding_info.ok_is_void {
+                let out_pointer = self.builder.type_reference(
+                    mir::ReferenceKind::Raw,
+                    binding_info.ok_mir_type,
+                    mir::Mutability::Mutable,
+                    mir::AddressSpace::Generic,
+                    false,
+                );
+                abi_parameters.push(out_pointer);
+            }
+            abi_parameters.extend(parameter_types);
+
+            let signature_type = self
+                .builder
+                .type_function_pointer(abi_parameters.clone(), abi_info.ty);
+            self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
+
+            let function_id = self
+                .builder
+                .extern_function(&extern_name, &abi_parameters, abi_info.ty);
+            self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
+            self.binding_symbols.insert(target_symbol);
+            if extern_name == "destack.error.takePlatformError" {
+                self.take_platform_error_function = Some(function_id);
+            }
+
+            return Ok(function_id);
+        }
+
         // create a signature type for direct callsites
         let signature_type = self
             .builder
@@ -115,33 +157,44 @@ impl ModuleLowerer<'_> {
             .extern_function(&extern_name, &parameter_types, return_type);
         // register function binding
         self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
+        if binding.is_binding {
+            self.binding_symbols.insert(target_symbol);
+        }
 
         // return after declaration
         Ok(function_id)
     }
 
-    /// Resolve the extern binding name for a symbol, if any.
-    fn extern_name_for_symbol(
+    /// Resolve the extern or binding name for a symbol, if any.
+    pub(crate) fn binding_name_for_symbol(
         &self,
         expression_id: LocalNodeId<Expression>,
         symbol: GlobalSymbolId,
-    ) -> LowerResult<Option<String>> {
+    ) -> LowerResult<Option<BindingResolution>> {
         // require analysis for the referenced module
         self.require_analyzed_module(symbol.module_id)?;
 
-        // read the symbol entry and extern binding
+        // read the symbol entry and binding metadata
         let module = self.compiler.program.modules.get(symbol.module_id);
         let module = module.read();
         let dir = module.dir(self.profile);
         let symbols = dir.symbols.read();
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let Some(binding) = symbol_entry.decorators.extern_binding.as_ref() else {
-            return Ok(None);
-        };
-
-        // prefer the explicit extern binding name
-        if let Some(name) = binding.name {
-            return Ok(Some(self.compiler.program.strings.get(name).to_string()));
+        if let Some(binding) = symbol_entry.decorators.binding.as_ref() {
+            if let Some(name) = binding.name {
+                return Ok(Some(BindingResolution {
+                    name: self.compiler.program.strings.get(name).to_string(),
+                    is_binding: true,
+                }));
+            }
+        }
+        if let Some(binding) = symbol_entry.decorators.extern_binding.as_ref() {
+            if let Some(name) = binding.name {
+                return Ok(Some(BindingResolution {
+                    name: self.compiler.program.strings.get(name).to_string(),
+                    is_binding: false,
+                }));
+            }
         }
 
         // fall back to the symbol name
@@ -155,8 +208,13 @@ impl ModuleLowerer<'_> {
                 message: "extern symbol is missing a name".to_string(),
             })?;
 
+        let is_binding = symbol_entry.decorators.binding.is_some();
+
         // return the resolved binding
-        Ok(Some(default_name))
+        Ok(Some(BindingResolution {
+            name: default_name,
+            is_binding,
+        }))
     }
 
     /// Ensure the module has been analyzed for this profile.

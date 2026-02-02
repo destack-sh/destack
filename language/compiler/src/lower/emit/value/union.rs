@@ -135,6 +135,66 @@ impl FunctionContext<'_> {
         Ok(self.state.builder.load(target_ptr, target_type))
     }
 
+    /// Build a union value from a concrete variant payload.
+    pub(crate) fn union_value_from_variant(
+        &mut self,
+        layout: &UnionLayout,
+        union_type: mir::LocalNodeId<mir::Type>,
+        variant_type_id: dir::LocalTypeId,
+        variant_value: mir::Value,
+        variant_mir_type: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // resolve the tag index for the variant
+        let tag_index = layout
+            .element_types
+            .iter()
+            .position(|element| dir::are_types_equal(*element, variant_type_id, self.env.types))
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "union variant is not a member of the union type".to_string(),
+            })?;
+
+        // build the tag constant
+        let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
+            mir::Type::Int {
+                width,
+                is_signed: signed,
+            } => (*width as u8, *signed),
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "union tag must be an integer type".to_string(),
+                });
+            }
+        };
+        let tag_value = self
+            .state
+            .builder
+            .iconst(tag_index as i64, tag_width, tag_signed);
+
+        // build the union payload
+        let payload = match layout.payload_kind {
+            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+                layout.payload_type,
+                variant_value,
+                variant_mir_type,
+                node,
+            )?,
+            UnionPayloadKind::Boxed => {
+                let boxed = self.box_value(variant_value, variant_mir_type);
+                self.state.builder.bitcast(boxed, layout.payload_type)
+            }
+        };
+
+        // assemble the union value
+        let mut fields = vec![tag_value, payload];
+        if layout.tag_field_index > layout.payload_field_index {
+            fields.swap(0, 1);
+        }
+        Ok(self.state.builder.struct_(union_type, fields))
+    }
+
     /// Build a zero value for inline payload storage.
     fn inline_union_payload_zero_value(
         &mut self,
