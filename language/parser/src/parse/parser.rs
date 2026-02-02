@@ -95,6 +95,8 @@ pub(crate) struct ParserOptions {
     /// Whether we're parsing a union pattern.
     /// Ignore elementwise infix operations in union patterns to avoid ambiguity with `|`
     pub in_union_pattern: bool = false,
+    /// Whether we're parsing inside an ambient declaration context.
+    pub in_declare_context: bool = false,
     /// Whether we're in parenthesized expression (`(..)`, directly).
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
@@ -138,9 +140,18 @@ pub(crate) struct ParserOptions {
     pub allow_sequence_expression: bool = true,
     /// Whether private hash keys (`#name`) are allowed in key position.
     pub allow_private_hash_key: bool = false,
+    /// Whether ambiguous tree literal syntax is disallowed.
+    pub disallow_ambiguous_tree_literal: bool = false,
     /// The left precedence preceding (i.e. before) the expression.
     /// Determines expression operator lifting / grouping.
     pub left_precedence: Option<u16> = None,
+}
+
+/// Parser settings that can be configured externally.
+#[derive(Debug, Copy, Clone, Default)]
+pub struct ParserSettings {
+    /// Whether ambiguous tree literal syntax is disallowed.
+    pub disallow_ambiguous_tree_literal: bool,
 }
 
 #[allow(unused)]
@@ -232,6 +243,15 @@ impl ParserOptions {
     pub(crate) fn in_union_pattern(self) -> Self {
         Self {
             in_union_pattern: true,
+            ..self
+        }
+    }
+
+    /// Set `in_declare_context=true`.
+    #[inline]
+    pub(crate) fn in_declare_context(self) -> Self {
+        Self {
+            in_declare_context: true,
             ..self
         }
     }
@@ -417,6 +437,8 @@ impl ParserOptions {
             forbid_yield: self.forbid_yield,
             allow_sequence_expression: self.allow_sequence_expression,
             in_decorator: self.in_decorator,
+            disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,
+            in_declare_context: self.in_declare_context,
             ..Self::default()
         }
     }
@@ -565,6 +587,12 @@ impl Parser {
         parser.refresh_token_indexes();
         parser.reset();
         parser
+    }
+
+    /// Apply externally provided parser settings.
+    #[inline]
+    pub fn apply_settings(&mut self, settings: ParserSettings) {
+        self.options.disallow_ambiguous_tree_literal = settings.disallow_ambiguous_tree_literal;
     }
 
     /// Get the span of all side annotations.

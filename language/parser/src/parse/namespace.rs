@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    BlockFormat, Declaration, DeclarationDescriptor, Expression, Generics, Keyword, LocalNodeId,
-    Name, NodeType, TokenType,
+    BlockFormat, Declaration, DeclarationDescriptor, DeclarationKind, Expression, Generics,
+    Keyword, LocalNodeId, Name, NodeType, TokenType,
 };
 
 impl Parser {
@@ -67,6 +67,13 @@ impl Parser {
 
         // body
         let generics = Generics::new(None, where_clauses);
+        // propagate ambient declaration contexts into module bodies
+        let body_options = if descriptor.kind == DeclarationKind::Declaration {
+            self.options.in_declare_context()
+        } else {
+            self.options
+        };
+
         let expressions = if self
             .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
             .is_ok()
@@ -74,7 +81,9 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions = self
-                .eat_block_body(BlockFormat::Explicit)
+                .with_options(body_options, |parser| {
+                    parser.eat_block_body(BlockFormat::Explicit)
+                })
                 .for_node_type(NodeType::Block)?;
             self.eat_token(TokenType::CloseBrace)
                 .for_node_type(NodeType::Declaration)?;
@@ -215,6 +224,58 @@ declare module "foo" {
         });
     }
 
+    #[test]
+    fn test_parse_module_newline_as_identifiers() {
+        let mut test = TestParser::new_with_options("module\nFoo\n{}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 3);
+
+        let module_id = match parser.tree.get(expressions[0]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[0],
+        };
+        assert_expression_path!(parser, parser.tree.get(module_id), "module");
+
+        let name_id = match parser.tree.get(expressions[1]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[1],
+        };
+        assert_expression_path!(parser, parser.tree.get(name_id), "Foo");
+
+        let object_id = match parser.tree.get(expressions[2]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[2],
+        };
+        assert_node!(parser.tree, object_id, Expression::Block(_) => {});
+    }
+
+    #[test]
+    fn test_parse_namespace_newline_as_identifiers() {
+        let mut test = TestParser::new_with_options("namespace\nFoo\n{}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 3);
+
+        let namespace_id = match parser.tree.get(expressions[0]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[0],
+        };
+        assert_expression_path!(parser, parser.tree.get(namespace_id), "namespace");
+
+        let name_id = match parser.tree.get(expressions[1]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[1],
+        };
+        assert_expression_path!(parser, parser.tree.get(name_id), "Foo");
+
+        let object_id = match parser.tree.get(expressions[2]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[2],
+        };
+        assert_node!(parser.tree, object_id, Expression::Block(_) => {});
+    }
+
     /// Parse a global augmentation inside a module declaration.
     #[test]
     fn test_parse_nested_global_block_in_module() {
@@ -238,6 +299,43 @@ declare module "buffer" {
                 let name = descriptor.name.expect("expected name");
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, name_id, "buffer");
+                });
+                assert_eq!(expressions.len(), 1);
+
+                let nested_id = expressions[0];
+                assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
+                    assert_node!(parser.tree, *global_id, Declaration::Global { descriptor, expressions, .. } => {
+                        assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                        assert!(descriptor.name.is_none());
+                        assert_eq!(expressions.len(), 1);
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_nested_global_block_in_module_typescript() {
+        let mut test = TestParser::new_with_options(
+            r###"
+declare module "m" {
+    global {
+        var x: number;
+    }
+}
+"###,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace { descriptor, expressions, .. } => {
+                assert_eq!(descriptor.kind, DeclarationKind::Declaration);
+                let name = descriptor.name.expect("expected name");
+                assert_node!(name, Name::String(name_id) => {
+                    assert_string!(parser, name_id, "m");
                 });
                 assert_eq!(expressions.len(), 1);
 

@@ -198,6 +198,19 @@ impl Parser {
                     let expression = self.tree.get(expression_id);
                     let is_statement = matches!(expression, Expression::Statement(_))
                         || expression.is_top_level_statement();
+
+                    // require statement separators after expressions to avoid token glue
+                    if !is_statement
+                        && !matches!(
+                            self.peek_token_type(),
+                            TokenType::Newline
+                                | TokenType::Semicolon
+                                | TokenType::CloseBrace
+                                | TokenType::End
+                        )
+                    {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
                     Ok((expression_id, is_statement))
                 }
             }

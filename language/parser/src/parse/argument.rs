@@ -10,11 +10,66 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
+    /// Return true when the next token can start a member name.
+    fn next_token_starts_member_name(&self) -> bool {
+        // skip newlines after the modifier keyword
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos + 1)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+        let Some(next_token) = self.tokens.get(pos + 1) else {
+            return false;
+        };
+
+        // check for common member name starters
+        if matches!(
+            next_token.token.ty,
+            TokenType::Identifier
+                | TokenType::Hash
+                | TokenType::OpenBracket
+                | TokenType::OpenBrace
+                | TokenType::OpenParenthesis
+                | TokenType::Spread
+                | TokenType::Multiply
+        ) {
+            return true;
+        }
+        if next_token.token.ty != TokenType::Literal {
+            return false;
+        }
+
+        // check for valid literal member names
+        match next_token.token.literal {
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            }) => true,
+            Some(LiteralType::Character { is_terminated, .. })
+                if is_terminated
+                    && (self.language.is_typescript() || self.language.is_javascript()) =>
+            {
+                true
+            }
+            Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => true,
+            _ => false,
+        }
+    }
+
+    /// Return true when `abstract` and `override` can be parsed as modifiers.
+    fn can_parse_abstraction_modifier(&self) -> bool {
+        !self.peek_next_is(TokenType::Colon)
+            && !self.peek_next_is(TokenType::Maybe)
+            && !self.peek_next_is(TokenType::LessThan)
+            && !self.peek_next_is(TokenType::OpenParenthesis)
+    }
+
     /// Eat a binding modifiers prefix when present.
     pub fn eat_binding_modifiers_prefix_maybe(
         &mut self,
         allow_readonly_key: bool,
-        accessor_is_modifier: bool,
+        allow_accessor_modifier: bool,
         allow_variance_modifier: bool,
         allow_declare_modifier: bool,
         validate_modifier_order: bool,
@@ -28,62 +83,12 @@ impl Parser {
         let mut seen_override = false;
         let mut seen_readonly = false;
 
-        // detect member or modifier starters for keyword disambiguation
-        let next_token_starts_member_name = |parser: &Parser| {
-            // skip newlines after the modifier keyword
-            let mut pos = parser.pos() as usize;
-            while let Some(token) = parser.tokens.get(pos + 1)
-                && token.token.ty == TokenType::Newline
-            {
-                pos += 1;
-            }
-            let Some(next_token) = parser.tokens.get(pos + 1) else {
-                return false;
-            };
-
-            // check for common member name starters
-            if matches!(
-                next_token.token.ty,
-                TokenType::Identifier
-                    | TokenType::Hash
-                    | TokenType::OpenBracket
-                    | TokenType::OpenBrace
-                    | TokenType::OpenParenthesis
-                    | TokenType::Spread
-                    | TokenType::Multiply
-            ) {
-                return true;
-            }
-            if next_token.token.ty != TokenType::Literal {
-                return false;
-            }
-
-            // check for valid literal member names
-            match next_token.token.literal {
-                Some(LiteralType::String {
-                    is_terminated: true,
-                    has_invalid_escape: false,
-                }) => true,
-                Some(LiteralType::Character { is_terminated, .. })
-                    if is_terminated
-                        && (parser.language.is_typescript() || parser.language.is_javascript()) =>
-                {
-                    true
-                }
-                Some(LiteralType::Int { .. }) | Some(LiteralType::Float { .. }) => true,
-                _ => false,
-            }
-        };
-
         // eat modifiers in any order
         loop {
             let mut progress = false;
 
             // modifier disambiguation for abstraction keywords
-            let abstraction_is_modifier = !self.peek_next_is(TokenType::Colon)
-                && !self.peek_next_is(TokenType::Maybe)
-                && !self.peek_next_is(TokenType::LessThan)
-                && !self.peek_next_is(TokenType::OpenParenthesis);
+            let abstraction_is_modifier = self.can_parse_abstraction_modifier();
 
             // variance for static parameters
             if self.options.in_static || allow_variance_modifier {
@@ -116,8 +121,7 @@ impl Parser {
 
             // visibility modifiers
             if let Ok(Some(visibility)) = self.peek_visibility() {
-                let visibility_is_modifier = next_token_starts_member_name(self);
-                if !visibility_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -138,8 +142,7 @@ impl Parser {
 
             // declaration modifiers
             if allow_declare_modifier && self.peek_keyword(Keyword::Declare).is_ok() {
-                let declare_is_modifier = next_token_starts_member_name(self);
-                if !declare_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -157,8 +160,7 @@ impl Parser {
 
             // scope modifiers (static)
             if modifiers.anchor.is_none() && self.peek_keyword(Keyword::Static).is_ok() {
-                let static_is_modifier = next_token_starts_member_name(self);
-                if !static_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -174,11 +176,10 @@ impl Parser {
 
             // abstraction modifiers (abstract)
             if self.peek_keyword(Keyword::Abstract).is_ok() && abstraction_is_modifier {
-                let abstract_is_modifier = next_token_starts_member_name(self);
-                if !abstract_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
-                let span = self.peek()?.span;
+                let _span = self.peek()?.span;
                 self.bump(); // eat abstract
                 modifiers.abstraction = Some(match modifiers.abstraction {
                     None => AbstractionModifier::Abstract,
@@ -188,17 +189,13 @@ impl Parser {
                         AbstractionModifier::AbstractOverride
                     }
                 });
-                if validate_modifier_order && seen_override {
-                    self.error(&ParseError::unexpected(span));
-                }
                 has_modifiers = true;
                 progress = true;
             }
 
             // abstraction modifiers (override)
             if self.peek_keyword(Keyword::Override).is_ok() && abstraction_is_modifier {
-                let override_is_modifier = next_token_starts_member_name(self);
-                if !override_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 let span = self.peek()?.span;
@@ -248,8 +245,7 @@ impl Parser {
 
             // operator modifiers (const)
             if modifiers.operator.is_none() && self.peek_keyword(Keyword::Const).is_ok() {
-                let const_is_modifier = next_token_starts_member_name(self);
-                if !const_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat const
@@ -259,15 +255,14 @@ impl Parser {
             }
 
             // accessor modifiers
-            let accessor_is_modifier = accessor_is_modifier
+            let accessor_is_modifier = allow_accessor_modifier
                 && self.peek_keyword(Keyword::Accessor).is_ok()
                 && !self.peek_next_is(TokenType::Colon)
                 && !self.peek_next_is(TokenType::Maybe)
                 && !self.peek_next_is(TokenType::LessThan)
                 && !self.peek_next_is(TokenType::OpenParenthesis);
             if modifiers.accessor.is_none() && accessor_is_modifier {
-                let accessor_is_modifier = next_token_starts_member_name(self);
-                if !accessor_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat accessor
@@ -278,8 +273,7 @@ impl Parser {
 
             // timing modifiers (comptime)
             if modifiers.timing.is_none() && self.peek_keyword(Keyword::Comptime).is_ok() {
-                let comptime_is_modifier = next_token_starts_member_name(self);
-                if !comptime_is_modifier {
+                if !self.next_token_starts_member_name() {
                     break;
                 }
                 self.bump(); // eat comptime
