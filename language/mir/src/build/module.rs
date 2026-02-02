@@ -16,15 +16,28 @@ pub struct ModuleBuilder {
     tree: NodeTree,
     /// String pool for names.
     strings: StringPool,
+    /// Whether to verify functions as they are built.
+    verify: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleBuilder {
-    /// Create a new module builder.
-    pub fn new() -> Self {
+    /// Create a new unverified module builder.
+    pub fn unchecked() -> Self {
+        Self::new_with_verify(false)
+    }
+
+    /// Create a new module builder with function verification enabled.
+    pub fn checked() -> Self {
+        Self::new_with_verify(true)
+    }
+
+    /// Create a new module builder with the given verify flag.
+    pub fn new_with_verify(verify: bool) -> Self {
         Self {
             tree: NodeTree::new(),
             strings: StringPool::new(),
+            verify,
         }
     }
 
@@ -371,12 +384,18 @@ impl ModuleBuilder {
         return_type: LocalNodeId<Type>,
     ) -> FunctionBuilder<'_> {
         let name_id = self.strings.intern(name);
-        FunctionBuilder::new(&mut self.tree, name_id, parameter_types, return_type)
+        FunctionBuilder::new(
+            &mut self.tree,
+            name_id,
+            parameter_types,
+            return_type,
+            self.verify,
+        )
     }
 
     /// Start building a body for an existing declared function.
     pub fn function_body(&mut self, function_id: LocalNodeId<Function>) -> FunctionBuilder<'_> {
-        FunctionBuilder::from_declared(&mut self.tree, function_id)
+        FunctionBuilder::from_declared(&mut self.tree, function_id, self.verify)
     }
 
     /// Declare a local function without a body.
@@ -422,6 +441,10 @@ impl ModuleBuilder {
 
     /// Finish building the module.
     pub fn finish_immutable(self) -> (NodeTree, ImmutableStringPool) {
+        // keep the verify flag alive in release builds
+        #[cfg(not(any(test, debug_assertions)))]
+        let _ = self.verify;
+
         // verify in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
@@ -439,6 +462,10 @@ impl ModuleBuilder {
 
     /// Finish building the module with a mutable string pool.
     pub fn finish_mutable(self) -> (NodeTree, StringPool) {
+        // keep the verify flag alive in release builds
+        #[cfg(not(any(test, debug_assertions)))]
+        let _ = self.verify;
+
         // verify in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
@@ -457,6 +484,6 @@ impl ModuleBuilder {
 
 impl Default for ModuleBuilder {
     fn default() -> Self {
-        Self::new()
+        Self::unchecked()
     }
 }

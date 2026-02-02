@@ -8,7 +8,7 @@ use crate::{
 #[test]
 fn test_format_simple_add() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build function
@@ -38,7 +38,7 @@ block0(v0: i32, v1: i32):
 #[test]
 fn test_format_with_locals() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i64_type = module.type_i64();
 
     // build function with local
@@ -72,7 +72,7 @@ block0:
 #[test]
 fn test_format_local_addr() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let void_type = module.type_void();
 
@@ -110,7 +110,7 @@ block0:
 #[test]
 fn test_format_vector_compare_and_convert() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
     let f32_type = module.type_f32();
@@ -157,7 +157,7 @@ block0:
 #[test]
 fn test_format_tensor_compare_and_convert() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let bool_type = module.type_bool();
     let f32_type = module.type_f32();
@@ -216,7 +216,7 @@ block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
 #[test]
 fn test_format_function_metadata() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build kernel function
@@ -246,7 +246,7 @@ block0:
 #[test]
 fn test_format_function_stage_metadata() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build graphics entry point
@@ -276,7 +276,7 @@ block0:
 #[test]
 fn test_format_branch() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let bool_type = module.type_bool();
     let i32_type = module.type_i32();
 
@@ -336,7 +336,7 @@ block3:
 #[test]
 fn test_format_void_return() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let void_type = module.type_void();
 
     // build empty function
@@ -362,7 +362,7 @@ block0:
 #[test]
 fn test_format_ssa_variable() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
 
     // build function using SSA variable
@@ -395,7 +395,7 @@ block0:
 #[test]
 fn test_format_global_variable() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i32_type = module.type_i32();
     let void_type = module.type_void();
 
@@ -443,7 +443,7 @@ block0:
 #[test]
 fn test_format_global_constant() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::unchecked();
     let i64_type = module.type_i64();
 
     // create an immutable global with scalar init

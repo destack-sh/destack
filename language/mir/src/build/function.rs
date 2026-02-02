@@ -46,6 +46,8 @@ pub struct FunctionBuilder<'a> {
     tree: &'a mut NodeTree,
     /// The id of the function being built.
     function_id: LocalNodeId<Function>,
+    /// Whether to verify this function when finishing.
+    verify: bool,
     /// Current block we're inserting into.
     current_block: Option<LocalNodeId<Block>>,
 
@@ -79,6 +81,7 @@ impl<'a> FunctionBuilder<'a> {
         name: StringId,
         parameter_types: &[LocalNodeId<Type>],
         return_type: LocalNodeId<Type>,
+        verify: bool,
     ) -> Self {
         // create parameter values
         let mut next_value_id = 0u32;
@@ -122,6 +125,7 @@ impl<'a> FunctionBuilder<'a> {
         Self {
             tree,
             function_id,
+            verify,
             current_block: None,
             next_value_id,
             next_variable_id: 0,
@@ -136,7 +140,11 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a function builder for an existing declared function.
     /// (Must not have a body yet).
-    pub fn from_declared(tree: &'a mut NodeTree, function_id: LocalNodeId<Function>) -> Self {
+    pub fn from_declared(
+        tree: &'a mut NodeTree,
+        function_id: LocalNodeId<Function>,
+        verify: bool,
+    ) -> Self {
         // validate the declared function is still empty
         let next_value_id = {
             let function = tree.get(function_id);
@@ -151,6 +159,7 @@ impl<'a> FunctionBuilder<'a> {
         Self {
             tree,
             function_id,
+            verify,
             current_block: None,
             next_value_id,
             next_variable_id: 0,
@@ -2696,15 +2705,21 @@ impl<'a> FunctionBuilder<'a> {
         function.blocks = self.blocks;
         function.next_value_id = self.next_value_id;
 
+        // keep the verify flag alive in release builds
+        #[cfg(not(any(test, debug_assertions)))]
+        let _ = self.verify;
+
         // always verify in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
             use crate::VerifierOptions;
 
-            let verifier =
-                crate::verify::Verifier::new_with_options(self.tree, VerifierOptions::strict());
-            if let Err(error) = verifier.verify_function(self.function_id) {
-                panic!("mir verification failed: {error}");
+            if self.verify {
+                let verifier =
+                    crate::verify::Verifier::new_with_options(self.tree, VerifierOptions::strict());
+                if let Err(error) = verifier.verify_function(self.function_id) {
+                    panic!("mir verification failed: {error}");
+                }
             }
         }
 
