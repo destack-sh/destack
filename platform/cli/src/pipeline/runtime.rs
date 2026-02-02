@@ -1,9 +1,8 @@
-use destack_runtime::platform::{BindingPolicy, DeterminismPolicy, ReplayMode};
+use destack_runtime::platform::{BindingPolicy, ExecutionMode as RuntimeExecutionMode};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DeterminismPolicy as TargetDeterminismPolicy, Program,
-    ReplayMode as TargetReplayMode, Target, TargetId, TrustPolicy,
+    DebugMode, ExecutionMode as TargetExecutionMode, Program, Target, TargetId, TrustPolicy,
 };
 
 use crate::common::InputSource;
@@ -36,21 +35,16 @@ pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 
 /// Create binding policy from target configuration.
 pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    // map determinism policy into runtime binding settings
-    let determinism = match target.determinism {
-        TargetDeterminismPolicy::BestEffort => DeterminismPolicy::BestEffort,
-        TargetDeterminismPolicy::Deterministic => DeterminismPolicy::Deterministic,
-    };
-
-    // map replay policy into runtime binding settings
-    let replay = match target.replay {
-        TargetReplayMode::Off => ReplayMode::Off,
-        TargetReplayMode::Record => ReplayMode::Record,
-        TargetReplayMode::Replay => ReplayMode::Replay,
+    // map execution mode into runtime binding settings
+    let mode = match target.runtime_options.execution_mode {
+        TargetExecutionMode::Fast => RuntimeExecutionMode::Fast,
+        TargetExecutionMode::Deterministic => RuntimeExecutionMode::Deterministic,
+        TargetExecutionMode::Record => RuntimeExecutionMode::Record,
+        TargetExecutionMode::Replay => RuntimeExecutionMode::Replay,
     };
 
     // build the policy object
-    BindingPolicy::new(determinism, replay)
+    BindingPolicy::new(mode)
 }
 
 /// Create a VM isolate from the module MIR.

@@ -6,12 +6,11 @@ use destack_builtin::{BuiltinOutputFormat, BuiltinPlatform, BuiltinRuntime};
 
 use super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
-    DeterminismPolicy, DeterminismPolicyJson, DivisionCheckPolicy, DivisionCheckPolicyJson,
+    DivisionCheckPolicy, DivisionCheckPolicyJson, ExecutionMode, ExecutionModeJson,
     FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
-    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, ReplayMode,
-    ReplayModeJson, SafetyPreset, SafetyPresetJson, SandboxPolicy, SandboxPolicyJson,
-    ShiftCheckPolicy, ShiftCheckPolicyJson, TrustPolicy, TrustPolicyJson, UnwindFormat,
-    UnwindFormatJson,
+    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, SafetyPreset,
+    SafetyPresetJson, SandboxPolicy, SandboxPolicyJson, ShiftCheckPolicy, ShiftCheckPolicyJson,
+    TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
 use super::runtime::{DsConfigRuntimeOptionsJson, runtime_options_with_base};
 use super::tsconfig::{EsTarget, ModuleTarget};
@@ -614,10 +613,8 @@ impl Default for GcOptions {
 /// Runtime execution options for scheduler, time, randomness, and GC.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
-    /// Determinism policy for runtime scheduling and I/O.
-    pub determinism: DeterminismPolicy,
-    /// Replay policy for external effects.
-    pub replay: ReplayMode,
+    /// Execution mode for runtime scheduling and replay.
+    pub execution_mode: ExecutionMode,
     /// Replay log configuration.
     pub replay_log: ReplayLogOptions,
     /// Runtime clock configuration.
@@ -1045,10 +1042,6 @@ pub struct Target {
     pub speculation_mode: SpeculationMode,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: ProfilingMode,
-    /// Determinism policy for runtime scheduling and I/O.
-    pub determinism: DeterminismPolicy,
-    /// Replay policy for external effects.
-    pub replay: ReplayMode,
     /// Runtime execution options.
     pub runtime_options: RuntimeOptions,
     /// Trust policy for runtime execution.
@@ -1741,10 +1734,6 @@ pub struct DsConfigTargetOptions {
     pub speculation_mode: SpeculationMode,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: ProfilingMode,
-    /// Determinism policy for runtime scheduling and I/O.
-    pub determinism: DeterminismPolicy,
-    /// Replay policy for external effects.
-    pub replay: ReplayMode,
     /// Runtime execution options.
     pub runtime_options: RuntimeOptions,
     /// Trust policy for runtime execution.
@@ -1820,8 +1809,6 @@ impl Default for DsConfigTargetOptions {
             safepoint_interval: None,
             speculation_mode: SpeculationMode::default(),
             profiling_mode: ProfilingMode::default(),
-            determinism: DeterminismPolicy::default(),
-            replay: ReplayMode::default(),
             runtime_options: RuntimeOptions::default(),
             trust_policy: TrustPolicy::default(),
             sandbox_policy: SandboxPolicy::default(),
@@ -1907,8 +1894,6 @@ impl DsConfigTargetOptions {
             safepoint_interval: self.safepoint_interval,
             speculation_mode: self.speculation_mode,
             profiling_mode: self.profiling_mode,
-            determinism: self.determinism,
-            replay: self.replay,
             runtime_options: self.runtime_options.clone(),
             trust_policy: self.trust_policy,
             sandbox_policy: self.sandbox_policy,
@@ -1949,17 +1934,10 @@ impl DsConfigTargetOptions {
         let mut runtime_options =
             runtime_options_with_base(base_runtime, json.runtime_options.as_ref());
 
-        // align legacy determinism and replay fields with runtime options
-        let determinism = json
-            .determinism
-            .map(DeterminismPolicy::from)
-            .unwrap_or(runtime_options.determinism);
-        let replay = json
-            .replay
-            .map(ReplayMode::from)
-            .unwrap_or(runtime_options.replay);
-        runtime_options.determinism = determinism;
-        runtime_options.replay = replay;
+        // align execution mode field with runtime options
+        if let Some(execution_mode) = json.execution_mode.map(ExecutionMode::from) {
+            runtime_options.execution_mode = execution_mode;
+        }
 
         let safety_preset = json.safety_preset.map(SafetyPreset::from);
         let default_checks = safety_preset
@@ -2057,8 +2035,6 @@ impl DsConfigTargetOptions {
                 .profiling_mode
                 .map(ProfilingMode::from)
                 .unwrap_or_default(),
-            determinism,
-            replay,
             runtime_options,
             trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
             sandbox_policy: json
@@ -2205,14 +2181,10 @@ pub struct DsConfigTargetJson {
     pub speculation_mode: Option<SpeculationModeJson>,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: Option<ProfilingModeJson>,
-    /// Determinism policy for runtime scheduling and I/O.
-    #[serde(alias = "determinismMode")]
-    #[serde(alias = "determinism_mode")]
-    pub determinism: Option<DeterminismPolicyJson>,
-    /// Replay policy for external effects.
-    #[serde(alias = "replayMode")]
-    #[serde(alias = "replay_mode")]
-    pub replay: Option<ReplayModeJson>,
+    /// Execution mode for runtime scheduling and replay.
+    #[serde(alias = "executionMode")]
+    #[serde(alias = "execution_mode")]
+    pub execution_mode: Option<ExecutionModeJson>,
     /// Runtime options overrides for this target.
     #[serde(alias = "runtimeOptions")]
     pub runtime_options: Option<DsConfigRuntimeOptionsJson>,

@@ -2,10 +2,10 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::policy::{DeterminismPolicyJson, ReplayModeJson};
+use super::policy::ExecutionModeJson;
 use crate::{
-    DeterminismPolicy, GcLogging, GcOptions, RandomMode, RandomOptions, ReplayLogOptions,
-    ReplayMode, RuntimeOptions, SchedulerOptions, SchedulerPolicy, TimeMode, TimeOptions,
+    ExecutionMode, GcLogging, GcOptions, RandomMode, RandomOptions, ReplayLogOptions,
+    RuntimeOptions, SchedulerOptions, SchedulerPolicy, TimeMode, TimeOptions,
 };
 
 /// Derive runtime options from optional JSON overrides.
@@ -36,10 +36,8 @@ pub(super) fn runtime_options_with_base(
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigRuntimeOptionsJson {
-    /// Determinism policy for runtime scheduling and I/O.
-    pub determinism: Option<DeterminismPolicyJson>,
-    /// Replay policy for external effects.
-    pub replay: Option<ReplayModeJson>,
+    /// Execution mode for runtime scheduling and replay.
+    pub execution_mode: Option<ExecutionModeJson>,
     /// Replay log configuration.
     pub replay_log: Option<ReplayLogOptionsJson>,
     /// Runtime clock configuration.
@@ -55,12 +53,9 @@ pub struct DsConfigRuntimeOptionsJson {
 impl DsConfigRuntimeOptionsJson {
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
-        // apply determinism and replay policies
-        if let Some(determinism) = self.determinism {
-            options.determinism = DeterminismPolicy::from(determinism);
-        }
-        if let Some(replay) = self.replay {
-            options.replay = ReplayMode::from(replay);
+        // apply execution mode overrides
+        if let Some(execution_mode) = self.execution_mode {
+            options.execution_mode = ExecutionMode::from(execution_mode);
         }
 
         // apply replay log overrides

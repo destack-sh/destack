@@ -175,8 +175,16 @@ pub enum AnalyzeError {
     )]
     InvalidComptimeExpression { node: AnchoredGlobalNodeId },
 
+    /// Void is not allowed in tuple types.
+    #[error(code = "EA123", message = "void is not allowed in tuples")]
+    VoidInTuple { node: AnchoredGlobalNodeId },
+
+    /// Void is not allowed in array types.
+    #[error(code = "EA124", message = "void is not allowed in arrays")]
+    VoidInArray { node: AnchoredGlobalNodeId },
+
     /// Invalid static argument.
-    #[error(code = "EA123", message = "invalid static argument: {message}")]
+    #[error(code = "EA125", message = "invalid static argument: {message}")]
     InvalidStaticArgument {
         /// Report the static argument context node.
         node: AnchoredGlobalNodeId,
