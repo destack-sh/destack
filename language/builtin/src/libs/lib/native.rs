@@ -12,6 +12,8 @@ pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     "arrayFill",
     // slice types
     "Slice",
+    // simd types
+    "Vector",
     // map types
     "Map",
     "Record",

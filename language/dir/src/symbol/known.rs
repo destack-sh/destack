@@ -40,6 +40,8 @@ pub enum WellKnownSymbol {
     AsyncIterator,
     /// Builtin Symbol constructor symbol.
     Symbol,
+    /// Builtin Vector type symbol.
+    Vector,
 }
 
 impl WellKnownSymbol {
@@ -64,6 +66,7 @@ impl WellKnownSymbol {
             WellKnownSymbol::AsyncIterable => "AsyncIterable",
             WellKnownSymbol::AsyncIterator => "AsyncIterator",
             WellKnownSymbol::Symbol => "Symbol",
+            WellKnownSymbol::Vector => "Vector",
         }
     }
 
@@ -88,6 +91,7 @@ impl WellKnownSymbol {
             WellKnownSymbol::AsyncIterable,
             WellKnownSymbol::AsyncIterator,
             WellKnownSymbol::Symbol,
+            WellKnownSymbol::Vector,
         ];
         ALL.iter().copied()
     }

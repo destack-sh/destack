@@ -27,6 +27,21 @@ export {
     RangeFull,
 } from "./control/range.ds";
 
+// simd
+export {
+    Vector,
+    splat,
+    shuffle,
+    select,
+    reduceAdd,
+    reduceMul,
+    reduceMin,
+    reduceMax,
+    reduceAnd,
+    reduceOr,
+    reduceXor,
+} from "./intrinsic/simd.ds";
+
 // decorator metadata (reflection)
 export { DecoratorInfo } from "./reflect/decorator.ds";
 

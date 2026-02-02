@@ -187,7 +187,7 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
         let profile = self.program.profile(self.profile_id);
-        builtins.get_declared_lib_symbol_for_space_order(
+        builtins.get_declared_lib_symbol_from(
             &profile.key,
             name,
             dir::SymbolSpaceOrder::ValueThenType,

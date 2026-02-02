@@ -5,6 +5,7 @@ export { type ReadonlyArray } from "./collections/index.ds";
 export { Slice } from "./collections/index.ds";
 export { Map, type Record } from "./collections/index.ds";
 export { Set } from "./collections/index.ds";
+export { type Vector } from "../../core/intrinsic/simd.ds";
 
 // low-level primitives (not ambient, must be imported explicitly)
 export {
