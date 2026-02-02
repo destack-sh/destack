@@ -336,6 +336,32 @@ pub enum AnalyzeError {
     )]
     InvalidTypeOnlyImportBindings { node: AnchoredGlobalNodeId },
 
+    /// Assignment targets must be assignable expressions.
+    #[error(code = "EA226", message = "invalid assignment target")]
+    InvalidAssignmentTarget { node: AnchoredGlobalNodeId },
+
+    /// TypeScript syntax is not allowed in JavaScript modules.
+    #[error(
+        code = "EA228",
+        message = "typescript syntax is not allowed in javascript modules"
+    )]
+    TypeScriptSyntaxInJavaScript { node: AnchoredGlobalNodeId },
+
+    /// Import aliases cannot use `import type`.
+    #[error(code = "EA229", message = "import aliases cannot use 'import type'")]
+    InvalidTypeOnlyImportAlias { node: AnchoredGlobalNodeId },
+
+    /// Const declarations require initializers.
+    #[error(code = "EA230", message = "const declarations require initializers")]
+    MissingConstInitializer { node: AnchoredGlobalNodeId },
+
+    /// Const initializers in ambient contexts must be literal values or enum references.
+    #[error(
+        code = "EA231",
+        message = "const initializers in ambient contexts must be literal values or enum references"
+    )]
+    InvalidAmbientConstInitializer { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------

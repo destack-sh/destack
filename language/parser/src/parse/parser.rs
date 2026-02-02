@@ -148,6 +148,7 @@ pub(crate) struct ParserOptions {
 }
 
 /// Parser settings that can be configured externally.
+/// NOTE #Cleanup: not loving having ParserSettings totally separate from Parser/ParserOptions..?
 #[derive(Debug, Copy, Clone, Default)]
 pub struct ParserSettings {
     /// Whether ambiguous tree literal syntax is disallowed.
@@ -586,6 +587,23 @@ impl Parser {
         // return the parser
         parser.refresh_token_indexes();
         parser.reset();
+        parser
+    }
+
+    /// Lex a file and apply parser settings.
+    #[tracing::instrument(
+        name = "parser.lex",
+        level = "trace",
+        skip_all,
+        fields(file_id = ?file.id)
+    )]
+    pub fn lex_file_with_settings(
+        file: Arc<File>,
+        language: LanguageType,
+        settings: ParserSettings,
+    ) -> Self {
+        let mut parser = Self::lex_file(file, language);
+        parser.apply_settings(settings);
         parser
     }
 

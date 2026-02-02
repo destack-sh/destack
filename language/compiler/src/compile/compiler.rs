@@ -47,6 +47,8 @@ pub struct CompilerOptions {
     pub import_resolve: destack_resolver::ResolveOptions,
     /// How unresolved imports should be handled during resolve.
     pub resolve_mode: ResolveMode,
+    /// Whether to disallow ambiguous tree literal syntax.
+    pub disallow_ambiguous_tree_literal: bool,
 
     /// Default integer width (if not specified).
     pub default_int_width: u16,
@@ -91,6 +93,8 @@ pub struct CompilerOptions {
     pub timings: bool,
     /// Whether to validate builtin declaration libs eagerly.
     pub validate_builtin_libs: bool,
+    /// Whether to verify MIR after building it (internal debug/test builds).
+    pub verify_mir: bool,
 }
 
 impl Default for CompilerOptions {
@@ -102,6 +106,7 @@ impl Default for CompilerOptions {
             follow_imports: true,
             import_resolve: destack_resolver::ResolveOptions::default(),
             resolve_mode: ResolveMode::Strict,
+            disallow_ambiguous_tree_literal: false,
 
             default_int_width: 32,
             default_float_width: 64,
@@ -123,6 +128,7 @@ impl Default for CompilerOptions {
             event_handler: None,
             timings: false,
             validate_builtin_libs: false,
+            verify_mir: true,
         }
     }
 }
@@ -135,6 +141,10 @@ impl std::fmt::Debug for CompilerOptions {
             .field("follow_imports", &self.follow_imports)
             .field("import_resolve", &self.import_resolve)
             .field("resolve_mode", &self.resolve_mode)
+            .field(
+                "disallow_ambiguous_tree_literal",
+                &self.disallow_ambiguous_tree_literal,
+            )
             .field("default_int_width", &self.default_int_width)
             .field("default_float_width", &self.default_float_width)
             .field("inject_prelude", &self.inject_prelude)
@@ -160,6 +170,7 @@ impl std::fmt::Debug for CompilerOptions {
             .field("event_handler", &self.event_handler.is_some())
             .field("timings", &self.timings)
             .field("validate_builtin_libs", &self.validate_builtin_libs)
+            .field("verify_mir", &self.verify_mir)
             .finish()
     }
 }

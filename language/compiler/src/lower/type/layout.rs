@@ -478,7 +478,7 @@ mod tests {
 
     /// Create a type lowerer for layout tests.
     fn test_lowerer() -> TypeLowerer {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::unchecked();
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
         TypeLowerer::new(&mut builder, 8, modules, packages)

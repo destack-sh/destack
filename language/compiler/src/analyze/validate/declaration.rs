@@ -1,9 +1,20 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind, DependencyMode,
-    LocalNodeId, LocalNodeIdAny, NodeTree, NodeType, TypeTable,
+    BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind, DependencyKind,
+    DependencyMode, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
+
+/// The kind of declare namespace context for a node.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DeclareNamespaceContext {
+    /// The node is not inside a declare namespace.
+    None,
+    /// The node is inside a declared namespace with an identifier name.
+    Namespace,
+    /// The node is inside a declared module with a string name.
+    Module,
+}
 
 impl Compiler {
     /// Validate a declaration.
@@ -16,6 +27,17 @@ impl Compiler {
         id: LocalNodeId<Declaration>,
         declaration: &Declaration,
     ) {
+        // reject typescript-only declarations in javascript modules
+        if module.language_type.is_javascript()
+            && matches!(
+                declaration,
+                Declaration::Interface { .. } | Declaration::Type { .. }
+            )
+        {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+        }
+
         // validate by declaration kind
         match declaration {
             Declaration::Interface {
@@ -110,6 +132,14 @@ impl Compiler {
                 }
             }
 
+            Declaration::ImportAlias { kind, .. } => {
+                // import aliases cannot use import type
+                if *kind == DependencyKind::Type {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidTypeOnlyImportAlias { node });
+                }
+            }
+
             Declaration::Class { heritage, .. } => {
                 // resolve the class node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -156,25 +186,49 @@ impl Compiler {
     }
 
     /// Check whether a node is nested inside a declare namespace.
-    /// NOTE #Performance: store "declaredness" on Scope/Symbol directly (from import/bind)?
     pub(super) fn is_in_declare_namespace(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        matches!(
+            self.declare_namespace_context(tree, node_id),
+            DeclareNamespaceContext::Namespace | DeclareNamespaceContext::Module
+        )
+    }
+
+    /// Check whether a node is nested inside a declared module with a string name.
+    pub(super) fn is_in_declare_module(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        matches!(
+            self.declare_namespace_context(tree, node_id),
+            DeclareNamespaceContext::Module
+        )
+    }
+
+    /// Classify the nearest declare namespace context for a node.
+    /// NOTE #Performance: store "declaredness" on Scope/Symbol directly (from import/bind)?
+    fn declare_namespace_context(
+        &self,
+        tree: &NodeTree,
+        node_id: LocalNodeIdAny,
+    ) -> DeclareNamespaceContext {
         // walk up the parent chain
+        let mut saw_namespace = false;
         let mut current = tree.get_parent(node_id.id);
         while let Some(parent) = current {
             if parent.ty == NodeType::Declaration {
                 let declaration = tree.get(parent.into_typed::<Declaration>());
-                if matches!(
-                    declaration,
-                    Declaration::Namespace {
-                        descriptor,
-                        ..
-                    } if descriptor.kind == DeclarationKind::Declaration
-                ) {
-                    return true;
+                if let Declaration::Namespace { descriptor, .. } = declaration
+                    && descriptor.kind == DeclarationKind::Declaration
+                {
+                    if matches!(descriptor.name, Some(Name::String(_))) {
+                        return DeclareNamespaceContext::Module;
+                    }
+                    saw_namespace = true;
                 }
             }
             current = tree.get_parent(parent.id);
         }
-        false
+        if saw_namespace {
+            DeclareNamespaceContext::Namespace
+        } else {
+            DeclareNamespaceContext::None
+        }
     }
 }

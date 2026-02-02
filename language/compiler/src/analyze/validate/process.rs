@@ -141,7 +141,7 @@ impl Compiler {
             if !self.is_node_active(&tree, &symbols, id.into_any()) {
                 continue;
             }
-            self.validate_expression(&module, profile, &tree, id, expression);
+            self.validate_expression(&module, profile, &tree, &symbols, id, expression);
         }
 
         // validate patterns
