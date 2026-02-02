@@ -1365,7 +1365,7 @@ impl Lexer<'_> {
                 }
 
                 // also not a base prefix; nothing more to do here
-                '.' | 'e' | 'E' => {}
+                '.' | 'e' | 'E' | 'n' => {}
 
                 // just a 0
                 _ => {
