@@ -77,10 +77,11 @@ impl<'a> BuiltinTypeLayouts<'a> {
         symbol: WellKnownSymbol,
     ) -> Option<dir::GlobalSymbolId> {
         // resolve the canonical well-known symbol
-        let resolved = self
-            .compiler
-            .get_well_known_type_symbol(self.profile, symbol)
-            .or_else(|| self.compiler.get_well_known_symbol(self.profile, symbol));
+        let resolved = self.compiler.get_well_known_symbol_from(
+            self.profile,
+            symbol,
+            SymbolSpaceOrder::TypeThenValue,
+        );
 
         // fall back to declared lib symbols when not registered
         let Some(resolved) = resolved else {
@@ -99,7 +100,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
     ) -> Option<dir::GlobalSymbolId> {
         // resolve the declared lib symbol for the profile
         self.compiler
-            .get_declared_lib_symbol_for_space_order(self.profile, name, order)
+            .get_declared_lib_symbol_from(self.profile, name, order)
     }
 
     /// Ensure the module has been analyzed for this profile.
@@ -118,6 +119,13 @@ impl<'a> BuiltinTypeLayouts<'a> {
             TaskDependencyError::Failed { dependency } => {
                 Err(LowerError::UnsatisfiedDependency { dependency })
             }
+        }
+    }
+
+    /// Create a MissingType error for a node.
+    fn missing_type_error(&self, node_id: dir::GlobalNodeIdAny) -> LowerError {
+        LowerError::MissingType {
+            node: node_id.into_anchored(Some(self.profile)),
         }
     }
 
@@ -156,11 +164,14 @@ impl<'a> BuiltinTypeLayouts<'a> {
         // compute layout from declared struct fields only
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
+
+        let vector_symbol = self.resolve_well_known_symbol(WellKnownSymbol::Vector);
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
             self.compiler.program.modules.clone(),
             self.compiler.program.packages.clone(),
+            vector_symbol,
         );
 
         for (source_index, member_id) in members.iter().enumerate() {
@@ -178,19 +189,11 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
             // resolve the field type
             let Some(value) = value else {
-                return Err(LowerError::MissingType {
-                    node: member_id
-                        .into_global_any(module_id)
-                        .into_anchored(Some(self.profile)),
-                });
+                return Err(self.missing_type_error(member_id.into_global_any(module_id)));
             };
             let type_id = types
                 .get_declared_or_inferred_type_id(value.into_global_any(module_id))
-                .ok_or_else(|| LowerError::MissingType {
-                    node: value
-                        .into_global_any(module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+                .ok_or_else(|| self.missing_type_error(value.into_global_any(module_id)))?;
             let type_id = self.resolve_layout_type_id(tree, symbols, types, module_id, type_id);
 
             // lower the field type to MIR
@@ -300,7 +303,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
         // ignore non alias symbols
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        if symbol_entry.ty != SymbolType::TypeAlias {
+        if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
             return type_id;
         }
 

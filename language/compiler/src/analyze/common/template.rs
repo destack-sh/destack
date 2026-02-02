@@ -6,6 +6,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use super::NormalizationMode;
 use crate::{AnalyzeOptions, Assignability, Compiler};
 
 /// Represent the source segment that maps to a single template span.
@@ -540,7 +541,7 @@ impl Compiler {
             span_ty_id,
             symbols,
             types,
-            crate::analyze::common::NormalizationMode::Flow,
+            NormalizationMode::Flow,
         );
         let span_ty = types.get_type(normalized_id).clone();
 
@@ -624,7 +625,7 @@ impl Compiler {
             span_ty_id,
             symbols,
             types,
-            crate::analyze::common::NormalizationMode::Flow,
+            NormalizationMode::Flow,
         );
         let span_ty = types.get_type(normalized_id).clone();
 
@@ -1320,7 +1321,7 @@ impl Compiler {
             span_ty_id,
             symbols,
             types,
-            crate::analyze::common::NormalizationMode::Flow,
+            NormalizationMode::Flow,
         );
         let span_ty = types.get_type(normalized_id).clone();
 

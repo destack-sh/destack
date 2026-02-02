@@ -71,11 +71,9 @@ impl FunctionContext<'_> {
         }
 
         // lower operands and types
-        let (mut left_value, _) = self.lower_value_expression(left)?;
-        let (mut right_value, _) = self.lower_value_expression(right)?;
+        let (mut left_value, left_type) = self.lower_value_expression(left)?;
+        let (mut right_value, right_type) = self.lower_value_expression(right)?;
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let left_type = self.lower_type_for_expression(left)?;
-        let right_type = self.lower_type_for_expression(right)?;
         let target_scalar = self.scalar_type_for_mir_type(result_type);
         let left_scalar = self.scalar_type_for_mir_type(left_type);
         let right_scalar = self.scalar_type_for_mir_type(right_type);
@@ -104,8 +102,6 @@ impl FunctionContext<'_> {
             )?;
         }
 
-        let integer_info = self.integer_scalar_info(expression_id)?;
-
         // emit checked integer arithmetic when configured
         if self.overflow_checks_enabled()
             && matches!(
@@ -114,7 +110,7 @@ impl FunctionContext<'_> {
                     | dir::BinaryOperator::Subtract
                     | dir::BinaryOperator::Multiply
             )
-            && let Some((_, is_signed)) = integer_info
+            && let Some((_, is_signed)) = self.integer_scalar_info(expression_id)?
         {
             let value = self.lower_overflow_checked_binary(
                 expression_id,
@@ -132,7 +128,7 @@ impl FunctionContext<'_> {
                 operator,
                 dir::BinaryOperator::Divide | dir::BinaryOperator::Remainder
             )
-            && let Some((width, is_signed)) = integer_info
+            && let Some((width, is_signed)) = self.integer_scalar_info(expression_id)?
         {
             self.lower_division_checked_binary(
                 expression_id,
@@ -152,7 +148,7 @@ impl FunctionContext<'_> {
                     | dir::BinaryOperator::ShiftRight
                     | dir::BinaryOperator::UnsignedShiftRight
             )
-            && let Some((left_width, _)) = integer_info
+            && let Some((left_width, _)) = self.integer_scalar_info(expression_id)?
             && let Some((shift_width, shift_signed)) = self.integer_scalar_info(right)?
         {
             self.lower_shift_checked_binary(
@@ -179,6 +175,141 @@ impl FunctionContext<'_> {
         Ok((value, ty))
     }
 
+    /// Lower a type binary expression.
+    ///
+    /// `value is Type` becomes a runtime tag check when needed.
+    pub(super) fn lower_type_binary_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: dir::TypeBinaryOperator,
+        right: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // only support runtime type checks for now
+        if !matches!(
+            operator,
+            dir::TypeBinaryOperator::Is | dir::TypeBinaryOperator::InstanceOf
+        ) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "unsupported type binary operator".to_string(),
+            });
+        }
+
+        // resolve expression and target types
+        let (left_value, left_mir_type) = self.lower_value_expression(left)?;
+        let left_type_id = self.type_for_expression_or_error(left)?;
+        let left_type_id = self.unwrap_value_type_id(left_type_id);
+
+        let target_type_id = self.type_check_target_type_id(right)?;
+        let target_type_id = self.unwrap_value_type_id(target_type_id);
+
+        // exact or nominally equivalent matches are always true
+        if self.are_type_ids_equivalent(left_type_id, target_type_id) {
+            let value = self.state.builder.bconst(true);
+            return Ok((value, self.env.type_lowerer.ty_bool));
+        }
+
+        // union types use the tag field for runtime checks
+        if matches!(
+            self.env.types.get_type(left_type_id),
+            dir::Type::Union { .. }
+        ) {
+            let layout = self
+                .env
+                .type_lowerer
+                .union_layout(left_type_id)
+                .ok_or_else(|| self.missing_type_error(expression_id))?;
+
+            // resolve the tag for the target type
+            let Some(tag_index) = layout
+                .element_types
+                .iter()
+                .position(|element| self.are_type_ids_equivalent(*element, target_type_id))
+            else {
+                let value = self.state.builder.bconst(false);
+                return Ok((value, self.env.type_lowerer.ty_bool));
+            };
+
+            // build the tag constant
+            let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
+                mir::Type::Int {
+                    width,
+                    is_signed: signed,
+                } => (*width as u8, *signed),
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "union tag must be an integer type".to_string(),
+                    });
+                }
+            };
+            let tag_const = self
+                .state
+                .builder
+                .iconst(tag_index as i64, tag_width, tag_signed);
+
+            // load through references before extracting the tag
+            let union_value = match self.state.builder.tree().get(left_mir_type) {
+                mir::Type::Reference { pointee, .. } => {
+                    self.state.builder.load(left_value, *pointee)
+                }
+                _ => left_value,
+            };
+            let tag_value = self
+                .state
+                .builder
+                .field_get(union_value, layout.tag_field_index);
+
+            // emit the tag comparison
+            let cmp =
+                self.state
+                    .builder
+                    .binary_op(mir::BinaryOperator::Equal, tag_value, tag_const);
+            return Ok((cmp, self.env.type_lowerer.ty_bool));
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            node: expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile)),
+            message: "unsupported type check".to_string(),
+        })
+    }
+
+    /// Resolve the target type id for runtime type checks.
+    fn type_check_target_type_id(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LowerResult<dir::LocalTypeId> {
+        // prefer nominal newtype references over instance types
+        let expression = self.env.dir_tree.get(expression_id);
+        if let Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. } = expression
+            && target_symbol.ty() == dir::SymbolType::Newtype
+        {
+            return self
+                .instance_type_id_for_symbol_or_error(expression_id.into_any(), *target_symbol);
+        }
+
+        self.type_id_for_type_expression(expression_id)
+            .ok_or_else(|| self.missing_type_error(expression_id))
+    }
+
+    /// Check whether two type ids refer to the same nominal type.
+    fn are_type_ids_equivalent(
+        &self,
+        left_type_id: dir::LocalTypeId,
+        right_type_id: dir::LocalTypeId,
+    ) -> bool {
+        self.type_ids_equivalent(left_type_id, right_type_id)
+    }
+
     /// Check whether a scalar type is numeric.
     fn is_numeric_scalar_type(&self, scalar_type: ScalarType) -> bool {
         matches!(
@@ -190,7 +321,10 @@ impl FunctionContext<'_> {
     }
 
     /// Resolve a scalar type for a MIR type id.
-    fn scalar_type_for_mir_type(&self, type_id: mir::LocalNodeId<mir::Type>) -> Option<ScalarType> {
+    pub(crate) fn scalar_type_for_mir_type(
+        &self,
+        type_id: mir::LocalNodeId<mir::Type>,
+    ) -> Option<ScalarType> {
         let mir_type = self.state.builder.tree().get(type_id);
         match mir_type {
             mir::Type::Int { width, is_signed } => Some(if *is_signed {

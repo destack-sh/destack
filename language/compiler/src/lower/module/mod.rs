@@ -1,7 +1,9 @@
 mod declaration;
+mod directive;
 mod dispatch;
 mod external;
 mod interface;
+mod intrinsic;
 mod lower;
 mod name;
 mod root;

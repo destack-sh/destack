@@ -199,16 +199,36 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Create a MissingType error for the given expression.
-    pub(crate) fn missing_type_error(
+    /// Resolve a symbol value type or return MissingType.
+    pub(crate) fn value_type_id_for_symbol_or_error(
         &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerError {
-        LowerError::MissingType {
-            node: expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
-        }
+        node_id: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> LowerResult<dir::LocalTypeId> {
+        self.env
+            .types
+            .get_value_type_id(symbol)
+            .ok_or_else(|| LowerError::MissingType {
+                node: node_id
+                    .into_global(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })
+    }
+
+    /// Resolve a symbol instance type or return MissingType.
+    pub(crate) fn instance_type_id_for_symbol_or_error(
+        &self,
+        node_id: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> LowerResult<dir::LocalTypeId> {
+        self.env
+            .types
+            .get_instance_type_id(symbol)
+            .ok_or_else(|| LowerError::MissingType {
+                node: node_id
+                    .into_global(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })
     }
 
     /// Load a string literal value for an internal message.
@@ -327,6 +347,12 @@ impl<'a> FunctionContext<'a> {
                 right,
             } => self.lower_binary_expression(expression_id, *left, *operator, *right),
 
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => self.lower_type_binary_expression(expression_id, *left, *operator, *right),
+
             Expression::Assign { left, right } => {
                 self.lower_assign_expression(expression_id, *left, *right)
             }
@@ -421,6 +447,14 @@ impl<'a> FunctionContext<'a> {
 
             Expression::TaggedObjectExpression { ty, properties } => {
                 self.lower_tagged_object_expression(expression_id, *ty, properties)
+            }
+
+            Expression::TaggedScalarExpression { ty, value } => {
+                self.lower_tagged_scalar_expression(expression_id, *ty, *value)
+            }
+
+            Expression::TaggedTupleExpression { ty, elements } => {
+                self.lower_tagged_tuple_expression(expression_id, *ty, elements)
             }
 
             Expression::Declaration { declaration } => {

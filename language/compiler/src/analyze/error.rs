@@ -102,25 +102,6 @@ pub enum AnalyzeError {
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },
 
-    /// Static value parameters must be marked with comptime.
-    #[error(
-        code = "EA115",
-        message = "static value parameters must be explicitly marked with comptime"
-    )]
-    StaticParameterRequiresComptime { node: AnchoredGlobalNodeId },
-
-    /// Static argument is required but was not provided.
-    #[error(code = "EA114", message = "missing static argument")]
-    MissingStaticArgument { node: AnchoredGlobalNodeId },
-
-    /// Array size expressions must be constant integers.
-    #[error(code = "EA111", message = "array size must be a constant integer")]
-    InvalidArraySize { node: AnchoredGlobalNodeId },
-
-    /// Static arguments cannot form a cycle.
-    #[error(code = "EA112", message = "static argument cycle")]
-    CircularStaticArgument { node: AnchoredGlobalNodeId },
-
     /// Ownership operators require an unowned value.
     #[error(
         code = "EA110",
@@ -131,9 +112,28 @@ pub enum AnalyzeError {
         actual_ty: GlobalTypeId,
     },
 
+    /// Array size expressions must be constant integers.
+    #[error(code = "EA111", message = "array size must be a constant integer")]
+    InvalidArraySize { node: AnchoredGlobalNodeId },
+
+    /// Static arguments cannot form a cycle.
+    #[error(code = "EA112", message = "static argument cycle")]
+    CircularStaticArgument { node: AnchoredGlobalNodeId },
+
     /// Array literals cannot contain holes.
     #[error(code = "EA113", message = "array literal holes are not allowed")]
     ArrayLiteralHole { node: AnchoredGlobalNodeId },
+
+    /// Static argument is required but was not provided.
+    #[error(code = "EA114", message = "missing static argument")]
+    MissingStaticArgument { node: AnchoredGlobalNodeId },
+
+    /// Static value parameters must be marked with comptime.
+    #[error(
+        code = "EA115",
+        message = "static value parameters must be explicitly marked with comptime"
+    )]
+    StaticParameterRequiresComptime { node: AnchoredGlobalNodeId },
 
     /// Export inference cycle requires an explicit annotation.
     #[error(
@@ -174,6 +174,15 @@ pub enum AnalyzeError {
         message = "comptime expression must be a static expression"
     )]
     InvalidComptimeExpression { node: AnchoredGlobalNodeId },
+
+    /// Invalid static argument.
+    #[error(code = "EA123", message = "invalid static argument: {message}")]
+    InvalidStaticArgument {
+        /// Report the static argument context node.
+        node: AnchoredGlobalNodeId,
+        /// Describe why the static argument is invalid.
+        message: String,
+    },
 
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator / object errors

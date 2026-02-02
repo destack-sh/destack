@@ -1,4 +1,4 @@
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, Resolution};
+use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -8,6 +8,22 @@ use super::ScalarType;
 use crate::lower::item::{GlobalBinding, LocalBinding};
 
 impl FunctionContext<'_> {
+    /// Create a MissingType error for the given expression.
+    pub(crate) fn missing_type_error(&self, expression_id: LocalNodeId<Expression>) -> LowerError {
+        LowerError::MissingType {
+            node: expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile)),
+        }
+    }
+
+    /// Create a MissingType error for the given node.
+    pub(crate) fn missing_type_error_for_node(&self, node_id: GlobalNodeIdAny) -> LowerError {
+        LowerError::MissingType {
+            node: node_id.into_anchored(Some(self.env.profile)),
+        }
+    }
+
     /// Resolve the MIR type for a typed expression.
     ///
     /// This bridges DIR type information to MIR types during value lowering.
@@ -30,7 +46,7 @@ impl FunctionContext<'_> {
 
         // resolve scalar types directly when possible
         if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
-            let mir_type = match scalar_type {
+            return match scalar_type {
                 ScalarType::Bool => Some(self.env.type_lowerer.ty_bool),
                 ScalarType::SignedInt { width: 32 } => Some(self.env.type_lowerer.ty_i32),
                 ScalarType::SignedInt { width: 64 } => Some(self.env.type_lowerer.ty_i64),
@@ -43,8 +59,8 @@ impl FunctionContext<'_> {
                 ScalarType::Float { width: 32 } => Some(self.env.type_lowerer.ty_f32),
                 ScalarType::Float { width: 64 } => Some(self.env.type_lowerer.ty_f64),
                 _ => None,
-            };
-            return mir_type.ok_or_else(|| self.missing_type_error(expression_id));
+            }
+            .ok_or_else(|| self.missing_type_error(expression_id));
         }
 
         // resolve primitive string directly
@@ -83,60 +99,12 @@ impl FunctionContext<'_> {
     }
 
     /// Resolve the DIR type id for a typed expression.
+    /// Only accept analysis-provided types.
     pub(crate) fn type_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
-        // read the expression node once
-        let expression = self.env.dir_tree.get(expression_id);
-
-        // resolve the type id based on the expression kind
-        let type_id = match expression {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                self.type_id_for_reference_expression(expression_id, *target_symbol)
-            }
-            Expression::New { left, .. } => self
-                .declared_or_inferred_type_id(expression_id)
-                .or_else(|| self.type_id_for_constructor_expression(*left)),
-            Expression::TaggedScalarExpression { ty, .. }
-            | Expression::TaggedTupleExpression { ty, .. }
-            | Expression::TaggedObjectExpression { ty, .. } => {
-                self.type_id_for_type_expression(*ty)
-            }
-            Expression::Cast { target_type, .. } => {
-                self.type_id_for_cast_expression(expression_id, *target_type)
-            }
-            _ => self.declared_or_inferred_type_id(expression_id),
-        }?;
-
-        Some(type_id)
-    }
-
-    /// Resolve the instance type for a constructor callee expression.
-    fn type_id_for_constructor_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> Option<dir::LocalTypeId> {
-        // unwrap parenthesized callees
-        let mut callee_id = expression_id;
-        loop {
-            let Expression::Parenthesized { expression } = self.env.dir_tree.get(callee_id) else {
-                break;
-            };
-            callee_id = *expression;
-        }
-
-        // resolve nominal instance types from references
-        let symbol = match self.env.dir_tree.get(callee_id) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
-            _ => return None,
-        };
-
-        self.env.types.get_instance_type_id(symbol)
+        self.declared_or_inferred_type_id(expression_id)
     }
 
     /// Resolve a DIR type id for an expression or return MissingType.
@@ -148,6 +116,17 @@ impl FunctionContext<'_> {
             .ok_or_else(|| self.missing_type_error(expression_id))
     }
 
+    /// Resolve a signature type id for a node or return MissingType.
+    pub(crate) fn signature_type_id_for_node_or_error(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> LowerResult<dir::LocalTypeId> {
+        self.env
+            .types
+            .get_signature_type_for_node(node_id)
+            .ok_or_else(|| self.missing_type_error_for_node(node_id))
+    }
+
     /// Resolve the declared or inferred type id for an expression.
     fn declared_or_inferred_type_id(
         &self,
@@ -155,31 +134,6 @@ impl FunctionContext<'_> {
     ) -> Option<dir::LocalTypeId> {
         let node_id = expression_id.into_global_any(self.env.module_id);
         self.env.types.get_declared_or_inferred_type_id(node_id)
-    }
-
-    /// Resolve the type id for a reference expression.
-    fn type_id_for_reference_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
-    ) -> Option<dir::LocalTypeId> {
-        self.declared_or_inferred_type_id(expression_id)
-            .or_else(|| {
-                self.env
-                    .types
-                    .get_type_id_for_symbol(self.env.symbols, target_symbol)
-            })
-    }
-
-    /// Resolve the type id for a cast expression.
-    fn type_id_for_cast_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        target_type: LocalNodeId<Expression>,
-    ) -> Option<dir::LocalTypeId> {
-        // prefer declared or inferred types for the expression
-        self.declared_or_inferred_type_id(expression_id)
-            .or_else(|| self.type_id_for_type_expression(target_type))
     }
 
     /// Resolve the type id encoded in a type expression node.
@@ -254,6 +208,46 @@ impl FunctionContext<'_> {
             dir::Type::Value { value } => self.unwrap_value_type_id(*value),
             _ => type_id,
         }
+    }
+
+    /// Check whether two type ids are equivalent for nominal matching.
+    pub(crate) fn type_ids_equivalent(
+        &self,
+        left_type_id: dir::LocalTypeId,
+        right_type_id: dir::LocalTypeId,
+    ) -> bool {
+        // unwrap value wrappers before comparison
+        let left_type_id = self.unwrap_value_type_id(left_type_id);
+        let right_type_id = self.unwrap_value_type_id(right_type_id);
+
+        // fast path: structural or nominal equivalence
+        if dir::are_types_equal(left_type_id, right_type_id, self.env.types) {
+            return true;
+        }
+
+        // match nominal references against their instance types
+        let left_instance = match self.env.types.get_type(left_type_id) {
+            dir::Type::Reference { symbol, .. } => self.env.types.get_instance_type_id(*symbol),
+            _ => None,
+        };
+        if let Some(left_instance) = left_instance
+            && dir::are_types_equal(left_instance, right_type_id, self.env.types)
+        {
+            return true;
+        }
+
+        // match instance types against nominal references
+        let right_instance = match self.env.types.get_type(right_type_id) {
+            dir::Type::Reference { symbol, .. } => self.env.types.get_instance_type_id(*symbol),
+            _ => None,
+        };
+        if let Some(right_instance) = right_instance
+            && dir::are_types_equal(left_type_id, right_instance, self.env.types)
+        {
+            return true;
+        }
+
+        false
     }
 
     /// Resolve the enum backing type for a type id when available.

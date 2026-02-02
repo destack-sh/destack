@@ -9,8 +9,11 @@ mod control;
 mod r#enum;
 mod interface;
 mod logical;
+mod newtype;
 mod string;
 mod r#struct;
+mod r#type;
 mod union;
+mod vector;
 
 mod tests;

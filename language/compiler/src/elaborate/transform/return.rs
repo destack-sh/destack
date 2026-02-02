@@ -1,5 +1,6 @@
 use destack_dir::{
-    Declaration, Expression, IfKind, LocalNodeId, Member, NodeTree, NodeType, TypeTable,
+    Declaration, Expression, IfKind, LocalNodeId, Member, NodeTree, NodeType, Type, TypeLiteral,
+    TypeTable,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -18,13 +19,15 @@ impl Compiler {
     /// This also handles if/else branches:
     /// ```ds
     /// function f(cond) {
-    ///     if (cond) { 1 } else { 2 }
+    ///     if (cond) { 1 }
+    ///     else { 2 }
     /// }
     /// ```
     /// ->
     /// ```ds
     /// function f(cond) {
-    ///     if (cond) { return 1; } else { return 2; }
+    ///     if (cond) { return 1; }
+    ///     else { return 2; }
     /// }
     /// ```
     pub(super) fn transform_explicit_return(
@@ -95,6 +98,8 @@ impl Compiler {
                     // recursively transform the last expression
                     self.make_return_explicit(last_expr_id, tree, scope, types)?;
                 }
+
+                self.update_block_expression_type(block, expr_id, tree, types)?;
             }
 
             Expression::If {
@@ -108,6 +113,8 @@ impl Compiler {
                 if let Some(else_expr) = else_expression {
                     self.make_return_explicit(else_expr, tree, scope, types)?;
                 }
+
+                self.set_void_expression_type(types, types.module_id, expr_id);
             }
 
             Expression::If {
@@ -116,15 +123,15 @@ impl Compiler {
             } => {
                 // for ternary, return the whole expression as a statement
                 // reserve a new node for the original expression
-                let orig_id =
+                let original_id =
                     tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+                let original_expr_id: LocalNodeId<Expression> = tree.insert(original_id, expr);
 
                 // preserve analysis metadata for the cloned expression
                 let module_id = types.module_id;
                 types.copy_node_analysis(
                     expr_id.into_global_any(module_id),
-                    orig_expr_id.into_global_any(module_id),
+                    original_expr_id.into_global_any(module_id),
                 );
 
                 // create return expression
@@ -133,9 +140,10 @@ impl Compiler {
                 let return_expr: LocalNodeId<Expression> = tree.insert(
                     return_id,
                     Expression::Return {
-                        value: Some(orig_expr_id),
+                        value: Some(original_expr_id),
                     },
                 );
+                self.set_never_expression_type(types, types.module_id, return_expr);
 
                 // replace the original node with a statement wrapping the return
                 tree.replace(
@@ -144,6 +152,7 @@ impl Compiler {
                         statement: return_expr,
                     },
                 );
+                self.set_void_expression_type(types, types.module_id, expr_id);
             }
 
             Expression::Match { .. } => {
@@ -169,15 +178,15 @@ impl Compiler {
                 // then replace expr_id with Statement wrapping the Return
 
                 // reserve a new node for the original expression
-                let orig_id =
+                let original_id =
                     tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
-                let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+                let original_expr_id: LocalNodeId<Expression> = tree.insert(original_id, expr);
 
                 // preserve analysis metadata for the cloned expression
                 let module_id = types.module_id;
                 types.copy_node_analysis(
                     expr_id.into_global_any(module_id),
-                    orig_expr_id.into_global_any(module_id),
+                    original_expr_id.into_global_any(module_id),
                 );
 
                 // create return expression
@@ -186,9 +195,10 @@ impl Compiler {
                 let return_expr: LocalNodeId<Expression> = tree.insert(
                     return_id,
                     Expression::Return {
-                        value: Some(orig_expr_id),
+                        value: Some(original_expr_id),
                     },
                 );
+                self.set_never_expression_type(types, types.module_id, return_expr);
 
                 // replace the original node with a statement wrapping the return
                 tree.replace(
@@ -197,8 +207,36 @@ impl Compiler {
                         statement: return_expr,
                     },
                 );
+                self.set_void_expression_type(types, types.module_id, expr_id);
             }
         }
+
+        Ok(())
+    }
+
+    /// Update the inferred type for a block and its block expression.
+    fn update_block_expression_type(
+        &self,
+        block_id: destack_dir::LocalNodeId<destack_dir::Block>,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<()> {
+        let block = tree.get(block_id);
+        let type_id = match block.expressions.last() {
+            Some(expression_id) => {
+                self.expression_type_id_or_error(types.module_id, *expression_id, types)?
+            }
+            None => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, block_id)
+            }
+        };
+
+        types.set_inferred_type(block_id.into_global_any(types.module_id), type_id);
+        types.set_inferred_type(expression_id.into_global_any(types.module_id), type_id);
 
         Ok(())
     }

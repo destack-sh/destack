@@ -4,7 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::item::lower_mutability;
 use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout};
-use crate::{LowerError, LowerResult, ModuleLowerer};
+use crate::{LowerResult, ModuleLowerer};
 
 // suffix for closure environment metadata names
 const CLOSURE_ENV_METADATA_SUFFIX: &str = "#env";
@@ -129,10 +129,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<(mir::LocalNodeId<mir::Type>, FieldInput)> {
         // resolve the capture type
         let anchor = self.anchor_for_symbol(capture.symbol);
-        let type_id = self
-            .types
-            .get_type_id_for_symbol(self.symbols, capture.symbol)
-            .ok_or(LowerError::MissingType { node: anchor })?;
+        let type_id = self.type_id_for_symbol_or_error(capture.symbol, anchor)?;
         let value_type = self.lower_type(type_id, anchor)?;
 
         // pick the field type based on capture kind

@@ -300,12 +300,10 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Vec<Option<StaticArgument>> {
-        // track assignments by parameter index
-        let mut assigned: Vec<Option<StaticArgument>> = vec![None; parameters.len()];
-        let mut next_index = 0;
-
+        // precompute argument names and detect mixed styles
+        let mut has_named_syntax = false;
+        let mut argument_infos = Vec::with_capacity(static_arguments.len());
         for argument in static_arguments {
-            // resolve argument name for named mapping
             let (argument_name, is_spread) = match argument {
                 StaticArgument::Evaluated { name, .. } => (*name, false),
                 StaticArgument::Unevaluated { node } => {
@@ -319,7 +317,10 @@ impl Compiler {
                         |_, owner_tree, _, argument_id| {
                             let argument = owner_tree.get(argument_id);
                             info = Some(match argument {
-                                Argument::Named { name, .. } => (Some(*name), false),
+                                Argument::Named { name, .. } => {
+                                    has_named_syntax = true;
+                                    (Some(*name), false)
+                                }
                                 Argument::Spread { .. } => (None, true),
                                 _ => (None, false),
                             });
@@ -330,18 +331,38 @@ impl Compiler {
                 }
             };
 
-            // report unsupported spread arguments
+            // reject spread arguments
             if is_spread {
                 let error_node = match argument {
                     StaticArgument::Unevaluated { node } => *node,
                     _ => node_id.into_global(module.id),
                 };
-                self.error(AnalyzeError::MissingType {
+                self.error(AnalyzeError::InvalidStaticArgument {
                     node: error_node.into_anchored(Some(profile_id)),
+                    message: "static argument spread is not supported".to_string(),
                 });
-                continue;
+                return vec![None; parameters.len()];
             }
 
+            argument_infos.push((argument, argument_name));
+        }
+
+        // reject named static arguments while we only support positional syntax
+        if has_named_syntax {
+            self.error(AnalyzeError::InvalidStaticArgument {
+                node: node_id
+                    .into_global(module.id)
+                    .into_anchored(Some(profile_id)),
+                message: "static arguments must be positional".to_string(),
+            });
+            return vec![None; parameters.len()];
+        }
+
+        // track assignments by parameter index
+        let mut assigned: Vec<Option<StaticArgument>> = vec![None; parameters.len()];
+        let mut next_index = 0;
+
+        for (argument, argument_name) in argument_infos {
             // select the target parameter index
             let target_index = match argument_name {
                 Some(name) => parameters
@@ -367,8 +388,14 @@ impl Compiler {
                     StaticArgument::Unevaluated { node } => *node,
                     _ => node_id.into_global(module.id),
                 };
-                self.error(AnalyzeError::MissingType {
+                let message = if argument_name.is_some() {
+                    "unknown static argument name".to_string()
+                } else {
+                    "too many static arguments".to_string()
+                };
+                self.error(AnalyzeError::InvalidStaticArgument {
                     node: error_node.into_anchored(Some(profile_id)),
+                    message,
                 });
                 continue;
             };
@@ -379,8 +406,9 @@ impl Compiler {
                     StaticArgument::Unevaluated { node } => *node,
                     _ => node_id.into_global(module.id),
                 };
-                self.error(AnalyzeError::MissingType {
+                self.error(AnalyzeError::InvalidStaticArgument {
                     node: error_node.into_anchored(Some(profile_id)),
+                    message: "duplicate static argument".to_string(),
                 });
                 continue;
             }

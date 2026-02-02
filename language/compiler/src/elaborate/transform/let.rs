@@ -1,17 +1,18 @@
 use destack_dir::{
     Block, Expression, IfCondition, LocalNodeId, LocalScopeId, MatchCase, MatchKind, MatchSelector,
-    MatchSource, NodeTree, NodeType, Pattern, SymbolTable, TypeTable,
+    MatchSource, NodeTree, NodeType, Pattern, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeLiteral, TypeTable,
 };
 
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 impl Compiler {
     /// Normalize if let expressions into match expressions.
     pub(super) fn transform_if_let(
         &self,
         tree: &mut NodeTree,
-        symbols: &SymbolTable,
-        _types: &TypeTable,
+        symbols: &mut SymbolTable,
+        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // collect if let expressions to transform
         let if_ids: Vec<_> = tree
@@ -54,8 +55,8 @@ impl Compiler {
             };
 
             // resolve the match metadata for the new expression
-            let match_scope = tree.get_scope(if_id);
-            let match_symbol = self.match_symbol_for_scope(if_id, match_scope.0, symbols)?;
+            let match_scope = tree.get_scope(declarator.pattern);
+            let match_symbol = self.match_symbol_for_scope(match_scope.0, symbols)?;
 
             // build the then case from the pattern and then expression
             let then_case = self.insert_if_let_case(
@@ -69,7 +70,7 @@ impl Compiler {
             // build the else case with a wildcard pattern
             let else_expression = match else_expression {
                 Some(else_expression) => else_expression,
-                None => self.insert_empty_block_expression(tree, if_id, match_scope),
+                None => self.insert_empty_block_expression(tree, types, if_id, match_scope),
             };
             let else_pattern = self.insert_if_let_wildcard(tree, if_id, match_scope);
             let else_case = self.insert_if_let_case(
@@ -90,6 +91,32 @@ impl Compiler {
                 symbol: match_symbol,
             };
             tree.replace(if_id, match_expression);
+
+            // preserve the original if expression type on the match node
+            let match_type_id =
+                types.get_declared_or_inferred_type_id(if_id.into_global_any(tree.module_id));
+            if let Some(match_type_id) = match_type_id {
+                self.set_expression_type(types, tree.module_id, if_id, match_type_id);
+            } else {
+                let then_type_id = types.get_declared_or_inferred_type_id(
+                    then_expression.into_global_any(tree.module_id),
+                );
+                let else_type_id = types.get_declared_or_inferred_type_id(
+                    else_expression.into_global_any(tree.module_id),
+                );
+                let (Some(then_type_id), Some(else_type_id)) = (then_type_id, else_type_id) else {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: if_id.into_global_any(tree.module_id).into_anchored(None),
+                    });
+                };
+
+                let match_type_id = if then_type_id == else_type_id {
+                    then_type_id
+                } else {
+                    self.union_type(then_type_id, else_type_id, types)
+                };
+                self.set_expression_type(types, tree.module_id, if_id, match_type_id);
+            }
         }
 
         Ok(())
@@ -98,38 +125,20 @@ impl Compiler {
     /// Pick a match symbol from the current scope chain.
     fn match_symbol_for_scope(
         &self,
-        if_id: LocalNodeId<Expression>,
-        mut scope_id: LocalScopeId,
-        symbols: &SymbolTable,
+        scope_id: LocalScopeId,
+        symbols: &mut SymbolTable,
     ) -> ElaborateResult<destack_dir::LocalSymbolId> {
-        // walk up scopes until we find an owner symbol
-        loop {
-            // use the owner symbol when it exists
-            let scope = symbols.get_scope_by_id(scope_id);
-            if let Some(owner_id) = scope.owner_id {
-                return Ok(owner_id);
-            }
-
-            // climb to the parent when possible
-            if let Some((parent_id, _)) = scope.parent {
-                scope_id = parent_id;
-                continue;
-            }
-
-            // fall back to any symbol in the root scope
-            if let Some((_, symbol_id)) = symbols.active_named_symbols(scope).next() {
-                return Ok(symbol_id);
-            }
-
-            if let Some(symbol_id) = symbols.active_anonymous_symbols(scope).next() {
-                return Ok(symbol_id);
-            }
-
-            // surface a graceful error when no symbol exists
-            return Err(crate::ElaborateError::UnsupportedConstruct {
-                node: if_id.into_global_any(symbols.module_id).into_anchored(None),
-            });
-        }
+        let scope_mark = symbols.get_scope_mark(scope_id);
+        let (symbol_id, _) = symbols.insert_symbol(
+            SymbolKind::Item,
+            SymbolType::Void,
+            SymbolSpace::Value,
+            SymbolBinding::Runtime,
+            None,
+            (scope_id, scope_mark),
+            None,
+        );
+        Ok(symbol_id)
     }
 
     /// Insert a wildcard pattern node for the implicit else case.
@@ -173,6 +182,7 @@ impl Compiler {
     fn insert_empty_block_expression(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         if_id: LocalNodeId<Expression>,
         scope: (LocalScopeId, destack_dir::LocalScopeMark),
     ) -> LocalNodeId<Expression> {
@@ -188,7 +198,18 @@ impl Compiler {
 
         // wrap the block as an expression
         let block_expr_id = tree.reserve_from(NodeType::Expression, if_id.into_any(), scope, None);
-        tree.insert(block_expr_id, Expression::Block { block })
+        let block_expr_id = tree.insert(block_expr_id, Expression::Block { block });
+
+        // record void types for the synthesized block
+        let void_type = Type::TypeLiteral {
+            value: TypeLiteral::Void,
+        };
+        let void_type_id = types.insert_type_from(void_type, block);
+        let module_id = types.module_id;
+        types.set_inferred_type(block.into_global_any(module_id), void_type_id);
+        types.set_inferred_type(block_expr_id.into_global_any(module_id), void_type_id);
+
+        block_expr_id
     }
 }
 

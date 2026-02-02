@@ -47,6 +47,7 @@ Analyze relies on a small set of invariants that make the parallel declare, expo
 Analyze records results in the **TypeTable** (one per module).
 TypeTable is the single source of truth for typing and resolution data.
 Elaborate and Lower rely on these results and don't recompute anything.
+Downstream phases consume TypeTable and should error if any required metadata is missing.
 
 **What TypeTable stores:**
 - **Declared types**: From explicit annotations (`: T`)

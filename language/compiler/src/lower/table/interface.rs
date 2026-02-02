@@ -193,17 +193,12 @@ impl ModuleLowerer<'_> {
                 let field_name = self.interface_field_name(member_id, *key)?;
 
                 // resolve the field type
-                let field_type = value
-                    .and_then(|value_id| {
-                        self.types.get_declared_or_inferred_type_id(
-                            value_id.into_global_any(self.module_id),
-                        )
-                    })
-                    .ok_or_else(|| LowerError::MissingType {
-                        node: member_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
-                    })?;
+                let value_id = value.ok_or_else(|| {
+                    self.missing_type_error(member_id.into_global_any(self.module_id))
+                })?;
+                let field_type = self.declared_or_inferred_type_id_for_node_or_error(
+                    value_id.into_global_any(self.module_id),
+                )?;
 
                 // only keep the first matching field type
                 if let Some(existing) = seen_fields.get(&field_name) {

@@ -1,0 +1,372 @@
+use destack_vm::Value;
+
+use crate::TestProgram;
+
+/// Lower newtype declarations into MIR newtype wrappers.
+#[test]
+fn test_lower_newtype_user_id_signature() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype UserId = int32;
+
+function loadUser(id: UserId): UserId {
+    return id;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @UserId = newtype<i32>
+function @loadUser(v0: @UserId) -> @UserId {
+block0(v0: @UserId):
+    return v0
+}
+        "#,
+    );
+}
+
+/// Lower newtypes distinctly from type aliases.
+#[test]
+fn test_lower_newtype_distinct_from_alias() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+type SessionId = int32;
+newtype UserId = int32;
+
+function lookupSession(id: SessionId): SessionId {
+    return id;
+}
+
+function lookupUser(id: UserId): UserId {
+    return id;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @UserId = newtype<i32>
+
+function @lookupSession(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+
+function @lookupUser(v0: @UserId) -> @UserId {
+block0(v0: @UserId):
+    return v0
+}
+        "#,
+    );
+}
+
+/// Lower tuple newtypes to MIR newtype wrappers.
+#[test]
+fn test_lower_newtype_tuple_payload() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype Range = (int32, int32);
+
+function normalizeRange(value: Range): Range {
+    return value;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Range#1 = (i32, i32)
+type @Range = newtype<@Range#1>
+
+function @normalizeRange(v0: @Range) -> @Range {
+block0(v0: @Range):
+    return v0
+}
+        "#,
+    );
+}
+
+/// Lower struct-backed newtypes to MIR newtype wrappers.
+#[test]
+fn test_lower_newtype_struct_payload() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point { x: int32, y: int32 }
+newtype Location = Point;
+
+function markLocation(value: Location): Location {
+    return value;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Point = { x: i32, y: i32 }
+type @Location = newtype<@Point>
+function @markLocation(v0: @Location) -> @Location {
+block0(v0: @Location):
+    return v0
+}
+        "#,
+    );
+}
+
+/// Lower scalar newtype constructors into a bitcast.
+#[test]
+fn test_lower_newtype_user_id_constructor() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype UserId = int32;
+
+function makeUserId(value: int32): UserId {
+    return UserId(value);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @UserId = newtype<i32>
+function @makeUserId(v0: i32) -> @UserId {
+block0(v0: i32):
+    v1: @UserId = bitcast v0 -> @UserId
+    return v1
+}
+        "#,
+    );
+}
+
+/// Lower tuple newtype constructors into tuple payloads.
+#[test]
+fn test_lower_newtype_range_constructor() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype Range = (int32, int32);
+
+function makeRange(start: int32, end: int32): Range {
+    return Range(start, end);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @Range#1 = (i32, i32)
+type @Range = newtype<@Range#1>
+
+function @makeRange(v0: i32, v1: i32) -> @Range {
+block0(v0: i32, v1: i32):
+    v2: @Range#1 = tuple @Range#1 (v0, v1)
+    v3: @Range = bitcast v2 -> @Range
+    return v3
+}
+        "#,
+    );
+}
+
+/// Execute scalar newtype matches with literal patterns.
+#[test]
+fn test_lower_newtype_match_status_code() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype StatusCode = int32;
+
+function classifyStatus(value: int32): int32 {
+    let status: StatusCode = StatusCode(value);
+    let result: int32 = 0;
+    match (status) {
+        StatusCode(200) => {
+            result = 1;
+        }
+        _ => {
+            result = 0;
+        }
+    }
+    return result;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classifyStatus",
+        &[Value::int32(200)],
+        Value::int32(1),
+    );
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "classifyStatus",
+        &[Value::int32(404)],
+        Value::int32(0),
+    );
+}
+
+/// Execute scalar newtype matches that bind inner values.
+#[test]
+fn test_lower_newtype_match_port_binding() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype Port = int32;
+
+function readPort(value: int32): int32 {
+    let port: Port = Port(value);
+    let result: int32 = 0;
+    match (port) {
+        Port(inner) => {
+            result = inner + 1;
+        }
+        _ => {
+            result = 0;
+        }
+    }
+    return result;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "readPort",
+        &[Value::int32(3000)],
+        Value::int32(3001),
+    );
+}
+
+/// Execute tuple newtype matches with bound fields.
+#[test]
+fn test_lower_newtype_match_range_tuple() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype Range = (int32, int32);
+
+function rangeWidth(start: int32, end: int32): int32 {
+    let range: Range = Range(start, end);
+    let result: int32 = 0;
+    match (range) {
+        Range(lower, upper) => {
+            result = upper - lower;
+        }
+        _ => {
+            result = 0;
+        }
+    }
+    return result;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "rangeWidth",
+        &[Value::int32(10), Value::int32(18)],
+        Value::int32(8),
+    );
+}
+
+/// Lower newtypes embedded in struct fields.
+#[test]
+fn test_lower_newtype_struct_field() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+newtype UserId = int32;
+struct User { id: UserId, flags: int32 }
+
+function readUserId(user: User): UserId {
+    return user.id;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+type @UserId = newtype<i32>
+type @User = { id: @UserId, flags: i32 }
+
+function @readUserId(v0: @User) -> @UserId {
+block0(v0: @User):
+    v1: @UserId = field.get v0, 0
+    return v1
+}
+        "#,
+    );
+}

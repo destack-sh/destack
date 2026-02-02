@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
@@ -235,6 +233,162 @@ impl FunctionContext<'_> {
         Ok((value, struct_type))
     }
 
+    /// Lower a tagged scalar expression (newtype constructor) to a newtype value.
+    ///
+    /// ```ds
+    /// newtype UserId = int32;
+    ///
+    /// function make(value: int32): UserId {
+    ///     return UserId(value);
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v0: i32 = ...
+    /// v1: newtype<i32> = bitcast v0 -> newtype<i32>
+    /// ```
+    pub(crate) fn lower_tagged_scalar_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        _ty_expr: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the newtype result type from type inference
+        let newtype_type = self.lower_type_for_expression(expression_id)?;
+
+        // require a nominal newtype wrapper
+        let inner_type = match self.state.builder.tree().get(newtype_type) {
+            mir::Type::Newtype { inner, .. } => *inner,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "tagged scalar expression requires a newtype".to_string(),
+                });
+            }
+        };
+
+        // reject tuple payloads for scalar constructors
+        if matches!(
+            self.state.builder.tree().get(inner_type),
+            mir::Type::Tuple { .. }
+        ) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "tuple newtypes require a tagged tuple expression".to_string(),
+            });
+        }
+
+        // lower the payload value
+        let (value, value_type) = self.lower_value_expression(value_id)?;
+
+        // require the payload type to match the newtype inner type
+        if value_type != inner_type {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "newtype payload type does not match inner type".to_string(),
+            });
+        }
+
+        // wrap the payload value
+        let wrapped_value = self.state.builder.bitcast(value, newtype_type);
+        Ok((wrapped_value, newtype_type))
+    }
+
+    /// Lower a tagged tuple expression (tuple newtype constructor) to a newtype value.
+    ///
+    /// ```ds
+    /// newtype Pair = (int32, int32);
+    ///
+    /// function make(x: int32, y: int32): Pair {
+    ///     return Pair(x, y);
+    /// }
+    /// ```
+    /// ->
+    /// ```mir
+    /// v0: i32 = ...
+    /// v1: i32 = ...
+    /// v2: (i32, i32) = tuple (i32, i32) (v0, v1)
+    /// v3: newtype<(i32, i32)> = bitcast v2 -> newtype<(i32, i32)>
+    /// ```
+    pub(crate) fn lower_tagged_tuple_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        _ty_expr: LocalNodeId<Expression>,
+        elements: &[LocalNodeId<dir::Argument>],
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // get the newtype result type from type inference
+        let newtype_type = self.lower_type_for_expression(expression_id)?;
+
+        // require a nominal newtype wrapper
+        let inner_type = match self.state.builder.tree().get(newtype_type) {
+            mir::Type::Newtype { inner, .. } => *inner,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "tagged tuple expression requires a newtype".to_string(),
+                });
+            }
+        };
+
+        // require a tuple payload for tuple constructors
+        let tuple_elements = match self.state.builder.tree().get(inner_type) {
+            mir::Type::Tuple { elements, .. } => elements.clone(),
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "tagged tuple expression requires a tuple newtype".to_string(),
+                });
+            }
+        };
+
+        // lower each element value
+        let mut element_values = Vec::with_capacity(elements.len());
+        for element_id in elements {
+            let element = self.env.dir_tree.get(*element_id);
+            match element {
+                dir::Argument::Positional { value, .. } | dir::Argument::Labeled { value, .. } => {
+                    let (value, _) = self.lower_value_expression(*value)?;
+                    element_values.push(value);
+                }
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "unsupported tuple newtype element kind".to_string(),
+                    })?;
+                }
+            }
+        }
+
+        // require matching tuple arity
+        if element_values.len() != tuple_elements.len() {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "tuple newtype arity does not match inner type".to_string(),
+            });
+        }
+
+        // construct the tuple payload
+        let tuple_value = self.state.builder.tuple(inner_type, element_values);
+
+        // wrap the tuple payload
+        let wrapped_value = self.state.builder.bitcast(tuple_value, newtype_type);
+        Ok((wrapped_value, newtype_type))
+    }
+
     /// Lower a constructor call expression to a struct value.
     ///
     /// ```ds
@@ -463,132 +617,6 @@ impl FunctionContext<'_> {
             None => instance_value,
         };
         Ok((value, result_type))
-    }
-
-    /// Build a zero value for a MIR type.
-    pub(crate) fn zero_value_for_type(
-        &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::Value> {
-        // initialize recursion guard
-        let mut visiting = HashSet::new();
-
-        // compute the zero value
-        self.zero_value_for_type_inner(ty, node, &mut visiting)
-    }
-
-    /// Build a zero value for a MIR type with a recursion guard.
-    fn zero_value_for_type_inner(
-        &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
-        node: AnchoredGlobalNodeId,
-        visiting: &mut HashSet<mir::LocalNodeId<mir::Type>>,
-    ) -> LowerResult<mir::Value> {
-        // guard against recursive constructor initialization
-        if !visiting.insert(ty) {
-            return Err(LowerError::UnsupportedConstruct {
-                node,
-                message: "recursive constructor initialization not supported".to_string(),
-            });
-        }
-
-        // build the zero value for the requested type
-        let mir_type = self.state.builder.tree().get(ty).clone();
-        let value = match mir_type {
-            mir::Type::Void => {
-                return Err(LowerError::UnsupportedConstruct {
-                    node,
-                    message: "constructor cannot initialize void field".to_string(),
-                });
-            }
-            mir::Type::Boolean => self.state.builder.bconst(false),
-            mir::Type::Int { width, is_signed } => {
-                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-                    node,
-                    message: "unsupported integer width for constructor initialization".to_string(),
-                })?;
-                self.state.builder.iconst(0, width, is_signed)
-            }
-            mir::Type::Float { width } => {
-                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-                    node,
-                    message: "unsupported float width for constructor initialization".to_string(),
-                })?;
-                self.state.builder.fconst(0.0, width)
-            }
-            mir::Type::Isize | mir::Type::Usize | mir::Type::Type => {
-                let pointer_bits = self.env.type_lowerer.pointer_width_bits();
-                let width =
-                    u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
-                        node,
-                        message: "unsupported pointer width for constructor initialization"
-                            .to_string(),
-                    })?;
-                let signed = matches!(mir_type, mir::Type::Isize);
-                self.state.builder.iconst(0, width, signed)
-            }
-            mir::Type::Reference { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
-                self.state
-                    .builder
-                    .cast(mir::CastOperator::IntToPointer, zero, ty)
-            }
-            mir::Type::TensorReference { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
-                self.state
-                    .builder
-                    .cast(mir::CastOperator::IntToPointer, zero, ty)
-            }
-            mir::Type::Array {
-                element, length, ..
-            } => {
-                let length =
-                    usize::try_from(length).map_err(|_| LowerError::UnsupportedConstruct {
-                        node,
-                        message: "array too large for constructor initialization".to_string(),
-                    })?;
-                let mut elements = Vec::with_capacity(length);
-                for _ in 0..length {
-                    elements.push(self.zero_value_for_type_inner(element, node, visiting)?);
-                }
-                self.state.builder.array(ty, elements)
-            }
-            mir::Type::Tuple { elements, .. } => {
-                let mut values = Vec::with_capacity(elements.len());
-                for element in elements {
-                    values.push(self.zero_value_for_type_inner(element, node, visiting)?);
-                }
-                self.state.builder.tuple(ty, values)
-            }
-            mir::Type::Struct { .. } => {
-                let layout = self.env.type_lowerer.layout_for_type_or_error(ty, node)?;
-                let mut values = Vec::with_capacity(layout.fields.len());
-                for field in &layout.fields {
-                    values.push(self.zero_value_for_type_inner(field.ty, node, visiting)?);
-                }
-                self.state.builder.struct_(ty, values)
-            }
-            mir::Type::FunctionPointer { .. } => {
-                let pointer_bits = self.env.type_lowerer.pointer_bytes() * 8;
-                let zero = self.state.builder.iconst(0, pointer_bits, false);
-                self.state
-                    .builder
-                    .cast(mir::CastOperator::IntToPointer, zero, ty)
-            }
-            mir::Type::Vector { .. } | mir::Type::Tensor { .. } => {
-                return Err(LowerError::UnsupportedConstruct {
-                    node,
-                    message: "constructor cannot initialize vector or tensor values".to_string(),
-                });
-            }
-        };
-
-        // clear recursion guard
-        visiting.remove(&ty);
-        Ok(value)
     }
 
     /// Build a default value for a struct layout with vtable headers populated.

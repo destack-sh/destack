@@ -100,6 +100,7 @@ impl ModuleLowerer<'_> {
             return Ok(table_id);
         }
 
+        // check for cycles
         if self.vtable_in_progress.contains(&symbol) {
             let anchor = self
                 .declaration_ids_for_symbol(symbol)
@@ -116,7 +117,6 @@ impl ModuleLowerer<'_> {
                 message: "cycle detected while lowering vtable".to_string(),
             });
         }
-
         self.vtable_in_progress.insert(symbol);
 
         // resolve the declaration id for this class symbol
@@ -415,12 +415,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<dir::LocalTypeId> {
         // resolve the signature type from analysis
         let node_id = member_id.into_global_any(self.module_id);
-        let signature_type_id =
-            self.types
-                .get_signature_type_for_node(node_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: node_id.into_anchored(Some(self.profile)),
-                })?;
+        let signature_type_id = self.signature_type_id_for_node(node_id)?;
 
         Ok(signature_type_id)
     }

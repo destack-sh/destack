@@ -105,16 +105,10 @@ impl FunctionContext<'_> {
                     };
                 }
 
-                if let Some(layout) = self.closure_env_layout() {
-                    let captured_field = layout.fields.iter().find_map(|field| {
-                        let symbol_data = self.env.symbols.get_symbol(field.symbol.local_id);
-                        let name = symbol_data.name()?;
-                        let name = self.env.strings.get(name);
-                        if name == "this" { Some(*field) } else { None }
-                    });
-                    if let Some(field) = captured_field {
-                        return self.borrow_captured_binding(expression_id, &field, mutability);
-                    }
+                if let Some(this_symbol) = self.state.bindings.this_symbol
+                    && let Some(field) = self.capture_field_for_symbol(this_symbol)
+                {
+                    return self.borrow_captured_binding(expression_id, &field, mutability);
                 }
 
                 Err(LowerError::UnsupportedConstruct {

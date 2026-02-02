@@ -165,11 +165,19 @@ impl<'a> ComptimeLowerer<'a> {
                 error: Box::new(error.clone()),
                 message: format!("{error}"),
             })?;
+        // resolve vector builtin symbols for SIMD lowering
+        let vector_symbol = compiler.get_well_known_symbol_from(
+            profile,
+            dir::WellKnownSymbol::Vector,
+            dir::SymbolSpaceOrder::TypeThenValue,
+        );
+
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
+            vector_symbol,
         );
 
         Ok(Self {

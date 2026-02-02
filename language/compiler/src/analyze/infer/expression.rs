@@ -19,7 +19,7 @@ use destack_dir::{
     Constraint, Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource,
     DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionCardinality, GlobalNodeIdAny,
     GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource,
+    LocalSymbolId, LocalTypeId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource, Member,
     Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PatternField, PrimitiveType,
     Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StringId,
     SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeElement,
@@ -47,6 +47,92 @@ impl ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Recover static parameters for a signature when the type omitted them.
+    fn recover_static_parameters_for_signature(
+        &self,
+        module: &Module,
+        signature_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Vec<LocalTypeId> {
+        // read the type source for the signature
+        let source_id = types.get_type_source(signature_ty_id);
+
+        // check member signatures first
+        if let Ok(member_id) = source_id.try_into_typed::<Member>() {
+            let member = tree.get(member_id);
+            if let Member::Method { signature, .. } = member
+                && signature.generics.as_ref().is_some()
+            {
+                let placeholders = self
+                    .static_parameter_placeholders_for_signature(module, signature, tree, types);
+                self.set_static_parameters_for_signature_type(
+                    signature_ty_id,
+                    &placeholders,
+                    types,
+                );
+                return placeholders;
+            }
+        }
+
+        // check function declarations
+        if let Ok(declaration_id) = source_id.try_into_typed::<Declaration>() {
+            let declaration = tree.get(declaration_id);
+            if let Declaration::Function { signature, .. } = declaration
+                && signature.generics.as_ref().is_some()
+            {
+                let placeholders = self
+                    .static_parameter_placeholders_for_signature(module, signature, tree, types);
+                self.set_static_parameters_for_signature_type(
+                    signature_ty_id,
+                    &placeholders,
+                    types,
+                );
+                return placeholders;
+            }
+        }
+
+        Vec::new()
+    }
+
+    /// Store recovered static parameters for a signature type when missing.
+    fn set_static_parameters_for_signature_type(
+        &self,
+        signature_ty_id: LocalTypeId,
+        placeholders: &[LocalTypeId],
+        types: &mut TypeTable,
+    ) {
+        if placeholders.is_empty() {
+            return;
+        }
+
+        let Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+        } = types.get_type(signature_ty_id).clone()
+        else {
+            return;
+        };
+
+        if !static_parameters.is_empty() {
+            return;
+        }
+
+        let updated = Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters: placeholders.to_vec(),
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+        };
+        types.update_type(signature_ty_id, updated);
+    }
+
     /// Decide whether a scalar literal should be widened in this context.
     pub(super) fn should_widen_scalar_literal(&self, ctx: &InferContext) -> bool {
         if !matches!(ctx.widening_mode, WideningMode::Widen) {
@@ -1854,7 +1940,7 @@ impl Compiler {
                 let Type::Function {
                     asynchrony,
                     cardinality,
-                    static_parameters,
+                    mut static_parameters,
                     this_parameter,
                     dynamic_parameters,
                     return_type,
@@ -1884,6 +1970,16 @@ impl Compiler {
                             owner_symbol = Some(candidate.target_symbol);
                         }
                     }
+                }
+
+                // recover static parameters when they are missing from the signature type
+                if static_parameters.is_empty() {
+                    static_parameters = self.recover_static_parameters_for_signature(
+                        module,
+                        signature_ty_id,
+                        tree,
+                        types,
+                    );
                 }
 
                 let resolved = self.resolve_function_signature(
@@ -4812,7 +4908,7 @@ impl Compiler {
         let Type::Function {
             asynchrony,
             cardinality,
-            static_parameters,
+            mut static_parameters,
             this_parameter,
             dynamic_parameters,
             return_type,
@@ -4825,6 +4921,12 @@ impl Compiler {
             });
             return Ok(base_ty_id);
         };
+
+        // recover static parameters when they are missing from the signature type
+        if static_parameters.is_empty() {
+            static_parameters =
+                self.recover_static_parameters_for_signature(module, signature_ty_id, tree, types);
+        }
 
         let resolved = self.resolve_function_signature(
             module,

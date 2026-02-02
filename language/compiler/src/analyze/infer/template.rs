@@ -323,11 +323,9 @@ impl Compiler {
     ) -> LocalTypeId {
         // prefer the builtin template strings array type when available
         let name = self.program.strings.intern("TemplateStringsArray");
-        if let Some(symbol) = self.get_declared_lib_symbol_for_space_order(
-            profile,
-            name,
-            SymbolSpaceOrder::TypeThenValue,
-        ) {
+        if let Some(symbol) =
+            self.get_declared_lib_symbol_from(profile, name, SymbolSpaceOrder::TypeThenValue)
+        {
             return types.insert_type_from_any(
                 Type::Reference {
                     symbol,

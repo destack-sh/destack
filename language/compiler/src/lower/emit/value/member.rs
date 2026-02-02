@@ -19,6 +19,21 @@ enum StaticMemberKind {
 }
 
 impl FunctionContext<'_> {
+    /// Resolve a static integer literal for tuple indexing.
+    fn static_index_literal(&self, expression_id: LocalNodeId<Expression>) -> LowerResult<usize> {
+        // require a compile time integer literal
+        let index_expression = self.unwrap_expression(expression_id);
+        match self.env.dir_tree.get(index_expression) {
+            Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::Integer(value),
+            }
+            | Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::Bigint(value),
+            } if *value >= 0 => Ok(*value as usize),
+            _ => Err(self.error(expression_id, "tuple index must be a constant integer")),
+        }
+    }
+
     /// Lower a member access expression to a field_get.
     ///
     /// ```ds
@@ -528,39 +543,88 @@ impl FunctionContext<'_> {
         left_id: LocalNodeId<Expression>,
         index_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // reject non array indices for native lowering
+        // resolve the left-hand type
         let left_type_id = self.type_for_expression_or_error(left_id)?;
-        match self.env.types.get_type(left_type_id) {
-            Type::Array { .. } | Type::ArraySized { .. } => {}
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                    message: "index signatures are not supported for native lowering".to_string(),
-                });
-            }
+        let left_type_id = self.unwrap_value_type_id(left_type_id);
+        let left_mir_type = self.lower_type_for_expression(left_id)?;
+
+        // handle array indexing
+        if matches!(
+            self.env.types.get_type(left_type_id),
+            Type::Array { .. } | Type::ArraySized { .. }
+        ) {
+            // lower the array value and index
+            let (array_value, _array_type) = self.lower_value_expression(left_id)?;
+            let (index_value, _index_type) = self.lower_value_expression(index_id)?;
+
+            // emit bounds checks when enabled
+            let array_type = self.lower_type_for_expression(left_id)?;
+            self.emit_bounds_check(
+                expression_id,
+                array_value,
+                array_type,
+                index_value,
+                index_id,
+            )?;
+
+            // get the result type for the element
+            let result_type = self.lower_type_for_expression(expression_id)?;
+
+            // emit element_get
+            let value = self.state.builder.element_get(array_value, index_value);
+            return Ok((value, result_type));
         }
 
-        // lower the array value and index
-        let (array_value, _array_type) = self.lower_value_expression(left_id)?;
-        let (index_value, _index_type) = self.lower_value_expression(index_id)?;
+        // handle tuple and newtype indexing
+        let (element_types, newtype_inner, is_tuple_payload) = {
+            let mir_type = self.state.builder.tree().get(left_mir_type);
+            match mir_type {
+                mir::Type::Tuple { elements, .. } => (elements.clone(), None, true),
+                mir::Type::Newtype { inner, .. } => {
+                    let inner_type = *inner;
+                    let inner_payload = self.state.builder.tree().get(inner_type);
+                    match inner_payload {
+                        mir::Type::Tuple { elements, .. } => {
+                            (elements.clone(), Some(inner_type), true)
+                        }
+                        _ => (vec![inner_type], Some(inner_type), false),
+                    }
+                }
+                _ => {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "index signatures are not supported for native lowering"
+                            .to_string(),
+                    });
+                }
+            }
+        };
 
-        // emit bounds checks when enabled
-        let array_type = self.lower_type_for_expression(left_id)?;
-        self.emit_bounds_check(
-            expression_id,
-            array_value,
-            array_type,
-            index_value,
-            index_id,
-        )?;
+        // require a constant integer index for tuples and newtypes
+        let index = self.static_index_literal(index_id)?;
 
-        // get the result type (element type)
-        let result_type = self.lower_type_for_expression(expression_id)?;
+        // lower the payload value after resolving the type
+        let (payload_value, _) = self.lower_value_expression(left_id)?;
+        let payload_value = match newtype_inner {
+            Some(inner_type) => self.state.builder.bitcast(payload_value, inner_type),
+            None => payload_value,
+        };
 
-        // emit element_get
-        let value = self.state.builder.element_get(array_value, index_value);
-        Ok((value, result_type))
+        // ensure the index is in bounds
+        if index >= element_types.len() {
+            return Err(self.error(expression_id, "tuple index is out of bounds"));
+        }
+
+        // extract the payload element
+        let element_type = element_types[index];
+        let value = if is_tuple_payload {
+            self.state.builder.field_get(payload_value, index as u32)
+        } else {
+            payload_value
+        };
+
+        Ok((value, element_type))
     }
 }
