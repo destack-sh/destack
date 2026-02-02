@@ -47,10 +47,33 @@ impl BabelOptions {
             })
             .unwrap_or_default();
 
-        let disallow_ambiguous_jsx_like = object
+        let mut disallow_ambiguous_jsx_like = object
             .get("disallowAmbiguousJSXLike")
             .and_then(|value| value.as_bool())
             .unwrap_or(false);
+
+        if let Some(plugin_values) = object.get("plugins").and_then(|value| value.as_array()) {
+            for plugin in plugin_values {
+                let Some(items) = plugin.as_array() else {
+                    continue;
+                };
+                let Some(name) = items.first().and_then(|value| value.as_str()) else {
+                    continue;
+                };
+                if name != "typescript" {
+                    continue;
+                }
+                let Some(options) = items.get(1).and_then(|value| value.as_object()) else {
+                    continue;
+                };
+                if let Some(value) = options
+                    .get("disallowAmbiguousJSXLike")
+                    .and_then(|value| value.as_bool())
+                {
+                    disallow_ambiguous_jsx_like |= value;
+                }
+            }
+        }
 
         let has_throws = object.contains_key("throws");
 
@@ -202,6 +225,7 @@ impl BabelSuite {
         let path_str = test_dir.to_string_lossy();
         let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
         let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
+        let in_dts_dir = path_str.contains("/dts/") || path_str.contains("/dts-");
         let in_typescript_dir = path_str.contains("/typescript/");
         let options = Self::options(test_dir);
         let has_options = options.is_some();
@@ -221,6 +245,7 @@ impl BabelSuite {
             if input.exists() {
                 let file_type = match *ext {
                     "tsx" => FileType::TypeScriptXml,
+                    "ts" if in_dts_dir => FileType::TypeScriptDeclaration,
                     "ts" if in_tsx_dir || has_jsx => FileType::TypeScriptXml,
                     "ts" => FileType::TypeScript,
                     "jsx" => FileType::JavaScriptXml,

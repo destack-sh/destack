@@ -95,8 +95,20 @@ impl Parser {
             parser.eat_expression()
         })?;
 
+        // hoist static arguments parsed on the receiver
+        let mut static_arguments = None;
+        if let Expression::Path {
+            static_arguments: path_arguments,
+            ..
+        } = self.tree.get_mut(left)
+        {
+            static_arguments = path_arguments.take();
+        }
+
         // static arguments (may be empty)
-        let static_arguments = self.eat_static_arguments_maybe()?;
+        if static_arguments.is_none() {
+            static_arguments = self.eat_static_arguments_maybe()?;
+        }
 
         // dynamic arguments (optional in JS: `new Foo` is valid without parentheses)
         let dynamic_arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();

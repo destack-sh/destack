@@ -7,6 +7,23 @@ impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
     fn eat_expression_as_block(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
+
+        // empty statement in js or ts
+        if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
+            self.bump();
+            let block_id = self.tree.insert(
+                Block {
+                    format: BlockFormat::Implicit,
+                    expressions: vec![],
+                },
+                self.get_span_from(start),
+            );
+            let expression_id = self
+                .tree
+                .insert(Expression::Block(block_id), self.get_span_from(start));
+            return Ok(expression_id);
+        }
+
         let expression_id = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_expression()
         })?;
@@ -128,6 +145,7 @@ mod tests {
         BinaryOperator, Block, Declarator, Expression, IfCondition, LetKind, Mutability, Pattern,
         PatternField, ScalarLiteral,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_path};
 
@@ -208,6 +226,29 @@ mod tests {
                 assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
                     assert_eq!(expressions.len(), 1);
                     assert_expression_path!(parser, parser.tree.get(expressions[0]), "b");
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_if_empty_statement_in_typescript() {
+        let mut test = TestParser::new_with_options("if (cond);", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        // if (cond);
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+            // cond
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
+            // empty then block
+            assert_node!(parser.tree, *then_expression, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { format: _, expressions } => {
+                    assert!(expressions.is_empty());
                 });
             });
         });

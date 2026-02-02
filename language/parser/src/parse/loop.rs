@@ -1,7 +1,8 @@
 //! Parse loops, for, while, etc.
 
 use destack_ast::{
-    Asynchrony, Expression, ForEachBinding, ForEachKind, Keyword, LocalNodeId, TokenType, WhileKind,
+    Asynchrony, Expression, ForEachBinding, ForEachKind, Keyword, LocalNodeId, Pattern, TokenType,
+    WhileKind,
 };
 
 use crate::{ParseResult, Parser};
@@ -200,6 +201,8 @@ impl Parser {
                 pattern,
             })
         } else {
+            let start = self.mark();
+            let start_idx = self.tree.next_id();
             let pattern = self.with_options(
                 self.options
                     .not_in_position()
@@ -207,7 +210,25 @@ impl Parser {
                     .in_before_block(),
                 |parser| parser.eat_pattern(),
             )?;
-            Ok(ForEachBinding::Pattern { pattern })
+            if (self.language.is_typescript() || self.language.is_destack())
+                && self.peek_keyword(Keyword::As).is_ok()
+            {
+                self.restore(start, start_idx);
+                let expression = self.with_options(
+                    self.options
+                        .not_in_position()
+                        .in_for_each()
+                        .in_before_block(),
+                    |parser| parser.eat_expression(),
+                )?;
+                let pattern = self.tree.insert(
+                    Pattern::Expression { value: expression },
+                    self.get_span_from(start),
+                );
+                Ok(ForEachBinding::Pattern { pattern })
+            } else {
+                Ok(ForEachBinding::Pattern { pattern })
+            }
         }
     }
 

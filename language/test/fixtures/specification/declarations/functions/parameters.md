@@ -57,3 +57,33 @@ function build(public value: number) {
 ```
 
 - contains: parameter property
+
+## invalid optional parameters
+
+### optional pattern parameters are rejected in TypeScript
+
+> Optional parameters must use identifiers, not binding patterns.
+
+```ts:main.ts
+interface Payload {
+    value: string;
+}
+
+function handle({ value }?: Payload) {
+    let _ = value;
+}
+```
+
+- contains: optional parameters cannot use binding patterns
+
+### optional rest parameters are rejected in TypeScript
+
+> Rest parameters cannot be optional.
+
+```ts:main.ts
+function collect(...items?: string[]) {
+    let _ = items;
+}
+```
+
+- contains: optional rest parameters are not allowed

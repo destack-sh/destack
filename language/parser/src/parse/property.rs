@@ -527,6 +527,34 @@ impl Parser {
         let mut modifiers =
             self.eat_binding_modifiers_prefix_maybe(true, true, true, true, true)?;
 
+        // duplicate static modifier across newlines
+        if modifiers
+            .as_ref()
+            .is_some_and(|modifiers| modifiers.anchor == Some(destack_ast::BindingAnchor::Static))
+            && self.peek_is(TokenType::Newline)
+        {
+            let static_index = self.next_non_newline_index_from(self.pos_index() + 1);
+            let is_duplicate_static = self.keyword_for_index(static_index) == Some(Keyword::Static);
+            if is_duplicate_static {
+                let after_static = self.next_non_newline_index_from(static_index + 1);
+                let has_member_name_after = self.tokens.get(after_static).is_some_and(|token| {
+                    token.token.ty == TokenType::Identifier
+                        && self.keyword_for_index(after_static).is_none()
+                });
+                if has_member_name_after {
+                    let span = if let Some(token) = self.tokens.get(static_index) {
+                        token.span
+                    } else {
+                        self.peek()?.span
+                    };
+                    let error = ParseError::unexpected(span);
+                    self.error(&error);
+                    self.eat_newlines_maybe()?;
+                    self.bump(); // eat static
+                }
+            }
+        }
+
         // static block: `static { ... }` or `static\n{ ... }`
         // must check before key parsing since static is already a modifier
         if modifiers
@@ -600,6 +628,11 @@ impl Parser {
             )?;
             let member = Member::ComptimeBlock { modifiers, body };
             return Ok(self.tree.insert(member, self.get_span_from(start)));
+        }
+
+        // allow newline between modifiers and the member key
+        if modifiers.is_some() {
+            self.eat_newlines_maybe()?;
         }
 
         // async
@@ -738,6 +771,21 @@ impl Parser {
             .as_ref()
             .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
             && self.peek_token(TokenType::Not).is_ok()
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // reject async? method(...) token glue
+        if !is_async
+            && modifiers
+                .as_ref()
+                .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
+            && matches!(
+                key,
+                Some(Key::Name(Name::Identifier(name))) if self.strings.get(name) == "async"
+            )
+            && !self.peek_is(TokenType::Newline)
+            && self.peek_is(TokenType::Identifier)
         {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
@@ -926,6 +974,14 @@ impl Parser {
                     self.peek()?.span,
                     TokenType::Identifier,
                 ));
+            }
+            // fields without initializers must end at a statement boundary
+            if value.is_none()
+                && default.is_none()
+                && !self.is_statement_stop()
+                && !self.peek_is(TokenType::CloseBrace)
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
             }
             let member = Member::Field {
                 modifiers,

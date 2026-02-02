@@ -1,7 +1,7 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability, NodeTree,
-    NodeType, Parameter, Property,
+    BindingKind, BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability,
+    NodeTree, NodeType, Parameter, Property,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -77,6 +77,24 @@ impl Compiler {
         if is_parameter_property && is_binding_pattern {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidParameterProperty { node });
+        }
+
+        // optional pattern or rest parameters are not valid in TS/JS
+        if !module.language_type.is_destack() {
+            let is_optional =
+                modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
+            if is_optional {
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                match parameter {
+                    Parameter::Pattern { .. } => {
+                        self.error(AnalyzeError::InvalidOptionalPatternParameter { node });
+                    }
+                    Parameter::Variadic { .. } => {
+                        self.error(AnalyzeError::InvalidOptionalRestParameter { node });
+                    }
+                    Parameter::Named { .. } => {}
+                }
+            }
         }
     }
 }

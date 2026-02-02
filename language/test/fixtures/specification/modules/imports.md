@@ -16,3 +16,29 @@ export type Bar = string;
 ```
 
 - contains: type-only imports cannot mix default and named bindings
+
+## import aliases
+
+### import aliases accept qualified identifiers
+
+```ts:main.ts
+namespace bar {
+    export const baz = 1;
+}
+
+import Foo = bar.baz;
+```
+
+### import aliases reject non-identifier targets
+
+> Import aliases must target a qualified identifier path.
+
+```ts:main.ts
+function bar() {
+    return 1;
+}
+
+import Foo = bar();
+```
+
+- contains: import aliases must target a qualified identifier path

@@ -123,6 +123,34 @@ mapper("hi");
 
 - contains: type "hi" is not assignable to type number
 
+### instantiation expressions require parentheses before member access
+
+> Instantiation expressions must be parenthesized before member or index access.
+
+```ds
+function make<T>(value: T): T {
+    return value
+}
+
+make<number>.value;
+```
+
+- contains: instantiation expressions must be parenthesized before member or index access
+- contains: property 'value' does not exist
+
+### parenthesized instantiation expressions allow member access
+
+> Parenthesized instantiation expressions can be used for member access.
+
+```ds
+function make<T>(value: T): T {
+    return value
+}
+
+const next = (make<number>)(1);
+next satisfies number;
+```
+
 ### conflicting static arguments on member calls
 
 > Static arguments cannot appear on both a member and its call.

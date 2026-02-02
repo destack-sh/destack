@@ -55,6 +55,9 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA229", // InvalidTypeOnlyImportAlias
     "EA230", // MissingConstInitializer
     "EA231", // InvalidAmbientConstInitializer
+    "EA232", // InvalidDefiniteAssignmentDeclarator
+    "EA233", // InvalidImportAliasTarget
+    "EA234", // InvalidInstantiationAccess
     "EA403", // InvalidPatternNamedField
     "EA300", // InvalidBreak
     "EA301", // InvalidContinue
@@ -68,6 +71,9 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA505", // InvalidMemberModifier
     "EA506", // InvalidParameterProperty
     "EA507", // InvalidStaticBlockModifier
+    "EA512", // InvalidOptionalPatternParameter
+    "EA513", // InvalidOptionalRestParameter
+    "EA701", // InvalidDecoratorStaticArguments
 ];
 
 /// Early resolve error codes relevant for conformance testing.

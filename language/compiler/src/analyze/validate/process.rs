@@ -1,6 +1,6 @@
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
-use destack_dir::{Declaration, Expression, Member, Parameter, Pattern};
+use destack_dir::{Annotation, Declaration, Expression, Member, Parameter, Pattern};
 use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleDir, ModuleSource, ProfileId};
 
@@ -142,6 +142,16 @@ impl Compiler {
                 continue;
             }
             self.validate_expression(&module, profile, &tree, &symbols, id, expression);
+        }
+
+        // validate annotations
+        for (id, annotation) in tree.iter_nodes_of_type::<Annotation>() {
+            if let Some(parent) = tree.get_parent(id.id)
+                && !self.is_node_active(&tree, &symbols, parent)
+            {
+                continue;
+            }
+            self.validate_annotation(&module, profile, &tree, id, annotation);
         }
 
         // validate patterns

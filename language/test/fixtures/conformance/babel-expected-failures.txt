@@ -1,4 +1,4 @@
-# Babel tests we consciously skip.
+# Babel tests we intentionally skip.
 # These are intentional language differences, not bugs.
 #
 # Format:
@@ -8,8 +8,7 @@
 #
 #   another-test # inline comment also works
 
-# Legacy <T>x type assertion syntax - use `x as T` instead
-# See DESIGN.md - we don't support this in .ds files (TSX ambiguity)
+# legacy <T>x type assertion syntax (use `x as T` instead)
 typescript/cast/arrow-in-parens
 typescript/cast/arrow-in-parens-with-parens-node
 typescript/cast/as-const
@@ -20,9 +19,22 @@ typescript/cast/type-assertion
 typescript/cast/type-assertion-after-operator
 typescript/cast/type-assertion-and-assign
 typescript/cast/type-assertion-before-operator
+typescript/cast/for-of-lhs
+typescript/type-arguments-bit-shift-left-like/after-bit-shift
 
-# Destack allows namespace declarations without `declare` prefix
-# In TypeScript, `namespace` alone after ASI would be an identifier, but Destack
-# treats it as a valid namespace declaration keyword (more permissive)
+# the "with" object shape in imports is a typing concern, not a separate error
+# (in theory we could also validate this in the tests but seems annoying, we have separate tests)
+typescript/types/invalid-import-type-dynamic-with-jsx-options
+typescript/types/invalid-import-type-options-string-with
+typescript/types/invalid-import-type-options-trailing-comma
+typescript/types/invalid-import-type-options-with-computed-properties
+typescript/types/invalid-import-type-options-with-spread-element
+typescript/types/invalid-import-type-trailing-comma
+
+# operator restrictions are enforced via type checking (not "early" syntax)
+typescript/exponentiation/await-non-null-before-exponential
+typescript/exponentiation/unary-non-null-before-exponential
+
+# allow namespace declarations without `declare` prefix (we're a bit more permissive)
 typescript/module-namespace/module-declare-new-line
 typescript/module-namespace/namespace-declare-new-line

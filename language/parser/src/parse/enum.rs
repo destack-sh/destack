@@ -322,9 +322,6 @@ enum Foo extends Day {
     Baz = 1
 
     Qux = 2
-
-    function myFunc() { // nested declaration
-    }
 }
 "###,
         );

@@ -639,7 +639,7 @@ impl Parser {
                 TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
                 TokenType::OpenBrace => brace_depth += 1,
                 TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
-                TokenType::Comma | TokenType::Assign => {
+                TokenType::Comma => {
                     if angle_depth == 1
                         && paren_depth == 0
                         && bracket_depth == 0
