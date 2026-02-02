@@ -4,6 +4,6 @@ import type { PlatformError } from "../error/index.ds";
 /// Process argument bindings for the native runtime.
 declare namespace process {
     /// Return the process arguments.
-    @binding("destack.process.args")
+    @binding("destack.process.args", { effect: "external", replay: "recordable" })
     export function args(): Result<Slice<string>, PlatformError>;
 }

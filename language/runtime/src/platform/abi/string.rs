@@ -7,7 +7,7 @@ use crate::platform::PlatformError;
 /// Immutable by design: native bindings must not mutate shared runtime strings.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct PlatformStringRef {
+pub struct NativeStringRef {
     /// Pointer to UTF-8 bytes.
     pub data: *const u8,
     /// Length of the UTF-8 byte slice.
@@ -15,11 +15,11 @@ pub struct PlatformStringRef {
 }
 
 // safety: points into PlatformContext-owned strings that stay immutable for the platform lifetime
-unsafe impl Send for PlatformStringRef {}
+unsafe impl Send for NativeStringRef {}
 // safety: points into PlatformContext-owned strings that stay immutable for the platform lifetime
-unsafe impl Sync for PlatformStringRef {}
+unsafe impl Sync for NativeStringRef {}
 
-impl PlatformStringRef {
+impl NativeStringRef {
     /// View the reference as a UTF-8 string.
     pub unsafe fn as_str<'a>(self) -> RuntimeResult<&'a str> {
         if self.data.is_null() && self.len != 0 {
@@ -37,7 +37,7 @@ impl PlatformStringRef {
     }
 }
 
-impl From<&str> for PlatformStringRef {
+impl From<&str> for NativeStringRef {
     /// Build a string reference from a string slice.
     fn from(value: &str) -> Self {
         Self {
@@ -47,7 +47,7 @@ impl From<&str> for PlatformStringRef {
     }
 }
 
-impl From<&String> for PlatformStringRef {
+impl From<&String> for NativeStringRef {
     /// Build a string reference from an owned string reference.
     fn from(value: &String) -> Self {
         Self::from(value.as_str())
@@ -57,21 +57,21 @@ impl From<&String> for PlatformStringRef {
 /// FFI slice of string references.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct PlatformStringSlice {
+pub struct NativeStringSlice {
     /// Pointer to string references.
-    pub data: *const PlatformStringRef,
+    pub data: *const NativeStringRef,
     /// Number of string references.
     pub len: u32,
 }
 
 // safety: points into PlatformContext-owned string references that stay immutable
-unsafe impl Send for PlatformStringSlice {}
+unsafe impl Send for NativeStringSlice {}
 // safety: points into PlatformContext-owned string references that stay immutable
-unsafe impl Sync for PlatformStringSlice {}
+unsafe impl Sync for NativeStringSlice {}
 
-impl PlatformStringSlice {
+impl NativeStringSlice {
     /// Build a slice from string references.
-    pub fn from_slice(values: &[PlatformStringRef]) -> Self {
+    pub fn from_slice(values: &[NativeStringRef]) -> Self {
         let data = if values.is_empty() {
             ptr::null()
         } else {

@@ -12,18 +12,18 @@ export newtype GroupId = uint32;
 /// Process identity bindings for the native runtime.
 declare namespace process {
     /// Return the current process identifier.
-    @binding("destack.process.pid")
+    @binding("destack.process.pid", { effect: "external", replay: "recordable" })
     export function pid(): Result<ProcessId, PlatformError>;
 
     /// Return the parent process identifier.
-    @binding("destack.process.ppid")
+    @binding("destack.process.ppid", { effect: "external", replay: "recordable" })
     export function ppid(): Result<ProcessId, PlatformError>;
 
     /// Return the current user identifier.
-    @binding("destack.process.uid")
+    @binding("destack.process.uid", { effect: "external", replay: "recordable" })
     export function uid(): Result<UserId, PlatformError>;
 
     /// Return the current group identifier.
-    @binding("destack.process.gid")
+    @binding("destack.process.gid", { effect: "external", replay: "recordable" })
     export function gid(): Result<GroupId, PlatformError>;
 }

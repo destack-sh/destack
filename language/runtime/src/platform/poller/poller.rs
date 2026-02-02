@@ -80,7 +80,7 @@ impl PlatformPollerFlags {
     pub const NONE: Self = Self(0);
     /// Use edge triggered semantics.
     pub const EDGE: Self = Self(1 << 0);
-    /// Use one-shot semantics.
+    /// Use oneshot semantics.
     pub const ONESHOT: Self = Self(1 << 1);
     /// Prefer priority events.
     pub const PRIORITY: Self = Self(1 << 2);
@@ -117,6 +117,7 @@ pub trait PlatformPoller: Send {
         &mut self,
         resource_id: ResourceId,
         handle: PlatformHandle,
+        token: u64,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()>;
@@ -125,6 +126,7 @@ pub trait PlatformPoller: Send {
     fn update(
         &mut self,
         resource_id: ResourceId,
+        token: u64,
         interests: PlatformInterest,
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()>;

@@ -1,4 +1,6 @@
+use crate::diagnostic::{RuntimeResult, RuntimeStatus};
 use crate::platform::bindings::BindingDescriptor;
+use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 
 /// Native binding metadata for typed platform calls.
 #[derive(Debug, Clone, Copy)]
@@ -29,4 +31,16 @@ pub struct NativeBindingSet {
     pub name: &'static str,
     /// Bindings in this set.
     pub bindings: &'static [NativeBinding],
+}
+
+/// Execute a native binding call with runtime context handling.
+#[inline]
+pub fn native_call<T>(f: impl FnOnce(&RuntimeCallContext) -> RuntimeResult<T>) -> RuntimeStatus {
+    match with_runtime_call_context(|context| {
+        let result = f(context);
+        Ok(RuntimeStatus::from_result(result, Some(context)))
+    }) {
+        Ok(status) => status,
+        Err(error) => RuntimeStatus::from_error(error, None),
+    }
 }

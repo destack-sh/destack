@@ -6,11 +6,12 @@ use std::os::unix::io::RawFd;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 
-use super::ResourceId;
+use super::{ResourceId, ResourceSnapshotAdapter, ResourceSnapshotPolicy};
 
 /// Resource classification for platform handles.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ResourceKind {
     /// File handle resources.
     File,
@@ -29,7 +30,7 @@ pub enum ResourceKind {
 }
 
 /// Finalizer callback for resource cleanup.
-pub trait ResourceFinalizer: Send {
+pub trait ResourceFinalizer: Send + Sync {
     /// Finalize the resource for the given id.
     fn finalize(self: Box<Self>, resource_id: ResourceId);
 }
@@ -42,6 +43,10 @@ pub struct ResourceEntry {
     pub label: Option<String>,
     /// Opaque payload for resource-specific state.
     pub payload: Option<Box<dyn Any + Send + Sync>>,
+    /// Snapshot policy for this resource.
+    pub snapshot_policy: ResourceSnapshotPolicy,
+    /// Optional snapshot adapter for this resource.
+    pub snapshot_adapter: Option<Box<dyn ResourceSnapshotAdapter>>,
     /// Optional finalizer invoked on removal.
     pub finalizer: Option<Box<dyn ResourceFinalizer>>,
 }
@@ -52,6 +57,8 @@ impl fmt::Debug for ResourceEntry {
             .field("kind", &self.kind)
             .field("label", &self.label)
             .field("has_payload", &self.payload.is_some())
+            .field("snapshot_policy", &self.snapshot_policy)
+            .field("has_snapshot_adapter", &self.snapshot_adapter.is_some())
             .field("has_finalizer", &self.finalizer.is_some())
             .finish()
     }
@@ -64,6 +71,8 @@ impl ResourceEntry {
             kind,
             label: None,
             payload: None,
+            snapshot_policy: ResourceSnapshotPolicy::Uncheckpointable,
+            snapshot_adapter: None,
             finalizer: None,
         }
     }
@@ -77,6 +86,21 @@ impl ResourceEntry {
     /// Attach a payload object.
     pub fn with_payload(mut self, payload: impl Any + Send + Sync) -> Self {
         self.payload = Some(Box::new(payload));
+        self
+    }
+
+    /// Attach a snapshot policy.
+    pub fn with_snapshot_policy(mut self, policy: ResourceSnapshotPolicy) -> Self {
+        self.snapshot_policy = policy;
+        self
+    }
+
+    /// Attach a snapshot adapter.
+    pub fn with_snapshot_adapter(
+        mut self,
+        adapter: impl ResourceSnapshotAdapter + 'static,
+    ) -> Self {
+        self.snapshot_adapter = Some(Box::new(adapter));
         self
     }
 
@@ -192,6 +216,50 @@ impl Default for ResourceTable {
         Self {
             next_id: AtomicU64::new(1),
             entries: RwLock::new(HashMap::new()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceTable};
+
+    /// Ensures entries can be inserted, removed, and finalized.
+    #[test]
+    fn test_insert_remove_and_finalize() {
+        // create a new resource table
+        let table = ResourceTable::default();
+
+        // create a finalizer to track removals
+        let hits = Arc::new(AtomicUsize::new(0));
+        let finalizer = TestFinalizer { hits: hits.clone() };
+
+        // insert an entry with a finalizer
+        let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
+        let resource_id = table.insert(entry);
+        assert!(table.contains(resource_id));
+
+        // remove and finalize the entry
+        let removed = table.remove_and_finalize(resource_id);
+        assert!(removed);
+        assert_eq!(hits.load(Ordering::SeqCst), 1);
+        assert!(!table.contains(resource_id));
+
+        // removing again should return false
+        let removed_again = table.remove_and_finalize(resource_id);
+        assert!(!removed_again);
+    }
+
+    struct TestFinalizer {
+        hits: Arc<AtomicUsize>,
+    }
+
+    impl ResourceFinalizer for TestFinalizer {
+        fn finalize(self: Box<Self>, _resource_id: super::ResourceId) {
+            self.hits.fetch_add(1, Ordering::SeqCst);
         }
     }
 }

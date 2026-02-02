@@ -3956,9 +3956,7 @@ impl Compiler {
                         }
                     ) {
                         return Err(AnalyzeError::VoidInArray {
-                            node: left
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                            node: left.into_global_any(module.id).into_anchored(Some(profile)),
                         });
                     }
 
@@ -4006,9 +4004,7 @@ impl Compiler {
                         }
                     ) {
                         return Err(AnalyzeError::VoidInArray {
-                            node: left
-                                .into_global_any(module.id)
-                                .into_anchored(Some(profile)),
+                            node: left.into_global_any(module.id).into_anchored(Some(profile)),
                         });
                     }
                     Type::Array {

@@ -1,15 +1,16 @@
 #![allow(clippy::missing_safety_doc)]
 use crate::diagnostic::RuntimeError;
-use crate::platform::{
-    PlatformArray, PlatformError, PlatformSlice, PlatformStringRef, RuntimeStatus,
-};
+use crate::platform::resource::{DirectoryHandle, FileHandle};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus};
 
-use crate::platform::fs::{AccessMode, Dirent, FileMode, FileOffset, OpenFlags, Stat, StatFs};
+use crate::platform::fs::{
+    AccessMode, AtFlags, Dirent, FileLockFlags, FileMode, FileOffset, OpenFlags, Stat, StatFs,
+};
 
 /// Stub for destack.fs.access.
 #[unsafe(export_name = "destack.fs.access")]
 pub unsafe extern "C" fn destack_fs_access(
-    path: PlatformStringRef,
+    path: NativeStringRef,
     mode: AccessMode,
 ) -> RuntimeStatus {
     let _ = (path, mode);
@@ -21,10 +22,7 @@ pub unsafe extern "C" fn destack_fs_access(
 
 /// Stub for destack.fs.chmod.
 #[unsafe(export_name = "destack.fs.chmod")]
-pub unsafe extern "C" fn destack_fs_chmod(
-    path: PlatformStringRef,
-    mode: FileMode,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_chmod(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
     let _ = (path, mode);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.chmod")).boxed(),
@@ -35,7 +33,7 @@ pub unsafe extern "C" fn destack_fs_chmod(
 /// Stub for destack.fs.chown.
 #[unsafe(export_name = "destack.fs.chown")]
 pub unsafe extern "C" fn destack_fs_chown(
-    path: PlatformStringRef,
+    path: NativeStringRef,
     uid: u32,
     gid: u32,
 ) -> RuntimeStatus {
@@ -48,9 +46,7 @@ pub unsafe extern "C" fn destack_fs_chown(
 
 /// Stub for destack.fs.close.
 #[unsafe(export_name = "destack.fs.close")]
-pub unsafe extern "C" fn destack_fs_close(
-    handle: crate::platform::resource::FileHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_close(handle: FileHandle) -> RuntimeStatus {
     let _ = handle;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.close")).boxed(),
@@ -60,9 +56,7 @@ pub unsafe extern "C" fn destack_fs_close(
 
 /// Stub for destack.fs.closedir.
 #[unsafe(export_name = "destack.fs.closedir")]
-pub unsafe extern "C" fn destack_fs_closedir(
-    handle: crate::platform::resource::DirectoryHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_closedir(handle: DirectoryHandle) -> RuntimeStatus {
     let _ = handle;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.closedir")).boxed(),
@@ -73,8 +67,8 @@ pub unsafe extern "C" fn destack_fs_closedir(
 /// Stub for destack.fs.copyfile.
 #[unsafe(export_name = "destack.fs.copyfile")]
 pub unsafe extern "C" fn destack_fs_copyfile(
-    from: PlatformStringRef,
-    to: PlatformStringRef,
+    from: NativeStringRef,
+    to: NativeStringRef,
     flags: u32,
 ) -> RuntimeStatus {
     let _ = (from, to, flags);
@@ -86,10 +80,7 @@ pub unsafe extern "C" fn destack_fs_copyfile(
 
 /// Stub for destack.fs.fchmod.
 #[unsafe(export_name = "destack.fs.fchmod")]
-pub unsafe extern "C" fn destack_fs_fchmod(
-    handle: crate::platform::resource::FileHandle,
-    mode: FileMode,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_fchmod(handle: FileHandle, mode: FileMode) -> RuntimeStatus {
     let _ = (handle, mode);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.fchmod")).boxed(),
@@ -100,7 +91,7 @@ pub unsafe extern "C" fn destack_fs_fchmod(
 /// Stub for destack.fs.fchown.
 #[unsafe(export_name = "destack.fs.fchown")]
 pub unsafe extern "C" fn destack_fs_fchown(
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeStatus {
@@ -113,9 +104,7 @@ pub unsafe extern "C" fn destack_fs_fchown(
 
 /// Stub for destack.fs.fdatasync.
 #[unsafe(export_name = "destack.fs.fdatasync")]
-pub unsafe extern "C" fn destack_fs_fdatasync(
-    handle: crate::platform::resource::FileHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_fdatasync(handle: FileHandle) -> RuntimeStatus {
     let _ = handle;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.fdatasync")).boxed(),
@@ -125,10 +114,7 @@ pub unsafe extern "C" fn destack_fs_fdatasync(
 
 /// Stub for destack.fs.fstat.
 #[unsafe(export_name = "destack.fs.fstat")]
-pub unsafe extern "C" fn destack_fs_fstat(
-    out: *mut Stat,
-    handle: crate::platform::resource::FileHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_fstat(out: *mut Stat, handle: FileHandle) -> RuntimeStatus {
     let _ = (out, handle);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.fstat")).boxed(),
@@ -138,10 +124,7 @@ pub unsafe extern "C" fn destack_fs_fstat(
 
 /// Stub for destack.fs.fstatfs.
 #[unsafe(export_name = "destack.fs.fstatfs")]
-pub unsafe extern "C" fn destack_fs_fstatfs(
-    out: *mut StatFs,
-    handle: crate::platform::resource::FileHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_fstatfs(out: *mut StatFs, handle: FileHandle) -> RuntimeStatus {
     let _ = (out, handle);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.fstatfs")).boxed(),
@@ -151,9 +134,7 @@ pub unsafe extern "C" fn destack_fs_fstatfs(
 
 /// Stub for destack.fs.fsync.
 #[unsafe(export_name = "destack.fs.fsync")]
-pub unsafe extern "C" fn destack_fs_fsync(
-    handle: crate::platform::resource::FileHandle,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_fsync(handle: FileHandle) -> RuntimeStatus {
     let _ = handle;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.fsync")).boxed(),
@@ -164,7 +145,7 @@ pub unsafe extern "C" fn destack_fs_fsync(
 /// Stub for destack.fs.ftruncate.
 #[unsafe(export_name = "destack.fs.ftruncate")]
 pub unsafe extern "C" fn destack_fs_ftruncate(
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeStatus {
     let _ = (handle, size);
@@ -177,7 +158,7 @@ pub unsafe extern "C" fn destack_fs_ftruncate(
 /// Stub for destack.fs.futimes.
 #[unsafe(export_name = "destack.fs.futimes")]
 pub unsafe extern "C" fn destack_fs_futimes(
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
@@ -191,8 +172,8 @@ pub unsafe extern "C" fn destack_fs_futimes(
 /// Stub for destack.fs.link.
 #[unsafe(export_name = "destack.fs.link")]
 pub unsafe extern "C" fn destack_fs_link(
-    existingpath: PlatformStringRef,
-    newpath: PlatformStringRef,
+    existingpath: NativeStringRef,
+    newpath: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (existingpath, newpath);
     RuntimeStatus::from_error(
@@ -203,10 +184,7 @@ pub unsafe extern "C" fn destack_fs_link(
 
 /// Stub for destack.fs.lstat.
 #[unsafe(export_name = "destack.fs.lstat")]
-pub unsafe extern "C" fn destack_fs_lstat(
-    out: *mut Stat,
-    path: PlatformStringRef,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_lstat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.lstat")).boxed(),
@@ -217,7 +195,7 @@ pub unsafe extern "C" fn destack_fs_lstat(
 /// Stub for destack.fs.lutimes.
 #[unsafe(export_name = "destack.fs.lutimes")]
 pub unsafe extern "C" fn destack_fs_lutimes(
-    path: PlatformStringRef,
+    path: NativeStringRef,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
@@ -230,10 +208,7 @@ pub unsafe extern "C" fn destack_fs_lutimes(
 
 /// Stub for destack.fs.mkdir.
 #[unsafe(export_name = "destack.fs.mkdir")]
-pub unsafe extern "C" fn destack_fs_mkdir(
-    path: PlatformStringRef,
-    mode: FileMode,
-) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_mkdir(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
     let _ = (path, mode);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.mkdir")).boxed(),
@@ -244,8 +219,8 @@ pub unsafe extern "C" fn destack_fs_mkdir(
 /// Stub for destack.fs.mkdtemp.
 #[unsafe(export_name = "destack.fs.mkdtemp")]
 pub unsafe extern "C" fn destack_fs_mkdtemp(
-    out: *mut PlatformStringRef,
-    template: PlatformStringRef,
+    out: *mut NativeStringRef,
+    template: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (out, template);
     RuntimeStatus::from_error(
@@ -257,8 +232,8 @@ pub unsafe extern "C" fn destack_fs_mkdtemp(
 /// Stub for destack.fs.open.
 #[unsafe(export_name = "destack.fs.open")]
 pub unsafe extern "C" fn destack_fs_open(
-    out: *mut crate::platform::resource::FileHandle,
-    path: PlatformStringRef,
+    out: *mut FileHandle,
+    path: NativeStringRef,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeStatus {
@@ -272,8 +247,8 @@ pub unsafe extern "C" fn destack_fs_open(
 /// Stub for destack.fs.opendir.
 #[unsafe(export_name = "destack.fs.opendir")]
 pub unsafe extern "C" fn destack_fs_opendir(
-    out: *mut crate::platform::resource::DirectoryHandle,
-    path: PlatformStringRef,
+    out: *mut DirectoryHandle,
+    path: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
@@ -286,8 +261,8 @@ pub unsafe extern "C" fn destack_fs_opendir(
 #[unsafe(export_name = "destack.fs.read")]
 pub unsafe extern "C" fn destack_fs_read(
     out: *mut u64,
-    handle: crate::platform::resource::FileHandle,
-    buffer: PlatformSlice<u8>,
+    handle: FileHandle,
+    buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     let _ = (out, handle, buffer, offset);
@@ -300,8 +275,8 @@ pub unsafe extern "C" fn destack_fs_read(
 /// Stub for destack.fs.readdir.
 #[unsafe(export_name = "destack.fs.readdir")]
 pub unsafe extern "C" fn destack_fs_readdir(
-    out: *mut PlatformArray<Dirent>,
-    handle: crate::platform::resource::DirectoryHandle,
+    out: *mut NativeArray<Dirent>,
+    handle: DirectoryHandle,
 ) -> RuntimeStatus {
     let _ = (out, handle);
     RuntimeStatus::from_error(
@@ -313,8 +288,8 @@ pub unsafe extern "C" fn destack_fs_readdir(
 /// Stub for destack.fs.readlink.
 #[unsafe(export_name = "destack.fs.readlink")]
 pub unsafe extern "C" fn destack_fs_readlink(
-    out: *mut PlatformStringRef,
-    path: PlatformStringRef,
+    out: *mut NativeStringRef,
+    path: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
@@ -327,8 +302,8 @@ pub unsafe extern "C" fn destack_fs_readlink(
 #[unsafe(export_name = "destack.fs.readv")]
 pub unsafe extern "C" fn destack_fs_readv(
     out: *mut u64,
-    handle: crate::platform::resource::FileHandle,
-    buffers: PlatformSlice<PlatformSlice<u8>>,
+    handle: FileHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     let _ = (out, handle, buffers, offset);
@@ -341,8 +316,8 @@ pub unsafe extern "C" fn destack_fs_readv(
 /// Stub for destack.fs.realpath.
 #[unsafe(export_name = "destack.fs.realpath")]
 pub unsafe extern "C" fn destack_fs_realpath(
-    out: *mut PlatformStringRef,
-    path: PlatformStringRef,
+    out: *mut NativeStringRef,
+    path: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
@@ -354,8 +329,8 @@ pub unsafe extern "C" fn destack_fs_realpath(
 /// Stub for destack.fs.rename.
 #[unsafe(export_name = "destack.fs.rename")]
 pub unsafe extern "C" fn destack_fs_rename(
-    from: PlatformStringRef,
-    to: PlatformStringRef,
+    from: NativeStringRef,
+    to: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (from, to);
     RuntimeStatus::from_error(
@@ -366,7 +341,7 @@ pub unsafe extern "C" fn destack_fs_rename(
 
 /// Stub for destack.fs.rmdir.
 #[unsafe(export_name = "destack.fs.rmdir")]
-pub unsafe extern "C" fn destack_fs_rmdir(path: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_rmdir(path: NativeStringRef) -> RuntimeStatus {
     let _ = path;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.rmdir")).boxed(),
@@ -376,7 +351,7 @@ pub unsafe extern "C" fn destack_fs_rmdir(path: PlatformStringRef) -> RuntimeSta
 
 /// Stub for destack.fs.stat.
 #[unsafe(export_name = "destack.fs.stat")]
-pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.stat")).boxed(),
@@ -388,7 +363,7 @@ pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: PlatformStringRef
 #[unsafe(export_name = "destack.fs.statfs")]
 pub unsafe extern "C" fn destack_fs_statfs(
     out: *mut StatFs,
-    path: PlatformStringRef,
+    path: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (out, path);
     RuntimeStatus::from_error(
@@ -400,8 +375,8 @@ pub unsafe extern "C" fn destack_fs_statfs(
 /// Stub for destack.fs.symlink.
 #[unsafe(export_name = "destack.fs.symlink")]
 pub unsafe extern "C" fn destack_fs_symlink(
-    target: PlatformStringRef,
-    path: PlatformStringRef,
+    target: NativeStringRef,
+    path: NativeStringRef,
 ) -> RuntimeStatus {
     let _ = (target, path);
     RuntimeStatus::from_error(
@@ -413,7 +388,7 @@ pub unsafe extern "C" fn destack_fs_symlink(
 /// Stub for destack.fs.truncate.
 #[unsafe(export_name = "destack.fs.truncate")]
 pub unsafe extern "C" fn destack_fs_truncate(
-    path: PlatformStringRef,
+    path: NativeStringRef,
     size: FileOffset,
 ) -> RuntimeStatus {
     let _ = (path, size);
@@ -425,7 +400,7 @@ pub unsafe extern "C" fn destack_fs_truncate(
 
 /// Stub for destack.fs.unlink.
 #[unsafe(export_name = "destack.fs.unlink")]
-pub unsafe extern "C" fn destack_fs_unlink(path: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_fs_unlink(path: NativeStringRef) -> RuntimeStatus {
     let _ = path;
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.unlink")).boxed(),
@@ -436,7 +411,7 @@ pub unsafe extern "C" fn destack_fs_unlink(path: PlatformStringRef) -> RuntimeSt
 /// Stub for destack.fs.utimes.
 #[unsafe(export_name = "destack.fs.utimes")]
 pub unsafe extern "C" fn destack_fs_utimes(
-    path: PlatformStringRef,
+    path: NativeStringRef,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
@@ -451,8 +426,8 @@ pub unsafe extern "C" fn destack_fs_utimes(
 #[unsafe(export_name = "destack.fs.write")]
 pub unsafe extern "C" fn destack_fs_write(
     out: *mut u64,
-    handle: crate::platform::resource::FileHandle,
-    buffer: PlatformSlice<u8>,
+    handle: FileHandle,
+    buffer: NativeSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     let _ = (out, handle, buffer, offset);
@@ -466,13 +441,144 @@ pub unsafe extern "C" fn destack_fs_write(
 #[unsafe(export_name = "destack.fs.writev")]
 pub unsafe extern "C" fn destack_fs_writev(
     out: *mut u64,
-    handle: crate::platform::resource::FileHandle,
-    buffers: PlatformSlice<PlatformSlice<u8>>,
+    handle: FileHandle,
+    buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeStatus {
     let _ = (out, handle, buffers, offset);
     RuntimeStatus::from_error(
         RuntimeError::platform(PlatformError::not_supported("destack.fs.writev")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.openat.
+#[unsafe(export_name = "destack.fs.openat")]
+pub unsafe extern "C" fn destack_fs_openat(
+    out: *mut FileHandle,
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeStatus {
+    let _ = (out, dir, path, flags, mode);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.openat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.mkdirat.
+#[unsafe(export_name = "destack.fs.mkdirat")]
+pub unsafe extern "C" fn destack_fs_mkdirat(
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+    mode: FileMode,
+) -> RuntimeStatus {
+    let _ = (dir, path, mode);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.mkdirat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.renameat.
+#[unsafe(export_name = "destack.fs.renameat")]
+pub unsafe extern "C" fn destack_fs_renameat(
+    from_dir: DirectoryHandle,
+    from: NativeStringRef,
+    to_dir: DirectoryHandle,
+    to: NativeStringRef,
+) -> RuntimeStatus {
+    let _ = (from_dir, from, to_dir, to);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.renameat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.unlinkat.
+#[unsafe(export_name = "destack.fs.unlinkat")]
+pub unsafe extern "C" fn destack_fs_unlinkat(
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+    flags: AtFlags,
+) -> RuntimeStatus {
+    let _ = (dir, path, flags);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.unlinkat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.linkat.
+#[unsafe(export_name = "destack.fs.linkat")]
+pub unsafe extern "C" fn destack_fs_linkat(
+    existing_dir: DirectoryHandle,
+    existing_path: NativeStringRef,
+    new_dir: DirectoryHandle,
+    new_path: NativeStringRef,
+    flags: AtFlags,
+) -> RuntimeStatus {
+    let _ = (existing_dir, existing_path, new_dir, new_path, flags);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.linkat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.symlinkat.
+#[unsafe(export_name = "destack.fs.symlinkat")]
+pub unsafe extern "C" fn destack_fs_symlinkat(
+    target: NativeStringRef,
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+) -> RuntimeStatus {
+    let _ = (target, dir, path);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.symlinkat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.readlinkat.
+#[unsafe(export_name = "destack.fs.readlinkat")]
+pub unsafe extern "C" fn destack_fs_readlinkat(
+    out: *mut NativeStringRef,
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+) -> RuntimeStatus {
+    let _ = (out, dir, path);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.readlinkat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.statat.
+#[unsafe(export_name = "destack.fs.statat")]
+pub unsafe extern "C" fn destack_fs_statat(
+    out: *mut Stat,
+    dir: DirectoryHandle,
+    path: NativeStringRef,
+    flags: AtFlags,
+) -> RuntimeStatus {
+    let _ = (out, dir, path, flags);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.statat")).boxed(),
+        None,
+    )
+}
+
+/// Stub for destack.fs.lock.
+#[unsafe(export_name = "destack.fs.lock")]
+pub unsafe extern "C" fn destack_fs_lock(
+    handle: FileHandle,
+    flags: FileLockFlags,
+) -> RuntimeStatus {
+    let _ = (handle, flags);
+    RuntimeStatus::from_error(
+        RuntimeError::platform(PlatformError::not_supported("destack.fs.lock")).boxed(),
         None,
     )
 }

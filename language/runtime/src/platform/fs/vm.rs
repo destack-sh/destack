@@ -1,7 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
-    AccessMode, DirentVm, FileMode, FileOffset, OpenFlags, StatFsVm, StatVm,
+    AccessMode, AtFlags, DirentVm, FileLockFlags, FileMode, FileOffset, OpenFlags, StatFsVm, StatVm,
 };
+use crate::platform::resource::{DirectoryHandle, FileHandle};
 use crate::platform::{PlatformError, VmArray, VmSlice};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
@@ -53,7 +54,7 @@ pub(super) fn destack_fs_chown(
 pub(super) fn destack_fs_close(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -66,7 +67,7 @@ pub(super) fn destack_fs_close(
 pub(super) fn destack_fs_closedir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::DirectoryHandle,
+    handle: DirectoryHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -94,7 +95,7 @@ pub(super) fn destack_fs_copyfile(
 pub(super) fn destack_fs_fchmod(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (handle, mode);
@@ -108,7 +109,7 @@ pub(super) fn destack_fs_fchmod(
 pub(super) fn destack_fs_fchown(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
@@ -123,7 +124,7 @@ pub(super) fn destack_fs_fchown(
 pub(super) fn destack_fs_fdatasync(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -136,7 +137,7 @@ pub(super) fn destack_fs_fdatasync(
 pub(super) fn destack_fs_fstat(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
 ) -> RuntimeResult<StatVm> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -149,7 +150,7 @@ pub(super) fn destack_fs_fstat(
 pub(super) fn destack_fs_fstatfs(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
 ) -> RuntimeResult<StatFsVm> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -162,7 +163,7 @@ pub(super) fn destack_fs_fstatfs(
 pub(super) fn destack_fs_fsync(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
 ) -> RuntimeResult<()> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -175,7 +176,7 @@ pub(super) fn destack_fs_fsync(
 pub(super) fn destack_fs_ftruncate(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (handle, size);
@@ -189,7 +190,7 @@ pub(super) fn destack_fs_ftruncate(
 pub(super) fn destack_fs_futimes(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
@@ -276,7 +277,7 @@ pub(super) fn destack_fs_open(
     path: vm::StringHandle,
     flags: OpenFlags,
     mode: FileMode,
-) -> RuntimeResult<crate::platform::resource::FileHandle> {
+) -> RuntimeResult<FileHandle> {
     let _ = (path, flags, mode);
     Err(RuntimeError::platform(PlatformError::not_supported(
         "destack.fs.open is not available in the VM yet",
@@ -289,7 +290,7 @@ pub(super) fn destack_fs_opendir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     path: vm::StringHandle,
-) -> RuntimeResult<crate::platform::resource::DirectoryHandle> {
+) -> RuntimeResult<DirectoryHandle> {
     let _ = path;
     Err(RuntimeError::platform(PlatformError::not_supported(
         "destack.fs.opendir is not available in the VM yet",
@@ -301,7 +302,7 @@ pub(super) fn destack_fs_opendir(
 pub(super) fn destack_fs_read(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
@@ -316,7 +317,7 @@ pub(super) fn destack_fs_read(
 pub(super) fn destack_fs_readdir(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::DirectoryHandle,
+    handle: DirectoryHandle,
 ) -> RuntimeResult<VmArray<DirentVm>> {
     let _ = handle;
     Err(RuntimeError::platform(PlatformError::not_supported(
@@ -342,7 +343,7 @@ pub(super) fn destack_fs_readlink(
 pub(super) fn destack_fs_readv(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
@@ -479,7 +480,7 @@ pub(super) fn destack_fs_utimes(
 pub(super) fn destack_fs_write(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     buffer: VmSlice<u8>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
@@ -494,13 +495,150 @@ pub(super) fn destack_fs_write(
 pub(super) fn destack_fs_writev(
     _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
-    handle: crate::platform::resource::FileHandle,
+    handle: FileHandle,
     buffers: VmSlice<VmSlice<u8>>,
     offset: FileOffset,
 ) -> RuntimeResult<u64> {
     let _ = (handle, buffers, offset);
     Err(RuntimeError::platform(PlatformError::not_supported(
         "destack.fs.writev is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.openat.
+pub(super) fn destack_fs_openat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeResult<FileHandle> {
+    let _ = (dir, path, flags, mode);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.openat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.mkdirat.
+pub(super) fn destack_fs_mkdirat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (dir, path, mode);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.mkdirat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.renameat.
+pub(super) fn destack_fs_renameat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    from_dir: DirectoryHandle,
+    from: vm::StringHandle,
+    to_dir: DirectoryHandle,
+    to: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = (from_dir, from, to_dir, to);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.renameat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.unlinkat.
+pub(super) fn destack_fs_unlinkat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    let _ = (dir, path, flags);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.unlinkat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.linkat.
+pub(super) fn destack_fs_linkat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    existing_dir: DirectoryHandle,
+    existing_path: vm::StringHandle,
+    new_dir: DirectoryHandle,
+    new_path: vm::StringHandle,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    let _ = (existing_dir, existing_path, new_dir, new_path, flags);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.linkat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.symlinkat.
+pub(super) fn destack_fs_symlinkat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    target: vm::StringHandle,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+) -> RuntimeResult<()> {
+    let _ = (target, dir, path);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.symlinkat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.readlinkat.
+pub(super) fn destack_fs_readlinkat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+) -> RuntimeResult<vm::StringHandle> {
+    let _ = (dir, path);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.readlinkat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.statat.
+pub(super) fn destack_fs_statat(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    dir: DirectoryHandle,
+    path: vm::StringHandle,
+    flags: AtFlags,
+) -> RuntimeResult<StatVm> {
+    let _ = (dir, path, flags);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.statat is not available in the VM yet",
+    ))
+    .boxed())
+}
+
+/// Stub for destack.fs.lock.
+pub(super) fn destack_fs_lock(
+    _runtime: &RuntimeCallContext,
+    _context: &mut vm::RuntimeContext<'_>,
+    handle: FileHandle,
+    flags: FileLockFlags,
+) -> RuntimeResult<()> {
+    let _ = (handle, flags);
+    Err(RuntimeError::platform(PlatformError::not_supported(
+        "destack.fs.lock is not available in the VM yet",
     ))
     .boxed())
 }

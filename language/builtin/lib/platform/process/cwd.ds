@@ -3,10 +3,10 @@ import type { PlatformError } from "../error/index.ds";
 /// Working directory bindings for the native runtime.
 declare namespace process {
     /// Return the current working directory.
-    @binding("destack.process.cwd")
+    @binding("destack.process.cwd", { effect: "external", replay: "recordable" })
     export function cwd(): Result<string, PlatformError>;
 
     /// Change the current working directory.
-    @binding("destack.process.chdir")
+    @binding("destack.process.chdir", { effect: "external", replay: "recordable" })
     export function chdir(path: string): Result<void, PlatformError>;
 }

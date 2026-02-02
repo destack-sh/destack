@@ -4,10 +4,13 @@ import type { PlatformError } from "../error/index.ds";
 /// Timer scheduling bindings for the native runtime.
 declare namespace timer {
     /// Schedule a one-shot timer.
-    @binding("destack.timer.once")
+    @binding("destack.timer.once", { effect: "external", replay: "recordable", log: "time" })
     export function once(delayNs: uint64): Result<TimerHandle, PlatformError>;
 
     /// Schedule a repeating timer.
-    @binding("destack.timer.interval")
+    @binding(
+        "destack.timer.interval",
+        { effect: "external", replay: "recordable", log: "time" },
+    )
     export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>;
 }

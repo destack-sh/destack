@@ -93,8 +93,17 @@ impl Clock {
     }
 
     /// Advance virtual and monotonic clocks for deterministic sleeps.
-    pub fn sleep_nanos(&self, _duration_nanos: u64) {
-        panic!("sleep_nanos is not implemented");
+    pub fn sleep_nanos(&self, duration_nanos: u64) {
+        let _ = self.virtual_clock.advance(duration_nanos);
+        let _ = self.monotonic_clock.advance(duration_nanos);
+    }
+
+    /// Advance clocks until the virtual deadline is reached.
+    pub fn sleep_until_nanos(&self, deadline_nanos: u64) {
+        let now = self.virtual_clock.now_nanos();
+        if deadline_nanos > now {
+            self.sleep_nanos(deadline_nanos - now);
+        }
     }
 }
 

@@ -3,7 +3,7 @@
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, LogKind, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
@@ -13,25 +13,39 @@ use destack_vm::Isolate;
 use crate::platform::time::{native, vm as platform_vm};
 
 /// Binding descriptor for destack.time.monoNs.
-pub const MONO_NS: BindingDescriptor = BindingDescriptor::recordable(
+pub const MONO_NS: BindingDescriptor = BindingDescriptor::external(
     "destack.time.monoNs",
     "export function monoNs(): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptor for destack.time.sleepNs.
-pub const SLEEP_NS: BindingDescriptor = BindingDescriptor::recordable(
+pub const SLEEP_NS: BindingDescriptor = BindingDescriptor::external(
     "destack.time.sleepNs",
     "export function sleepNs(duration: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
+);
+
+/// Binding descriptor for destack.time.sleepUntilNs.
+pub const SLEEP_UNTIL_NS: BindingDescriptor = BindingDescriptor::external(
+    "destack.time.sleepUntilNs",
+    "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptor for destack.time.wallNs.
-pub const WALL_NS: BindingDescriptor = BindingDescriptor::recordable(
+pub const WALL_NS: BindingDescriptor = BindingDescriptor::external(
     "destack.time.wallNs",
     "export function wallNs(): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptors for time.
-pub const BINDINGS: &[BindingDescriptor] = &[MONO_NS, SLEEP_NS, WALL_NS];
+pub const BINDINGS: &[BindingDescriptor] = &[MONO_NS, SLEEP_NS, SLEEP_UNTIL_NS, WALL_NS];
 
 /// Native binding set for time.
 pub const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
@@ -48,6 +62,11 @@ pub const TIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_time_sleep_ns as *const (),
         ),
         NativeBinding::new(
+            SLEEP_UNTIL_NS,
+            "destack.time.sleepUntilNs",
+            native::destack_time_sleep_until_ns as *const (),
+        ),
+        NativeBinding::new(
             WALL_NS,
             "destack.time.wallNs",
             native::destack_time_wall_ns as *const (),
@@ -60,6 +79,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     {
         binding!(registry, isolate, MONO_NS, move |context, _args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(MONO_NS)?;
                 let result = platform_vm::destack_time_mono_ns(runtime, context);
                 result.map(|value| vm::Value::uint(value, 64))
             })
@@ -69,6 +89,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
     {
         binding!(registry, isolate, SLEEP_NS, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(SLEEP_NS)?;
                 let duration_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "duration", "uint64",
@@ -94,8 +115,37 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
         });
     }
     {
+        binding!(registry, isolate, SLEEP_UNTIL_NS, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SLEEP_UNTIL_NS)?;
+                let deadline_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "deadline", "uint64",
+                    ))
+                    .boxed()
+                })?;
+                let (deadline, width) = deadline_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "deadline", "uint64",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "deadline", "uint64",
+                    ))
+                    .boxed());
+                }
+                let result = platform_vm::destack_time_sleep_until_ns(runtime, context, deadline);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, WALL_NS, move |context, _args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(WALL_NS)?;
                 let result = platform_vm::destack_time_wall_ns(runtime, context);
                 result.map(|value| vm::Value::uint(value, 64))
             })
@@ -103,6 +153,7 @@ pub fn register_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut I
         });
     }
 }
+
 /// Install VM bindings for time.
 pub fn install_time_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_time_vm_bindings(registry, isolate);

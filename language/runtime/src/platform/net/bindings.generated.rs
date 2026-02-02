@@ -2,8 +2,9 @@
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
+use crate::platform::net::SocketShutdown;
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
@@ -11,45 +12,146 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::platform::net::{native, vm as platform_vm};
+use crate::platform::resource;
 
 /// Binding descriptor for destack.net.accept.
-pub const ACCEPT: BindingDescriptor = BindingDescriptor::recordable(
+pub const ACCEPT: BindingDescriptor = BindingDescriptor::external(
     "destack.net.accept",
     "export function accept(listener: ListenerHandle): Result<SocketHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.net.close.
-pub const CLOSE: BindingDescriptor = BindingDescriptor::recordable(
+pub const CLOSE: BindingDescriptor = BindingDescriptor::external(
     "destack.net.close",
     "export function close(handle: SocketHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.closeListener.
+pub const CLOSE_LISTENER: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.closeListener",
+    "export function closeListener(handle: ListenerHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.net.connect.
-pub const CONNECT: BindingDescriptor = BindingDescriptor::recordable(
+pub const CONNECT: BindingDescriptor = BindingDescriptor::external(
     "destack.net.connect",
     "export function connect(host: string, port: uint16): Result<SocketHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.net.listen.
-pub const LISTEN: BindingDescriptor = BindingDescriptor::recordable(
+pub const LISTEN: BindingDescriptor = BindingDescriptor::external(
     "destack.net.listen",
     "export function listen(host: string, port: uint16, backlog: uint32): Result<ListenerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.localAddress.
+pub const LOCAL_ADDRESS: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.localAddress",
+    "export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.peerAddress.
+pub const PEER_ADDRESS: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.peerAddress",
+    "export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.net.read.
-pub const READ: BindingDescriptor = BindingDescriptor::recordable(
+pub const READ: BindingDescriptor = BindingDescriptor::external(
     "destack.net.read",
     "export function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.setKeepAlive.
+pub const SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.setKeepAlive",
+    "export function setKeepAlive(handle: SocketHandle, enabled: boolean, delaySeconds: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.setNoDelay.
+pub const SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.setNoDelay",
+    "export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.setNonblocking.
+pub const SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.setNonblocking",
+    "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.setReuseAddr.
+pub const SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.setReuseAddr",
+    "export function setReuseAddr(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.setReusePort.
+pub const SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.setReusePort",
+    "export function setReusePort(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.net.shutdown.
+pub const SHUTDOWN: BindingDescriptor = BindingDescriptor::external(
+    "destack.net.shutdown",
+    "export function shutdown(handle: SocketHandle, how: SocketShutdown): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.net.write.
-pub const WRITE: BindingDescriptor = BindingDescriptor::recordable(
+pub const WRITE: BindingDescriptor = BindingDescriptor::external(
     "destack.net.write",
     "export function write(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptors for net.
-pub const BINDINGS: &[BindingDescriptor] = &[ACCEPT, CLOSE, CONNECT, LISTEN, READ, WRITE];
+pub const BINDINGS: &[BindingDescriptor] = &[
+    ACCEPT,
+    CLOSE,
+    CLOSE_LISTENER,
+    CONNECT,
+    LISTEN,
+    LOCAL_ADDRESS,
+    PEER_ADDRESS,
+    READ,
+    SET_KEEP_ALIVE,
+    SET_NO_DELAY,
+    SET_NONBLOCKING,
+    SET_REUSE_ADDR,
+    SET_REUSE_PORT,
+    SHUTDOWN,
+    WRITE,
+];
 
 /// Native binding set for net.
 pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
@@ -66,6 +168,11 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_net_close as *const (),
         ),
         NativeBinding::new(
+            CLOSE_LISTENER,
+            "destack.net.closeListener",
+            native::destack_net_close_listener as *const (),
+        ),
+        NativeBinding::new(
             CONNECT,
             "destack.net.connect",
             native::destack_net_connect as *const (),
@@ -76,9 +183,49 @@ pub const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_net_listen as *const (),
         ),
         NativeBinding::new(
+            LOCAL_ADDRESS,
+            "destack.net.localAddress",
+            native::destack_net_local_address as *const (),
+        ),
+        NativeBinding::new(
+            PEER_ADDRESS,
+            "destack.net.peerAddress",
+            native::destack_net_peer_address as *const (),
+        ),
+        NativeBinding::new(
             READ,
             "destack.net.read",
             native::destack_net_read as *const (),
+        ),
+        NativeBinding::new(
+            SET_KEEP_ALIVE,
+            "destack.net.setKeepAlive",
+            native::destack_net_set_keep_alive as *const (),
+        ),
+        NativeBinding::new(
+            SET_NO_DELAY,
+            "destack.net.setNoDelay",
+            native::destack_net_set_no_delay as *const (),
+        ),
+        NativeBinding::new(
+            SET_NONBLOCKING,
+            "destack.net.setNonblocking",
+            native::destack_net_set_nonblocking as *const (),
+        ),
+        NativeBinding::new(
+            SET_REUSE_ADDR,
+            "destack.net.setReuseAddr",
+            native::destack_net_set_reuse_addr as *const (),
+        ),
+        NativeBinding::new(
+            SET_REUSE_PORT,
+            "destack.net.setReusePort",
+            native::destack_net_set_reuse_port as *const (),
+        ),
+        NativeBinding::new(
+            SHUTDOWN,
+            "destack.net.shutdown",
+            native::destack_net_shutdown as *const (),
         ),
         NativeBinding::new(
             WRITE,
@@ -93,6 +240,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     {
         binding!(registry, isolate, ACCEPT, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(ACCEPT)?;
                 let listener_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "listener",
@@ -115,8 +263,8 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ))
                     .boxed());
                 }
-                let listener_inner = crate::platform::resource::ResourceId(listener_inner_inner);
-                let listener = crate::platform::resource::ListenerHandle(listener_inner);
+                let listener_inner = resource::ResourceId(listener_inner_inner);
+                let listener = resource::ListenerHandle(listener_inner);
                 let result = platform_vm::destack_net_accept(runtime, context, listener);
                 result.map(|value| vm::Value::uint(value.0.0, 64))
             })
@@ -126,6 +274,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     {
         binding!(registry, isolate, CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CLOSE)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -148,9 +297,43 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::SocketHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
                 let result = platform_vm::destack_net_close(runtime, context, handle);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CLOSE_LISTENER, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(CLOSE_LISTENER)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "ListenerHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "ListenerHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "ListenerHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::ListenerHandle(handle_inner);
+                let result = platform_vm::destack_net_close_listener(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
             .map_err(Into::into)
@@ -159,6 +342,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     {
         binding!(registry, isolate, CONNECT, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CONNECT)?;
                 let host_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("host", "string"))
                         .boxed()
@@ -194,6 +378,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
     {
         binding!(registry, isolate, LISTEN, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LISTEN)?;
                 let host_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("host", "string"))
                         .boxed()
@@ -246,8 +431,9 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         });
     }
     {
-        binding!(registry, isolate, READ, move |context, args| {
+        binding!(registry, isolate, LOCAL_ADDRESS, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LOCAL_ADDRESS)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -270,8 +456,88 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::SocketHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let result = platform_vm::destack_net_local_address(runtime, context, handle);
+                result.map(|value| {
+                    context.allocate_aggregate(vec![
+                        value.host.value(),
+                        vm::Value::uint(value.port as u64, 16),
+                        vm::Value::uint(value.family as u8 as u64, 8),
+                    ])
+                })
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, PEER_ADDRESS, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(PEER_ADDRESS)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let result = platform_vm::destack_net_peer_address(runtime, context, handle);
+                result.map(|value| {
+                    context.allocate_aggregate(vec![
+                        value.host.value(),
+                        vm::Value::uint(value.port as u64, 16),
+                        vm::Value::uint(value.family as u8 as u64, 8),
+                    ])
+                })
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, READ, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(READ)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
                 let buffer_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -288,8 +554,9 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         });
     }
     {
-        binding!(registry, isolate, WRITE, move |context, args| {
+        binding!(registry, isolate, SET_KEEP_ALIVE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(SET_KEEP_ALIVE)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -312,8 +579,341 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::SocketHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let enabled_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let enabled = enabled_value.as_bool().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let delayseconds_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "delayseconds",
+                        "uint32",
+                    ))
+                    .boxed()
+                })?;
+                let (delayseconds, width) =
+                    delayseconds_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "delayseconds",
+                            "uint32",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "delayseconds",
+                        "uint32",
+                    ))
+                    .boxed());
+                }
+                let delayseconds = delayseconds as u32;
+                let result = platform_vm::destack_net_set_keep_alive(
+                    runtime,
+                    context,
+                    handle,
+                    enabled,
+                    delayseconds,
+                );
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SET_NO_DELAY, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SET_NO_DELAY)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let enabled_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let enabled = enabled_value.as_bool().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let result =
+                    platform_vm::destack_net_set_no_delay(runtime, context, handle, enabled);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SET_NONBLOCKING, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SET_NONBLOCKING)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let enabled_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let enabled = enabled_value.as_bool().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let result =
+                    platform_vm::destack_net_set_nonblocking(runtime, context, handle, enabled);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SET_REUSE_ADDR, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SET_REUSE_ADDR)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let enabled_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let enabled = enabled_value.as_bool().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let result =
+                    platform_vm::destack_net_set_reuse_addr(runtime, context, handle, enabled);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SET_REUSE_PORT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SET_REUSE_PORT)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let enabled_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let enabled = enabled_value.as_bool().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "enabled", "boolean",
+                    ))
+                    .boxed()
+                })?;
+                let result =
+                    platform_vm::destack_net_set_reuse_port(runtime, context, handle, enabled);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SHUTDOWN, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SHUTDOWN)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
+                let how_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "how",
+                        "SocketShutdown",
+                    ))
+                    .boxed()
+                })?;
+                let (how_raw, width) = how_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "how_raw",
+                        "SocketShutdown",
+                    ))
+                    .boxed()
+                })?;
+                if width != 8 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "how_raw",
+                        "SocketShutdown",
+                    ))
+                    .boxed());
+                }
+                let how_raw = how_raw as u8;
+                let how = match how_raw {
+                    0u8 => SocketShutdown::Read,
+                    1u8 => SocketShutdown::Write,
+                    2u8 => SocketShutdown::ReadWrite,
+                    _ => {
+                        return Err(
+                            RuntimeError::platform(PlatformError::invalid_argument_value(
+                                "how",
+                                "unknown SocketShutdown value",
+                            ))
+                            .boxed(),
+                        );
+                    }
+                };
+                let result = platform_vm::destack_net_shutdown(runtime, context, handle, how);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, WRITE, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(WRITE)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "SocketHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "SocketHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "SocketHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::SocketHandle(handle_inner);
                 let buffer_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -330,6 +930,7 @@ pub fn register_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Is
         });
     }
 }
+
 /// Install VM bindings for net.
 pub fn install_net_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_net_vm_bindings(registry, isolate);

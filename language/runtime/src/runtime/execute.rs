@@ -2,7 +2,9 @@ use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::engine::{Engine, EngineOutcome, EntryPoint};
-use crate::replay::{ReplayEvent, SchedulerEvent, SchedulerEventKind, SchedulerSubject};
+use crate::replay::{
+    ReplayEvent, SchedulerEvent, SchedulerEventKind, SchedulerQueue, SchedulerSubject,
+};
 use crate::scheduler::{Microtask, Runnable, ScheduledItem, Task, TaskId, TaskState};
 
 use super::Runtime;
@@ -55,13 +57,8 @@ impl Runtime {
         engine: &mut E,
         target_task: TaskId,
     ) -> RuntimeResult<Option<vm::ExecutionOutput>> {
-        // poll timers for ready callbacks
-        let now = self.context.time().wall_nanos();
-        let _ready_timers = self.scheduler.poll_timers(now)?;
-
-        // TODO #Incomplete: wire timer callbacks into tasks yet
-
         // poll platform events if a poller is installed
+        let now = self.context.time().wall_nanos();
         if let Some(poller) = self.poller.as_mut() {
             let event_count = self.scheduler.poll_poller(poller.as_mut(), Some(0))?;
             if event_count > 0 {
@@ -70,7 +67,7 @@ impl Runtime {
         }
 
         // run the next scheduled item if available
-        if let Some(item) = self.scheduler.next_runnable() {
+        if let Some(item) = self.scheduler.next_runnable(now)? {
             match item {
                 ScheduledItem::Task(task) => {
                     self.record_task_event(task.id, SchedulerEventKind::Dequeue);
@@ -80,6 +77,12 @@ impl Runtime {
                 }
                 ScheduledItem::Microtask(microtask) => {
                     self.execute_microtask(engine, microtask)?;
+                }
+                ScheduledItem::Timer(_timer) => {
+                    // TODO #Incomplete: wire timer callbacks into tasks yet
+                }
+                ScheduledItem::Event(_event) => {
+                    // TODO #Incomplete: wire external events into tasks yet
                 }
             }
         }
@@ -168,7 +171,10 @@ impl Runtime {
     fn record_task_event(&self, task_id: TaskId, kind: SchedulerEventKind) {
         let event = ReplayEvent::SchedulerEvent(SchedulerEvent {
             subject: SchedulerSubject::Task(task_id),
+            // NOTE #Incomplete: use scheduler queue selection and sequence counters
+            queue: SchedulerQueue::Macrotask,
             kind,
+            sequence: 0,
         });
 
         self.context.replay().record_event(event);

@@ -15,7 +15,6 @@ doctest = false
 generate_bindings = [
     "dep:destack_builtin",
     "dep:destack_compiler",
-    "dep:destack_workspace",
 ]
 
 [[bin]]
@@ -37,9 +36,10 @@ destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
 destack_vm_abi = { workspace = true }
-destack_workspace = { workspace = true, optional = true }
+destack_workspace = { workspace = true }
 
 # general
+getrandom = "0.4.0"
 libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }

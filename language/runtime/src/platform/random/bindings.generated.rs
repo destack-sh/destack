@@ -2,7 +2,7 @@
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, LogKind, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::with_runtime_call_context;
@@ -13,21 +13,27 @@ use destack_vm::Isolate;
 use crate::platform::random::{native, vm as platform_vm};
 
 /// Binding descriptor for destack.random.fillBytes.
-pub const FILL_BYTES: BindingDescriptor = BindingDescriptor::recordable(
+pub const FILL_BYTES: BindingDescriptor = BindingDescriptor::external(
     "destack.random.fillBytes",
     "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Random),
 );
 
 /// Binding descriptor for destack.random.nextU64.
-pub const NEXT_U64: BindingDescriptor = BindingDescriptor::recordable(
+pub const NEXT_U64: BindingDescriptor = BindingDescriptor::external(
     "destack.random.nextU64",
     "export function nextU64(): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Random),
 );
 
 /// Binding descriptor for destack.random.secureBytes.
-pub const SECURE_BYTES: BindingDescriptor = BindingDescriptor::recordable(
+pub const SECURE_BYTES: BindingDescriptor = BindingDescriptor::external(
     "destack.random.secureBytes",
     "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Random),
 );
 
 /// Binding descriptors for random.
@@ -60,6 +66,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     {
         binding!(registry, isolate, FILL_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FILL_BYTES)?;
                 let buffer_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -78,6 +85,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     {
         binding!(registry, isolate, NEXT_U64, move |context, _args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(NEXT_U64)?;
                 let result = platform_vm::destack_random_next_u64(runtime, context);
                 result.map(|value| vm::Value::uint(value, 64))
             })
@@ -87,6 +95,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
     {
         binding!(registry, isolate, SECURE_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(SECURE_BYTES)?;
                 let buffer_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -103,6 +112,7 @@ pub fn register_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut
         });
     }
 }
+
 /// Install VM bindings for random.
 pub fn install_random_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_random_vm_bindings(registry, isolate);

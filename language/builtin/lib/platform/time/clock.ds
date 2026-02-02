@@ -3,10 +3,10 @@ import type { PlatformError } from "../error/index.ds";
 /// Clock bindings for the native runtime.
 declare namespace time {
     /// Return wall clock time in nanoseconds since the runtime epoch.
-    @binding("destack.time.wallNs")
+    @binding("destack.time.wallNs", { effect: "external", replay: "recordable", log: "time" })
     export function wallNs(): Result<uint64, PlatformError>;
 
     /// Return monotonic time in nanoseconds since process start.
-    @binding("destack.time.monoNs")
+    @binding("destack.time.monoNs", { effect: "external", replay: "recordable", log: "time" })
     export function monoNs(): Result<uint64, PlatformError>;
 }

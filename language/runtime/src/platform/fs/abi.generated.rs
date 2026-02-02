@@ -14,6 +14,22 @@ pub struct AccessMode(
     pub u32,
 );
 
+/// ABI newtype for AtFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AtFlags(
+    /// Inner value.
+    pub u32,
+);
+
+/// ABI newtype for FileLockFlags.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct FileLockFlags(
+    /// Inner value.
+    pub u32,
+);
+
 /// ABI newtype for FileMode.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

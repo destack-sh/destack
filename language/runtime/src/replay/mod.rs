@@ -1,13 +1,15 @@
 mod codec;
 mod event;
-mod id;
+mod header;
 mod log;
 mod reader;
+mod state;
 mod writer;
 
 pub use codec::*;
 pub use event::*;
-pub use id::*;
+pub use header::*;
 pub use log::*;
 pub use reader::*;
+pub use state::*;
 pub use writer::*;

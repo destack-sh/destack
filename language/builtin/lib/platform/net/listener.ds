@@ -4,7 +4,7 @@ import { ListenerHandle, SocketHandle } from "../resource/index.ds";
 /// Listener bindings for the native runtime.
 declare namespace net {
     /// Start listening on the given address.
-    @binding("destack.net.listen")
+    @binding("destack.net.listen", { effect: "external", replay: "recordable" })
     export function listen(
         host: string,
         port: uint16,
@@ -12,13 +12,13 @@ declare namespace net {
     ): Result<ListenerHandle, PlatformError>;
 
     /// Accept a new connection from a listener.
-    @binding("destack.net.accept")
+    @binding("destack.net.accept", { effect: "external", replay: "recordable" })
     export function accept(
         listener: ListenerHandle,
     ): Result<SocketHandle, PlatformError>;
 
     /// Close a listener handle.
-    @binding("destack.net.closeListener")
+    @binding("destack.net.closeListener", { effect: "external", replay: "recordable" })
     export function closeListener(
         handle: ListenerHandle,
     ): Result<void, PlatformError>;

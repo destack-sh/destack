@@ -22,10 +22,10 @@ export struct SocketAddress {
 /// Socket address bindings for the native runtime.
 declare namespace net {
     /// Read the local socket address.
-    @binding("destack.net.localAddress")
+    @binding("destack.net.localAddress", { effect: "external", replay: "recordable" })
     export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
 
     /// Read the remote socket address.
-    @binding("destack.net.peerAddress")
+    @binding("destack.net.peerAddress", { effect: "external", replay: "recordable" })
     export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
 }

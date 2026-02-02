@@ -61,11 +61,11 @@ export struct StatFs {
 /// Stat bindings for the native runtime.
 declare namespace fs {
     /// Stat a file by path.
-    @binding("destack.fs.stat")
+    @binding("destack.fs.stat", { effect: "external", replay: "recordable" })
     export function stat(path: string): Result<Stat, PlatformError>;
 
     /// Stat a file relative to a directory handle.
-    @binding("destack.fs.statat")
+    @binding("destack.fs.statat", { effect: "external", replay: "recordable" })
     export function statat(
         dir: DirectoryHandle,
         path: string,
@@ -73,18 +73,18 @@ declare namespace fs {
     ): Result<Stat, PlatformError>;
 
     /// Stat a file by handle.
-    @binding("destack.fs.fstat")
+    @binding("destack.fs.fstat", { effect: "external", replay: "recordable" })
     export function fstat(handle: FileHandle): Result<Stat, PlatformError>;
 
     /// Stat a file by path without following symlinks.
-    @binding("destack.fs.lstat")
+    @binding("destack.fs.lstat", { effect: "external", replay: "recordable" })
     export function lstat(path: string): Result<Stat, PlatformError>;
 
     /// Stat a filesystem by path.
-    @binding("destack.fs.statfs")
+    @binding("destack.fs.statfs", { effect: "external", replay: "recordable" })
     export function statfs(path: string): Result<StatFs, PlatformError>;
 
     /// Stat a filesystem by handle.
-    @binding("destack.fs.fstatfs")
+    @binding("destack.fs.fstatfs", { effect: "external", replay: "recordable" })
     export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>;
 }

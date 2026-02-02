@@ -1,11 +1,12 @@
-use std::ptr;
-
 use crate::diagnostic::{RuntimeError, RuntimeErrorId};
 use crate::platform::RuntimeStatus;
-use crate::platform::abi::PlatformStringRef;
-use crate::platform::diagnostic::{PlatformError as DiagnosticPlatformError, PlatformErrorKind};
+use crate::platform::bindings::native_call;
+use crate::platform::diagnostic::{
+    PlatformError as DiagnosticPlatformError, PlatformErrorCode as DiagnosticPlatformErrorCode,
+    PlatformErrorKind,
+};
 use crate::platform::error::{PlatformError, PlatformErrorCode, bindings_generated as bindings};
-use crate::runtime::with_runtime_call_context;
+use crate::runtime::RuntimeCallContext;
 
 /// Take a runtime platform error by id.
 #[unsafe(export_name = "destack.error.takePlatformError")]
@@ -13,84 +14,60 @@ pub unsafe extern "C" fn destack_error_take_platform_error(
     out: *mut PlatformError,
     error_id: u64,
 ) -> RuntimeStatus {
-    let status = with_runtime_call_context(|context| {
-        let result = (|| {
-            context.check_policy(bindings::TAKE_PLATFORM_ERROR)?;
+    native_call(|context| {
+        context.check_policy(bindings::TAKE_PLATFORM_ERROR)?;
 
-            if out.is_null() {
-                return Err(
-                    RuntimeError::platform(DiagnosticPlatformError::null_pointer("out")).boxed(),
-                );
-            }
+        if out.is_null() {
+            return Err(
+                RuntimeError::platform(DiagnosticPlatformError::null_pointer("out")).boxed(),
+            );
+        }
 
-            let error = context
-                .runtime()
-                .errors
-                .take(RuntimeErrorId::from_raw(error_id))
-                .unwrap_or_else(|| RuntimeError::internal("missing runtime error for id").boxed());
-            let platform_error = error.into_platform_error();
-            let platform_error = abi_platform_error_from_runtime(&platform_error);
+        let error = context
+            .runtime()
+            .errors
+            .take(RuntimeErrorId::from_raw(error_id))
+            .unwrap_or_else(|| RuntimeError::internal("missing runtime error for id").boxed());
+        let platform_error = error.into_platform_error();
+        let platform_error = abi_platform_error_from_runtime(context, &platform_error);
 
-            unsafe {
-                out.write(platform_error);
-            }
+        unsafe {
+            out.write(platform_error);
+        }
 
-            Ok(())
-        })();
-
-        Ok(RuntimeStatus::from_result(result, Some(context)))
-    });
-
-    match status {
-        Ok(status) => status,
-        Err(error) => RuntimeStatus::from_error(error, None),
-    }
+        Ok(())
+    })
 }
 
-fn abi_platform_error_from_runtime(error: &DiagnosticPlatformError) -> PlatformError {
-    // NOTE #Incomplete: platform error strings are leaked for now
+/// Convert a runtime error into the ABI platform error shape.
+fn abi_platform_error_from_runtime(
+    context: &RuntimeCallContext,
+    error: &DiagnosticPlatformError,
+) -> PlatformError {
     PlatformError {
-        kind: string_ref_from_str(kind_str(error.kind)),
-        message: string_ref_from_str(&error.message),
-        name: string_ref_from_option(error.name.as_ref()),
-        code: map_platform_error_code(
-            error
-                .code
-                .unwrap_or(crate::platform::diagnostic::PlatformErrorCode::Generic),
-        ),
-        system_code: string_ref_from_option(error.system_code.as_ref()),
+        kind: context.store_string(kind_str(error.kind)),
+        message: context.store_string(&error.message),
+        name: context.store_string_option(error.name.as_ref()),
+        code: map_platform_error_code(error.code.unwrap_or(DiagnosticPlatformErrorCode::Generic)),
+        system_code: context.store_string_option(error.system_code.as_ref()),
         errno: error.errno.unwrap_or(0),
-        syscall: string_ref_from_option(error.syscall.as_ref()),
-        path: string_ref_from_option(error.path.as_ref()),
-        dest: string_ref_from_option(error.dest.as_ref()),
+        syscall: context.store_string_option(error.syscall.as_ref()),
+        path: context.store_string_option(error.path.as_ref()),
+        dest: context.store_string_option(error.dest.as_ref()),
         fd: error.fd.unwrap_or(0),
-        address: string_ref_from_option(error.address.as_ref()),
+        address: context.store_string_option(error.address.as_ref()),
         port: error.port.unwrap_or(0),
-        hostname: string_ref_from_option(error.hostname.as_ref()),
-        signal: string_ref_from_option(error.signal.as_ref()),
+        hostname: context.store_string_option(error.hostname.as_ref()),
+        signal: context.store_string_option(error.signal.as_ref()),
         exit_code: error.exit_code.unwrap_or(0),
-        cause: string_ref_from_option(error.cause.as_ref()),
-        argument: string_ref_from_option(error.argument.as_ref()),
-        pointer: string_ref_from_option(error.pointer.as_ref()),
-        feature: string_ref_from_option(error.feature.as_ref()),
+        cause: context.store_string_option(error.cause.as_ref()),
+        argument: context.store_string_option(error.argument.as_ref()),
+        pointer: context.store_string_option(error.pointer.as_ref()),
+        feature: context.store_string_option(error.feature.as_ref()),
     }
 }
 
-fn string_ref_from_option(value: Option<&String>) -> PlatformStringRef {
-    match value {
-        Some(value) => string_ref_from_str(value),
-        None => PlatformStringRef {
-            data: ptr::null(),
-            len: 0,
-        },
-    }
-}
-
-fn string_ref_from_str(value: &str) -> PlatformStringRef {
-    let leaked: &'static str = Box::leak(value.to_string().into_boxed_str());
-    PlatformStringRef::from(leaked)
-}
-
+/// Return the string representation for a platform error kind.
 fn kind_str(kind: PlatformErrorKind) -> &'static str {
     match kind {
         PlatformErrorKind::InvalidArgument => "invalidArgument",
@@ -105,125 +82,66 @@ fn kind_str(kind: PlatformErrorKind) -> &'static str {
     }
 }
 
-fn map_platform_error_code(
-    code: crate::platform::diagnostic::PlatformErrorCode,
-) -> PlatformErrorCode {
+/// Map diagnostic error codes into ABI platform error codes.
+fn map_platform_error_code(code: DiagnosticPlatformErrorCode) -> PlatformErrorCode {
     match code {
-        crate::platform::diagnostic::PlatformErrorCode::InvalidArgument => {
-            PlatformErrorCode::InvalidArgument
-        }
-        crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentType => {
-            PlatformErrorCode::InvalidArgumentType
-        }
-        crate::platform::diagnostic::PlatformErrorCode::InvalidArgumentValue => {
+        DiagnosticPlatformErrorCode::InvalidArgument => PlatformErrorCode::InvalidArgument,
+        DiagnosticPlatformErrorCode::InvalidArgumentType => PlatformErrorCode::InvalidArgumentType,
+        DiagnosticPlatformErrorCode::InvalidArgumentValue => {
             PlatformErrorCode::InvalidArgumentValue
         }
-        crate::platform::diagnostic::PlatformErrorCode::NullPointer => {
-            PlatformErrorCode::NullPointer
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NotSupported => {
-            PlatformErrorCode::NotSupported
-        }
-        crate::platform::diagnostic::PlatformErrorCode::Io => PlatformErrorCode::Io,
-        crate::platform::diagnostic::PlatformErrorCode::IoReadFailed => {
-            PlatformErrorCode::IoReadFailed
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoWriteFailed => {
-            PlatformErrorCode::IoWriteFailed
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoNotFound => PlatformErrorCode::IoNotFound,
-        crate::platform::diagnostic::PlatformErrorCode::IoPermissionDenied => {
-            PlatformErrorCode::IoPermissionDenied
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoAlreadyExists => {
-            PlatformErrorCode::IoAlreadyExists
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoNotDirectory => {
-            PlatformErrorCode::IoNotDirectory
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoIsDirectory => {
-            PlatformErrorCode::IoIsDirectory
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoNotEmpty => PlatformErrorCode::IoNotEmpty,
-        crate::platform::diagnostic::PlatformErrorCode::IoReadOnly => PlatformErrorCode::IoReadOnly,
-        crate::platform::diagnostic::PlatformErrorCode::IoNameTooLong => {
-            PlatformErrorCode::IoNameTooLong
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoFileTooLarge => {
-            PlatformErrorCode::IoFileTooLarge
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoTooManyOpenFiles => {
-            PlatformErrorCode::IoTooManyOpenFiles
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoFileTableOverflow => {
-            PlatformErrorCode::IoFileTableOverflow
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoInvalidData => {
-            PlatformErrorCode::IoInvalidData
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoCrossDevice => {
-            PlatformErrorCode::IoCrossDevice
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoBrokenPipe => {
-            PlatformErrorCode::IoBrokenPipe
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoTimedOut => PlatformErrorCode::IoTimedOut,
-        crate::platform::diagnostic::PlatformErrorCode::IoInterrupted => {
-            PlatformErrorCode::IoInterrupted
-        }
-        crate::platform::diagnostic::PlatformErrorCode::IoBusy => PlatformErrorCode::IoBusy,
-        crate::platform::diagnostic::PlatformErrorCode::IoWouldBlock => {
-            PlatformErrorCode::IoWouldBlock
-        }
-        crate::platform::diagnostic::PlatformErrorCode::Net => PlatformErrorCode::Net,
-        crate::platform::diagnostic::PlatformErrorCode::NetConnectionRefused => {
+        DiagnosticPlatformErrorCode::NullPointer => PlatformErrorCode::NullPointer,
+        DiagnosticPlatformErrorCode::NotSupported => PlatformErrorCode::NotSupported,
+        DiagnosticPlatformErrorCode::Io => PlatformErrorCode::Io,
+        DiagnosticPlatformErrorCode::IoReadFailed => PlatformErrorCode::IoReadFailed,
+        DiagnosticPlatformErrorCode::IoWriteFailed => PlatformErrorCode::IoWriteFailed,
+        DiagnosticPlatformErrorCode::IoNotFound => PlatformErrorCode::IoNotFound,
+        DiagnosticPlatformErrorCode::IoPermissionDenied => PlatformErrorCode::IoPermissionDenied,
+        DiagnosticPlatformErrorCode::IoAlreadyExists => PlatformErrorCode::IoAlreadyExists,
+        DiagnosticPlatformErrorCode::IoNotDirectory => PlatformErrorCode::IoNotDirectory,
+        DiagnosticPlatformErrorCode::IoIsDirectory => PlatformErrorCode::IoIsDirectory,
+        DiagnosticPlatformErrorCode::IoNotEmpty => PlatformErrorCode::IoNotEmpty,
+        DiagnosticPlatformErrorCode::IoReadOnly => PlatformErrorCode::IoReadOnly,
+        DiagnosticPlatformErrorCode::IoNameTooLong => PlatformErrorCode::IoNameTooLong,
+        DiagnosticPlatformErrorCode::IoFileTooLarge => PlatformErrorCode::IoFileTooLarge,
+        DiagnosticPlatformErrorCode::IoTooManyOpenFiles => PlatformErrorCode::IoTooManyOpenFiles,
+        DiagnosticPlatformErrorCode::IoFileTableOverflow => PlatformErrorCode::IoFileTableOverflow,
+        DiagnosticPlatformErrorCode::IoInvalidData => PlatformErrorCode::IoInvalidData,
+        DiagnosticPlatformErrorCode::IoCrossDevice => PlatformErrorCode::IoCrossDevice,
+        DiagnosticPlatformErrorCode::IoBrokenPipe => PlatformErrorCode::IoBrokenPipe,
+        DiagnosticPlatformErrorCode::IoTimedOut => PlatformErrorCode::IoTimedOut,
+        DiagnosticPlatformErrorCode::IoInterrupted => PlatformErrorCode::IoInterrupted,
+        DiagnosticPlatformErrorCode::IoBusy => PlatformErrorCode::IoBusy,
+        DiagnosticPlatformErrorCode::IoWouldBlock => PlatformErrorCode::IoWouldBlock,
+        DiagnosticPlatformErrorCode::Net => PlatformErrorCode::Net,
+        DiagnosticPlatformErrorCode::NetConnectionRefused => {
             PlatformErrorCode::NetConnectionRefused
         }
-        crate::platform::diagnostic::PlatformErrorCode::NetTimedOut => {
-            PlatformErrorCode::NetTimedOut
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NetConnectionReset => {
-            PlatformErrorCode::NetConnectionReset
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NetAddressInUse => {
-            PlatformErrorCode::NetAddressInUse
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NetAddressNotAvailable => {
+        DiagnosticPlatformErrorCode::NetTimedOut => PlatformErrorCode::NetTimedOut,
+        DiagnosticPlatformErrorCode::NetConnectionReset => PlatformErrorCode::NetConnectionReset,
+        DiagnosticPlatformErrorCode::NetAddressInUse => PlatformErrorCode::NetAddressInUse,
+        DiagnosticPlatformErrorCode::NetAddressNotAvailable => {
             PlatformErrorCode::NetAddressNotAvailable
         }
-        crate::platform::diagnostic::PlatformErrorCode::NetNetworkUnreachable => {
+        DiagnosticPlatformErrorCode::NetNetworkUnreachable => {
             PlatformErrorCode::NetNetworkUnreachable
         }
-        crate::platform::diagnostic::PlatformErrorCode::NetHostUnreachable => {
-            PlatformErrorCode::NetHostUnreachable
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NetConnectionAborted => {
+        DiagnosticPlatformErrorCode::NetHostUnreachable => PlatformErrorCode::NetHostUnreachable,
+        DiagnosticPlatformErrorCode::NetConnectionAborted => {
             PlatformErrorCode::NetConnectionAborted
         }
-        crate::platform::diagnostic::PlatformErrorCode::NetBrokenPipe => {
-            PlatformErrorCode::NetBrokenPipe
-        }
-        crate::platform::diagnostic::PlatformErrorCode::NetDnsFailed => {
-            PlatformErrorCode::NetDnsFailed
-        }
-        crate::platform::diagnostic::PlatformErrorCode::Process => PlatformErrorCode::Process,
-        crate::platform::diagnostic::PlatformErrorCode::ProcessSpawnFailed => {
-            PlatformErrorCode::ProcessSpawnFailed
-        }
-        crate::platform::diagnostic::PlatformErrorCode::ProcessNotFound => {
-            PlatformErrorCode::ProcessNotFound
-        }
-        crate::platform::diagnostic::PlatformErrorCode::ProcessPermissionDenied => {
+        DiagnosticPlatformErrorCode::NetBrokenPipe => PlatformErrorCode::NetBrokenPipe,
+        DiagnosticPlatformErrorCode::NetDnsFailed => PlatformErrorCode::NetDnsFailed,
+        DiagnosticPlatformErrorCode::Process => PlatformErrorCode::Process,
+        DiagnosticPlatformErrorCode::ProcessSpawnFailed => PlatformErrorCode::ProcessSpawnFailed,
+        DiagnosticPlatformErrorCode::ProcessNotFound => PlatformErrorCode::ProcessNotFound,
+        DiagnosticPlatformErrorCode::ProcessPermissionDenied => {
             PlatformErrorCode::ProcessPermissionDenied
         }
-        crate::platform::diagnostic::PlatformErrorCode::Random => PlatformErrorCode::Random,
-        crate::platform::diagnostic::PlatformErrorCode::RandomUnavailable => {
-            PlatformErrorCode::RandomUnavailable
-        }
-        crate::platform::diagnostic::PlatformErrorCode::Time => PlatformErrorCode::Time,
-        crate::platform::diagnostic::PlatformErrorCode::TimeUnavailable => {
-            PlatformErrorCode::TimeUnavailable
-        }
-        crate::platform::diagnostic::PlatformErrorCode::Generic => PlatformErrorCode::Generic,
+        DiagnosticPlatformErrorCode::Random => PlatformErrorCode::Random,
+        DiagnosticPlatformErrorCode::RandomUnavailable => PlatformErrorCode::RandomUnavailable,
+        DiagnosticPlatformErrorCode::Time => PlatformErrorCode::Time,
+        DiagnosticPlatformErrorCode::TimeUnavailable => PlatformErrorCode::TimeUnavailable,
+        DiagnosticPlatformErrorCode::Generic => PlatformErrorCode::Generic,
     }
 }

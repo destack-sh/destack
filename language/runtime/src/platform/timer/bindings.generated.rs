@@ -3,31 +3,38 @@
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, LogKind, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
 use destack_vm as vm;
 use destack_vm::Isolate;
 
+use crate::platform::resource;
 use crate::platform::timer::{native, vm as platform_vm};
 
 /// Binding descriptor for destack.timer.cancel.
-pub const CANCEL: BindingDescriptor = BindingDescriptor::recordable(
+pub const CANCEL: BindingDescriptor = BindingDescriptor::external(
     "destack.timer.cancel",
     "export function cancel(handle: TimerHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptor for destack.timer.interval.
-pub const INTERVAL: BindingDescriptor = BindingDescriptor::recordable(
+pub const INTERVAL: BindingDescriptor = BindingDescriptor::external(
     "destack.timer.interval",
     "export function interval(periodNs: uint64): Result<TimerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptor for destack.timer.once.
-pub const ONCE: BindingDescriptor = BindingDescriptor::recordable(
+pub const ONCE: BindingDescriptor = BindingDescriptor::external(
     "destack.timer.once",
     "export function once(delayNs: uint64): Result<TimerHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    Some(LogKind::Time),
 );
 
 /// Binding descriptors for timer.
@@ -60,6 +67,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     {
         binding!(registry, isolate, CANCEL, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CANCEL)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -82,8 +90,8 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::TimerHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::TimerHandle(handle_inner);
                 let result = platform_vm::destack_timer_cancel(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
@@ -93,6 +101,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     {
         binding!(registry, isolate, INTERVAL, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(INTERVAL)?;
                 let periodns_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "periodns", "uint64",
@@ -120,6 +129,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
     {
         binding!(registry, isolate, ONCE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(ONCE)?;
                 let delayns_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "delayns", "uint64",
@@ -145,6 +155,7 @@ pub fn register_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         });
     }
 }
+
 /// Install VM bindings for timer.
 pub fn install_timer_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_timer_vm_bindings(registry, isolate);

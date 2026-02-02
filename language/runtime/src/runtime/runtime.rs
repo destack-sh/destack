@@ -5,6 +5,7 @@ use crate::platform::PlatformPoller;
 use crate::platform::UnixPoller;
 use crate::platform::bindings::BindingRegistry;
 use crate::scheduler::Scheduler;
+use crate::snapshot::SnapshotStore;
 
 use super::RuntimeContext;
 
@@ -103,6 +104,28 @@ impl Runtime {
     }
 
     // VM execution entrypoints live in execute.rs
+
+    /// Capture a runtime snapshot and record a checkpoint in the replay log.
+    pub fn snapshot(&mut self, store: &SnapshotStore) -> RuntimeResult<()> {
+        // allocate a new checkpoint id
+        let checkpoint_id = store.allocate_checkpoint_id();
+
+        // capture replay metadata
+        let branch_id = self.context.replay().log().branch_id();
+        let sequence = self.context.replay().log().next_sequence();
+
+        // NOTE #Incomplete: snapshot payload capture is not implemented yet
+        let payload = Vec::new();
+
+        // write snapshot payload and register in the replay log
+        let metadata = store.write_snapshot(checkpoint_id, branch_id, sequence, &payload)?;
+        self.context
+            .replay()
+            .log()
+            .record_checkpoint(metadata.into_checkpoint_index());
+
+        Ok(())
+    }
 }
 
 impl Default for Runtime {
