@@ -1228,6 +1228,7 @@ mod tests {
         Argument, BindingKind, BindingOperator, Expression, IntType, Mutability, Name, Parameter,
         Pattern, PatternField, ScalarLiteral, Timing, TypeLiteral, Visibility,
     };
+    use destack_source::LanguageType;
 
     use crate::{TestParser, assert_name, assert_node, assert_path, assert_string};
 
@@ -1313,6 +1314,18 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_parameter_optional_pattern() {
+        // []? optional pattern parameter
+        let mut test = TestParser::new_with_options("[]?", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Pattern { modifiers: Some(modifiers), pattern, .. } => {
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_node!(parser.tree, *pattern, Pattern::Array { .. } => {});
+        });
+    }
+
+    #[test]
     fn test_parse_parameter_variadic() {
         // ...args
         let mut test = TestParser::new("...args");
@@ -1333,6 +1346,18 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: _, name, ty } => {
             assert_string!(parser, *name, "args");
             assert!(ty.is_some());
+        });
+    }
+
+    #[test]
+    fn test_parse_parameter_optional_variadic() {
+        // ...args? optional rest parameter
+        let mut test = TestParser::new_with_options("...args?", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let parameter_id = parser.eat_parameter().unwrap();
+        assert_node!(parser.tree, parameter_id, Parameter::Variadic { modifiers: Some(modifiers), name, .. } => {
+            assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+            assert_string!(parser, *name, "args");
         });
     }
 
