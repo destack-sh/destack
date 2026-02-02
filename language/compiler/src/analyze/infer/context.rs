@@ -49,6 +49,8 @@ pub struct InferContext {
     pub in_abstract_class: bool,
     /// The enclosing nominal type symbol, if any.
     pub in_nominal_symbol: Option<GlobalSymbolId>,
+    /// Whether we're in a namespace body (disables top-level await).
+    pub in_namespace: bool,
     /// Track nested try frames for error propagation.
     pub try_stack: Vec<TryContextFrame>,
     /// Flow context for the current function body.
@@ -140,6 +142,7 @@ impl InferContext {
             generator_next_type: None,
             in_abstract_class: false,
             in_nominal_symbol: None,
+            in_namespace: false,
             try_stack: Vec::new(),
             flow: None,
             is_surface_inference: false,
@@ -172,6 +175,7 @@ impl InferContext {
             generator_next_type: self.generator_next_type,
             in_abstract_class: self.in_abstract_class,
             in_nominal_symbol: self.in_nominal_symbol,
+            in_namespace: self.in_namespace,
             try_stack: self.try_stack.clone(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
@@ -211,6 +215,7 @@ impl InferContext {
             generator_next_type: None,
             in_abstract_class: false,
             in_nominal_symbol: self.in_nominal_symbol,
+            in_namespace: self.in_namespace,
             try_stack: Vec::new(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
@@ -539,7 +544,7 @@ impl InferContext {
     /// Check if we can await (in async function or at top level).
     pub fn can_await(&self) -> bool {
         // await is valid in async functions or at module top level when not in any function
-        self.is_async || self.in_function.is_none()
+        self.is_async || (self.in_function.is_none() && !self.in_namespace)
     }
 
     /// Check if we can yield (in generator function).

@@ -164,7 +164,7 @@ type Bar = Foo;
             r#"
 struct Foo {}
 extension for Foo {
-    fn bar() {}
+    bar() {}
 }
 "#,
         );

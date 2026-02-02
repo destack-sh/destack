@@ -1,7 +1,12 @@
+use std::str::FromStr;
+
 use crate::{AnalyzeError, Compiler};
+use destack_ast::Keyword;
+use destack_base::StringId;
 use destack_dir::{
     BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind, DependencyKind,
-    DependencyMode, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, TypeTable,
+    DependencyMode, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree,
+    NodeType, Path, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -132,12 +137,15 @@ impl Compiler {
                 }
             }
 
-            Declaration::ImportAlias { kind, .. } => {
+            Declaration::ImportAlias { kind, target, .. } => {
                 // import aliases cannot use import type
                 if *kind == DependencyKind::Type {
                     let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidTypeOnlyImportAlias { node });
                 }
+
+                // import alias targets must be qualified identifier paths
+                self.validate_import_alias_target(module, profile, tree, target);
             }
 
             Declaration::Class { heritage, .. } => {
@@ -183,6 +191,85 @@ impl Compiler {
 
             _ => {}
         }
+    }
+
+    /// Validate an import alias target.
+    fn validate_import_alias_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        target: &ImportAliasTarget,
+    ) {
+        // require targets are always valid
+        let ImportAliasTarget::Path { value } = target else {
+            return;
+        };
+
+        // validate qualified identifier paths
+        if !self.is_valid_import_alias_expression(tree, *value) {
+            let node = value
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidImportAliasTarget { node });
+        }
+    }
+
+    /// Check whether an import alias target expression is valid.
+    fn is_valid_import_alias_expression(
+        &self,
+        tree: &NodeTree,
+        value: LocalNodeId<Expression>,
+    ) -> bool {
+        // match on allowed import alias expression shapes
+        match tree.get(value) {
+            Expression::UnresolvedPath {
+                path,
+                static_arguments,
+                ..
+            }
+            | Expression::LocalReference {
+                path,
+                static_arguments,
+                ..
+            }
+            | Expression::ModuleReference {
+                path,
+                static_arguments,
+                ..
+            }
+            | Expression::GlobalReference {
+                path,
+                static_arguments,
+                ..
+            } => static_arguments.is_none() && self.is_valid_import_alias_path(path),
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                static_arguments.is_none()
+                    && self.is_valid_import_alias_expression(tree, *left)
+                    && self.is_valid_import_alias_segment(*name)
+            }
+            _ => false,
+        }
+    }
+
+    /// Check whether an import alias path is valid.
+    fn is_valid_import_alias_path(&self, path: &Path) -> bool {
+        // require identifier segments
+        !path.segments.is_empty()
+            && path
+                .segments
+                .iter()
+                .all(|segment| self.is_valid_import_alias_segment(*segment))
+    }
+
+    /// Check whether an import alias segment is valid.
+    fn is_valid_import_alias_segment(&self, segment: StringId) -> bool {
+        let name = self.program.strings.get(segment);
+        Keyword::from_str(name.as_ref()).is_err()
     }
 
     /// Check whether a node is nested inside a declare namespace.

@@ -375,6 +375,27 @@ pub enum AnalyzeError {
     )]
     InvalidAmbientConstInitializer { node: AnchoredGlobalNodeId },
 
+    /// Definite assignment assertions are not valid in variable declarators.
+    #[error(
+        code = "EA232",
+        message = "definite assignment assertions are not valid in variable declarators"
+    )]
+    InvalidDefiniteAssignmentDeclarator { node: AnchoredGlobalNodeId },
+
+    /// Import aliases must target a qualified identifier path.
+    #[error(
+        code = "EA233",
+        message = "import aliases must target a qualified identifier path"
+    )]
+    InvalidImportAliasTarget { node: AnchoredGlobalNodeId },
+
+    /// Instantiation expressions must be parenthesized before member or index access.
+    #[error(
+        code = "EA234",
+        message = "instantiation expressions must be parenthesized before member or index access"
+    )]
+    InvalidInstantiationAccess { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
@@ -614,6 +635,17 @@ pub enum AnalyzeError {
     #[error(code = "EA511", message = "property is not definitely assigned")]
     UninitializedProperty { node: AnchoredGlobalNodeId },
 
+    /// Optional parameters cannot use binding patterns.
+    #[error(
+        code = "EA512",
+        message = "optional parameters cannot use binding patterns"
+    )]
+    InvalidOptionalPatternParameter { node: AnchoredGlobalNodeId },
+
+    /// Rest parameters cannot be optional.
+    #[error(code = "EA513", message = "optional rest parameters are not allowed")]
+    InvalidOptionalRestParameter { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 6xx: Accessibility
     // -------------------------------------------------------------------------
@@ -634,6 +666,13 @@ pub enum AnalyzeError {
         node: AnchoredGlobalNodeId,
         message: StringId,
     },
+
+    /// Decorators cannot use static arguments in JS/TS.
+    #[error(
+        code = "EA701",
+        message = "decorator static arguments are not allowed in js/ts"
+    )]
+    InvalidDecoratorStaticArguments { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 8xx: Options

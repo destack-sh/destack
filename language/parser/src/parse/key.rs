@@ -1,5 +1,5 @@
 use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{Key, LiteralType, Name, TokenSpan, TokenType};
+use destack_ast::{Key, Keyword, LiteralType, Name, TokenSpan, TokenType};
 use destack_base::StringId;
 
 impl Parser {
@@ -21,14 +21,21 @@ impl Parser {
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
+        let raw = self.file.span_str(token.span);
+
+        // reject escaped keywords in js or ts
+        if (self.language.is_javascript() || self.language.is_typescript())
+            && raw.contains('\\')
+            && self.identifier_is_escaped_keyword(raw)
+        {
+            return Err(ParseError::unexpected(token.span));
+        }
+
         let string_id = if self.has_active_split() {
-            let string = self.file.span_str(token.span);
-            self.strings.intern(string)
+            self.strings.intern(raw)
         } else {
-            self.identifier_for_index(index).unwrap_or_else(|| {
-                let string = self.file.span_str(token.span);
-                self.strings.intern(string)
-            })
+            self.identifier_for_index(index)
+                .unwrap_or_else(|| self.strings.intern(raw))
         };
         Ok((string_id, token.span))
     }
@@ -83,6 +90,70 @@ impl Parser {
         } else {
             Err(ParseError::expected(span.span, TokenType::Identifier))
         }
+    }
+
+    // identifier keyword check with unicode escape decoding
+    fn identifier_is_escaped_keyword(&self, raw: &str) -> bool {
+        let Some(decoded) = self.decode_identifier_unicode_escapes(raw) else {
+            return false;
+        };
+        <Keyword as std::str::FromStr>::from_str(&decoded).is_ok()
+    }
+
+    // decode unicode escapes in an identifier into a string
+    fn decode_identifier_unicode_escapes(&self, raw: &str) -> Option<String> {
+        if !raw.contains('\\') {
+            return Some(raw.to_string());
+        }
+
+        let mut decoded = String::with_capacity(raw.len());
+        let mut chars = raw.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch != '\\' {
+                decoded.push(ch);
+                continue;
+            }
+
+            if chars.next() != Some('u') {
+                return None;
+            }
+
+            let value = if matches!(chars.peek(), Some('{')) {
+                chars.next();
+                let mut value: u32 = 0;
+                let mut digits = 0;
+                while let Some(&next) = chars.peek() {
+                    if next == '}' {
+                        break;
+                    }
+                    let digit = next.to_digit(16)?;
+                    value = value.checked_mul(16)?.checked_add(digit)?;
+                    digits += 1;
+                    if digits > 6 {
+                        return None;
+                    }
+                    chars.next();
+                }
+                if digits == 0 || chars.next() != Some('}') {
+                    return None;
+                }
+                value
+            } else {
+                let mut value: u32 = 0;
+                for _ in 0..4 {
+                    let next = chars.next()?;
+                    let digit = next.to_digit(16)?;
+                    value = value.checked_mul(16)?.checked_add(digit)?;
+                }
+                value
+            };
+
+            let decoded_char = char::from_u32(value)?;
+            decoded.push(decoded_char);
+        }
+
+        Some(decoded)
     }
 
     /// Eat an identifier that matches a given string.

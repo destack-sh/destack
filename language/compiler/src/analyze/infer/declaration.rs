@@ -129,6 +129,10 @@ impl Compiler {
                 scope: _,
                 expressions,
             } => {
+                // namespace bodies disallow top-level await
+                let was_in_namespace = ctx.in_namespace;
+                ctx.in_namespace = true;
+
                 // infer where clauses and walk namespace expressions
                 self.infer_where_clauses_maybe(
                     module,
@@ -153,6 +157,8 @@ impl Compiler {
                         )?;
                     }
                 }
+
+                ctx.in_namespace = was_in_namespace;
             }
 
             // type alias

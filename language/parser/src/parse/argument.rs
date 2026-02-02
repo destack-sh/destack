@@ -219,8 +219,7 @@ impl Parser {
             // mutability modifiers (readonly)
             // allow treating readonly as a key in property contexts
             let readonly_is_modifier = if allow_readonly_key {
-                self.peek_next_is(TokenType::Identifier)
-                    || self.peek_next_is(TokenType::OpenBracket)
+                self.next_token_starts_member_name()
             } else {
                 true
             };

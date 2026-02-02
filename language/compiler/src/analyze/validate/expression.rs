@@ -2,8 +2,8 @@ use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Argument, BindingKind, DeclarationKind, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Mutability, NodeTree, Pattern, PatternField, Property, ScalarLiteral,
-    SymbolTable, SymbolType, TemplateLiteral, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    MatchSelector, Mutability, NodeTree, Pattern, Property, ScalarLiteral, SymbolTable, SymbolType,
+    TemplateLiteral, TypeLiteral, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -22,6 +22,11 @@ impl Compiler {
         match expression {
             Expression::Assign { left, .. } => {
                 self.validate_assignment_target(module, profile, tree, *left);
+            }
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Index { left, .. } => {
+                self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
             Expression::Match {
                 kind: MatchKind::Switch,
@@ -124,6 +129,12 @@ impl Compiler {
                     descriptor.kind == DeclarationKind::Declaration || is_in_declare_namespace;
                 let allow_ambient_const_initializers = is_in_declare_module;
                 for declarator_id in declarators {
+                    self.validate_definite_assignment_declarator(
+                        module,
+                        profile,
+                        tree,
+                        *declarator_id,
+                    );
                     self.validate_declare_binding_initializer(
                         module,
                         profile,
@@ -146,9 +157,21 @@ impl Compiler {
                     self.validate_destructuring_initializer(module, profile, tree, *declarator_id);
                 }
             }
-            Expression::Using { descriptor, .. } => {
+            Expression::Using {
+                descriptor,
+                declarators,
+                ..
+            } => {
                 let is_declare_context = descriptor.kind == DeclarationKind::Declaration
                     || self.is_in_declare_namespace(tree, expression_id.into_any());
+                for declarator_id in declarators {
+                    self.validate_definite_assignment_declarator(
+                        module,
+                        profile,
+                        tree,
+                        *declarator_id,
+                    );
+                }
                 if is_declare_context {
                     let node = expression_id
                         .into_global_any(module.id)
@@ -157,6 +180,67 @@ impl Compiler {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Validate instantiation expressions followed by member or index access.
+    fn validate_instantiation_access(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+    ) {
+        // skip non-instantiation receivers
+        if !self.is_unparenthesized_instantiation_access_target(tree, left) {
+            return;
+        }
+
+        // report invalid instantiation access
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidInstantiationAccess { node });
+    }
+
+    /// Check whether a receiver is an unparenthesized instantiation expression.
+    fn is_unparenthesized_instantiation_access_target(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::Instantiation { .. } => true,
+            Expression::UnresolvedPath {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::LocalReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::ModuleReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::GlobalReference {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::Member {
+                static_arguments: Some(_),
+                ..
+            }
+            | Expression::PrivateMember {
+                static_arguments: Some(_),
+                ..
+            } => true,
+            Expression::Maybe { left } => {
+                self.is_unparenthesized_instantiation_access_target(tree, *left)
+            }
+            Expression::Parenthesized { .. } => false,
+            _ => false,
         }
     }
 
@@ -178,7 +262,11 @@ impl Compiler {
     }
 
     /// Check whether an expression is a valid assignment target.
-    fn is_valid_assignment_target(&self, tree: &NodeTree, target: LocalNodeId<Expression>) -> bool {
+    pub(crate) fn is_valid_assignment_target(
+        &self,
+        tree: &NodeTree,
+        target: LocalNodeId<Expression>,
+    ) -> bool {
         match tree.get(target) {
             Expression::UnresolvedPath {
                 static_arguments: None,
@@ -209,27 +297,6 @@ impl Compiler {
                 self.is_valid_assignment_target(tree, *expression)
             }
             _ => false,
-        }
-    }
-
-    /// Validate a single pattern node.
-    pub(super) fn validate_pattern(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        pattern: &Pattern,
-    ) {
-        match pattern {
-            Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
-                self.validate_object_pattern_spreads(module, profile, tree, fields);
-            }
-            Pattern::Array { fields }
-            | Pattern::Tuple { fields }
-            | Pattern::TaggedTuple { fields, .. } => {
-                self.validate_sequence_pattern_fields(module, profile, tree, fields);
-            }
-            _ => {}
         }
     }
 
@@ -280,68 +347,6 @@ impl Compiler {
                         .into_global_any(module.id)
                         .into_anchored(Some(profile)),
                 });
-            }
-        }
-    }
-
-    /// Validate object pattern spread placement.
-    fn validate_object_pattern_spreads(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        fields: &[LocalNodeId<PatternField>],
-    ) {
-        // locate the first spread field and report duplicates
-        let mut spread_index = None;
-        for (index, field_id) in fields.iter().enumerate() {
-            if matches!(tree.get(*field_id), PatternField::Spread { .. }) {
-                let error_node = field_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
-                if spread_index.is_some() {
-                    self.error(AnalyzeError::ObjectPatternMultipleSpreads { node: error_node });
-                } else {
-                    spread_index = Some(index);
-                }
-            }
-        }
-
-        // spread must be the last field
-        if let Some(index) = spread_index
-            && index + 1 < fields.len()
-        {
-            let error_node = fields[index + 1]
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
-            self.error(AnalyzeError::ObjectPatternSpreadNotLast { node: error_node });
-        }
-    }
-
-    /// Validate named fields in array and tuple patterns.
-    fn validate_sequence_pattern_fields(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        fields: &[LocalNodeId<PatternField>],
-    ) {
-        // Destack tuple and array patterns may use named fields
-        if module.language_type.is_destack() {
-            return;
-        }
-
-        // reject named or aliased fields in array and tuple patterns
-        for field_id in fields {
-            if matches!(
-                tree.get(*field_id),
-                PatternField::Named { .. } | PatternField::Alias { .. }
-            ) {
-                let node = field_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile));
-                self.error(AnalyzeError::InvalidPatternNamedField { node });
-                return;
             }
         }
     }
@@ -654,6 +659,30 @@ impl Compiler {
         self.error(AnalyzeError::MissingConstInitializer { node });
     }
 
+    /// Validate definite assignment assertions in variable declarators.
+    fn validate_definite_assignment_declarator(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        declarator_id: LocalNodeId<Declarator>,
+    ) {
+        // destack allows definite assignment assertions in bindings
+        if module.language_type.is_destack() {
+            return;
+        }
+
+        // report definite assignment assertions in variable declarators
+        let declarator = tree.get(declarator_id);
+        if !self.pattern_has_definite_assignment(tree, declarator.pattern) {
+            return;
+        }
+        let node = declarator_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidDefiniteAssignmentDeclarator { node });
+    }
+
     /// Check whether an ambient const initializer is valid.
     fn is_valid_ambient_const_initializer(
         &self,
@@ -776,25 +805,6 @@ impl Compiler {
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
             self.error(AnalyzeError::MissingDestructuringInitializer { node });
-        }
-    }
-
-    /// Check whether a pattern is a destructuring pattern.
-    fn is_destructuring_pattern(&self, tree: &NodeTree, pattern_id: LocalNodeId<Pattern>) -> bool {
-        match tree.get(pattern_id) {
-            Pattern::Array { .. }
-            | Pattern::Object { .. }
-            | Pattern::Tuple { .. }
-            | Pattern::TaggedTuple { .. }
-            | Pattern::TaggedObject { .. } => true,
-            Pattern::Binding {
-                pattern: Some(inner),
-                ..
-            } => self.is_destructuring_pattern(tree, *inner),
-            Pattern::Must(inner)
-            | Pattern::ReferenceOf { right: inner, .. }
-            | Pattern::ValueOf { right: inner, .. } => self.is_destructuring_pattern(tree, *inner),
-            _ => false,
         }
     }
 

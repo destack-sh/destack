@@ -351,6 +351,13 @@ impl Parser {
         {
             return true;
         }
+        // allow statement-start keywords after static args in new receivers
+        if self.options.in_new_receiver
+            && self.peek_is(TokenType::Identifier)
+            && self.peek_any_keyword().is_ok()
+        {
+            return true;
+        }
         if self.is_any_stop() {
             return true;
         }
@@ -407,6 +414,15 @@ impl Parser {
         allow_object_literal: bool,
     ) -> Option<Vec<LocalNodeId<Argument>>> {
         if !self.peek_is(TokenType::LessThan) && !self.peek_is(TokenType::ShiftLeft) {
+            return None;
+        }
+
+        // avoid path-attached static arguments in typescript expression positions
+        if self.language.is_typescript()
+            && !self.options.in_type
+            && !self.options.in_decorator
+            && !self.options.in_new_receiver
+        {
             return None;
         }
 
@@ -863,25 +879,53 @@ impl Parser {
 
         // declare modifier
         let is_declare = self.peek_keyword(Keyword::Declare).is_ok();
-        let declare_has_newline = is_declare && self.peek_next_is(TokenType::Newline);
 
         // declare target directly after keyword
         let direct_index = self.pos_index() + 1;
-        let declare_direct_target = is_declare && self.is_declare_target_at(direct_index);
-
-        // declare target after newlines
-        let mut declare_target_after_newlines = false;
-        if declare_has_newline {
-            let after = self.next_non_newline_index_from(direct_index);
-            declare_target_after_newlines = self.is_declare_target_at(after);
+        let mut declare_target_index = None;
+        if is_declare {
+            if self.is_declare_target_at(direct_index) {
+                declare_target_index = Some(direct_index);
+            } else if self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
+                let after_abstract = direct_index + 1;
+                let target_index = self.next_non_newline_index_from(after_abstract);
+                if target_index == after_abstract && self.is_declare_target_at(target_index) {
+                    declare_target_index = Some(target_index);
+                }
+            }
         }
 
-        let declare_has_target = declare_direct_target || declare_target_after_newlines;
+        let mut declare_newline_error_span = None;
+        if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
+            let after_abstract = direct_index + 1;
+            let target_index = self.next_non_newline_index_from(after_abstract);
+            if target_index > after_abstract && self.is_declare_target_at(target_index) {
+                if let Some(token) = self.tokens.get(after_abstract) {
+                    declare_newline_error_span = Some(token.span);
+                }
+            }
+        }
+        if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Type) {
+            let after_type = direct_index + 1;
+            let name_index = self.next_non_newline_index_from(after_type);
+            if name_index > after_type
+                && self
+                    .tokens
+                    .get(name_index)
+                    .is_some_and(|token| token.token.ty == TokenType::Identifier)
+            {
+                if let Some(token) = self.tokens.get(after_type) {
+                    declare_newline_error_span = Some(token.span);
+                }
+            }
+        }
+        if let Some(span) = declare_newline_error_span {
+            let error = ParseError::unexpected(span);
+            self.error(&error);
+        }
+        let declare_has_target = declare_target_index.is_some();
         descriptor.kind = if is_declare && declare_has_target {
             self.bump(); // eat declare
-            if declare_has_newline {
-                self.eat_newlines_maybe()?;
-            }
             DeclarationKind::Declaration
         } else {
             DeclarationKind::Definition
@@ -2503,20 +2547,6 @@ impl Parser {
                         PostfixPosition::Direct
                     };
                     if let Ok(static_arguments) = self.eat_static_arguments() {
-                        let has_optional_chain =
-                            self.peek_is(TokenType::Maybe) && self.peek_next_is(TokenType::Dot);
-                        let has_optional_call = has_optional_chain
-                            && self
-                                .peek_next_next_token(TokenType::OpenParenthesis)
-                                .is_ok();
-                        if self.language.is_typescript()
-                            && (self.peek_is(TokenType::Dot)
-                                || self.peek_is(TokenType::OpenBracket)
-                                || has_optional_chain && !has_optional_call)
-                        {
-                            return Err(ParseError::unexpected(self.peek()?.span));
-                        }
-
                         // call with static arguments
                         if self.peek_is(TokenType::OpenParenthesis) {
                             left_expression_id = self.eat_call(
@@ -3991,11 +4021,64 @@ const shapes = (
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
             });
             assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
-                assert_node!(parser.tree, *expression, Expression::Path { path, static_arguments } => {
-                    assert_path!(parser, *path, "f");
-                    assert!(static_arguments.as_ref().is_some_and(|args| args.len() == 1));
+                assert_node!(parser.tree, *expression, Expression::Instantiation { left, static_arguments } => {
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                        assert_path!(parser, *path, "f");
+                        assert!(static_arguments.is_none());
+                    });
                 });
             });
+        });
+    }
+
+    /// Instantiation expressions can appear as assignment targets in parse output.
+    #[test]
+    fn test_parse_instantiation_expression_assignment() {
+        let mut test = TestParser::new_with_options("f<T> = g", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Assign { left, right, .. } => {
+            assert_node!(parser.tree, *left, Expression::Instantiation { left, static_arguments } => {
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        assert!(static_arguments.is_none());
+                        assert_path!(parser, *path, "T");
+                    });
+                });
+                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert!(static_arguments.is_none());
+                    assert_path!(parser, *path, "f");
+                });
+            });
+            assert_expression_path!(parser, parser.tree.get(*right), "g");
+        });
+    }
+
+    /// Instantiation expressions with members remain assignable targets in parse output.
+    #[test]
+    fn test_parse_instantiation_expression_member_assignment() {
+        let mut test = TestParser::new_with_options("cls.myFunc<T> = g", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Assign { left, right, .. } => {
+            assert_node!(parser.tree, *left, Expression::Instantiation { left, static_arguments } => {
+                assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { value, .. } => {
+                    assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                        assert!(static_arguments.is_none());
+                        assert_path!(parser, *path, "T");
+                    });
+                });
+                assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
+                    assert!(static_arguments.is_none());
+                    assert_path!(parser, *path, "cls.myFunc");
+                });
+            });
+            assert_expression_path!(parser, parser.tree.get(*right), "g");
         });
     }
 
@@ -5665,6 +5748,15 @@ const value =
         assert_node!(parser.tree, expr_id, Expression::Statement(expression_id) => {
             assert_expression_path!(parser, parser.tree.get(*expression_id), "a");
         });
+    }
+
+    #[test]
+    fn test_parse_new_without_arguments_missing_semicolon() {
+        let options = LanguageType::TypeScript;
+        let mut test = TestParser::new_with_options("new A<T> if (0);", options);
+        let mut parser = test.prepare();
+        let err = parser.try_eat_statement_expression_with_flag().unwrap_err();
+        assert_eq!(err.leaf_span().start, 9);
     }
 
     /// Comma in parentheses parses as sequence expression.

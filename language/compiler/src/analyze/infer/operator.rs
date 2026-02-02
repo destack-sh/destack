@@ -513,6 +513,14 @@ impl Compiler {
 
         let options = ctx.options;
 
+        // validate assignment target shape
+        if !self.is_valid_assignment_target(tree, left_id) {
+            let node = left_id
+                .into_global_any(module.id)
+                .into_anchored(Some(ctx.profile));
+            self.error(AnalyzeError::InvalidAssignmentTarget { node });
+        }
+
         // route index assignment to index set resolution
         if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
             return self.infer_index_assignment_expression(
