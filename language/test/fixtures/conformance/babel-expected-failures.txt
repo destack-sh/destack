@@ -10,6 +10,16 @@
 
 # Legacy <T>x type assertion syntax - use `x as T` instead
 # See DESIGN.md - we don't support this in .ds files (TSX ambiguity)
+typescript/cast/arrow-in-parens
+typescript/cast/arrow-in-parens-with-parens-node
+typescript/cast/as-const
+typescript/cast/destructure-and-assign
+typescript/cast/need-parentheses
+typescript/cast/parenthesized-type-assertion-and-assign
+typescript/cast/type-assertion
+typescript/cast/type-assertion-after-operator
+typescript/cast/type-assertion-and-assign
+typescript/cast/type-assertion-before-operator
 
 # Destack allows namespace declarations without `declare` prefix
 # In TypeScript, `namespace` alone after ASI would be an identifier, but Destack

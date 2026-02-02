@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::time::Duration;
 
 use super::{TestCase, TestResult, TestSummary};
@@ -116,6 +117,7 @@ pub fn print_result(test: &TestCase, result: &TestResult, duration: Duration, _v
     };
 
     println!("test {} ... {}{}", test.full_name(), status, duration_str);
+    let _ = std::io::stdout().flush();
 
     if let TestResult::Failed { message } = result {
         if message.is_empty() {

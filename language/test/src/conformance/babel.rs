@@ -17,6 +17,69 @@ pub struct BabelSuite {
     conformance_dir: PathBuf,
 }
 
+#[derive(Debug, Clone, Default)]
+struct BabelOptions {
+    source_type: Option<String>,
+    plugins: Vec<String>,
+    disallow_ambiguous_jsx_like: bool,
+    has_throws: bool,
+}
+
+impl BabelOptions {
+    /// Parse Babel options from JSON content.
+    fn from_content(content: &str) -> Option<Self> {
+        let value = serde_json::from_str::<serde_json::Value>(content).ok()?;
+        let object = value.as_object()?;
+
+        let source_type = object
+            .get("sourceType")
+            .and_then(|value| value.as_str())
+            .map(|value| value.to_string());
+
+        let plugins = object
+            .get("plugins")
+            .and_then(|value| value.as_array())
+            .map(|plugins| {
+                plugins
+                    .iter()
+                    .filter_map(Self::plugin_name)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        let disallow_ambiguous_jsx_like = object
+            .get("disallowAmbiguousJSXLike")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+
+        let has_throws = object.contains_key("throws");
+
+        Some(Self {
+            source_type,
+            plugins,
+            disallow_ambiguous_jsx_like,
+            has_throws,
+        })
+    }
+
+    /// Extract a plugin name from a plugin entry.
+    fn plugin_name(value: &serde_json::Value) -> Option<String> {
+        match value {
+            serde_json::Value::String(name) => Some(name.to_string()),
+            serde_json::Value::Array(items) => items
+                .first()
+                .and_then(|value| value.as_str())
+                .map(|value| value.to_string()),
+            _ => None,
+        }
+    }
+
+    /// Return true when the plugin list contains a plugin name.
+    fn has_plugin(&self, plugin: &str) -> bool {
+        self.plugins.iter().any(|name| name == plugin)
+    }
+}
+
 impl BabelSuite {
     pub fn new() -> Self {
         let conformance_dir = fixtures_dir().join("conformance");
@@ -76,47 +139,17 @@ impl BabelSuite {
     /// Check if a test uses script mode (sourceType: "script").
     /// We only support strict module mode, so we skip these tests.
     fn is_script_mode(&self, test_dir: &Path) -> bool {
-        fn has_script_source_type(path: &Path) -> bool {
-            if let Ok(content) = std::fs::read_to_string(path) {
-                return content.contains("\"sourceType\": \"script\"")
-                    || content.contains("\"sourceType\":\"script\"");
-            }
-            false
-        }
-
-        // check options.json in the test directory
-        let options_path = test_dir.join("options.json");
-        if has_script_source_type(&options_path) {
-            return true;
-        }
-
-        // also check parent directories for options.json (babel allows inheritance)
-        if let Some(parent) = test_dir.parent()
-            && has_script_source_type(&parent.join("options.json"))
-        {
-            return true;
-        }
-
-        false
+        let Some(options) = Self::options(test_dir) else {
+            return false;
+        };
+        options.source_type.as_deref() == Some("script")
     }
 
     fn should_throw(&self, test_dir: &Path) -> bool {
-        // check options.json for "throws" key
-        let options_path = test_dir.join("options.json");
-        if let Ok(content) = std::fs::read_to_string(&options_path)
-            && content.contains("\"throws\"")
+        if let Some(options) = Self::options(test_dir)
+            && options.has_throws
         {
             return true;
-        }
-
-        // also check parent directories for options.json
-        if let Some(parent) = test_dir.parent() {
-            let parent_options = parent.join("options.json");
-            if let Ok(content) = std::fs::read_to_string(&parent_options)
-                && content.contains("\"throws\"")
-            {
-                return true;
-            }
         }
 
         // check output.json for "errors" array with content
@@ -141,6 +174,11 @@ impl BabelSuite {
         false
     }
 
+    fn disallow_ambiguous_tree_literal(&self, test_dir: &Path) -> bool {
+        let options = Self::options(test_dir);
+        options.is_some_and(|options| options.disallow_ambiguous_jsx_like)
+    }
+
     /// Read the nearest options.json (current dir or first ancestor).
     fn options_content(test_dir: &Path) -> Option<String> {
         let mut current = Some(test_dir);
@@ -154,24 +192,29 @@ impl BabelSuite {
         None
     }
 
+    /// Read the nearest options.json and parse it.
+    fn options(test_dir: &Path) -> Option<BabelOptions> {
+        let content = Self::options_content(test_dir)?;
+        BabelOptions::from_content(&content)
+    }
+
     fn get_input_file(&self, test_dir: &Path) -> Option<(PathBuf, FileType)> {
         let path_str = test_dir.to_string_lossy();
         let in_tsx_dir = path_str.contains("/tsx/") || path_str.contains("/tsx-");
         let in_jsx_dir = path_str.contains("/jsx/") || path_str.contains("/jsx-");
-        let options = Self::options_content(test_dir);
+        let in_typescript_dir = path_str.contains("/typescript/");
+        let options = Self::options(test_dir);
         let has_options = options.is_some();
         let has_jsx = options
-            .as_deref()
-            .map(|c| c.contains("\"jsx\""))
-            .unwrap_or(false);
+            .as_ref()
+            .is_some_and(|options| options.has_plugin("jsx"));
         let has_flow = options
-            .as_deref()
-            .map(|c| c.contains("\"flow\""))
-            .unwrap_or(false);
+            .as_ref()
+            .is_some_and(|options| options.has_plugin("flow"));
         let has_typescript = options
-            .as_deref()
-            .map(|c| c.contains("\"typescript\""))
-            .unwrap_or(false);
+            .as_ref()
+            .is_some_and(|options| options.has_plugin("typescript"));
+        let use_typescript = has_typescript || (!has_options && in_typescript_dir);
         let enable_jsx = if has_options { has_jsx } else { in_jsx_dir };
         for ext in &["ts", "tsx", "js", "jsx", "mjs"] {
             let input = test_dir.join(format!("input.{ext}"));
@@ -181,7 +224,8 @@ impl BabelSuite {
                     "ts" if in_tsx_dir || has_jsx => FileType::TypeScriptXml,
                     "ts" => FileType::TypeScript,
                     "jsx" => FileType::JavaScriptXml,
-                    "js" if enable_jsx && (has_flow || has_typescript) => FileType::TypeScriptXml,
+                    "js" if enable_jsx && (has_flow || use_typescript) => FileType::TypeScriptXml,
+                    "js" if use_typescript => FileType::TypeScript,
                     "js" if enable_jsx => FileType::JavaScriptXml,
                     _ => FileType::JavaScript,
                 };
@@ -243,8 +287,16 @@ impl ConformanceSuite for BabelSuite {
         } else {
             TestArea::Parse
         };
-        let parse_outcome =
-            parse_file(&input_path, &content, test.file_type, ParseOptions { area });
+        let disallow_ambiguous_tree_literal = self.disallow_ambiguous_tree_literal(&test_dir);
+        let parse_outcome = parse_file(
+            &input_path,
+            &content,
+            test.file_type,
+            ParseOptions {
+                area,
+                disallow_ambiguous_tree_literal,
+            },
+        );
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,

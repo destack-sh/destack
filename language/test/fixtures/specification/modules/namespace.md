@@ -105,3 +105,45 @@ declare namespace Bad {
 - contains: declare bindings cannot have initializers
 - contains: invalid function
 - contains: invalid member modifier
+
+### ambient const initializers are restricted
+
+> In ambient contexts, const initializers must be literal values or enum references.
+
+```ts
+declare module "env" {
+    enum E {
+        ok = 0,
+    }
+
+    export const string = "2";
+    export const number = 1.;
+    export const bigint = 0n;
+    export const negative_bigint = -0n;
+    export const negative_number = -1;
+    export const template = `-2`;
+    export const False = false;
+    export const True = true;
+    export const E_ok = E.ok;
+}
+```
+
+> Ambient const initializers reject non-literal expressions.
+
+```ts
+declare module "env" {
+    export const invalid = globalThis;
+}
+```
+
+- contains: const initializers in ambient contexts must be literal values or enum references
+
+> Parenthesized literals are not valid ambient const initializers.
+
+```ts
+declare module "env" {
+    export const parenthesized = (42);
+}
+```
+
+- contains: const initializers in ambient contexts must be literal values or enum references
