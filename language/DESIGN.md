@@ -201,7 +201,8 @@ TypeScript decorators copy-pasted into Destack work as expected.
 ## Errors
 
 Destack uses **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, while `throw` is reserved for unrecoverable panics (bugs, invariant violations).
-We still support `throw` and classic JS exceptions for compatibility with existing JS/TS code, but only on JS targets.
+Exceptions are evil.
+We still _support_ `throw` and classic JS "exceptions" for compatibility with existing JS/TS code, but only on JS targets.
 
 ### Result Types
 
@@ -209,14 +210,14 @@ The standard library provides `Result<T, E>` as the primary error handling mecha
 
 ```
 function readConfig(path: string): Result<Config, IOError> {
-    const text = readFile(path)?    // propagate errors with ?
-    const json = parseJson(text)?
+    const text = readFile(path)?;    // propagate errors with ?
+    const json = parseJson(text)?;
     Result.ok(Config.from(json))
 }
 ```
 
-The `?` operator propagates errors ergonomically, similar to Rust.
-When applied to a `Result`, it returns early with the error if present.
+The `?` operator propagates errors ergonomically, which is - again - similar to Rust.
+When applied to a `Result`, the `?` operator returns early with the error variant if present.
 The `??` operator provides a default value instead of propagating:
 
 ```
@@ -238,14 +239,13 @@ Unlike exceptions in Java or Python, panics are not meant to be caught and recov
 ```
 function assertPositive(n: int) {
     if (n <= 0) {
-        throw new Error("invariant violated: expected positive")
+        throw new Error("unrecoverable invariant violated: expected positive")
     }
 }
 ```
 
 **Native targets:** `throw` aborts the process. No stack unwinding, no catching.
-This enables zero-cost error handling for the common (non-error) path.
-
+This enables "zero-cost" error handling for the common (non-error) path.
 **JS targets:** `throw` behaves as normal JavaScript throw for compatibility.
 
 ### try/catch with Result and exceptions
@@ -261,7 +261,7 @@ try {
 }
 ```
 
-The example uses `Result`, but any type implementing `Try` behaves the same.
+The example uses `Result`, but any type implementing the (nominal) `Try` interface behaves the same.
 `try` does not implicitly unwrap `Result` values.
 Use `?` or `??` inside the block to propagate `Try` errors into the catch.
 When a `?` is inside a `try` with a catch, `Try.fromError` is not required.

@@ -15,6 +15,8 @@ const OBJECT_METADATA_SUFFIX: &str = "#object";
 const TUPLE_METADATA_SUFFIX: &str = "#tuple";
 /// Suffix for union metadata names.
 const UNION_METADATA_SUFFIX: &str = "#union";
+/// Suffix for intersection metadata names.
+const INTERSECTION_METADATA_SUFFIX: &str = "#intersection";
 /// Suffix for function metadata names.
 const FUNCTION_METADATA_SUFFIX: &str = "#function";
 /// Suffix for array metadata names.
@@ -203,13 +205,9 @@ impl ModuleLowerer<'_> {
 
         // resolve the suffix for anonymous types
         let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
-            self.anonymous_metadata_name(type_id, suffix)
-                .or_else(|| self.fallback_reference_metadata_name(dir_type))
-                .or_else(|| self.function_type_metadata_name(type_id))
+            self.anonymous_metadata_name_for_type(type_id, dir_type, suffix)
         } else {
-            self.reference_metadata_name(dir_type)
-                .or_else(|| self.alias_metadata_name(type_id))
-                .or_else(|| self.type_literal_metadata_name(dir_type))
+            self.default_metadata_name(type_id, dir_type)
         };
         let Some(name) = name else {
             return Err(LowerError::Internal {
@@ -277,6 +275,53 @@ impl ModuleLowerer<'_> {
         name.push_str(&return_name);
 
         Some(name)
+    }
+
+    /// Resolve a metadata name for anonymous types or fall back to generic names.
+    fn anonymous_metadata_name_for_type(
+        &self,
+        type_id: dir::LocalTypeId,
+        dir_type: &dir::Type,
+        suffix: &str,
+    ) -> Option<String> {
+        // prefer contextual anonymous metadata names when available
+        if let Some(name) = self.anonymous_metadata_name(type_id, suffix) {
+            return Some(name);
+        }
+
+        // fall back to reference and function metadata names
+        if let Some(name) = self.fallback_reference_metadata_name(dir_type) {
+            return Some(name);
+        }
+        if let Some(name) = self.function_type_metadata_name(type_id) {
+            return Some(name);
+        }
+
+        // fall back to joined union or intersection names without context
+        self.union_intersection_metadata_name(dir_type)
+    }
+
+    /// Resolve default metadata names for non-anonymous types.
+    fn default_metadata_name(
+        &self,
+        type_id: dir::LocalTypeId,
+        dir_type: &dir::Type,
+    ) -> Option<String> {
+        // resolve reference names directly
+        if let Some(name) = self.reference_metadata_name(dir_type) {
+            return Some(name);
+        }
+
+        // resolve aliases and type literal names
+        if let Some(name) = self.alias_metadata_name(type_id) {
+            return Some(name);
+        }
+        if let Some(name) = self.type_literal_metadata_name(dir_type) {
+            return Some(name);
+        }
+
+        // fall back to joined union or intersection names without context
+        self.union_intersection_metadata_name(dir_type)
     }
 
     /// Return metadata names for a nominal symbol.
@@ -473,6 +518,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Object { .. } => Some(OBJECT_METADATA_SUFFIX),
             dir::Type::Tuple { .. } => Some(TUPLE_METADATA_SUFFIX),
             dir::Type::Union { .. } => Some(UNION_METADATA_SUFFIX),
+            dir::Type::Intersection { .. } => Some(INTERSECTION_METADATA_SUFFIX),
             dir::Type::Function { .. } => Some(FUNCTION_METADATA_SUFFIX),
             dir::Type::ArraySized { .. } | dir::Type::Array { .. } => Some(ARRAY_METADATA_SUFFIX),
             dir::Type::PointerOf { .. } => Some(POINTER_METADATA_SUFFIX),
@@ -626,6 +672,27 @@ impl ModuleLowerer<'_> {
         // fall back to aliases and literal metadata names
         self.alias_metadata_name(type_id)
             .or_else(|| self.type_literal_metadata_name(dir_type))
+    }
+
+    /// Resolve a fallback metadata name for union and intersection types.
+    fn union_intersection_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
+        // select the join separator and suffix
+        let (elements, separator, suffix) = match dir_type {
+            dir::Type::Union { elements } => (elements, "|", UNION_METADATA_SUFFIX),
+            dir::Type::Intersection { elements } => (elements, "&", INTERSECTION_METADATA_SUFFIX),
+            _ => return None,
+        };
+
+        // format element names
+        let mut element_names = Vec::with_capacity(elements.len());
+        for element in elements {
+            let name = self.metadata_base_name_for_type(*element)?;
+            element_names.push(name);
+        }
+
+        // join and suffix the name
+        let joined = element_names.join(separator);
+        Some(format!("{joined}{suffix}"))
     }
 
     /// Resolve a metadata name for primitive types.

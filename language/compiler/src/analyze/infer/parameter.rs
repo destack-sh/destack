@@ -433,7 +433,6 @@ impl Compiler {
                 if let Some(remote_declared_type_id) =
                     remote_types.get_declared_type_id(primary_declaration)
                 {
-                    // evaluate unevaluated remote constraints without bound validation
                     let needs_evaluation = matches!(
                         remote_types.get_type(remote_declared_type_id),
                         Type::Unevaluated(_)

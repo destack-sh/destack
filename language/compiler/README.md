@@ -5,7 +5,7 @@ The Destack compiler takes JavaScript, TypeScript and Destack sources (`.(ds|ts|
 ## Pipeline
 
 Like most compilers, the Destack compiler has three main regions:
- 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → typed, elaborated canonical DIR per profile)
+ 1. Front-end (source `.(ds|ts|tsx|js|jsx)` → fully typed, elaborated canonical DIR per profile)
  2. Middle-end (execute comptime, then lower to target-specific MIR)
  3. Back-end (DIR/MIR → emitted artifacts depending on target).
 
@@ -57,7 +57,7 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 | Import | `I` | Text | base DIR | — | Parse source into AST; create DIR with symbols and scopes; desugar syntactic forms (`+=`, `++`, etc.) |
 | Resolve | `R` | base DIR | DIR | per-profile | Resolve symbol references (lexical binding, library resolution) |
 | Analyze | `A` | DIR | DIR | per-profile | Elaborate type declarations, infer value types, resolve overloads, validate semantics, record instances |
-| Elaborate | `E` | DIR | canonical DIR | per-profile | Canonicalize DIR: patterns→decision trees, tree literals→calls, etc. |
+| Elaborate | `E` | DIR | canonical DIR | per-profile | Canonicalize DIR: patterns→decision trees, tree literals→calls, and update type metadata for synthesized nodes. |
 
 ### Middle-End
 

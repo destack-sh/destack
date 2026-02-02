@@ -18,6 +18,8 @@ use crate::lower::module::ModuleLowerer;
 struct ExpressionTypeCollector {
     /// Expression ids encountered during traversal.
     expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Expression ids used as call or constructor callees.
+    callee_expression_ids: HashSet<u32>,
     /// Options for the node visitor.
     options: NodeVisitorOptions,
 }
@@ -27,6 +29,7 @@ impl ExpressionTypeCollector {
     fn new() -> Self {
         Self {
             expression_ids: Vec::new(),
+            callee_expression_ids: HashSet::new(),
             options: NodeVisitorOptions::default(),
         }
     }
@@ -34,6 +37,11 @@ impl ExpressionTypeCollector {
     /// Return collected expression ids.
     fn expression_ids(&self) -> &[LocalNodeId<Expression>] {
         &self.expression_ids
+    }
+
+    /// Return expression ids used as callees.
+    fn callee_expression_ids(&self) -> &HashSet<u32> {
+        &self.callee_expression_ids
     }
 }
 
@@ -48,6 +56,10 @@ impl NodeVisitor for ExpressionTypeCollector {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
+        // skip lowering callee types for direct calls
+        if let Expression::Call { left, .. } | Expression::New { left, .. } = expression {
+            self.callee_expression_ids.insert(left.id);
+        }
         self.expression_ids.push(id);
         destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
@@ -294,12 +306,8 @@ impl ModuleLowerer<'_> {
         let mut parameter_names = Vec::new();
         for parameter_id in &signature.dynamic_parameters {
             let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
-            let parameter_ty = self
-                .types
-                .get_declared_or_inferred_type_id(parameter_node)
-                .ok_or(LowerError::MissingType {
-                    node: parameter_node.into_anchored(Some(self.profile)),
-                })?;
+            let parameter_ty =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
             let parameter_ty = self.lower_type(
                 parameter_ty,
                 parameter_node.into_anchored(Some(self.profile)),
@@ -355,6 +363,12 @@ impl ModuleLowerer<'_> {
         // collect type ids referenced by expressions
         let mut type_sources: HashMap<dir::LocalTypeId, dir::GlobalNodeIdAny> = HashMap::new();
         for expression_id in collector.expression_ids() {
+            if collector
+                .callee_expression_ids()
+                .contains(&expression_id.id)
+            {
+                continue;
+            }
             let node_id = expression_id.into_global_any(self.module_id);
             if let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) {
                 let dir_type = self.types.get_type(type_id);
@@ -414,9 +428,7 @@ impl ModuleLowerer<'_> {
         // resolve the signature type id
         self.types
             .get_signature_type_for_node(node_id)
-            .ok_or(LowerError::MissingType {
-                node: node_id.into_anchored(Some(self.profile)),
-            })
+            .ok_or_else(|| self.missing_type_error(node_id))
     }
 
     /// Lower a function declaration to a MIR function.
@@ -459,12 +471,8 @@ impl ModuleLowerer<'_> {
         let mut parameter_names = Vec::new();
         for parameter_id in &signature.dynamic_parameters {
             let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
-            let parameter_ty = self
-                .types
-                .get_declared_or_inferred_type_id(parameter_node)
-                .ok_or(LowerError::MissingType {
-                    node: parameter_node.into_anchored(Some(self.profile)),
-                })?;
+            let parameter_ty =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
             let parameter_ty = self.lower_type(
                 parameter_ty,
                 parameter_node.into_anchored(Some(self.profile)),
@@ -524,6 +532,11 @@ impl ModuleLowerer<'_> {
 
             function_id
         };
+
+        // skip declared functions without bodies
+        if body.is_none() {
+            return Ok(function_id);
+        }
 
         // resolve shared closure environment metadata
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
@@ -732,9 +745,7 @@ impl ModuleLowerer<'_> {
         // extract the return type id from the signature
         let return_type_id = match self.types.get_type(signature_type_id) {
             dir::Type::Function { return_type, .. } => {
-                return_type.ok_or(LowerError::MissingType {
-                    node: node_id.into_anchored(Some(self.profile)),
-                })?
+                return_type.ok_or_else(|| self.missing_type_error(node_id))?
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
@@ -1145,12 +1156,8 @@ impl ModuleLowerer<'_> {
         for parameter_id in &signature.dynamic_parameters {
             // resolve the parameter type id
             let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
-            let parameter_ty_id = self
-                .types
-                .get_declared_or_inferred_type_id(parameter_node)
-                .ok_or(LowerError::MissingType {
-                    node: parameter_node.into_anchored(Some(self.profile)),
-                })?;
+            let parameter_ty_id =
+                self.declared_or_inferred_type_id_for_node_or_error(parameter_node)?;
 
             // lower the parameter type
             let parameter_ty = self.lower_type(

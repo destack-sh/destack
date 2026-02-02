@@ -133,6 +133,9 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
+        // newtypes are transparent
+        mir::Type::Newtype { inner, .. } => compute_type_layout(tree, *inner, pointer_bytes),
+
         // vectors: treat as packed elements for now
         mir::Type::Vector {
             element,

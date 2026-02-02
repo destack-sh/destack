@@ -10,6 +10,7 @@ mod query;
 mod resolve;
 mod scalar;
 mod union;
+mod vector;
 
 pub(crate) use builtin::*;
 pub(crate) use r#enum::*;

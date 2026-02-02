@@ -4874,7 +4874,7 @@ impl Compiler {
         );
 
         let generator_name = self.program.strings.intern("Generator");
-        let generator_symbol = self.get_declared_lib_symbol_for_space_order(
+        let generator_symbol = self.get_declared_lib_symbol_from(
             profile,
             generator_name,
             SymbolSpaceOrder::TypeThenValue,

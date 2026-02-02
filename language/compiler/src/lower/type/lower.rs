@@ -31,6 +31,8 @@ pub(crate) struct TypeLowerer {
     pub(super) modules: Arc<ModuleRegistry>,
     /// Access to package metadata for qualified names.
     pub(super) packages: Arc<PackageRegistry>,
+    /// Cached Vector type symbol for SIMD lowering.
+    pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
     /// Cached MIR types by DIR type id.
     pub(crate) type_cache: HashMap<dir::LocalTypeId, TypeCacheEntry>,
     /// Cached struct layouts by MIR type id (for field index lookup).
@@ -69,6 +71,7 @@ pub(crate) struct TypeLowerer {
     pub(crate) layout_policy: TypeLayoutPolicy,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl TypeLowerer {
     /// Create a new type lowerer with cached common types.
     pub(crate) fn new(
@@ -76,6 +79,7 @@ impl TypeLowerer {
         pointer_bytes: u8,
         modules: Arc<ModuleRegistry>,
         packages: Arc<PackageRegistry>,
+        vector_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
         let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
@@ -91,6 +95,7 @@ impl TypeLowerer {
         Self {
             modules,
             packages,
+            vector_symbol,
             type_cache: HashMap::new(),
             layout_cache: HashMap::new(),
             pointer_width_bits,
@@ -331,9 +336,18 @@ impl TypeLowerer {
         }
 
         let mir_type = match dir_type {
-            dir::Type::Reference { symbol, .. } => {
-                self.lower_reference_type(types, type_id, *symbol, module_id, node, builder)?
-            }
+            dir::Type::Reference {
+                symbol,
+                static_arguments,
+            } => self.lower_reference_type(
+                types,
+                type_id,
+                *symbol,
+                static_arguments.as_deref(),
+                module_id,
+                node,
+                builder,
+            )?,
             dir::Type::ValueOf {
                 mutability, right, ..
             } => {
@@ -442,6 +456,7 @@ impl TypeLowerer {
         types: &dir::TypeTable,
         type_id: dir::LocalTypeId,
         symbol: dir::GlobalSymbolId,
+        static_arguments: Option<&[dir::StaticArgument]>,
         module_id: ModuleId,
         node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -451,6 +466,44 @@ impl TypeLowerer {
         }
         if symbol.ty() == dir::SymbolType::Enum {
             return self.lower_enum_backing_type(types, symbol, node, builder);
+        }
+
+        // handle vector type lowering
+        let is_alias_with_target = symbol.ty() == dir::SymbolType::TypeAlias
+            && types.get_alias_target_type_id(symbol).is_some();
+
+        if !is_alias_with_target && self.is_vector_symbol(symbol) {
+            return self.lower_vector_reference_type(
+                types,
+                type_id,
+                module_id,
+                node,
+                static_arguments,
+                builder,
+            );
+        }
+
+        // handle nominal newtypes with a transparent MIR wrapper
+        if symbol.ty() == dir::SymbolType::Newtype {
+            if let Some(instance_type_id) = types.get_instance_type_id(symbol)
+                && instance_type_id != type_id
+            {
+                return self.lower_type(types, instance_type_id, module_id, node, builder);
+            }
+
+            let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "newtype missing target type".to_string(),
+                });
+            };
+            let inner_type = self.lower_type(types, alias_target_id, module_id, node, builder)?;
+            let copyability = builder.tree().get(inner_type).copyability();
+            return Ok(builder.tree_mut().insert_type(mir::Type::Newtype {
+                inner: inner_type,
+                copyability,
+            }));
         }
 
         let instance_type_id =

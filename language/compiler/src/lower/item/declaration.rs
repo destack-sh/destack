@@ -141,6 +141,7 @@ impl ModuleLowerer<'_> {
             }
             // interface declarations are metadata only during lower
             Declaration::Interface { .. } => Ok(()),
+            Declaration::Type { .. } => Ok(()),
             _ => Err(LowerError::UnsupportedConstruct {
                 node: declaration_id
                     .into_global_any(self.module_id)
@@ -186,14 +187,9 @@ impl ModuleLowerer<'_> {
 
             // resolve the field type from the initializer expression
             let symbol_id = symbol.into_global(self.module_id);
-            let type_id = self
-                .types
-                .get_declared_or_inferred_type_id(value_id.into_global_any(self.module_id))
-                .ok_or_else(|| LowerError::MissingType {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+            let type_id = self.declared_or_inferred_type_id_for_node_or_error(
+                value_id.into_global_any(self.module_id),
+            )?;
             let mir_type = self.lower_type(
                 type_id,
                 member_id

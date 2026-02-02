@@ -72,7 +72,7 @@ impl FunctionContext<'_> {
             mir::ReferenceKind::Raw,
             payload_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let payload_ptr = self
@@ -89,7 +89,7 @@ impl FunctionContext<'_> {
             mir::ReferenceKind::Raw,
             value_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let value_ptr = self.state.builder.bitcast(payload_ptr, value_ref_type);
@@ -107,12 +107,12 @@ impl FunctionContext<'_> {
         target_type: mir::LocalNodeId<mir::Type>,
         _node: AnchoredGlobalNodeId,
     ) -> LowerResult<mir::Value> {
-        // allocate payload storage on the stack
+        // use stack scratch storage for payload reinterpretation
         let payload_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             payload_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let payload_ptr = self
@@ -128,7 +128,7 @@ impl FunctionContext<'_> {
             mir::ReferenceKind::Raw,
             target_type,
             mir::Mutability::Mutable,
-            mir::AddressSpace::Generic,
+            mir::AddressSpace::Stack,
             false,
         );
         let target_ptr = self.state.builder.bitcast(payload_ptr, target_ref_type);
@@ -721,7 +721,7 @@ impl FunctionContext<'_> {
         let tag_index = union_layout
             .element_types
             .iter()
-            .position(|element| dir::are_types_equal(*element, literal.type_id, self.env.types))
+            .position(|element| self.type_ids_equivalent(*element, literal.type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: self
                     .env

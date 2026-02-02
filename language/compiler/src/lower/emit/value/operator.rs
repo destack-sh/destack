@@ -23,13 +23,9 @@ impl FunctionContext<'_> {
         operator: dir::BinaryOperator,
         operand_id: LocalNodeId<Expression>,
     ) -> LowerResult<mir::BinaryOperator> {
-        let scalar_type =
-            self.scalar_type_for_expression(operand_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let scalar_type = self
+            .scalar_type_for_expression(operand_id)
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
         let is_float = matches!(scalar_type, ScalarType::Float { .. });
         let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
 

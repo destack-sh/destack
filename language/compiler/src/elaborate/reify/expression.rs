@@ -93,7 +93,7 @@ impl Compiler {
         }
 
         // normalize return if expressions introduced during reify
-        self.transform_normalize_value_expressions(&mut tree, &symbols, module_id)?;
+        self.transform_normalize_value_expressions(&mut tree, &symbols, &mut types, module_id)?;
 
         // collapse redundant nested casts
         self.normalize_redundant_casts(
@@ -115,10 +115,7 @@ impl Compiler {
         module: &Module,
         member_callees: &HashSet<u32>,
     ) -> ElaborateResult<()> {
-        // read the expression before mutating the tree
         let expression = tree.get(expression_id).clone();
-
-        // reify expression forms that need concrete nodes
         match expression {
             // tree literals to constructor calls
             Expression::TreeExpression { .. } => {

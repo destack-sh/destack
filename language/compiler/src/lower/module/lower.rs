@@ -1,7 +1,8 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use destack_ast::{StringId, StringPool};
-use destack_dir::{GlobalSymbolId, LocalNodeId};
+use destack_ast::StringId;
+use destack_base::StringPool;
+use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
 use indexmap::IndexSet;
@@ -130,12 +131,20 @@ impl<'a> ModuleLowerer<'a> {
         let strings = compiler.program.strings.as_ref().clone().into_immutable();
         builder.strings().copy_from_immutable(&strings);
 
+        // resolve vector builtin symbols for SIMD lowering
+        let vector_symbol = compiler.get_well_known_symbol_from(
+            profile,
+            dir::WellKnownSymbol::Vector,
+            dir::SymbolSpaceOrder::TypeThenValue,
+        );
+
         // create the type lowerer
         let type_lowerer = TypeLowerer::new(
             &mut builder,
             pointer_bytes,
             compiler.program.modules.clone(),
             compiler.program.packages.clone(),
+            vector_symbol,
         );
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
@@ -237,6 +246,34 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         mir::AllocationMode::Any
+    }
+
+    /// Create a MissingType error for a node.
+    pub(crate) fn missing_type_error(&self, node_id: GlobalNodeIdAny) -> LowerError {
+        LowerError::MissingType {
+            node: node_id.into_anchored(Some(self.profile)),
+        }
+    }
+
+    /// Resolve a declared or inferred type id for a node or return MissingType.
+    pub(crate) fn declared_or_inferred_type_id_for_node_or_error(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> LowerResult<dir::LocalTypeId> {
+        self.types
+            .get_declared_or_inferred_type_id(node_id)
+            .ok_or_else(|| self.missing_type_error(node_id))
+    }
+
+    /// Resolve a symbol type id or return MissingType.
+    pub(crate) fn type_id_for_symbol_or_error(
+        &self,
+        symbol: GlobalSymbolId,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<dir::LocalTypeId> {
+        self.types
+            .get_type_id_for_symbol(self.symbols, symbol)
+            .ok_or(LowerError::MissingType { node: anchor })
     }
 
     /// Insert a global binding for a symbol.
@@ -502,6 +539,7 @@ impl<'a> ModuleLowerer<'a> {
 
         // finalize nominal types so layouts are cached
         self.finalize_declared_types()?;
+        self.ensure_newtype_aliases()?;
 
         // emit dispatch tables (vtables, itabs)
         self.dispatch_tables()?;
@@ -801,6 +839,57 @@ impl<'a> ModuleLowerer<'a> {
             name: alias_id,
             ty: string_layout,
         });
+
+        Ok(())
+    }
+
+    /// Ensure newtype aliases are registered in the MIR tree.
+    fn ensure_newtype_aliases(&mut self) -> LowerResult<()> {
+        // collect existing aliases by name
+        let mut existing_aliases = HashSet::new();
+        for (_, alias) in self.builder.tree().iter_nodes::<mir::TypeAlias>() {
+            existing_aliases.insert(alias.name);
+        }
+
+        // emit aliases for each lowered newtype
+        for symbol_id in 0..self.symbols.symbol_count() {
+            // skip non newtype symbols
+            let symbol = self.symbols.get_symbol_by_id(symbol_id);
+            if symbol.ty != dir::SymbolType::Newtype {
+                continue;
+            }
+
+            // resolve the instance type and its lowered mir type
+            let local_id = dir::LocalSymbolId::new_typed(symbol_id, symbol.ty);
+            let global_id = local_id.into_global(self.module_id);
+            let Some(instance_type_id) = self.types.get_instance_type_id(global_id) else {
+                continue;
+            };
+            let Some(mir_type) = self.type_lowerer.cached_type(instance_type_id) else {
+                continue;
+            };
+
+            // resolve the qualified alias name
+            let Some(name) = self.qualified_symbol_name(global_id) else {
+                let anchor = self.type_anchor(instance_type_id);
+                return Err(LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "newtype alias missing symbol name".to_string(),
+                });
+            };
+
+            // insert the alias if it is not already present
+            let name_id = self.builder.intern(&name);
+            if existing_aliases.contains(&name_id) {
+                continue;
+            }
+
+            self.builder.tree_mut().insert(mir::TypeAlias {
+                name: name_id,
+                ty: mir_type,
+            });
+            existing_aliases.insert(name_id);
+        }
 
         Ok(())
     }

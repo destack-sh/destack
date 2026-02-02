@@ -209,12 +209,12 @@ type @Circle = { value: i32 }
 function @makeShape(v0: @Circle) -> @makeShape#return#union {
 block0(v0: @Circle):
     v1: u8 = iconst 0u8
-    v2: ref<raw mut [usize; 1]> = stack.alloc [usize; 1]
+    v2: ref<raw addrspace(stack) mut [usize; 1]> = stack.alloc [usize; 1]
     v3: u64 = iconst 0u64
     v4: usize = bitcast v3 -> usize
     v5: [usize; 1] = array [usize; 1] (v4)
     store v2, v5
-    v6: ref<raw mut @Circle> = bitcast v2 -> ref<raw mut @Circle>
+    v6: ref<raw addrspace(stack) mut @Circle> = bitcast v2 -> ref<raw addrspace(stack) mut @Circle>
     store v6, v0
     v7: [usize; 1] = load v2
     v8: @makeShape#return#union = struct @makeShape#return#union (v1, v7)
@@ -534,9 +534,9 @@ type @Circle = { value: i32 }
 function @takeCircle(v0: @takeCircle#parameter:value#union) -> @Circle {
 block0(v0: @takeCircle#parameter:value#union):
     v1: [usize; 1] = field.get v0, 1
-    v2: ref<raw mut [usize; 1]> = stack.alloc [usize; 1]
+    v2: ref<raw addrspace(stack) mut [usize; 1]> = stack.alloc [usize; 1]
     store v2, v1
-    v3: ref<raw mut @Circle> = bitcast v2 -> ref<raw mut @Circle>
+    v3: ref<raw addrspace(stack) mut @Circle> = bitcast v2 -> ref<raw addrspace(stack) mut @Circle>
     v4: @Circle = load v3
     return v4
 }

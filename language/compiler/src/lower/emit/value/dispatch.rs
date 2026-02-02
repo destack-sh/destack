@@ -147,26 +147,15 @@ impl FunctionContext<'_> {
         interface_symbol: GlobalSymbolId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the declaring interface type id
-        let interface_type_id = self
-            .env
-            .types
-            .get_instance_type_id(interface_symbol)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+        let interface_type_id =
+            self.instance_type_id_for_symbol_or_error(expression_id.into_any(), interface_symbol)?;
 
         // resolve the declaring mir type
         let declaring_type = self
             .env
             .type_lowerer
             .cached_type(interface_type_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         Ok(declaring_type)
     }
@@ -257,13 +246,7 @@ impl FunctionContext<'_> {
         };
 
         // resolve the signature type id
-        let signature_type_id = self
-            .env
-            .types
-            .get_signature_type_for_node(node_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: node_id.into_anchored(Some(self.env.profile)),
-            })?;
+        let signature_type_id = self.signature_type_id_for_node_or_error(node_id)?;
 
         Ok(VirtualMethodKey::new(
             method_name,
@@ -301,26 +284,15 @@ impl FunctionContext<'_> {
             })?;
 
         // resolve the instance type id
-        let instance_type_id = self
-            .env
-            .types
-            .get_instance_type_id(class_symbol)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+        let instance_type_id =
+            self.instance_type_id_for_symbol_or_error(expression_id.into_any(), class_symbol)?;
 
         // resolve the declaring mir type
         let mir_type = self
             .env
             .type_lowerer
             .cached_type(instance_type_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         Ok(mir_type)
     }

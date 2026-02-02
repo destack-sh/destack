@@ -35,6 +35,17 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
+            // skip intrinsic bindings, they are lowered directly
+            let anchor = expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+            if self
+                .resolve_intrinsic_binding_name_id(anchor, target_symbol)?
+                .is_some()
+            {
+                continue;
+            }
+
             // require a resolved signature
             let Some(signature) = candidate.resolved_signature.as_ref() else {
                 return Err(LowerError::UnsupportedConstruct {
@@ -152,7 +163,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Ensure the module has been analyzed for this profile.
-    fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
+    pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
         // request analysis for the target module
         let result = self
             .compiler

@@ -89,6 +89,15 @@ pub enum LowerError {
         node: AnchoredGlobalNodeId,
     },
 
+    /// Invalid static argument.
+    #[error(code = "EM203", message = "invalid static argument: {message}")]
+    InvalidStaticArgument {
+        /// Report the node that carries the static arguments.
+        node: AnchoredGlobalNodeId,
+        /// Describe why the static argument is invalid.
+        message: String,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: Symbol resolution issues
     // -------------------------------------------------------------------------

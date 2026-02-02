@@ -32,6 +32,7 @@ impl ModuleLowerer<'_> {
             return Ok(table_id);
         }
 
+        // check for cycles
         if self.itab_in_progress.contains(&(concrete, interface)) {
             let anchor = self
                 .declaration_ids_for_symbol(interface)
@@ -48,7 +49,6 @@ impl ModuleLowerer<'_> {
                 message: "cycle detected while lowering itab".to_string(),
             });
         }
-
         self.itab_in_progress.insert((concrete, interface));
 
         // resolve the declaration

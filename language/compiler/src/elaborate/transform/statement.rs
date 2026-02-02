@@ -1,11 +1,11 @@
 use destack_dir::{
     Block, DeclarationDescriptor, Declarator, Expression, IfCondition, IfKind, LocalNodeId,
-    Mutability, NodeTree, NodeType, Path, SymbolTable,
+    Mutability, NodeTree, NodeType, Path, SymbolTable, TypeTable,
 };
 use destack_source::ModuleId;
 use smallvec::smallvec;
 
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -17,6 +17,7 @@ impl Compiler {
         &self,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
         module_id: ModuleId,
     ) -> ElaborateResult<()> {
         // collect all block ids to process (we modify the tree, so collect first)
@@ -27,7 +28,7 @@ impl Compiler {
             if !self.is_node_active(tree, symbols, block_id.into_any()) {
                 continue;
             }
-            self.normalize_block_expressions(block_id, tree, module_id)?;
+            self.normalize_block_expressions(block_id, tree, types, module_id)?;
         }
 
         Ok(())
@@ -38,6 +39,7 @@ impl Compiler {
         &self,
         block_id: LocalNodeId<Block>,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         module_id: ModuleId,
     ) -> ElaborateResult<()> {
         // read the block and scope
@@ -88,6 +90,7 @@ impl Compiler {
                         } => {
                             self.normalize_if_in_let(
                                 tree,
+                                types,
                                 scope,
                                 &mut new_expressions,
                                 expr_id,
@@ -106,6 +109,7 @@ impl Compiler {
                         Expression::SequenceExpression { expressions } => {
                             self.normalize_sequence_in_let(
                                 tree,
+                                types,
                                 scope,
                                 &mut new_expressions,
                                 expr_id,
@@ -114,6 +118,7 @@ impl Compiler {
                                 descriptor.clone(),
                                 *mutability,
                                 &expressions,
+                                module_id,
                             )?;
                             modified = true;
                             continue;
@@ -123,6 +128,7 @@ impl Compiler {
                         Expression::Block { block: inner_block } => {
                             self.normalize_block_in_let(
                                 tree,
+                                types,
                                 scope,
                                 &mut new_expressions,
                                 declarator_id,
@@ -155,12 +161,14 @@ impl Compiler {
                     {
                         self.normalize_if_in_return(
                             tree,
+                            types,
                             scope,
                             &mut new_expressions,
                             expr_id,
                             condition,
                             then_expression,
                             else_expr,
+                            module_id,
                         )?;
                         modified = true;
                         continue;
@@ -178,6 +186,8 @@ impl Compiler {
         if modified {
             let block_mut = tree.get_mut(block_id);
             block_mut.expressions = new_expressions;
+
+            self.reinfer_block_type(block_id, tree, types, module_id)?;
         }
 
         Ok(())
@@ -187,10 +197,10 @@ impl Compiler {
     ///
     /// Produces `let x; if (c) { x = a } else { x = b }`.
     /// Replaces nodes in-place to avoid orphaned nodes in the tree.
-    #[allow(clippy::too_many_arguments)]
     fn normalize_if_in_let(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_expr_id: LocalNodeId<Expression>,
@@ -217,16 +227,28 @@ impl Compiler {
 
         // create assignment targets for each branch
         let target_id =
-            self.pattern_to_assignment_target(tree, scope, declarator.pattern, module_id)?;
+            self.pattern_to_assignment_target(tree, types, scope, declarator.pattern, module_id)?;
         let target_id2 =
-            self.pattern_to_assignment_target(tree, scope, declarator.pattern, module_id)?;
+            self.pattern_to_assignment_target(tree, types, scope, declarator.pattern, module_id)?;
 
         // wrap the value-producing part of each branch in assignment
         // (for blocks, this replaces the last expression; for simple expressions, wraps the whole thing)
-        let then_transformed =
-            self.wrap_branch_value_in_assignment(tree, scope, target_id, then_expression)?;
-        let else_transformed =
-            self.wrap_branch_value_in_assignment(tree, scope, target_id2, else_expression)?;
+        let then_transformed = self.wrap_branch_value_in_assignment(
+            tree,
+            types,
+            scope,
+            target_id,
+            then_expression,
+            module_id,
+        )?;
+        let else_transformed = self.wrap_branch_value_in_assignment(
+            tree,
+            types,
+            scope,
+            target_id2,
+            else_expression,
+            module_id,
+        )?;
 
         // create the new if expression
         let new_if_id =
@@ -240,6 +262,7 @@ impl Compiler {
                 else_expression: Some(else_transformed),
             },
         );
+        self.set_void_expression_type(types, module_id, new_if);
         new_expressions.push(new_if);
 
         Ok(())
@@ -252,6 +275,7 @@ impl Compiler {
     fn normalize_sequence_in_let(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_let_id: LocalNodeId<Expression>,
@@ -260,6 +284,7 @@ impl Compiler {
         descriptor: DeclarationDescriptor,
         mutability: Mutability,
         seq_expressions: &[LocalNodeId<Expression>],
+        module_id: ModuleId,
     ) -> ElaborateResult<()> {
         // skip empty sequences
         if seq_expressions.is_empty() {
@@ -276,6 +301,7 @@ impl Compiler {
             );
             let stmt: LocalNodeId<Expression> =
                 tree.insert(stmt_id, Expression::Statement { statement: expr_id });
+            self.set_void_expression_type(types, module_id, stmt);
             new_expressions.push(stmt);
         }
 
@@ -307,6 +333,7 @@ impl Compiler {
                 declarators: vec![new_declarator],
             },
         );
+        self.set_void_expression_type(types, module_id, new_let);
         new_expressions.push(new_let);
 
         Ok(())
@@ -318,6 +345,7 @@ impl Compiler {
     fn normalize_block_in_let(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         declarator_id: LocalNodeId<Declarator>,
@@ -356,13 +384,15 @@ impl Compiler {
                 declarators: vec![uninit_declarator],
             },
         );
+        self.set_void_expression_type(types, module_id, uninit_let);
         new_expressions.push(uninit_let);
 
         // replace the last expression with an assignment
         let last_expr_id = inner_block.expressions[inner_block.expressions.len() - 1];
         let target_id =
-            self.pattern_to_assignment_target(tree, scope, declarator.pattern, module_id)?;
-        let assign_expr = self.wrap_in_assignment(tree, scope, target_id, last_expr_id)?;
+            self.pattern_to_assignment_target(tree, types, scope, declarator.pattern, module_id)?;
+        let assign_expr =
+            self.wrap_in_assignment(tree, types, scope, target_id, last_expr_id, module_id)?;
 
         // update the block
         let block_mut = tree.get_mut(inner_block_id);
@@ -379,6 +409,7 @@ impl Compiler {
                 block: inner_block_id,
             },
         );
+        self.set_void_block_expression_type(types, module_id, inner_block_id, block_expr);
         new_expressions.push(block_expr);
 
         Ok(())
@@ -390,24 +421,35 @@ impl Compiler {
     fn normalize_if_in_return(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_return_id: LocalNodeId<Expression>,
         condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<()> {
         // wrap the value producing part of each branch in return
-        let then_transformed = self.wrap_branch_value_in_return(tree, scope, then_expression)?;
+        let then_transformed =
+            self.wrap_branch_value_in_return(tree, types, scope, then_expression, module_id)?;
         let else_expr = tree.get(else_expression).clone();
         let else_transformed = match else_expr {
             Expression::If {
                 kind: IfKind::If, ..
             } => {
                 // normalize nested if for else if chains
-                self.normalize_if_expression_for_return(tree, scope, else_expression)?
+                self.normalize_if_expression_for_return(
+                    tree,
+                    types,
+                    scope,
+                    else_expression,
+                    module_id,
+                )?
             }
-            _ => self.wrap_branch_value_in_return(tree, scope, else_expression)?,
+            _ => {
+                self.wrap_branch_value_in_return(tree, types, scope, else_expression, module_id)?
+            }
         };
 
         // create the new if expression
@@ -426,6 +468,7 @@ impl Compiler {
                 else_expression: Some(else_transformed),
             },
         );
+        self.set_void_expression_type(types, module_id, new_if);
         new_expressions.push(new_if);
 
         Ok(())
@@ -436,8 +479,10 @@ impl Compiler {
     fn normalize_if_expression_for_return(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         if_id: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let Expression::If {
             kind: IfKind::If,
@@ -450,7 +495,8 @@ impl Compiler {
         };
 
         // wrap the value producing part of each branch in return
-        let then_transformed = self.wrap_branch_value_in_return(tree, scope, then_expression)?;
+        let then_transformed =
+            self.wrap_branch_value_in_return(tree, types, scope, then_expression, module_id)?;
         let else_transformed = match else_expression {
             Some(else_expression) => {
                 let else_expr = tree.get(else_expression).clone();
@@ -461,11 +507,19 @@ impl Compiler {
                         // normalize nested else if
                         Some(self.normalize_if_expression_for_return(
                             tree,
+                            types,
                             scope,
                             else_expression,
+                            module_id,
                         )?)
                     }
-                    _ => Some(self.wrap_branch_value_in_return(tree, scope, else_expression)?),
+                    _ => Some(self.wrap_branch_value_in_return(
+                        tree,
+                        types,
+                        scope,
+                        else_expression,
+                        module_id,
+                    )?),
                 }
             }
             None => None,
@@ -480,6 +534,7 @@ impl Compiler {
                 else_expression: else_transformed,
             },
         );
+        self.set_void_expression_type(types, module_id, if_id);
 
         Ok(if_id)
     }
@@ -488,6 +543,7 @@ impl Compiler {
     fn pattern_to_assignment_target(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         pattern_id: LocalNodeId<destack_dir::Pattern>,
         module_id: ModuleId,
@@ -503,6 +559,12 @@ impl Compiler {
                     segments: smallvec![name],
                 };
                 let global_symbol = symbol.into_global(module_id);
+                let value_type_id = self.value_type_id_or_error(
+                    module_id,
+                    global_symbol,
+                    pattern_id.into_any(),
+                    types,
+                )?;
 
                 let ref_id =
                     tree.reserve_from(NodeType::Expression, pattern_id.into_any(), scope, None);
@@ -514,18 +576,15 @@ impl Compiler {
                         target_symbol: global_symbol,
                     },
                 );
+                self.set_expression_type(types, module_id, ref_expr, value_type_id);
 
                 Ok(ref_expr)
             }
 
             // complex patterns not yet supported
-            _ => {
-                let err_id =
-                    tree.reserve_from(NodeType::Expression, pattern_id.into_any(), scope, None);
-                let err_expr: LocalNodeId<Expression> = tree.insert(err_id, Expression::Error);
-
-                Ok(err_expr)
-            }
+            _ => Err(ElaborateError::UnsupportedConstruct {
+                node: pattern_id.into_global_any(module_id).into_anchored(None),
+            }),
         }
     }
 
@@ -536,12 +595,13 @@ impl Compiler {
     fn wrap_branch_value_in_assignment(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         target: LocalNodeId<Expression>,
         branch: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let branch_expr = tree.get(branch).clone();
-
         match branch_expr {
             // for blocks, wrap the last expression in assignment
             Expression::Block { block: block_id } => {
@@ -556,13 +616,15 @@ impl Compiler {
                 let last_expr_id = block.expressions[last_idx];
 
                 // wrap the last expression in assignment
-                let assign = self.wrap_in_assignment(tree, scope, target, last_expr_id)?;
+                let assign =
+                    self.wrap_in_assignment(tree, types, scope, target, last_expr_id, module_id)?;
 
                 // wrap the assignment in a Statement for proper semicolon
                 let stmt_id =
                     tree.reserve_from(NodeType::Expression, last_expr_id.into_any(), scope, None);
                 let stmt: LocalNodeId<Expression> =
                     tree.insert(stmt_id, Expression::Statement { statement: assign });
+                self.set_void_expression_type(types, module_id, stmt);
 
                 // update the block with the statement as the last expression
                 let mut new_expressions = block.expressions.clone();
@@ -570,13 +632,14 @@ impl Compiler {
 
                 let block_mut = tree.get_mut(block_id);
                 block_mut.expressions = new_expressions;
+                self.set_void_block_expression_type(types, module_id, block_id, branch);
 
                 // return the original branch (now modified)
                 Ok(branch)
             }
 
             // for simple expressions, wrap the whole thing
-            _ => self.wrap_in_assignment(tree, scope, target, branch),
+            _ => self.wrap_in_assignment(tree, types, scope, target, branch, module_id),
         }
     }
 
@@ -587,8 +650,10 @@ impl Compiler {
     fn wrap_branch_value_in_return(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         branch: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let branch_expr = tree.get(branch).clone();
 
@@ -606,7 +671,8 @@ impl Compiler {
                 let last_expr_id = block.expressions[last_idx];
 
                 // wrap the last expression in return
-                let return_expr = self.wrap_in_return(tree, scope, last_expr_id)?;
+                let return_expr =
+                    self.wrap_in_return(tree, types, scope, last_expr_id, module_id)?;
 
                 // wrap the return in a Statement for proper semicolon
                 let stmt_id =
@@ -617,6 +683,7 @@ impl Compiler {
                         statement: return_expr,
                     },
                 );
+                self.set_void_expression_type(types, module_id, stmt);
 
                 // update the block with the statement as the last expression
                 let mut new_expressions = block.expressions.clone();
@@ -624,6 +691,7 @@ impl Compiler {
 
                 let block_mut = tree.get_mut(block_id);
                 block_mut.expressions = new_expressions;
+                self.set_void_block_expression_type(types, module_id, block_id, branch);
 
                 // return the original branch (now modified)
                 Ok(branch)
@@ -632,7 +700,7 @@ impl Compiler {
             // for simple expressions, wrap the whole thing
             _ => {
                 // wrap the return in a statement inside a block
-                let return_expr = self.wrap_in_return(tree, scope, branch)?;
+                let return_expr = self.wrap_in_return(tree, types, scope, branch, module_id)?;
 
                 let stmt_id =
                     tree.reserve_from(NodeType::Expression, branch.into_any(), scope, None);
@@ -642,6 +710,7 @@ impl Compiler {
                         statement: return_expr,
                     },
                 );
+                self.set_void_expression_type(types, module_id, stmt);
 
                 let block_id = tree.reserve_from(NodeType::Block, branch.into_any(), scope, None);
                 let block: LocalNodeId<Block> = tree.insert(
@@ -656,6 +725,7 @@ impl Compiler {
                     tree.reserve_from(NodeType::Expression, branch.into_any(), scope, None);
                 let block_expr: LocalNodeId<Expression> =
                     tree.insert(block_expr_id, Expression::Block { block });
+                self.set_void_block_expression_type(types, module_id, block, block_expr);
 
                 Ok(block_expr)
             }
@@ -666,9 +736,11 @@ impl Compiler {
     fn wrap_in_assignment(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         target: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let assign_id = tree.reserve_from(NodeType::Expression, value.into_any(), scope, None);
         let assign: LocalNodeId<Expression> = tree.insert(
@@ -678,6 +750,7 @@ impl Compiler {
                 right: value,
             },
         );
+        self.set_void_expression_type(types, module_id, assign);
 
         Ok(assign)
     }
@@ -686,12 +759,15 @@ impl Compiler {
     fn wrap_in_return(
         &self,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         value: LocalNodeId<Expression>,
+        module_id: ModuleId,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         let return_id = tree.reserve_from(NodeType::Expression, value.into_any(), scope, None);
         let return_expr: LocalNodeId<Expression> =
             tree.insert(return_id, Expression::Return { value: Some(value) });
+        self.set_never_expression_type(types, module_id, return_expr);
 
         Ok(return_expr)
     }

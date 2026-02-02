@@ -1,4 +1,3 @@
-mod directive;
 mod emit;
 mod error;
 mod item;

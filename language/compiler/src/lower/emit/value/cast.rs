@@ -232,11 +232,7 @@ impl FunctionContext<'_> {
                 .env
                 .type_lowerer
                 .interface_ref_layout(source_type_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+                .ok_or_else(|| self.missing_type_error(expression_id))?;
 
             // extract the object pointer from the interface value
             let object_ptr = self
@@ -318,11 +314,7 @@ impl FunctionContext<'_> {
             .env
             .type_lowerer
             .union_layout(target_type_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         // skip when the source is already the target union type
         if dir::are_types_equal(source_type_id, target_type_id, self.env.types) {
@@ -334,7 +326,7 @@ impl FunctionContext<'_> {
         let tag_index = layout
             .element_types
             .iter()
-            .position(|element| dir::are_types_equal(*element, source_type_id, self.env.types))
+            .position(|element| self.type_ids_equivalent(*element, source_type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)
@@ -434,11 +426,7 @@ impl FunctionContext<'_> {
             .env
             .type_lowerer
             .union_layout(source_type_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         // extract the payload value
         let payload_value = self
@@ -626,11 +614,7 @@ impl FunctionContext<'_> {
             .env
             .type_lowerer
             .interface_ref_layout(target_type_id)
-            .ok_or_else(|| LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            })?;
+            .ok_or_else(|| self.missing_type_error(expression_id))?;
 
         // resolve the concrete symbol for the source type
         let source_dir_type = self.env.types.get_type(source_type_id);

@@ -5,14 +5,16 @@ Lower runs after Elaborate and turns high-level "canonical" DIR into low-level, 
 ## Objectives
 
 The _dream_ is **Rust performance with TypeScript ergonomics**.
-Of course, performance and ergonomics are in some tension, so this isn't fully achievable.
-But we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes. 
+Of course, performance and ergonomics are in some tension, so this isn't fully achievable without breaking the things that make TypeScript great.
+We want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level predictable performance without _requiring_ additional changes. 
 So, basically we want:
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
 - **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
 
-AOT compilation provides predictable performance without warmup, but astounding levels of engineering have already gone into making V8's speculative optimization beat static compilation on some dynamic patterns.
+AOT compilation provides predictable performance without warmup; however, astounding engineering efforts have already gone into making modern JS engines' speculative optimization approximate (or even beat!) static compilation on common "dynamic" patterns.
+That said, today nobody would seriously consider writing "systems software" in JS/TS, which is a shame, because modern TS is actually a fantastic language for _full_-stack software.
+
 Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime.
 We try to keep TS semantics as much as possible, but there are some tradeoffs and additional strictness requirements to make TS sound for AOT compilation. (These are noted in the relevant sections below.)
 
@@ -26,10 +28,11 @@ Lower receives patched canonical DIR post-Execute and produces target-specific M
 
 ### Input: Canonical DIR
 
-Lower receives "canonical" typed DIR after Analyze and Elaborate (and Execute):
+Lower receives "canonical" typed DIR after Analyze and Elaborate (and Execute).
+Lower expects every expression to have a recorded type in the TypeTable, and missing types are compiler bugs that must error.
 - Desugaring complete (e.g., `+=` → `+` and assign)
 - Patterns expanded to decision trees
-- Types fully inferred ("Types")
+- Types fully inferred for all expressions ("Types")
 - Resolutions resolved ("Resolutions")
 - Static parameters resolved to values ("StaticExpression")
 - Polymorphic instances created ("Instances")

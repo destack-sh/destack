@@ -13,6 +13,7 @@ mod normalize;
 mod relation;
 mod scalar;
 mod shape;
+mod r#static;
 mod strict;
 mod template;
 mod r#type;
@@ -27,6 +28,7 @@ pub(crate) use materialize::{MaterializationMode, ReadonlyMaterializer};
 pub(crate) use relation::RelationMode;
 pub(crate) use scalar::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub(crate) use shape::{ObjectShape, ObjectShapeSet};
+pub(crate) use r#static::StaticArgumentResolver;
 pub(crate) use walk::{
     REWRITER_TAG_INFER_MATERIALIZER, REWRITER_TAG_INFER_SUBSTITUTION,
     REWRITER_TAG_LITERAL_WIDENING, REWRITER_TAG_READONLY, REWRITER_TAG_STATIC_ARGUMENT,

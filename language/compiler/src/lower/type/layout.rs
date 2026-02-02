@@ -396,6 +396,10 @@ impl TypeLowerer {
                 let total_size = self.align_up(max_end, max_align);
                 (total_size, max_align)
             }
+            mir::Type::Newtype { inner, .. } => {
+                let inner_ty = tree.get(*inner);
+                self.size_and_align_of_type(inner_ty, tree)
+            }
             mir::Type::FunctionPointer { .. } => {
                 // function pointers are pointer sized
                 let bytes = pointer_bytes as u32;
@@ -481,7 +485,7 @@ mod tests {
         let mut builder = mir::ModuleBuilder::unchecked();
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
-        TypeLowerer::new(&mut builder, 8, modules, packages)
+        TypeLowerer::new(&mut builder, 8, modules, packages, None)
     }
 
     /// Align value up to alignment boundary.

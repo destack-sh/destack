@@ -586,9 +586,9 @@ impl FunctionContext<'_> {
         Ok(Terminates::No)
     }
 
-    /// Lower a match/switch statement.
+    /// Lower a switch statement.
     ///
-    /// For simple switches on scalar values, generates a chain of comparisons.
+    /// For switches on scalar values, generates a chain of comparisons.
     fn lower_match_statement(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -597,17 +597,25 @@ impl FunctionContext<'_> {
         cases: &[LocalNodeId<MatchCase>],
         _symbol: dir::LocalSymbolId,
     ) -> LowerResult<Terminates> {
+        // match expressions must be elaborated before lowering
+        if kind == MatchKind::Match {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "match expressions must be elaborated before lowering".to_string(),
+            });
+        }
+
         // lower the match value
         let (match_value, match_type) = self.lower_value_expression(value_id)?;
 
         // create blocks
         let exit_block = self.state.builder.block();
         let case_blocks: Vec<_> = cases.iter().map(|_| self.state.builder.block()).collect();
-        if kind == MatchKind::Switch {
-            self.state.control.break_stack.push(BreakContext {
-                break_block: exit_block,
-            });
-        }
+        self.state.control.break_stack.push(BreakContext {
+            break_block: exit_block,
+        });
 
         // analyze cases: find default and collect pattern case indices
         let mut default_index: Option<usize> = None;
@@ -671,6 +679,7 @@ impl FunctionContext<'_> {
                     break;
                 }
                 Pattern::Expression { value } => {
+                    // lower the pattern value
                     let (pattern_value, _) = self.lower_value_expression(*value)?;
 
                     // emit comparison and branch
@@ -691,7 +700,7 @@ impl FunctionContext<'_> {
                         node: expression_id
                             .into_global_any(self.env.module_id)
                             .into_anchored(Some(self.env.profile)),
-                        message: "unsupported match pattern".to_string(),
+                        message: "unsupported switch pattern".to_string(),
                     });
                 }
             }
@@ -724,9 +733,7 @@ impl FunctionContext<'_> {
             self.state.builder.switch_to_block(exit_block);
         }
 
-        if kind == MatchKind::Switch {
-            self.state.control.break_stack.pop();
-        }
+        self.state.control.break_stack.pop();
 
         // terminates only if all cases terminate and there's a default
         let terminates = all_terminate && default_index.is_some();

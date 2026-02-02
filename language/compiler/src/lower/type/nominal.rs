@@ -239,19 +239,12 @@ impl ModuleLowerer<'_> {
                 };
 
                 // require a declared field type
-                let value_id = value.ok_or_else(|| LowerError::MissingType {
-                    node: member_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                let value_id = value.ok_or_else(|| {
+                    self.missing_type_error(member_id.into_global_any(self.module_id))
                 })?;
-                let type_id = self
-                    .types
-                    .get_declared_or_inferred_type_id(value_id.into_global_any(self.module_id))
-                    .ok_or_else(|| LowerError::MissingType {
-                        node: value_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
-                    })?;
+                let type_id = self.declared_or_inferred_type_id_for_node_or_error(
+                    value_id.into_global_any(self.module_id),
+                )?;
 
                 // lower the field type and compute layout metrics
                 let anchor = member_id

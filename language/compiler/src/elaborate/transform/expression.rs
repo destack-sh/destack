@@ -38,12 +38,12 @@ impl Compiler {
         let module = module.read();
         let dir = module.dir(profile);
         let mut tree = dir.tree.write();
-        let symbols = dir.symbols.read();
+        let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
 
         // 0. split multi-declarators into individual lets
         if self.options.elaborate_split_declarators {
-            self.transform_split_declarators(&mut tree, &symbols)?;
+            self.transform_split_declarators(&mut tree, &symbols, &mut types)?;
         }
 
         // 1. unwrap single-expression blocks in SOURCE if/else
@@ -51,10 +51,10 @@ impl Compiler {
         self.unwrap_single_expression_blocks(&mut tree, &symbols)?;
 
         // 2. lower if let expressions into match
-        self.transform_if_let(&mut tree, &symbols, &types)?;
+        self.transform_if_let(&mut tree, &mut symbols, &mut types)?;
 
         // 3. match → decision trees (creates proper blocks)
-        self.transform_match(&mut tree, &symbols, &types)?;
+        self.transform_match(&mut tree, &symbols, &mut types)?;
 
         // 4. ternary optimization (only for source if/else that were unwrapped)
         if self.options.elaborate_with_ternary {
@@ -70,7 +70,7 @@ impl Compiler {
         self.transform_drop_parenthesized(&mut tree, &symbols)?;
 
         // 7. normalize value expressions into statement form
-        self.transform_normalize_value_expressions(&mut tree, &symbols, module_id)?;
+        self.transform_normalize_value_expressions(&mut tree, &symbols, &mut types, module_id)?;
 
         Ok(())
     }

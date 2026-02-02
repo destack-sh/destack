@@ -1,4 +1,5 @@
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, ObjectShape};
+use crate::analyze::infer::assign::Assignability;
 use crate::{
     AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
@@ -385,7 +386,7 @@ enum Status {
 
     // check value shape for static fields
     let value_id = view.expect_value_type_id(enum_symbol);
-    let mut shape = crate::analyze::common::ObjectShape::default();
+    let mut shape = ObjectShape::default();
     let mut extras = Vec::new();
     let mut visited = Vec::new();
     test.compiler.collect_value_shape_from_type(
@@ -503,7 +504,7 @@ const raw: int32 = status;
     );
     assert_eq!(
         assignability,
-        crate::analyze::infer::assign::Assignability::NotAssignable,
+        Assignability::NotAssignable,
         "expected enum value to be non-assignable to backing type, target={:?}, source={:?}",
         view.types().get_type(raw_declared_id),
         view.types().get_type(status_value_id),

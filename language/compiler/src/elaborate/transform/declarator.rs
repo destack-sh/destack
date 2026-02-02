@@ -1,6 +1,6 @@
 use destack_dir::{
     Asynchrony, Block, DeclarationDescriptor, Expression, LocalNodeId, Mutability, NodeTree,
-    NodeType, SymbolTable,
+    NodeType, SymbolTable, TypeTable,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -21,6 +21,7 @@ impl Compiler {
         &self,
         tree: &mut NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // collect all blocks that need transformation
         let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();
@@ -29,7 +30,7 @@ impl Compiler {
             if !self.is_node_active(tree, symbols, block_id.into_any()) {
                 continue;
             }
-            self.split_declarators_in_block(block_id, tree)?;
+            self.split_declarators_in_block(block_id, tree, types)?;
         }
 
         Ok(())
@@ -40,6 +41,7 @@ impl Compiler {
         &self,
         block_id: LocalNodeId<Block>,
         tree: &mut NodeTree,
+        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         #[derive(Clone, Copy)]
         enum BindingKind {
@@ -105,7 +107,6 @@ impl Compiler {
                     symbol: new_symbol,
                     ..descriptor.clone()
                 };
-
                 let new_binding = match binding_kind {
                     BindingKind::Let { mutability } => Expression::Let {
                         descriptor: new_descriptor,
@@ -119,6 +120,7 @@ impl Compiler {
                     },
                 };
                 let new_let: LocalNodeId<Expression> = tree.insert(new_let_id, new_binding);
+                self.set_void_expression_type(types, types.module_id, new_let);
 
                 // wrap in statement if original was wrapped
                 let final_expr = if is_statement {
@@ -128,7 +130,9 @@ impl Compiler {
                         scope,
                         None,
                     );
-                    tree.insert(stmt_id, Expression::Statement { statement: new_let })
+                    let stmt = tree.insert(stmt_id, Expression::Statement { statement: new_let });
+                    self.set_void_expression_type(types, types.module_id, stmt);
+                    stmt
                 } else {
                     new_let
                 };

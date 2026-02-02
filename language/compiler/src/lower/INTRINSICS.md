@@ -274,27 +274,27 @@ If the target lacks support, Lower scalarizes to loops.
 
 ### Vector Type
 
-Vectors are represented as `vec<N, T>` where N is the lane count and T is the element type:
+Vectors are represented as `Vector<T, N>` where T is the element type and N is the lane count:
 
 ```mir
-type @Vec4f32 = vec<4, f32>   ; 4-lane f32 vector
-type @Vec8i32 = vec<8, i32>   ; 8-lane i32 vector
+type @Vec4f32 = Vector<f32, 4>   ; 4-lane f32 vector
+type @Vec8i32 = Vector<i32, 8>   ; 8-lane i32 vector
 ```
 
 ### SIMD Intrinsics
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|
-| `shuffle` | `(vec<N, T>, vec<N, T>, vec<M, int>) -> vec<M, T>` | Shuffle lanes according to mask |
-| `select` | `(vec<N, bool>, vec<N, T>, vec<N, T>) -> vec<N, T>` | Per-lane conditional select |
-| `splat` | `(T) -> vec<N, T>` | Broadcast scalar to all lanes |
-| `reduce.add` | `(vec<N, T>) -> T` | Horizontal sum of all lanes |
-| `reduce.mul` | `(vec<N, T>) -> T` | Horizontal product of all lanes |
-| `reduce.min` | `(vec<N, T>) -> T` | Minimum of all lanes |
-| `reduce.max` | `(vec<N, T>) -> T` | Maximum of all lanes |
-| `reduce.and` | `(vec<N, T>) -> T` | Bitwise AND of all lanes |
-| `reduce.or` | `(vec<N, T>) -> T` | Bitwise OR of all lanes |
-| `reduce.xor` | `(vec<N, T>) -> T` | Bitwise XOR of all lanes |
+| `shuffle` | `(Vector<T, N>, Vector<T, N>, Vector<int, M>) -> Vector<T, M>` | Shuffle lanes according to mask |
+| `select` | `(Vector<boolean, N>, Vector<T, N>, Vector<T, N>) -> Vector<T, N>` | Per-lane conditional select |
+| `splat` | `(T) -> Vector<T, N>` | Broadcast scalar to all lanes |
+| `reduce.add` | `(Vector<T, N>) -> T` | Horizontal sum of all lanes |
+| `reduce.mul` | `(Vector<T, N>) -> T` | Horizontal product of all lanes |
+| `reduce.min` | `(Vector<T, N>) -> T` | Minimum of all lanes |
+| `reduce.max` | `(Vector<T, N>) -> T` | Maximum of all lanes |
+| `reduce.and` | `(Vector<T, N>) -> T` | Bitwise AND of all lanes |
+| `reduce.or` | `(Vector<T, N>) -> T` | Bitwise OR of all lanes |
+| `reduce.xor` | `(Vector<T, N>) -> T` | Bitwise XOR of all lanes |
 
 Lower currently wires `splat`, `select`, and `reduce.*` to MIR vector instructions.
 The `shuffle` intrinsic is reserved but not lowered yet.
@@ -306,12 +306,12 @@ Lower does not yet scalarize vector operations, and the example below is a plann
 When the target lacks SIMD support (or the vector width exceeds hardware capabilities), Lower scalarizes vector operations to scalar loops:
 
 ```mir
-; vec<4, f32> add without SIMD hardware
+; Vector<f32, 4> add without SIMD hardware
 v0 = element.get a, 0
 v1 = element.get b, 0
 v2 = fadd v0, v1
 ; ... repeat for all lanes
-v8 = aggregate vec<4, f32> (v2, v3, v4, v5)
+v8 = aggregate Vector<f32, 4> (v2, v3, v4, v5)
 ```
 
 The optimizer may later vectorize these if profitable.

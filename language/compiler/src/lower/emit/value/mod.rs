@@ -3,6 +3,8 @@ mod call;
 mod cast;
 mod dispatch;
 mod r#enum;
+mod initializer;
+mod intrinsic;
 mod literal;
 mod member;
 mod operator;

@@ -239,14 +239,24 @@ impl Compiler {
         // index expression wrappers for declaration nodes
         let mut wrappers = HashMap::new();
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            let Expression::Declaration { declaration } = expression else {
-                continue;
-            };
-
-            wrappers
-                .entry(declaration.into_any())
-                .or_insert_with(Vec::new)
-                .push(expression_id);
+            match expression {
+                Expression::Declaration { declaration } => {
+                    wrappers
+                        .entry(declaration.into_any())
+                        .or_insert_with(Vec::new)
+                        .push(expression_id);
+                }
+                Expression::Statement { statement } => {
+                    let Expression::Declaration { declaration } = tree.get(*statement) else {
+                        continue;
+                    };
+                    wrappers
+                        .entry(declaration.into_any())
+                        .or_insert_with(Vec::new)
+                        .push(expression_id);
+                }
+                _ => {}
+            }
         }
 
         wrappers
@@ -305,7 +315,14 @@ impl Compiler {
                     target_symbol,
                 );
             }
-
+            if marker.is_none() && self.is_builtin_decorator_module(profile, target_symbol) {
+                self.report_invalid_well_known_decorator(
+                    module,
+                    profile,
+                    annotation_id,
+                    "unknown builtin decorator marker",
+                );
+            }
             let Some(marker) = marker else {
                 continue;
             };
@@ -365,6 +382,16 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Check whether a symbol lives in the builtin decorator module.
+    fn is_builtin_decorator_module(
+        &self,
+        profile: ProfileId,
+        target_symbol: GlobalSymbolId,
+    ) -> bool {
+        let decorator_symbol = self.language_symbol(profile, LanguageSymbol::Extern);
+        target_symbol.module_id == decorator_symbol.module_id
     }
 
     /// Apply a well-known decorator to the symbol metadata.

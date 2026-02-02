@@ -514,11 +514,9 @@ impl Compiler {
         let key = StaticKey::Name(first_segment);
 
         // prefer cached declared lib symbols when available
-        if let Some(symbol_id) = builtins.get_declared_lib_symbol_for_space_order(
-            profile_key,
-            first_segment,
-            space_order,
-        ) {
+        if let Some(symbol_id) =
+            builtins.get_declared_lib_symbol_from(profile_key, first_segment, space_order)
+        {
             self.require_resolve_module_prepare_if_needed(
                 module.id,
                 symbol_id.module_id,
