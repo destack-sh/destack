@@ -81,6 +81,27 @@ impl Default for MemoryLocationSet {
     }
 }
 
+impl TryFrom<&str> for MemoryLocationSet {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "None" => Ok(MemoryLocationSet::NONE),
+            "Arguments" => Ok(MemoryLocationSet::ARGUMENTS),
+            "Heap" => Ok(MemoryLocationSet::HEAP),
+            "Stack" => Ok(MemoryLocationSet::STACK),
+            "Global" => Ok(MemoryLocationSet::GLOBAL),
+            "Shared" => Ok(MemoryLocationSet::SHARED),
+            "Local" => Ok(MemoryLocationSet::LOCAL),
+            "Constant" => Ok(MemoryLocationSet::CONSTANT),
+            "Inaccessible" => Ok(MemoryLocationSet::INACCESSIBLE),
+            "Io" => Ok(MemoryLocationSet::IO),
+            "Any" => Ok(MemoryLocationSet::ANY),
+            _ => Err(()),
+        }
+    }
+}
+
 /// Memory ordering for atomic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum MemoryOrdering {
@@ -126,6 +147,21 @@ impl FromStr for MemoryOrdering {
             "release" => Ok(MemoryOrdering::Release),
             "acq_rel" => Ok(MemoryOrdering::AcqRel),
             "seq_cst" => Ok(MemoryOrdering::SeqCst),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&str> for MemoryOrdering {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Relaxed" => Ok(MemoryOrdering::Relaxed),
+            "Acquire" => Ok(MemoryOrdering::Acquire),
+            "Release" => Ok(MemoryOrdering::Release),
+            "AcqRel" => Ok(MemoryOrdering::AcqRel),
+            "SeqCst" => Ok(MemoryOrdering::SeqCst),
             _ => Err(()),
         }
     }
@@ -192,6 +228,24 @@ impl FromStr for AtomicScope {
     }
 }
 
+impl TryFrom<&str> for AtomicScope {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Invocation" => Ok(AtomicScope::Invocation),
+            "Subgroup" => Ok(AtomicScope::Subgroup),
+            "Workgroup" => Ok(AtomicScope::Workgroup),
+            "Device" => Ok(AtomicScope::Device),
+            "CrossDevice" => Ok(AtomicScope::CrossDevice),
+            "QueueFamily" => Ok(AtomicScope::QueueFamily),
+            "ShaderCallGroup" => Ok(AtomicScope::ShaderCallGroup),
+            "System" => Ok(AtomicScope::System),
+            _ => Err(()),
+        }
+    }
+}
+
 /// Memory scope for atomic operations and barriers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryScope {
@@ -248,6 +302,24 @@ impl FromStr for MemoryScope {
             "queue_family" => Ok(MemoryScope::QueueFamily),
             "shader_call_group" => Ok(MemoryScope::ShaderCallGroup),
             "system" => Ok(MemoryScope::System),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TryFrom<&str> for MemoryScope {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Invocation" => Ok(MemoryScope::Invocation),
+            "Subgroup" => Ok(MemoryScope::Subgroup),
+            "Workgroup" => Ok(MemoryScope::Workgroup),
+            "Device" => Ok(MemoryScope::Device),
+            "CrossDevice" => Ok(MemoryScope::CrossDevice),
+            "QueueFamily" => Ok(MemoryScope::QueueFamily),
+            "ShaderCallGroup" => Ok(MemoryScope::ShaderCallGroup),
+            "System" => Ok(MemoryScope::System),
             _ => Err(()),
         }
     }

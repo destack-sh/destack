@@ -59,6 +59,15 @@ impl std::str::FromStr for VectorReduceOperator {
     }
 }
 
+impl TryFrom<&str> for VectorReduceOperator {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value = value.strip_prefix("reduce.").unwrap_or(value);
+        Self::parse(value).ok_or(())
+    }
+}
+
 /// Conversion modes for vector element conversions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum VectorConvertMode {
