@@ -8,14 +8,14 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   656  |    57  |     2  |   713 |  92.01% |
+| babel    |   664  |    39  |    12  |   703 |  94.45% |
 | biome    |   428  |   209  |     -  |   637 |  67.19% |
 | swc      |   538  |     0  |     -  |   538 | 100.00% |
 | test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5852  |  1399  |      2  |  7251 |  80.71% |
+| total    |  5860  |  1381  |     12  |  7241 |  80.93% |
 
-Total Blended Pass Rate: **80.71%**
+Total Blended Pass Rate: **80.93%**
 <!-- end:summary-results -->
 
 ### babel
@@ -23,30 +23,30 @@ Total Blended Pass Rate: **80.71%**
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | arrow-function       |    19  |     3  |       -  |    22 |  86.36% |
-| assert-predicate     |     6  |     4  |       -  |    10 |  60.00% |
-| assign               |     0  |     3  |       -  |     3 |   0.00% |
-| async-call           |     0  |     1  |       -  |     1 |   0.00% |
+| assert-predicate     |     9  |     1  |       -  |    10 |  90.00% |
+| assign               |     2  |     1  |       -  |     3 |  66.67% |
+| async-call           |     1  |     0  |       -  |     1 | 100.00% |
 | basic                |    37  |     0  |       -  |    37 | 100.00% |
 | binary-expression    |     2  |     0  |       -  |     2 | 100.00% |
-| cast                 |    38  |     4  |       -  |    42 |  90.48% |
+| cast                 |    31  |     1  |      10  |    32 |  96.88% |
 | catch-clause         |     1  |     0  |       -  |     1 | 100.00% |
 | class                |    94  |     3  |       -  |    97 |  96.91% |
-| const                |     3  |     1  |       -  |     4 |  75.00% |
+| const                |     4  |     0  |       -  |     4 | 100.00% |
 | declare              |    27  |     0  |       -  |    27 | 100.00% |
 | decorators           |     1  |     1  |       -  |     2 |  50.00% |
-| disallow-jsx-ambiguity |     1  |     2  |       -  |     3 |  33.33% |
+| disallow-jsx-ambiguity |     2  |     1  |       -  |     3 |  66.67% |
 | dts                  |     3  |     2  |       -  |     5 |  60.00% |
 | enum                 |    13  |     0  |       -  |    13 | 100.00% |
 | errors               |    26  |     2  |       -  |    28 |  92.86% |
-| expect-plugin        |     0  |     3  |       -  |     3 |   0.00% |
+| expect-plugin        |     3  |     0  |       -  |     3 | 100.00% |
 | exponentiation       |     1  |     2  |       -  |     3 |  33.33% |
-| export               |    10  |     3  |       -  |    13 |  76.92% |
+| export               |    12  |     1  |       -  |    13 |  92.31% |
 | function             |    11  |     2  |       -  |    13 |  84.62% |
 | html-entities        |     4  |     0  |       -  |     4 | 100.00% |
-| import               |    18  |     3  |       -  |    21 |  85.71% |
+| import               |    21  |     0  |       -  |    21 | 100.00% |
 | interface            |    47  |     0  |       -  |    47 | 100.00% |
 | legacy-decorators    |     2  |     0  |       -  |     2 | 100.00% |
-| module-namespace     |    13  |     3  |       2  |    16 |  81.25% |
+| module-namespace     |    15  |     1  |       2  |    16 |  93.75% |
 | optional-chaining    |     1  |     0  |       -  |     1 | 100.00% |
 | regression           |    24  |     1  |       -  |    25 |  96.00% |
 | scope                |    62  |     4  |       -  |    66 |  93.94% |
@@ -54,13 +54,13 @@ Total Blended Pass Rate: **80.71%**
 | tsx                  |     8  |     0  |       -  |     8 | 100.00% |
 | type-alias           |     6  |     1  |       -  |     7 |  85.71% |
 | type-arguments       |    30  |     3  |       -  |    33 |  90.91% |
-| type-arguments-bit-shift-left-like |     9  |     0  |       -  |     9 | 100.00% |
+| type-arguments-bit-shift-left-like |     8  |     1  |       -  |     9 |  88.89% |
 | type-only-import-export-specifiers |    24  |     0  |       -  |    24 | 100.00% |
-| types                |    90  |     5  |       -  |    95 |  94.74% |
+| types                |    88  |     7  |       -  |    95 |  92.63% |
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |
 | variable-declarator  |     2  |     1  |       -  |     3 |  66.67% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   656  |    57  |       2  |   713 |  92.01% |
+| total                |   664  |    39  |      12  |   703 |  94.45% |
 <!-- end:babel-results -->
 
 ### biome

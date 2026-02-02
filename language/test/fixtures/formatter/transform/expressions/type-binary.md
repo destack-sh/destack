@@ -16,30 +16,6 @@ const value = input as Foo
 const value = input as Foo;
 ```
 
-### angle bracket assertion
-
-Angle bracket assertions preserve `<T>expr` formatting.
-
-```ts:main.ts
-const value = <Foo>bar
-```
-
-```ts expected
-const value = <Foo>bar;
-```
-
-### angle bracket assertion with binary value
-
-Angle bracket assertions add parentheses when needed to preserve meaning.
-
-```ts:main.ts
-const value = <Foo>a + b
-```
-
-```ts expected
-const value = <Foo>(a + b);
-```
-
 ### satisfies expression
 
 Satisfies operators keep spaces around `satisfies`.

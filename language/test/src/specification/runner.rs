@@ -201,6 +201,8 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         let root = env.root_for(test);
         setup_test_environment_with_session(test, env.session.clone(), env.fs.clone(), root)
     });
+    let prefer_native = test_option_bool(test, "native").unwrap_or(false);
+    let verify_mir = !prefer_native;
 
     // compile with single worker for deterministic results
     let mut compiler = Compiler::new(
@@ -209,6 +211,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         CompilerOptions {
             load_libs: false,
             workers: 1,
+            verify_mir,
             ..Default::default()
         },
     );
@@ -224,7 +227,6 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     };
 
     // apply dsconfig options and targets
-    let prefer_native = test_option_bool(test, "native").unwrap_or(false);
     if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native) {
         return TestResult::Failed { message: error };
     }

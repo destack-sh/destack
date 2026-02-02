@@ -154,7 +154,15 @@ impl ConformanceSuite for SwcSuite {
         } else {
             TestArea::Parse
         };
-        let parse_outcome = parse_file(&path, &content, test.file_type, ParseOptions { area });
+        let parse_outcome = parse_file(
+            &path,
+            &content,
+            test.file_type,
+            ParseOptions {
+                area,
+                disallow_ambiguous_tree_literal: false,
+            },
+        );
 
         match (test.expect_error, parse_outcome) {
             (true, ParseOutcome::Error) => TestOutcome::Passed,

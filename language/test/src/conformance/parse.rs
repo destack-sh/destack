@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ImportError, ResolveMode};
-use destack_parser::Parser;
+use destack_parser::{Parser, ParserSettings};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, MemoryFileSystem, ModuleId,
     ModuleStamp, ProfileStamp, Uri,
@@ -50,6 +50,11 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA223", // MissingDestructuringInitializer
     "EA224", // InvalidDeclareInitializer
     "EA225", // InvalidTypeOnlyImportBindings
+    "EA226", // InvalidAssignmentTarget
+    "EA228", // TypeScriptSyntaxInJavaScript
+    "EA229", // InvalidTypeOnlyImportAlias
+    "EA230", // MissingConstInitializer
+    "EA231", // InvalidAmbientConstInitializer
     "EA403", // InvalidPatternNamedField
     "EA300", // InvalidBreak
     "EA301", // InvalidContinue
@@ -99,6 +104,8 @@ impl TestArea {
 pub(super) struct ParseOptions {
     /// What category of errors to check for.
     pub area: TestArea,
+    /// Whether to disallow ambiguous tree literal syntax.
+    pub disallow_ambiguous_tree_literal: bool,
 }
 
 #[derive(Debug)]
@@ -163,10 +170,10 @@ pub(super) fn parse_file(
     // select the parsing pipeline for this conformance area
     match options.area {
         // parse only tests should not pay the cost of full compiler analysis
-        TestArea::Parse => parse_file_with_parser(path, content, file_type, options.area),
+        TestArea::Parse => parse_file_with_parser(path, content, file_type, options),
         // early error tests still need compiler checks
         TestArea::EarlySyntax | TestArea::Early => {
-            parse_file_with_compiler(path, content, file_type, options.area)
+            parse_file_with_compiler(path, content, file_type, options)
         }
     }
 }
@@ -175,7 +182,7 @@ fn parse_file_with_parser(
     path: &Path,
     content: &str,
     file_type: FileType,
-    area: TestArea,
+    options: ParseOptions,
 ) -> ParseOutcome {
     // build a synthetic file for parser only diagnostics
     let uri = Uri::from_path(path);
@@ -195,7 +202,13 @@ fn parse_file_with_parser(
 
     // parse and collect diagnostics
     let language = LanguageType::from(file_type);
-    let mut parser = Parser::lex_file(file.clone(), language);
+    let mut parser = Parser::lex_file_with_settings(
+        file.clone(),
+        language,
+        ParserSettings {
+            disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
+        },
+    );
     let _ = parser.parse();
 
     // collect parse errors for relevance checks
@@ -205,7 +218,9 @@ fn parse_file_with_parser(
         .into_iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error)
         .collect();
-    let has_relevant_error = errors.iter().any(|d| area.is_relevant_error(&d.code));
+    let has_relevant_error = errors
+        .iter()
+        .any(|d| options.area.is_relevant_error(&d.code));
 
     if has_relevant_error {
         ParseOutcome::Error
@@ -257,7 +272,7 @@ fn parse_file_with_compiler(
     path: &Path,
     content: &str,
     file_type: FileType,
-    area: TestArea,
+    options: ParseOptions,
 ) -> ParseOutcome {
     let (session, program, root, file_path) = SHARED_CONFORMANCE_ENV.with(|env| {
         // allocate a fresh test root and file path
@@ -288,6 +303,7 @@ fn parse_file_with_compiler(
             workers: 1,
             follow_imports: false,
             resolve_mode: ResolveMode::Lenient,
+            disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
             inject_prelude: false,
             load_libs: false,
             source_map: false,
@@ -329,7 +345,9 @@ fn parse_file_with_compiler(
         .into_iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error)
         .collect();
-    let has_relevant_error = errors.iter().any(|d| area.is_relevant_error(&d.code));
+    let has_relevant_error = errors
+        .iter()
+        .any(|d| options.area.is_relevant_error(&d.code));
 
     if has_relevant_error {
         ParseOutcome::Error
