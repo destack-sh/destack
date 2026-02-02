@@ -1727,7 +1727,7 @@ impl Lexer<'_> {
 
         // these characters start other tokens, not text
         // `&` may start an HTML entity, so let advance() handle it
-        if matches!(first, '<' | '>' | '{' | '&' | '\0') {
+        if matches!(first, '<' | '>' | '{' | '}' | '&' | '\0') {
             return None;
         }
 
@@ -1738,7 +1738,7 @@ impl Lexer<'_> {
             let c = self.peek();
             match c {
                 // boundaries: start of tag, expression container, or potential html entity
-                '<' | '>' | '{' | '&' => break,
+                '<' | '>' | '{' | '}' | '&' => break,
                 _ => {
                     self.eat();
                 }

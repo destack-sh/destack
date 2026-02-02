@@ -592,6 +592,25 @@ const (x, y) = foo()
     }
 
     #[test]
+    fn test_parse_let_definite_assignment_pattern() {
+        let mut test = TestParser::new_with_options("let {}! = {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let let_id = parser
+            .eat_let(start, DeclarationDescriptor::default())
+            .unwrap();
+
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Must(inner) => {
+                    assert_node!(parser.tree, *inner, Pattern::Object { .. } => {});
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_let_implicit_undefined() {
         let mut test = TestParser::new("const x: int32");
         let mut parser = test.prepare();

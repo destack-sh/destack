@@ -3,7 +3,7 @@
 use destack_ast::{
     AbstractionModifier, Asynchrony, BindingKind, BindingModifier, Expression, FunctionAbstraction,
     FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature, Generics, Key, Keyword,
-    LocalNodeId, Member, NodeType, Property, TokenType,
+    LocalNodeId, Member, Name, NodeType, Property, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -217,11 +217,31 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        // reject async? method(...) token glue
+        if !is_async
+            && modifiers
+                .as_ref()
+                .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
+            && matches!(
+                key,
+                Some(Key::Name(Name::Identifier(name))) if self.strings.get(name) == "async"
+            )
+            && !self.peek_is(TokenType::Newline)
+            && self.peek_is(TokenType::Identifier)
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
         // method
         let is_method = is_async
             || is_generator
             || self.peek_is(TokenType::LessThan)
             || self.peek_is(TokenType::OpenParenthesis);
+
+        // modifiers without a key or call signature are invalid
+        if key.is_none() && modifiers.is_some() && !is_method {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
 
         // getters and setters require method syntax
         if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {

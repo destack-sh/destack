@@ -572,7 +572,8 @@ impl Parser {
         }
 
         // require JSX disambiguators for JS, but allow lenient parsing in TS/DS
-        let require_tree_disambiguator = self.language.is_javascript();
+        let require_tree_disambiguator =
+            self.language.is_javascript() || self.options.disallow_ambiguous_tree_literal;
 
         self.peek_generic_arrow_after_type_parameters(require_tree_disambiguator)
     }

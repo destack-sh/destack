@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{
     ANNOTATION_NODE_TYPES, Annotation, AnnotationPosition, Blank, Comment, CommentStyle, Decorator,
     Doc, DocStyle, Expression, LocalNodeId, NodeType, TokenSpan, TokenType,
@@ -1339,13 +1339,13 @@ function foo() { }",
         });
     }
 
-    /// Parse a decorator with TypeScript-style static arguments.
+    /// Parse a decorator with static arguments.
     #[test]
-    fn test_attach_decorator_with_typescript_static_arguments() {
+    fn test_attach_decorator_with_static_arguments_simple() {
         let mut test = TestParser::new_with_options(
             r"@foo<T>()
 function foo() { }",
-            LanguageType::TypeScript,
+            LanguageType::Destack,
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1375,7 +1375,7 @@ function foo() { }",
         let mut test = TestParser::new_with_options(
             r"@f<<T>(v: T) => void>()
 class Foo {}",
-            LanguageType::TypeScript,
+            LanguageType::Destack,
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
@@ -1401,7 +1401,7 @@ class Foo {}",
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
                                 assert_eq!(signature.kind, FunctionKind::Lambda);
-                                assert!(body.is_none());
+                                assert!(body.is_some());
                                 let generics = signature.generics.as_ref().expect("expected generics");
                                 let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
                                 assert_eq!(static_parameters.len(), 1);

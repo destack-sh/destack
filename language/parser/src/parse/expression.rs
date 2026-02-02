@@ -779,15 +779,18 @@ impl Parser {
     ) -> ParseResult<DescriptorParseResult> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
 
-        // decorators parse as expressions only, skip declaration modifiers
+        // decorators parse as expressions only
         if self.options.in_decorator {
             return Ok(DescriptorParseResult::Descriptor(descriptor));
         }
 
-        let pos = self.pos_index();
+        // declaration modifiers only start on identifiers
         if !self.peek_is(TokenType::Identifier) {
             return Ok(DescriptorParseResult::Descriptor(descriptor));
         }
+
+        // check for a modifier keyword or a global or module identifier
+        let pos = self.pos_index();
         let keyword = if self.has_active_split() {
             self.peek_any_keyword().ok()
         } else {
@@ -808,10 +811,10 @@ impl Parser {
             return Ok(DescriptorParseResult::Descriptor(descriptor));
         }
 
-        // export
+        // export modifier
         if self.peek_keyword(Keyword::Export).is_ok() {
             self.bump(); // eat export
-            let mode = if self.peek_keyword(Keyword::Default).is_ok() {
+            let export_mode = if self.peek_keyword(Keyword::Default).is_ok() {
                 self.bump(); // eat default
                 Some(DependencyMode::Default)
             } else if self.peek_is(TokenType::Assign) {
@@ -821,7 +824,7 @@ impl Parser {
                 Some(DependencyMode::Item)
             };
 
-            // export namespace
+            // export namespace: handled by export statement parsing
             let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
                 && self.peek_next_keyword(Keyword::Namespace).is_ok();
             if is_export_namespace {
@@ -830,24 +833,24 @@ impl Parser {
                 return Ok(DescriptorParseResult::Expression(export));
             }
 
-            // just parse the export if followed by dependency items or module export
-            let keyword = self.peek_any_keyword().ok();
-            let is_not_declaration_keyword =
-                keyword.is_none() || !DECLARATION_KEYWORDS.contains(&keyword.unwrap());
+            // export dependencies: handled by export statement parsing
+            let next_keyword = self.peek_any_keyword().ok();
+            let has_declaration_keyword =
+                next_keyword.is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw));
             let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
                 && (self.peek_next_is(TokenType::OpenBrace)
                     || self.peek_next_is(TokenType::Multiply));
-            if mode == Some(DependencyMode::Namespace)
+            let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
-                || is_not_declaration_keyword && self.peek_dependency_binding().is_ok()
-                || mode == Some(DependencyMode::Default) && is_not_declaration_keyword
-            {
+                || (!has_declaration_keyword && self.peek_dependency_binding().is_ok())
+                || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword);
+            if is_export_dependency {
                 self.rewind(start);
                 let export = self.eat_export()?;
                 return Ok(DescriptorParseResult::Expression(export));
             }
 
-            descriptor.export = mode;
+            descriptor.export = export_mode;
         }
 
         // skip newlines before export import equals
@@ -858,30 +861,33 @@ impl Parser {
             self.eat_newlines_maybe()?;
         }
 
-        // kind (declare must not be followed by newline, similar to abstract)
-        let is_declare_identifier = self.peek_next_is(TokenType::Identifier)
-            && self.peek_next().is_ok_and(|token| {
-                let token_str = self.get_token_str(*token);
-                token_str == "global"
-                    || self.language.supports_module_declaration() && token_str == "module"
-            });
-        let is_declare_await_using = self.peek_next_keyword(Keyword::Await).is_ok()
-            && self.peek_next_next_keyword(Keyword::Using).is_ok();
-        descriptor.kind = if self.peek_keyword(Keyword::Declare).is_ok()
-            && !self.peek_next_is(TokenType::Newline)
-            && (self
-                .peek_next_any_keyword()
-                .is_ok_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
-                || is_declare_identifier
-                || is_declare_await_using)
-        {
+        // declare modifier
+        let is_declare = self.peek_keyword(Keyword::Declare).is_ok();
+        let declare_has_newline = is_declare && self.peek_next_is(TokenType::Newline);
+
+        // declare target directly after keyword
+        let direct_index = self.pos_index() + 1;
+        let declare_direct_target = is_declare && self.is_declare_target_at(direct_index);
+
+        // declare target after newlines
+        let mut declare_target_after_newlines = false;
+        if declare_has_newline {
+            let after = self.next_non_newline_index_from(direct_index);
+            declare_target_after_newlines = self.is_declare_target_at(after);
+        }
+
+        let declare_has_target = declare_direct_target || declare_target_after_newlines;
+        descriptor.kind = if is_declare && declare_has_target {
             self.bump(); // eat declare
+            if declare_has_newline {
+                self.eat_newlines_maybe()?;
+            }
             DeclarationKind::Declaration
         } else {
             DeclarationKind::Definition
         };
 
-        // abstraction
+        // abstraction modifier
         descriptor.abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
             && !self.options.in_variant
             && !self.peek_next_is(TokenType::Newline)
@@ -895,7 +901,7 @@ impl Parser {
             DeclarationAbstraction::Concrete
         };
 
-        // anchor
+        // anchor modifier
         descriptor.anchor = if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
             BindingAnchor::Static
@@ -926,6 +932,46 @@ impl Parser {
         }
 
         Ok(DescriptorParseResult::Descriptor(descriptor))
+    }
+
+    /// Check whether a token index starts a declare target keyword.
+    fn is_declare_keyword_target_at(&self, index: usize) -> bool {
+        let keyword = self.keyword_for_index(index);
+        keyword.is_some_and(|kw| kw != Keyword::Declare && DECLARATION_KEYWORDS.contains(&kw))
+    }
+
+    /// Check whether a token index starts a declare identifier target.
+    fn is_declare_identifier_at(&self, index: usize) -> bool {
+        let Some(token) = self.tokens.get(index) else {
+            return false;
+        };
+        if token.token.ty != TokenType::Identifier {
+            return false;
+        }
+        let token_str = self.get_span_str(token.span);
+        token_str == "global"
+            || self.language.supports_module_declaration() && token_str == "module"
+    }
+
+    /// Check whether a token index starts a declare await using target.
+    fn is_declare_await_using_at(&self, index: usize) -> bool {
+        if self.keyword_for_index(index) != Some(Keyword::Await) {
+            return false;
+        }
+        let mut after = index + 1;
+        while let Some(token) = self.tokens.get(after)
+            && token.token.ty == TokenType::Newline
+        {
+            after += 1;
+        }
+        self.keyword_for_index(after) == Some(Keyword::Using)
+    }
+
+    /// Check whether a token index starts a declare target.
+    fn is_declare_target_at(&self, index: usize) -> bool {
+        self.is_declare_keyword_target_at(index)
+            || self.is_declare_identifier_at(index)
+            || self.is_declare_await_using_at(index)
     }
 
     /// Eat a keyword-led expression when possible.
@@ -1029,6 +1075,13 @@ impl Parser {
                 )))
             }
             Keyword::Async => {
+                if self.language.is_typescript()
+                    && self.options.left_precedence.is_some()
+                    && (self.peek_next_is(TokenType::LessThan)
+                        || self.peek_next_is(TokenType::ShiftLeft))
+                {
+                    return Ok(None);
+                }
                 let can_start_signature = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1403,12 +1456,14 @@ impl Parser {
 
     /// Return true if `<` starts a generic arrow function signature.
     fn can_start_generic_arrow_expression(&mut self) -> bool {
+        if !self.language.is_typescript() && !self.language.is_destack() {
+            return false;
+        }
         if !self.peek_is(TokenType::LessThan) {
             return false;
         }
 
-        let require_disambiguator =
-            self.options.disallow_ambiguous_tree_literal && self.language.supports_jsx();
+        let require_disambiguator = self.options.disallow_ambiguous_tree_literal;
         if !self.peek_generic_arrow_after_type_parameters(require_disambiguator) {
             return false;
         }
@@ -2448,6 +2503,20 @@ impl Parser {
                         PostfixPosition::Direct
                     };
                     if let Ok(static_arguments) = self.eat_static_arguments() {
+                        let has_optional_chain =
+                            self.peek_is(TokenType::Maybe) && self.peek_next_is(TokenType::Dot);
+                        let has_optional_call = has_optional_chain
+                            && self
+                                .peek_next_next_token(TokenType::OpenParenthesis)
+                                .is_ok();
+                        if self.language.is_typescript()
+                            && (self.peek_is(TokenType::Dot)
+                                || self.peek_is(TokenType::OpenBracket)
+                                || has_optional_chain && !has_optional_call)
+                        {
+                            return Err(ParseError::unexpected(self.peek()?.span));
+                        }
+
                         // call with static arguments
                         if self.peek_is(TokenType::OpenParenthesis) {
                             left_expression_id = self.eat_call(

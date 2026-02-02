@@ -461,6 +461,19 @@ impl Parser {
         Ok((next - 1) as u32)
     }
 
+    /// Find the next token index that is not a newline.
+    #[inline]
+    pub fn next_non_newline_index_from(&self, start: usize) -> usize {
+        // skip over any newline tokens
+        let mut pos = start;
+        while let Some(token) = self.tokens.get(pos)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+        pos
+    }
+
     /// Skip any newlines at and after a position and check if there's a specific token after.
     pub fn peek_token_after_newlines(
         &mut self,

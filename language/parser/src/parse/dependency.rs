@@ -1,5 +1,5 @@
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, DependencyItem, DependencyKind, DependencyMode,
@@ -156,11 +156,11 @@ impl Parser {
     /// Check whether the tokens after the current `import` keyword form an import equals clause.
     pub(crate) fn peek_import_equals_after_import(&self) -> bool {
         let mut pos = self.pos_index() + 1;
-        pos = self.next_non_newline_index(pos);
+        pos = self.next_non_newline_index_from(pos);
 
         // skip optional type modifier
         if self.keyword_for_index(pos) == Some(Keyword::Type) {
-            pos = self.next_non_newline_index(pos + 1);
+            pos = self.next_non_newline_index_from(pos + 1);
         }
 
         // require `name =`
@@ -169,7 +169,7 @@ impl Parser {
             .is_some_and(|token| token.token.ty == TokenType::Identifier)
             && self
                 .tokens
-                .get(self.next_non_newline_index(pos + 1))
+                .get(self.next_non_newline_index_from(pos + 1))
                 .is_some_and(|token| token.token.ty == TokenType::Assign)
     }
 
@@ -181,7 +181,7 @@ impl Parser {
 
         // examine the token after type
         let mut pos = self.pos_index() + 1;
-        pos = self.next_non_newline_index(pos);
+        pos = self.next_non_newline_index_from(pos);
         let token = self.tokens.get(pos);
 
         // binding forms like `import type { ... }` or `import type * as`
@@ -198,7 +198,7 @@ impl Parser {
         if token.is_some_and(|token| token.token.ty == TokenType::Identifier) {
             if self.keyword_for_index(pos) == Some(Keyword::From) {
                 let mut after_from = pos + 1;
-                after_from = self.next_non_newline_index(after_from);
+                after_from = self.next_non_newline_index_from(after_from);
                 if self
                     .tokens
                     .get(after_from)
@@ -213,18 +213,6 @@ impl Parser {
         }
 
         false
-    }
-
-    /// Find the next token index that is not a newline.
-    fn next_non_newline_index(&self, start: usize) -> usize {
-        // skip over any newline tokens
-        let mut pos = start;
-        while let Some(token) = self.tokens.get(pos)
-            && token.token.ty == TokenType::Newline
-        {
-            pos += 1;
-        }
-        pos
     }
 
     /// Eat an import equals binding name and return its span.
@@ -310,7 +298,6 @@ impl Parser {
                 parser.eat_expression()
             })?
         };
-
         // normalize descriptor export mode
         if descriptor.export.is_none() {
             descriptor.export = Some(DependencyMode::Item);
@@ -611,7 +598,11 @@ impl Parser {
             let start = self.mark();
             self.bump(); // eat *
             self.bump(); // eat as
-            let (alias, alias_span) = self.eat_identifier_with_span()?;
+            let (alias, alias_span) = if self.peek_is(TokenType::Literal) {
+                self.eat_string_literal_with_span()?
+            } else {
+                self.eat_identifier_with_span()?
+            };
             let item = DependencyItem {
                 mode: DependencyMode::Namespace,
                 kind: None,
@@ -1301,6 +1292,22 @@ export type { CreateUIMessage, UIMessage }
             assert_eq!(items.len(), 1);
             assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: None, .. } => {
                 assert_eq!(*mode, DependencyMode::Namespace);
+            });
+            assert_string!(parser, *target, "foo");
+        });
+    }
+
+    #[test]
+    fn test_parse_export_type_namespace_string_alias() {
+        let mut test = TestParser::new(r#"export type * as "ns2" from 'foo'"#);
+        let mut parser = test.prepare();
+        let export_id = parser.eat_export().unwrap();
+        assert_node!(parser.tree, export_id, Expression::Export { kind, target: Some(target), items, .. } => {
+            assert_eq!(*kind, DependencyKind::Type);
+            assert_eq!(items.len(), 1);
+            assert_node!(parser.tree, items[0], DependencyItem { mode, name: None, alias: Some(alias), .. } => {
+                assert_eq!(*mode, DependencyMode::Namespace);
+                assert_string!(parser, *alias, "ns2");
             });
             assert_string!(parser, *target, "foo");
         });

@@ -197,10 +197,9 @@ impl Parser {
         // only for functions or lambda types
         let (return_type, return_type_span, where_clauses) = {
             // lambda with explicit return type
-            if kind == FunctionKind::Lambda
-                && (self.peek_colon().is_ok() || self.options.in_type && self.peek_arrow().is_ok())
-            {
+            if kind == FunctionKind::Lambda && self.has_lambda_return_type_marker() {
                 let type_start = self.mark();
+                self.eat_newlines_maybe()?;
                 self.bump(); // eat colon or arrow
                 self.eat_newlines_maybe()?;
 
@@ -373,6 +372,31 @@ impl Parser {
         }
 
         Ok(function_id)
+    }
+
+    /// Check whether a lambda return type marker is present.
+    fn has_lambda_return_type_marker(&mut self) -> bool {
+        // check for a colon return type
+        let has_colon = self.peek_colon().is_ok()
+            || self
+                .peek_token_after_newlines(self.pos(), TokenType::Colon)
+                .is_ok();
+        if has_colon {
+            return true;
+        }
+
+        // arrow return types only apply in type positions
+        if !self.options.in_type {
+            return false;
+        }
+
+        self.peek_arrow().is_ok()
+            || self
+                .peek_token_after_newlines(self.pos(), TokenType::Arrow)
+                .is_ok()
+            || self
+                .peek_token_after_newlines(self.pos(), TokenType::ArrowWide)
+                .is_ok()
     }
 }
 
