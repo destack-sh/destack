@@ -2,21 +2,17 @@ use std::path::PathBuf;
 
 use clap::{Args, ValueEnum};
 use destack_workspace::{
-    DeterminismPolicyJson, DsConfigRuntimeOptionsJson, GcLoggingJson, GcOptionsJson,
-    RandomModeJson, RandomOptionsJson, ReplayLogOptionsJson, ReplayModeJson, SchedulerOptionsJson,
-    SchedulerPolicyJson, TimeModeJson, TimeOptionsJson,
+    DsConfigRuntimeOptionsJson, ExecutionModeJson, GcLoggingJson, GcOptionsJson, RandomModeJson,
+    RandomOptionsJson, ReplayLogOptionsJson, SchedulerOptionsJson, SchedulerPolicyJson,
+    TimeModeJson, TimeOptionsJson,
 };
 
 /// Runtime configuration arguments for run-like commands.
 #[derive(Args, Debug, Clone, Default)]
 pub struct RuntimeArgs {
-    /// Runtime determinism policy.
-    #[arg(long = "runtime-determinism", value_enum)]
-    pub determinism: Option<DeterminismArg>,
-
-    /// Runtime replay mode.
-    #[arg(long = "runtime-replay", value_enum)]
-    pub replay: Option<ReplayArg>,
+    /// Runtime execution mode.
+    #[arg(long = "runtime-execution-mode", value_enum)]
+    pub execution_mode: Option<ExecutionModeArg>,
 
     /// Replay log path (file or directory).
     #[arg(long = "runtime-replay-log")]
@@ -126,8 +122,7 @@ pub struct RuntimeArgs {
 impl RuntimeArgs {
     /// Return true when any runtime override is set.
     pub fn is_empty(&self) -> bool {
-        self.determinism.is_none()
-            && self.replay.is_none()
+        self.execution_mode.is_none()
             && self.replay_log_path.is_none()
             && self.replay_log_template.is_none()
             && self.replay_log_chunk_mb.is_none()
@@ -255,8 +250,7 @@ impl RuntimeArgs {
         };
 
         Some(DsConfigRuntimeOptionsJson {
-            determinism: self.determinism.map(Into::into),
-            replay: self.replay.map(Into::into),
+            execution_mode: self.execution_mode.map(Into::into),
             replay_log,
             time,
             random,
@@ -266,41 +260,26 @@ impl RuntimeArgs {
     }
 }
 
-/// Determinism policy for CLI arguments.
+/// Execution mode for CLI arguments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum DeterminismArg {
-    /// Best-effort execution without determinism guarantees.
-    BestEffort,
+pub enum ExecutionModeArg {
+    /// Fast execution without determinism guarantees.
+    Fast,
     /// Deterministic scheduling with controlled randomness.
     Deterministic,
-}
-
-impl From<DeterminismArg> for DeterminismPolicyJson {
-    fn from(value: DeterminismArg) -> Self {
-        match value {
-            DeterminismArg::BestEffort => DeterminismPolicyJson::BestEffort,
-            DeterminismArg::Deterministic => DeterminismPolicyJson::Deterministic,
-        }
-    }
-}
-
-/// Replay policy for CLI arguments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum ReplayArg {
-    /// Disable record/replay.
-    Off,
     /// Record external effects for replay.
     Record,
     /// Replay external effects from the log.
     Replay,
 }
 
-impl From<ReplayArg> for ReplayModeJson {
-    fn from(value: ReplayArg) -> Self {
+impl From<ExecutionModeArg> for ExecutionModeJson {
+    fn from(value: ExecutionModeArg) -> Self {
         match value {
-            ReplayArg::Off => ReplayModeJson::Off,
-            ReplayArg::Record => ReplayModeJson::Record,
-            ReplayArg::Replay => ReplayModeJson::Replay,
+            ExecutionModeArg::Fast => ExecutionModeJson::Fast,
+            ExecutionModeArg::Deterministic => ExecutionModeJson::Deterministic,
+            ExecutionModeArg::Record => ExecutionModeJson::Record,
+            ExecutionModeArg::Replay => ExecutionModeJson::Replay,
         }
     }
 }

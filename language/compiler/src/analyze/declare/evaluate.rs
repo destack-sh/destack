@@ -3628,6 +3628,18 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
+                    if matches!(
+                        types.get_type(value_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void
+                        }
+                    ) {
+                        return Err(AnalyzeError::VoidInTuple {
+                            node: value_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
                     let mut element = TypeElement::new(value_ty_id);
                     match argument {
                         Argument::Labeled { label, .. } => {
@@ -3679,6 +3691,18 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
+                    if matches!(
+                        types.get_type(value_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void
+                        }
+                    ) {
+                        return Err(AnalyzeError::VoidInTuple {
+                            node: value_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
                     let mut element = TypeElement::new(value_ty_id);
                     let modifiers = match argument {
                         Argument::Named { modifiers, .. }
@@ -3925,6 +3949,18 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
+                    if matches!(
+                        types.get_type(left_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void
+                        }
+                    ) {
+                        return Err(AnalyzeError::VoidInArray {
+                            node: left
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
 
                     // require a literal length for array types
                     let value = self
@@ -3963,6 +3999,18 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
+                    if matches!(
+                        types.get_type(left_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Void
+                        }
+                    ) {
+                        return Err(AnalyzeError::VoidInArray {
+                            node: left
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
                     Type::Array {
                         element: Some(left_id),
                         is_readonly: false,

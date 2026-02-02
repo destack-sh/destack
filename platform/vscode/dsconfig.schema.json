@@ -53,8 +53,7 @@
       "description": "Runtime options.",
       "$ref": "#/$defs/DsConfigRuntimeOptionsJson",
       "default": {
-        "determinism": null,
-        "replay": null,
+        "executionMode": null,
         "replayLog": null,
         "time": null,
         "random": null,
@@ -810,22 +809,11 @@
       "description": "Runtime options (top-level).",
       "type": "object",
       "properties": {
-        "determinism": {
-          "description": "Determinism policy for runtime scheduling and I/O.",
+        "executionMode": {
+          "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DeterminismPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "replay": {
-          "description": "Replay policy for external effects.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReplayModeJson"
+              "$ref": "#/$defs/ExecutionModeJson"
             },
             {
               "type": "null"
@@ -889,28 +877,18 @@
         }
       }
     },
-    "DeterminismPolicyJson": {
-      "description": "Determinism policy for JSON deserialization.",
+    "ExecutionModeJson": {
+      "description": "Execution mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Best-effort execution without determinism guarantees.",
+          "description": "Fast execution without determinism guarantees.",
           "type": "string",
-          "const": "besteffort"
+          "const": "fast"
         },
         {
           "description": "Deterministic scheduling with controlled randomness.",
           "type": "string",
           "const": "deterministic"
-        }
-      ]
-    },
-    "ReplayModeJson": {
-      "description": "Replay policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable record/replay.",
-          "type": "string",
-          "const": "off"
         },
         {
           "description": "Record external effects for replay.",
@@ -2428,22 +2406,11 @@
             }
           ]
         },
-        "determinism": {
-          "description": "Determinism policy for runtime scheduling and I/O.",
+        "executionMode": {
+          "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DeterminismPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "replay": {
-          "description": "Replay policy for external effects.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReplayModeJson"
+              "$ref": "#/$defs/ExecutionModeJson"
             },
             {
               "type": "null"

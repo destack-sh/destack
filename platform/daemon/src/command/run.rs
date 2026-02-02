@@ -3,13 +3,13 @@ use std::sync::Arc;
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
 use destack_heap::GcOptions as HeapGcOptions;
 use destack_runtime::engine::EntryPoint;
-use destack_runtime::platform::{BindingPolicy, DeterminismPolicy, PlatformContext, ReplayMode};
+use destack_runtime::platform::{BindingPolicy, ExecutionMode as RuntimeExecutionMode, PlatformContext};
 use destack_runtime::runtime::{Runtime, RuntimeContext};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
-    DebugMode, DeterminismPolicy as TargetDeterminismPolicy, DsConfigRuntimeOptionsJson, Program,
-    ReplayMode as TargetReplayMode, RuntimeOptions, Target, TargetId, TrustPolicy,
+    DebugMode, DsConfigRuntimeOptionsJson, ExecutionMode as TargetExecutionMode, Program,
+    RuntimeOptions, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -419,17 +419,14 @@ fn isolate_options_for_target(target: &Target) -> IsolateOptions {
 
 /// Create binding policy from target configuration.
 fn binding_policy_for_target(target: &Target) -> BindingPolicy {
-    let determinism = match target.runtime_options.determinism {
-        TargetDeterminismPolicy::BestEffort => DeterminismPolicy::BestEffort,
-        TargetDeterminismPolicy::Deterministic => DeterminismPolicy::Deterministic,
-    };
-    let replay = match target.runtime_options.replay {
-        TargetReplayMode::Off => ReplayMode::Off,
-        TargetReplayMode::Record => ReplayMode::Record,
-        TargetReplayMode::Replay => ReplayMode::Replay,
+    let mode = match target.runtime_options.execution_mode {
+        TargetExecutionMode::Fast => RuntimeExecutionMode::Fast,
+        TargetExecutionMode::Deterministic => RuntimeExecutionMode::Deterministic,
+        TargetExecutionMode::Record => RuntimeExecutionMode::Record,
+        TargetExecutionMode::Replay => RuntimeExecutionMode::Replay,
     };
 
-    BindingPolicy::new(determinism, replay)
+    BindingPolicy::new(mode)
 }
 
 /// Apply runtime overrides to a target.
@@ -437,6 +434,4 @@ fn apply_runtime_overrides(target: &mut Target, overrides: &DsConfigRuntimeOptio
     let mut runtime_options = target.runtime_options.clone();
     overrides.apply_to(&mut runtime_options);
     target.runtime_options = runtime_options;
-    target.determinism = target.runtime_options.determinism;
-    target.replay = target.runtime_options.replay;
 }

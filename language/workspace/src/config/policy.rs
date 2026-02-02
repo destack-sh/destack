@@ -1,52 +1,26 @@
 use serde::{Deserialize, Serialize};
 
-/// Determinism policy for runtime scheduling and I/O.
+/// Execution mode for runtime scheduling and replay.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum DeterminismPolicy {
-    /// Best-effort execution without determinism guarantees.
+pub enum ExecutionMode {
+    /// Fast execution without determinism guarantees.
     #[default]
-    BestEffort,
+    Fast,
     /// Deterministic scheduling with controlled randomness.
     Deterministic,
-}
-
-impl std::str::FromStr for DeterminismPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "none" | "off" | "best_effort" => Ok(Self::BestEffort),
-            "deterministic" | "determinism" => Ok(Self::Deterministic),
-            _ => Err(()),
-        }
-    }
-}
-
-impl DeterminismPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Replay policy for external effects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum ReplayMode {
-    /// Disable record/replay.
-    #[default]
-    Off,
     /// Record external effects for replay.
     Record,
     /// Replay external effects from the log.
     Replay,
 }
 
-impl std::str::FromStr for ReplayMode {
+impl std::str::FromStr for ExecutionMode {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
-            "none" | "off" => Ok(Self::Off),
+            "fast" => Ok(Self::Fast),
+            "deterministic" => Ok(Self::Deterministic),
             "record" => Ok(Self::Record),
             "replay" => Ok(Self::Replay),
             _ => Err(()),
@@ -54,7 +28,7 @@ impl std::str::FromStr for ReplayMode {
     }
 }
 
-impl ReplayMode {
+impl ExecutionMode {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
@@ -490,48 +464,28 @@ impl CheckFailurePolicy {
     }
 }
 
-/// Determinism policy for JSON deserialization.
+/// Execution mode for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum DeterminismPolicyJson {
-    /// Best-effort execution without determinism guarantees.
-    #[serde(alias = "off")]
-    BestEffort,
+pub enum ExecutionModeJson {
+    /// Fast execution without determinism guarantees.
+    Fast,
     /// Deterministic scheduling with controlled randomness.
-    #[serde(alias = "determinism")]
     Deterministic,
-}
-
-impl From<DeterminismPolicyJson> for DeterminismPolicy {
-    fn from(value: DeterminismPolicyJson) -> Self {
-        match value {
-            DeterminismPolicyJson::BestEffort => DeterminismPolicy::BestEffort,
-            DeterminismPolicyJson::Deterministic => DeterminismPolicy::Deterministic,
-        }
-    }
-}
-
-/// Replay policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum ReplayModeJson {
-    /// Disable record/replay.
-    #[serde(alias = "none")]
-    Off,
     /// Record external effects for replay.
     Record,
     /// Replay external effects from the log.
     Replay,
 }
 
-impl From<ReplayModeJson> for ReplayMode {
-    fn from(value: ReplayModeJson) -> Self {
+impl From<ExecutionModeJson> for ExecutionMode {
+    fn from(value: ExecutionModeJson) -> Self {
         match value {
-            ReplayModeJson::Off => ReplayMode::Off,
-            ReplayModeJson::Record => ReplayMode::Record,
-            ReplayModeJson::Replay => ReplayMode::Replay,
+            ExecutionModeJson::Fast => ExecutionMode::Fast,
+            ExecutionModeJson::Deterministic => ExecutionMode::Deterministic,
+            ExecutionModeJson::Record => ExecutionMode::Record,
+            ExecutionModeJson::Replay => ExecutionMode::Replay,
         }
     }
 }

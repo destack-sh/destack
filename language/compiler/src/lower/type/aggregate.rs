@@ -39,6 +39,7 @@ impl TypeLowerer {
 
             // lower the field's type and compute size/alignment
             let field_mir_type = self.lower_type(types, field.ty, module_id, node, builder)?;
+            // skip void fields that lower to no storage
             if field_mir_type == self.ty_void {
                 continue;
             }
@@ -76,6 +77,14 @@ impl TypeLowerer {
         let mut mir_elements = Vec::with_capacity(elements.len());
         for element in elements {
             let mir_type = self.lower_type(types, element.ty, module_id, node, builder)?;
+            // reject void elements in tuples
+            if mir_type == self.ty_void {
+                return Err(LowerError::UnsupportedType {
+                    node,
+                    ty: element.ty.into_global(module_id),
+                    message: "void is not allowed in tuples".to_string(),
+                });
+            }
             mir_elements.push(mir_type);
         }
 
@@ -97,6 +106,14 @@ impl TypeLowerer {
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // lower the element type
         let mir_element = self.lower_type(types, element, module_id, node, builder)?;
+        // reject void elements in arrays
+        if mir_element == self.ty_void {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: element.into_global(module_id),
+                message: "void is not allowed in arrays".to_string(),
+            });
+        }
 
         // get the inferred type of the count expression
         let count_node = count.into_global_any(module_id);

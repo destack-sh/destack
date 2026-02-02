@@ -23,8 +23,7 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
         "incremental": true
     },
     "runtimeOptions": {
-        "determinism": "deterministic",
-        "replay": "record",
+        "executionMode": "record",
         "replayLog": { "path": ".destack/runtime/replay" },
         "time": { "mode": "virtual" },
         "random": { "mode": "deterministic", "seed": 1337 }
@@ -85,43 +84,6 @@ Runtime and platform define semantics and APIs.
 Target triples define native ABI and architecture.
 (Codegen backends actually generate the code for some specific target.)
 
-**Build target configuration:**
-
-```ds
-struct Target {
-    name: string,
-    output: OutputFormat,      // Js, Ts, Wasm, Native
-    mode: OutputMode,          // Directory or File
-    platform: Platform,        // Web, Windows, MacOS, Linux, IOS, Android, Wasi, BareMetal, Universal
-    runtime: Runtime,          // Browser, Node, Bun, Deno, WasmJs, WasmWasi, NativeHosted, NativeFreestanding, NativeEmbedded
-    runtimeVersion: string | null,
-    optimize: boolean,
-    optimizeLevel: OptimizeLevel,
-    debug: boolean,
-    boundsChecks: BoundsCheckPolicy,
-    overflowChecks: OverflowCheckPolicy,
-    panic: PanicPolicy,
-    unwind: UnwindFormat,
-    debugInfo: DebugInfoLevel,
-    debugMode: DebugMode,
-    osrMode: OsrMode,
-    safepointMode: SafepointMode,
-    safepointInterval: number | null,
-    speculationMode: SpeculationMode,
-    profilingMode: ProfilingMode,
-    determinism: DeterminismPolicy,
-    replay: ReplayMode,
-    runtimeOptions: RuntimeOptions,
-    strip: StripLevel,
-    allocator: Allocator,
-    relocationModel: RelocationModel,
-    linkMode: LinkMode,
-    targetTriple: string | null,
-    cpu: string | null,
-    cpuFeatures: string[],
-    // ...
-}
-```
 
 ### Formatter / Linter
 
