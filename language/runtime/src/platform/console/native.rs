@@ -1,32 +1,31 @@
 use std::io::{self, Write};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::bindings::BindingDescriptor;
+use crate::platform::bindings::{BindingDescriptor, native_call};
 use crate::platform::console::bindings_generated as bindings;
-use crate::platform::{PlatformError, PlatformStringRef, RuntimeStatus};
-use crate::runtime::with_runtime_call_context;
+use crate::platform::{NativeStringRef, PlatformError, RuntimeStatus};
 
 /// Write a line to stdout for native code.
 #[unsafe(export_name = "destack.console.log")]
-pub unsafe extern "C" fn destack_console_log(value: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_console_log(value: NativeStringRef) -> RuntimeStatus {
     write_console(value, ConsoleStream::Stdout, bindings::LOG)
 }
 
 /// Write an info line to stdout for native code.
 #[unsafe(export_name = "destack.console.info")]
-pub unsafe extern "C" fn destack_console_info(value: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_console_info(value: NativeStringRef) -> RuntimeStatus {
     write_console(value, ConsoleStream::Stdout, bindings::INFO)
 }
 
 /// Write a warning line to stderr for native code.
 #[unsafe(export_name = "destack.console.warn")]
-pub unsafe extern "C" fn destack_console_warn(value: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_console_warn(value: NativeStringRef) -> RuntimeStatus {
     write_console(value, ConsoleStream::Stderr, bindings::WARN)
 }
 
 /// Write an error line to stderr for native code.
 #[unsafe(export_name = "destack.console.error")]
-pub unsafe extern "C" fn destack_console_error(value: PlatformStringRef) -> RuntimeStatus {
+pub unsafe extern "C" fn destack_console_error(value: NativeStringRef) -> RuntimeStatus {
     write_console(value, ConsoleStream::Stderr, bindings::ERROR)
 }
 
@@ -40,25 +39,16 @@ enum ConsoleStream {
 
 /// Write a console line to the platform stream.
 fn write_console(
-    value: PlatformStringRef,
+    value: NativeStringRef,
     stream: ConsoleStream,
     spec: BindingDescriptor,
 ) -> RuntimeStatus {
-    let status = with_runtime_call_context(|context| {
-        let result = (|| {
-            context.check_policy(spec)?;
+    native_call(|context| {
+        context.check_policy(spec)?;
 
-            let line = unsafe { value.as_str()? };
-            write_console_line(line, stream)
-        })();
-
-        Ok(RuntimeStatus::from_result(result, Some(context)))
-    });
-
-    match status {
-        Ok(status) => status,
-        Err(error) => RuntimeStatus::from_error(error, None),
-    }
+        let line = unsafe { value.as_str()? };
+        write_console_line(line, stream)
+    })
 }
 
 /// Write a console line to the platform stream.

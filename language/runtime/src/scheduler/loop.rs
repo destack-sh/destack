@@ -14,7 +14,9 @@ pub struct EventLoop {
     /// Pending microtasks drained between tasks.
     pub microtasks: VecDeque<Microtask>,
     /// Pending external events.
-    pub events: Vec<PlatformEvent>,
+    pub events: VecDeque<PlatformEvent>,
+    /// Ready timers waiting for dispatch.
+    pub ready_timers: VecDeque<Timer>,
     /// Timer queue for scheduled callbacks.
     pub timers: Mutex<TimerQueue>,
     /// Next task identifier to issue.
@@ -45,7 +47,7 @@ impl EventLoop {
     }
 
     /// Drain queued external events.
-    pub fn drain_events(&mut self) -> Vec<PlatformEvent> {
+    pub fn drain_events(&mut self) -> VecDeque<PlatformEvent> {
         std::mem::take(&mut self.events)
     }
 
@@ -65,12 +67,16 @@ impl EventLoop {
 
     /// Report whether any work remains in the event loop.
     pub fn has_pending_work(&self) -> bool {
-        if !self.tasks.is_empty() || !self.microtasks.is_empty() || !self.events.is_empty() {
+        if !self.tasks.is_empty()
+            || !self.microtasks.is_empty()
+            || !self.events.is_empty()
+            || !self.ready_timers.is_empty()
+        {
             return true;
         }
 
         let queue = self.timers.lock();
-        !queue.timers.is_empty()
+        queue.has_pending_timers()
     }
 
     /// Schedule a timer in the runtime queue.
@@ -92,5 +98,12 @@ impl EventLoop {
         let mut queue = self.timers.lock();
         let ready = queue.poll_ready(now_nanos);
         Ok(ready)
+    }
+
+    /// Enqueue ready timers from the timer queue.
+    pub fn enqueue_ready_timers(&mut self, now_nanos: u64) -> RuntimeResult<()> {
+        let ready = self.poll_timers(now_nanos)?;
+        self.ready_timers.extend(ready);
+        Ok(())
     }
 }

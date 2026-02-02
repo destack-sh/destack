@@ -2,9 +2,9 @@
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
-use crate::platform::fs::{AccessMode, FileMode, FileOffset, OpenFlags};
+use crate::platform::fs::{AccessMode, AtFlags, FileLockFlags, FileMode, FileOffset, OpenFlags};
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
@@ -12,229 +12,374 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 
 use crate::platform::fs::{native, vm as platform_vm};
+use crate::platform::resource;
 
 /// Binding descriptor for destack.fs.access.
-pub const ACCESS: BindingDescriptor = BindingDescriptor::recordable(
+pub const ACCESS: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.access",
     "export function access(path: string, mode: AccessMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.chmod.
-pub const CHMOD: BindingDescriptor = BindingDescriptor::recordable(
+pub const CHMOD: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.chmod",
     "export function chmod(path: string, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.chown.
-pub const CHOWN: BindingDescriptor = BindingDescriptor::recordable(
+pub const CHOWN: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.chown",
     "export function chown(path: string, uid: uint32, gid: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.close.
-pub const CLOSE: BindingDescriptor = BindingDescriptor::recordable(
+pub const CLOSE: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.close",
     "export function close(handle: FileHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.closedir.
-pub const CLOSEDIR: BindingDescriptor = BindingDescriptor::recordable(
+pub const CLOSEDIR: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.closedir",
     "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.copyfile.
-pub const COPYFILE: BindingDescriptor = BindingDescriptor::recordable(
+pub const COPYFILE: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.copyfile",
     "export function copyfile(from: string, to: string, flags: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fchmod.
-pub const FCHMOD: BindingDescriptor = BindingDescriptor::recordable(
+pub const FCHMOD: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fchmod",
     "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fchown.
-pub const FCHOWN: BindingDescriptor = BindingDescriptor::recordable(
+pub const FCHOWN: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fchown",
     "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fdatasync.
-pub const FDATASYNC: BindingDescriptor = BindingDescriptor::recordable(
+pub const FDATASYNC: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fdatasync",
     "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fstat.
-pub const FSTAT: BindingDescriptor = BindingDescriptor::recordable(
+pub const FSTAT: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fstat",
     "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fstatfs.
-pub const FSTATFS: BindingDescriptor = BindingDescriptor::recordable(
+pub const FSTATFS: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fstatfs",
     "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.fsync.
-pub const FSYNC: BindingDescriptor = BindingDescriptor::recordable(
+pub const FSYNC: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.fsync",
     "export function fsync(handle: FileHandle): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.ftruncate.
-pub const FTRUNCATE: BindingDescriptor = BindingDescriptor::recordable(
+pub const FTRUNCATE: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.ftruncate",
     "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.futimes.
-pub const FUTIMES: BindingDescriptor = BindingDescriptor::recordable(
+pub const FUTIMES: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.futimes",
     "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.link.
-pub const LINK: BindingDescriptor = BindingDescriptor::recordable(
+pub const LINK: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.link",
     "export function link(existingPath: string, newPath: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.linkat.
+pub const LINKAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.linkat",
+    "export function linkat(existingDir: DirectoryHandle, existingPath: string, newDir: DirectoryHandle, newPath: string, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.lock.
+pub const LOCK: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.lock",
+    "export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.lstat.
-pub const LSTAT: BindingDescriptor = BindingDescriptor::recordable(
+pub const LSTAT: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.lstat",
     "export function lstat(path: string): Result<Stat, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.lutimes.
-pub const LUTIMES: BindingDescriptor = BindingDescriptor::recordable(
+pub const LUTIMES: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.lutimes",
     "export function lutimes(path: string, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.mkdir.
-pub const MKDIR: BindingDescriptor = BindingDescriptor::recordable(
+pub const MKDIR: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.mkdir",
     "export function mkdir(path: string, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.mkdirat.
+pub const MKDIRAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdirat",
+    "export function mkdirat(dir: DirectoryHandle, path: string, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.mkdtemp.
-pub const MKDTEMP: BindingDescriptor = BindingDescriptor::recordable(
+pub const MKDTEMP: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.mkdtemp",
     "export function mkdtemp(template: string): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.open.
-pub const OPEN: BindingDescriptor = BindingDescriptor::recordable(
+pub const OPEN: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.open",
     "export function open(path: string, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.openat.
+pub const OPENAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.openat",
+    "export function openat(dir: DirectoryHandle, path: string, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.opendir.
-pub const OPENDIR: BindingDescriptor = BindingDescriptor::recordable(
+pub const OPENDIR: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.opendir",
     "export function opendir(path: string): Result<DirectoryHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.read.
-pub const READ: BindingDescriptor = BindingDescriptor::recordable(
+pub const READ: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.read",
     "export function read(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.readdir.
-pub const READDIR: BindingDescriptor = BindingDescriptor::recordable(
+pub const READDIR: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.readdir",
     "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.readlink.
-pub const READLINK: BindingDescriptor = BindingDescriptor::recordable(
+pub const READLINK: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.readlink",
     "export function readlink(path: string): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.readlinkat.
+pub const READLINKAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.readlinkat",
+    "export function readlinkat(dir: DirectoryHandle, path: string): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.readv.
-pub const READV: BindingDescriptor = BindingDescriptor::recordable(
+pub const READV: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.readv",
     "export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.realpath.
-pub const REALPATH: BindingDescriptor = BindingDescriptor::recordable(
+pub const REALPATH: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.realpath",
     "export function realpath(path: string): Result<string, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.rename.
-pub const RENAME: BindingDescriptor = BindingDescriptor::recordable(
+pub const RENAME: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.rename",
     "export function rename(from: string, to: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.renameat.
+pub const RENAMEAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.renameat",
+    "export function renameat(fromDir: DirectoryHandle, from: string, toDir: DirectoryHandle, to: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.rmdir.
-pub const RMDIR: BindingDescriptor = BindingDescriptor::recordable(
+pub const RMDIR: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.rmdir",
     "export function rmdir(path: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.stat.
-pub const STAT: BindingDescriptor = BindingDescriptor::recordable(
+pub const STAT: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.stat",
     "export function stat(path: string): Result<Stat, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.statat.
+pub const STATAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statat",
+    "export function statat(dir: DirectoryHandle, path: string, flags: AtFlags): Result<Stat, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.statfs.
-pub const STATFS: BindingDescriptor = BindingDescriptor::recordable(
+pub const STATFS: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.statfs",
     "export function statfs(path: string): Result<StatFs, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.symlink.
-pub const SYMLINK: BindingDescriptor = BindingDescriptor::recordable(
+pub const SYMLINK: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.symlink",
     "export function symlink(target: string, path: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.symlinkat.
+pub const SYMLINKAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.symlinkat",
+    "export function symlinkat(target: string, dir: DirectoryHandle, path: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.truncate.
-pub const TRUNCATE: BindingDescriptor = BindingDescriptor::recordable(
+pub const TRUNCATE: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.truncate",
     "export function truncate(path: string, size: FileOffset): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.unlink.
-pub const UNLINK: BindingDescriptor = BindingDescriptor::recordable(
+pub const UNLINK: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.unlink",
     "export function unlink(path: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
+);
+
+/// Binding descriptor for destack.fs.unlinkat.
+pub const UNLINKAT: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.unlinkat",
+    "export function unlinkat(dir: DirectoryHandle, path: string, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.utimes.
-pub const UTIMES: BindingDescriptor = BindingDescriptor::recordable(
+pub const UTIMES: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.utimes",
     "export function utimes(path: string, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.write.
-pub const WRITE: BindingDescriptor = BindingDescriptor::recordable(
+pub const WRITE: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.write",
     "export function write(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.fs.writev.
-pub const WRITEV: BindingDescriptor = BindingDescriptor::recordable(
+pub const WRITEV: BindingDescriptor = BindingDescriptor::external(
     "destack.fs.writev",
     "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptors for fs.
 pub const BINDINGS: &[BindingDescriptor] = &[
     ACCESS, CHMOD, CHOWN, CLOSE, CLOSEDIR, COPYFILE, FCHMOD, FCHOWN, FDATASYNC, FSTAT, FSTATFS,
-    FSYNC, FTRUNCATE, FUTIMES, LINK, LSTAT, LUTIMES, MKDIR, MKDTEMP, OPEN, OPENDIR, READ, READDIR,
-    READLINK, READV, REALPATH, RENAME, RMDIR, STAT, STATFS, SYMLINK, TRUNCATE, UNLINK, UTIMES,
-    WRITE, WRITEV,
+    FSYNC, FTRUNCATE, FUTIMES, LINK, LINKAT, LOCK, LSTAT, LUTIMES, MKDIR, MKDIRAT, MKDTEMP, OPEN,
+    OPENAT, OPENDIR, READ, READDIR, READLINK, READLINKAT, READV, REALPATH, RENAME, RENAMEAT, RMDIR,
+    STAT, STATAT, STATFS, SYMLINK, SYMLINKAT, TRUNCATE, UNLINK, UNLINKAT, UTIMES, WRITE, WRITEV,
 ];
 
 /// Native binding set for fs.
@@ -317,6 +462,16 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_fs_link as *const (),
         ),
         NativeBinding::new(
+            LINKAT,
+            "destack.fs.linkat",
+            native::destack_fs_linkat as *const (),
+        ),
+        NativeBinding::new(
+            LOCK,
+            "destack.fs.lock",
+            native::destack_fs_lock as *const (),
+        ),
+        NativeBinding::new(
             LSTAT,
             "destack.fs.lstat",
             native::destack_fs_lstat as *const (),
@@ -332,6 +487,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_fs_mkdir as *const (),
         ),
         NativeBinding::new(
+            MKDIRAT,
+            "destack.fs.mkdirat",
+            native::destack_fs_mkdirat as *const (),
+        ),
+        NativeBinding::new(
             MKDTEMP,
             "destack.fs.mkdtemp",
             native::destack_fs_mkdtemp as *const (),
@@ -340,6 +500,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             OPEN,
             "destack.fs.open",
             native::destack_fs_open as *const (),
+        ),
+        NativeBinding::new(
+            OPENAT,
+            "destack.fs.openat",
+            native::destack_fs_openat as *const (),
         ),
         NativeBinding::new(
             OPENDIR,
@@ -362,6 +527,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_fs_readlink as *const (),
         ),
         NativeBinding::new(
+            READLINKAT,
+            "destack.fs.readlinkat",
+            native::destack_fs_readlinkat as *const (),
+        ),
+        NativeBinding::new(
             READV,
             "destack.fs.readv",
             native::destack_fs_readv as *const (),
@@ -377,6 +547,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_fs_rename as *const (),
         ),
         NativeBinding::new(
+            RENAMEAT,
+            "destack.fs.renameat",
+            native::destack_fs_renameat as *const (),
+        ),
+        NativeBinding::new(
             RMDIR,
             "destack.fs.rmdir",
             native::destack_fs_rmdir as *const (),
@@ -385,6 +560,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             STAT,
             "destack.fs.stat",
             native::destack_fs_stat as *const (),
+        ),
+        NativeBinding::new(
+            STATAT,
+            "destack.fs.statat",
+            native::destack_fs_statat as *const (),
         ),
         NativeBinding::new(
             STATFS,
@@ -397,6 +577,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             native::destack_fs_symlink as *const (),
         ),
         NativeBinding::new(
+            SYMLINKAT,
+            "destack.fs.symlinkat",
+            native::destack_fs_symlinkat as *const (),
+        ),
+        NativeBinding::new(
             TRUNCATE,
             "destack.fs.truncate",
             native::destack_fs_truncate as *const (),
@@ -405,6 +590,11 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             UNLINK,
             "destack.fs.unlink",
             native::destack_fs_unlink as *const (),
+        ),
+        NativeBinding::new(
+            UNLINKAT,
+            "destack.fs.unlinkat",
+            native::destack_fs_unlinkat as *const (),
         ),
         NativeBinding::new(
             UTIMES,
@@ -429,6 +619,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, ACCESS, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(ACCESS)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -472,6 +663,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, CHMOD, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CHMOD)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -512,6 +704,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, CHOWN, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CHOWN)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -562,6 +755,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, CLOSE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CLOSE)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -584,8 +778,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let result = platform_vm::destack_fs_close(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
@@ -595,6 +789,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, CLOSEDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(CLOSEDIR)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -617,8 +812,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::DirectoryHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::DirectoryHandle(handle_inner);
                 let result = platform_vm::destack_fs_closedir(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
@@ -628,6 +823,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, COPYFILE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(COPYFILE)?;
                 let from_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("from", "string"))
                         .boxed()
@@ -674,6 +870,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FCHMOD, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FCHMOD)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -696,8 +893,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let mode_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("mode", "FileMode"))
                         .boxed()
@@ -727,6 +924,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FCHOWN, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FCHOWN)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -749,8 +947,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let uid_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("uid", "uint32"))
                         .boxed()
@@ -790,6 +988,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FDATASYNC, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FDATASYNC)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -812,8 +1011,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let result = platform_vm::destack_fs_fdatasync(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
@@ -823,6 +1022,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FSTAT, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FSTAT)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -845,8 +1045,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let result = platform_vm::destack_fs_fstat(runtime, context, handle);
                 result.map(|value| {
                     context.allocate_aggregate(vec![
@@ -873,6 +1073,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FSTATFS, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FSTATFS)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -895,8 +1096,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let result = platform_vm::destack_fs_fstatfs(runtime, context, handle);
                 result.map(|value| {
                     context.allocate_aggregate(vec![
@@ -919,6 +1120,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FSYNC, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FSYNC)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -941,8 +1143,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let result = platform_vm::destack_fs_fsync(runtime, context, handle);
                 result.map(|_| vm::Value::VOID)
             })
@@ -952,6 +1154,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FTRUNCATE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FTRUNCATE)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -974,8 +1177,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let size_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "size",
@@ -1007,6 +1210,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, FUTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(FUTIMES)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1029,8 +1233,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let atimens_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "atimens", "uint64",
@@ -1077,6 +1281,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, LINK, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LINK)?;
                 let existingpath_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "existingpath",
@@ -1112,8 +1317,180 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, LINKAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(LINKAT)?;
+                let existingdir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "existingdir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (existingdir_inner_inner, width) =
+                    existingdir_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "existingdir_inner_inner",
+                            "DirectoryHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "existingdir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let existingdir_inner = resource::ResourceId(existingdir_inner_inner);
+                let existingdir = resource::DirectoryHandle(existingdir_inner);
+                let existingpath_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "existingpath",
+                        "string",
+                    ))
+                    .boxed()
+                })?;
+                if existingpath_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "existingpath",
+                        "string",
+                    ))
+                    .boxed());
+                }
+                let existingpath = vm::StringHandle::new(existingpath_value);
+                let newdir_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "newdir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (newdir_inner_inner, width) =
+                    newdir_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "newdir_inner_inner",
+                            "DirectoryHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "newdir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let newdir_inner = resource::ResourceId(newdir_inner_inner);
+                let newdir = resource::DirectoryHandle(newdir_inner);
+                let newpath_value = *args.get(3).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "newpath", "string",
+                    ))
+                    .boxed()
+                })?;
+                if newpath_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "newpath", "string",
+                    ))
+                    .boxed());
+                }
+                let newpath = vm::StringHandle::new(newpath_value);
+                let flags_value = *args.get(4).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("flags", "AtFlags"))
+                        .boxed()
+                })?;
+                let (flags_inner, width) = flags_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed());
+                }
+                let flags_inner = flags_inner as u32;
+                let flags = AtFlags(flags_inner);
+                let result = platform_vm::destack_fs_linkat(
+                    runtime,
+                    context,
+                    existingdir,
+                    existingpath,
+                    newdir,
+                    newpath,
+                    flags,
+                );
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, LOCK, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(LOCK)?;
+                let handle_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle",
+                        "FileHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (handle_inner_inner, width) =
+                    handle_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "handle_inner_inner",
+                            "FileHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "handle_inner_inner",
+                        "FileHandle",
+                    ))
+                    .boxed());
+                }
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
+                let flags_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags",
+                        "FileLockFlags",
+                    ))
+                    .boxed()
+                })?;
+                let (flags_inner, width) = flags_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "FileLockFlags",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "FileLockFlags",
+                    ))
+                    .boxed());
+                }
+                let flags_inner = flags_inner as u32;
+                let flags = FileLockFlags(flags_inner);
+                let result = platform_vm::destack_fs_lock(runtime, context, handle, flags);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, LSTAT, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LSTAT)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1151,6 +1528,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, LUTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LUTIMES)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1208,6 +1586,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, MKDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(MKDIR)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1246,8 +1625,73 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, MKDIRAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(MKDIRAT)?;
+                let dir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let mode_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("mode", "FileMode"))
+                        .boxed()
+                })?;
+                let (mode_inner, width) = mode_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "mode_inner",
+                        "FileMode",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "mode_inner",
+                        "FileMode",
+                    ))
+                    .boxed());
+                }
+                let mode_inner = mode_inner as u32;
+                let mode = FileMode(mode_inner);
+                let result = platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, MKDTEMP, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(MKDTEMP)?;
                 let template_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "template", "string",
@@ -1270,6 +1714,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, OPEN, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(OPEN)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1331,8 +1776,97 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, OPENAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(OPENAT)?;
+                let dir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let flags_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags",
+                        "OpenFlags",
+                    ))
+                    .boxed()
+                })?;
+                let (flags_inner, width) = flags_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "OpenFlags",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "OpenFlags",
+                    ))
+                    .boxed());
+                }
+                let flags_inner = flags_inner as u32;
+                let flags = OpenFlags(flags_inner);
+                let mode_value = *args.get(3).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("mode", "FileMode"))
+                        .boxed()
+                })?;
+                let (mode_inner, width) = mode_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "mode_inner",
+                        "FileMode",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "mode_inner",
+                        "FileMode",
+                    ))
+                    .boxed());
+                }
+                let mode_inner = mode_inner as u32;
+                let mode = FileMode(mode_inner);
+                let result =
+                    platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode);
+                result.map(|value| vm::Value::uint(value.0.0, 64))
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, OPENDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(OPENDIR)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1353,6 +1887,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, READ, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(READ)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1375,8 +1910,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let buffer_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -1417,6 +1952,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, READDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(READDIR)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1439,8 +1975,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::DirectoryHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::DirectoryHandle(handle_inner);
                 let result = platform_vm::destack_fs_readdir(runtime, context, handle);
                 result.map(|value| value.to_value(context))
             })
@@ -1450,6 +1986,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, READLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(READLINK)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1468,8 +2005,53 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, READLINKAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(READLINKAT)?;
+                let dir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let result = platform_vm::destack_fs_readlinkat(runtime, context, dir, path);
+                result.map(|value| value.value())
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, READV, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(READV)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1492,8 +2074,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let buffers_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffers",
@@ -1539,6 +2121,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, REALPATH, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(REALPATH)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1559,6 +2142,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, RENAME, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(RENAME)?;
                 let from_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("from", "string"))
                         .boxed()
@@ -1588,8 +2172,90 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, RENAMEAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(RENAMEAT)?;
+                let fromdir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "fromdir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (fromdir_inner_inner, width) =
+                    fromdir_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "fromdir_inner_inner",
+                            "DirectoryHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "fromdir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let fromdir_inner = resource::ResourceId(fromdir_inner_inner);
+                let fromdir = resource::DirectoryHandle(fromdir_inner);
+                let from_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("from", "string"))
+                        .boxed()
+                })?;
+                if from_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "from", "string",
+                    ))
+                    .boxed());
+                }
+                let from = vm::StringHandle::new(from_value);
+                let todir_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "todir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (todir_inner_inner, width) =
+                    todir_value.as_uint_with_width().ok_or_else(|| {
+                        RuntimeError::platform(PlatformError::invalid_argument_type(
+                            "todir_inner_inner",
+                            "DirectoryHandle",
+                        ))
+                        .boxed()
+                    })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "todir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let todir_inner = resource::ResourceId(todir_inner_inner);
+                let todir = resource::DirectoryHandle(todir_inner);
+                let to_value = *args.get(3).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("to", "string"))
+                        .boxed()
+                })?;
+                if to_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "to", "string",
+                    ))
+                    .boxed());
+                }
+                let to = vm::StringHandle::new(to_value);
+                let result =
+                    platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, RMDIR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(RMDIR)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1610,6 +2276,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, STAT, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(STAT)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1645,8 +2312,90 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, STATAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(STATAT)?;
+                let dir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let flags_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("flags", "AtFlags"))
+                        .boxed()
+                })?;
+                let (flags_inner, width) = flags_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed());
+                }
+                let flags_inner = flags_inner as u32;
+                let flags = AtFlags(flags_inner);
+                let result = platform_vm::destack_fs_statat(runtime, context, dir, path, flags);
+                result.map(|value| {
+                    context.allocate_aggregate(vec![
+                        vm::Value::uint(value.dev, 64),
+                        vm::Value::uint(value.ino, 64),
+                        vm::Value::uint(value.mode as u64, 32),
+                        vm::Value::uint(value.nlink as u64, 32),
+                        vm::Value::uint(value.uid as u64, 32),
+                        vm::Value::uint(value.gid as u64, 32),
+                        vm::Value::uint(value.rdev, 64),
+                        vm::Value::uint(value.size.0, 64),
+                        vm::Value::uint(value.blksize, 64),
+                        vm::Value::uint(value.blocks, 64),
+                        vm::Value::uint(value.atime_ns, 64),
+                        vm::Value::uint(value.mtime_ns, 64),
+                        vm::Value::uint(value.ctime_ns, 64),
+                        vm::Value::uint(value.birthtime_ns, 64),
+                    ])
+                })
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, STATFS, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(STATFS)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1680,6 +2429,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, SYMLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(SYMLINK)?;
                 let target_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("target", "string"))
                         .boxed()
@@ -1709,8 +2459,64 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, SYMLINKAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(SYMLINKAT)?;
+                let target_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("target", "string"))
+                        .boxed()
+                })?;
+                if target_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "target", "string",
+                    ))
+                    .boxed());
+                }
+                let target = vm::StringHandle::new(target_value);
+                let dir_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let result = platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, TRUNCATE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(TRUNCATE)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1753,6 +2559,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, UNLINK, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(UNLINK)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1771,8 +2578,73 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
+        binding!(registry, isolate, UNLINKAT, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                runtime.check_policy(UNLINKAT)?;
+                let dir_value = *args.first().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                let (dir_inner_inner, width) = dir_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed()
+                })?;
+                if width != 64 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "dir_inner_inner",
+                        "DirectoryHandle",
+                    ))
+                    .boxed());
+                }
+                let dir_inner = resource::ResourceId(dir_inner_inner);
+                let dir = resource::DirectoryHandle(dir_inner);
+                let path_value = *args.get(1).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
+                        .boxed()
+                })?;
+                if path_value.tag() != vm::ValueTag::String {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "path", "string",
+                    ))
+                    .boxed());
+                }
+                let path = vm::StringHandle::new(path_value);
+                let flags_value = *args.get(2).ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type("flags", "AtFlags"))
+                        .boxed()
+                })?;
+                let (flags_inner, width) = flags_value.as_uint_with_width().ok_or_else(|| {
+                    RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed()
+                })?;
+                if width != 32 {
+                    return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
+                        "flags_inner",
+                        "AtFlags",
+                    ))
+                    .boxed());
+                }
+                let flags_inner = flags_inner as u32;
+                let flags = AtFlags(flags_inner);
+                let result = platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags);
+                result.map(|_| vm::Value::VOID)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
         binding!(registry, isolate, UTIMES, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(UTIMES)?;
                 let path_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("path", "string"))
                         .boxed()
@@ -1830,6 +2702,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, WRITE, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(WRITE)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1852,8 +2725,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let buffer_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffer",
@@ -1895,6 +2768,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
     {
         binding!(registry, isolate, WRITEV, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(WRITEV)?;
                 let handle_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "handle",
@@ -1917,8 +2791,8 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
                     ))
                     .boxed());
                 }
-                let handle_inner = crate::platform::resource::ResourceId(handle_inner_inner);
-                let handle = crate::platform::resource::FileHandle(handle_inner);
+                let handle_inner = resource::ResourceId(handle_inner_inner);
+                let handle = resource::FileHandle(handle_inner);
                 let buffers_value = *args.get(1).ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type(
                         "buffers",
@@ -1962,6 +2836,7 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
 }
+
 /// Install VM bindings for fs.
 pub fn install_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_fs_vm_bindings(registry, isolate);

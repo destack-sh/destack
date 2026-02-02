@@ -10,11 +10,12 @@ use crate::{LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
+use crate::lower::RuntimeStatusLayout;
 use crate::lower::emit::{BreakContext, LoopContext, Terminates};
 use crate::lower::item::{GlobalBinding, LocalBinding};
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{ClosureEnvLayout, VirtualMethodKey, VtableGlobal};
-use crate::lower::{RuntimeStatusLayout, r#type::TypeLowerer};
+use crate::lower::r#type::TypeLowerer;
 
 /// Shared, immutable inputs for lowering a single function body.
 pub(crate) struct FunctionEnv<'a> {

@@ -5,10 +5,10 @@ use destack_vm as vm;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 
-/// FFI array for raw platform bindings.
+/// FFI array for raw native bindings.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct PlatformArray<T> {
+pub struct NativeArray<T> {
     /// Pointer to the element data.
     pub data: *mut T,
     /// Number of elements in the array.
@@ -18,11 +18,11 @@ pub struct PlatformArray<T> {
 }
 
 // safety: raw array pointers are externally synchronized
-unsafe impl<T> Send for PlatformArray<T> {}
+unsafe impl<T> Send for NativeArray<T> {}
 // safety: raw array pointers are externally synchronized
-unsafe impl<T> Sync for PlatformArray<T> {}
+unsafe impl<T> Sync for NativeArray<T> {}
 
-impl<T> PlatformArray<T> {
+impl<T> NativeArray<T> {
     /// View the array as an immutable slice.
     pub unsafe fn as_slice<'a>(self) -> RuntimeResult<&'a [T]> {
         if self.data.is_null() && self.len != 0 {

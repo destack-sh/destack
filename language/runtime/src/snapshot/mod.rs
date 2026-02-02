@@ -1,3 +1,5 @@
-/// Snapshot persistence and restore service.
-#[derive(Debug, Default)]
-pub struct SnapshotStore;
+pub use metadata::SnapshotMetadata;
+pub use store::SnapshotStore;
+
+mod metadata;
+mod store;

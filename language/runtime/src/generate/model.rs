@@ -2,6 +2,40 @@ use std::collections::BTreeMap;
 
 use destack_dir::EnumBackingType;
 
+/// Replay behavior for external bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplayPolicy {
+    /// Record the call for replay and return replayed values in replay mode.
+    Recordable,
+    /// Reject the call in deterministic or replay modes.
+    NonRecordable,
+}
+
+/// Effect classification for external bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EffectClass {
+    /// No observable side effects.
+    Pure,
+    /// Deterministic effects that do not require external I/O.
+    Deterministic,
+    /// External side effects governed by replay policy.
+    External {
+        /// Replay behavior for the effect.
+        replay: ReplayPolicy,
+    },
+}
+
+/// Specialized replay log variants for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum LogKind {
+    /// Log time-related effects with a dedicated record.
+    Time,
+    /// Log randomness with a dedicated record.
+    Random,
+    /// Log scheduler events with a dedicated record.
+    Scheduler,
+}
+
 /// Binding metadata extracted from builtin sources.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingEntry {
@@ -13,6 +47,10 @@ pub(crate) struct BindingEntry {
     pub return_binding: BindingType,
     /// Whether the binding returns a Result wrapper.
     pub return_is_result: bool,
+    /// Effect classification for replay and policy.
+    pub effect_class: EffectClass,
+    /// Specialized log kind for replay.
+    pub log_kind: Option<LogKind>,
 }
 
 /// Return metadata extracted from a binding signature.

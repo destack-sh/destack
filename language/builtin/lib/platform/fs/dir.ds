@@ -34,11 +34,11 @@ export struct Dirent {
 /// Directory bindings for the native runtime.
 declare namespace fs {
     /// Create a directory.
-    @binding("destack.fs.mkdir")
+    @binding("destack.fs.mkdir", { effect: "external", replay: "recordable" })
     export function mkdir(path: string, mode: FileMode): Result<void, PlatformError>;
 
     /// Create a directory relative to a directory handle.
-    @binding("destack.fs.mkdirat")
+    @binding("destack.fs.mkdirat", { effect: "external", replay: "recordable" })
     export function mkdirat(
         dir: DirectoryHandle,
         path: string,
@@ -46,22 +46,22 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Remove a directory.
-    @binding("destack.fs.rmdir")
+    @binding("destack.fs.rmdir", { effect: "external", replay: "recordable" })
     export function rmdir(path: string): Result<void, PlatformError>;
 
     /// Open a directory and return a handle.
-    @binding("destack.fs.opendir")
+    @binding("destack.fs.opendir", { effect: "external", replay: "recordable" })
     export function opendir(path: string): Result<DirectoryHandle, PlatformError>;
 
     /// Read directory entries from an open directory handle.
-    @binding("destack.fs.readdir")
+    @binding("destack.fs.readdir", { effect: "external", replay: "recordable" })
     export function readdir(handle: DirectoryHandle): Result<Array<Dirent>, PlatformError>;
 
     /// Close a directory handle.
-    @binding("destack.fs.closedir")
+    @binding("destack.fs.closedir", { effect: "external", replay: "recordable" })
     export function closedir(handle: DirectoryHandle): Result<void, PlatformError>;
 
     /// Create a temporary directory.
-    @binding("destack.fs.mkdtemp")
+    @binding("destack.fs.mkdtemp", { effect: "external", replay: "recordable" })
     export function mkdtemp(template: string): Result<string, PlatformError>;
 }

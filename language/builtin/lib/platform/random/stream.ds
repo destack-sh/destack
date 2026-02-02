@@ -4,10 +4,13 @@ import type { PlatformError } from "../error/index.ds";
 /// Deterministic random stream bindings for the native runtime.
 declare namespace random {
     /// Return a deterministic random uint64 from the current stream.
-    @binding("destack.random.nextU64")
+    @binding("destack.random.nextU64", { effect: "external", replay: "recordable", log: "random" })
     export function nextU64(): Result<uint64, PlatformError>;
 
     /// Fill a slice with deterministic random bytes.
-    @binding("destack.random.fillBytes")
+    @binding(
+        "destack.random.fillBytes",
+        { effect: "external", replay: "recordable", log: "random" },
+    )
     export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>;
 }

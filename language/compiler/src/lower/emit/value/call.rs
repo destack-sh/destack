@@ -253,8 +253,8 @@ impl FunctionContext<'_> {
         let result_type = self.lower_type_for_expression(expression_id)?;
         let returns_void = result_type == self.env.type_lowerer.ty_void;
         let signature = self.signature_type_for_function(expression_id, function_id)?;
-        let is_binding_call = self.env.binding_abi_lowering
-            && self.env.binding_symbols.contains(&target_symbol);
+        let is_binding_call =
+            self.env.binding_abi_lowering && self.env.binding_symbols.contains(&target_symbol);
         if is_binding_call {
             if dispatch_receiver.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
@@ -401,12 +401,16 @@ impl FunctionContext<'_> {
         };
         let ok_struct_mir_type = self.cached_type_for_id(expression_id, result_info.ok_type)?;
         let err_struct_mir_type = self.cached_type_for_id(expression_id, result_info.err_type)?;
-        let err_value_mir_type = self.cached_type_for_id(expression_id, result_info.err_value_type)?;
+        let err_value_mir_type =
+            self.cached_type_for_id(expression_id, result_info.err_value_type)?;
 
-        let status_layout = self.env.runtime_status_layout.ok_or_else(|| LowerError::Internal {
-            module: self.env.module_id,
-            message: "binding ABI call is missing RuntimeStatus layout".to_string(),
-        })?;
+        let status_layout = self
+            .env
+            .runtime_status_layout
+            .ok_or_else(|| LowerError::Internal {
+                module: self.env.module_id,
+                message: "binding ABI call is missing RuntimeStatus layout".to_string(),
+            })?;
 
         let mut call_args = Vec::with_capacity(arguments.len() + (!ok_is_void as usize));
         let ok_out_ptr = if ok_is_void {
@@ -451,9 +455,7 @@ impl FunctionContext<'_> {
         let merge_block = self.state.builder.block();
         let result_variable = self.state.builder.variable(result_type);
 
-        self.state
-            .builder
-            .branch(is_ok, ok_block, err_block);
+        self.state.builder.branch(is_ok, ok_block, err_block);
 
         let anchor = expression_id
             .into_global_any(self.env.module_id)
@@ -518,7 +520,11 @@ impl FunctionContext<'_> {
         let _ = self
             .state
             .builder
-            .call(take_function, take_signature, vec![error_out_ptr, error_id_value])
+            .call(
+                take_function,
+                take_signature,
+                vec![error_out_ptr, error_id_value],
+            )
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)

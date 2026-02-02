@@ -3,16 +3,20 @@ use std::ptr;
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeErrorStore, RuntimeResult};
-use crate::platform::bindings::{BindingDescriptor, BindingPolicy};
-use crate::platform::{PlatformContext, ResourceTable};
+use crate::platform::bindings::{BindingDescriptor, BindingPolicy, ExecutionMode};
+use crate::platform::{NativeStringRef, PlatformContext, ResourceTable};
 use crate::random::Random;
-use crate::replay::ReplayLog;
+use crate::replay::{ReplayHeader, ReplayLogState};
+use crate::runtime::RuntimeCallStringStore;
+use crate::scheduler::Scheduler;
 use crate::telemetry::Telemetry;
 use crate::time::Clock;
 
 thread_local! {
     /// TLS slot for the current runtime call context.
     static RUNTIME_CALL_CONTEXT: Cell<*const RuntimeCallContext> = const { Cell::new(ptr::null()) };
+    /// TLS storage for native string references returned by bindings.
+    static RUNTIME_CALL_STRINGS: RuntimeCallStringStore = RuntimeCallStringStore::default();
 }
 
 /// Shared runtime state for platform bindings and execution.
@@ -27,7 +31,7 @@ pub struct RuntimeState {
     /// External resource table and finalizers.
     pub resources: ResourceTable,
     /// Replay log and record/replay state.
-    pub replay: ReplayLog,
+    pub replay: ReplayLogState,
     /// Runtime error storage for native bindings.
     pub errors: RuntimeErrorStore,
     /// Telemetry aggregation for debugging and profiling.
@@ -44,13 +48,27 @@ pub struct RuntimeContext {
 impl RuntimeContext {
     /// Create a runtime context from explicit platform state.
     pub fn new(platform: PlatformContext) -> Self {
+        Self::with_execution_mode(platform, ExecutionMode::Fast)
+    }
+
+    /// Create a runtime context with an explicit execution mode.
+    pub fn with_execution_mode(platform: PlatformContext, mode: ExecutionMode) -> Self {
+        Self::with_replay_header(platform, mode, ReplayHeader::default())
+    }
+
+    /// Create a runtime context with an explicit replay header.
+    pub fn with_replay_header(
+        platform: PlatformContext,
+        mode: ExecutionMode,
+        header: ReplayHeader,
+    ) -> Self {
         Self {
             state: Arc::new(RuntimeState {
                 platform,
                 time: Clock::default(),
                 random: Random::default(),
                 resources: ResourceTable::default(),
-                replay: ReplayLog::default(),
+                replay: ReplayLogState::new(mode, header),
                 errors: RuntimeErrorStore::default(),
                 telemetry: Telemetry,
             }),
@@ -78,7 +96,7 @@ impl RuntimeContext {
     }
 
     /// Return the replay log.
-    pub fn replay(&self) -> &ReplayLog {
+    pub fn replay(&self) -> &ReplayLogState {
         &self.state.replay
     }
 
@@ -110,18 +128,14 @@ pub struct RuntimeCallContext {
     /// Runtime state for platform bindings.
     runtime: *const RuntimeState,
     /// Scheduler for task queues and timers.
-    scheduler: *const crate::scheduler::Scheduler,
+    scheduler: *const Scheduler,
     /// Binding policy for external calls.
     policy: BindingPolicy,
 }
 
 impl RuntimeCallContext {
     /// Create a runtime call context for TLS.
-    pub fn new(
-        runtime: &RuntimeContext,
-        scheduler: &crate::scheduler::Scheduler,
-        policy: BindingPolicy,
-    ) -> Self {
+    pub fn new(runtime: &RuntimeContext, scheduler: &Scheduler, policy: BindingPolicy) -> Self {
         Self {
             runtime: Arc::as_ptr(&runtime.state),
             scheduler,
@@ -132,7 +146,7 @@ impl RuntimeCallContext {
     /// Create a runtime call context from raw pointers.
     pub(crate) fn from_raw(
         runtime: *const RuntimeState,
-        scheduler: *const crate::scheduler::Scheduler,
+        scheduler: *const Scheduler,
         policy: BindingPolicy,
     ) -> Self {
         Self {
@@ -151,7 +165,7 @@ impl RuntimeCallContext {
 
     /// Borrow the scheduler.
     #[inline]
-    pub fn scheduler(&self) -> &crate::scheduler::Scheduler {
+    pub fn scheduler(&self) -> &Scheduler {
         // safety: pointer is owned by the runtime
         unsafe { &*self.scheduler }
     }
@@ -160,6 +174,27 @@ impl RuntimeCallContext {
     #[inline]
     pub fn platform(&self) -> &PlatformContext {
         &self.runtime().platform
+    }
+
+    /// Borrow the replay state.
+    #[inline]
+    pub fn replay(&self) -> &ReplayLogState {
+        &self.runtime().replay
+    }
+
+    /// Clear call-local string storage.
+    pub fn clear_strings(&self) {
+        RUNTIME_CALL_STRINGS.with(|store| store.clear());
+    }
+
+    /// Store a string for the duration of the current call.
+    pub fn store_string(&self, value: &str) -> NativeStringRef {
+        RUNTIME_CALL_STRINGS.with(|store| store.store(value))
+    }
+
+    /// Store an optional string for the duration of the current call.
+    pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
+        RUNTIME_CALL_STRINGS.with(|store| store.store_option(value))
     }
 
     /// Validate the policy against a binding descriptor.
@@ -184,6 +219,7 @@ impl Drop for RuntimeCallGuard {
 }
 
 /// Enter a runtime call context for native bindings.
+#[inline]
 pub fn enter_runtime_call_context(context: &RuntimeCallContext) -> RuntimeCallGuard {
     let previous = RUNTIME_CALL_CONTEXT.with(|slot| {
         let previous = slot.get();
@@ -195,6 +231,7 @@ pub fn enter_runtime_call_context(context: &RuntimeCallContext) -> RuntimeCallGu
 }
 
 /// Access the current runtime call context for native bindings.
+#[inline]
 pub fn with_runtime_call_context<T>(
     f: impl FnOnce(&RuntimeCallContext) -> RuntimeResult<T>,
 ) -> RuntimeResult<T> {
@@ -205,5 +242,6 @@ pub fn with_runtime_call_context<T>(
 
     // safety: pointer is set by enter_runtime_call_context
     let context = unsafe { &*context };
+    context.clear_strings();
     f(context)
 }

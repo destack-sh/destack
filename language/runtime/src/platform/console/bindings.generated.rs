@@ -3,7 +3,7 @@
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
@@ -13,27 +13,35 @@ use destack_vm::Isolate;
 use crate::platform::console::{native, vm as platform_vm};
 
 /// Binding descriptor for destack.console.error.
-pub const ERROR: BindingDescriptor = BindingDescriptor::recordable(
+pub const ERROR: BindingDescriptor = BindingDescriptor::external(
     "destack.console.error",
     "export function error(value: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.console.info.
-pub const INFO: BindingDescriptor = BindingDescriptor::recordable(
+pub const INFO: BindingDescriptor = BindingDescriptor::external(
     "destack.console.info",
     "export function info(value: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.console.log.
-pub const LOG: BindingDescriptor = BindingDescriptor::recordable(
+pub const LOG: BindingDescriptor = BindingDescriptor::external(
     "destack.console.log",
     "export function log(value: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptor for destack.console.warn.
-pub const WARN: BindingDescriptor = BindingDescriptor::recordable(
+pub const WARN: BindingDescriptor = BindingDescriptor::external(
     "destack.console.warn",
     "export function warn(value: string): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptors for console.
@@ -71,6 +79,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     {
         binding!(registry, isolate, ERROR, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(ERROR)?;
                 let value_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("value", "string"))
                         .boxed()
@@ -91,6 +100,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     {
         binding!(registry, isolate, INFO, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(INFO)?;
                 let value_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("value", "string"))
                         .boxed()
@@ -111,6 +121,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     {
         binding!(registry, isolate, LOG, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(LOG)?;
                 let value_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("value", "string"))
                         .boxed()
@@ -131,6 +142,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
     {
         binding!(registry, isolate, WARN, move |context, args| {
             with_runtime_call_context(|runtime| {
+                runtime.check_policy(WARN)?;
                 let value_value = *args.first().ok_or_else(|| {
                     RuntimeError::platform(PlatformError::invalid_argument_type("value", "string"))
                         .boxed()
@@ -149,6 +161,7 @@ pub fn register_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mu
         });
     }
 }
+
 /// Install VM bindings for console.
 pub fn install_console_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_console_vm_bindings(registry, isolate);

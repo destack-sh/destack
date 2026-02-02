@@ -132,9 +132,9 @@ impl ModuleLowerer<'_> {
                 .type_function_pointer(abi_parameters.clone(), abi_info.ty);
             self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
 
-            let function_id = self
-                .builder
-                .extern_function(&extern_name, &abi_parameters, abi_info.ty);
+            let function_id =
+                self.builder
+                    .extern_function(&extern_name, &abi_parameters, abi_info.ty);
             self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
             self.binding_symbols.insert(target_symbol);
             if extern_name == "destack.error.takePlatformError" {

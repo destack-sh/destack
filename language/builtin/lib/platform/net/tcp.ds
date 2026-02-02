@@ -4,14 +4,14 @@ import { SocketHandle } from "../resource/index.ds";
 /// TCP socket option bindings for the native runtime.
 declare namespace net {
     /// Enable or disable TCP_NODELAY.
-    @binding("destack.net.setNoDelay")
+    @binding("destack.net.setNoDelay", { effect: "external", replay: "recordable" })
     export function setNoDelay(
         handle: SocketHandle,
         enabled: boolean,
     ): Result<void, PlatformError>;
 
     /// Enable or disable TCP keepalive.
-    @binding("destack.net.setKeepAlive")
+    @binding("destack.net.setKeepAlive", { effect: "external", replay: "recordable" })
     export function setKeepAlive(
         handle: SocketHandle,
         enabled: boolean,

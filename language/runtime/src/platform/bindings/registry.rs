@@ -168,14 +168,17 @@ impl BindingRegistry {
             );
             let _guard = enter_runtime_call_context(&call_context);
             let result = handler(context, args)?;
-            call_context
-                .runtime()
-                .replay
-                .record_event(ReplayEvent::BindingCall(BindingCallEvent {
-                    binding_id: descriptor.id,
-                    codec: descriptor.codec,
-                    payload: Vec::new(),
-                }));
+            if descriptor.log_kind.is_none() {
+                call_context
+                    .runtime()
+                    .replay
+                    .record_event(ReplayEvent::BindingCall(BindingCallEvent {
+                        binding_id: descriptor.id,
+                        codec: descriptor.codec,
+                        log_kind: None,
+                        payload: Vec::new(),
+                    }));
+            }
             Ok(result)
         });
 

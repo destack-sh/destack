@@ -9,7 +9,9 @@ use destack_workspace::{ProfileId, Program};
 use crate::format::{
     binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
 };
-use crate::model::{BindingCatalog, BindingEntry, BindingReturn};
+use crate::model::{
+    BindingCatalog, BindingEntry, BindingReturn, EffectClass, LogKind, ReplayPolicy,
+};
 
 /// Binding metadata extracted from a declaration node.
 #[derive(Debug, Clone)]
@@ -22,6 +24,21 @@ struct BindingRecord {
     params: Vec<crate::model::BindingParam>,
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
+    /// Effect classification for replay and policy.
+    effect_class: EffectClass,
+    /// Specialized log kind for replay.
+    log_kind: Option<LogKind>,
+}
+
+/// Binding decorator payload extracted from an annotation.
+#[derive(Debug, Clone)]
+struct BindingDecorator {
+    /// Optional binding name override.
+    extern_name: Option<String>,
+    /// Optional effect class override.
+    effect_class: EffectClass,
+    /// Optional log kind override.
+    log_kind: Option<LogKind>,
 }
 
 /// Collect platform bindings from builtin modules.
@@ -33,6 +50,8 @@ pub(crate) fn collect_platform_bindings(
 ) -> BindingCatalog {
     // resolve the canonical binding decorator symbol
     let binding_decorator_symbol = binding_decorator_symbol_id(program, profile_id);
+
+    // collect binding type symbols
     let binding_symbols = binding_type_symbols(program, profile_id);
 
     // collect bindings by domain
@@ -40,6 +59,7 @@ pub(crate) fn collect_platform_bindings(
 
     // visit builtin modules and extract binding annotations
     for module_id in platform_modules {
+        // load module metadata
         let module = program.modules.get(*module_id);
         let module = module.read();
         let dir = module.dir(profile_id);
@@ -49,15 +69,18 @@ pub(crate) fn collect_platform_bindings(
 
         // scan expressions for binding declarations
         for (expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            let binding_argument = binding_decorator_value(
+            // load binding decorator payload
+            let binding = binding_decorator_value(
                 &tree,
                 expression_id.into_any(),
                 strings,
                 binding_decorator_symbol,
             );
-            let Some(binding_argument) = binding_argument else {
+            let Some(binding) = binding else {
                 continue;
             };
+
+            // resolve the declaration referenced by the expression
             let declaration_id = declaration_from_expression(&tree, expression_id, expression);
             let Some(declaration_id) = declaration_id else {
                 continue;
@@ -69,8 +92,10 @@ pub(crate) fn collect_platform_bindings(
                 continue;
             };
 
+            // resolve the extern binding name
             let symbol = symbols.get_symbol(declaration.symbol());
-            let extern_name = binding_argument
+            let extern_name = binding
+                .extern_name
                 .or_else(|| symbol.name().map(|name| strings.get(name).to_string()));
 
             // format the canonical signature for the declaration
@@ -114,9 +139,14 @@ pub(crate) fn collect_platform_bindings(
             );
 
             // insert parsed binding metadata into the catalog
-            if let Some(entry) =
-                binding_from_node(extern_name, signature_text, params, return_binding)
-            {
+            if let Some(entry) = binding_from_node(
+                extern_name,
+                signature_text,
+                params,
+                return_binding,
+                binding.effect_class,
+                binding.log_kind,
+            ) {
                 insert_binding(&mut domains, entry);
             }
         }
@@ -151,6 +181,8 @@ fn binding_from_node(
     signature: String,
     params: Vec<crate::model::BindingParam>,
     return_binding: BindingReturn,
+    effect_class: EffectClass,
+    log_kind: Option<LogKind>,
 ) -> Option<BindingRecord> {
     let extern_name = extern_name?;
     if !extern_name.starts_with("destack.") {
@@ -162,11 +194,14 @@ fn binding_from_node(
         signature,
         params,
         return_binding,
+        effect_class,
+        log_kind,
     })
 }
 
 /// Insert a binding record into the domain catalog.
 fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
+    // resolve the binding domain
     let domain = binding_domain(&record.extern_name);
     let domain_bindings = domains.entry(domain).or_default();
 
@@ -176,14 +211,19 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         params: record.params,
         return_binding: record.return_binding.binding_type,
         return_is_result: record.return_binding.is_result,
+        effect_class: record.effect_class,
+        log_kind: record.log_kind,
     };
 
+    // insert the entry and validate signature stability
     if let Some(existing) = domain_bindings.insert(record.extern_name.clone(), entry.clone())
-        && existing.signature != entry.signature
+        && (existing.signature != entry.signature
+            || existing.effect_class != entry.effect_class
+            || existing.log_kind != entry.log_kind)
     {
         panic!(
             "binding signature mismatch for {}: {:?} vs {:?}",
-            record.extern_name, existing.signature, entry.signature
+            record.extern_name, existing, entry
         );
     }
 }
@@ -194,7 +234,7 @@ fn binding_decorator_value(
     node_id: dir::LocalNodeIdAny,
     strings: &StringPool,
     binding_decorator_symbol: GlobalSymbolId,
-) -> Option<Option<String>> {
+) -> Option<BindingDecorator> {
     // scan annotations for the binding decorator
     let annotations = tree.get_annotations(node_id.id);
     for annotation_id in annotations {
@@ -209,7 +249,13 @@ fn binding_decorator_value(
         if decorator_symbol != binding_decorator_symbol {
             continue;
         }
-        return Some(decorator_string_argument(tree, arguments.as_ref(), strings));
+
+        // resolve decorator arguments
+        return Some(decorator_binding_argument(
+            tree,
+            arguments.as_ref(),
+            strings,
+        ));
     }
     None
 }
@@ -239,16 +285,194 @@ fn declaration_from_expression(
     }
 }
 
-/// Extract the first string argument from a decorator payload.
-fn decorator_string_argument(
+/// Extract the binding decorator arguments.
+fn decorator_binding_argument(
     tree: &dir::NodeTree,
     arguments: Option<&Vec<dir::LocalNodeId<Argument>>>,
     strings: &StringPool,
-) -> Option<String> {
-    let arguments = arguments?;
-    let argument_id = arguments.first()?;
-    let argument = tree.get::<Argument>(*argument_id);
+) -> BindingDecorator {
+    let Some(arguments) = arguments else {
+        panic!("@binding requires an options object");
+    };
+
+    if arguments.len() < 2 {
+        panic!("@binding requires an options object");
+    }
+
+    // initialize the decorator payload
+    let mut extern_name = None;
+
+    // parse argument values in order
+    if let Some(argument_id) = arguments.first() {
+        let argument = tree.get::<Argument>(*argument_id);
+        let value_id = argument.value();
+        extern_name = scalar_string_literal(tree, value_id, strings);
+    }
+
+    let argument = tree.get::<Argument>(arguments[1]);
     let value_id = argument.value();
+    let spec = parse_effect_spec(tree, value_id, strings);
+
+    // return the payload
+    BindingDecorator {
+        extern_name,
+        effect_class: spec.effect_class,
+        log_kind: spec.log_kind,
+    }
+}
+
+/// Parsed effect options for bindings.
+struct BindingEffectSpec {
+    /// Effect classification for the binding.
+    effect_class: EffectClass,
+    /// Specialized log kind.
+    log_kind: Option<LogKind>,
+}
+
+/// Parse effect options from a binding decorator.
+fn parse_effect_spec(
+    tree: &dir::NodeTree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+) -> BindingEffectSpec {
+    // require an object literal payload
+    let expression = tree.get::<Expression>(value_id);
+    let Expression::ObjectExpression { properties } = expression else {
+        panic!("@binding options must be an object literal");
+    };
+
+    // collect effect properties
+    let mut effect = None;
+    let mut replay = None;
+    let mut log = None;
+
+    // read each property value
+    for property_id in properties {
+        let property = tree.get::<dir::Property>(*property_id);
+        let dir::Property::Field { key, value, .. } = property else {
+            continue;
+        };
+        let Some(key) = parse_option_key(tree, key.as_ref(), strings) else {
+            continue;
+        };
+        let Some(value_id) = value else {
+            continue;
+        };
+        let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
+            continue;
+        };
+        match key.as_str() {
+            "effect" => effect = Some(value),
+            "replay" => replay = Some(value),
+            "log" => log = Some(value),
+            _ => {
+                panic!("unsupported @binding option {key}");
+            }
+        }
+    }
+
+    // require explicit effect classification
+    if effect.is_none() {
+        panic!("@binding requires an explicit effect classification");
+    }
+
+    // build the effect classification
+    let effect_class = build_effect_class(effect.as_deref(), replay.as_deref());
+    let log_kind = parse_log_kind(log.as_deref());
+
+    // validate log usage against effect class
+    if log_kind.is_some() && !matches!(effect_class, EffectClass::External { .. }) {
+        panic!("@binding log requires an external effect");
+    }
+
+    BindingEffectSpec {
+        effect_class,
+        log_kind,
+    }
+}
+
+/// Build an effect class from optional effect and replay names.
+fn build_effect_class(effect: Option<&str>, replay: Option<&str>) -> EffectClass {
+    // parse replay policy
+    let replay = match replay {
+        None => None,
+        Some("recordable") => Some(ReplayPolicy::Recordable),
+        Some("nonrecordable") => Some(ReplayPolicy::NonRecordable),
+        Some(value) => {
+            panic!("unsupported @binding replay policy {value}");
+        }
+    };
+
+    // map effect to the classification
+    match effect {
+        None => {
+            panic!("@binding requires an explicit effect classification");
+        }
+        Some("pure") => {
+            if replay.is_some() {
+                panic!("pure bindings cannot specify replay policy");
+            }
+            EffectClass::Pure
+        }
+        Some("deterministic") => {
+            if replay.is_some() {
+                panic!("deterministic bindings cannot specify replay policy");
+            }
+            EffectClass::Deterministic
+        }
+        Some("external" | "io") => {
+            let replay = replay.unwrap_or_else(|| {
+                panic!("@binding external effects must specify replay policy");
+            });
+            EffectClass::External { replay }
+        }
+        Some(value) => {
+            panic!("unsupported @binding effect {value}");
+        }
+    }
+}
+
+/// Parse a log kind value from a string.
+fn parse_log_kind(value: Option<&str>) -> Option<LogKind> {
+    match value {
+        None => None,
+        Some("time") => Some(LogKind::Time),
+        Some("random") => Some(LogKind::Random),
+        Some("scheduler") => Some(LogKind::Scheduler),
+        Some(value) => {
+            panic!("unsupported @binding log kind {value}");
+        }
+    }
+}
+
+// log kind validation happens in parse_effect_spec
+
+/// Parse a property key string from a binding options object.
+fn parse_option_key(
+    tree: &dir::NodeTree,
+    key: Option<&dir::DynamicKey>,
+    strings: &StringPool,
+) -> Option<String> {
+    // decode supported key kinds
+    let key = key?;
+    match key {
+        dir::DynamicKey::Name(name) | dir::DynamicKey::Number(name) => {
+            Some(strings.get(*name).to_string())
+        }
+        dir::DynamicKey::Expression(expression) => {
+            scalar_string_literal(tree, *expression, strings)
+        }
+        dir::DynamicKey::NamedExpression { name, .. } => Some(strings.get(*name).to_string()),
+    }
+}
+
+/// Parse a string literal from a scalar expression.
+fn scalar_string_literal(
+    tree: &dir::NodeTree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+) -> Option<String> {
+    // decode string literal values
     let value = tree.get::<Expression>(value_id);
     let Expression::ScalarLiteral { value } = value else {
         return None;

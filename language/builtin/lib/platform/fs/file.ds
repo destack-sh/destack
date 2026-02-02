@@ -6,7 +6,7 @@ import { FileLockFlags, FileMode, FileOffset, OpenFlags } from "./flags.ds";
 /// File bindings for the native runtime.
 declare namespace fs {
     /// Open a file and return a handle.
-    @binding("destack.fs.open")
+    @binding("destack.fs.open", { effect: "external", replay: "recordable" })
     export function open(
         path: string,
         flags: OpenFlags,
@@ -14,11 +14,11 @@ declare namespace fs {
     ): Result<FileHandle, PlatformError>;
 
     /// Close an open file handle.
-    @binding("destack.fs.close")
+    @binding("destack.fs.close", { effect: "external", replay: "recordable" })
     export function close(handle: FileHandle): Result<void, PlatformError>;
 
     /// Open a file relative to a directory handle.
-    @binding("destack.fs.openat")
+    @binding("destack.fs.openat", { effect: "external", replay: "recordable" })
     export function openat(
         dir: DirectoryHandle,
         path: string,
@@ -27,7 +27,7 @@ declare namespace fs {
     ): Result<FileHandle, PlatformError>;
 
     /// Read from a file into the provided slice at the given file offset.
-    @binding("destack.fs.read")
+    @binding("destack.fs.read", { effect: "external", replay: "recordable" })
     export function read(
         handle: FileHandle,
         buffer: Slice<uint8>,
@@ -35,7 +35,7 @@ declare namespace fs {
     ): Result<uint64, PlatformError>;
 
     /// Write to a file from the provided slice at the given file offset.
-    @binding("destack.fs.write")
+    @binding("destack.fs.write", { effect: "external", replay: "recordable" })
     export function write(
         handle: FileHandle,
         buffer: Slice<uint8>,
@@ -43,7 +43,7 @@ declare namespace fs {
     ): Result<uint64, PlatformError>;
 
     /// Read into multiple buffers at the given file offset.
-    @binding("destack.fs.readv")
+    @binding("destack.fs.readv", { effect: "external", replay: "recordable" })
     export function readv(
         handle: FileHandle,
         buffers: Slice<Slice<uint8>>,
@@ -51,7 +51,7 @@ declare namespace fs {
     ): Result<uint64, PlatformError>;
 
     /// Write from multiple buffers at the given file offset.
-    @binding("destack.fs.writev")
+    @binding("destack.fs.writev", { effect: "external", replay: "recordable" })
     export function writev(
         handle: FileHandle,
         buffers: Slice<Slice<uint8>>,
@@ -59,22 +59,22 @@ declare namespace fs {
     ): Result<uint64, PlatformError>;
 
     /// Truncate a file by path.
-    @binding("destack.fs.truncate")
+    @binding("destack.fs.truncate", { effect: "external", replay: "recordable" })
     export function truncate(path: string, size: FileOffset): Result<void, PlatformError>;
 
     /// Truncate a file by handle.
-    @binding("destack.fs.ftruncate")
+    @binding("destack.fs.ftruncate", { effect: "external", replay: "recordable" })
     export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>;
 
     /// Synchronize a file's in-core state with storage.
-    @binding("destack.fs.fsync")
+    @binding("destack.fs.fsync", { effect: "external", replay: "recordable" })
     export function fsync(handle: FileHandle): Result<void, PlatformError>;
 
     /// Synchronize file data only.
-    @binding("destack.fs.fdatasync")
+    @binding("destack.fs.fdatasync", { effect: "external", replay: "recordable" })
     export function fdatasync(handle: FileHandle): Result<void, PlatformError>;
 
     /// Apply file locks to a file handle.
-    @binding("destack.fs.lock")
+    @binding("destack.fs.lock", { effect: "external", replay: "recordable" })
     export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>;
 }

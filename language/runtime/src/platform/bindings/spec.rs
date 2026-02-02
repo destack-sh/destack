@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use destack_base::fnv1a_128;
+
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReplayPolicy {
@@ -18,6 +20,17 @@ pub enum EffectClass {
     Deterministic,
     /// External side effects governed by replay policy.
     External { replay: ReplayPolicy },
+}
+
+/// Specialized replay log variants for bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LogKind {
+    /// Log time-related effects with a dedicated record.
+    Time,
+    /// Log randomness with a dedicated record.
+    Random,
+    /// Log scheduler events with a dedicated record.
+    Scheduler,
 }
 
 /// Bitmask describing binding effect classes.
@@ -108,15 +121,18 @@ pub struct BindingDescriptor {
     pub effect_class: EffectClass,
     /// Effect mask for policy checks.
     pub effect_mask: BindingEffectMask,
+    /// Specialized log kind for replay.
+    pub log_kind: Option<LogKind>,
 }
 
 impl BindingDescriptor {
     /// Create a binding descriptor with an explicit codec id.
-    pub const fn with_codec(
+    pub const fn with_codec_and_log(
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
         effect_class: EffectClass,
+        log_kind: Option<LogKind>,
     ) -> Self {
         let effect_mask = effect_mask_for_class(effect_class);
         Self {
@@ -126,7 +142,18 @@ impl BindingDescriptor {
             codec,
             effect_class,
             effect_mask,
+            log_kind,
         }
+    }
+
+    /// Create a binding descriptor with an explicit codec id.
+    pub const fn with_codec(
+        name: &'static str,
+        signature: &'static str,
+        codec: CodecId,
+        effect_class: EffectClass,
+    ) -> Self {
+        Self::with_codec_and_log(name, signature, codec, effect_class, None)
     }
 
     /// Create a binding descriptor with the default codec.
@@ -148,39 +175,19 @@ impl BindingDescriptor {
         Self::new(name, signature, EffectClass::Deterministic)
     }
 
-    /// Create a recordable external binding descriptor.
-    pub const fn recordable(name: &'static str, signature: &'static str) -> Self {
-        Self::new(
+    /// Create an external binding descriptor with an optional log kind.
+    pub const fn external(
+        name: &'static str,
+        signature: &'static str,
+        replay: ReplayPolicy,
+        log_kind: Option<LogKind>,
+    ) -> Self {
+        Self::with_codec_and_log(
             name,
             signature,
-            EffectClass::External {
-                replay: ReplayPolicy::Recordable,
-            },
+            CODEC_POSTCARD_V1,
+            EffectClass::External { replay },
+            log_kind,
         )
     }
-
-    /// Create a forbidden external binding descriptor.
-    pub const fn nonrecordable(name: &'static str, signature: &'static str) -> Self {
-        Self::new(
-            name,
-            signature,
-            EffectClass::External {
-                replay: ReplayPolicy::NonRecordable,
-            },
-        )
-    }
-}
-
-const FNV_OFFSET_BASIS_128: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
-const FNV_PRIME_128: u128 = 0x0000_0000_0100_0000_0000_0000_0000_013b;
-
-const fn fnv1a_128(bytes: &[u8]) -> u128 {
-    let mut hash = FNV_OFFSET_BASIS_128;
-    let mut index = 0;
-    while index < bytes.len() {
-        hash ^= bytes[index] as u128;
-        hash = hash.wrapping_mul(FNV_PRIME_128);
-        index += 1;
-    }
-    hash
 }

@@ -5,11 +5,11 @@ import { AtFlags } from "./flags.ds";
 /// Path bindings for the native runtime.
 declare namespace fs {
     /// Rename or move a file.
-    @binding("destack.fs.rename")
+    @binding("destack.fs.rename", { effect: "external", replay: "recordable" })
     export function rename(from: string, to: string): Result<void, PlatformError>;
 
     /// Rename or move a file relative to directory handles.
-    @binding("destack.fs.renameat")
+    @binding("destack.fs.renameat", { effect: "external", replay: "recordable" })
     export function renameat(
         fromDir: DirectoryHandle,
         from: string,
@@ -18,11 +18,11 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Unlink a file.
-    @binding("destack.fs.unlink")
+    @binding("destack.fs.unlink", { effect: "external", replay: "recordable" })
     export function unlink(path: string): Result<void, PlatformError>;
 
     /// Unlink a file relative to a directory handle.
-    @binding("destack.fs.unlinkat")
+    @binding("destack.fs.unlinkat", { effect: "external", replay: "recordable" })
     export function unlinkat(
         dir: DirectoryHandle,
         path: string,
@@ -30,11 +30,11 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Create a hard link.
-    @binding("destack.fs.link")
+    @binding("destack.fs.link", { effect: "external", replay: "recordable" })
     export function link(existingPath: string, newPath: string): Result<void, PlatformError>;
 
     /// Create a hard link relative to directory handles.
-    @binding("destack.fs.linkat")
+    @binding("destack.fs.linkat", { effect: "external", replay: "recordable" })
     export function linkat(
         existingDir: DirectoryHandle,
         existingPath: string,
@@ -44,11 +44,11 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Create a symbolic link.
-    @binding("destack.fs.symlink")
+    @binding("destack.fs.symlink", { effect: "external", replay: "recordable" })
     export function symlink(target: string, path: string): Result<void, PlatformError>;
 
     /// Create a symbolic link relative to a directory handle.
-    @binding("destack.fs.symlinkat")
+    @binding("destack.fs.symlinkat", { effect: "external", replay: "recordable" })
     export function symlinkat(
         target: string,
         dir: DirectoryHandle,
@@ -56,21 +56,21 @@ declare namespace fs {
     ): Result<void, PlatformError>;
 
     /// Read a symbolic link.
-    @binding("destack.fs.readlink")
+    @binding("destack.fs.readlink", { effect: "external", replay: "recordable" })
     export function readlink(path: string): Result<string, PlatformError>;
 
     /// Read a symbolic link relative to a directory handle.
-    @binding("destack.fs.readlinkat")
+    @binding("destack.fs.readlinkat", { effect: "external", replay: "recordable" })
     export function readlinkat(
         dir: DirectoryHandle,
         path: string,
     ): Result<string, PlatformError>;
 
     /// Resolve a path to its canonical form.
-    @binding("destack.fs.realpath")
+    @binding("destack.fs.realpath", { effect: "external", replay: "recordable" })
     export function realpath(path: string): Result<string, PlatformError>;
 
     /// Copy a file.
-    @binding("destack.fs.copyfile")
+    @binding("destack.fs.copyfile", { effect: "external", replay: "recordable" })
     export function copyfile(from: string, to: string, flags: uint32): Result<void, PlatformError>;
 }

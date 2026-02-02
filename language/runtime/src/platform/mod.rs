@@ -30,17 +30,16 @@ pub mod time;
 pub mod timer;
 
 pub use abi::{
-    PlatformArray, PlatformSlice, PlatformStringRef, PlatformStringSlice, RuntimeStatus, VmArray,
-    VmSlice,
+    NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmArray, VmSlice,
 };
-pub use bindings::{BindingPolicy, BindingRegistry, DeterminismPolicy, ReplayMode, VmBindingSet};
+pub use bindings::{BindingPolicy, BindingRegistry, ExecutionMode, VmBindingSet};
 pub use context::PlatformContext;
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformErrorKind, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
 #[cfg(unix)]
 pub use poller::UnixPoller;
 pub use poller::{
-    PlatformEvent, PlatformEventFlags, PlatformEventKind, PlatformHandle, PlatformInterest,
-    PlatformPoller, PlatformPollerFlags,
+    PlatformEvent, PlatformEventFlags, PlatformEventMask, PlatformEventSource, PlatformHandle,
+    PlatformInterest, PlatformPoller, PlatformPollerFlags,
 };
 pub use resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind, ResourceTable};

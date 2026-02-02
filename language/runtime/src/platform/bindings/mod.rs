@@ -5,11 +5,11 @@ mod registry;
 mod set;
 mod spec;
 
-pub use native::{NativeBinding, NativeBindingSet};
-pub use policy::{BindingPolicy, DeterminismPolicy, ReplayMode};
+pub use native::{NativeBinding, NativeBindingSet, native_call};
+pub use policy::{BindingPolicy, ExecutionMode};
 pub use registry::BindingRegistry;
 pub use set::VmBindingSet;
 pub use spec::{
     BindingDescriptor, BindingEffectMask, BindingId, CODEC_POSTCARD_V1, CodecId, EffectClass,
-    ReplayPolicy, SignatureHash,
+    LogKind, ReplayPolicy, SignatureHash,
 };

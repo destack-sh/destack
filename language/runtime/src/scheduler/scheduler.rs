@@ -11,6 +11,10 @@ pub enum ScheduledItem {
     Task(Task),
     /// A microtask selected for execution.
     Microtask(Microtask),
+    /// A timer ready to fire.
+    Timer(Timer),
+    /// An external platform event.
+    Event(PlatformEvent),
 }
 
 /// Scheduler for task queues and event loops.
@@ -42,12 +46,24 @@ impl Scheduler {
     }
 
     /// Pop the next runnable item from the scheduler.
-    pub fn next_runnable(&mut self) -> Option<ScheduledItem> {
+    pub fn next_runnable(&mut self, now_nanos: u64) -> RuntimeResult<Option<ScheduledItem>> {
+        // always drain microtasks first
         if let Some(microtask) = self.event_loop.microtasks.pop_front() {
-            return Some(ScheduledItem::Microtask(microtask));
+            return Ok(Some(ScheduledItem::Microtask(microtask)));
         }
 
-        self.event_loop.tasks.pop_front().map(ScheduledItem::Task)
+        // move ready timers into the dispatch queue
+        self.event_loop.enqueue_ready_timers(now_nanos)?;
+        if let Some(timer) = self.event_loop.ready_timers.pop_front() {
+            return Ok(Some(ScheduledItem::Timer(timer)));
+        }
+
+        // dispatch external events before regular tasks
+        if let Some(event) = self.event_loop.events.pop_front() {
+            return Ok(Some(ScheduledItem::Event(event)));
+        }
+
+        Ok(self.event_loop.tasks.pop_front().map(ScheduledItem::Task))
     }
 
     /// Allocate the next task identifier.
@@ -93,5 +109,47 @@ impl Scheduler {
         }
 
         Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use destack_vm as vm;
+
+    use super::{ScheduledItem, Scheduler};
+    use crate::scheduler::{
+        Microtask, MicrotaskId, NativeContinuation, Runnable, Task, TaskId, TaskState,
+    };
+
+    /// Ensures microtasks run before macrotasks in the scheduler.
+    #[test]
+    fn test_microtasks_run_first() {
+        // set up a scheduler with one task and one microtask
+        let mut scheduler = Scheduler::default();
+
+        let task = Task {
+            id: TaskId::new(1),
+            runnable: Runnable::Native(NativeContinuation::new(11)),
+            resume_value: vm::Value::VOID,
+            state: TaskState::Ready,
+            priority: 0,
+        };
+        let microtask = Microtask {
+            id: MicrotaskId::new(1),
+            runnable: Runnable::Native(NativeContinuation::new(22)),
+            resume_value: vm::Value::VOID,
+            state: TaskState::Ready,
+        };
+
+        scheduler.enqueue_task(task);
+        scheduler.enqueue_microtask(microtask);
+
+        // microtasks should be dequeued first
+        let first = scheduler.next_runnable(0).expect("scheduler should run");
+        assert!(matches!(first, Some(ScheduledItem::Microtask(_))));
+
+        // remaining item should be the task
+        let second = scheduler.next_runnable(0).expect("scheduler should run");
+        assert!(matches!(second, Some(ScheduledItem::Task(_))));
     }
 }

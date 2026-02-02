@@ -1,9 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::platform::ResourceId;
-use crate::platform::bindings::{BindingId, CodecId};
+use crate::platform::bindings::{BindingId, CodecId, LogKind};
 use crate::random::RandomStreamId;
-use crate::replay::CheckpointId;
 use crate::scheduler::{MicrotaskId, TaskId};
 
 /// Event types recorded for deterministic replay.
@@ -17,10 +16,67 @@ pub enum ReplayEvent {
     RandomEvent(RandomEvent),
     /// External binding call and result.
     BindingCall(BindingCallEvent),
-    /// External resource attachment mapping.
-    ResourceAttach(ResourceAttachEvent),
-    /// Replay checkpoint marker.
+    /// External resource attach or detach.
+    ResourceEvent(ResourceEvent),
+    /// Checkpoint marker for snapshot references.
     Checkpoint(CheckpointEvent),
+    /// Branch marker for replaying from checkpoints.
+    Branch(BranchEvent),
+    /// Debug or profiling marker.
+    Debug(DebugEvent),
+}
+
+/// Sequence number for events within a replay log.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LogSequence(u64);
+
+impl LogSequence {
+    /// Create a new log sequence number.
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw sequence number.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+
+    /// Return the next sequence number.
+    pub const fn next(self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
+/// Identifier for a replay branch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BranchId(u128);
+
+impl BranchId {
+    /// Create a new branch identifier.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw branch identifier value.
+    pub const fn get(self) -> u128 {
+        self.0
+    }
+}
+
+/// Identifier for a replay checkpoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CheckpointId(u128);
+
+impl CheckpointId {
+    /// Create a new checkpoint identifier.
+    pub const fn new(value: u128) -> Self {
+        Self(value)
+    }
+
+    /// Return the raw checkpoint identifier value.
+    pub const fn get(self) -> u128 {
+        self.0
+    }
 }
 
 /// Scheduler event captured for replay.
@@ -28,8 +84,12 @@ pub enum ReplayEvent {
 pub struct SchedulerEvent {
     /// Subject scheduled by the runtime.
     pub subject: SchedulerSubject,
+    /// Scheduler queue for the event.
+    pub queue: SchedulerQueue,
     /// Scheduler event kind.
     pub kind: SchedulerEventKind,
+    /// Monotonic sequence counter for ordering.
+    pub sequence: u64,
 }
 
 /// Subject identifier for scheduler events.
@@ -41,7 +101,24 @@ pub enum SchedulerSubject {
     Microtask(MicrotaskId),
 }
 
-/// Scheduler event kind captured for replay.
+/// Scheduler queues for runtime execution.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum SchedulerQueue {
+    /// Microtask queue drained between macrotasks.
+    Microtask,
+    /// Primary macrotask queue.
+    Macrotask,
+    /// Timer queue for delayed callbacks.
+    Timer,
+    /// I/O readiness queue.
+    Io,
+    /// Immediate or next-tick queue.
+    Immediate,
+    /// Idle queue for low-priority work.
+    Idle,
+}
+
+/// Scheduler event kinds captured for replay.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum SchedulerEventKind {
     /// Enqueued for execution.
@@ -56,6 +133,21 @@ pub enum SchedulerEventKind {
     Complete,
     /// Drained microtask queue.
     DrainMicrotasks,
+    /// Woken by an external event.
+    ExternalWake(ExternalWakeSource),
+}
+
+/// External wakeup sources for scheduler events.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ExternalWakeSource {
+    /// Timer fired.
+    Timer,
+    /// I/O readiness.
+    Io,
+    /// Signal delivery.
+    Signal,
+    /// Process exit or status change.
+    Process,
 }
 
 /// Time event captured for replay.
@@ -65,17 +157,27 @@ pub struct TimeEvent {
     pub kind: TimeEventKind,
     /// Clock value in nanoseconds.
     pub time_nanos: u64,
+    /// Optional interval or period in nanoseconds.
+    pub interval_nanos: Option<u64>,
+    /// Optional timer identifier.
+    pub timer_id: Option<u64>,
 }
 
 /// Clock event kind captured for replay.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum TimeEventKind {
-    /// Virtual clock advanced.
-    VirtualTick,
+    /// Virtual clock seed or reset.
+    Seed,
     /// Monotonic clock sample.
     MonotonicSample,
     /// Wall clock read.
     WallClockRead,
+    /// Timer scheduled.
+    TimerScheduled,
+    /// Timer fired.
+    TimerFired,
+    /// Timer canceled.
+    TimerCanceled,
     /// Sleep scheduled by the runtime.
     SleepScheduled,
     /// Sleep completed by the runtime.
@@ -111,20 +213,70 @@ pub struct BindingCallEvent {
     pub binding_id: BindingId,
     /// Codec identifier for the payload.
     pub codec: CodecId,
+    /// Optional log kind for specialized replay handling.
+    pub log_kind: Option<LogKind>,
     /// Encoded payload for replay.
     pub payload: Vec<u8>,
 }
 
-/// External resource attachment event.
+/// External resource event captured for replay.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResourceAttachEvent {
+pub struct ResourceEvent {
     /// Resource identifier.
     pub resource_id: ResourceId,
+    /// Resource kind descriptor.
+    pub kind: ResourceKind,
+    /// Resource event kind.
+    pub action: ResourceEventKind,
 }
 
-/// Checkpoint event for snapshots.
+/// Resource kind descriptor.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ResourceKind {
+    /// Unknown or opaque resource type.
+    Unknown,
+    /// File or directory handle.
+    File,
+    /// Network socket.
+    Socket,
+    /// Process handle.
+    Process,
+    /// Timer handle.
+    Timer,
+}
+
+/// Resource event kind captured for replay.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum ResourceEventKind {
+    /// Resource was attached to the runtime.
+    Attach,
+    /// Resource was detached from the runtime.
+    Detach,
+}
+
+/// Checkpoint event for snapshot references.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckpointEvent {
     /// Checkpoint identifier.
     pub checkpoint_id: CheckpointId,
+    /// Branch identifier associated with the snapshot.
+    pub branch_id: BranchId,
+}
+
+/// Branch event for replay fork points.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BranchEvent {
+    /// Branch identifier.
+    pub branch_id: BranchId,
+    /// Parent branch identifier.
+    pub parent_id: BranchId,
+    /// Source checkpoint identifier.
+    pub checkpoint_id: CheckpointId,
+}
+
+/// Debug event payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DebugEvent {
+    /// Debug message or marker.
+    pub message: String,
 }

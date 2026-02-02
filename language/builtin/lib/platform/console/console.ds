@@ -3,18 +3,18 @@ import type { PlatformError } from "../error/index.ds";
 /// Console bindings for native runtime.
 export declare namespace console {
     /// Write a line to stdout.
-    @binding("destack.console.log")
+    @binding("destack.console.log", { effect: "external", replay: "recordable" })
     export function log(value: string): Result<void, PlatformError>;
 
     /// Write an info line to stdout.
-    @binding("destack.console.info")
+    @binding("destack.console.info", { effect: "external", replay: "recordable" })
     export function info(value: string): Result<void, PlatformError>;
 
     /// Write a warning line to stderr.
-    @binding("destack.console.warn")
+    @binding("destack.console.warn", { effect: "external", replay: "recordable" })
     export function warn(value: string): Result<void, PlatformError>;
 
     /// Write an error line to stderr.
-    @binding("destack.console.error")
+    @binding("destack.console.error", { effect: "external", replay: "recordable" })
     export function error(value: string): Result<void, PlatformError>;
 }

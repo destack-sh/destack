@@ -46,13 +46,14 @@ impl ModuleLowerer<'_> {
             });
         };
 
-        let result = resolve_result_union(self.types, &self.compiler.program.strings, return_type_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: "binding return type must be Result<T, PlatformError>".to_string(),
-            })?;
+        let result =
+            resolve_result_union(self.types, &self.compiler.program.strings, return_type_id)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "binding return type must be Result<T, PlatformError>".to_string(),
+                })?;
 
         let ok_is_void = is_void_type(self.types, result.ok_value_type);
         let ok_mir_type = if ok_is_void {
@@ -127,9 +128,9 @@ impl ModuleLowerer<'_> {
             .type_function_pointer(parameters.clone(), status_layout.ty);
         self.assign_signature_metadata_name(signature_type, symbol, anchor)?;
 
-        let function_id = self
-            .builder
-            .extern_function(&binding.name, &parameters, status_layout.ty);
+        let function_id =
+            self.builder
+                .extern_function(&binding.name, &parameters, status_layout.ty);
         self.register_function_binding_for_symbol(symbol, function_id, signature_type)?;
         self.binding_symbols.insert(symbol);
 
@@ -180,7 +181,9 @@ impl ModuleLowerer<'_> {
             LayoutPolicy::C,
         );
 
-        let mir_type = self.type_lowerer.create_struct_type(&layout, &mut self.builder);
+        let mir_type = self
+            .type_lowerer
+            .create_struct_type(&layout, &mut self.builder);
         self.type_lowerer.set_layout(mir_type, layout.clone());
         self.insert_layout_entry(mir_type, mir::LayoutType::Struct, &layout);
 
@@ -291,11 +294,9 @@ impl ModuleLowerer<'_> {
                 }
                 false
             }
-            dir::Type::Value { value } => self.is_platform_error_type_inner(
-                *value,
-                platform_error_symbol,
-                visited,
-            ),
+            dir::Type::Value { value } => {
+                self.is_platform_error_type_inner(*value, platform_error_symbol, visited)
+            }
             _ => false,
         }
     }

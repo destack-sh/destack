@@ -6,10 +6,10 @@
 /// Marks something as a runtime binding.
 ///
 /// ```
-/// @binding("destack.fs.open")
+/// @binding("destack.fs.open", { effect: "external", replay: "recordable" })
 /// function open() { }
 /// ```
-export newtype binding = (string,) | ();
+export newtype binding = (string, unknown,) | ();
 
 /// Marks something as an external symbol.
 ///

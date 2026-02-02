@@ -3,7 +3,7 @@
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
 use crate::platform::bindings::{
-    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet,
+    BindingDescriptor, BindingRegistry, NativeBinding, NativeBindingSet, ReplayPolicy,
 };
 use crate::runtime::with_runtime_call_context;
 use crate::{binding, vm_binding_set};
@@ -13,9 +13,11 @@ use destack_vm::Isolate;
 use crate::platform::error::{native, vm as platform_vm};
 
 /// Binding descriptor for destack.error.takePlatformError.
-pub const TAKE_PLATFORM_ERROR: BindingDescriptor = BindingDescriptor::recordable(
+pub const TAKE_PLATFORM_ERROR: BindingDescriptor = BindingDescriptor::external(
     "destack.error.takePlatformError",
     "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
+    ReplayPolicy::Recordable,
+    None,
 );
 
 /// Binding descriptors for error.
@@ -40,6 +42,7 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
             TAKE_PLATFORM_ERROR,
             move |context, args| {
                 with_runtime_call_context(|runtime| {
+                    runtime.check_policy(TAKE_PLATFORM_ERROR)?;
                     let errorid_value = *args.first().ok_or_else(|| {
                         RuntimeError::platform(PlatformError::invalid_argument_type(
                             "errorid", "uint64",
@@ -89,6 +92,7 @@ pub fn register_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut 
         );
     }
 }
+
 /// Install VM bindings for error.
 pub fn install_error_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     register_error_vm_bindings(registry, isolate);

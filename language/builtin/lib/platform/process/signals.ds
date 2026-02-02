@@ -7,6 +7,6 @@ export newtype Signal = uint32;
 /// Process signal bindings for the native runtime.
 declare namespace process {
     /// Send a signal to a process.
-    @binding("destack.process.kill")
+    @binding("destack.process.kill", { effect: "external", replay: "recordable" })
     export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
 }
