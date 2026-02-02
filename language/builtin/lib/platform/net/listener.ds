@@ -1,0 +1,25 @@
+import type { PlatformError } from "../error/index.ds";
+import { ListenerHandle, SocketHandle } from "../resource/index.ds";
+
+/// Listener bindings for the native runtime.
+declare namespace net {
+    /// Start listening on the given address.
+    @binding("destack.net.listen")
+    export function listen(
+        host: string,
+        port: uint16,
+        backlog: uint32,
+    ): Result<ListenerHandle, PlatformError>;
+
+    /// Accept a new connection from a listener.
+    @binding("destack.net.accept")
+    export function accept(
+        listener: ListenerHandle,
+    ): Result<SocketHandle, PlatformError>;
+
+    /// Close a listener handle.
+    @binding("destack.net.closeListener")
+    export function closeListener(
+        handle: ListenerHandle,
+    ): Result<void, PlatformError>;
+}

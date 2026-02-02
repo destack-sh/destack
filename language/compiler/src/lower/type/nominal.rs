@@ -251,6 +251,9 @@ impl ModuleLowerer<'_> {
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile));
                 let mir_type = self.lower_type(type_id, anchor)?;
+                if mir_type == self.type_lowerer.ty_void {
+                    continue;
+                }
                 let field_type = self.builder.tree().get(mir_type);
                 let (size, alignment) = self
                     .type_lowerer

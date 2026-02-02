@@ -50,10 +50,7 @@ pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
     };
 
     // build the policy object
-    BindingPolicy {
-        determinism,
-        replay,
-    }
+    BindingPolicy::new(determinism, replay)
 }
 
 /// Create a VM isolate from the module MIR.

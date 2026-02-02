@@ -1,13 +1,11 @@
-use crate::platform::host::HostContext;
-
-use super::BindingRegistry;
+use crate::platform::bindings::BindingRegistry;
 use destack_vm::Isolate;
 
-/// Binding set for a host domain.
+/// VM binding set for a platform domain.
 #[derive(Debug, Clone, Copy)]
-pub struct BindingSet {
+pub struct VmBindingSet {
     /// Domain name for diagnostics and registration.
     pub name: &'static str,
     /// Registration entrypoint for this binding set.
-    pub install: fn(&mut BindingRegistry, &mut Isolate, &HostContext),
+    pub install: fn(&mut BindingRegistry, &mut Isolate),
 }

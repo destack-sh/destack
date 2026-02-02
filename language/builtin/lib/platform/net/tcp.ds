@@ -1,0 +1,20 @@
+import type { PlatformError } from "../error/index.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// TCP socket option bindings for the native runtime.
+declare namespace net {
+    /// Enable or disable TCP_NODELAY.
+    @binding("destack.net.setNoDelay")
+    export function setNoDelay(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable TCP keepalive.
+    @binding("destack.net.setKeepAlive")
+    export function setKeepAlive(
+        handle: SocketHandle,
+        enabled: boolean,
+        delaySeconds: uint32,
+    ): Result<void, PlatformError>;
+}

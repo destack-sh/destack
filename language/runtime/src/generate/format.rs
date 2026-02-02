@@ -1,0 +1,1195 @@
+use destack_base::StringPool;
+use destack_builtin::LanguageSymbol;
+use destack_dir::{
+    self as dir, Argument, Declaration, Expression, GlobalSymbolId, PrimitiveType, StaticArgument,
+    StaticExpression, TypeKind, TypeLiteral, WellKnownSymbol,
+};
+use destack_source::ModuleId;
+use destack_workspace::format::{format_local_type, format_type_literal};
+use destack_workspace::{Module, ModuleRegistry, ProfileId, Program};
+
+use crate::model::{
+    BindingEnumValue, BindingEnumVariant, BindingField, BindingParam, BindingReturn, BindingType,
+};
+
+/// Canonical symbol ids used for binding type resolution.
+#[derive(Debug, Clone)]
+pub(crate) struct BindingTypeSymbols {
+    /// Result type symbol id.
+    result: GlobalSymbolId,
+    /// AsyncResult type symbol id.
+    async_result: Option<GlobalSymbolId>,
+    /// Slice type symbol id.
+    slice: Option<GlobalSymbolId>,
+    /// Array type symbol id.
+    array: Option<GlobalSymbolId>,
+    /// ReadonlyArray type symbol id.
+    readonly_array: Option<GlobalSymbolId>,
+}
+
+impl BindingTypeSymbols {
+    /// Return true if the symbol is a Result wrapper.
+    fn is_result(&self, symbol: GlobalSymbolId) -> bool {
+        symbol == self.result
+    }
+
+    /// Return true if the symbol is an AsyncResult wrapper.
+    fn is_async_result(&self, symbol: GlobalSymbolId) -> bool {
+        matches!(self.async_result, Some(id) if id == symbol)
+    }
+
+    /// Return the slice kind for a well-known symbol.
+    fn slice_kind(&self, symbol: GlobalSymbolId) -> Option<SliceKind> {
+        if matches!(self.slice, Some(id) if id == symbol) {
+            return Some(SliceKind::Slice);
+        }
+        if matches!(self.array, Some(id) if id == symbol) {
+            return Some(SliceKind::Array);
+        }
+        if matches!(self.readonly_array, Some(id) if id == symbol) {
+            return Some(SliceKind::ReadonlyArray);
+        }
+        None
+    }
+}
+
+/// Slice/array binding kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SliceKind {
+    /// Borrowed slice type.
+    Slice,
+    /// Owned array type.
+    Array,
+    /// Readonly array type.
+    ReadonlyArray,
+}
+
+/// Resolve binding type symbols for a profile.
+pub(crate) fn binding_type_symbols(program: &Program, profile_id: ProfileId) -> BindingTypeSymbols {
+    // resolve builtins for the active profile
+    let builtins = program
+        .builtins
+        .as_ref()
+        .expect("builtins must be loaded for binding generation");
+    let result = builtins
+        .items
+        .get(&(profile_id, LanguageSymbol::Result))
+        .map(|item| *item)
+        .unwrap_or_else(|| panic!("missing Result symbol for profile {profile_id:?}"));
+    let async_result = builtins
+        .items
+        .get(&(profile_id, LanguageSymbol::AsyncResult))
+        .map(|item| *item);
+
+    let profile = program
+        .profiles
+        .get(profile_id)
+        .unwrap_or_else(|| panic!("missing profile {profile_id:?}"));
+    let well_known = builtins
+        .well_known_symbols(&profile.key)
+        .unwrap_or_else(|| panic!("missing well-known symbols for profile {profile_id:?}"));
+    let slice = well_known.get_type_symbol(WellKnownSymbol::Slice);
+    let array = well_known.get_type_symbol(WellKnownSymbol::Array);
+    let readonly_array = well_known.get_type_symbol(WellKnownSymbol::ReadonlyArray);
+
+    BindingTypeSymbols {
+        result,
+        async_result,
+        slice,
+        array,
+        readonly_array,
+    }
+}
+
+/// Format a declaration signature for binding metadata.
+pub(crate) fn format_declared_signature(
+    declaration_id: dir::LocalNodeId<Declaration>,
+    declaration: &dir::Declaration,
+    module: &Module,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+) -> String {
+    // load the relevant module state for formatting
+    let dir = module.dir(profile_id);
+    let tree = dir.tree.read();
+    let types = dir.types.read();
+
+    // gather declaration naming and export metadata
+    let descriptor = declaration.descriptor();
+    let name = descriptor
+        .name
+        .map(|name| strings.get(name.string()).to_string())
+        .unwrap_or_else(|| "<anonymous>".to_string());
+    let export_prefix = if descriptor.export.is_some() {
+        "export "
+    } else {
+        ""
+    };
+
+    let dir::Declaration::Function { signature, .. } = declaration else {
+        return format!("{export_prefix}function {name}()");
+    };
+
+    // render the async and parameter lists
+    let async_prefix = match signature.asynchrony {
+        dir::Asynchrony::Async => "async ",
+        dir::Asynchrony::Sync => "",
+    };
+
+    let parameters_text = signature
+        .dynamic_parameters
+        .iter()
+        .map(|parameter_id| {
+            format_parameter_declared(*parameter_id, module.id, &tree, &types, modules, strings)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    // resolve the declared or inferred return type
+    let return_text = resolve_return_type_text(
+        declaration_id,
+        signature,
+        module.id,
+        &tree,
+        &types,
+        modules,
+        strings,
+    )
+    .unwrap_or_default();
+
+    // emit the final signature string
+    format!("{export_prefix}{async_prefix}function {name}({parameters_text}){return_text}")
+}
+
+/// Collect binding parameter metadata for a declaration signature.
+pub(crate) fn collect_binding_params(
+    signature: &dir::FunctionSignature,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: &str,
+) -> Vec<BindingParam> {
+    // build binding parameters from the signature list
+    signature
+        .dynamic_parameters
+        .iter()
+        .map(|parameter_id| {
+            let name = parameter_name(*parameter_id, tree, strings);
+            let type_id = type_id_for_parameter(*parameter_id, module_id, types);
+
+            let (type_text, binding_type) = match type_id {
+                Some(type_id) => (
+                    format_local_type(type_id, types, modules, strings),
+                    binding_type_from_type_id(
+                        type_id, types, modules, strings, profile_id, symbols, domain,
+                    ),
+                ),
+                None => unsupported_binding_type(
+                    "<unevaluated>",
+                    "platform binding parameter is missing a type annotation",
+                ),
+            };
+
+            let type_text = if type_text == "<unevaluated>" {
+                None
+            } else {
+                Some(type_text)
+            };
+
+            BindingParam {
+                name,
+                type_text,
+                binding_type,
+            }
+        })
+        .collect()
+}
+
+/// Collect binding return metadata for a declaration.
+pub(crate) fn collect_binding_return(
+    declaration_id: dir::LocalNodeId<Declaration>,
+    signature: &dir::FunctionSignature,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: &str,
+) -> BindingReturn {
+    // resolve a typed return id when possible
+    let return_type_id = resolve_return_type_id(declaration_id, signature, module_id, types);
+    if let Some(type_id) = return_type_id {
+        let is_result = is_result_type_id(type_id, types, symbols);
+        let binding_type = binding_type_from_type_id(
+            type_id, types, modules, strings, profile_id, symbols, domain,
+        );
+        return BindingReturn {
+            binding_type,
+            is_result,
+        };
+    }
+
+    // fall back to an untyped binding
+    let _ = (tree, modules, strings);
+    unsupported_binding_type(
+        "<unevaluated>",
+        "platform binding return type is missing a type annotation",
+    )
+}
+
+/// Resolve the parameter name string from a node.
+fn parameter_name(
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    tree: &dir::NodeTree,
+    strings: &StringPool,
+) -> String {
+    let parameter = tree.get::<dir::Parameter>(parameter_id);
+    match parameter {
+        dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
+        dir::Parameter::Pattern { .. } => "_".to_string(),
+        dir::Parameter::Variadic { name, .. } => format!("...{}", strings.get(*name).as_ref()),
+    }
+}
+
+/// Resolve the type id for a parameter declaration.
+fn type_id_for_parameter(
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    module_id: ModuleId,
+    types: &dir::TypeTable,
+) -> Option<dir::LocalTypeId> {
+    let node_id = dir::GlobalNodeIdAny {
+        module_id,
+        local_id: parameter_id.into(),
+    };
+    types.get_declared_or_inferred_type_id(node_id)
+}
+
+/// Resolve the return type id for a declaration signature.
+fn resolve_return_type_id(
+    declaration_id: dir::LocalNodeId<Declaration>,
+    signature: &dir::FunctionSignature,
+    module_id: ModuleId,
+    types: &dir::TypeTable,
+) -> Option<dir::LocalTypeId> {
+    let global_declaration_id = declaration_id.into_global_any(module_id);
+    types
+        .get_signature_type_for_node(global_declaration_id)
+        .and_then(
+            |signature_type_id| match types.get_type(signature_type_id) {
+                dir::Type::Function { return_type, .. } => *return_type,
+                _ => None,
+            },
+        )
+        .or_else(|| {
+            signature.return_type.and_then(|return_node| {
+                let node_id = dir::GlobalNodeIdAny {
+                    module_id,
+                    local_id: return_node.into(),
+                };
+                types.get_declared_or_inferred_type_id(node_id)
+            })
+        })
+}
+
+/// Resolve the textual return type string for a declaration signature.
+fn resolve_return_type_text(
+    declaration_id: dir::LocalNodeId<Declaration>,
+    signature: &dir::FunctionSignature,
+    module_id: ModuleId,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> Option<String> {
+    // resolve the return type id when possible
+    let return_type_id = resolve_return_type_id(declaration_id, signature, module_id, types);
+    let return_text = return_type_id
+        .and_then(|type_id| {
+            let formatted = format_local_type(type_id, types, modules, strings);
+            if formatted != "<unevaluated>" {
+                return Some(format!(": {formatted}"));
+            }
+            if let dir::Type::Unevaluated(expression_id) = types.get_type(type_id) {
+                return format_type_expression(*expression_id, tree, strings)
+                    .map(|text| format!(": {text}"));
+            }
+            None
+        })
+        .or_else(|| {
+            signature.return_type.and_then(|return_node| {
+                let text = format_type_expression(return_node, tree, strings);
+                text.map(|text| format!(": {text}"))
+            })
+        });
+
+    return_text
+}
+
+/// Map a type id into a binding type for generated wrappers.
+fn binding_type_from_type_id(
+    type_id: dir::LocalTypeId,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: &str,
+) -> BindingType {
+    let type_text = format_local_type(type_id, types, modules, strings);
+    match types.get_type(type_id) {
+        dir::Type::TypeLiteral { value } => binding_type_from_literal(value, type_text.as_str()),
+        dir::Type::Union { elements } => {
+            if elements
+                .iter()
+                .all(|element| is_string_literal_type(*element, types))
+            {
+                BindingType::String
+            } else {
+                unsupported_binding_type(
+                    type_text.as_str(),
+                    "unsupported union type in platform bindings",
+                )
+            }
+        }
+        dir::Type::Tuple {
+            elements,
+            is_readonly: _,
+        } => binding_type_from_tuple(
+            &type_text, elements, types, modules, strings, profile_id, symbols, domain,
+        ),
+        dir::Type::Reference {
+            symbol,
+            static_arguments,
+        } => {
+            if symbols.is_result(*symbol) || symbols.is_async_result(*symbol) {
+                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
+                    return binding_type_from_type_id(
+                        inner, types, modules, strings, profile_id, symbols, domain,
+                    );
+                }
+            }
+
+            if let Some(kind) = symbols.slice_kind(*symbol) {
+                if let Some(inner) = unwrap_first_type_argument(static_arguments.as_ref()) {
+                    let inner_binding = binding_type_from_type_id(
+                        inner, types, modules, strings, profile_id, symbols, domain,
+                    );
+                    if inner_binding == BindingType::String {
+                        return BindingType::StringSlice;
+                    }
+                    return match kind {
+                        SliceKind::Slice => BindingType::Slice(Box::new(inner_binding)),
+                        SliceKind::Array | SliceKind::ReadonlyArray => {
+                            BindingType::Array(Box::new(inner_binding))
+                        }
+                    };
+                }
+            }
+
+            binding_type_from_symbol(*symbol, modules, strings, profile_id, symbols)
+        }
+        dir::Type::Unary { right, .. } | dir::Type::ValueOf { right, .. } => {
+            binding_type_from_type_id(*right, types, modules, strings, profile_id, symbols, domain)
+        }
+        dir::Type::ReferenceOf { right, .. } => {
+            binding_type_from_type_id(*right, types, modules, strings, profile_id, symbols, domain)
+        }
+        dir::Type::PointerOf { .. } => unsupported_binding_type(
+            type_text.as_str(),
+            "pointer types are not supported in platform bindings",
+        ),
+        dir::Type::Array { element, .. } => {
+            let element = element.unwrap_or_else(|| {
+                unsupported_binding_type(type_text.as_str(), "array element type is missing")
+            });
+            BindingType::Array(Box::new(binding_type_from_type_id(
+                element, types, modules, strings, profile_id, symbols, domain,
+            )))
+        }
+        dir::Type::ArraySized { element, .. } => {
+            BindingType::Array(Box::new(binding_type_from_type_id(
+                *element, types, modules, strings, profile_id, symbols, domain,
+            )))
+        }
+        _ => unsupported_binding_type(type_text.as_str(), "unsupported type in platform bindings"),
+    }
+}
+
+fn is_string_literal_type(type_id: dir::LocalTypeId, types: &dir::TypeTable) -> bool {
+    match types.get_type(type_id) {
+        dir::Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(_)),
+        } => true,
+        _ => false,
+    }
+}
+
+/// Return true if the type id is a Result wrapper.
+fn is_result_type_id(
+    type_id: dir::LocalTypeId,
+    types: &dir::TypeTable,
+    symbols: &BindingTypeSymbols,
+) -> bool {
+    match types.get_type(type_id) {
+        dir::Type::Reference { symbol, .. } => symbols.is_result(*symbol),
+        dir::Type::Unary { right, .. }
+        | dir::Type::ValueOf { right, .. }
+        | dir::Type::ReferenceOf { right, .. }
+        | dir::Type::PointerOf { right, .. } => is_result_type_id(*right, types, symbols),
+        _ => false,
+    }
+}
+
+/// Map a literal type into a binding type.
+fn binding_type_from_literal(value: &TypeLiteral, type_text: &str) -> BindingType {
+    match value {
+        TypeLiteral::Void => BindingType::Void,
+        TypeLiteral::Primitive(primitive) => binding_type_from_primitive(*primitive, type_text),
+        _ => unsupported_binding_type(type_text, "unsupported literal type"),
+    }
+}
+
+/// Map a primitive type into a binding type.
+fn binding_type_from_primitive(primitive: PrimitiveType, type_text: &str) -> BindingType {
+    match primitive {
+        PrimitiveType::Boolean => BindingType::Bool,
+        PrimitiveType::String => BindingType::String,
+        PrimitiveType::Int(int_type) => binding_type_from_int(int_type, type_text),
+        PrimitiveType::Float(float_type) => binding_type_from_float(float_type, type_text),
+        PrimitiveType::Number => BindingType::Float(64),
+        _ => unsupported_binding_type(type_text, "unsupported primitive type"),
+    }
+}
+
+/// Map an integer primitive into a binding type.
+fn binding_type_from_int(int_type: dir::IntType, type_text: &str) -> BindingType {
+    let int_type = int_type.simplify();
+    match int_type {
+        dir::IntType::Int8 => BindingType::Int(8),
+        dir::IntType::Int16 => BindingType::Int(16),
+        dir::IntType::Int32 => BindingType::Int(32),
+        dir::IntType::Int64 => BindingType::Int(64),
+        dir::IntType::Uint8 => BindingType::UInt(8),
+        dir::IntType::Uint16 => BindingType::UInt(16),
+        dir::IntType::Uint32 => BindingType::UInt(32),
+        dir::IntType::Uint64 => BindingType::UInt(64),
+        _ => unsupported_binding_type(type_text, "unsupported integer width"),
+    }
+}
+
+/// Map a float primitive into a binding type.
+fn binding_type_from_float(float_type: dir::FloatType, type_text: &str) -> BindingType {
+    let float_type = float_type.simplify();
+    match float_type {
+        dir::FloatType::Float32 => BindingType::Float(32),
+        dir::FloatType::Float64 => BindingType::Float(64),
+        _ => unsupported_binding_type(type_text, "unsupported float width"),
+    }
+}
+
+/// Resolve the platform domain for a module path.
+fn platform_domain_for_module(modules: &ModuleRegistry, module_id: ModuleId) -> Option<String> {
+    let module = modules.get(module_id);
+    let module = module.read();
+    if let Some(path) = module.path.as_ref() {
+        if let Some(domain) = platform_domain_from_path(path) {
+            return Some(domain);
+        }
+    }
+
+    platform_domain_from_uri(module.uri.as_ref())
+}
+
+/// Extract the platform domain from a filesystem path.
+fn platform_domain_from_path(path: &std::path::Path) -> Option<String> {
+    let mut components = path
+        .components()
+        .filter_map(|component| component.as_os_str().to_str());
+    while let Some(component) = components.next() {
+        if component == "platform" {
+            return components.next().map(|domain| domain.to_string());
+        }
+    }
+    None
+}
+
+/// Extract the platform domain from a module URI.
+fn platform_domain_from_uri(uri: &str) -> Option<String> {
+    for marker in ["platform/", "platform\\"] {
+        if let Some(index) = uri.find(marker) {
+            let rest = &uri[index + marker.len()..];
+            let domain = rest.split(&['/', '\\'][..]).next()?;
+            if !domain.is_empty() {
+                return Some(domain.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Resolve a binding type from a global symbol.
+fn binding_type_from_symbol(
+    symbol_id: GlobalSymbolId,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+) -> BindingType {
+    let module = modules.get(symbol_id.module_id);
+    let module = module.read();
+    let dir = module.dir(profile_id);
+    let tree = dir.tree.read();
+    let types = dir.types.read();
+    let symbol_table = dir.symbols.read();
+
+    let symbol = symbol_table.get_symbol(symbol_id.local_id);
+    let name = symbol
+        .name()
+        .map(|name| strings.get(name).to_string())
+        .unwrap_or_else(|| "<anonymous>".to_string());
+    let declaration_id = symbol
+        .primary_declaration
+        .unwrap_or_else(|| unsupported_binding_type(&name, "missing declaration for binding type"));
+    let declaration_id = declaration_id
+        .local_id
+        .try_into_typed::<Declaration>()
+        .unwrap_or_else(|error| unsupported_binding_type(&name, &error));
+    let declaration = tree.get::<Declaration>(declaration_id);
+    let domain = platform_domain_for_module(modules, symbol_id.module_id).unwrap_or_else(|| {
+        unsupported_binding_type(&name, "binding type must live under platform")
+    });
+
+    match declaration {
+        Declaration::Struct { members, .. } => binding_type_from_struct(
+            name,
+            members,
+            &tree,
+            &types,
+            &symbol_table,
+            symbol_id.module_id,
+            domain.clone(),
+            modules,
+            strings,
+            profile_id,
+            symbols,
+        ),
+        Declaration::Enum { fields, .. } => binding_type_from_enum(
+            name,
+            fields.clone(),
+            &tree,
+            &types,
+            symbol_id,
+            domain,
+            strings,
+        ),
+        Declaration::Type { kind, .. } => {
+            let alias_target = types
+                .get_alias_target_type_id(symbol_id)
+                .unwrap_or_else(|| {
+                    unsupported_binding_type(&name, "missing type alias target for binding type")
+                });
+            if let dir::Type::Object { fields, .. } = types.get_type(alias_target) {
+                let inner = binding_type_from_object_type(
+                    name.clone(),
+                    fields,
+                    &types,
+                    modules,
+                    strings,
+                    profile_id,
+                    symbols,
+                    domain,
+                );
+                return inner;
+            }
+
+            let inner = binding_type_from_type_id(
+                alias_target,
+                &types,
+                modules,
+                strings,
+                profile_id,
+                symbols,
+                domain.as_str(),
+            );
+            match kind {
+                TypeKind::Nominal => BindingType::Newtype {
+                    name,
+                    domain,
+                    inner: Box::new(inner),
+                },
+                TypeKind::Structural => inner,
+            }
+        }
+        _ => unsupported_binding_type(&name, "unsupported binding declaration"),
+    }
+}
+
+/// Resolve object fields into a binding struct type.
+fn binding_type_from_object_type(
+    name: String,
+    fields: &[dir::TypeField],
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: String,
+) -> BindingType {
+    let mut binding_fields = Vec::with_capacity(fields.len());
+    for field in fields {
+        let field_name = field_name_from_static_key(&field.key, strings).unwrap_or_else(|| {
+            unsupported_binding_type(&name, "struct field name is not supported")
+        });
+        let field_binding = binding_type_from_type_id(
+            field.ty,
+            types,
+            modules,
+            strings,
+            profile_id,
+            symbols,
+            domain.as_str(),
+        );
+        binding_fields.push(BindingField {
+            name: field_name,
+            binding_type: field_binding,
+        });
+    }
+
+    BindingType::Struct {
+        name,
+        domain,
+        fields: binding_fields,
+    }
+}
+
+/// Resolve tuple elements into a binding struct type.
+fn binding_type_from_tuple(
+    type_text: &str,
+    elements: &[dir::TypeElement],
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    symbols: &BindingTypeSymbols,
+    domain: &str,
+) -> BindingType {
+    let name = tuple_struct_name(type_text, elements.len());
+    let mut fields = Vec::with_capacity(elements.len());
+    for (index, element) in elements.iter().enumerate() {
+        if element.is_optional || element.is_rest || element.is_readonly {
+            unsupported_binding_type(
+                type_text,
+                "tuple elements cannot be optional, rest, or readonly in platform bindings",
+            );
+        }
+        let field_name = format!("item{index}");
+        let field_binding = binding_type_from_type_id(
+            element.ty, types, modules, strings, profile_id, symbols, domain,
+        );
+        fields.push(BindingField {
+            name: field_name,
+            binding_type: field_binding,
+        });
+    }
+
+    BindingType::Struct {
+        name,
+        domain: domain.to_string(),
+        fields,
+    }
+}
+
+/// Resolve struct fields into a binding type.
+fn binding_type_from_struct(
+    name: String,
+    members: &[dir::LocalNodeId<dir::Member>],
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    symbols: &dir::SymbolTable,
+    module_id: ModuleId,
+    domain: String,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+    profile_id: ProfileId,
+    binding_symbols: &BindingTypeSymbols,
+) -> BindingType {
+    let mut fields = Vec::new();
+    for member_id in members {
+        let member = tree.get::<dir::Member>(*member_id);
+        let dir::Member::Field {
+            key,
+            value,
+            default,
+            symbol,
+            ..
+        } = member
+        else {
+            continue;
+        };
+        let field_name = field_name_from_key(key.as_ref(), strings).unwrap_or_else(|| {
+            unsupported_binding_type(&name, "struct field name is not supported")
+        });
+        let field_symbol = GlobalSymbolId::new(module_id, *symbol);
+        let field_type_id = types
+            .get_type_id_for_symbol(symbols, field_symbol)
+            .or_else(|| {
+                value.or(*default).and_then(|expr| {
+                    types.get_declared_or_inferred_type_id(expr.into_global_any(module_id))
+                })
+            })
+            .unwrap_or_else(|| unsupported_binding_type(&field_name, "missing struct field type"));
+        let field_binding = binding_type_from_type_id(
+            field_type_id,
+            types,
+            modules,
+            strings,
+            profile_id,
+            binding_symbols,
+            domain.as_str(),
+        );
+        fields.push(BindingField {
+            name: field_name,
+            binding_type: field_binding,
+        });
+    }
+
+    BindingType::Struct {
+        name,
+        domain,
+        fields,
+    }
+}
+
+/// Resolve enum metadata into a binding type.
+fn binding_type_from_enum(
+    name: String,
+    fields: Vec<dir::LocalNodeId<dir::EnumField>>,
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    symbol_id: GlobalSymbolId,
+    domain: String,
+    strings: &StringPool,
+) -> BindingType {
+    let backing = types
+        .get_enum_backing_type(symbol_id)
+        .unwrap_or_else(|| infer_enum_backing(&name, &fields, tree, types, symbol_id, strings));
+    if matches!(backing, dir::EnumBackingType::String) {
+        unsupported_binding_type(&name, "string-backed enums are not supported");
+    }
+    let mut variants = Vec::new();
+    for field_id in fields {
+        let field = tree.get::<dir::EnumField>(field_id);
+        let variant_symbol = GlobalSymbolId::new(symbol_id.module_id, field.symbol);
+        let value = types
+            .get_enum_field_value(variant_symbol)
+            .map(|value| match value {
+                dir::EnumFieldValue::Int(value) => BindingEnumValue::Int(value),
+                dir::EnumFieldValue::String(value) => {
+                    BindingEnumValue::String(strings.get(value).to_string())
+                }
+            })
+            .or_else(|| {
+                field
+                    .value
+                    .and_then(|expr| enum_field_value_from_expression(expr, tree, strings))
+            })
+            .unwrap_or_else(|| {
+                unsupported_binding_type(&name, "missing enum field value for binding")
+            });
+        variants.push(BindingEnumVariant {
+            name: strings.get(field.name).to_string(),
+            value,
+        });
+    }
+
+    BindingType::Enum {
+        name,
+        domain,
+        backing,
+        variants,
+    }
+}
+
+fn tuple_struct_name(type_text: &str, arity: usize) -> String {
+    if type_text.is_empty() || type_text == "<unevaluated>" {
+        return format!("Tuple{arity}");
+    }
+    let hash = fnv1a_64(type_text.as_bytes());
+    format!("Tuple_{hash:016x}")
+}
+
+fn fnv1a_64(bytes: &[u8]) -> u64 {
+    let mut hash = 0xcbf29ce484222325;
+    for byte in bytes {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+/// Infer an enum backing type from its field values.
+fn infer_enum_backing(
+    name: &str,
+    fields: &[dir::LocalNodeId<dir::EnumField>],
+    tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    symbol_id: GlobalSymbolId,
+    strings: &StringPool,
+) -> dir::EnumBackingType {
+    let mut min_value: i128 = 0;
+    let mut max_value: i128 = 0;
+    let mut has_value = false;
+
+    for field_id in fields {
+        let field = tree.get::<dir::EnumField>(*field_id);
+        let variant_symbol = GlobalSymbolId::new(symbol_id.module_id, field.symbol);
+        let value = types
+            .get_enum_field_value(variant_symbol)
+            .map(|value| match value {
+                dir::EnumFieldValue::Int(value) => BindingEnumValue::Int(value),
+                dir::EnumFieldValue::String(_) => {
+                    unsupported_binding_type(name, "string-backed enums are not supported");
+                }
+            })
+            .or_else(|| {
+                field
+                    .value
+                    .and_then(|expr| enum_field_value_from_expression(expr, tree, strings))
+            })
+            .unwrap_or_else(|| {
+                unsupported_binding_type(name, "missing enum field value for binding")
+            });
+        match value {
+            BindingEnumValue::Int(value) => {
+                let value = value as i128;
+                if !has_value {
+                    min_value = value;
+                    max_value = value;
+                    has_value = true;
+                } else {
+                    min_value = min_value.min(value);
+                    max_value = max_value.max(value);
+                }
+            }
+            BindingEnumValue::String(_) => {
+                unsupported_binding_type(name, "string-backed enums are not supported");
+            }
+        }
+    }
+
+    if !has_value {
+        unsupported_binding_type(name, "missing enum field values for binding");
+    }
+
+    if min_value < 0 {
+        if min_value >= i8::MIN as i128 && max_value <= i8::MAX as i128 {
+            return dir::EnumBackingType::Int(dir::IntType::Int8);
+        }
+        if min_value >= i16::MIN as i128 && max_value <= i16::MAX as i128 {
+            return dir::EnumBackingType::Int(dir::IntType::Int16);
+        }
+        if min_value >= i32::MIN as i128 && max_value <= i32::MAX as i128 {
+            return dir::EnumBackingType::Int(dir::IntType::Int32);
+        }
+        return dir::EnumBackingType::Int(dir::IntType::Int64);
+    }
+
+    if max_value <= u8::MAX as i128 {
+        return dir::EnumBackingType::Int(dir::IntType::Uint8);
+    }
+    if max_value <= u16::MAX as i128 {
+        return dir::EnumBackingType::Int(dir::IntType::Uint16);
+    }
+    if max_value <= u32::MAX as i128 {
+        return dir::EnumBackingType::Int(dir::IntType::Uint32);
+    }
+
+    dir::EnumBackingType::Int(dir::IntType::Uint64)
+}
+
+/// Resolve enum field literal values directly from the AST.
+fn enum_field_value_from_expression(
+    expr_id: dir::LocalNodeId<Expression>,
+    tree: &dir::NodeTree,
+    strings: &StringPool,
+) -> Option<BindingEnumValue> {
+    let expression = tree.get::<Expression>(expr_id);
+    match expression {
+        Expression::ScalarLiteral { value } => match value {
+            dir::ScalarLiteral::Integer(value) | dir::ScalarLiteral::Bigint(value) => {
+                Some(BindingEnumValue::Int(*value))
+            }
+            dir::ScalarLiteral::String(value) => {
+                Some(BindingEnumValue::String(strings.get(*value).to_string()))
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// Resolve a field name from a declaration member key.
+fn field_name_from_key(key: Option<&dir::DynamicKey>, strings: &StringPool) -> Option<String> {
+    match key {
+        Some(dir::DynamicKey::Name(name)) | Some(dir::DynamicKey::Number(name)) => {
+            Some(strings.get(*name).to_string())
+        }
+        Some(dir::DynamicKey::NamedExpression { name, .. }) => Some(strings.get(*name).to_string()),
+        Some(dir::DynamicKey::Expression(_)) | None => None,
+    }
+}
+
+/// Resolve a struct field name from a static key.
+fn field_name_from_static_key(key: &dir::StaticKey, strings: &StringPool) -> Option<String> {
+    key.name().map(|name| strings.get(name).to_string())
+}
+
+/// Report an unsupported binding type.
+fn unsupported_binding_type(type_text: &str, reason: &str) -> ! {
+    panic!("unsupported binding type {type_text}: {reason}")
+}
+
+/// Extract the inner type from a Result reference.
+fn unwrap_first_type_argument(
+    static_arguments: Option<&Vec<StaticArgument>>,
+) -> Option<dir::LocalTypeId> {
+    let static_arguments = static_arguments?;
+    let first = static_arguments.first()?;
+    match first {
+        StaticArgument::Evaluated { value, .. } => match value {
+            StaticExpression::Type { ty } => Some(*ty),
+            StaticExpression::TypeLiteral { .. } => None,
+            _ => None,
+        },
+        StaticArgument::Unevaluated { .. } => None,
+    }
+}
+
+/// Format a type expression node into a signature fragment.
+fn format_type_expression(
+    expression_id: dir::LocalNodeId<Expression>,
+    tree: &dir::NodeTree,
+    strings: &StringPool,
+) -> Option<String> {
+    // render the expression node based on its type
+    match tree.get::<Expression>(expression_id) {
+        Expression::TypeLiteral { value } => Some(format_type_literal(value, strings)),
+        Expression::TypeUnary { operator, right } => {
+            let right = format_type_expression(*right, tree, strings)?;
+            let formatted = match operator {
+                dir::TypeUnaryOperator::Not => format!("!{right}"),
+                dir::TypeUnaryOperator::Must => format!("{right}!"),
+                dir::TypeUnaryOperator::Newtype => format!("newtype {right}"),
+                dir::TypeUnaryOperator::Type => format!("type {right}"),
+                dir::TypeUnaryOperator::Readonly => format!("readonly {right}"),
+                dir::TypeUnaryOperator::Typeof => format!("typeof {right}"),
+                dir::TypeUnaryOperator::Keyof => format!("keyof {right}"),
+                dir::TypeUnaryOperator::AsConst => format!("{right} as const"),
+            };
+            Some(formatted)
+        }
+        Expression::TypeBinary {
+            left,
+            operator,
+            right,
+        } => {
+            let left = format_type_expression(*left, tree, strings)?;
+            let right = format_type_expression(*right, tree, strings)?;
+            let op = match operator {
+                dir::TypeBinaryOperator::Cast => " as ",
+                dir::TypeBinaryOperator::In => " in ",
+                dir::TypeBinaryOperator::Is => " is ",
+                dir::TypeBinaryOperator::InstanceOf => " instanceof ",
+                dir::TypeBinaryOperator::Satisfies => " satisfies ",
+                dir::TypeBinaryOperator::Extends => " extends ",
+                dir::TypeBinaryOperator::Implements => " implements ",
+            };
+            Some(format!("{left}{op}{right}"))
+        }
+        Expression::TypeIndex { left, index } => {
+            let left = format_type_expression(*left, tree, strings)?;
+            let index = format_type_expression(*index, tree, strings)?;
+            Some(format!("{left}[{index}]"))
+        }
+        Expression::TypeConditional {
+            left,
+            right,
+            then_type,
+            else_type,
+        } => {
+            let left = format_type_expression(*left, tree, strings)?;
+            let right = format_type_expression(*right, tree, strings)?;
+            let then_type = format_type_expression(*then_type, tree, strings)?;
+            let else_type = format_type_expression(*else_type, tree, strings)?;
+            Some(format!(
+                "{left} extends {right} ? {then_type} : {else_type}"
+            ))
+        }
+        Expression::TypeTemplateLiteral {
+            strings: parts,
+            spans,
+        } => {
+            let mut out = String::from("`");
+            for (index, string_id) in parts.iter().enumerate() {
+                out.push_str(&strings.get(*string_id));
+                if let Some(span_id) = spans.get(index) {
+                    let span = format_type_expression(*span_id, tree, strings)?;
+                    out.push_str("${");
+                    out.push_str(&span);
+                    out.push('}');
+                }
+            }
+            out.push('`');
+            Some(out)
+        }
+        Expression::TypeImport {
+            target,
+            qualifier,
+            static_arguments,
+        } => {
+            let target = strings.get(*target);
+            let mut out = format!("import(\"{}\")", target.as_ref());
+            if let Some(qualifier) = qualifier {
+                out.push('.');
+                out.push_str(&format_path_segments(qualifier, strings));
+            }
+            if let Some(arguments) = static_arguments {
+                let argument_text = format_argument_list(arguments, tree, strings)?;
+                out.push('<');
+                out.push_str(&argument_text);
+                out.push('>');
+            }
+            Some(out)
+        }
+        Expression::Member {
+            left,
+            name,
+            static_arguments,
+        } => {
+            let left_text = format_type_expression(*left, tree, strings)?;
+            let mut out = if left_text.is_empty() {
+                strings.get(*name).to_string()
+            } else {
+                format!("{left_text}.{}", strings.get(*name).as_ref())
+            };
+            if let Some(arguments) = static_arguments {
+                let argument_text = format_argument_list(arguments, tree, strings)?;
+                out.push('<');
+                out.push_str(&argument_text);
+                out.push('>');
+            }
+            Some(out)
+        }
+        Expression::UnresolvedPath {
+            path,
+            static_arguments,
+            ..
+        }
+        | Expression::LocalReference {
+            path,
+            static_arguments,
+            ..
+        }
+        | Expression::ModuleReference {
+            path,
+            static_arguments,
+            ..
+        }
+        | Expression::GlobalReference {
+            path,
+            static_arguments,
+            ..
+        } => {
+            let mut out = format_path_segments(path, strings);
+            if let Some(arguments) = static_arguments {
+                let argument_text = format_argument_list(arguments, tree, strings)?;
+                out.push('<');
+                out.push_str(&argument_text);
+                out.push('>');
+            }
+            Some(out)
+        }
+        _ => None,
+    }
+}
+
+/// Format a list of type arguments as source text.
+fn format_argument_list(
+    arguments: &[dir::LocalNodeId<Argument>],
+    tree: &dir::NodeTree,
+    strings: &StringPool,
+) -> Option<String> {
+    let mut formatted = Vec::new();
+    for argument_id in arguments {
+        formatted.push(format_argument_expression(*argument_id, tree, strings)?);
+    }
+    Some(formatted.join(", "))
+}
+
+/// Format a single type argument expression.
+fn format_argument_expression(
+    argument_id: dir::LocalNodeId<Argument>,
+    tree: &dir::NodeTree,
+    strings: &StringPool,
+) -> Option<String> {
+    let argument = tree.get::<Argument>(argument_id);
+    let value_text = format_type_expression(argument.value(), tree, strings)?;
+    match argument {
+        Argument::Named { name, .. } => {
+            let name = strings.get(*name);
+            Some(format!("{}: {value_text}", name.as_ref()))
+        }
+        Argument::Labeled { label, .. } => {
+            let label = strings.get(*label);
+            Some(format!("{}: {value_text}", label.as_ref()))
+        }
+        Argument::Spread { .. } => Some(format!("...{value_text}")),
+        Argument::Positional { .. } => Some(value_text),
+    }
+}
+
+/// Format a path segment list into a source string.
+fn format_path_segments(path: &dir::Path, strings: &StringPool) -> String {
+    path.segments
+        .iter()
+        .map(|segment| strings.get(*segment).to_string())
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+/// Format a parameter declaration into a signature fragment.
+fn format_parameter_declared(
+    parameter_id: dir::LocalNodeId<dir::Parameter>,
+    module_id: ModuleId,
+    dir_tree: &dir::NodeTree,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
+    let parameter = dir_tree.get::<dir::Parameter>(parameter_id);
+    let name = match parameter {
+        dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
+        dir::Parameter::Pattern { .. } => "_".to_string(),
+        dir::Parameter::Variadic { name, .. } => {
+            format!("...{}", strings.get(*name).as_ref())
+        }
+    };
+
+    let node_id = dir::GlobalNodeIdAny {
+        module_id,
+        local_id: parameter_id.into(),
+    };
+    if let Some(type_id) = types.get_declared_or_inferred_type_id(node_id) {
+        let type_text = format_local_type(type_id, types, modules, strings);
+        format!("{name}: {type_text}")
+    } else {
+        name
+    }
+}

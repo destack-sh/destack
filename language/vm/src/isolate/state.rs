@@ -6,7 +6,7 @@ use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
 use super::string::StringInterner;
-use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage};
+use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, StringRef};
 use crate::diagnostic::Error;
 use crate::memory::{HeapBorrow, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
@@ -128,6 +128,19 @@ impl IsolateState {
         let heap = self.heap_borrow();
         self.string_interner
             .string_value(&heap.managed, &heap.raw, value)
+    }
+
+    /// Read a UTF-8 string view from the heap.
+    pub(crate) fn string_value_ref(&self, value: Value) -> Result<StringRef<'_>, Error> {
+        // borrow the heap for read-only access
+        let heap = self.heap.borrow_read();
+
+        // resolve the borrowed string view
+        let view = self
+            .string_interner
+            .string_value_view(&heap.managed, &heap.raw, value)?;
+
+        Ok(StringRef::new(heap, view.ptr, view.len))
     }
 
     /// Read a UTF-8 string from a managed handle.

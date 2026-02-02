@@ -1,1 +1,4 @@
-export * from "./timer.ds";
+export declare namespace timer {}
+
+export * from "./control.ds";
+export * from "./schedule.ds";

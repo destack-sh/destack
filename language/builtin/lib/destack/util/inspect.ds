@@ -1,5 +1,7 @@
 import { typeOf } from "../../core/reflect/type.ds";
 
+// NOTE #Incomplete: inspect parity with bun util inspect is still evolving
+
 /// Options for inspect formatting.
 export struct InspectOptions {
     /// Include non enumerable properties.

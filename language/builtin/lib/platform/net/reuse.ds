@@ -1,0 +1,19 @@
+import type { PlatformError } from "../error/index.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Socket reuse option bindings for the native runtime.
+declare namespace net {
+    /// Enable or disable SO_REUSEADDR.
+    @binding("destack.net.setReuseAddr")
+    export function setReuseAddr(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable SO_REUSEPORT.
+    @binding("destack.net.setReusePort")
+    export function setReusePort(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+}

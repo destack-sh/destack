@@ -1,0 +1,90 @@
+import type { PlatformError } from "../error/index.ds";
+import { DirectoryHandle, FileHandle } from "../resource/index.ds";
+import { AtFlags, FileSize } from "./flags.ds";
+
+/// File metadata returned by stat calls.
+export struct Stat {
+    /// Device id.
+    dev: uint64,
+    /// Inode number.
+    ino: uint64,
+    /// File mode bits.
+    mode: uint32,
+    /// Hard link count.
+    nlink: uint32,
+    /// User id of owner.
+    uid: uint32,
+    /// Group id of owner.
+    gid: uint32,
+    /// Device id for special files.
+    rdev: uint64,
+    /// File size in bytes.
+    size: FileSize,
+    /// Block size for filesystem I/O.
+    blksize: uint64,
+    /// Number of allocated blocks.
+    blocks: uint64,
+    /// Last access time in nanoseconds.
+    atimeNs: uint64,
+    /// Last modification time in nanoseconds.
+    mtimeNs: uint64,
+    /// Last status change time in nanoseconds.
+    ctimeNs: uint64,
+    /// File creation time in nanoseconds.
+    birthtimeNs: uint64,
+}
+
+/// Filesystem metadata returned by statfs calls.
+export struct StatFs {
+    /// Optimal transfer block size.
+    bsize: uint64,
+    /// Fragment size.
+    frsize: uint64,
+    /// Total data blocks in filesystem.
+    blocks: uint64,
+    /// Free blocks in filesystem.
+    bfree: uint64,
+    /// Free blocks available to unprivileged user.
+    bavail: uint64,
+    /// Total file nodes in filesystem.
+    files: uint64,
+    /// Free file nodes in filesystem.
+    ffree: uint64,
+    /// Filesystem ID.
+    fsid: uint64,
+    /// Mount flags.
+    flags: uint64,
+    /// Maximum filename length.
+    namelen: uint64,
+}
+
+/// Stat bindings for the native runtime.
+declare namespace fs {
+    /// Stat a file by path.
+    @binding("destack.fs.stat")
+    export function stat(path: string): Result<Stat, PlatformError>;
+
+    /// Stat a file relative to a directory handle.
+    @binding("destack.fs.statat")
+    export function statat(
+        dir: DirectoryHandle,
+        path: string,
+        flags: AtFlags,
+    ): Result<Stat, PlatformError>;
+
+    /// Stat a file by handle.
+    @binding("destack.fs.fstat")
+    export function fstat(handle: FileHandle): Result<Stat, PlatformError>;
+
+    /// Stat a file by path without following symlinks.
+    @binding("destack.fs.lstat")
+    export function lstat(path: string): Result<Stat, PlatformError>;
+
+    /// Stat a filesystem by path.
+    @binding("destack.fs.statfs")
+    export function statfs(path: string): Result<StatFs, PlatformError>;
+
+    /// Stat a filesystem by handle.
+    @binding("destack.fs.fstatfs")
+    export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>;
+}

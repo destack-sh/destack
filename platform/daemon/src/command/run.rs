@@ -1,14 +1,15 @@
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
-use destack_runtime::platform::{
-    BindingPolicy, BindingRegistry, DeterminismPolicy, PlatformContext, ReplayMode,
-};
+use destack_heap::GcOptions as HeapGcOptions;
+use destack_runtime::engine::EntryPoint;
+use destack_runtime::platform::{BindingPolicy, DeterminismPolicy, PlatformContext, ReplayMode};
+use destack_runtime::runtime::{Runtime, RuntimeContext};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
 use destack_workspace::{
     DebugMode, DeterminismPolicy as TargetDeterminismPolicy, DsConfigRuntimeOptionsJson, Program,
-    ReplayMode as TargetReplayMode, Target, TargetId, TrustPolicy,
+    ReplayMode as TargetReplayMode, RuntimeOptions, Target, TargetId, TrustPolicy,
 };
 use serde::{Deserialize, Serialize};
 
@@ -223,12 +224,18 @@ fn run_entry_module(
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let process_args = process_args_for_source(entry_source, args);
     let platform = PlatformContext::new(process_args);
-    let mut bindings = BindingRegistry::new();
-    bindings.set_policy(binding_policy_for_target(&target));
-    bindings.install_defaults(&mut isolate, &platform);
+    let runtime_context = RuntimeContext::new(platform);
+    let mut runtime = Runtime::new(runtime_context);
+    let (gc_enabled, gc_options) = gc_options_for_runtime(&target.runtime_options);
+    runtime.heap.configure_gc(gc_enabled, gc_options);
+    runtime
+        .bindings
+        .set_policy(binding_policy_for_target(&target));
+    runtime.bindings.install_vm_defaults(&mut isolate);
 
-    let result = isolate
-        .run_function_by_name(entry_name, &[])
+    let entry = EntryPoint::vm(entry_name);
+    let result = runtime
+        .run_entry(&mut isolate, &entry, &[])
         .map_err(|error| format!("{error}"))?;
     let exit_code = exit_status_from_value(result.value);
 
@@ -257,6 +264,25 @@ fn process_args_for_source(source: &CommandInput, args: &[String]) -> Vec<String
     process_args.push(command_input_display_name(source));
     process_args.extend(args.iter().cloned());
     process_args
+}
+
+/// Derive heap GC options from runtime configuration.
+fn gc_options_for_runtime(options: &RuntimeOptions) -> (bool, HeapGcOptions) {
+    let gc = &options.gc;
+    let mut heap_options = HeapGcOptions::default();
+
+    // apply pacing overrides
+    heap_options.heap_growth_percent = gc.heap_growth_percent as u64;
+
+    // apply memory limit overrides
+    if let Some(max_bytes) = gc.heap_soft_limit_bytes {
+        heap_options.max_heap_bytes = Some(max_bytes);
+    }
+    if let Some(min_bytes) = gc.heap_initial_bytes {
+        heap_options.min_heap_bytes = min_bytes;
+    }
+
+    (gc.enabled, heap_options)
 }
 
 /// Get a display name for the entry source.
@@ -403,10 +429,7 @@ fn binding_policy_for_target(target: &Target) -> BindingPolicy {
         TargetReplayMode::Replay => ReplayMode::Replay,
     };
 
-    BindingPolicy {
-        determinism,
-        replay,
-    }
+    BindingPolicy::new(determinism, replay)
 }
 
 /// Apply runtime overrides to a target.

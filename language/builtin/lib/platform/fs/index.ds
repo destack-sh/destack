@@ -1,2 +1,8 @@
-export * from "./types.ds";
-export * from "./fs.ds";
+export declare namespace fs {}
+
+export * from "./attrs.ds";
+export * from "./dir.ds";
+export * from "./file.ds";
+export * from "./flags.ds";
+export * from "./path.ds";
+export * from "./stat.ds";

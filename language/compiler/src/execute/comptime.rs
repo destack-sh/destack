@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_ast::StringId;
 use destack_dir::AnchoredGlobalNodeId;
@@ -242,6 +242,7 @@ impl<'a> ComptimeLowerer<'a> {
         let vtable_globals_by_symbol = HashMap::new();
         let function_signature_types = HashMap::new();
         let closure_env_layouts = HashMap::new();
+        let binding_symbols = HashSet::new();
 
         // resolve cached intrinsic bindings when available
         let well_known_intrinsics = self
@@ -275,6 +276,10 @@ impl<'a> ComptimeLowerer<'a> {
             well_known_intrinsics: well_known_intrinsics.as_ref(),
             functions_by_symbol: &functions_by_symbol,
             function_signature_types: &function_signature_types,
+            binding_symbols: &binding_symbols,
+            binding_abi_lowering: false,
+            runtime_status_layout: None,
+            take_platform_error_function: None,
             globals_by_symbol: &globals_by_symbol,
             interface_slots_by_symbol: &interface_slots_by_symbol,
             interface_itab_ids: &interface_itab_ids,

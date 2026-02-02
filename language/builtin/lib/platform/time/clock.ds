@@ -1,0 +1,12 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Clock bindings for the native runtime.
+declare namespace time {
+    /// Return wall clock time in nanoseconds since the runtime epoch.
+    @binding("destack.time.wallNs")
+    export function wallNs(): Result<uint64, PlatformError>;
+
+    /// Return monotonic time in nanoseconds since process start.
+    @binding("destack.time.monoNs")
+    export function monoNs(): Result<uint64, PlatformError>;
+}

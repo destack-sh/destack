@@ -143,10 +143,16 @@ builtin_lib_sources_targeted!(
             "index.ds"
         ),
         (
-            LIB_DESTACK_RESOURCE_RESOURCE_DS,
+            LIB_DESTACK_RESOURCE_HANDLES_DS,
             "lib",
             "destack/resource",
-            "resource.ds"
+            "handles.ds"
+        ),
+        (
+            LIB_DESTACK_RESOURCE_ID_DS,
+            "lib",
+            "destack/resource",
+            "id.ds"
         ),
         (
             LIB_DESTACK_STREAM_INDEX_DS,
@@ -185,7 +191,12 @@ builtin_lib_sources_targeted!(
         (LIB_DESTACK_URL_INDEX_DS, "lib", "destack/url", "index.ds"),
         (LIB_DESTACK_URL_URL_DS, "lib", "destack/url", "url.ds"),
         (LIB_DESTACK_UTIL_INDEX_DS, "lib", "destack/util", "index.ds"),
-        (LIB_DESTACK_UTIL_UTIL_DS, "lib", "destack/util", "util.ds"),
+        (
+            LIB_DESTACK_UTIL_INSPECT_DS,
+            "lib",
+            "destack/util",
+            "inspect.ds"
+        ),
         (LIB_DESTACK_VM_INDEX_DS, "lib", "destack/vm", "index.ds"),
         (LIB_DESTACK_VM_VM_DS, "lib", "destack/vm", "vm.ds"),
     ]
@@ -222,7 +233,8 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_RANDOM_INDEX_DS,
         LIB_DESTACK_RANDOM_RANDOM_DS,
         LIB_DESTACK_RESOURCE_INDEX_DS,
-        LIB_DESTACK_RESOURCE_RESOURCE_DS,
+        LIB_DESTACK_RESOURCE_HANDLES_DS,
+        LIB_DESTACK_RESOURCE_ID_DS,
         LIB_DESTACK_STREAM_INDEX_DS,
         LIB_DESTACK_STREAM_STREAM_DS,
         LIB_DESTACK_SYS_INDEX_DS,
@@ -235,7 +247,7 @@ pub const LIB_DESTACK: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_DESTACK_URL_INDEX_DS,
         LIB_DESTACK_URL_URL_DS,
         LIB_DESTACK_UTIL_INDEX_DS,
-        LIB_DESTACK_UTIL_UTIL_DS,
+        LIB_DESTACK_UTIL_INSPECT_DS,
         LIB_DESTACK_VM_INDEX_DS,
         LIB_DESTACK_VM_VM_DS,
     ],

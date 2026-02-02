@@ -1,6 +1,5 @@
-use destack_vm::Error;
-
-use super::{BindingDescriptor, EffectClass, ReplayPolicy};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::bindings::{BindingDescriptor, BindingEffectMask};
 
 /// Determinism policy for runtime scheduling and I/O.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -25,37 +24,80 @@ pub enum ReplayMode {
 }
 
 /// Policy configuration for external bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BindingPolicy {
     /// Determinism policy for external calls.
-    pub determinism: DeterminismPolicy,
+    determinism: DeterminismPolicy,
     /// Replay policy for external effects.
-    pub replay: ReplayMode,
+    replay: ReplayMode,
+    /// Allowed binding effects for this policy.
+    allowed: BindingEffectMask,
 }
 
 impl BindingPolicy {
-    /// Validate a binding descriptor against policy.
-    pub fn check(self, spec: BindingDescriptor) -> Result<(), Error> {
-        // determine whether external effects are allowed
-        let allowed = match spec.effect_class {
-            EffectClass::External { replay } => match self.replay {
-                ReplayMode::Off => match self.determinism {
-                    DeterminismPolicy::BestEffort => true,
-                    DeterminismPolicy::Deterministic => false,
-                },
-                ReplayMode::Record => matches!(replay, ReplayPolicy::Recordable),
-                ReplayMode::Replay => false,
-            },
-            _ => true,
-        };
+    /// Create a binding policy from determinism and replay settings.
+    pub const fn new(determinism: DeterminismPolicy, replay: ReplayMode) -> Self {
+        let allowed = allowed_effects_for_policy(determinism, replay);
+        Self {
+            determinism,
+            replay,
+            allowed,
+        }
+    }
 
-        // reject disallowed external effects
-        if !allowed {
-            return Err(Error::ExternalCallForbidden {
-                name: spec.name.to_string(),
-            });
+    /// Return the determinism policy.
+    pub const fn determinism(self) -> DeterminismPolicy {
+        self.determinism
+    }
+
+    /// Return the replay mode.
+    pub const fn replay(self) -> ReplayMode {
+        self.replay
+    }
+
+    /// Validate a binding descriptor against policy.
+    #[inline]
+    pub fn check(self, spec: BindingDescriptor) -> RuntimeResult<()> {
+        if !self.allowed.allows(spec.effect_mask) {
+            return Err(RuntimeError::policy_violation(spec.name.to_string()).boxed());
         }
 
         Ok(())
     }
+}
+
+impl Default for BindingPolicy {
+    fn default() -> Self {
+        Self::new(DeterminismPolicy::BestEffort, ReplayMode::Off)
+    }
+}
+
+/// Calculate the allowed effects for a policy.
+const fn allowed_effects_for_policy(
+    determinism: DeterminismPolicy,
+    replay: ReplayMode,
+) -> BindingEffectMask {
+    let mut mask = BindingEffectMask::PURE;
+    mask.0 |= BindingEffectMask::DETERMINISTIC.0;
+
+    let allow_external = match replay {
+        ReplayMode::Off => matches!(determinism, DeterminismPolicy::BestEffort),
+        ReplayMode::Record => true,
+        ReplayMode::Replay => false,
+    };
+
+    if allow_external {
+        match replay {
+            ReplayMode::Record => {
+                mask.0 |= BindingEffectMask::EXTERNAL_RECORDABLE.0;
+            }
+            ReplayMode::Off => {
+                mask.0 |= BindingEffectMask::EXTERNAL_RECORDABLE.0;
+                mask.0 |= BindingEffectMask::EXTERNAL_NONRECORDABLE.0;
+            }
+            ReplayMode::Replay => {}
+        }
+    }
+
+    mask
 }

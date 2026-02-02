@@ -1,0 +1,9 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+
+/// Cryptographic randomness bindings for the native runtime.
+declare namespace random {
+    /// Fill a slice with cryptographically secure random bytes.
+    @binding("destack.random.secureBytes")
+    export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>;
+}

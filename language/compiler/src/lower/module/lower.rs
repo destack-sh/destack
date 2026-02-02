@@ -16,7 +16,7 @@ use crate::lower::emit::{RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{VirtualMethodKey, VtableGlobal};
-use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
+use crate::lower::{BuiltinTypeLayouts, RuntimeStatusLayout, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
@@ -111,6 +111,15 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
     /// Precomputed itab ids keyed by concrete and interface symbols.
     pub(crate) interface_itab_ids: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+
+    /// Set of symbols marked as bindings.
+    pub(crate) binding_symbols: HashSet<GlobalSymbolId>,
+    /// Binding ABI lowering toggle.
+    pub(crate) binding_abi_lowering: bool,
+    /// Cached runtime status layout for ABI lowering.
+    pub(crate) runtime_status_layout: Option<RuntimeStatusLayout>,
+    /// Cached binding function for taking runtime errors.
+    pub(crate) take_platform_error_function: Option<mir::LocalNodeId<mir::Function>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -160,6 +169,7 @@ impl<'a> ModuleLowerer<'a> {
         // resolve runtime check policies
         let debug = compiler.program.profile(profile).key.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
+        let binding_abi_lowering = target_config.output.is_native();
 
         let well_known_intrinsics = compiler.program.builtins.as_ref().and_then(|builtins| {
             let profile_key = compiler.program.profile(profile).key.clone();
@@ -207,6 +217,10 @@ impl<'a> ModuleLowerer<'a> {
             vtable_globals_by_symbol: HashMap::new(),
             interface_itab_pairs: Vec::new(),
             interface_itab_ids: HashMap::new(),
+            binding_symbols: HashSet::new(),
+            binding_abi_lowering,
+            runtime_status_layout: None,
+            take_platform_error_function: None,
         }
     }
 

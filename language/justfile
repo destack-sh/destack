@@ -96,6 +96,7 @@ generate-schema:
 # generate runtime binding catalog
 generate-bindings:
     cargo run -p destack_runtime --features generate_bindings --bin generate-bindings --release
+    cargo fmt -p destack_runtime
     @echo "generated runtime binding catalog"
 
 # --- builtin libs ---

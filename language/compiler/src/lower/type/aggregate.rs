@@ -39,6 +39,9 @@ impl TypeLowerer {
 
             // lower the field's type and compute size/alignment
             let field_mir_type = self.lower_type(types, field.ty, module_id, node, builder)?;
+            if field_mir_type == self.ty_void {
+                continue;
+            }
             let field_type = builder.tree().get(field_mir_type);
             let (size, alignment) = self.size_and_align_of_type(field_type, builder.tree());
 
