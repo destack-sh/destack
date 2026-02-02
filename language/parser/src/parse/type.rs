@@ -595,7 +595,7 @@ impl Parser {
         false
     }
 
-    /// Eat type import arguments without allowing trailing commas.
+    /// Eat type import arguments.
     fn eat_type_import_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         // open argument list
         self.eat_token(TokenType::OpenParenthesis)?;
@@ -608,28 +608,12 @@ impl Parser {
         }
 
         // positional arguments
-        let mut arguments = Vec::new();
-        loop {
-            let argument = self.eat_positional_argument()?;
-            arguments.push(argument);
-            self.eat_newlines_maybe()?;
-
-            // handle separators and trailing commas
-            if self.peek_is(TokenType::Comma) {
-                let comma_span = self.peek()?.span;
-                self.bump(); // eat comma
-                self.eat_newlines_maybe()?;
-                if self.peek_is(TokenType::CloseParenthesis) {
-                    let error = ParseError::unexpected(comma_span);
-                    self.error(&error);
-                    break;
-                }
-                continue;
-            }
-            break;
-        }
+        let arguments = self.with_options(self.options.nested().not_in_position(), |parser| {
+            parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
+        })?;
 
         // close argument list
+        self.eat_newlines_maybe()?;
         self.eat_token(TokenType::CloseParenthesis)?;
         Ok(arguments)
     }
@@ -704,8 +688,20 @@ impl Parser {
         let (qualifier, static_arguments) = if self.peek_is(TokenType::Dot) {
             self.bump(); // eat dot
             let qualifier = self.eat_path()?;
-            self.eat_newlines_maybe()?;
-            let static_arguments = self.eat_static_arguments_maybe()?;
+            // only consume newlines when a static argument list follows
+            let static_arguments = if self.peek_is(TokenType::Newline)
+                && (self
+                    .peek_token_after_newlines(self.pos(), TokenType::LessThan)
+                    .is_ok()
+                    || self
+                        .peek_token_after_newlines(self.pos(), TokenType::ShiftLeft)
+                        .is_ok())
+            {
+                self.eat_newlines_maybe()?;
+                self.eat_static_arguments_maybe()?
+            } else {
+                self.eat_static_arguments_maybe()?
+            };
             (Some(qualifier), static_arguments)
         } else {
             (None, None)
@@ -1057,13 +1053,28 @@ mod tests {
     fn test_parse_type_alias() {
         let mut test = TestParser::new("type T = int32");
         let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 1);
+        let expr_id = expressions[0];
         // type T = int32
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, .. } => {
                 assert_string!(parser, descriptor.name.unwrap().string(), "T");
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
+        });
+    }
+
+    #[test]
+    fn test_parse_bigint_literal_type() {
+        let mut test = TestParser::new_with_options("let x: 0n;", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            let declarator = parser.tree.get(declarators[0]);
+            let ty = declarator.ty.expect("expected type");
+            assert_node!(parser.tree, ty, Expression::ScalarLiteral(ScalarLiteral::Bigint(0)));
         });
     }
 

@@ -578,7 +578,10 @@ impl Parser {
     }
 
     /// Peek whether `<...>(...)` forms a generic arrow function signature.
-    fn peek_generic_arrow_after_type_parameters(&self, require_tree_disambiguator: bool) -> bool {
+    pub(super) fn peek_generic_arrow_after_type_parameters(
+        &self,
+        require_tree_disambiguator: bool,
+    ) -> bool {
         // require `<` at the current position
         if self.peek_token(TokenType::LessThan).is_err() {
             return false;

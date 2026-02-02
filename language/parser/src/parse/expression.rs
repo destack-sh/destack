@@ -605,6 +605,29 @@ impl Parser {
         )
     }
 
+    /// Check whether `asserts` starts a type predicate.
+    #[inline]
+    fn can_start_type_predicate_asserts(&self) -> bool {
+        if self.peek_keyword(Keyword::Asserts).is_err() {
+            return false;
+        }
+
+        let mut pos = self.pos() as usize;
+        while let Some(token) = self.tokens.get(pos + 1)
+            && token.token.ty == TokenType::Newline
+        {
+            pos += 1;
+        }
+
+        if self.keyword_for_index(pos + 1) == Some(Keyword::This) {
+            return true;
+        }
+
+        self.tokens
+            .get(pos + 1)
+            .is_some_and(|token| token.token.ty == TokenType::Identifier)
+    }
+
     /// Peek a private member access using `.#`.
     #[inline]
     fn peek_private_member(&self) -> ParseResult<u8> {
@@ -827,6 +850,14 @@ impl Parser {
             descriptor.export = mode;
         }
 
+        // skip newlines before export import equals
+        if descriptor.export.is_some()
+            && self.peek_is(TokenType::Newline)
+            && self.peek_keyword_after_newlines(Keyword::Import).is_ok()
+        {
+            self.eat_newlines_maybe()?;
+        }
+
         // kind (declare must not be followed by newline, similar to abstract)
         let is_declare_identifier = self.peek_next_is(TokenType::Identifier)
             && self.peek_next().is_ok_and(|token| {
@@ -873,7 +904,9 @@ impl Parser {
         };
 
         // global declaration
-        if (descriptor.kind == DeclarationKind::Declaration || self.language.is_declaration())
+        if (descriptor.kind == DeclarationKind::Declaration
+            || self.language.is_declaration()
+            || self.options.in_declare_context)
             && self.peek_identifier_str("global").is_ok()
             && self
                 .peek_token_after_newlines(self.pos(), TokenType::OpenBrace)
@@ -1186,14 +1219,21 @@ impl Parser {
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
             Keyword::Import => {
-                let can_start_import_binding = matches!(
+                // treat `import.<ident>` as a path, not an import statement
+                if self
+                    .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                    .is_ok()
+                {
+                    return Ok(None);
+                }
+                let can_start_import = matches!(
                     next_token_type,
                     TokenType::Multiply
                         | TokenType::Identifier
                         | TokenType::OpenBrace
                         | TokenType::Literal
-                );
-                if !can_start_import_binding {
+                ) || self.can_start_import_statement();
+                if !can_start_import {
                     return Ok(None);
                 }
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
@@ -1205,7 +1245,11 @@ impl Parser {
             }
             Keyword::Infer if self.options.in_type => Ok(Some(self.eat_type_infer_expression()?)),
             Keyword::Asserts if self.options.in_type => {
-                Ok(Some(self.eat_type_predicate_asserts()?))
+                if self.can_start_type_predicate_asserts() {
+                    Ok(Some(self.eat_type_predicate_asserts()?))
+                } else {
+                    Ok(None)
+                }
             }
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
@@ -1239,7 +1283,7 @@ impl Parser {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_while()?))
             }
-            Keyword::Do if self.is_do_while_block(next_token_type) => {
+            Keyword::Do if self.is_do_while_statement(next_token_type) => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_while()?))
             }
@@ -1357,8 +1401,36 @@ impl Parser {
         }
     }
 
-    /// Return true if the current `do` token starts a do-while block.
-    fn is_do_while_block(&mut self, next_token_type: TokenType) -> bool {
+    /// Return true if `<` starts a generic arrow function signature.
+    fn can_start_generic_arrow_expression(&mut self) -> bool {
+        if !self.peek_is(TokenType::LessThan) {
+            return false;
+        }
+
+        let require_disambiguator =
+            self.options.disallow_ambiguous_tree_literal && self.language.supports_jsx();
+        if !self.peek_generic_arrow_after_type_parameters(require_disambiguator) {
+            return false;
+        }
+
+        if self.language.supports_jsx()
+            && !self.options.in_type
+            && !self.options.in_static
+            && self.is_tree_literal_start()
+            && !self.peek_tree_generic_arrow()
+        {
+            return false;
+        }
+
+        true
+    }
+
+    /// Return true if the current `do` token starts a do-while statement.
+    /// Destack requires `do { ... } while ...`, while JS/TS allow `do` with any statement.
+    fn is_do_while_statement(&mut self, next_token_type: TokenType) -> bool {
+        if !self.language.is_destack() {
+            return true;
+        }
         if next_token_type != TokenType::OpenBrace {
             return false;
         }
@@ -1497,6 +1569,8 @@ impl Parser {
                         && self.module_identifier.is_some_and(|id| {
                             self.identifier_for_index(self.pos_index()) == Some(id)
                         });
+                    let is_module_declaration_start =
+                        module_identifier_matches && is_declaration_start;
                     let mut primary_expression_id = None;
 
                     // shorthand lambda function value
@@ -1531,7 +1605,7 @@ impl Parser {
                         && !has_active_split
                         && !self.options.in_decorator
                     {
-                        if module_identifier_matches && is_declaration_start {
+                        if is_module_declaration_start {
                             let namespace_id = self.eat_namespace(start, descriptor.clone())?;
                             primary_expression_id = Some(self.tree.insert(
                                 Expression::Declaration(namespace_id),
@@ -1624,7 +1698,7 @@ impl Parser {
 
                     // do block expression or do-while block
                     if primary_expression_id.is_none() && keyword == Some(Keyword::Do) {
-                        if self.is_do_while_block(next_token_type) {
+                        if self.is_do_while_statement(next_token_type) {
                             primary_expression_id = Some(self.eat_while()?);
                         } else if next_token_type == TokenType::OpenBrace {
                             let block_id = self.eat_block()?;
@@ -1638,8 +1712,7 @@ impl Parser {
                     // keyword or contextual module declaration
                     if primary_expression_id.is_none()
                         && keyword.is_none()
-                        && module_identifier_matches
-                        && is_declaration_start
+                        && is_module_declaration_start
                     {
                         let namespace_id = self.eat_namespace(start, descriptor.clone())?;
                         primary_expression_id = Some(self.tree.insert(
@@ -2052,77 +2125,16 @@ impl Parser {
                         self.tree
                             .insert(Expression::Block(block_id), self.get_span_from(start))
                     }
-                    // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
+                    // statically parameterized lambda: <T>(...) or <T,>(...)
                     // (also handles multiline in type context: `<\nT\n>(...) => ...`)
                     else if token_type == TokenType::LessThan
-                        && (!self.language.supports_jsx()
-                            || self.options.in_type
-                            || self.options.in_static
-                            || self.peek_tree_generic_arrow()
-                            || !self.is_tree_literal_start())
-                        && {
-                            let cond1 = self.peek_next_is(TokenType::Identifier);
-                            let cond2 = self.options.in_type
-                                && self.peek_next_is(TokenType::Newline)
-                                && self
-                                    .peek_token_after_newlines(self.pos(), TokenType::Identifier)
-                                    .is_ok();
-                            cond1 || cond2
-                        }
-                        && (self.peek_next_next_token(TokenType::Comma).is_ok()
-                            || self
-                                .find_matching_close(
-                                    None,
-                                    TokenType::LessThan,
-                                    TokenType::GreaterThan,
-                                )
-                                .ok()
-                                .and_then(|gt_pos| {
-                                    // must be `<T>(...` pattern, skip newlines in type context
-                                    let after_gt_pos = if self.options.in_type {
-                                        self.skip_newlines(gt_pos).ok()?
-                                    } else {
-                                        gt_pos
-                                    };
-                                    let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
-                                    if after_gt.token.ty != TokenType::OpenParenthesis {
-                                        return None;
-                                    }
-                                    // find `)` and check for `:` or `=>` after (skip newlines in type context)
-                                    let parenthesis_close = self
-                                        .find_matching_close(
-                                            Some(after_gt_pos + 1),
-                                            TokenType::OpenParenthesis,
-                                            TokenType::CloseParenthesis,
-                                        )
-                                        .ok()?;
-                                    let after_close_pos = if self.options.in_type {
-                                        self.skip_newlines(parenthesis_close).ok()?
-                                    } else {
-                                        parenthesis_close
-                                    };
-                                    let after_parenthesis_close =
-                                        self.tokens.get(after_close_pos as usize + 1)?;
-                                    (after_parenthesis_close.token.ty == TokenType::Colon
-                                        || after_parenthesis_close.token.ty == TokenType::Arrow
-                                        || after_parenthesis_close.token.ty == TokenType::ArrowWide)
-                                        .then_some(true)
-                                })
-                                .is_some())
+                        && self.can_start_generic_arrow_expression()
                     {
                         let function_id = self.eat_function(start, descriptor, false, false)?;
                         self.tree.insert(
                             Expression::Declaration(function_id),
                             self.get_span_from(start),
                         )
-                    }
-                    // typescript type assertion: <T>expr
-                    else if token_type == TokenType::LessThan
-                        && self.language.is_typescript()
-                        && !self.language.supports_jsx()
-                        && !self.options.in_type
-                    {
-                        self.eat_type_assertion(start)?
                     }
                     // tree literal
                     else if self.language.supports_jsx()
@@ -2202,7 +2214,19 @@ impl Parser {
         if self.options.in_statement_position {
             let expression = self.tree.get(left_expression_id);
             if expression.is_top_level_statement() {
-                return Ok(left_expression_id);
+                let is_lambda_declaration = match expression {
+                    Expression::Declaration(declaration_id) => {
+                        matches!(
+                            self.tree.get(*declaration_id),
+                            Declaration::Function { signature, .. }
+                                if signature.kind == FunctionKind::Lambda
+                        )
+                    }
+                    _ => false,
+                };
+                if !is_lambda_declaration {
+                    return Ok(left_expression_id);
+                }
             }
         }
 
@@ -2218,6 +2242,7 @@ impl Parser {
             if let Expression::Path { .. } = self.tree.get(left_expression_id)
                 && self.peek_is(TokenType::OpenBrace)
                 && !self.options.in_before_block
+                && self.language.is_destack()
             {
                 let properties = self.eat_object_literal()?;
                 left_expression_id = self.tree.insert(
@@ -2228,18 +2253,6 @@ impl Parser {
                     self.get_span_from(start),
                 );
             }
-            // template literal postfix with `sql` (like `sql`SELECT * FROM users`)
-            else if self.is_template_literal_start() {
-                let template_literal = self.eat_template_literal()?;
-                left_expression_id = self.tree.insert(
-                    Expression::TaggedTemplateExpression {
-                        tag: left_expression_id,
-                        value: template_literal,
-                    },
-                    self.get_span_from(start),
-                );
-            }
-
             // eat all regular postfix operators
             while self.has_more_tokens() {
                 // stop before ternary boundary so postfix parsing does not consume ':'
@@ -2256,6 +2269,18 @@ impl Parser {
                             && self.peek_next_is(TokenType::GreaterThan))
                 {
                     break;
+                }
+
+                if self.is_template_literal_start() {
+                    let template_literal = self.eat_template_literal()?;
+                    left_expression_id = self.tree.insert(
+                        Expression::TaggedTemplateExpression {
+                            tag: left_expression_id,
+                            value: template_literal,
+                        },
+                        self.get_span_from(start),
+                    );
+                    continue;
                 }
 
                 let has_direct_call = self.peek_is(TokenType::OpenParenthesis);
@@ -2467,14 +2492,15 @@ impl Parser {
                     let is_type_conditional = type_conditional_operands.is_some();
                     self.eat_newlines_maybe()?; // eat newlines
                     // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
-                    let is_postfix_maybe = !self.options.in_type
-                        && self.peek_is(TokenType::Maybe)
+                    let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
+                    let is_direct_postfix_maybe = self.language.is_destack()
                         && (self.peek_next_any_stop().is_ok()
-                            && self.language.is_destack()
                             && self.prev_token_type() != TokenType::Newline
                             || self.peek_next_any_close_parenthesis().is_ok()
-                            || self.is_optional_chain_after_maybe()
                             || self.peek_next_assign_operator().is_ok());
+                    let is_postfix_maybe = !self.options.in_type
+                        && self.peek_is(TokenType::Maybe)
+                        && (is_optional_chain_after_maybe || is_direct_postfix_maybe);
                     if is_postfix_maybe {
                         self.bump(); // eat ?
                         // (don't consume delimiter/stop)
@@ -2858,66 +2884,6 @@ impl Parser {
         }
 
         Ok(left_expression_id)
-    }
-
-    /// Eat a TypeScript type assertion expression (`<T>expr`).
-    fn eat_type_assertion(&mut self, start: ParserMark) -> ParseResult<LocalNodeId<Expression>> {
-        // handle `<const>expr` as a const assertion
-        let const_start = self.mark();
-        let const_start_idx = self.tree.next_id();
-        if self.peek_is(TokenType::LessThan) {
-            self.bump(); // eat <
-            self.eat_newlines_maybe()?;
-            if self.peek_keyword(Keyword::Const).is_ok() {
-                self.bump(); // eat const
-                self.eat_newlines_maybe()?;
-                if self.peek_is(TokenType::GreaterThan) {
-                    self.bump(); // eat >
-                    let value = self.with_options(self.options.not_in_position(), |parser| {
-                        parser.eat_expression()
-                    })?;
-                    let expression = Expression::TypeUnary {
-                        operator: TypeUnaryOperator::AsConst,
-                        right: value,
-                    };
-                    return Ok(self.tree.insert(expression, self.get_span_from(start)));
-                }
-            }
-        }
-        self.restore(const_start, const_start_idx);
-
-        let static_arguments = self.with_options(self.options.in_type(), |parser| {
-            parser.eat_static_arguments()
-        })?;
-
-        let type_expression = if static_arguments.len() == 1 {
-            let argument_id = static_arguments[0];
-            match self.tree.get(argument_id) {
-                Argument::Positional { value, .. } => *value,
-                _ => {
-                    return Err(ParseError::expected(
-                        self.get_span_from(start),
-                        TokenType::Identifier,
-                    ));
-                }
-            }
-        } else {
-            return Err(ParseError::expected(
-                self.get_span_from(start),
-                TokenType::Identifier,
-            ));
-        };
-
-        let value = self.with_options(self.options.not_in_position(), |parser| {
-            parser.eat_expression()
-        })?;
-
-        let expression = Expression::TypeBinary {
-            left: value,
-            operator: TypeBinaryOperator::Cast,
-            right: type_expression,
-        };
-        Ok(self.tree.insert(expression, self.get_span_from(start)))
     }
 }
 #[cfg(test)]
@@ -3314,6 +3280,39 @@ type = type * 2
         });
     }
 
+    #[test]
+    fn test_parse_export_import_type_equals_require_with_newlines() {
+        let mut test = TestParser::new_with_options(
+            r#"
+export
+import
+type
+React = require("react")
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::ImportAlias { descriptor, kind, target } => {
+                assert!(descriptor.export.is_some());
+                assert_eq!(*kind, DependencyKind::Type);
+                let name = descriptor.name.expect("import alias name");
+                assert_string!(parser, name.string(), "React");
+                match target {
+                    ImportAliasTarget::Require { target } => {
+                        assert_string!(parser, *target, "react");
+                    }
+                    ImportAliasTarget::Path { .. } => {
+                        panic!("expected import alias require");
+                    }
+                }
+            });
+        });
+    }
+
     /// Parse `import { bar, baz } from foo`.
     #[test]
     fn test_parse_import_expression_with_items_block() {
@@ -3640,7 +3639,7 @@ const shapes = (
     /// Prefer a block over a computed method object literal in statement position.
     #[test]
     fn test_parse_statement_position_computed_method_as_block() {
-        let mut test = TestParser::new("{ [key]() {} }");
+        let mut test = TestParser::new("{ [key]()\n{} }");
         let mut parser = test.prepare();
         parser.options.in_statement_position = true;
         let expr_id = parser.eat_expression().unwrap();
@@ -4039,19 +4038,6 @@ f<x> !== g<y>;
             assert!(dynamic_arguments.is_empty());
             let static_args = static_arguments.as_ref().expect("expected static arguments");
             assert_eq!(static_args.len(), 1);
-        });
-    }
-
-    /// Parse a TypeScript type assertion expression.
-    #[test]
-    fn test_parse_type_assertion() {
-        let mut test = TestParser::new_with_options("<Foo>bar", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::TypeBinary { left, operator, right } => {
-            assert_eq!(*operator, TypeBinaryOperator::Cast);
-            assert_expression_path!(parser, parser.tree.get(*left), "bar");
-            assert_expression_path!(parser, parser.tree.get(*right), "Foo");
         });
     }
 
@@ -5385,20 +5371,6 @@ self
         assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
             assert_eq!(*operator, TypeUnaryOperator::AsConst);
             assert_expression_path!(parser, parser.tree.get(*right), "Value");
-        });
-    }
-
-    /// Parse angle bracket const assertions.
-    #[test]
-    fn test_parse_type_assertion_const() {
-        let mut test = TestParser::new_with_options("<const>[10, 20]", LanguageType::TypeScript);
-        let mut parser = test.prepare();
-        let expr_id = parser.eat_expression().unwrap();
-        assert_node!(parser.tree, expr_id, Expression::TypeUnary { operator, right } => {
-            assert_eq!(*operator, TypeUnaryOperator::AsConst);
-            assert_node!(parser.tree, *right, Expression::ArrayExpression { elements } => {
-                assert_eq!(elements.len(), 2);
-            });
         });
     }
 

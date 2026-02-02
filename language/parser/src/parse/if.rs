@@ -1,5 +1,7 @@
 use crate::{ParseResult, Parser};
-use destack_ast::{Block, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId};
+use destack_ast::{
+    Block, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId, TokenType,
+};
 
 impl Parser {
     /// Eat something as a block (if it's not a block expression OR an if, wrap in a block expression).
@@ -86,6 +88,12 @@ impl Parser {
             .with_options(self.options.in_statement_position(), |parser| {
                 parser.eat_expression_as_block()
             })?;
+
+        // allow semicolons between then and else branches in JS/TS
+        if !self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
+            self.bump(); // eat semicolon
+            self.eat_newlines_maybe()?;
+        }
 
         // if / else if / else node
         let else_expression_id = if self.peek_keyword_after_newlines(Keyword::Else).is_ok() {
