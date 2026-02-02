@@ -1,6 +1,6 @@
 use super::super::source::{BuiltinLib, BuiltinLibSource};
 
-pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &["Slice"];
+pub(crate) const JS_DECLARED_SYMBOLS: &[&str] = &["Slice", "Vector"];
 
 // root
 const LIB_JS_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(

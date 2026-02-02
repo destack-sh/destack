@@ -532,7 +532,7 @@ impl Builtins {
     }
 
     /// Get a declared lib symbol for the given space order.
-    pub fn get_declared_lib_symbol_for_space_order(
+    pub fn get_declared_lib_symbol_from(
         &self,
         profile_key: &ProfileKey,
         name: StringId,
