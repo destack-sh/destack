@@ -217,4 +217,67 @@ export interface Sink<in T = string> {
 export declare const sink: Sink;
 ```
 
+## Assignability
+
+### covariance allows widening
+
+> Covariant parameters allow assignment from narrower to wider types.
+
+```ds
+interface Source<out T> {
+    get(): T;
+}
+
+declare const source_string: Source<string>;
+const widened: Source<string | number> = source_string;
+widened.get() satisfies string | number;
+```
+
+### covariance rejects narrowing
+
+> Covariant parameters reject assignment from wider to narrower types.
+
+```ds
+interface Source<out T> {
+    get(): T;
+}
+
+declare const source_union: Source<string | number>;
+const narrowed: Source<string> = source_union;
+```
+
+- type Source<string | number> is not assignable to type Source<string>
+
+### contravariance allows narrowing
+
+> Contravariant parameters allow assignment from wider to narrower targets.
+
+```ds
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+declare const sink_union: Sink<string | number>;
+const narrowed: Sink<string> = sink_union;
+
+declare const sink_string: Sink<string>;
+narrowed.set("ok");
+sink_string.set("ok");
+```
+
+### contravariance rejects widening
+
+> Contravariant parameters reject assignment from narrower to wider targets.
+
+```ds
+interface Sink<in T> {
+    set(value: T): void;
+}
+
+declare const sink_string: Sink<string>;
+const widened: Sink<string | number> = sink_string;
+```
+
+- type Sink<string> is not assignable to type Sink<string | number>
+
 <!-- FUGU #Incomplete: wire up variance modifiers in analyze phase -->

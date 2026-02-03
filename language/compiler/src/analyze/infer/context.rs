@@ -568,6 +568,7 @@ impl InferContext {
 
     /// Add a narrowing for a symbol.
     pub fn narrow(&mut self, symbol: GlobalSymbolId, ty: LocalTypeId) {
+        // NOTE #Performance: linear scans over narrowings may get expensive in deep CFGs
         if let Some(index) = self.narrowings.iter().position(|(s, _)| *s == symbol) {
             self.narrowings[index] = (symbol, ty);
         } else {
@@ -603,6 +604,7 @@ impl InferContext {
         }
         // both reachable: keep only narrowings that exist in both
         else {
+            // NOTE #Suspicious: TSC join narrowings usually union the narrowed types, this keeps only identical pairs
             self.narrowings.retain(|(s, ty)| {
                 other
                     .narrowings

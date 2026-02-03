@@ -304,6 +304,7 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // NOTE #Suspicious: normalization caches only ASSIGN, but normalize_type_inner handles TYPE_OPS too
         // reuse cached normalization when available
         let relation_key = relation_mode.cache_key();
         if relation_mode.is_cacheable()

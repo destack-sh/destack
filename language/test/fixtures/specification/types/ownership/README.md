@@ -1,3 +1,3 @@
 # Ownership
 
-Ownership tests cover moves, borrows, lifetimes, and managed values as part of the core type system.
+Ownership tests cover moves, borrows, lifetimes, managed values, and address spaces.

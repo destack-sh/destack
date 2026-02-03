@@ -46,3 +46,41 @@ left + right;
 ```
 
 - contains: no matching overload
+
+## Builtin overloading
+
+### array concatenation uses builtin overload
+
+> Arrays support `+` concatenation when builtin overloads are available.
+
+```ds
+declare const left: int32[];
+declare const right: int32[];
+
+const combined = left + right;
+combined satisfies int32[];
+```
+
+### set union uses builtin overload
+
+> Sets support `|` union when builtin overloads are available.
+
+```ds
+declare const left: Set<int32>;
+declare const right: Set<int32>;
+
+const combined = left | right;
+combined satisfies Set<int32>;
+```
+
+### map merge uses builtin overload
+
+> Maps support `|` merge when builtin overloads are available.
+
+```ds
+declare const left: Map<string, int32>;
+declare const right: Map<string, int32>;
+
+const combined = left | right;
+combined satisfies Map<string, int32>;
+```

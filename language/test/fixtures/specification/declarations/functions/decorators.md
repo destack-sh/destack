@@ -86,6 +86,17 @@ function decorator(): { member: () => void } {
 function demo(): void { }
 ```
 
+### function decorators are accepted
+
+> Decorators can resolve to callable functions.
+
+```ds
+function deco(target: unknown): void {}
+
+@deco
+function demo(): void { }
+```
+
 ### decorator expressions accept static arguments
 
 > decorator expressions accept static arguments without a call.
@@ -164,3 +175,28 @@ function dispatch(): void { }
 ```
 
 - contains: likely and unlikely decorators cannot be combined
+
+## Additional targets
+
+### parameter decorators are accepted
+
+> Decorators can be applied to function parameters.
+
+```ds
+function greet(@deprecated name: string): string {
+    return name;
+}
+
+greet("hi") satisfies string;
+```
+
+### statement decorators are accepted
+
+> Decorators can be applied to statements like loops.
+
+```ds
+@unroll
+for (let i = 0; i < 4; i++) {
+    let _ = i;
+}
+```

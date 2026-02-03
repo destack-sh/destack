@@ -48,3 +48,14 @@ const state: { count: number } = { count: 0 };
 state.count = 1;
 state.count satisfies number;
 ```
+
+### const bindings respect readonly properties
+
+> Readonly properties cannot be assigned.
+
+```ds
+const state: { readonly count: number } = { count: 0 };
+state.count = 1;
+```
+
+- contains: readonly

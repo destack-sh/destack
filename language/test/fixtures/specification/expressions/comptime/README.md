@@ -9,6 +9,7 @@ Compile time evaluation of expressions and blocks.
 - **Member blocks**: comptime blocks inside structs and classes
 - **Module blocks**: module level comptime execution
 - **Comptime conditions**: `if (comptime ...)` branches
+- **Slots**: comptime values used as constants
 
 ## Example
 

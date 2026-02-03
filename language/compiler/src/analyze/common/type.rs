@@ -918,6 +918,7 @@ impl Compiler {
         types: &TypeTable,
     ) -> bool {
         // TODO #Cleanup: centralize this gate in the evaluation boundary once we split structural and evaluative normalization
+        // NOTE #Suspicious: type_needs_instantiation does not treat `this` as instantiation dependent yet
         // check for free static parameter references
         let mut static_visited = HashSet::new();
         let bound = HashSet::new();
@@ -1190,6 +1191,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // NOTE #Suspicious: apparent type resolution prefers alias targets over instance types without checking instantiation
         // resolve through canonical import targets while preserving aliases
         let symbol = if symbol.ty() == SymbolType::Extension {
             symbol

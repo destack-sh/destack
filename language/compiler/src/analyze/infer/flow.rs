@@ -388,6 +388,7 @@ impl Compiler {
         baseline: Option<&FlowEnvironment>,
         types: &mut TypeTable,
     ) -> FlowEnvironment {
+        // NOTE #Suspicious: flow merges always union differing types, TSC has specialized join rules for some guards
         // preserve reachability when one side is unreachable
         if !left.is_reachable {
             return right.clone();
@@ -489,6 +490,7 @@ impl Compiler {
         elements: &mut Vec<LocalTypeId>,
         types: &TypeTable,
     ) {
+        // NOTE #Performance: repeated Vec contains checks make flow merges quadratic
         match types.get_type(type_id) {
             Type::Union { elements: union } => {
                 // flatten union elements into the merged list

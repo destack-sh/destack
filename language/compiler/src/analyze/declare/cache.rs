@@ -94,6 +94,7 @@ impl Compiler {
         enforce_implicit_managed: bool,
         resolve_static_arguments: bool,
     ) -> Option<u64> {
+        // TODO #Architecture: include instantiation context in type reference cache keys
         let mut hasher = FxHasher::default();
         symbol.hash(&mut hasher);
         validate_static_argument_bounds.hash(&mut hasher);

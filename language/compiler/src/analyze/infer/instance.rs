@@ -31,6 +31,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let type_count = types.type_count();
         let options = self.analyze_context_options_for_module(module.id);
+        // NOTE #Performance: this scans the full type table each infer pass
         for id in 0..type_count {
             let ty_id = LocalTypeId::new(id);
 

@@ -1,6 +1,7 @@
 # Match Expressions
 
 Match expressions participate in control flow typing, narrowing, and result type commitment.
+Decorator coverage lives in `decorators.md`.
 
 ## Example
 

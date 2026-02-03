@@ -162,6 +162,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
+        // NOTE #Suspicious: export materialization evaluates alias targets during export stage
         for export in exports.values() {
             // skip non-type exports
             if export.space != SymbolSpace::Type {

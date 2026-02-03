@@ -75,6 +75,7 @@ impl Compiler {
         has_member: bool,
         types: &mut TypeTable,
     ) {
+        // TODO #Architecture: store instantiation context on resolution entries
         if has_member {
             match resolution {
                 MemberResolution::Static { symbol } => {

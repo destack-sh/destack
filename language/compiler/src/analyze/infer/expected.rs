@@ -62,6 +62,7 @@ impl Compiler {
         };
 
         // normalize mapped, alias, and object shapes into concrete object types
+        // NOTE #Suspicious: contextual object normalization uses type ops without apparent type checks
         let normalized_ty_id = self.normalize_type_with_relation(
             module,
             profile,
