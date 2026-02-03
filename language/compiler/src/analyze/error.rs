@@ -349,6 +349,10 @@ pub enum AnalyzeError {
     #[error(code = "EA226", message = "invalid assignment target")]
     InvalidAssignmentTarget { node: AnchoredGlobalNodeId },
 
+    /// Static constraint resolution requires a static parameter symbol.
+    #[error(code = "EA227", message = "invalid static constraint target")]
+    InvalidStaticConstraint { node: AnchoredGlobalNodeId },
+
     /// TypeScript syntax is not allowed in JavaScript modules.
     #[error(
         code = "EA228",

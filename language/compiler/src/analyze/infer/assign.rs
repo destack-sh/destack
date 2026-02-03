@@ -1338,6 +1338,24 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
+            // type descriptors: compare underlying value types
+            (
+                Type::Value {
+                    value: target_value,
+                },
+                Type::Value {
+                    value: source_value,
+                },
+            ) => self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_value,
+                source_value,
+                types,
+                options,
+            ),
+
             // references: same symbol or lineage or structural compatibility
             (
                 Type::Reference {

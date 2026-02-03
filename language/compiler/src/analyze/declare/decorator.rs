@@ -463,6 +463,17 @@ impl Compiler {
                 }
             }
             WellKnownDecorator::Intrinsic => {
+                // keep intrinsic bindings confined to builtin modules
+                if !module.is_builtin() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "intrinsic decorators are only supported in builtin modules",
+                    );
+                    return;
+                }
+
                 let Some(name) = self.decorator_string_argument(
                     module,
                     profile,

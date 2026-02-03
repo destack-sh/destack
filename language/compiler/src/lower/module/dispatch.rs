@@ -1,7 +1,7 @@
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::LowerResult;
 use crate::lower::ModuleLowerer;
+use crate::{LowerError, LowerResult};
 
 impl ModuleLowerer<'_> {
     /// Initialize deterministic dispatch registries for vtable and itab lowering.
@@ -35,7 +35,7 @@ impl ModuleLowerer<'_> {
             let vtable_layout_symbols =
                 self.vtable_layout_symbols
                     .as_ref()
-                    .ok_or_else(|| crate::LowerError::Internal {
+                    .ok_or_else(|| LowerError::Internal {
                         module: self.module_id,
                         message: "missing vtable layout symbols".to_string(),
                     })?;
@@ -51,7 +51,7 @@ impl ModuleLowerer<'_> {
             // resolve the declaration id for this class symbol
             let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
             let Some(declaration_id) = declaration_id else {
-                return Err(crate::LowerError::Internal {
+                return Err(LowerError::Internal {
                     module: self.module_id,
                     message: format!("missing class declaration for vtable symbol {symbol:?}"),
                 });

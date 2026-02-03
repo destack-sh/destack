@@ -1120,6 +1120,7 @@ impl Compiler {
         // prefer static parameter constraints for referenced type expressions
         if let StaticExpression::Type { ty } = value
             && let Type::Reference { symbol, .. } = types.get_type(*ty)
+            && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
             && let Some(constraint_id) = self.static_parameter_constraint_type(
                 module,
                 profile,
@@ -1435,6 +1436,13 @@ impl Compiler {
                     }
             );
             if declared_bound_needs_constraint
+                && self.symbol_is_static_parameter(
+                    module,
+                    profile,
+                    static_parameter.symbol,
+                    symbols,
+                    types,
+                )
                 && let Some(constraint_id) = self.static_parameter_constraint_type(
                     module,
                     profile,
@@ -1464,6 +1472,12 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown | TypeLiteral::Any
                 }
+            ) && self.symbol_is_static_parameter(
+                module,
+                profile,
+                static_parameter.symbol,
+                symbols,
+                types,
             ) && let Some(constraint_id) = self.static_parameter_constraint_type(
                 module,
                 profile,
@@ -1523,6 +1537,7 @@ impl Compiler {
             {
                 // accept static parameter arguments when their constraints satisfy the bound
                 if let Type::Reference { symbol, .. } = types.get_type(substitution_ty_id)
+                    && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
                     && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
                         module,
                         profile,
@@ -1839,6 +1854,10 @@ impl Compiler {
         }
 
         // resolve the declared constraint type
+        if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+            visiting.remove(&symbol);
+            return None;
+        }
         let constraint_id = self.static_parameter_constraint_type(
             module,
             profile,
@@ -2231,14 +2250,24 @@ impl Compiler {
                     };
 
                     if let Some(referenced_symbol) = referenced_symbol {
-                        let constraint_id = self.static_parameter_constraint_type(
+                        let constraint_id = if self.symbol_is_static_parameter(
                             argument_module,
                             profile,
                             referenced_symbol,
-                            error_node.local_id,
                             argument_symbols,
                             types,
-                        );
+                        ) {
+                            self.static_parameter_constraint_type(
+                                argument_module,
+                                profile,
+                                referenced_symbol,
+                                error_node.local_id,
+                                argument_symbols,
+                                types,
+                            )
+                        } else {
+                            None
+                        };
 
                         if let Some(constraint_id) = constraint_id
                             && matches!(

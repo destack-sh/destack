@@ -3806,8 +3806,15 @@ impl Compiler {
                 )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
-                let ty_id =
+                // prefer union variants from the binding type when available
+                let mut ty_id =
                     self.evaluate_pattern_tag_type(module, *ty, tree, symbols, types, ctx)?;
+                if let Some(binding_ty_id) = binding_ty_id
+                    && let Some(union_ty_id) =
+                        self.select_union_variant_for_tagged_pattern(types, binding_ty_id, ty_id)
+                {
+                    ty_id = union_ty_id;
+                }
                 // handle scalar tagged patterns like `UserId(value)`
                 if fields.len() == 1 {
                     let field = tree.get(fields[0]);
@@ -3899,8 +3906,15 @@ impl Compiler {
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
-                let ty_id =
+                // prefer union variants from the binding type when available
+                let mut ty_id =
                     self.evaluate_pattern_tag_type(module, *ty, tree, symbols, types, ctx)?;
+                if let Some(binding_ty_id) = binding_ty_id
+                    && let Some(union_ty_id) =
+                        self.select_union_variant_for_tagged_pattern(types, binding_ty_id, ty_id)
+                {
+                    ty_id = union_ty_id;
+                }
                 for field_id in fields {
                     self.infer_pattern_field(
                         module,
@@ -3931,6 +3945,33 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Select a union variant for a tagged pattern to preserve static arguments.
+    fn select_union_variant_for_tagged_pattern(
+        &self,
+        types: &TypeTable,
+        binding_ty_id: LocalTypeId,
+        tag_ty_id: LocalTypeId,
+    ) -> Option<LocalTypeId> {
+        let tag_symbol = self.unwrap_type_value_symbol(types, tag_ty_id)?;
+
+        // unwrap value wrappers before inspecting the binding union
+        let binding_ty_id = types.unwrap_value_type_id(binding_ty_id);
+        let Type::Union { elements } = types.get_type(binding_ty_id) else {
+            return None;
+        };
+
+        for element_id in elements {
+            if self
+                .unwrap_type_value_symbol(types, *element_id)
+                .is_some_and(|symbol| symbol == tag_symbol)
+            {
+                return Some(*element_id);
+            }
+        }
+
+        None
     }
 
     /// Check whether a binding type is a nominal object for untagged patterns.

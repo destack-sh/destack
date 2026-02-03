@@ -223,6 +223,7 @@ impl Compiler {
         }
         elements.push(descriptor_ty_id);
         elements.extend(extras);
+
         let value_ty_id = if elements.len() == 1 {
             elements[0]
         } else {

@@ -382,10 +382,7 @@ impl TypeTable {
     }
 
     /// Resolve the base type for index or member access.
-    fn resolve_access_root_type_id(
-        &self,
-        type_id: LocalTypeId,
-    ) -> Option<ResolvedAccessType> {
+    fn resolve_access_root_type_id(&self, type_id: LocalTypeId) -> Option<ResolvedAccessType> {
         let mut current = self.unwrap_value_type_id(type_id);
         let mut is_newtype = false;
         loop {
@@ -404,11 +401,7 @@ impl TypeTable {
     }
 
     /// Resolve the element type for an index access on the given type id.
-    pub fn get_index_access_type(
-        &self,
-        type_id: LocalTypeId,
-        index: usize,
-    ) -> Option<LocalTypeId> {
+    pub fn get_index_access_type(&self, type_id: LocalTypeId, index: usize) -> Option<LocalTypeId> {
         let ResolvedAccessType {
             type_id,
             is_newtype,

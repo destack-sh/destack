@@ -1577,13 +1577,30 @@ impl<'a> Validator<'a> {
                 ..
             } => {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
-                self.validate_reference_result_type(
-                    *result_type,
-                    Some(*layout),
-                    Some(ReferenceKind::Raw),
-                    None,
-                    anchor,
-                )?;
+                let Type::Reference { kind, pointee, .. } = self.tree.get(*result_type) else {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "pointer-producing instruction result type is not a reference"
+                            .to_string(),
+                        anchor,
+                    });
+                };
+
+                if *pointee != *layout {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message: "pointer-producing instruction result type mismatches pointee"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                if !matches!(kind, ReferenceKind::Raw | ReferenceKind::Owned) {
+                    return Err(ValidateError::MetadataInvariantViolation {
+                        message:
+                            "pointer-producing instruction result type has wrong reference kind"
+                                .to_string(),
+                        anchor,
+                    });
+                }
             }
             Instruction::StackAlloc {
                 layout,

@@ -775,7 +775,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         // keep already resolved member symbols
         if member_symbol.is_some() {

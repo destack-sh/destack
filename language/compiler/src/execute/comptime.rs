@@ -243,6 +243,17 @@ impl<'a> ComptimeLowerer<'a> {
         let function_signature_types = HashMap::new();
         let closure_env_layouts = HashMap::new();
 
+        // resolve cached intrinsic bindings when available
+        let well_known_intrinsics = self
+            .compiler
+            .program
+            .builtins
+            .as_ref()
+            .and_then(|builtins| {
+                let profile_key = self.compiler.program.profile(self.profile).key;
+                builtins.well_known_intrinsics(&profile_key)
+            });
+
         // build the empty closure env type
         let empty_closure_env_pointer_type = self.empty_closure_env_pointer_type();
 
@@ -261,6 +272,7 @@ impl<'a> ComptimeLowerer<'a> {
             types: &self.types,
             captures: &self.captures,
             strings: &self.compiler.program.strings,
+            well_known_intrinsics: well_known_intrinsics.as_ref(),
             functions_by_symbol: &functions_by_symbol,
             function_signature_types: &function_signature_types,
             globals_by_symbol: &globals_by_symbol,
@@ -280,6 +292,7 @@ impl<'a> ComptimeLowerer<'a> {
                 failure: CheckFailurePolicy::Trap,
             },
             type_lowerer: &self.type_lowerer,
+            return_type,
             symbol: function_symbol,
             closure_env_layouts: &closure_env_layouts,
             empty_closure_env_pointer_type,

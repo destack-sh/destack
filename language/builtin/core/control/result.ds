@@ -80,12 +80,12 @@ export newtype Result<T, E> = Ok<T> | Err<E>;
 extension<T, E> for Result<T, E> {
     /// Create a success result.
     static ok(value: T): Result<T, E> {
-        Result(Ok { value })
+        Result(Ok { kind: "ok", value })
     }
 
     /// Create an error result.
     static err(error: E): Result<T, E> {
-        Result(Err { error })
+        Result(Err { kind: "err", error })
     }
 
     /// Returns true if this is Ok.
