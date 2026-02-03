@@ -266,6 +266,7 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Option<LocalTypeId> {
+        // NOTE #Performance: recomputes bounds and normalization cache per query
         // return early when the type is not an inference variable
         let Type::InferVar { id } = types.get_type(ty_id) else {
             return Some(ty_id);
@@ -371,6 +372,7 @@ impl Compiler {
         options: &AnalyzeOptions,
         normalization_cache: &mut SolveNormalizationCache,
     ) -> Option<LocalTypeId> {
+        // NOTE #Performance: resolve_bounds recomputes assignability per iteration without caching
         // resolve lower and upper bounds
         let lower = self.resolve_joined_bounds(&bound.lower, solution, types, JoinKind::Union);
         let upper =

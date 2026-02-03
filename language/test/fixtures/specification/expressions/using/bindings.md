@@ -20,6 +20,15 @@ let result: void = using value = 1;
 result satisfies void;
 ```
 
+### using works in ts modules
+
+> `using` is supported in TypeScript sources.
+
+```ts:main.ts
+using value = 1;
+value satisfies number;
+```
+
 ### declare using is invalid
 
 > Declare bindings cannot have initializers.

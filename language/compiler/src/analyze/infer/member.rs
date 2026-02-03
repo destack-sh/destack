@@ -1541,6 +1541,7 @@ impl Compiler {
         symbol: GlobalSymbolId,
         symbols: &SymbolTable,
     ) -> SymbolSpace {
+        // TODO #Architecture: centralize local vs remote symbol metadata access for member lookup
         if symbol.module_id == module.id {
             return symbols.get_symbol(symbol.local_id).space;
         }
@@ -1695,6 +1696,7 @@ impl Compiler {
         types: &TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // NOTE #Suspicious: member lookup order mixes merge groups, lineage, and extensions with implicit precedence
         // stop on cycles in symbol lookup
         if visited.contains(&symbol) {
             return Ok(None);

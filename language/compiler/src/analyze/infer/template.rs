@@ -103,6 +103,7 @@ impl Compiler {
         // resolve the applicable tagged template overload
         let mut resolved_signature = None;
         if call_signatures.len() > 1 {
+            // NOTE #Performance: tagged template overload resolution rechecks every signature
             let mut candidates = Vec::new();
             for signature_ty_id in call_signatures.iter() {
                 let Some(resolved) = self.resolve_call_signature(

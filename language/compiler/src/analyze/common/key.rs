@@ -137,6 +137,7 @@ impl Compiler {
         }
 
         // helpers for well-known symbol resolution across ambient libs
+        // TODO #Architecture: centralize local vs remote symbol metadata lookups for key resolution
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
             if symbol.module_id == symbols.module_id {
                 return symbols.get_symbol(symbol.local_id).key;

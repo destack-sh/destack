@@ -36,3 +36,14 @@ declare const A: unknown;
 let node = <A>{1}</A>;
 node;
 ```
+
+### tree literal works in tsx
+
+> TSX sources accept tree literals without Destack extensions.
+
+```ts:main.tsx
+declare const A: unknown;
+
+const node = <A value={1} />;
+node;
+```

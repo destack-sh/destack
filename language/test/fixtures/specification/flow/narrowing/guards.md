@@ -124,3 +124,30 @@ const value: unknown = new Admin();
 const ok = value is Admin;
 ok satisfies boolean;
 ```
+
+### type.is guard narrows to target type
+
+```ds
+struct User {
+    name: string,
+}
+
+const value: User | string = "hi";
+if (User.is(value)) {
+    value satisfies User;
+} else {
+    value satisfies string;
+}
+```
+
+### type.is returns boolean
+
+```ds
+struct User {
+    name: string,
+}
+
+const value: unknown = User { name: "Ada" };
+const ok = User.is(value);
+ok satisfies boolean;
+```

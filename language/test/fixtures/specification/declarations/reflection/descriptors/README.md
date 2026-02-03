@@ -14,6 +14,8 @@ Runtime type information via `Type<T>`.
 - **Type guards**: `.is(value)` for runtime checks
 - **Factory**: `.create(data)` for instantiation
 
+NOTE #Suspicious: core descriptors expose `.properties`, but the spec text uses `.fields`.
+
 ## Example
 
 ```ds

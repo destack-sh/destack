@@ -45,6 +45,19 @@ repeat(1);
 
 - contains: is not assignable
 
+### tuple rest parameters infer element types
+
+> Tuple rest parameters preserve element types from call sites.
+
+```ds
+function pair<T, U>(...values: (T, U)): (T, U) {
+    return (values[0], values[1]);
+}
+
+const result = pair(1, "hi");
+result satisfies (int, string);
+```
+
 ## invalid parameter properties
 
 ### function parameters cannot be parameter properties

@@ -17,6 +17,8 @@ impl Compiler {
         types: &TypeTable,
         target_symbol: GlobalSymbolId,
     ) -> AnalyzeResult<Vec<GlobalSymbolId>> {
+        // TODO #Architecture: centralize local vs remote symbol metadata lookups to avoid divergent rules
+        //  (also see other FUGU note about pervasive local vs remote module logic splits)
         // canonicalize the target symbol
         let canonical_target = self.canonical_symbol_id(
             module,

@@ -256,6 +256,7 @@ impl Compiler {
             return Some(InferSubstitutions::empty(self));
         }
 
+        // NOTE #Suspicious: infer substitution matching normalizes aliases eagerly, may evaluate instantiation dependent types
         // infer from matching reference arguments before normalization
         let left_type = types.get_type(left).clone();
         let right_type = types.get_type(right).clone();
@@ -293,6 +294,7 @@ impl Compiler {
         let right = self.unwrap_normalization_alias_reference(right, types);
 
         // normalize alias references with concrete arguments before matching
+        // NOTE #Suspicious: conditional inference uses Assign normalization without relation mode selection
         let left = self.normalize_type(
             module,
             profile,

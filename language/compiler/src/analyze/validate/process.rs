@@ -107,6 +107,7 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let types = dir.types.read();
 
+        // TODO #Performance: consolidate validation passes into a single tree walk
         // validate binding identifiers
         self.validate_binding_names(&module, profile, &tree, &symbols);
 

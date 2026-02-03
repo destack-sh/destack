@@ -93,6 +93,7 @@ impl Compiler {
                     continue;
                 };
 
+                // TODO #Architecture: centralize local vs remote symbol metadata access for global bindings
                 // compute readonly status from the binding mutability
                 let binding_mutability = if symbol_id.module_id == module.id {
                     symbols.get_symbol(symbol_id.local_id).binding_mutability

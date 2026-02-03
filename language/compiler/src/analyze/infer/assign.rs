@@ -1023,6 +1023,7 @@ impl Compiler {
                     elements: source_elems,
                 },
             ) => {
+                // NOTE #Performance: nested union checks are quadratic in element count
                 for source_elem in source_elems {
                     let mut is_assignable = false;
                     for target_elem in &target_elems {

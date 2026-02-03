@@ -26,6 +26,7 @@ impl Compiler {
         }
 
         // resolve from the owning module when needed
+        // TODO #Architecture: centralize local vs remote symbol metadata lookups for static parameter kinds
         let kind = if symbol.module_id == module.id {
             self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
         } else {

@@ -109,6 +109,7 @@ impl<'a> StaticArgumentMaterializer<'a> {
 /// Return a cache key for static argument materialization.
 fn static_argument_context_key(argument_module: &Module, profile: ProfileId) -> u64 {
     // base module key
+    // TODO #Architecture: include substitution context in static argument cache keys
     let module_id = argument_module.id;
     let module_key = module_id.package_id.raw() ^ ((module_id.local_id as u64) << 32);
 

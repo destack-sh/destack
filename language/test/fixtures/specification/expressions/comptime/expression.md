@@ -31,3 +31,16 @@ const value: int32 = comptime {
 };
 value satisfies int32;
 ```
+
+### comptime calls evaluate functions
+
+> Comptime expressions can call pure functions.
+
+```ds
+function add(a: int, b: int): int {
+    a + b
+}
+
+const value = comptime add(1, 2);
+value satisfies int;
+```

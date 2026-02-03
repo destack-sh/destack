@@ -884,6 +884,7 @@ impl Compiler {
                 continue;
             }
 
+            // TODO #Architecture: centralize local vs remote merge imports to keep symbol handling consistent
             // ensure remote module declare is ready
             if global_symbol.module_id != module.id {
                 self.require_analyze_module_declare(global_symbol.module_id, profile)?;

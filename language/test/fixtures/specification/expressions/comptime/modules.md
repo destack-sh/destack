@@ -15,3 +15,19 @@ comptime {
 const value: int32 = 1;
 value satisfies int32;
 ```
+
+### module-level comptime block can appear after declarations
+
+> Comptime blocks can appear after other top-level items.
+
+```ds
+const base: int32 = 2;
+
+comptime {
+    let value = base + 1;
+    let _ = value;
+}
+
+const next = base + 1;
+next satisfies int32;
+```

@@ -11,6 +11,7 @@ Class declarations and members.
 - **Properties**: Fields, getters, setters
 - **Visibility**: `public`, `private`, `protected`, `#private`
 - **Static members**: Static properties and methods
+- **Decorators**: Class and member decorators
 
 Classes in Destack work exactly like TypeScript classes.
 
@@ -20,3 +21,4 @@ Classes in Destack work exactly like TypeScript classes.
 - `members.md`: Instance and static fields and methods.
 - `overrides.md`: Override checking and diagnostics.
 - `visibility.md`: Access modifiers and visibility rules.
+- `decorators.md`: Class and member decorators.

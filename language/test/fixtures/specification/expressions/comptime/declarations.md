@@ -37,3 +37,21 @@ class Counter {
 const counter = new Counter();
 counter satisfies Counter;
 ```
+
+## comptime functions
+
+### comptime calls evaluate at compile time
+
+> Functions can be evaluated in comptime contexts.
+
+```ds
+function factorial(n: int): int {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+const value = comptime factorial(4);
+value satisfies int;
+```

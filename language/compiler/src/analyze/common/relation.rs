@@ -92,6 +92,7 @@ impl RelationMode {
 
     /// Return true when normalization caching is valid for this relation mode.
     pub(crate) fn is_cacheable(self) -> bool {
+        // NOTE #Suspicious: only ASSIGN is cacheable even though TYPE_OPS is deterministic
         self == Self::ASSIGN
     }
 }

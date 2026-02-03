@@ -12,7 +12,9 @@ Data-oriented object types with fixed layout and value semantics.
 - **Interfaces**: Structs can satisfy structural interfaces and `object`
 - **Implements**: `struct Point implements Drawable`
 - **Value semantics**: Passed by value (copied) by default
+- **Identity**: `==` value comparison and `===` identity errors
 - **Embedding**: `...OtherStruct` to embed fields
+- **Decorators**: Field decorators on struct members
 
 ## Example
 
