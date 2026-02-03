@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, VmValueCodec};
 
 /// FFI slice of raw values for native bindings.
 #[repr(C)]
@@ -24,7 +24,7 @@ impl<T> NativeSlice<T> {
     /// View the slice as an immutable slice.
     pub unsafe fn as_slice<'a>(self) -> RuntimeResult<&'a [T]> {
         if self.data.is_null() && self.len != 0 {
-            return Err(RuntimeError::platform(PlatformError::null_pointer("slice.data")).boxed());
+            return Err(RuntimeError::from(PlatformError::null_pointer("slice.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime
         Ok(unsafe { std::slice::from_raw_parts(self.data, self.len as usize) })
@@ -33,7 +33,7 @@ impl<T> NativeSlice<T> {
     /// View the slice as a mutable slice.
     pub unsafe fn as_mut_slice<'a>(self) -> RuntimeResult<&'a mut [T]> {
         if self.data.is_null() && self.len != 0 {
-            return Err(RuntimeError::platform(PlatformError::null_pointer("slice.data")).boxed());
+            return Err(RuntimeError::from(PlatformError::null_pointer("slice.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime
         Ok(unsafe { std::slice::from_raw_parts_mut(self.data, self.len as usize) })
@@ -62,38 +62,34 @@ impl<T> VmSlice<T> {
     ) -> RuntimeResult<Self> {
         // value must be an aggregate pair
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
-                name, expected,
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+            );
         }
 
         // unpack aggregate slots
         let slots = context
             .aggregate_slots(value)
-            .map_err(|error| RuntimeError::vm(error).boxed())?;
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 2 {
-            return Err(
-                RuntimeError::platform(PlatformError::invalid_argument_value(
-                    name,
-                    format!("expected {expected} with 2 fields"),
-                ))
-                .boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                name,
+                format!("expected {expected} with 2 fields"),
+            ))
+            .boxed());
         }
 
         // decode pointer + length
         let data = slots[0].as_raw_pointer().ok_or_else(|| {
-            RuntimeError::platform(PlatformError::invalid_argument_type(name, expected)).boxed()
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
         let (len, width) = slots[1].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::platform(PlatformError::invalid_argument_type(name, expected)).boxed()
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
         if width != 32 {
-            return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
-                name, expected,
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+            );
         }
 
         Ok(Self {
@@ -108,5 +104,144 @@ impl<T> VmSlice<T> {
         let data = vm::Value::raw_pointer(self.data);
         let len = vm::Value::uint(self.len as u64, 32);
         context.allocate_pair(data, len)
+    }
+
+    /// Read the raw VM values stored in this slice.
+    pub fn raw_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<vm::Value>> {
+        let values = context
+            .raw_values(self.data)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        if values.len() != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        Ok(values)
+    }
+}
+
+impl<T: VmValueCodec> VmSlice<T> {
+    /// Allocate a VM slice from decoded values.
+    pub fn from_values(context: &mut vm::RuntimeContext<'_>, values: &[T]) -> RuntimeResult<Self> {
+        let encoded = values.iter().copied().map(T::encode).collect::<Vec<_>>();
+        let data = context.allocate_raw_values(encoded);
+        Ok(Self {
+            data,
+            len: values.len() as u32,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Read the VM slice into a Vec of decoded values.
+    pub fn read_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<T>> {
+        // read raw values from the heap
+        let values = context
+            .raw_values(self.data)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+
+        // validate length
+        if values.len() != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        // decode each value
+        let mut decoded = Vec::with_capacity(values.len());
+        for value in values {
+            decoded.push(T::decode(value)?);
+        }
+
+        Ok(decoded)
+    }
+
+    /// Write decoded values into the VM slice.
+    pub fn write_values(
+        &self,
+        context: &mut vm::RuntimeContext<'_>,
+        values: &[T],
+    ) -> RuntimeResult<()> {
+        if values.len() != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        let encoded = values.iter().copied().map(T::encode).collect::<Vec<_>>();
+        context
+            .write_raw_values(self.data, &encoded)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        Ok(())
+    }
+}
+
+impl VmSlice<u8> {
+    /// Allocate a VM slice from raw bytes.
+    pub fn from_bytes(context: &mut vm::RuntimeContext<'_>, bytes: &[u8]) -> Self {
+        let data = context.allocate_raw_bytes(bytes);
+        Self {
+            data,
+            len: bytes.len() as u32,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Read a byte slice from the VM.
+    pub fn read_bytes(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<u8>> {
+        // read raw bytes from the heap
+        let bytes = match context.raw_bytes(self.data) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                let values = self.read_values(context)?;
+                return Ok(values);
+            }
+        };
+
+        if bytes.len() != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        Ok(bytes)
+    }
+
+    /// Write a byte slice into the VM.
+    pub fn write_bytes(
+        &self,
+        context: &mut vm::RuntimeContext<'_>,
+        bytes: &[u8],
+    ) -> RuntimeResult<()> {
+        if bytes.len() != self.len as usize {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "slice",
+                "slice length mismatch",
+            ))
+            .boxed());
+        }
+
+        if context.write_raw_bytes(self.data, bytes).is_ok() {
+            return Ok(());
+        }
+
+        let encoded = bytes
+            .iter()
+            .copied()
+            .map(VmValueCodec::encode)
+            .collect::<Vec<_>>();
+        context
+            .write_raw_values(self.data, &encoded)
+            .map_err(|error| RuntimeError::from(error).boxed())?;
+        Ok(())
     }
 }

@@ -2,8 +2,10 @@
 
 #![allow(dead_code)]
 
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
-
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI newtype for AccessMode.
@@ -14,6 +16,16 @@ pub struct AccessMode(
     pub u32,
 );
 
+impl VmValueCodec for AccessMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for AtFlags.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -21,6 +33,16 @@ pub struct AtFlags(
     /// Inner value.
     pub u32,
 );
+
+impl VmValueCodec for AtFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for FileLockFlags.
 #[repr(transparent)]
@@ -30,6 +52,16 @@ pub struct FileLockFlags(
     pub u32,
 );
 
+impl VmValueCodec for FileLockFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for FileMode.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -37,6 +69,16 @@ pub struct FileMode(
     /// Inner value.
     pub u32,
 );
+
+impl VmValueCodec for FileMode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for FileOffset.
 #[repr(transparent)]
@@ -46,6 +88,16 @@ pub struct FileOffset(
     pub u64,
 );
 
+impl VmValueCodec for FileOffset {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for FileSize.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -53,6 +105,16 @@ pub struct FileSize(
     /// Inner value.
     pub u64,
 );
+
+impl VmValueCodec for FileSize {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for OpenFlags.
 #[repr(transparent)]
@@ -62,9 +124,19 @@ pub struct OpenFlags(
     pub u32,
 );
 
+impl VmValueCodec for OpenFlags {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI enum for DirentKind.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DirentKind {
     /// File.
     File = 1,
@@ -84,6 +156,17 @@ pub enum DirentKind {
     Unknown = 255,
 }
 
+impl VmValueCodec for DirentKind {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u8, DirentKind>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI struct for Dirent.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -99,7 +182,7 @@ pub type DirentVm = DirentAbi<VmAbi>;
 
 /// ABI struct for Stat.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Stat {
     /// The dev field.
     pub dev: u64,
@@ -135,7 +218,7 @@ pub type StatVm = Stat;
 
 /// ABI struct for StatFs.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StatFs {
     /// The bsize field.
     pub bsize: u64,
@@ -160,3 +243,12 @@ pub struct StatFs {
 }
 
 pub type StatFsVm = StatFs;
+
+/// Replay struct for Dirent.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DirentReplay {
+    /// The name field.
+    pub name: String,
+    /// The kind field.
+    pub kind: DirentKind,
+}

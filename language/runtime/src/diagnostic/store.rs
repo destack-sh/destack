@@ -34,6 +34,7 @@ impl RuntimeErrorId {
     }
 }
 
+/// Shared storage state for runtime error entries.
 #[derive(Debug, Default)]
 struct RuntimeErrorStoreState {
     /// Recorded runtime errors for diagnostic lookup.

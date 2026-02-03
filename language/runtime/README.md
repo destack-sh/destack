@@ -52,6 +52,12 @@ Determinism is enforced by the runtime by controlling time, randomness, scheduli
 As the name implies, the replay log records everything we need to replay the program execution deterministically.
 (There are things we cannot replay, in which case we just error. Sad.)
 
+## Randomness
+
+Randomness is split into deterministic "streams" so concurrent work does not cross-contaminate.
+Each task and microtask gets a stable stream id, and user code can allocate its own stream ids explicitly.
+Stream allocation itself is recorded as a replay event, so replays stay aligned even when streams are created dynamically.
+
 ## Snapshots
 
 Snapshots capture heap state, task queues, clock state, random state, and resource mappings.

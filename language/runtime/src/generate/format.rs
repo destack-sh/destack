@@ -9,7 +9,8 @@ use destack_workspace::format::{format_local_type, format_type_literal};
 use destack_workspace::{Module, ModuleRegistry, ProfileId, Program};
 
 use crate::model::{
-    BindingEnumValue, BindingEnumVariant, BindingField, BindingParam, BindingReturn, BindingType,
+    BindingEnumValue, BindingEnumVariant, BindingField, BindingParameter, BindingReturn,
+    BindingType,
 };
 
 /// Canonical symbol ids used for binding type resolution.
@@ -173,7 +174,7 @@ pub(crate) fn collect_binding_params(
     profile_id: ProfileId,
     symbols: &BindingTypeSymbols,
     domain: &str,
-) -> Vec<BindingParam> {
+) -> Vec<BindingParameter> {
     // build binding parameters from the signature list
     signature
         .dynamic_parameters
@@ -201,7 +202,7 @@ pub(crate) fn collect_binding_params(
                 Some(type_text)
             };
 
-            BindingParam {
+            BindingParameter {
                 name,
                 type_text,
                 binding_type,

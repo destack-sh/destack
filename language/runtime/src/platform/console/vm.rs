@@ -63,21 +63,11 @@ enum ConsoleStream {
 /// Write a console line to the platform stream.
 #[inline]
 fn write_console_line(value: &str, stream: ConsoleStream) -> RuntimeResult<()> {
-    // emit the formatted line
-    write_console_to_stream(stream, value)?;
-
-    Ok(())
-}
-
-/// Write a line to stdout or stderr.
-#[inline]
-fn write_console_to_stream(stream: ConsoleStream, line: &str) -> RuntimeResult<()> {
-    // write to the selected stream
     match stream {
         ConsoleStream::Stdout => {
             let mut stdout = io::stdout();
-            writeln!(stdout, "{line}").map_err(|error| {
-                RuntimeError::vm(vm::Error::Panic {
+            writeln!(stdout, "{value}").map_err(|error| {
+                RuntimeError::from(vm::Error::Panic {
                     message: format!("stdout write failed: {error}"),
                 })
                 .boxed()
@@ -85,8 +75,8 @@ fn write_console_to_stream(stream: ConsoleStream, line: &str) -> RuntimeResult<(
         }
         ConsoleStream::Stderr => {
             let mut stderr = io::stderr();
-            writeln!(stderr, "{line}").map_err(|error| {
-                RuntimeError::vm(vm::Error::Panic {
+            writeln!(stderr, "{value}").map_err(|error| {
+                RuntimeError::from(vm::Error::Panic {
                     message: format!("stderr write failed: {error}"),
                 })
                 .boxed()

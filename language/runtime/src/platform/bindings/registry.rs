@@ -7,7 +7,6 @@ use crate::platform;
 use crate::platform::bindings::{
     BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet, VmBindingSet,
 };
-use crate::replay::{BindingCallEvent, ReplayEvent};
 use crate::runtime::{
     RuntimeCallContext, RuntimeContext, RuntimeState, enter_runtime_call_context,
 };
@@ -86,32 +85,32 @@ impl BindingRegistry {
     pub fn install_vm_defaults(&mut self, isolate: &mut Isolate) {
         // install built in platform bindings
         for set in platform::PLATFORM_VM_BINDINGS {
-            self.install_set(isolate, set);
+            self.install_vm_binding_set(isolate, set);
         }
     }
 
     /// Install default native bindings for the runtime.
     pub fn install_native_defaults(&mut self) {
         for set in platform::PLATFORM_NATIVE_BINDINGS {
-            self.install_native_set(set);
+            self.install_native_binding_set(set);
         }
     }
 
     /// Install a binding set into a VM isolate.
-    pub fn install_set(&mut self, isolate: &mut Isolate, set: &VmBindingSet) {
+    pub fn install_vm_binding_set(&mut self, isolate: &mut Isolate, set: &VmBindingSet) {
         // dispatch to the binding set install hook
         (set.install)(self, isolate);
     }
 
     /// Install a native binding set into the registry.
-    pub fn install_native_set(&mut self, set: &NativeBindingSet) {
+    pub fn install_native_binding_set(&mut self, set: &NativeBindingSet) {
         for binding in set.bindings {
-            self.register_native(*binding);
+            self.register_native_binding(*binding);
         }
     }
 
     /// Register native binding metadata.
-    pub fn register_native(&mut self, binding: NativeBinding) {
+    pub fn register_native_binding(&mut self, binding: NativeBinding) {
         if let Some(existing) = self.descriptor_by_id.get(&binding.spec.id)
             && *existing != binding.spec
         {
@@ -134,8 +133,8 @@ impl BindingRegistry {
         self.native_bindings.push(binding);
     }
 
-    /// Register a binding handler with metadata.
-    pub fn register_external(
+    /// Register a VM binding handler with metadata.
+    pub fn register_vm_binding(
         &mut self,
         isolate: &mut Isolate,
         descriptor: BindingDescriptor,
@@ -158,8 +157,9 @@ impl BindingRegistry {
             )
         });
 
+        // NOTE #Incomplete: serialize args/results for replay payloads
         // register the external handler with policy enforcement
-        isolate.register_external(descriptor.name, move |context, args| {
+        isolate.register_vm_binding(descriptor.name, move |context, args| {
             policy.check(descriptor)?;
             let call_context = RuntimeCallContext::from_raw(
                 handles.runtime_ptr(),
@@ -167,19 +167,7 @@ impl BindingRegistry {
                 policy,
             );
             let _guard = enter_runtime_call_context(&call_context);
-            let result = handler(context, args)?;
-            if descriptor.log_kind.is_none() {
-                call_context
-                    .runtime()
-                    .replay
-                    .record_event(ReplayEvent::BindingCall(BindingCallEvent {
-                        binding_id: descriptor.id,
-                        codec: descriptor.codec,
-                        log_kind: None,
-                        payload: Vec::new(),
-                    }));
-            }
-            Ok(result)
+            handler(context, args)
         });
 
         // track the binding metadata for diagnostics

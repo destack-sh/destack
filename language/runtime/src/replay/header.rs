@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::platform::bindings::ExecutionMode;
+use crate::platform::bindings::{ExecutionMode, ReplayPayload};
 use crate::replay::{BranchId, CheckpointId, LogSequence};
 
 /// Replay log header describing the execution environment.
@@ -9,7 +9,7 @@ pub struct ReplayHeader {
     /// Replay format version.
     pub format_version: u32,
     /// Build hash for runtime compatibility.
-    pub build_hash: String,
+    pub build_hash: u128,
     /// Target triple or platform descriptor.
     pub target: String,
     /// Profile key used to resolve configuration.
@@ -18,6 +18,8 @@ pub struct ReplayHeader {
     pub profile_hash: u128,
     /// Execution mode used while running.
     pub execution_mode: ExecutionMode,
+    /// Replay payload selection for the log.
+    pub replay_payload: ReplayPayload,
     /// Hash of the binding registry.
     pub binding_registry_hash: u128,
     /// Hash of the effect registry.
@@ -35,11 +37,12 @@ impl ReplayHeader {
     pub fn new(environment: EnvironmentConfig) -> Self {
         Self {
             format_version: 1,
-            build_hash: String::new(),
+            build_hash: 0,
             target: String::new(),
             profile_key: None,
             profile_hash: 0,
             execution_mode: ExecutionMode::Fast,
+            replay_payload: ReplayPayload::Results,
             binding_registry_hash: 0,
             effect_registry_hash: 0,
             max_events_per_chunk: 1024,

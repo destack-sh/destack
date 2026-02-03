@@ -1,36 +1,32 @@
-/// Entry point handle for runtime engines.
+/// Entry point handle for VM engines.
 #[derive(Debug, Clone)]
-pub enum EntryPoint {
-    /// VM entry point resolved by name.
-    Vm { name: String },
-    /// Native entry point resolved by symbol.
-    Native {
-        /// Fully qualified entry name.
-        name: String,
-        /// Raw function symbol pointer.
-        symbol: *const (),
-    },
+pub struct VmEntry {
+    /// Fully qualified entry name.
+    pub name: String,
 }
 
-impl EntryPoint {
+impl VmEntry {
     /// Create a VM entry point by name.
-    pub fn vm(name: impl Into<String>) -> Self {
-        Self::Vm { name: name.into() }
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
     }
+}
 
+/// Entry point handle for native engines.
+#[derive(Debug, Clone)]
+pub struct NativeEntry {
+    /// Fully qualified entry name.
+    pub name: String,
+    /// Raw function symbol pointer.
+    pub symbol: *const (),
+}
+
+impl NativeEntry {
     /// Create a native entry point by symbol.
-    pub fn native(name: impl Into<String>, symbol: *const ()) -> Self {
-        Self::Native {
+    pub fn new(name: impl Into<String>, symbol: *const ()) -> Self {
+        Self {
             name: name.into(),
             symbol,
-        }
-    }
-
-    /// Return the entry point name.
-    pub fn name(&self) -> &str {
-        match self {
-            EntryPoint::Vm { name } => name,
-            EntryPoint::Native { name, .. } => name,
         }
     }
 }

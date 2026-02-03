@@ -130,10 +130,13 @@ impl PlatformPoller for KqueuePoller {
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()> {
         // resolve the existing registration
-        let entry = self
-            .registrations
-            .get_mut(&resource_id)
-            .ok_or_else(|| RuntimeError::resource_not_found(resource_id.0, None).boxed())?;
+        let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
+            RuntimeError::ResourceNotFound {
+                resource_id: resource_id.0,
+                resource_kind: None,
+            }
+            .boxed()
+        })?;
 
         // apply filter changes in kqueue
         let changes = build_update_changes(resource_id, entry, interests, flags)?;
@@ -478,6 +481,7 @@ fn event_mask_from_kevent(event: &libc::kevent) -> PlatformEventMask {
     mask
 }
 
+/// Identifier for the user wake event.
 const WAKE_IDENT: libc::uintptr_t = 1;
 
 /// Convert a nanosecond timeout to a timespec.
@@ -544,7 +548,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
         error.fd = Some(fd);
     }
 
-    RuntimeError::platform(error).boxed()
+    RuntimeError::from(error).boxed()
 }
 
 #[cfg(test)]
@@ -554,6 +558,7 @@ mod tests {
         PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, ResourceId,
     };
 
+    /// Ensures kqueue emits a readable event when data is available.
     #[test]
     fn test_poll_readable_event() {
         let mut poller = KqueuePoller::new().expect("poller should initialize");

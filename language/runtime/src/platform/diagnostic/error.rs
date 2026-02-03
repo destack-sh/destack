@@ -8,10 +8,12 @@ use libc::{
 #[cfg(unix)]
 use libc::{EAI_AGAIN, EAI_FAIL, EAI_NONAME};
 
+use serde::{Deserialize, Serialize};
+
 use destack_vm as vm;
 
 /// Error kind for platform bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PlatformErrorKind {
     /// Invalid arguments provided to a platform binding.
     InvalidArgument,
@@ -34,7 +36,7 @@ pub enum PlatformErrorKind {
 }
 
 /// Error code for platform bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u16)]
 pub enum PlatformErrorCode {
     /// Unclassified invalid argument.
@@ -191,7 +193,7 @@ impl PlatformErrorCode {
 }
 
 /// Error type for platform binding handlers.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlatformError {
     /// Error kind tag for platform diagnostics.
     pub kind: PlatformErrorKind,

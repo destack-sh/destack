@@ -22,6 +22,4 @@ pub mod scheduler;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod snapshot;
 #[cfg(not(feature = "generate_bindings"))]
-pub mod telemetry;
-#[cfg(not(feature = "generate_bindings"))]
 pub mod time;

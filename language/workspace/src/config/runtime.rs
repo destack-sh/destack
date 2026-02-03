@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::policy::ExecutionModeJson;
+use super::policy::{ExecutionModeJson, ReplayPayloadModeJson};
 use crate::{
     ExecutionMode, GcLogging, GcOptions, RandomMode, RandomOptions, ReplayLogOptions,
     RuntimeOptions, SchedulerOptions, SchedulerPolicy, TimeMode, TimeOptions,
@@ -96,6 +96,8 @@ pub struct ReplayLogOptionsJson {
     pub template: Option<String>,
     /// Chunk size in megabytes for log rotation.
     pub chunk_size_mb: Option<u64>,
+    /// Replay payload selection for record mode.
+    pub payload: Option<ReplayPayloadModeJson>,
 }
 
 impl ReplayLogOptionsJson {
@@ -114,6 +116,11 @@ impl ReplayLogOptionsJson {
         // apply chunk sizing overrides
         if let Some(chunk_size_mb) = self.chunk_size_mb {
             options.chunk_size_mb = Some(chunk_size_mb);
+        }
+
+        // apply replay payload overrides
+        if let Some(payload) = self.payload {
+            options.payload = payload.into();
         }
     }
 }

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::replay::{RandomEventKind, TimeEventKind};
 use destack_base::fnv1a_128;
 
 /// Replay behavior for external bindings.
@@ -9,6 +10,15 @@ pub enum ReplayPolicy {
     Recordable,
     /// Reject the call in deterministic or replay modes.
     NonRecordable,
+}
+
+/// Replay payload policy for recorded bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ReplayPayload {
+    /// Record only the result value.
+    Results,
+    /// Record arguments and results for verification.
+    ArgumentsAndResults,
 }
 
 /// Effect classification for external bindings.
@@ -22,15 +32,15 @@ pub enum EffectClass {
     External { replay: ReplayPolicy },
 }
 
-/// Specialized replay log variants for bindings.
+/// Replay routing for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LogKind {
-    /// Log time-related effects with a dedicated record.
-    Time,
-    /// Log randomness with a dedicated record.
-    Random,
-    /// Log scheduler events with a dedicated record.
-    Scheduler,
+pub enum BindingReplayKind {
+    /// Record a generic binding call payload.
+    Regular,
+    /// Record a time event with a specific kind.
+    Time(TimeEventKind),
+    /// Record a random event with a specific kind.
+    Random(RandomEventKind),
 }
 
 /// Bitmask describing binding effect classes.
@@ -121,18 +131,21 @@ pub struct BindingDescriptor {
     pub effect_class: EffectClass,
     /// Effect mask for policy checks.
     pub effect_mask: BindingEffectMask,
-    /// Specialized log kind for replay.
-    pub log_kind: Option<LogKind>,
+    /// Replay routing for the binding.
+    pub replay_kind: BindingReplayKind,
+    /// Replay payload capability for recorded bindings.
+    pub replay_payload: ReplayPayload,
 }
 
 impl BindingDescriptor {
     /// Create a binding descriptor with an explicit codec id.
-    pub const fn with_codec_and_log(
+    pub const fn with_codec_and_replay_kind(
         name: &'static str,
         signature: &'static str,
         codec: CodecId,
         effect_class: EffectClass,
-        log_kind: Option<LogKind>,
+        replay_kind: BindingReplayKind,
+        replay_payload: ReplayPayload,
     ) -> Self {
         let effect_mask = effect_mask_for_class(effect_class);
         Self {
@@ -142,7 +155,8 @@ impl BindingDescriptor {
             codec,
             effect_class,
             effect_mask,
-            log_kind,
+            replay_kind,
+            replay_payload,
         }
     }
 
@@ -153,7 +167,14 @@ impl BindingDescriptor {
         codec: CodecId,
         effect_class: EffectClass,
     ) -> Self {
-        Self::with_codec_and_log(name, signature, codec, effect_class, None)
+        Self::with_codec_and_replay_kind(
+            name,
+            signature,
+            codec,
+            effect_class,
+            BindingReplayKind::Regular,
+            ReplayPayload::Results,
+        )
     }
 
     /// Create a binding descriptor with the default codec.
@@ -175,19 +196,42 @@ impl BindingDescriptor {
         Self::new(name, signature, EffectClass::Deterministic)
     }
 
-    /// Create an external binding descriptor with an optional log kind.
+    /// Create an external binding descriptor with explicit replay routing.
     pub const fn external(
         name: &'static str,
         signature: &'static str,
         replay: ReplayPolicy,
-        log_kind: Option<LogKind>,
+        replay_kind: BindingReplayKind,
     ) -> Self {
-        Self::with_codec_and_log(
+        Self::external_with_payload(
+            name,
+            signature,
+            replay,
+            replay_kind,
+            ReplayPayload::Results,
+        )
+    }
+
+    /// Create an external binding descriptor with a replay payload override.
+    pub const fn external_with_payload(
+        name: &'static str,
+        signature: &'static str,
+        replay: ReplayPolicy,
+        replay_kind: BindingReplayKind,
+        replay_payload: ReplayPayload,
+    ) -> Self {
+        Self::with_codec_and_replay_kind(
             name,
             signature,
             CODEC_POSTCARD_V1,
             EffectClass::External { replay },
-            log_kind,
+            replay_kind,
+            replay_payload,
         )
+    }
+
+    /// Return the replay payload capability for this binding.
+    pub const fn replay_payload(self) -> ReplayPayload {
+        self.replay_payload
     }
 }

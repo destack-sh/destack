@@ -10,7 +10,8 @@ use crate::format::{
     binding_type_symbols, collect_binding_params, collect_binding_return, format_declared_signature,
 };
 use crate::model::{
-    BindingCatalog, BindingEntry, BindingReturn, EffectClass, LogKind, ReplayPolicy,
+    BindingCatalog, BindingEntry, BindingReplayKind, BindingReturn, EffectClass, RandomEventKind,
+    ReplayPayload, ReplayPolicy, TimeEventKind,
 };
 
 /// Binding metadata extracted from a declaration node.
@@ -21,13 +22,15 @@ struct BindingRecord {
     /// Canonical signature string for stability checks.
     signature: String,
     /// Parameter metadata payload.
-    params: Vec<crate::model::BindingParam>,
+    params: Vec<crate::model::BindingParameter>,
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
     /// Effect classification for replay and policy.
     effect_class: EffectClass,
-    /// Specialized log kind for replay.
-    log_kind: Option<LogKind>,
+    /// Replay routing for the binding.
+    replay_kind: BindingReplayKind,
+    /// Replay payload policy for recorded bindings.
+    replay_payload: ReplayPayload,
 }
 
 /// Binding decorator payload extracted from an annotation.
@@ -37,8 +40,23 @@ struct BindingDecorator {
     extern_name: Option<String>,
     /// Optional effect class override.
     effect_class: EffectClass,
-    /// Optional log kind override.
-    log_kind: Option<LogKind>,
+    /// Optional replay payload override.
+    replay_payload: ReplayPayload,
+}
+
+/// Resolve replay routing for a binding name.
+fn binding_replay_kind_for_name(name: &str) -> BindingReplayKind {
+    match name {
+        "destack.time.wallNs" => BindingReplayKind::Time(TimeEventKind::WallClockRead),
+        "destack.time.monoNs" => BindingReplayKind::Time(TimeEventKind::MonotonicSample),
+        "destack.random.stream" => BindingReplayKind::Random(RandomEventKind::Stream),
+        "destack.random.nextU64" => BindingReplayKind::Random(RandomEventKind::NextU64),
+        "destack.random.nextU64From" => BindingReplayKind::Random(RandomEventKind::NextU64),
+        "destack.random.fillBytes" => BindingReplayKind::Random(RandomEventKind::Bytes),
+        "destack.random.fillBytesFrom" => BindingReplayKind::Random(RandomEventKind::Bytes),
+        "destack.random.secureBytes" => BindingReplayKind::Random(RandomEventKind::Bytes),
+        _ => BindingReplayKind::Regular,
+    }
 }
 
 /// Collect platform bindings from builtin modules.
@@ -145,7 +163,7 @@ pub(crate) fn collect_platform_bindings(
                 params,
                 return_binding,
                 binding.effect_class,
-                binding.log_kind,
+                binding.replay_payload,
             ) {
                 insert_binding(&mut domains, entry);
             }
@@ -179,10 +197,10 @@ fn binding_domain(extern_name: &str) -> String {
 fn binding_from_node(
     extern_name: Option<String>,
     signature: String,
-    params: Vec<crate::model::BindingParam>,
+    params: Vec<crate::model::BindingParameter>,
     return_binding: BindingReturn,
     effect_class: EffectClass,
-    log_kind: Option<LogKind>,
+    replay_payload: ReplayPayload,
 ) -> Option<BindingRecord> {
     let extern_name = extern_name?;
     if !extern_name.starts_with("destack.") {
@@ -190,12 +208,13 @@ fn binding_from_node(
     }
 
     Some(BindingRecord {
+        replay_kind: binding_replay_kind_for_name(&extern_name),
         extern_name,
         signature,
         params,
         return_binding,
         effect_class,
-        log_kind,
+        replay_payload,
     })
 }
 
@@ -208,18 +227,20 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
     // build a canonical entry for comparisons
     let entry = BindingEntry {
         signature: record.signature,
-        params: record.params,
+        parameters: record.params,
         return_binding: record.return_binding.binding_type,
         return_is_result: record.return_binding.is_result,
         effect_class: record.effect_class,
-        log_kind: record.log_kind,
+        replay_kind: record.replay_kind,
+        replay_payload: record.replay_payload,
     };
 
     // insert the entry and validate signature stability
     if let Some(existing) = domain_bindings.insert(record.extern_name.clone(), entry.clone())
         && (existing.signature != entry.signature
             || existing.effect_class != entry.effect_class
-            || existing.log_kind != entry.log_kind)
+            || existing.replay_kind != entry.replay_kind
+            || existing.replay_payload != entry.replay_payload)
     {
         panic!(
             "binding signature mismatch for {}: {:?} vs {:?}",
@@ -317,7 +338,7 @@ fn decorator_binding_argument(
     BindingDecorator {
         extern_name,
         effect_class: spec.effect_class,
-        log_kind: spec.log_kind,
+        replay_payload: spec.replay_payload,
     }
 }
 
@@ -325,8 +346,8 @@ fn decorator_binding_argument(
 struct BindingEffectSpec {
     /// Effect classification for the binding.
     effect_class: EffectClass,
-    /// Specialized log kind.
-    log_kind: Option<LogKind>,
+    /// Replay payload policy for recorded bindings.
+    replay_payload: ReplayPayload,
 }
 
 /// Parse effect options from a binding decorator.
@@ -345,6 +366,7 @@ fn parse_effect_spec(
     let mut effect = None;
     let mut replay = None;
     let mut log = None;
+    let mut payload = None;
 
     // read each property value
     for property_id in properties {
@@ -365,6 +387,7 @@ fn parse_effect_spec(
             "effect" => effect = Some(value),
             "replay" => replay = Some(value),
             "log" => log = Some(value),
+            "payload" => payload = Some(value),
             _ => {
                 panic!("unsupported @binding option {key}");
             }
@@ -378,16 +401,18 @@ fn parse_effect_spec(
 
     // build the effect classification
     let effect_class = build_effect_class(effect.as_deref(), replay.as_deref());
-    let log_kind = parse_log_kind(log.as_deref());
+    let replay_payload = parse_replay_payload(payload.as_deref());
 
-    // validate log usage against effect class
-    if log_kind.is_some() && !matches!(effect_class, EffectClass::External { .. }) {
-        panic!("@binding log requires an external effect");
+    if log.is_some() {
+        panic!("@binding log is runtime-owned and should not be specified");
+    }
+    if payload.is_some() && !matches!(effect_class, EffectClass::External { .. }) {
+        panic!("@binding payload requires an external effect");
     }
 
     BindingEffectSpec {
         effect_class,
-        log_kind,
+        replay_payload,
     }
 }
 
@@ -432,15 +457,14 @@ fn build_effect_class(effect: Option<&str>, replay: Option<&str>) -> EffectClass
     }
 }
 
-/// Parse a log kind value from a string.
-fn parse_log_kind(value: Option<&str>) -> Option<LogKind> {
+/// Parse a replay payload policy from a string.
+fn parse_replay_payload(value: Option<&str>) -> ReplayPayload {
     match value {
-        None => None,
-        Some("time") => Some(LogKind::Time),
-        Some("random") => Some(LogKind::Random),
-        Some("scheduler") => Some(LogKind::Scheduler),
+        None => ReplayPayload::ResultsOnly,
+        Some("results") => ReplayPayload::ResultsOnly,
+        Some("argumentsAndResults") => ReplayPayload::ArgumentsAndResults,
         Some(value) => {
-            panic!("unsupported @binding log kind {value}");
+            panic!("unsupported @binding payload {value}");
         }
     }
 }

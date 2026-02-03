@@ -1,584 +1,488 @@
-#![allow(clippy::missing_safety_doc)]
-use crate::diagnostic::RuntimeError;
-use crate::platform::resource::{DirectoryHandle, FileHandle};
-use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus};
-
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::fs::{
     AccessMode, AtFlags, Dirent, FileLockFlags, FileMode, FileOffset, OpenFlags, Stat, StatFs,
 };
+use crate::platform::resource::{DirectoryHandle, FileHandle};
+use crate::platform::{NativeArray, NativeSlice, NativeStringRef, PlatformError};
+use crate::runtime::RuntimeCallContext;
 
 /// Stub for destack.fs.access.
-#[unsafe(export_name = "destack.fs.access")]
-pub unsafe extern "C" fn destack_fs_access(
+pub unsafe fn destack_fs_access(
+    context: &RuntimeCallContext,
     path: NativeStringRef,
     mode: AccessMode,
-) -> RuntimeStatus {
-    let _ = (path, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.access")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.access")).boxed())
 }
 
 /// Stub for destack.fs.chmod.
-#[unsafe(export_name = "destack.fs.chmod")]
-pub unsafe extern "C" fn destack_fs_chmod(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
-    let _ = (path, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.chmod")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_chmod(
+    context: &RuntimeCallContext,
+    path: NativeStringRef,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (context, path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chmod")).boxed())
 }
 
 /// Stub for destack.fs.chown.
-#[unsafe(export_name = "destack.fs.chown")]
-pub unsafe extern "C" fn destack_fs_chown(
+pub unsafe fn destack_fs_chown(
+    context: &RuntimeCallContext,
     path: NativeStringRef,
     uid: u32,
     gid: u32,
-) -> RuntimeStatus {
-    let _ = (path, uid, gid);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.chown")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, path, uid, gid);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.chown")).boxed())
 }
 
 /// Stub for destack.fs.close.
-#[unsafe(export_name = "destack.fs.close")]
-pub unsafe extern "C" fn destack_fs_close(handle: FileHandle) -> RuntimeStatus {
-    let _ = handle;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.close")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_close(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.close")).boxed())
 }
 
 /// Stub for destack.fs.closedir.
-#[unsafe(export_name = "destack.fs.closedir")]
-pub unsafe extern "C" fn destack_fs_closedir(handle: DirectoryHandle) -> RuntimeStatus {
-    let _ = handle;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.closedir")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_closedir(
+    context: &RuntimeCallContext,
+    handle: DirectoryHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.closedir")).boxed())
 }
 
 /// Stub for destack.fs.copyfile.
-#[unsafe(export_name = "destack.fs.copyfile")]
-pub unsafe extern "C" fn destack_fs_copyfile(
+pub unsafe fn destack_fs_copyfile(
+    context: &RuntimeCallContext,
     from: NativeStringRef,
     to: NativeStringRef,
     flags: u32,
-) -> RuntimeStatus {
-    let _ = (from, to, flags);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.copyfile")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, from, to, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.copyfile")).boxed())
 }
 
 /// Stub for destack.fs.fchmod.
-#[unsafe(export_name = "destack.fs.fchmod")]
-pub unsafe extern "C" fn destack_fs_fchmod(handle: FileHandle, mode: FileMode) -> RuntimeStatus {
-    let _ = (handle, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fchmod")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_fchmod(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (context, handle, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchmod")).boxed())
 }
 
 /// Stub for destack.fs.fchown.
-#[unsafe(export_name = "destack.fs.fchown")]
-pub unsafe extern "C" fn destack_fs_fchown(
+pub unsafe fn destack_fs_fchown(
+    context: &RuntimeCallContext,
     handle: FileHandle,
     uid: u32,
     gid: u32,
-) -> RuntimeStatus {
-    let _ = (handle, uid, gid);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fchown")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, handle, uid, gid);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fchown")).boxed())
 }
 
 /// Stub for destack.fs.fdatasync.
-#[unsafe(export_name = "destack.fs.fdatasync")]
-pub unsafe extern "C" fn destack_fs_fdatasync(handle: FileHandle) -> RuntimeStatus {
-    let _ = handle;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fdatasync")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_fdatasync(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fdatasync")).boxed())
 }
 
 /// Stub for destack.fs.fstat.
-#[unsafe(export_name = "destack.fs.fstat")]
-pub unsafe extern "C" fn destack_fs_fstat(out: *mut Stat, handle: FileHandle) -> RuntimeStatus {
-    let _ = (out, handle);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fstat")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_fstat(
+    context: &RuntimeCallContext,
+    out: *mut Stat,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fstat")).boxed())
 }
 
 /// Stub for destack.fs.fstatfs.
-#[unsafe(export_name = "destack.fs.fstatfs")]
-pub unsafe extern "C" fn destack_fs_fstatfs(out: *mut StatFs, handle: FileHandle) -> RuntimeStatus {
-    let _ = (out, handle);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fstatfs")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_fstatfs(
+    context: &RuntimeCallContext,
+    out: *mut StatFs,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fstatfs")).boxed())
 }
 
 /// Stub for destack.fs.fsync.
-#[unsafe(export_name = "destack.fs.fsync")]
-pub unsafe extern "C" fn destack_fs_fsync(handle: FileHandle) -> RuntimeStatus {
-    let _ = handle;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.fsync")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_fsync(
+    context: &RuntimeCallContext,
+    handle: FileHandle,
+) -> RuntimeResult<()> {
+    let _ = (context, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.fsync")).boxed())
 }
 
 /// Stub for destack.fs.ftruncate.
-#[unsafe(export_name = "destack.fs.ftruncate")]
-pub unsafe extern "C" fn destack_fs_ftruncate(
+pub unsafe fn destack_fs_ftruncate(
+    context: &RuntimeCallContext,
     handle: FileHandle,
     size: FileOffset,
-) -> RuntimeStatus {
-    let _ = (handle, size);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.ftruncate")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, handle, size);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.ftruncate")).boxed())
 }
 
 /// Stub for destack.fs.futimes.
-#[unsafe(export_name = "destack.fs.futimes")]
-pub unsafe extern "C" fn destack_fs_futimes(
+pub unsafe fn destack_fs_futimes(
+    context: &RuntimeCallContext,
     handle: FileHandle,
     atimens: u64,
     mtimens: u64,
-) -> RuntimeStatus {
-    let _ = (handle, atimens, mtimens);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.futimes")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, handle, atimens, mtimens);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.futimes")).boxed())
 }
 
 /// Stub for destack.fs.link.
-#[unsafe(export_name = "destack.fs.link")]
-pub unsafe extern "C" fn destack_fs_link(
+pub unsafe fn destack_fs_link(
+    context: &RuntimeCallContext,
     existingpath: NativeStringRef,
     newpath: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (existingpath, newpath);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.link")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, existingpath, newpath);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.link")).boxed())
 }
 
 /// Stub for destack.fs.lstat.
-#[unsafe(export_name = "destack.fs.lstat")]
-pub unsafe extern "C" fn destack_fs_lstat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.lstat")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_lstat(
+    context: &RuntimeCallContext,
+    out: *mut Stat,
+    path: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lstat")).boxed())
 }
 
 /// Stub for destack.fs.lutimes.
-#[unsafe(export_name = "destack.fs.lutimes")]
-pub unsafe extern "C" fn destack_fs_lutimes(
+pub unsafe fn destack_fs_lutimes(
+    context: &RuntimeCallContext,
     path: NativeStringRef,
     atimens: u64,
     mtimens: u64,
-) -> RuntimeStatus {
-    let _ = (path, atimens, mtimens);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.lutimes")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, path, atimens, mtimens);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lutimes")).boxed())
 }
 
 /// Stub for destack.fs.mkdir.
-#[unsafe(export_name = "destack.fs.mkdir")]
-pub unsafe extern "C" fn destack_fs_mkdir(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
-    let _ = (path, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.mkdir")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_mkdir(
+    context: &RuntimeCallContext,
+    path: NativeStringRef,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (context, path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdir")).boxed())
 }
 
 /// Stub for destack.fs.mkdtemp.
-#[unsafe(export_name = "destack.fs.mkdtemp")]
-pub unsafe extern "C" fn destack_fs_mkdtemp(
+pub unsafe fn destack_fs_mkdtemp(
+    context: &RuntimeCallContext,
     out: *mut NativeStringRef,
     template: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, template);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.mkdtemp")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, template);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdtemp")).boxed())
 }
 
 /// Stub for destack.fs.open.
-#[unsafe(export_name = "destack.fs.open")]
-pub unsafe extern "C" fn destack_fs_open(
+pub unsafe fn destack_fs_open(
+    context: &RuntimeCallContext,
     out: *mut FileHandle,
     path: NativeStringRef,
     flags: OpenFlags,
     mode: FileMode,
-) -> RuntimeStatus {
-    let _ = (out, path, flags, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.open")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, path, flags, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.open")).boxed())
 }
 
 /// Stub for destack.fs.opendir.
-#[unsafe(export_name = "destack.fs.opendir")]
-pub unsafe extern "C" fn destack_fs_opendir(
+pub unsafe fn destack_fs_opendir(
+    context: &RuntimeCallContext,
     out: *mut DirectoryHandle,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.opendir")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.opendir")).boxed())
 }
 
 /// Stub for destack.fs.read.
-#[unsafe(export_name = "destack.fs.read")]
-pub unsafe extern "C" fn destack_fs_read(
+pub unsafe fn destack_fs_read(
+    context: &RuntimeCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
-) -> RuntimeStatus {
-    let _ = (out, handle, buffer, offset);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.read")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, buffer, offset);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.read")).boxed())
 }
 
 /// Stub for destack.fs.readdir.
-#[unsafe(export_name = "destack.fs.readdir")]
-pub unsafe extern "C" fn destack_fs_readdir(
+pub unsafe fn destack_fs_readdir(
+    context: &RuntimeCallContext,
     out: *mut NativeArray<Dirent>,
     handle: DirectoryHandle,
-) -> RuntimeStatus {
-    let _ = (out, handle);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.readdir")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readdir")).boxed())
 }
 
 /// Stub for destack.fs.readlink.
-#[unsafe(export_name = "destack.fs.readlink")]
-pub unsafe extern "C" fn destack_fs_readlink(
+pub unsafe fn destack_fs_readlink(
+    context: &RuntimeCallContext,
     out: *mut NativeStringRef,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.readlink")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlink")).boxed())
 }
 
 /// Stub for destack.fs.readv.
-#[unsafe(export_name = "destack.fs.readv")]
-pub unsafe extern "C" fn destack_fs_readv(
+pub unsafe fn destack_fs_readv(
+    context: &RuntimeCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-) -> RuntimeStatus {
-    let _ = (out, handle, buffers, offset);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.readv")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, buffers, offset);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readv")).boxed())
 }
 
 /// Stub for destack.fs.realpath.
-#[unsafe(export_name = "destack.fs.realpath")]
-pub unsafe extern "C" fn destack_fs_realpath(
+pub unsafe fn destack_fs_realpath(
+    context: &RuntimeCallContext,
     out: *mut NativeStringRef,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.realpath")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.realpath")).boxed())
 }
 
 /// Stub for destack.fs.rename.
-#[unsafe(export_name = "destack.fs.rename")]
-pub unsafe extern "C" fn destack_fs_rename(
+pub unsafe fn destack_fs_rename(
+    context: &RuntimeCallContext,
     from: NativeStringRef,
     to: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (from, to);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.rename")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, from, to);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rename")).boxed())
 }
 
 /// Stub for destack.fs.rmdir.
-#[unsafe(export_name = "destack.fs.rmdir")]
-pub unsafe extern "C" fn destack_fs_rmdir(path: NativeStringRef) -> RuntimeStatus {
-    let _ = path;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.rmdir")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_rmdir(
+    context: &RuntimeCallContext,
+    path: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (context, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.rmdir")).boxed())
 }
 
 /// Stub for destack.fs.stat.
-#[unsafe(export_name = "destack.fs.stat")]
-pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.stat")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_stat(
+    context: &RuntimeCallContext,
+    out: *mut Stat,
+    path: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.stat")).boxed())
 }
 
 /// Stub for destack.fs.statfs.
-#[unsafe(export_name = "destack.fs.statfs")]
-pub unsafe extern "C" fn destack_fs_statfs(
+pub unsafe fn destack_fs_statfs(
+    context: &RuntimeCallContext,
     out: *mut StatFs,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.statfs")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statfs")).boxed())
 }
 
 /// Stub for destack.fs.symlink.
-#[unsafe(export_name = "destack.fs.symlink")]
-pub unsafe extern "C" fn destack_fs_symlink(
+pub unsafe fn destack_fs_symlink(
+    context: &RuntimeCallContext,
     target: NativeStringRef,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (target, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.symlink")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, target, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlink")).boxed())
 }
 
 /// Stub for destack.fs.truncate.
-#[unsafe(export_name = "destack.fs.truncate")]
-pub unsafe extern "C" fn destack_fs_truncate(
+pub unsafe fn destack_fs_truncate(
+    context: &RuntimeCallContext,
     path: NativeStringRef,
     size: FileOffset,
-) -> RuntimeStatus {
-    let _ = (path, size);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.truncate")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, path, size);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.truncate")).boxed())
 }
 
 /// Stub for destack.fs.unlink.
-#[unsafe(export_name = "destack.fs.unlink")]
-pub unsafe extern "C" fn destack_fs_unlink(path: NativeStringRef) -> RuntimeStatus {
-    let _ = path;
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.unlink")).boxed(),
-        None,
-    )
+pub unsafe fn destack_fs_unlink(
+    context: &RuntimeCallContext,
+    path: NativeStringRef,
+) -> RuntimeResult<()> {
+    let _ = (context, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlink")).boxed())
 }
 
 /// Stub for destack.fs.utimes.
-#[unsafe(export_name = "destack.fs.utimes")]
-pub unsafe extern "C" fn destack_fs_utimes(
+pub unsafe fn destack_fs_utimes(
+    context: &RuntimeCallContext,
     path: NativeStringRef,
     atimens: u64,
     mtimens: u64,
-) -> RuntimeStatus {
-    let _ = (path, atimens, mtimens);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.utimes")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, path, atimens, mtimens);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.utimes")).boxed())
 }
 
 /// Stub for destack.fs.write.
-#[unsafe(export_name = "destack.fs.write")]
-pub unsafe extern "C" fn destack_fs_write(
+pub unsafe fn destack_fs_write(
+    context: &RuntimeCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffer: NativeSlice<u8>,
     offset: FileOffset,
-) -> RuntimeStatus {
-    let _ = (out, handle, buffer, offset);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.write")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, buffer, offset);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.write")).boxed())
 }
 
 /// Stub for destack.fs.writev.
-#[unsafe(export_name = "destack.fs.writev")]
-pub unsafe extern "C" fn destack_fs_writev(
+pub unsafe fn destack_fs_writev(
+    context: &RuntimeCallContext,
     out: *mut u64,
     handle: FileHandle,
     buffers: NativeSlice<NativeSlice<u8>>,
     offset: FileOffset,
-) -> RuntimeStatus {
-    let _ = (out, handle, buffers, offset);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.writev")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, handle, buffers, offset);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.writev")).boxed())
 }
 
 /// Stub for destack.fs.openat.
-#[unsafe(export_name = "destack.fs.openat")]
-pub unsafe extern "C" fn destack_fs_openat(
+pub unsafe fn destack_fs_openat(
+    context: &RuntimeCallContext,
     out: *mut FileHandle,
     dir: DirectoryHandle,
     path: NativeStringRef,
     flags: OpenFlags,
     mode: FileMode,
-) -> RuntimeStatus {
-    let _ = (out, dir, path, flags, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.openat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, dir, path, flags, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.openat")).boxed())
 }
 
 /// Stub for destack.fs.mkdirat.
-#[unsafe(export_name = "destack.fs.mkdirat")]
-pub unsafe extern "C" fn destack_fs_mkdirat(
+pub unsafe fn destack_fs_mkdirat(
+    context: &RuntimeCallContext,
     dir: DirectoryHandle,
     path: NativeStringRef,
     mode: FileMode,
-) -> RuntimeStatus {
-    let _ = (dir, path, mode);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.mkdirat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, dir, path, mode);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.mkdirat")).boxed())
 }
 
 /// Stub for destack.fs.renameat.
-#[unsafe(export_name = "destack.fs.renameat")]
-pub unsafe extern "C" fn destack_fs_renameat(
+pub unsafe fn destack_fs_renameat(
+    context: &RuntimeCallContext,
     from_dir: DirectoryHandle,
     from: NativeStringRef,
     to_dir: DirectoryHandle,
     to: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (from_dir, from, to_dir, to);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.renameat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, from_dir, from, to_dir, to);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.renameat")).boxed())
 }
 
 /// Stub for destack.fs.unlinkat.
-#[unsafe(export_name = "destack.fs.unlinkat")]
-pub unsafe extern "C" fn destack_fs_unlinkat(
+pub unsafe fn destack_fs_unlinkat(
+    context: &RuntimeCallContext,
     dir: DirectoryHandle,
     path: NativeStringRef,
     flags: AtFlags,
-) -> RuntimeStatus {
-    let _ = (dir, path, flags);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.unlinkat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, dir, path, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.unlinkat")).boxed())
 }
 
 /// Stub for destack.fs.linkat.
-#[unsafe(export_name = "destack.fs.linkat")]
-pub unsafe extern "C" fn destack_fs_linkat(
+pub unsafe fn destack_fs_linkat(
+    context: &RuntimeCallContext,
     existing_dir: DirectoryHandle,
     existing_path: NativeStringRef,
     new_dir: DirectoryHandle,
     new_path: NativeStringRef,
     flags: AtFlags,
-) -> RuntimeStatus {
-    let _ = (existing_dir, existing_path, new_dir, new_path, flags);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.linkat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (
+        context,
+        existing_dir,
+        existing_path,
+        new_dir,
+        new_path,
+        flags,
+    );
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.linkat")).boxed())
 }
 
 /// Stub for destack.fs.symlinkat.
-#[unsafe(export_name = "destack.fs.symlinkat")]
-pub unsafe extern "C" fn destack_fs_symlinkat(
+pub unsafe fn destack_fs_symlinkat(
+    context: &RuntimeCallContext,
     target: NativeStringRef,
     dir: DirectoryHandle,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (target, dir, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.symlinkat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, target, dir, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.symlinkat")).boxed())
 }
 
 /// Stub for destack.fs.readlinkat.
-#[unsafe(export_name = "destack.fs.readlinkat")]
-pub unsafe extern "C" fn destack_fs_readlinkat(
+pub unsafe fn destack_fs_readlinkat(
+    context: &RuntimeCallContext,
     out: *mut NativeStringRef,
     dir: DirectoryHandle,
     path: NativeStringRef,
-) -> RuntimeStatus {
-    let _ = (out, dir, path);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.readlinkat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, dir, path);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.readlinkat")).boxed())
 }
 
 /// Stub for destack.fs.statat.
-#[unsafe(export_name = "destack.fs.statat")]
-pub unsafe extern "C" fn destack_fs_statat(
+pub unsafe fn destack_fs_statat(
+    context: &RuntimeCallContext,
     out: *mut Stat,
     dir: DirectoryHandle,
     path: NativeStringRef,
     flags: AtFlags,
-) -> RuntimeStatus {
-    let _ = (out, dir, path, flags);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.statat")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, out, dir, path, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.statat")).boxed())
 }
 
 /// Stub for destack.fs.lock.
-#[unsafe(export_name = "destack.fs.lock")]
-pub unsafe extern "C" fn destack_fs_lock(
+pub unsafe fn destack_fs_lock(
+    context: &RuntimeCallContext,
     handle: FileHandle,
     flags: FileLockFlags,
-) -> RuntimeStatus {
-    let _ = (handle, flags);
-    RuntimeStatus::from_error(
-        RuntimeError::platform(PlatformError::not_supported("destack.fs.lock")).boxed(),
-        None,
-    )
+) -> RuntimeResult<()> {
+    let _ = (context, handle, flags);
+    Err(RuntimeError::from(PlatformError::not_supported("destack.fs.lock")).boxed())
 }

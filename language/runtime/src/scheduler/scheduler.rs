@@ -20,6 +20,7 @@ pub enum ScheduledItem {
 /// Scheduler for task queues and event loops.
 #[derive(Debug, Default)]
 pub struct Scheduler {
+    // NOTE #Incomplete: use task priorities, queue budgets, and deterministic ordering rules
     /// Event loop queues managed by the scheduler.
     pub event_loop: EventLoop,
 }
@@ -74,6 +75,21 @@ impl Scheduler {
     /// Allocate the next microtask identifier.
     pub fn next_microtask_id(&mut self) -> MicrotaskId {
         self.event_loop.next_microtask_id()
+    }
+
+    /// Allocate the next scheduler sequence identifier.
+    pub fn next_sequence(&mut self) -> u64 {
+        self.event_loop.next_sequence()
+    }
+
+    /// Pop the next microtask if available.
+    pub fn pop_microtask(&mut self) -> Option<Microtask> {
+        self.event_loop.pop_microtask()
+    }
+
+    /// Report whether any microtasks are pending.
+    pub fn has_microtasks(&self) -> bool {
+        !self.event_loop.microtasks.is_empty()
     }
 
     /// Report whether any work remains in the scheduler.

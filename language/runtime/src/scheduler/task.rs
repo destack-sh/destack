@@ -41,6 +41,7 @@ pub struct Task {
     pub resume_value: vm::Value,
     /// Current scheduling state.
     pub state: TaskState,
+    // NOTE #Incomplete: priority is not used by the scheduler yet
     /// Priority value for scheduler ordering.
     pub priority: u8,
 }

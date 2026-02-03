@@ -71,7 +71,7 @@ impl PlatformPoller for UnixPoller {
     ) -> RuntimeResult<()> {
         // reject unsupported edge-triggered registrations
         if flags.contains(PlatformPollerFlags::EDGE) {
-            return Err(RuntimeError::platform(PlatformError::not_supported(
+            return Err(RuntimeError::from(PlatformError::not_supported(
                 "poller.edge is not supported by poll",
             ))
             .boxed());
@@ -98,17 +98,20 @@ impl PlatformPoller for UnixPoller {
     ) -> RuntimeResult<()> {
         // reject unsupported edge-triggered registrations
         if flags.contains(PlatformPollerFlags::EDGE) {
-            return Err(RuntimeError::platform(PlatformError::not_supported(
+            return Err(RuntimeError::from(PlatformError::not_supported(
                 "poller.edge is not supported by poll",
             ))
             .boxed());
         }
 
         // resolve the existing registration
-        let entry = self
-            .registrations
-            .get_mut(&resource_id)
-            .ok_or_else(|| RuntimeError::resource_not_found(resource_id.0, None).boxed())?;
+        let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
+            RuntimeError::ResourceNotFound {
+                resource_id: resource_id.0,
+                resource_kind: None,
+            }
+            .boxed()
+        })?;
 
         // update interest and flags
         entry.interests = interests;
@@ -394,7 +397,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
         error.fd = Some(fd);
     }
 
-    RuntimeError::platform(error).boxed()
+    RuntimeError::from(error).boxed()
 }
 
 #[cfg(test)]
@@ -404,6 +407,7 @@ mod tests {
         PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, ResourceId,
     };
 
+    /// Ensures poll emits a readable event when data is available.
     #[test]
     fn test_poll_readable_event() {
         let mut poller = UnixPoller::new().expect("poller should initialize");

@@ -12,6 +12,8 @@ path = "src/lib.rs"
 doctest = false
 
 [features]
+default = ["replay"]
+replay = []
 generate_bindings = [
     "dep:destack_builtin",
     "dep:destack_compiler",

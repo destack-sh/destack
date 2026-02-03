@@ -928,8 +928,34 @@
           ],
           "format": "uint64",
           "minimum": 0
+        },
+        "payload": {
+          "description": "Replay payload selection for record mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplayPayloadModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
+    },
+    "ReplayPayloadModeJson": {
+      "description": "Replay payload mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Record only the result value.",
+          "type": "string",
+          "const": "resultsonly"
+        },
+        {
+          "description": "Record arguments and results for verification.",
+          "type": "string",
+          "const": "argumentsandresults"
+        }
+      ]
     },
     "TimeOptionsJson": {
       "description": "Runtime time options for JSON deserialization.",

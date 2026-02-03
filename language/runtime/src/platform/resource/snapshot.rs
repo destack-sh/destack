@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::platform::diagnostic::PlatformError;
 use crate::platform::resource::{ResourceId, ResourceKind};
 
+// NOTE #Incomplete: integrate snapshot adapters with runtime checkpointing
 /// Checkpoint capability for a resource.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceSnapshotPolicy {

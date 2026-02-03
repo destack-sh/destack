@@ -8,7 +8,7 @@ use destack_mir as mir;
 use super::string::StringInterner;
 use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage, StringRef};
 use crate::diagnostic::Error;
-use crate::memory::{HeapBorrow, HeapHandle, RawPointer, SharedHeap, Value};
+use crate::memory::{HeapBorrow, HeapHandle, HeapReadBorrow, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 
 // isolate id generator for continuation validation
@@ -84,6 +84,11 @@ impl IsolateState {
         self.heap.borrow()
     }
 
+    /// Borrow the heap store for read-only access.
+    pub(crate) fn heap_borrow_read(&self) -> HeapReadBorrow<'_> {
+        self.heap.borrow_read()
+    }
+
     /// Resolve a dispatch table id for a vtable global.
     pub(crate) fn dispatch_table_for_global(
         &self,
@@ -92,8 +97,8 @@ impl IsolateState {
         self.dispatch_table_by_global.get(&global).copied()
     }
 
-    /// Register an external function handler.
-    pub(crate) fn register_external(
+    /// Register a VM binding handler.
+    pub(crate) fn register_vm_binding(
         &mut self,
         name: &str,
         handler: impl ExternalHandler + 'static,
@@ -172,6 +177,11 @@ impl IsolateState {
     /// Allocate a raw heap cell with value slots and return its pointer.
     pub(crate) fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
         self.heap_borrow().raw.allocate_with_values(values)
+    }
+
+    /// Allocate a raw heap cell with byte storage and return its pointer.
+    pub(crate) fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> RawPointer {
+        self.heap_borrow().raw.allocate_with_bytes(bytes)
     }
 
     /// Collect string literal handles as GC roots.

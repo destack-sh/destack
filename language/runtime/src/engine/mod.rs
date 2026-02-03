@@ -1,6 +1,6 @@
 mod engine;
 mod entry;
-mod isolate;
+mod vm;
 
 pub use engine::*;
 pub use entry::*;

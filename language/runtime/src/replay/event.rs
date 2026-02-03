@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::platform::ResourceId;
-use crate::platform::bindings::{BindingId, CodecId, LogKind};
+use crate::platform::bindings::{BindingId, CodecId};
 use crate::random::RandomStreamId;
 use crate::scheduler::{MicrotaskId, TaskId};
 
@@ -164,7 +164,7 @@ pub struct TimeEvent {
 }
 
 /// Clock event kind captured for replay.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimeEventKind {
     /// Virtual clock seed or reset.
     Seed,
@@ -196,10 +196,12 @@ pub struct RandomEvent {
 }
 
 /// Random event kind captured for replay.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum RandomEventKind {
     /// Stream seed or reseed event.
     Seed,
+    /// Stream allocation event.
+    Stream,
     /// Random bytes produced by the stream.
     Bytes,
     /// Random u64 produced by the stream.
@@ -213,8 +215,6 @@ pub struct BindingCallEvent {
     pub binding_id: BindingId,
     /// Codec identifier for the payload.
     pub codec: CodecId,
-    /// Optional log kind for specialized replay handling.
-    pub log_kind: Option<LogKind>,
     /// Encoded payload for replay.
     pub payload: Vec<u8>,
 }

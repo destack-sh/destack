@@ -8,9 +8,9 @@ use super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
     DivisionCheckPolicy, DivisionCheckPolicyJson, ExecutionMode, ExecutionModeJson,
     FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
-    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, SafetyPreset,
-    SafetyPresetJson, SandboxPolicy, SandboxPolicyJson, ShiftCheckPolicy, ShiftCheckPolicyJson,
-    TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
+    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, ReplayPayloadMode,
+    SafetyPreset, SafetyPresetJson, SandboxPolicy, SandboxPolicyJson, ShiftCheckPolicy,
+    ShiftCheckPolicyJson, TrustPolicy, TrustPolicyJson, UnwindFormat, UnwindFormatJson,
 };
 use super::runtime::{DsConfigRuntimeOptionsJson, runtime_options_with_base};
 use super::tsconfig::{EsTarget, ModuleTarget};
@@ -519,7 +519,7 @@ pub enum GcLogging {
 }
 
 /// Replay log configuration for runtime record/replay.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ReplayLogOptions {
     /// Base path for replay logs (file or directory).
     pub path: Option<PathBuf>,
@@ -527,6 +527,19 @@ pub struct ReplayLogOptions {
     pub template: Option<String>,
     /// Chunk size in megabytes for log rotation.
     pub chunk_size_mb: Option<u64>,
+    /// Replay payload selection for record mode.
+    pub payload: ReplayPayloadMode,
+}
+
+impl Default for ReplayLogOptions {
+    fn default() -> Self {
+        Self {
+            path: None,
+            template: None,
+            chunk_size_mb: None,
+            payload: ReplayPayloadMode::ResultsOnly,
+        }
+    }
 }
 
 /// Runtime clock configuration.
