@@ -9,7 +9,7 @@ use crate::{
     Addressability, Arena, EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny,
     GlobalSymbolId, Instance, Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId,
     LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument,
-    StaticKey, StaticParameterKind, StringId, SymbolTable, SymbolType, Type,
+    StaticKey, StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral,
 };
 
 /// Select a normalization cache.
@@ -100,6 +100,9 @@ pub struct TypeTable {
     /// Cached expression type values by cache key.
     #[serde(skip)]
     pub(crate) expression_type_value_cache_by_key: IndexMap<u64, Type>,
+    /// Cached literal type ids by literal value.
+    #[serde(skip)]
+    pub(crate) literal_type_id_by_value: Vec<(TypeLiteral, LocalTypeId)>,
     /// Cached type reference results by cache key.
     #[serde(skip)]
     pub(crate) type_reference_cache_by_key: IndexMap<u64, Type>,
@@ -223,6 +226,7 @@ impl TypeTable {
             imported_type_by_id: Vec::new(),
             expression_type_id_cache_by_key: IndexMap::new(),
             expression_type_value_cache_by_key: IndexMap::new(),
+            literal_type_id_by_value: Vec::new(),
             type_reference_cache_by_key: IndexMap::new(),
             static_argument_resolution_cache_by_key: IndexMap::new(),
             normalized_assignability_type_by_id: Vec::new(),
@@ -324,6 +328,43 @@ impl TypeTable {
     pub fn insert_type_from_type(&mut self, ty: Type, source_type_id: LocalTypeId) -> LocalTypeId {
         let source_id = self.get_type_source(source_type_id);
         self.insert_type_from_any(ty, source_id)
+    }
+
+    /// Get or insert a literal type id.
+    pub fn intern_literal_type(
+        &mut self,
+        source_type_id: LocalTypeId,
+        literal: TypeLiteral,
+    ) -> LocalTypeId {
+        // reuse cached literal ids first
+        for (cached_literal, cached_type_id) in &self.literal_type_id_by_value {
+            if cached_literal == &literal {
+                return *cached_type_id;
+            }
+        }
+
+        // reuse an existing literal type when available
+        for (index, ty) in self.types.iter().enumerate() {
+            if let Type::TypeLiteral { value } = ty
+                && value == &literal
+            {
+                let literal_type_id = LocalTypeId::new(index as u32);
+                self.literal_type_id_by_value
+                    .push((literal.clone(), literal_type_id));
+                return literal_type_id;
+            }
+        }
+
+        // insert a new literal type
+        let literal_type_id = self.insert_type_from_type(
+            Type::TypeLiteral {
+                value: literal.clone(),
+            },
+            source_type_id,
+        );
+        self.literal_type_id_by_value
+            .push((literal, literal_type_id));
+        literal_type_id
     }
 
     /// Get a type by its id.

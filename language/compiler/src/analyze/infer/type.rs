@@ -1383,6 +1383,8 @@ impl Compiler {
 
                     self.is_enum_backing_cast(module, profile, &left_ty, &right_ty, types)
                 };
+                let allow_record_cast =
+                    self.allow_record_like_cast(profile, left_ty_id, right_ty_id, types);
 
                 // check if cast is valid (types overlap: at least one direction is assignable)
                 let left_to_right = self.is_type_assignable(
@@ -1432,6 +1434,7 @@ impl Compiler {
                 // report invalid casts when types do not overlap
                 if !allow_pointer_cast
                     && !allow_enum_cast
+                    && !allow_record_cast
                     && left_to_right == Assignability::NotAssignable
                     && right_to_left == Assignability::NotAssignable
                 {
@@ -5257,6 +5260,61 @@ impl Compiler {
             (Some(backing), None) => self.enum_backing_type_matches(backing, right_ty),
             (None, Some(backing)) => self.enum_backing_type_matches(backing, left_ty),
             _ => false,
+        }
+    }
+
+    /// Return true when an explicit cast targets a record like map alias.
+    fn allow_record_like_cast(
+        &self,
+        profile: ProfileId,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        // require an object source type
+        let left_ty_id = self.unwrap_type_value(left_ty_id, types);
+        if !matches!(types.get_type(left_ty_id), Type::Object { .. }) {
+            return false;
+        }
+
+        // locate the map and record symbols
+        let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map);
+        let record_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Record);
+        let Some(map_symbol) = map_symbol else {
+            return false;
+        };
+
+        // walk aliases to find map and record references
+        let mut current = self.unwrap_type_value(right_ty_id, types);
+        let mut visited = HashSet::new();
+        loop {
+            if !visited.insert(current) {
+                return false;
+            }
+
+            match types.get_type(current) {
+                // accept direct map and record references
+                Type::Reference { symbol, .. } => {
+                    if *symbol == map_symbol
+                        || record_symbol.is_some_and(|record_symbol| record_symbol == *symbol)
+                    {
+                        return true;
+                    }
+
+                    // follow alias targets when available
+                    if let Some(alias_target) = types.get_alias_target_type_id(*symbol) {
+                        current = alias_target;
+                        continue;
+                    }
+
+                    return false;
+                }
+                // unwrap value wrapper types
+                Type::Value { value } => {
+                    current = *value;
+                }
+                _ => return false,
+            }
         }
     }
 

@@ -324,10 +324,10 @@ fn seed_libs_for_bench(lib_name: &str) -> Vec<&'static str> {
     libs.push(lib.name);
 
     // include ambient roots
-    if !libs.iter().any(|name| *name == "std") {
+    if !libs.contains(&"std") {
         libs.push("std");
     }
-    if !libs.iter().any(|name| *name == "globals") {
+    if !libs.contains(&"globals") {
         libs.push("globals");
     }
 
@@ -470,22 +470,23 @@ fn count_tokens(parser: &DestackParser) -> (usize, usize) {
 
 /// Collect node counts for a parsed module.
 fn collect_counts(parser: &DestackParser) -> Counts {
-    let mut counts = Counts::default();
-
     // count node categories
-    counts.expressions = parser.tree.get_nodes::<Expression>().len();
-    counts.declarations = parser.tree.get_nodes::<Declaration>().len();
-    counts.members = parser.tree.get_nodes::<Member>().len();
-    counts.properties = parser.tree.get_nodes::<Property>().len();
-    counts.parameters = parser.tree.get_nodes::<Parameter>().len();
-    counts.arguments = parser.tree.get_nodes::<Argument>().len();
-    counts.patterns = parser.tree.get_nodes::<Pattern>().len();
-    counts.pattern_fields = parser.tree.get_nodes::<PatternField>().len();
-    counts.declarators = parser.tree.get_nodes::<Declarator>().len();
-    counts.enum_fields = parser.tree.get_nodes::<EnumField>().len();
-    counts.match_cases = parser.tree.get_nodes::<MatchCase>().len();
-    counts.where_clauses = parser.tree.get_nodes::<WhereClause>().len();
-    counts.dependency_items = parser.tree.get_nodes::<DependencyItem>().len();
+    let mut counts = Counts {
+        expressions: parser.tree.get_nodes::<Expression>().len(),
+        declarations: parser.tree.get_nodes::<Declaration>().len(),
+        members: parser.tree.get_nodes::<Member>().len(),
+        properties: parser.tree.get_nodes::<Property>().len(),
+        parameters: parser.tree.get_nodes::<Parameter>().len(),
+        arguments: parser.tree.get_nodes::<Argument>().len(),
+        patterns: parser.tree.get_nodes::<Pattern>().len(),
+        pattern_fields: parser.tree.get_nodes::<PatternField>().len(),
+        declarators: parser.tree.get_nodes::<Declarator>().len(),
+        enum_fields: parser.tree.get_nodes::<EnumField>().len(),
+        match_cases: parser.tree.get_nodes::<MatchCase>().len(),
+        where_clauses: parser.tree.get_nodes::<WhereClause>().len(),
+        dependency_items: parser.tree.get_nodes::<DependencyItem>().len(),
+        ..Default::default()
+    };
 
     // count declaration kinds
     for declaration_id in parser.tree.get_nodes::<Declaration>() {

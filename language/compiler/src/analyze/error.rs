@@ -489,6 +489,10 @@ pub enum AnalyzeError {
     #[error(code = "EA819", message = "runtime features are disabled")]
     RuntimeDisabled { node: AnchoredGlobalNodeId },
 
+    /// Implicit collection conversions are disabled.
+    #[error(code = "EA820", message = "implicit collection conversions are disabled")]
+    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+
     /// Strict mode forbids delete of unqualified bindings.
     #[error(
         code = "EA821",

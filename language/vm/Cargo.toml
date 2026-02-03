@@ -25,6 +25,8 @@ destack_vm_abi = { workspace = true }
 
 # util
 smallvec = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
 perf-event = { version = "0.4.8", optional = true }
 
 [dev-dependencies]

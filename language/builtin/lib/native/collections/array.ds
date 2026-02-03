@@ -203,6 +203,18 @@ extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iter
         // #Incomplete
         Array { length: 0, capacity: 0, data: null as *U }
     }
+
+    /// Create an array from an iterable.
+    static from<T>(values: Iterable<T>): Array<T> {
+        // #Incomplete
+        undefined!
+    }
+
+    /// Create an array from a fixed-size array.
+    static fromSized<T>(values: readonly T[]): Array<T> {
+        // #Incomplete
+        undefined!
+    }
 }
 
 /// Create an array with the given elements.

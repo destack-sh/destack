@@ -25,7 +25,7 @@ use destack_source::{
 use destack_vm::{Isolate, IsolateOptions, Value};
 use destack_workspace::{
     CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
-    MemoryCacheStore, Module, ProfileId, Program, Session, Target, TargetId,
+    MemoryCacheStore, Module, OutputFormat, ProfileId, Program, Session, Target, TargetId,
 };
 use parking_lot::RwLock;
 use serde_json::json;
@@ -340,6 +340,16 @@ impl TestProgram {
         self
     }
 
+    /// Override the default profile with an explicit output format.
+    pub fn with_profile_output(mut self, output: OutputFormat) -> Self {
+        let default_profile = self.program.profile(self.default_profile_id_for_root());
+        let mut key = default_profile.key.clone();
+        key.output = output;
+        let profile_id = self.program.profiles.get_or_create(key);
+        self.default_profile_override = Some(profile_id);
+        self
+    }
+
     /// Mutate compiler options for this test program.
     pub fn with_options_mut<F>(mut self, f: F) -> Self
     where
@@ -504,6 +514,15 @@ impl TestProgram {
         self.enqueue(ResolveTask::ResolveLibs {
             profile: self.profile_stamp(profile),
         });
+    }
+
+    /// Enqueue ResolveBuiltins and ResolveLibs tasks.
+    pub fn resolve_builtins_and_libs(&self) {
+        // resolve builtins first
+        self.resolve_builtins();
+
+        // resolve libs next
+        self.resolve_libs();
     }
 
     /// Enqueue Analyze task for a module.

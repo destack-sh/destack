@@ -79,4 +79,8 @@ pub enum AnalyzeWarning {
         node: AnchoredGlobalNodeId,
         ty: destack_dir::GlobalTypeId,
     },
+
+    /// Implicit collection conversion.
+    #[warning(code = "WA502", message = "implicit collection conversion")]
+    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
 }

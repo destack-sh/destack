@@ -319,8 +319,12 @@ mod tests {
     #[test]
     fn test_memory_watcher_filter() {
         let watcher = MemoryFileWatcher::new();
-        let mut options = FileWatchOptions::default();
-        options.filter = Some(Arc::new(|path| path.ends_with(".ds")));
+        let options = FileWatchOptions {
+            filter: Some(Arc::new(|path| {
+                path.extension().is_some_and(|ext| ext == "ds")
+            })),
+            ..Default::default()
+        };
         let subscription = watcher.watch(Vec::new(), options);
 
         // send event outside the filter

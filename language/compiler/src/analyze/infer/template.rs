@@ -911,14 +911,13 @@ impl Compiler {
         infer: &InferTable,
     ) -> Option<LocalTypeId> {
         let var = infer.vars.get(id.0 as usize)?;
-        if let InferOrigin::TypeParameter(symbol) = var.origin {
-            if self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
-                return self.static_parameter_constraint_type(
-                    module, profile, symbol, source_id, symbols, types,
-                );
-            }
+        if let InferOrigin::TypeParameter(symbol) = var.origin
+            && self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+        {
+            return self.static_parameter_constraint_type(
+                module, profile, symbol, source_id, symbols, types,
+            );
         }
-
         None
     }
 

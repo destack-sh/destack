@@ -208,6 +208,127 @@ let value: float64 = 1;
 { "compilerOptions": { "noImplicitConversions": false } }
 ```
 
+## implicitCollectionConversions
+
+### implicitCollectionConversions allows record-like conversions when allow
+
+> Record-like conversions are allowed when implicitCollectionConversions is allow.
+
+```ds:main.ds
+type Bag = { [key: string]: int32 };
+let record: Bag = { alpha: 1 };
+let value: int32 | undefined = record["alpha"];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "allow" } }
+```
+
+### implicitCollectionConversions allows sized array conversions when allow
+
+> Sized array conversions are allowed when implicitCollectionConversions is allow.
+
+```ds:main.ds
+function take(values: int32[]): int32[] { return values; }
+let fixed: int32[2] = [1, 2];
+let dynamic = take(fixed);
+let value: int32 | undefined = dynamic[0];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "allow" } }
+```
+
+### implicitCollectionConversions warns on record-like conversions when warn
+
+> Record-like conversions emit warnings when implicitCollectionConversions is warn.
+
+```ds:main.ds
+type Bag = { [key: string]: int32 };
+let record: Bag = { alpha: 1 };
+let value: int32 | undefined = record["alpha"];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "warn" } }
+```
+
+- warning: implicit collection conversion
+
+### implicitCollectionConversions warns on sized array conversions when warn
+
+> Sized array conversions emit warnings when implicitCollectionConversions is warn.
+
+```ds:main.ds
+function take(values: int32[]): int32[] { return values; }
+let fixed: int32[2] = [1, 2];
+let dynamic = take(fixed);
+let value: int32 | undefined = dynamic[0];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "warn" } }
+```
+
+- warning: implicit collection conversion
+
+### implicitCollectionConversions forbids record-like conversions when deny
+
+> Record-like conversions are rejected when implicitCollectionConversions is deny.
+
+```ds:main.ds
+type Bag = { [key: string]: int32 };
+let record: Bag = { alpha: 1 };
+let value: int32 | undefined = record["alpha"];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "deny" } }
+```
+
+- contains: implicit collection conversions are disabled
+
+### implicitCollectionConversions forbids sized array conversions when deny
+
+> Sized array conversions are rejected when implicitCollectionConversions is deny.
+
+```ds:main.ds
+function take(values: int32[]): int32[] { return values; }
+let fixed: int32[2] = [1, 2];
+let dynamic = take(fixed);
+let value: int32 | undefined = dynamic[0];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "implicitCollectionConversions": "deny" } }
+```
+
+- contains: implicit collection conversions are disabled
+
 ## noUnsafeTypeAssertions
 
 ### noUnsafeTypeAssertions reports unsafe assertions when true

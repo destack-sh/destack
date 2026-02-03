@@ -13,6 +13,7 @@ pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "Math",
     "Number",
     "Object",
+    "Record",
     "RangeError",
     "ReferenceError",
     "RegExp",

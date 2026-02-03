@@ -1,17 +1,35 @@
 use destack_dir::{
-    Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, EnumBackingType,
-    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType,
-    Resolution, ResolutionCandidate, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, DynamicKey,
+    EnumBackingType, Expression, GlobalSymbolId, IfCondition, IfKind, LocalNodeId, LocalTypeId,
+    MatchCase, NodeTree, NodeType, Path, Resolution, ResolutionCandidate, ResolvedSignature,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolTable, SymbolType, Type,
+    TypeElement, TypeLiteral, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 
 use super::r#type::{
     are_types_semantically_equal, common_numeric_type_id_for_binary, is_any_type, is_integer_type,
     is_nullable_union, is_object_type, is_pointer_type, is_scalar_literal_type, is_string_type,
     is_union_type, is_unknown_type, numeric_cast_operator,
 };
-use crate::{Compiler, ElaborateError, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult, ElaborateWarning};
+
+/// The resolved record-like target data for reification.
+struct RecordLikeTargetInfo {
+    /// The key type for the record-like conversion.
+    key_type_id: LocalTypeId,
+    /// The target map symbol that provides `from`.
+    map_symbol: GlobalSymbolId,
+    /// The resolved map type reference.
+    map_type_id: LocalTypeId,
+    /// The entry tuple type for `Map<K, V>`.
+    entry_tuple_type_id: LocalTypeId,
+    /// The array type for map entries.
+    entries_array_type_id: LocalTypeId,
+    /// Static arguments for `Map<K, V>`.
+    map_static_arguments: Vec<StaticArgument>,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -43,6 +61,42 @@ impl Compiler {
                     .into_global_any(module_id)
                     .into_anchored(Some(profile)),
             })?;
+
+        // reify record-like and sized array literals into collection construction
+        if let Some(reified) = self.reify_record_like_object_literal(
+            module,
+            profile,
+            expression_id,
+            value,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            let source_id = reified.into_global_any(module_id);
+            let target_id = expression_id.into_global_any(module_id);
+            types.copy_node_analysis(source_id, target_id);
+            let expression = tree.get(reified).clone();
+            tree.replace(expression_id, expression);
+            return Ok(());
+        }
+        if let Some(reified) = self.reify_array_sized_value(
+            module,
+            profile,
+            expression_id,
+            value,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            let source_id = reified.into_global_any(module_id);
+            let target_id = expression_id.into_global_any(module_id);
+            types.copy_node_analysis(source_id, target_id);
+            let expression = tree.get(reified).clone();
+            tree.replace(expression_id, expression);
+            return Ok(());
+        }
 
         // classify the cast
         let operator = self.cast_operator_for_types(
@@ -725,6 +779,32 @@ impl Compiler {
                     .into_anchored(Some(profile)),
             })?;
 
+        // reify record-like and sized array literals into collection construction
+        if let Some(reified) = self.reify_record_like_object_literal(
+            module,
+            profile,
+            origin_id,
+            value_id,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            return Ok(reified);
+        }
+        if let Some(reified) = self.reify_array_sized_value(
+            module,
+            profile,
+            origin_id,
+            value_id,
+            target_type_id,
+            tree,
+            symbols,
+            types,
+        )? {
+            return Ok(reified);
+        }
+
         // resolve unevaluated target types for cast classification
         let target_type_id = self
             .ensure_type_evaluated(module, profile, target_type_id, tree, symbols, types)
@@ -736,8 +816,8 @@ impl Compiler {
             })?;
 
         // check casts that change representation despite matching type ids
-        let value_type = types.get_type(value_type_id);
-        let target_type = types.get_type(target_type_id);
+        let value_type = types.get_type(value_type_id).clone();
+        let target_type = types.get_type(target_type_id).clone();
         let value_is_concrete = self.is_concrete_resolution(module_id, value_id, types)
             || self.is_concrete_new_expression(tree, value_id)
             || self.is_tagged_expression(tree, value_id);
@@ -747,7 +827,7 @@ impl Compiler {
                 value: TypeLiteral::Null | TypeLiteral::Undefined,
             }
         );
-        let types_match = are_types_semantically_equal(value_type, target_type, types);
+        let types_match = are_types_semantically_equal(&value_type, &target_type, types);
         let source_is_interface = self.is_interface_reference_type(types, value_type_id);
         let target_is_interface = self.is_interface_reference_type(types, target_type_id);
 
@@ -755,8 +835,8 @@ impl Compiler {
         let requires_interface_upcast =
             target_is_interface && (!source_is_interface || value_is_concrete || !types_match);
         let requires_union_upcast =
-            is_union_type(target_type) && (value_is_concrete || value_is_nullish_literal);
-        let requires_nullable_upcast = is_nullable_union(target_type, types)
+            is_union_type(&target_type) && (value_is_concrete || value_is_nullish_literal);
+        let requires_nullable_upcast = is_nullable_union(&target_type, types)
             && (value_is_concrete || value_is_nullish_literal);
         let requires_representation_cast =
             requires_interface_upcast || requires_union_upcast || requires_nullable_upcast;
@@ -1103,6 +1183,829 @@ impl Compiler {
         }
     }
 
+    /// Check whether implicit collection reification is enabled for this profile.
+    fn collection_reify_is_enabled(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+    ) -> ElaborateResult<bool> {
+        // read the conversion policy from dsconfig
+        let policy = self
+            .program
+            .with_dsconfig_options(module, |ds| ds.compiler.implicit_collection_conversions)
+            .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
+
+        // skip reify for non-native outputs
+        if !self.program.profile(profile).key.output.is_native() {
+            return Ok(false);
+        }
+
+        // honor the configured policy for native outputs
+        match policy {
+            ImplicitCollectionConversionPolicy::Allow => Ok(true),
+            ImplicitCollectionConversionPolicy::Warn => {
+                self.warning(ElaborateWarning::ImplicitCollectionConversion {
+                    node: origin_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+                Ok(true)
+            }
+            ImplicitCollectionConversionPolicy::Deny => {
+                Err(ElaborateError::ImplicitCollectionConversion {
+                    node: origin_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                })
+            }
+        }
+    }
+
+    /// Reify record like object literals into map construction.
+    fn reify_record_like_object_literal(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
+        // only reify record like literals when enabled for the profile
+        if !self.collection_reify_is_enabled(module, profile, origin_id)? {
+            return Ok(None);
+        }
+
+        // require an object literal value
+        let Expression::ObjectExpression { properties } = tree.get(value_id).clone() else {
+            return Ok(None);
+        };
+
+        // resolve the record key/value types
+        let Some(record_like) =
+            self.record_like_map_target(module, profile, origin_id, target_type_id, types)?
+        else {
+            return Ok(None);
+        };
+
+        // resolve Map.from symbol
+        let map_from_symbol = self.map_from_symbol(
+            module,
+            profile,
+            origin_id,
+            record_like.map_symbol,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // register a concrete instance for Map.from<K, V>
+        let map_from_instance_id = types
+            .find_instance(map_from_symbol, &record_like.map_static_arguments)
+            .unwrap_or_else(|| {
+                let instance = destack_dir::Instance::new(
+                    map_from_symbol,
+                    record_like.map_static_arguments.clone(),
+                );
+                types.insert_instance(instance)
+            });
+
+        // build tuple entries for each property
+        let mut entry_arguments = Vec::with_capacity(properties.len());
+        for property_id in properties {
+            let property = tree.get(property_id);
+            let (key, value) = match property {
+                destack_dir::Property::Field { key, value, .. } => {
+                    let key = key.ok_or(ElaborateError::UnsupportedConstruct {
+                        node: property_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                    })?;
+                    let value = value.ok_or(ElaborateError::UnsupportedConstruct {
+                        node: property_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                    })?;
+                    (key, value)
+                }
+                destack_dir::Property::Method { .. } | destack_dir::Property::Spread { .. } => {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: property_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                    });
+                }
+            };
+
+            // resolve the key expression
+            let key_expression_id = self.record_key_expression(
+                module,
+                profile,
+                origin_id,
+                key,
+                record_like.key_type_id,
+                tree,
+                types,
+            )?;
+
+            // build a tuple expression for the entry
+            let entry_tuple_id = self.record_entry_tuple_expression(
+                module,
+                profile,
+                origin_id,
+                key_expression_id,
+                value,
+                record_like.entry_tuple_type_id,
+                tree,
+                types,
+            )?;
+
+            // wrap tuple entries as array arguments
+            let entry_argument_id = tree.reserve_from(
+                NodeType::Argument,
+                origin_id.into_any(),
+                tree.get_scope(origin_id),
+                None,
+            );
+            let entry_argument_id = tree.insert(
+                entry_argument_id,
+                Argument::Positional {
+                    modifiers: None,
+                    value: entry_tuple_id,
+                },
+            );
+            entry_arguments.push(entry_argument_id);
+        }
+
+        // build the entries array expression
+        let entries_array_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let entries_array_id = tree.insert(
+            entries_array_id,
+            Expression::ArrayExpression {
+                elements: entry_arguments,
+            },
+        );
+        types.set_inferred_type(
+            entries_array_id.into_global_any(module.id),
+            record_like.entries_array_type_id,
+        );
+
+        // build a module reference to Map.from
+        let map_name = self
+            .program
+            .strings
+            .intern(WellKnownSymbol::Map.export_name());
+        let from_name = self.program.strings.intern("from");
+        let left_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let left_id = tree.insert(
+            left_id,
+            Expression::ModuleReference {
+                path: Path::from(&[map_name, from_name][..]),
+                static_arguments: None,
+                target_symbol: map_from_symbol,
+            },
+        );
+
+        // build the Map.from call expression
+        let call_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let entries_argument_id = self.argument_for_value(origin_id, entries_array_id, tree);
+        let call_id = tree.insert(
+            call_id,
+            Expression::Call {
+                left: left_id,
+                static_arguments: None,
+                dynamic_arguments: vec![entries_argument_id],
+            },
+        );
+        types.set_inferred_type(call_id.into_global_any(module.id), record_like.map_type_id);
+
+        // attach a static resolution for the generated call
+        let resolution_id = types.insert_resolution(Resolution::Static {
+            receiver: None,
+            candidate: ResolutionCandidate {
+                key: None,
+                target_symbol: map_from_symbol,
+                instance: Some(map_from_instance_id),
+                resolved_signature: Some(ResolvedSignature {
+                    dynamic_parameters: vec![record_like.entries_array_type_id],
+                    return_type: Some(record_like.map_type_id),
+                    static_arguments: record_like.map_static_arguments,
+                }),
+            },
+        });
+        types.set_resolution_for_node(call_id.into_global_any(module.id), resolution_id);
+
+        Ok(Some(call_id))
+    }
+
+    /// Reify sized arrays into dynamic arrays with Array.fromSized.
+    fn reify_array_sized_value(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
+        // only reify array casts when enabled for the profile
+        if !self.collection_reify_is_enabled(module, profile, origin_id)? {
+            return Ok(None);
+        }
+
+        // resolve source and target types
+        let value_type_id = self
+            .value_type_id_for_expression(module.id, value_id, tree, types)
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: value_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            })?;
+        let value_type_id = self.unwrap_value_type_id(types, value_type_id);
+        let target_type_id = self.unwrap_value_type_id(types, target_type_id);
+        let value_type = types.get_type(value_type_id).clone();
+        let target_type = types.get_type(target_type_id).clone();
+
+        // resolve the dynamic array target type
+        let (element_type_id, target_element_type_id) = match (value_type, target_type) {
+            (
+                Type::ArraySized {
+                    element: value_element,
+                    ..
+                },
+                Type::Array {
+                    element: target_element,
+                    ..
+                },
+            ) => (value_element, target_element),
+            (
+                Type::ArraySized {
+                    element: value_element,
+                    ..
+                },
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                },
+            ) => {
+                let Some(well_known) = self.well_known_array_kind(profile, symbol) else {
+                    return Ok(None);
+                };
+                let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
+                    module,
+                    symbols,
+                    profile,
+                    origin_id.into_any(),
+                    symbol,
+                    well_known,
+                    static_arguments.as_deref(),
+                    types,
+                ) else {
+                    return Ok(None);
+                };
+                (value_element, element)
+            }
+            _ => return Ok(None),
+        };
+
+        // ensure element compatibility when the target is explicit
+        if let Some(target_element_type_id) = target_element_type_id {
+            let options = self.analyze_context_options_for_module(module.id);
+            let to_target = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_element_type_id,
+                element_type_id,
+                types,
+                &options,
+            );
+            let to_source = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                element_type_id,
+                target_element_type_id,
+                types,
+                &options,
+            );
+            if !to_target.is_assignable() || !to_source.is_assignable() {
+                return Ok(None);
+            }
+        }
+
+        // resolve Array.fromSized symbol
+        let array_symbol = self
+            .get_well_known_type_symbol(profile, WellKnownSymbol::Array)
+            .ok_or(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            })?;
+        let from_sized_symbol = self.array_from_sized_symbol(
+            module,
+            profile,
+            origin_id,
+            array_symbol,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // register a concrete instance for Array.fromSized<T>
+        let array_static_arguments = vec![StaticArgument::value(StaticExpression::Type {
+            ty: element_type_id,
+        })];
+        let from_sized_instance_id = types
+            .find_instance(from_sized_symbol, &array_static_arguments)
+            .unwrap_or_else(|| {
+                let instance =
+                    destack_dir::Instance::new(from_sized_symbol, array_static_arguments.clone());
+                types.insert_instance(instance)
+            });
+
+        // build a module reference to Array.fromSized
+        let array_name = self
+            .program
+            .strings
+            .intern(WellKnownSymbol::Array.export_name());
+        let from_name = self.program.strings.intern("fromSized");
+        let left_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let left_id = tree.insert(
+            left_id,
+            Expression::ModuleReference {
+                path: Path::from(&[array_name, from_name][..]),
+                static_arguments: None,
+                target_symbol: from_sized_symbol,
+            },
+        );
+
+        // build the Array.fromSized call expression
+        let call_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let value_argument_id = self.argument_for_value(origin_id, value_id, tree);
+        let call_id = tree.insert(
+            call_id,
+            Expression::Call {
+                left: left_id,
+                static_arguments: None,
+                dynamic_arguments: vec![value_argument_id],
+            },
+        );
+        types.set_inferred_type(call_id.into_global_any(module.id), target_type_id);
+
+        // attach a static resolution for the generated call
+        let resolution_id = types.insert_resolution(Resolution::Static {
+            receiver: None,
+            candidate: ResolutionCandidate {
+                key: None,
+                target_symbol: from_sized_symbol,
+                instance: Some(from_sized_instance_id),
+                resolved_signature: Some(ResolvedSignature {
+                    dynamic_parameters: vec![value_type_id],
+                    return_type: Some(target_type_id),
+                    static_arguments: array_static_arguments,
+                }),
+            },
+        });
+        types.set_resolution_for_node(call_id.into_global_any(module.id), resolution_id);
+
+        Ok(Some(call_id))
+    }
+
+    /// Resolve record like target information for map reification.
+    fn record_like_map_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        target_type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<Option<RecordLikeTargetInfo>> {
+        // unwrap value wrapper types
+        let target_type_id = self.unwrap_value_type_id(types, target_type_id);
+
+        // resolve Map symbol for record like lowering
+        let Some(map_symbol) = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map)
+        else {
+            return Ok(None);
+        };
+        let record_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Record);
+
+        // walk aliases until we reach a record like target
+        let mut current_type_id = target_type_id;
+        let mut visited = Vec::new();
+        loop {
+            // avoid alias resolution cycles
+            if visited.contains(&current_type_id) {
+                return Ok(None);
+            }
+            visited.push(current_type_id);
+
+            // read the current target type
+            let target_type = types.get_type(current_type_id).clone();
+
+            // use direct object index signatures as map targets
+            if let Type::Object {
+                index_signatures, ..
+            } = &target_type
+            {
+                let Some(signature) = index_signatures.first() else {
+                    return Ok(None);
+                };
+                let info = self.record_like_target_for_types(
+                    origin_id,
+                    map_symbol,
+                    signature.key_type,
+                    signature.value_type,
+                    types,
+                )?;
+                return Ok(Some(info));
+            }
+
+            // resolve record-like references to Map<K, V>
+            if let Type::Reference {
+                symbol,
+                static_arguments,
+            } = &target_type
+            {
+                // only accept Map and Record symbols
+                let is_map_symbol = *symbol == map_symbol
+                    || record_symbol.is_some_and(|record_symbol| record_symbol == *symbol);
+                if !is_map_symbol {
+                    // follow alias targets when present
+                    if let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) {
+                        current_type_id = alias_target_id;
+                        continue;
+                    }
+
+                    return Ok(None);
+                }
+
+                // resolve key and value type ids from static arguments
+                let Some(static_arguments) = static_arguments.as_deref() else {
+                    return Ok(None);
+                };
+                if static_arguments.len() != 2 {
+                    return Ok(None);
+                }
+
+                let key_type_id = self.static_argument_type_id(
+                    module,
+                    profile,
+                    origin_id,
+                    &static_arguments[0],
+                    types,
+                )?;
+                let value_type_id = self.static_argument_type_id(
+                    module,
+                    profile,
+                    origin_id,
+                    &static_arguments[1],
+                    types,
+                )?;
+
+                let info = self.record_like_target_for_types(
+                    origin_id,
+                    map_symbol,
+                    key_type_id,
+                    value_type_id,
+                    types,
+                )?;
+                return Ok(Some(info));
+            }
+
+            return Ok(None);
+        }
+    }
+
+    /// Build record like info for key/value types.
+    fn record_like_target_for_types(
+        &self,
+        origin_id: LocalNodeId<Expression>,
+        map_symbol: GlobalSymbolId,
+        key_type_id: LocalTypeId,
+        value_type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<RecordLikeTargetInfo> {
+        // build the tuple entry type
+        let entry_tuple_type = Type::Tuple {
+            elements: vec![
+                TypeElement::new(key_type_id),
+                TypeElement::new(value_type_id),
+            ],
+            is_readonly: false,
+        };
+        let entry_tuple_type_id = types.insert_type_from(entry_tuple_type, origin_id);
+
+        // build the entries array type
+        let entries_array_type = Type::Array {
+            element: Some(entry_tuple_type_id),
+            is_readonly: false,
+        };
+        let entries_array_type_id = types.insert_type_from(entries_array_type, origin_id);
+
+        // build the Map<K, V> reference type
+        let map_static_arguments = vec![
+            StaticArgument::value(StaticExpression::Type { ty: key_type_id }),
+            StaticArgument::value(StaticExpression::Type { ty: value_type_id }),
+        ];
+        let map_type_id = types.insert_type_from(
+            Type::Reference {
+                symbol: map_symbol,
+                static_arguments: Some(map_static_arguments.clone()),
+            },
+            origin_id,
+        );
+
+        Ok(RecordLikeTargetInfo {
+            key_type_id,
+            map_symbol,
+            map_type_id,
+            entry_tuple_type_id,
+            entries_array_type_id,
+            map_static_arguments,
+        })
+    }
+
+    /// Resolve a single static argument to a type id.
+    fn static_argument_type_id(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        argument: &StaticArgument,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<LocalTypeId> {
+        // require an evaluated static argument
+        let StaticArgument::Evaluated { value, .. } = argument else {
+            return Err(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            });
+        };
+
+        // resolve type expressions to concrete ids
+        match value {
+            StaticExpression::Type { ty } => Ok(*ty),
+            StaticExpression::TypeLiteral { value } => {
+                let literal_type_id = types.insert_type_from(
+                    Type::TypeLiteral {
+                        value: value.clone(),
+                    },
+                    origin_id,
+                );
+                Ok(literal_type_id)
+            }
+            _ => Err(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            }),
+        }
+    }
+
+    /// Build a key expression for a record like object property.
+    fn record_key_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        key: DynamicKey,
+        key_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        // require computed keys for non-string index signatures
+        let key_type = types.get_type(key_type_id);
+        let key_is_string = is_string_type(key_type)
+            || matches!(
+                key_type,
+                Type::Reference { symbol, .. }
+                    if self.is_well_known_symbol(profile, *symbol, WellKnownSymbol::String)
+            );
+        let is_static_key = matches!(key, DynamicKey::Name(_) | DynamicKey::Number(_));
+        if is_static_key && !key_is_string {
+            return Err(ElaborateError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            });
+        }
+
+        // use direct expressions for computed keys
+        let key_expression_id = match key {
+            DynamicKey::Expression(expression) => expression,
+            DynamicKey::NamedExpression { key, .. } => key,
+            DynamicKey::Name(name) | DynamicKey::Number(name) => {
+                // create a string literal for static keys
+                let key_expression_id = tree.reserve_from(
+                    NodeType::Expression,
+                    origin_id.into_any(),
+                    tree.get_scope(origin_id),
+                    None,
+                );
+                let key_expression_id = tree.insert(
+                    key_expression_id,
+                    Expression::ScalarLiteral {
+                        value: ScalarLiteral::String(name),
+                    },
+                );
+
+                // assign the key type for literal values
+                types.set_inferred_type(key_expression_id.into_global_any(module.id), key_type_id);
+
+                key_expression_id
+            }
+            DynamicKey::Private(_) => {
+                return Err(ElaborateError::UnsupportedConstruct {
+                    node: origin_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            }
+        };
+
+        Ok(key_expression_id)
+    }
+
+    /// Build a tuple expression for a record entry.
+    fn record_entry_tuple_expression(
+        &self,
+        module: &Module,
+        _profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        key_expression_id: LocalNodeId<Expression>,
+        value_expression_id: LocalNodeId<Expression>,
+        tuple_type_id: LocalTypeId,
+        tree: &mut NodeTree,
+        types: &mut TypeTable,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        // allocate tuple argument nodes
+        let key_argument_id = tree.reserve_from(
+            NodeType::Argument,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let key_argument_id = tree.insert(
+            key_argument_id,
+            Argument::Positional {
+                modifiers: None,
+                value: key_expression_id,
+            },
+        );
+        let value_argument_id = tree.reserve_from(
+            NodeType::Argument,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let value_argument_id = tree.insert(
+            value_argument_id,
+            Argument::Positional {
+                modifiers: None,
+                value: value_expression_id,
+            },
+        );
+
+        // build the tuple expression
+        let tuple_expression_id = tree.reserve_from(
+            NodeType::Expression,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        let tuple_expression_id = tree.insert(
+            tuple_expression_id,
+            Expression::TupleExpression {
+                elements: vec![key_argument_id, value_argument_id],
+            },
+        );
+        types.set_inferred_type(
+            tuple_expression_id.into_global_any(module.id),
+            tuple_type_id,
+        );
+
+        Ok(tuple_expression_id)
+    }
+
+    /// Resolve the Map.from symbol for record like reification.
+    fn map_from_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        map_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> ElaborateResult<GlobalSymbolId> {
+        // locate the member key
+        let name = self.program.strings.intern("from");
+        let member_key = StaticKey::Name(name);
+
+        self.resolve_static_member_symbol(
+            module,
+            profile,
+            origin_id,
+            map_symbol,
+            member_key,
+            tree,
+            symbols,
+            types,
+        )
+        .map_err(|_| ElaborateError::UnsupportedConstruct {
+            node: origin_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        })
+    }
+
+    /// Resolve the Array.fromSized symbol for sized array reification.
+    fn array_from_sized_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        array_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> ElaborateResult<GlobalSymbolId> {
+        // locate the member key
+        let name = self.program.strings.intern("fromSized");
+        let member_key = StaticKey::Name(name);
+
+        self.resolve_static_member_symbol(
+            module,
+            profile,
+            origin_id,
+            array_symbol,
+            member_key,
+            tree,
+            symbols,
+            types,
+        )
+        .map_err(|_| ElaborateError::UnsupportedConstruct {
+            node: origin_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        })
+    }
+
+    /// Build a positional argument for a value expression.
+    fn argument_for_value(
+        &self,
+        origin_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        tree: &mut NodeTree,
+    ) -> LocalNodeId<Argument> {
+        let argument_id = tree.reserve_from(
+            NodeType::Argument,
+            origin_id.into_any(),
+            tree.get_scope(origin_id),
+            None,
+        );
+        tree.insert(
+            argument_id,
+            Argument::Positional {
+                modifiers: None,
+                value: value_id,
+            },
+        )
+    }
+
     /// Check whether a cast operator is numeric.
     fn is_numeric_cast_operator(&self, operator: CastOperator) -> bool {
         // match numeric cast operators
@@ -1320,11 +2223,14 @@ impl Compiler {
 #[cfg(test)]
 mod tests {
     use crate::tests::TestProgram;
+    use destack_workspace::OutputFormat;
 
     #[test]
     fn test_reify_implicit_cast_in_binding() {
         // binding casts are inserted for mismatched types
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1358,7 +2264,9 @@ function test(): float64 {
     #[test]
     fn test_reify_implicit_cast_in_assignment() {
         // assignment casts are inserted for mismatched types
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1394,7 +2302,9 @@ function test(): float64 {
     #[test]
     fn test_reify_implicit_cast_in_return() {
         // return casts are inserted for declared return types
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1426,7 +2336,9 @@ function test(): float64 {
     #[test]
     fn test_reify_implicit_cast_in_call_argument() {
         // call arguments are cast to parameter types
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1466,7 +2378,9 @@ function test(): float64 {
     #[test]
     fn test_reify_implicit_cast_in_ternary() {
         // ternary branches cast to the expression type
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1506,7 +2420,9 @@ function test(condition): float64 {
     #[test]
     fn test_reify_implicit_cast_in_match_expression() {
         // match case expressions cast to the match expression type
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1548,7 +2464,9 @@ function test(condition): float64 {
     #[test]
     fn test_reify_implicit_cast_in_match_block() {
         // match case blocks cast their trailing expressions
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1598,7 +2516,9 @@ function test(condition): float64 {
     #[test]
     fn test_reify_implicit_cast_in_binary_comparison() {
         // comparison expressions cast numeric literals for alignment
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1622,7 +2542,9 @@ function test(value): boolean {
     #[test]
     fn test_reify_implicit_cast_in_binary_arithmetic() {
         // arithmetic expressions do not cast numeric literals
-        let test = TestProgram::memory_sequential();
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -2004,6 +2926,9 @@ function test(): float {
 "#,
         );
 
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -2039,6 +2964,9 @@ function test(): void {
 }
 "#,
         );
+
+        // resolve libs
+        test.resolve_builtins_and_libs();
 
         // run elaborate
         test.elaborate_module(module_id);
@@ -2077,6 +3005,9 @@ function test(): int32 {
 "#,
         );
 
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -2111,6 +3042,9 @@ function test(): float {
 "#,
         );
 
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -2144,6 +3078,9 @@ function test(): object {
 }
 "#,
         );
+
+        // resolve libs
+        test.resolve_builtins_and_libs();
 
         // run elaborate
         test.elaborate_module(module_id);
@@ -2184,6 +3121,9 @@ function test(): Foo {
 "#,
         );
 
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -2202,6 +3142,313 @@ function getObject(): object {
 
 function test(): Foo {
     return getObject() as Foo;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_in_binding() {
+        // record like bindings reify object literals into map construction
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(): Record<string, int32> {
+    let record: Record<string, int32> = { alpha: 1, beta: 2 };
+    return record;
+}
+"#,
+        );
+
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: record literal reifies to Map.from
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(): Record<string, int32> {
+    let record = Map.from([("alpha", 1,), ("beta", 2,)]);
+    return record;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_in_assignment() {
+        // record like assignments reify object literals into map construction
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(): Record<string, int32> {
+    let record: Record<string, int32> = { alpha: 1 };
+    record = { beta: 2 };
+    return record;
+}
+"#,
+        );
+
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: record literals reify to Map.from
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(): Record<string, int32> {
+    let record = Map.from([("alpha", 1,)]);
+    record = Map.from([("beta", 2,)]);
+    return record;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_in_return() {
+        // record like returns reify object literals into map construction
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(): Record<string, int32> {
+    return { beta: 2 };
+}
+"#,
+        );
+
+        // resolve libs
+        test.resolve_builtins_and_libs();
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: record literal reifies to Map.from
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(): Record<string, int32> {
+    return Map.from([("beta", 2,)]);
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_in_call_argument() {
+        // record like arguments reify object literals into map construction
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function take(record: Record<string, int32>): void {
+    return;
+}
+
+function test(): void {
+    take({ beta: 2 });
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: record literal reifies to Map.from
+        test.assert_elaborated(
+            module_id,
+            r#"
+function take(record): void {
+    return;
+}
+
+function test(): void {
+    take(Map.from([("beta", 2,)]));
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_explicit_cast() {
+        // record like explicit casts reify object literals into map construction
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(): Record<string, int32> {
+    return { beta: 2 } as Record<string, int32>;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: record literal reifies to Map.from
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(): Record<string, int32> {
+    return Map.from([("beta", 2,)]);
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_record_like_object_literal_skips_plain_assignment() {
+        // non-record assignments keep object literals
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function buildPlain(): { beta: int32 } {
+    let plain = { beta: 2 } as { beta: int32 };
+    plain = { beta: 4 } as { beta: int32 };
+    return plain;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: object literals remain
+        test.assert_elaborated(
+            module_id,
+            r#"
+function buildPlain(): { beta: int32 } {
+    let plain = { beta: 2 } as { beta: int32 };
+    plain = { beta: 4 } as { beta: int32 };
+    return plain;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_array_sized_value_in_binding() {
+        // sized arrays reify into dynamic arrays in bindings
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(values: int32[3]): int32[] {
+    let dynamic: int32[] = values;
+    return dynamic;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: sized array reifies to Array.fromSized
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(values): int32[] {
+    let dynamic = Array.fromSized(values);
+    return dynamic;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_array_sized_value_in_return() {
+        // sized arrays reify into dynamic arrays in returns
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function build(values: int32[3]): int32[] {
+    return values;
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: sized array reifies to Array.fromSized
+        test.assert_elaborated(
+            module_id,
+            r#"
+function build(values): int32[] {
+    return Array.fromSized(values);
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_array_sized_value_in_call_argument() {
+        // sized arrays reify into dynamic arrays in call arguments
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_output(OutputFormat::Native)
+            .with_profile_libs(&["native"]);
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function take(values: int32[]): void {
+    return;
+}
+
+function test(values: int32[3]): void {
+    take(values);
+}
+"#,
+        );
+
+        // run elaborate
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+
+        // assert elaborated: sized array reifies to Array.fromSized
+        test.assert_elaborated(
+            module_id,
+            r#"
+function take(values): void {
+    return;
+}
+
+function test(values): void {
+    take(Array.fromSized(values));
 }
 "#,
         );

@@ -2,10 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
+use destack_dir::{
+    BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, LocalNodeId, NodeTree,
+    StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable, WellKnownSymbol,
+};
 use destack_workspace::{
-    AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, ProfileId, SymbolGroup,
-    WellKnownSymbols,
+    AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, Module, ProfileId,
+    SymbolGroup, WellKnownSymbols,
 };
 use indexmap::IndexMap;
 
@@ -798,6 +801,142 @@ impl Compiler {
             || self
                 .get_well_known_type_symbol(profile_id, well_known)
                 .is_some_and(|s| s == symbol)
+    }
+
+    /// Resolve a static member symbol for a target symbol using module tables.
+    pub fn resolve_static_member_symbol_in_tables(
+        &self,
+        target_symbol: GlobalSymbolId,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // prefer extensions registered for the target type
+        let extension_ids = types.get_extensions_for_target(target_symbol)?;
+
+        // scan extension declarations for a matching static method
+        for extension_id in extension_ids {
+            // resolve the extension symbol
+            let extension = types.get_extension(*extension_id);
+            let extension_symbol = extension.symbol;
+
+            // collect extension declarations
+            let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
+            let mut declaration_ids = Vec::new();
+            if let Some(primary_declaration) = symbol_entry.primary_declaration {
+                declaration_ids.push(primary_declaration);
+            }
+            if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref() {
+                declaration_ids.extend(secondary_declarations.iter().copied());
+            }
+
+            // scan declaration members for a matching static method
+            for declaration_id in declaration_ids {
+                let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>()
+                else {
+                    continue;
+                };
+                let declaration = tree.get(declaration_id);
+                let Declaration::Extension { members, .. } = declaration else {
+                    continue;
+                };
+
+                for member_id in members {
+                    let member = tree.get(*member_id);
+                    let destack_dir::Member::Method {
+                        modifiers,
+                        key,
+                        symbol,
+                        ..
+                    } = member
+                    else {
+                        continue;
+                    };
+
+                    // require static methods on the extension
+                    let is_static = modifiers
+                        .as_ref()
+                        .and_then(|modifiers| modifiers.anchor)
+                        .is_some_and(|anchor| anchor == BindingAnchor::Static);
+                    if !is_static {
+                        continue;
+                    }
+
+                    // match the member key against the method key
+                    let Some(key) = key else {
+                        continue;
+                    };
+                    let static_key = match key {
+                        DynamicKey::Name(name) => StaticKey::Name(*name),
+                        DynamicKey::Number(name) => StaticKey::Number(*name),
+                        _ => continue,
+                    };
+                    if static_key.matches(&member_key) {
+                        return Some(symbol.into_global(extension_symbol.module_id));
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Resolve a static member symbol for a target symbol across module tables.
+    pub fn resolve_static_member_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        origin_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        member_key: StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> ResolveResult<GlobalSymbolId> {
+        // resolve the member when the target is in the current module
+        if target_symbol.module_id == module.id {
+            let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+                target_symbol,
+                member_key,
+                tree,
+                symbols,
+                types,
+            ) else {
+                return Err(ResolveError::UnsupportedConstruct {
+                    node: origin_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            };
+            return Ok(symbol);
+        }
+
+        self.require_analyze_module(target_symbol.module_id, profile)?;
+
+        // load the target module tables for member lookup
+        let target_module = self.program.modules.get(target_symbol.module_id);
+        let target_module = target_module.read();
+        let target_dir = target_module.dir(profile);
+        let target_tree = target_dir.tree.read();
+        let target_symbols = target_dir.symbols.read();
+        let target_types = target_dir.types.read();
+
+        let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+            target_symbol,
+            member_key,
+            &target_tree,
+            &target_symbols,
+            &target_types,
+        ) else {
+            return Err(ResolveError::UnsupportedConstruct {
+                node: origin_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            });
+        };
+
+        Ok(symbol)
     }
 
     /// Reject multiple builtin lib versions in the same lib set.

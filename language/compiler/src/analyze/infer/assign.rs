@@ -1,9 +1,9 @@
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, Lineage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    PrimitiveType, ScalarLiteral, StaticArgument, SymbolTable, SymbolType, Type, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeTable,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolTable, SymbolType, Type,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, WellKnownSymbol,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
 use super::super::common::{CanonicalSymbolMode, NormalizationMode, RelationMode};
@@ -12,7 +12,16 @@ use super::{
     index_key_kinds_compatible_for_assignability,
 };
 use crate::timing::tags;
-use crate::{AnalyzeError, AnalyzeOptions, Compiler};
+<<<<<<< HEAD
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeWarning, Compiler};
+
+/// Object parts used for record-like assignability checks.
+type RecordLikeObjectParts = (
+    Vec<TypeField>,
+    Vec<LocalTypeId>,
+    Vec<LocalTypeId>,
+    Vec<TypeIndexSignature>,
+);
 
 /// Clear assignability recursion state on drop.
 struct AssignabilityGuard {
@@ -63,6 +72,37 @@ impl Assignability {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Emit implicit collection conversion diagnostics for non-native outputs.
+    fn check_implicit_collection_conversion(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        anchor: LocalNodeIdAny,
+    ) {
+        // native outputs handle this in elaborate reify
+        if self.program.profile(profile).key.output.is_native() {
+            return;
+        }
+
+        // read the conversion policy from dsconfig
+        let policy = self
+            .program
+            .with_dsconfig_options(module, |ds| ds.compiler.implicit_collection_conversions)
+            .unwrap_or(ImplicitCollectionConversionPolicy::Allow);
+
+        // honor the configured policy
+        let node = anchor.into_global(module.id).into_anchored(Some(profile));
+        match policy {
+            ImplicitCollectionConversionPolicy::Allow => {}
+            ImplicitCollectionConversionPolicy::Warn => {
+                self.warning(AnalyzeWarning::ImplicitCollectionConversion { node });
+            }
+            ImplicitCollectionConversionPolicy::Deny => {
+                self.error(AnalyzeError::ImplicitCollectionConversion { node });
+            }
+        }
+    }
+
     /// Check if `source` type is assignable to `target` type.
     /// Returns true if a value of type `source` can be assigned to a location of type `target`.
     pub fn is_type_assignable(
@@ -450,7 +490,86 @@ impl Compiler {
         }
 
         // structural comparison
+        let source_type = source.clone();
         match (target, source) {
+            // record-like targets: treat assignability as structural via index signature
+            (
+                Type::Reference {
+                    symbol: target_symbol,
+                    static_arguments,
+                },
+                source_type,
+            ) if let Some(index_signature) = self.record_like_index_signature_for_target(
+                module,
+                profile,
+                target_symbol,
+                static_arguments.as_deref(),
+                symbols,
+                types,
+                target_id,
+            ) =>
+            {
+                // check implicit collection conversion policy for record-like targets
+                let anchor = types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(module, profile, anchor);
+
+                // accept record-like references when static arguments align
+                if let Type::Reference {
+                    symbol: source_symbol,
+                    static_arguments: ref source_arguments,
+                } = source_type
+                {
+                    let record_symbol =
+                        self.get_well_known_type_symbol(profile, WellKnownSymbol::Record);
+                    let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map);
+                    let is_record_like_source = record_symbol
+                        .is_some_and(|record_symbol| record_symbol == source_symbol)
+                        || map_symbol.is_some_and(|map_symbol| map_symbol == source_symbol);
+                    if is_record_like_source
+                        && self.reference_static_arguments_assignable(
+                            module,
+                            profile,
+                            target_id,
+                            source_id,
+                            target_symbol,
+                            static_arguments.as_ref(),
+                            source_arguments.as_ref(),
+                            symbols,
+                            types,
+                            options,
+                        )
+                    {
+                        return Assignability::Assignable;
+                    }
+                }
+
+                let Some((
+                    source_fields,
+                    _source_call_signatures,
+                    _source_construct_signatures,
+                    source_index_signatures,
+                )) = self.record_like_source_object_parts(&source_type, types)
+                else {
+                    return Assignability::NotAssignable;
+                };
+
+                let target_index_signatures = vec![index_signature];
+                if self.is_index_signatures_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    &target_index_signatures,
+                    &source_index_signatures,
+                    &source_fields,
+                    types,
+                    options,
+                ) {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+
             // type literals: must match exactly (with some exceptions)
             (Type::TypeLiteral { value: target_lit }, Type::TypeLiteral { value: source_lit }) => {
                 self.is_type_literal_assignable(&target_lit, &source_lit, options)
@@ -554,6 +673,10 @@ impl Compiler {
                     ..
                 },
             ) => {
+                // check implicit collection conversion policy for sized arrays
+                let anchor = types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(module, profile, anchor);
+
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
@@ -579,6 +702,10 @@ impl Compiler {
                     ..
                 },
             ) => {
+                // check implicit collection conversion policy for sized arrays
+                let anchor = types.get_type_source(target_id);
+                self.check_implicit_collection_conversion(module, profile, anchor);
+
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
@@ -775,21 +902,29 @@ impl Compiler {
                     construct_signatures: source_construct_signatures,
                     index_signatures: source_index_signatures,
                 },
-            ) => self.is_object_type_assignable(
-                module,
-                profile,
-                symbols,
-                &target_fields,
-                &target_call_signatures,
-                &target_construct_signatures,
-                &target_index_signatures,
-                &source_fields,
-                &source_call_signatures,
-                &source_construct_signatures,
-                &source_index_signatures,
-                types,
-                options,
-            ),
+            ) => {
+                // check implicit collection conversion policy for index signatures
+                if !target_index_signatures.is_empty() {
+                    let anchor = types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(module, profile, anchor);
+                }
+
+                self.is_object_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    &target_fields,
+                    &target_call_signatures,
+                    &target_construct_signatures,
+                    &target_index_signatures,
+                    &source_fields,
+                    &source_call_signatures,
+                    &source_construct_signatures,
+                    &source_index_signatures,
+                    types,
+                    options,
+                )
+            }
 
             // functions: contravariant params, covariant return
             (
@@ -833,20 +968,28 @@ impl Compiler {
                     return_type: source_return,
                     ..
                 },
-            ) => self.is_object_assignable_from_function(
-                module,
-                profile,
-                symbols,
-                &target_fields,
-                &target_call_signatures,
-                &target_construct_signatures,
-                &target_index_signatures,
-                &source_params,
-                &source_this,
-                &source_return,
-                types,
-                options,
-            ),
+            ) => {
+                // check implicit collection conversion policy for index signatures
+                if !target_index_signatures.is_empty() {
+                    let anchor = types.get_type_source(target_id);
+                    self.check_implicit_collection_conversion(module, profile, anchor);
+                }
+
+                self.is_object_assignable_from_function(
+                    module,
+                    profile,
+                    symbols,
+                    &target_fields,
+                    &target_call_signatures,
+                    &target_construct_signatures,
+                    &target_index_signatures,
+                    &source_params,
+                    &source_this,
+                    &source_return,
+                    types,
+                    options,
+                )
+            }
 
             // functions: callable object sources must provide a compatible signature
             (
@@ -1414,41 +1557,32 @@ impl Compiler {
 
                 // structural check: only for interfaces
                 if target_symbol.ty().is_interface()
-                    && let (Some(target_instance_id), Some(source_instance_id)) = (
-                        self.require_instance_type(
-                            module,
-                            profile,
-                            target_source_id,
-                            target_symbol,
-                            symbols,
-                            types,
-                        ),
-                        self.require_instance_type(
-                            module,
-                            profile,
-                            source_source_id,
-                            source_symbol,
-                            symbols,
-                            types,
-                        ),
+                    && let Some(target_instance_id) = self.require_instance_type(
+                        module,
+                        profile,
+                        target_source_id,
+                        target_symbol,
+                        symbols,
+                        types,
                     )
                 {
                     let target_instance = types.get_type(target_instance_id).clone();
-                    let source_instance = types.get_type(source_instance_id).clone();
-                    if let (
-                        Type::Object {
-                            fields: target_fields,
-                            call_signatures: target_call_signatures,
-                            construct_signatures: target_construct_signatures,
-                            index_signatures: target_index_signatures,
-                        },
-                        Type::Object {
-                            fields: source_fields,
-                            call_signatures: source_call_signatures,
-                            construct_signatures: source_construct_signatures,
-                            index_signatures: source_index_signatures,
-                        },
-                    ) = (target_instance, source_instance)
+                    let Some((
+                        source_fields,
+                        source_call_signatures,
+                        source_construct_signatures,
+                        source_index_signatures,
+                    )) = self.record_like_source_object_parts(&source_type, types)
+                    else {
+                        return Assignability::NotAssignable;
+                    };
+
+                    if let Type::Object {
+                        fields: target_fields,
+                        call_signatures: target_call_signatures,
+                        construct_signatures: target_construct_signatures,
+                        index_signatures: target_index_signatures,
+                    } = target_instance
                     {
                         return self.is_object_type_assignable(
                             module,
@@ -1817,6 +1951,137 @@ impl Compiler {
         }
 
         Assignability::Assignable
+    }
+
+    /// Resolve a record-like index signature for the target symbol.
+    fn record_like_index_signature_for_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        target_id: LocalTypeId,
+    ) -> Option<TypeIndexSignature> {
+        // resolve record and map symbols
+        let record_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Record)?;
+        let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map)?;
+        let is_record_like = target_symbol == record_symbol || target_symbol == map_symbol;
+        if !is_record_like {
+            return None;
+        }
+
+        // resolve key and value arguments when available
+        let static_arguments = static_arguments.unwrap_or(&[]);
+        let unknown_literal_type_id = types.intern_literal_type(target_id, TypeLiteral::Unknown);
+        let key_type_id = static_arguments
+            .first()
+            .and_then(|argument| {
+                self.record_like_type_id_for_static_argument(
+                    module, profile, argument, symbols, types, target_id,
+                )
+            })
+            .unwrap_or(unknown_literal_type_id);
+        let value_type_id = static_arguments
+            .get(1)
+            .and_then(|argument| {
+                self.record_like_type_id_for_static_argument(
+                    module, profile, argument, symbols, types, target_id,
+                )
+            })
+            .unwrap_or(unknown_literal_type_id);
+
+        // emit a synthetic index signature
+        let name = self.program.strings.intern("key");
+        Some(TypeIndexSignature {
+            name,
+            key_type: key_type_id,
+            value_type: value_type_id,
+            is_readonly: false,
+        })
+    }
+
+    /// Resolve a static type argument to a type id.
+    fn record_like_type_id_for_static_argument(
+        &self,
+        _module: &Module,
+        _profile: ProfileId,
+        argument: &StaticArgument,
+        _symbols: &SymbolTable,
+        types: &mut TypeTable,
+        target_id: LocalTypeId,
+    ) -> Option<LocalTypeId> {
+        // resolve type expressions to concrete ids when possible
+        match argument {
+            StaticArgument::Unevaluated { .. } => {
+                Some(types.intern_literal_type(target_id, TypeLiteral::Unknown))
+            }
+            StaticArgument::Evaluated { value, .. } => match value {
+                StaticExpression::Type { ty } => Some(*ty),
+                StaticExpression::TypeLiteral { value } => {
+                    Some(types.intern_literal_type(target_id, value.clone()))
+                }
+                _ => Some(types.intern_literal_type(target_id, TypeLiteral::Unknown)),
+            },
+        }
+    }
+
+    /// Read an object type shape for record-like assignability.
+    fn record_like_source_object_parts(
+        &self,
+        source: &Type,
+        types: &TypeTable,
+    ) -> Option<RecordLikeObjectParts> {
+        // map record-like sources to object type parts
+        match source {
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => Some((
+                fields.clone(),
+                call_signatures.clone(),
+                construct_signatures.clone(),
+                index_signatures.clone(),
+            )),
+            Type::Reference { symbol, .. }
+                if matches!(
+                    symbol.ty(),
+                    SymbolType::Interface
+                        | SymbolType::Class
+                        | SymbolType::Struct
+                        | SymbolType::Newtype
+                ) =>
+            {
+                if symbol.ty() == SymbolType::Newtype {
+                    let alias_id = types.get_alias_target_type_id(*symbol)?;
+                    let alias_type = types.get_type(alias_id);
+                    return self.record_like_source_object_parts(alias_type, types);
+                }
+
+                let instance_id = types.get_instance_type_id(*symbol)?;
+                let instance = types.get_type(instance_id);
+                let Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                } = instance
+                else {
+                    return None;
+                };
+
+                Some((
+                    fields.clone(),
+                    call_signatures.clone(),
+                    construct_signatures.clone(),
+                    index_signatures.clone(),
+                ))
+            }
+            _ => None,
+        }
     }
 
     /// Check function assignability from callable object signatures.

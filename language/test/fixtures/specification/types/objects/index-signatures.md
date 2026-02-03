@@ -8,10 +8,10 @@
 
 ```ds
 interface Bag {
-    [key: string]: number
+    [key: string]: number;
 }
 
-const bag = { a: 1, 2: 3 }
+const bag = { a: 1, 2: 3 };
 bag satisfies Bag;
 ```
 
@@ -21,10 +21,10 @@ bag satisfies Bag;
 
 ```ds
 interface Bag {
-    [key: string]: number
+    [key: string]: number;
 }
 
-const bag = { a: 1, b: "two" }
+const bag = { a: 1, b: "two" };
 bag satisfies Bag;
 ```
 
@@ -36,11 +36,11 @@ bag satisfies Bag;
 
 ```ds
 interface Bag {
-    [key: string]: number
+    [key: string]: number;
 }
 
-const bag = { a: 1 } satisfies Bag
-let value: number = bag["a"]
+const bag = { a: 1 } satisfies Bag;
+let value: number = bag["a"];
 ```
 
 ### satisfies does not add index signature
@@ -49,11 +49,11 @@ let value: number = bag["a"]
 
 ```ds
 interface Bag {
-    [key: string]: number
+    [key: string]: number;
 }
 
-const bag = { a: 1 } satisfies Bag
-let value = bag["missing"]
+const bag = { a: 1 } satisfies Bag;
+let value = bag["missing"];
 ```
 
 - contains: indexing non-indexable
@@ -66,10 +66,10 @@ let value = bag["missing"]
 
 ```ds
 interface NumberBag {
-    [key: number]: number
+    [key: number]: number;
 }
 
-const bag = { a: 1 }
+const bag = { a: 1 };
 bag satisfies NumberBag;
 ```
 
@@ -79,10 +79,10 @@ bag satisfies NumberBag;
 
 ```ds
 interface NumberBag {
-    [key: number]: string
+    [key: number]: string;
 }
 
-const bag = { 1: "one", 2: "two" }
+const bag = { 1: "one", 2: "two" };
 bag satisfies NumberBag;
 ```
 
@@ -92,11 +92,11 @@ bag satisfies NumberBag;
 
 ```ds
 interface NumberBag {
-    [key: number]: string
+    [key: number]: string;
 }
 
-const bag: NumberBag = { 1: "one", 2: "two" }
-let value: string | undefined = bag["1"]
+const bag: NumberBag = { 1: "one", 2: "two" };
+let value: string | undefined = bag["1"];
 ```
 
 ### number index signature rejects non numeric string index access
@@ -105,14 +105,52 @@ let value: string | undefined = bag["1"]
 
 ```ds
 interface NumberBag {
-    [key: number]: string
+    [key: number]: string;
 }
 
-const bag: NumberBag = { 1: "one" }
-let value = bag["missing"]
+const bag: NumberBag = { 1: "one" };
+let value = bag["missing"];
 ```
 
 - contains: indexing non-indexable
+
+## record-like assignability
+
+### record-like assignment accepts object literals
+
+> Object literals assignable to index signatures are allowed.
+
+```ds
+type Bag = { [key: string]: int32 };
+
+let bag: Bag = { alpha: 1, beta: 2 };
+```
+
+### record-like assignment accepts structural objects
+
+> Structural object types without index signatures are assignable when fields match.
+
+```ds
+type Bag = { [key: string]: int32 };
+type Point = { x: int32, y: int32 };
+
+let point: Point = { x: 1, y: 2 };
+let bag: Bag = point;
+```
+
+### record-like assignment rejects incompatible field values
+
+> Fields with incompatible value types are rejected.
+
+```ds
+type Bag = { [key: string]: int32 };
+type Mixed = { x: int32, y: string };
+
+let mixed: Mixed = { x: 1, y: "two" };
+let bag: Bag = mixed;
+```
+
+- contains: not assignable
 
 ## noUncheckedIndexedAccess
 
@@ -122,11 +160,11 @@ let value = bag["missing"]
 
 ```ds:main.ds
 interface Bag {
-    [key: string]: int32
+    [key: string]: int32;
 }
 
-const bag: Bag = { a: 1 }
-let value: int32 = bag["a"]
+const bag: Bag = { a: 1 };
+let value: int32 = bag["a"];
 ```
 
 ```ds:package.json
@@ -145,11 +183,11 @@ let value: int32 = bag["a"]
 
 ```ds:main.ds
 interface Bag {
-    [key: string]: int32
+    [key: string]: int32;
 }
 
-const bag: Bag = { a: 1 }
-let value: int32 = bag["a"]
+const bag: Bag = { a: 1 };
+let value: int32 = bag["a"];
 ```
 
 ```ds:package.json

@@ -10,8 +10,8 @@ export struct Map<K, V> {
     buckets: *MapEntry<K, V>,
 }
 
-/// Internal entry structure.
-export struct MapEntry<K, V> {
+// internal entry structure
+struct MapEntry<K, V> {
     key: K,
     value: V,
 }
@@ -24,11 +24,6 @@ extension<K, V> for Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[
     /// Get the number of entries.
     get size(): number {
         this.length as number
-    }
-
-    /// Check if the map is empty.
-    get isEmpty(): boolean {
-        this.length == 0
     }
 
     /// Get a value by key.
@@ -95,8 +90,13 @@ extension<K, V> for Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[
     }
 
     /// Execute function for each entry.
-    forEach(f: (value: V, key: K, map: Map<K, V>) => void): void {
+    forEach(f: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
         // #Incomplete
+    }
+
+    /// Check if the map is empty.
+    get isEmpty(): boolean {
+        this.length == 0
     }
 
     /// Create a new map from entries.

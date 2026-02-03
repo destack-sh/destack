@@ -102,8 +102,8 @@ fn main() -> ExitCode {
     let options = OptimizeOptions::parse();
 
     // determine which suites to run
-    let run_validate = options.validate
-        || (!options.validate && !options.execute && !options.baseline && !options.perf);
+    let run_validate =
+        options.validate || (!options.execute && !options.baseline && !options.perf);
     let run_baseline = options.baseline;
     let run_execute = options.execute;
     let run_perf = options.perf;

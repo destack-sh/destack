@@ -119,7 +119,7 @@ fn bench_parse(criterion: &mut Criterion) {
 }
 
 /// Resolve a single-file path for targeted benchmarks.
-fn resolve_single_file_path(workspace_root: &PathBuf) -> PathBuf {
+fn resolve_single_file_path(workspace_root: &Path) -> PathBuf {
     // use env override if provided
     if let Ok(path) = env::var("DESTACK_PARSE_FILE") {
         return PathBuf::from(path);
@@ -130,7 +130,7 @@ fn resolve_single_file_path(workspace_root: &PathBuf) -> PathBuf {
 }
 
 /// Load a single source file for benchmarking.
-fn load_single_file(path: &PathBuf) -> (Arc<File>, u64) {
+fn load_single_file(path: &Path) -> (Arc<File>, u64) {
     // file type
     let file_type = FileType::from_path_or_unknown(path);
     let is_destack_source = matches!(file_type, FileType::Destack | FileType::DestackDeclaration);

@@ -17,7 +17,7 @@ fn test_to_serde_object() {
     let obj = serde_value.as_object().unwrap();
     assert_eq!(obj.get("name").unwrap().as_str().unwrap(), "test");
     assert_eq!(obj.get("count").unwrap().as_i64().unwrap(), 123);
-    assert_eq!(obj.get("active").unwrap().as_bool().unwrap(), true);
+    assert!(obj.get("active").unwrap().as_bool().unwrap());
 }
 
 /// Converts an array to serde_json.
@@ -32,7 +32,7 @@ fn test_to_serde_array() {
     assert_eq!(arr.len(), 4);
     assert_eq!(arr[0].as_i64().unwrap(), 1);
     assert_eq!(arr[1].as_str().unwrap(), "two");
-    assert_eq!(arr[2].as_bool().unwrap(), true);
+    assert!(arr[2].as_bool().unwrap());
     assert!(arr[3].is_null());
 }
 
