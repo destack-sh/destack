@@ -601,6 +601,7 @@ impl Compiler {
                     self.resolve_declaration(
                         &module,
                         dir,
+                        profile,
                         *declaration_id,
                         &mut tree,
                         &mut symbols,

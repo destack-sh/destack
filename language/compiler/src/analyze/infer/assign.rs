@@ -12,7 +12,6 @@ use super::{
     index_key_kinds_compatible_for_assignability,
 };
 use crate::timing::tags;
-<<<<<<< HEAD
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeWarning, Compiler};
 
 /// Object parts used for record-like assignability checks.

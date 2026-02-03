@@ -4,7 +4,7 @@ use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
 use destack_dir::{
     BindingAnchor, Declaration, DynamicKey, Expression, GlobalSymbolId, LocalNodeId, NodeTree,
-    StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable, WellKnownSymbol,
+    StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable, WellKnownSymbol,
 };
 use destack_workspace::{
     AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, Module, ProfileId,
@@ -27,6 +27,7 @@ struct LoadedLibModules {
     ambient_modules: Vec<destack_source::ModuleId>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Resolve a profile's libraries.
     pub fn resolve_libs(&self, profile_id: ProfileId) -> ResolveResult<()> {
@@ -806,75 +807,145 @@ impl Compiler {
     /// Resolve a static member symbol for a target symbol using module tables.
     pub fn resolve_static_member_symbol_in_tables(
         &self,
+        module: &Module,
+        profile: ProfileId,
         target_symbol: GlobalSymbolId,
         member_key: StaticKey,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> Option<GlobalSymbolId> {
-        // prefer extensions registered for the target type
-        let extension_ids = types.get_extensions_for_target(target_symbol)?;
+        // collect target declarations
+        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        let mut declaration_ids = Vec::new();
+        if let Some(primary_declaration) = symbol_entry.primary_declaration {
+            declaration_ids.push(primary_declaration);
+        }
+        if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref() {
+            declaration_ids.extend(secondary_declarations.iter().copied());
+        }
 
-        // scan extension declarations for a matching static method
-        for extension_id in extension_ids {
-            // resolve the extension symbol
-            let extension = types.get_extension(*extension_id);
-            let extension_symbol = extension.symbol;
+        // scan declaration members for matching static fields or methods
+        for declaration_id in declaration_ids {
+            let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
+                continue;
+            };
+            let declaration = tree.get(declaration_id);
+            let members = match declaration {
+                Declaration::Class { members, .. } => members,
+                Declaration::Struct { members, .. } => members,
+                Declaration::Enum { members, .. } => members,
+                Declaration::Interface { members, .. } => members,
+                _ => continue,
+            };
 
-            // collect extension declarations
-            let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
-            let mut declaration_ids = Vec::new();
-            if let Some(primary_declaration) = symbol_entry.primary_declaration {
-                declaration_ids.push(primary_declaration);
-            }
-            if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref() {
-                declaration_ids.extend(secondary_declarations.iter().copied());
-            }
-
-            // scan declaration members for a matching static method
-            for declaration_id in declaration_ids {
-                let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>()
-                else {
-                    continue;
-                };
-                let declaration = tree.get(declaration_id);
-                let Declaration::Extension { members, .. } = declaration else {
-                    continue;
-                };
-
-                for member_id in members {
-                    let member = tree.get(*member_id);
-                    let destack_dir::Member::Method {
+            for member_id in members {
+                let member = tree.get(*member_id);
+                let (modifiers, key, symbol) = match member {
+                    destack_dir::Member::Field {
                         modifiers,
                         key,
                         symbol,
                         ..
-                    } = member
-                    else {
-                        continue;
-                    };
+                    } => (modifiers, key.as_ref(), *symbol),
+                    destack_dir::Member::Method {
+                        modifiers,
+                        key,
+                        symbol,
+                        ..
+                    } => (modifiers, key.as_ref(), *symbol),
+                    _ => continue,
+                };
 
-                    // require static methods on the extension
-                    let is_static = modifiers
-                        .as_ref()
-                        .and_then(|modifiers| modifiers.anchor)
-                        .is_some_and(|anchor| anchor == BindingAnchor::Static);
-                    if !is_static {
-                        continue;
-                    }
+                // require static members on the declaration
+                let is_static = modifiers
+                    .as_ref()
+                    .and_then(|modifiers| modifiers.anchor)
+                    .is_some_and(|anchor| anchor == BindingAnchor::Static);
+                if !is_static {
+                    continue;
+                }
 
-                    // match the member key against the method key
-                    let Some(key) = key else {
-                        continue;
-                    };
-                    let static_key = match key {
-                        DynamicKey::Name(name) => StaticKey::Name(*name),
-                        DynamicKey::Number(name) => StaticKey::Number(*name),
-                        _ => continue,
-                    };
-                    if static_key.matches(&member_key) {
-                        return Some(symbol.into_global(extension_symbol.module_id));
-                    }
+                // match the member key against the static key
+                let Some(key) = key else {
+                    continue;
+                };
+                let static_key = match key {
+                    DynamicKey::Name(name) => StaticKey::Name(*name),
+                    DynamicKey::Number(name) => StaticKey::Number(*name),
+                    _ => continue,
+                };
+                if static_key.matches(&member_key) {
+                    return Some(symbol.into_global(target_symbol.module_id));
+                }
+            }
+        }
+
+        // scan extension declarations in this module
+        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+            let declaration = tree.get(declaration_id);
+            let Declaration::Extension {
+                target_symbol: Some(extension_target),
+                members,
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            // require a canonical target match
+            let canonical_target = if extension_target.module_id == module.id {
+                let symbol = symbols.get_symbol(extension_target.local_id);
+                symbol.canonical_symbol.unwrap_or(*extension_target)
+            } else {
+                let remote_module = self.program.modules.get(extension_target.module_id);
+                let remote_module = remote_module.read();
+                let remote_symbols = remote_module.dir(profile).symbols.read();
+                let symbol = remote_symbols.get_symbol(extension_target.local_id);
+                symbol.canonical_symbol.unwrap_or(*extension_target)
+            };
+            if canonical_target != target_symbol {
+                continue;
+            }
+
+            // scan extension members for static entries
+            for member_id in members {
+                let member = tree.get(*member_id);
+                let (modifiers, key, symbol) = match member {
+                    destack_dir::Member::Field {
+                        modifiers,
+                        key,
+                        symbol,
+                        ..
+                    } => (modifiers, key.as_ref(), *symbol),
+                    destack_dir::Member::Method {
+                        modifiers,
+                        key,
+                        symbol,
+                        ..
+                    } => (modifiers, key.as_ref(), *symbol),
+                    _ => continue,
+                };
+
+                // require static members on the extension
+                let is_static = modifiers
+                    .as_ref()
+                    .and_then(|modifiers| modifiers.anchor)
+                    .is_some_and(|anchor| anchor == BindingAnchor::Static);
+                if !is_static {
+                    continue;
+                }
+
+                // match the member key against the static key
+                let Some(key) = key else {
+                    continue;
+                };
+                let static_key = match key {
+                    DynamicKey::Name(name) => StaticKey::Name(*name),
+                    DynamicKey::Number(name) => StaticKey::Number(*name),
+                    _ => continue,
+                };
+                if static_key.matches(&member_key) {
+                    return Some(symbol.into_global(module.id));
                 }
             }
         }
@@ -892,16 +963,32 @@ impl Compiler {
         member_key: StaticKey,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> ResolveResult<GlobalSymbolId> {
+        // prefer the canonical symbol when available
+        self.require_resolve_module_canonical(target_symbol.module_id, profile)?;
+        let canonical_symbol = {
+            let module = self.program.modules.get(target_symbol.module_id);
+            let module = module.read();
+            let symbols = module.dir(profile).symbols.read();
+            let symbol = symbols.get_symbol(target_symbol.local_id);
+            symbol.canonical_symbol.unwrap_or(target_symbol)
+        };
+
+        // use the canonical target for member lookup
+        let target_symbol = canonical_symbol;
+
+        // ensure target module symbols are resolved for member lookup
+        self.require_resolve_module_direct(target_symbol.module_id, profile)?;
+
         // resolve the member when the target is in the current module
         if target_symbol.module_id == module.id {
             let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+                module,
+                profile,
                 target_symbol,
                 member_key,
                 tree,
                 symbols,
-                types,
             ) else {
                 return Err(ResolveError::UnsupportedConstruct {
                     node: origin_id
@@ -912,22 +999,20 @@ impl Compiler {
             return Ok(symbol);
         }
 
-        self.require_analyze_module(target_symbol.module_id, profile)?;
-
         // load the target module tables for member lookup
         let target_module = self.program.modules.get(target_symbol.module_id);
         let target_module = target_module.read();
         let target_dir = target_module.dir(profile);
         let target_tree = target_dir.tree.read();
         let target_symbols = target_dir.symbols.read();
-        let target_types = target_dir.types.read();
 
         let Some(symbol) = self.resolve_static_member_symbol_in_tables(
+            &target_module,
+            profile,
             target_symbol,
             member_key,
             &target_tree,
             &target_symbols,
-            &target_types,
         ) else {
             return Err(ResolveError::UnsupportedConstruct {
                 node: origin_id

@@ -1,18 +1,21 @@
 use destack_dir::{
     Declaration, DependencyKind, Expression, GlobalSymbolId, ImportAliasTarget, LocalNodeId,
-    NodeTree, SymbolTable, TypeKind,
+    NodeTree, NodeVisitor, NodeVisitorOptions, SymbolTable, Type, TypeKind, TypeTable,
+    walk_expression,
 };
 
-use destack_workspace::{Module, ModuleDir};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
+use crate::resolve::cache::ResolveExpressionCache;
 use crate::{Compiler, ResolveResult};
 
 impl Compiler {
     /// Resolve a Declaration node (updates target_symbol if applicable).
     pub(super) fn resolve_declaration(
         &self,
-        _module: &Module,
-        _dir: &ModuleDir,
+        module: &Module,
+        dir: &ModuleDir,
+        profile: ProfileId,
         declaration_id: LocalNodeId<Declaration>,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
@@ -24,14 +27,40 @@ impl Compiler {
                 target_symbol,
                 ..
             } => {
+                let target_type = *target_type;
+                let target_symbol = *target_symbol;
+
                 // bail if already resolved
                 if target_symbol.is_some() {
                     return Ok(());
                 }
 
+                // resolve unresolved path nodes inside the target type
+                // (yes this looks like ahack, but avoids resolving things we don't need to too early;
+                //  like if we did this centrally and earlier in resolve/expression or something.)
+                let unresolved_expression_ids = {
+                    let mut collector = UnresolvedExpressionCollector::default();
+                    let expression = tree.get(target_type);
+                    collector.visit_expression(tree, target_type, expression);
+                    collector.unresolved_expression_ids
+                };
+                let mut cache = ResolveExpressionCache::default();
+                for expression_id in unresolved_expression_ids {
+                    self.resolve_expression(
+                        module,
+                        dir,
+                        profile,
+                        expression_id,
+                        tree,
+                        symbols,
+                        &mut cache,
+                    )?;
+                }
+
                 // resolve the target symbol for the extension target
+                let types = dir.types.read();
                 let resolved_target_symbol =
-                    self.target_symbol_for_type_expression(tree, *target_type);
+                    self.target_symbol_for_type_expression(tree, &types, target_type);
                 if let Some(resolved_target_symbol) = resolved_target_symbol
                     && let Declaration::Extension { target_symbol, .. } =
                         tree.get_mut(declaration_id)
@@ -120,6 +149,7 @@ impl Compiler {
     fn target_symbol_for_type_expression(
         &self,
         tree: &NodeTree,
+        types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<GlobalSymbolId> {
         // TODO #Cleanup: move type target resolution into a shared dir helper
@@ -138,12 +168,48 @@ impl Compiler {
             return Some(symbol);
         }
 
+        // allow explicit type expressions
+        if let Expression::Type { value } = expression
+            && let Type::Reference { symbol, .. } = types.get_type(*value)
+        {
+            return Some(*symbol);
+        }
+
         // allow instantiation targets (like `Result<T, E>`)
         if let Expression::Instantiation { left, .. } = expression {
             return tree.get(*left).target_symbol();
         }
 
         None
+    }
+}
+
+/// Collect unresolved path expressions within a subtree.
+#[derive(Default)]
+struct UnresolvedExpressionCollector {
+    /// Visitor options.
+    options: NodeVisitorOptions,
+    /// Unresolved path expressions in the subtree.
+    unresolved_expression_ids: Vec<LocalNodeId<Expression>>,
+}
+
+impl NodeVisitor for UnresolvedExpressionCollector {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        // collect unresolved paths for targeted resolution
+        if matches!(expression, Expression::UnresolvedPath { .. }) {
+            self.unresolved_expression_ids.push(id);
+        }
+
+        walk_expression(self, tree, id, expression);
     }
 }
 
