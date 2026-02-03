@@ -130,35 +130,33 @@ impl Compiler {
                 expressions,
             } => {
                 // namespace bodies disallow top-level await
-                let was_in_namespace = ctx.in_namespace;
-                ctx.in_namespace = true;
-
-                // infer where clauses and walk namespace expressions
-                self.infer_where_clauses_maybe(
-                    module,
-                    generics.where_clauses.as_deref(),
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
-
-                for expression_id in expressions {
-                    if self.expression_requires_infer(module, *expression_id, tree) {
-                        self.infer_expression(
-                            module,
-                            *expression_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
+                ctx.with_namespace(|ctx| -> AnalyzeResult<()> {
+                    // infer where clauses and walk namespace expressions
+                    self.infer_where_clauses_maybe(
+                        module,
+                        generics.where_clauses.as_deref(),
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                    for expression_id in expressions {
+                        if self.expression_requires_infer(module, *expression_id, tree) {
+                            self.infer_expression(
+                                module,
+                                *expression_id,
+                                tree,
+                                symbols,
+                                types,
+                                infer,
+                                ctx,
+                            )?;
+                        }
                     }
-                }
 
-                ctx.in_namespace = was_in_namespace;
+                    Ok(())
+                })?;
             }
 
             // type alias
@@ -867,6 +865,9 @@ impl Compiler {
                 modifiers: _,
                 ..
             } => {
+                // resolve the member symbol for value typing
+                let member_symbol = member.symbol().into_global(module.id);
+
                 // apply decorator options for this method
                 let method_options = {
                     let symbol = symbols.get_symbol(member.symbol());
@@ -933,6 +934,11 @@ impl Compiler {
                         &mut signature_ctx,
                     )?
                 };
+
+                // attach the method type for member symbol lookups
+                if types.get_value_type_id(member_symbol).is_none() {
+                    types.set_value_type(member_symbol, method_ty_id);
+                }
 
                 // prepare the return type for body inference
                 let mut return_type = self.function_return_type(method_ty_id, types);

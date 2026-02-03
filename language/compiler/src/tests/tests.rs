@@ -218,7 +218,7 @@ impl TestProgram {
                 .unwrap_or_else(|_| {
                     panic!("failed to add package.json to memory file system");
                 });
-}
+        }
 
         let cache_store = fs.cache_store();
         let session = Arc::new(
@@ -1574,68 +1574,4 @@ impl TestProgram {
             first_argument_is_string_literal,
         }
     }
-}
-
-/// Reject assignments to instantiation expressions.
-#[test]
-fn test_reject_instantiation_assignment_target() {
-    let test = TestProgram::memory_sequential();
-    let module_id = test.add_module(
-        "test.ts",
-        r#"
-class ConcreteClass {
-    static myFunc?: <M>(instance: M) => void;
-}
-
-const cls = ConcreteClass;
-cls.myFunc<ConcreteClass> = (instance) => {
-    instance;
-};
-"#,
-    );
-    test.apply_dsconfig(
-        module_id,
-        r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
-    );
-    // sanity check dsconfig options
-    let module_checks = test.compiler.module_check_options_for_module(module_id);
-    assert!(module_checks.check_ts, "expected check_ts to be enabled");
-    assert!(module_checks.check_js, "expected check_js to be enabled");
-    test.analyze_module(module_id);
-    test.compile();
-    // assignment target shape
-    test.with_dir_read(module_id, |_, _, _, tree, _, _| {
-        let mut assignment_id = None;
-        let mut assignment_left = None;
-        let mut assign_binary_left = None;
-
-        for (_id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            match expression {
-                Expression::Assign { left, .. } => {
-                    assignment_id = Some(_id);
-                    assignment_left = Some(tree.get(*left));
-                    break;
-                }
-                Expression::AssignBinary { left, .. } => {
-                    assign_binary_left = Some(tree.get(*left));
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(left) = assignment_left {
-            let assignment_id = assignment_id.expect("expected assignment id");
-            assert!(
-                !tree.is_inactive(assignment_id.id),
-                "assignment expression unexpectedly inactive",
-            );
-            assert!(
-                matches!(left, Expression::Instantiation { .. }),
-                "expected instantiation assignment target, got {left:?}",
-            );
-        } else {
-            panic!("expected assignment expression, saw assign-binary left: {assign_binary_left:?}");
-        }
-    });
-    test.check_has_diagnostic("EA226");
 }

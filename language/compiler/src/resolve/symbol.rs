@@ -1085,6 +1085,9 @@ impl Compiler {
         if !is_prelude_module
             && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
         {
+            // canonicalize prelude symbols to avoid alias identity mismatches
+            let prelude_symbol =
+                self.resolve_canonical_symbol_chain(profile, node, prelude_symbol)?;
             return self.resolve_prelude_path(
                 module,
                 expression_id,

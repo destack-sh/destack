@@ -1,5 +1,6 @@
 use destack_dir::{
-    Declaration, DependencyKind, ImportAliasTarget, LocalNodeId, NodeTree, SymbolTable, TypeKind,
+    Declaration, DependencyKind, Expression, GlobalSymbolId, ImportAliasTarget, LocalNodeId,
+    NodeTree, SymbolTable, TypeKind,
 };
 
 use destack_workspace::{Module, ModuleDir};
@@ -28,9 +29,9 @@ impl Compiler {
                     return Ok(());
                 }
 
-                // resolve the target symbol
-                let target_type_expr = tree.get(*target_type);
-                let resolved_target_symbol = target_type_expr.target_symbol();
+                // resolve the target symbol for the extension target
+                let resolved_target_symbol =
+                    self.target_symbol_for_type_expression(tree, *target_type);
                 if let Some(resolved_target_symbol) = resolved_target_symbol
                     && let Declaration::Extension { target_symbol, .. } =
                         tree.get_mut(declaration_id)
@@ -113,6 +114,36 @@ impl Compiler {
 
             _ => Ok(()),
         }
+    }
+
+    /// Resolve a symbol reference from a type expression when possible.
+    fn target_symbol_for_type_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<GlobalSymbolId> {
+        // TODO #Cleanup: move type target resolution into a shared dir helper
+        // unwrap parenthesized type references
+        let mut target_id = expression_id;
+        loop {
+            let Expression::Parenthesized { expression } = tree.get(target_id) else {
+                break;
+            };
+            target_id = *expression;
+        }
+
+        // allow direct references
+        let expression = tree.get(target_id);
+        if let Some(symbol) = expression.target_symbol() {
+            return Some(symbol);
+        }
+
+        // allow instantiation targets (like `Result<T, E>`)
+        if let Expression::Instantiation { left, .. } = expression {
+            return tree.get(*left).target_symbol();
+        }
+
+        None
     }
 }
 

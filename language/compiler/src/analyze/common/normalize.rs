@@ -925,6 +925,7 @@ impl Compiler {
                     module,
                     profile,
                     source_id,
+                    Some(type_id),
                     right,
                     symbols,
                     types,
@@ -1170,26 +1171,13 @@ impl Compiler {
         let left = unwrap_value(left, types);
         let right = unwrap_value(right, types);
 
-        // treat static-dependent checks as undecidable
-        let mut static_visited = HashSet::new();
-        let left_contains_static = self.type_contains_static_parameters(
-            module,
-            profile,
-            left,
-            symbols,
-            types,
-            &mut static_visited,
-        );
-        let mut static_visited = HashSet::new();
-        let right_contains_static = self.type_contains_static_parameters(
-            module,
-            profile,
-            right,
-            symbols,
-            types,
-            &mut static_visited,
-        );
-        let is_decidable = !(left_contains_static || right_contains_static);
+        // TODO #Cleanup: move this instantiation gate into the evaluation boundary once normalization is split
+        // treat instantiation dependent checks as undecidable
+        let left_needs_instantiation =
+            self.type_needs_instantiation(module, profile, left, symbols, types);
+        let right_needs_instantiation =
+            self.type_needs_instantiation(module, profile, right, symbols, types);
+        let is_decidable = !(left_needs_instantiation || right_needs_instantiation);
         let options = self.analyze_context_options_for_module(module.id);
 
         // compute assignability for operator semantics
@@ -1199,6 +1187,7 @@ impl Compiler {
                 module,
                 profile,
                 source_id,
+                None,
                 right,
                 symbols,
                 types,

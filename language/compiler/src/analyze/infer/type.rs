@@ -1316,6 +1316,7 @@ impl Compiler {
                     module,
                     profile,
                     expression_id.into_any(),
+                    None,
                     right_ty_id,
                     symbols,
                     types,
@@ -1534,6 +1535,7 @@ impl Compiler {
                     module,
                     profile,
                     expression_id.into_any(),
+                    None,
                     right_ty_id,
                     symbols,
                     types,
@@ -2372,23 +2374,16 @@ impl Compiler {
             }
         }
 
-        // resolve the canonical symbol for extension lookup
-        let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-
         // step 3: check visible extensions
-        let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) else {
-            return Ok(None);
-        };
-        let extension_ids = extension_ids.clone();
-        for extension_id in extension_ids {
-            let extension = types.get_extension(extension_id);
-            if !self.is_extension_visible(module, extension) {
+        let extension_symbols =
+            self.visible_extension_symbols_for_target(module, profile, symbols, types, symbol)?;
+        for extension_symbol in extension_symbols {
+            let Some(extension) =
+                self.extension_for_symbol_in_module(module, profile, extension_symbol, types)?
+            else {
+                continue;
+            };
+            if !self.is_extension_visible(module, &extension) {
                 continue;
             }
 
@@ -2397,7 +2392,7 @@ impl Compiler {
                 module,
                 profile,
                 node_id,
-                extension.symbol,
+                extension_symbol,
                 symbols,
                 types,
             ) {
@@ -2477,27 +2472,39 @@ impl Compiler {
             }
         }
 
-        // resolve the canonical symbol for extension lookup
-        let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-
         // step 3: check visible extensions
-        let extension_ids = types.get_extensions_for_target(canonical_symbol)?.clone();
-        for extension_id in extension_ids {
-            let extension = types.get_extension(extension_id);
-            if !self.is_extension_visible(module, extension) {
+        let extension_symbols = match self
+            .visible_extension_symbols_for_target(module, profile, symbols, types, symbol)
+        {
+            Ok(symbols) => symbols,
+            Err(AnalyzeError::Yield { .. }) => return None,
+            Err(error) => {
+                self.error(error);
+                return None;
+            }
+        };
+        for extension_symbol in extension_symbols {
+            let extension =
+                match self.extension_for_symbol_in_module(module, profile, extension_symbol, types)
+                {
+                    Ok(extension) => extension,
+                    Err(AnalyzeError::Yield { .. }) => return None,
+                    Err(error) => {
+                        self.error(error);
+                        return None;
+                    }
+                };
+            let Some(extension) = extension else {
+                continue;
+            };
+            if !self.is_extension_visible(module, &extension) {
                 continue;
             }
             if let Some(ty_id) = self.apparent_instance_type(
                 module,
                 profile,
                 node_id,
-                extension.symbol,
+                extension_symbol,
                 symbols,
                 types,
             ) {
@@ -2624,6 +2631,31 @@ impl Compiler {
                 &mut remote_types,
             )?;
             let remote_ty = remote_types.get_type(remote_ty_id);
+            let local_ty = self.import_type_from_remote_for_node(
+                node_id,
+                remote_ty,
+                &remote_types,
+                target_symbol,
+                types,
+            );
+            Ok(local_ty)
+        } else if let Some(primary_declaration) = remote_symbols
+            .get_symbol(target_symbol.local_id)
+            .primary_declaration
+            && primary_declaration.module_id == remote_module_id
+            && let Some(signature_ty_id) =
+                remote_types.get_signature_type_for_node(primary_declaration)
+        {
+            // materialize and import declared member signatures
+            self.materialize_imported_type(
+                &remote_module,
+                profile,
+                signature_ty_id,
+                &remote_tree,
+                &remote_symbols,
+                &mut remote_types,
+            )?;
+            let remote_ty = remote_types.get_type(signature_ty_id);
             let local_ty = self.import_type_from_remote_for_node(
                 node_id,
                 remote_ty,
@@ -3693,6 +3725,7 @@ impl Compiler {
                     profile,
                     canonical_symbol,
                     interface_symbol,
+                    symbols,
                     types,
                 )
             }

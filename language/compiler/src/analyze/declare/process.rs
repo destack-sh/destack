@@ -5,6 +5,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, ModuleCheckOptions, Task,
     TaskDependencyError, TaskResultCollector,
 };
+use destack_builtin::BuiltinLibKind;
 use destack_dir::{LocalTypeId, Type};
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleSource, ProfileId};
@@ -25,6 +26,15 @@ impl Compiler {
             && current_profile.id == profile
         {
             return Ok(());
+        }
+
+        // skip ambient builtin declarations when libs are disabled
+        if !self.options.load_libs {
+            let module = self.program.modules.get(module);
+            let module = module.read();
+            if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib)) {
+                return Ok(());
+            }
         }
 
         let module = self.module_stamp(module);
@@ -142,14 +152,6 @@ impl Compiler {
                 self.ensure_well_known_intrinsics_for_profile(profile),
             );
         }
-
-        // register visible extensions from imported symbols
-        let symbols = dir.symbols.read();
-        self.collect(
-            &mut collector,
-            self.register_visible_extensions(&module, profile, &tree, &symbols, &mut types),
-        );
-
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {
             return Err(AnalyzeError::Yield { dependency });

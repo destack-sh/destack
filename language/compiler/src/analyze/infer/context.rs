@@ -187,6 +187,15 @@ impl InferContext {
         }
     }
 
+    /// Run a closure with namespace context enabled.
+    pub fn with_namespace<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
+        let was_in_namespace = self.in_namespace;
+        self.in_namespace = true;
+        let result = f(self);
+        self.in_namespace = was_in_namespace;
+        result
+    }
+
     /// Return the cache key for literal widening.
     pub fn widening_cache_key(&self) -> u64 {
         (self.widening_mode as u64)

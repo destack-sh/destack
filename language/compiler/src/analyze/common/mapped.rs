@@ -46,6 +46,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         source_id: LocalNodeIdAny,
+        keyof_type_id: Option<LocalTypeId>,
         right: LocalTypeId,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -56,6 +57,16 @@ impl Compiler {
         // key queries should always use type operations semantics
         let key_relation_mode = RelationMode::TYPE_OPS;
 
+        // TODO #Cleanup: move this instantiation gate into structural normalization, keep keyof unevaluated until inference binds parameters
+        // preserve keyof when the operand still depends on instantiation
+        let needs_instantiation =
+            self.type_needs_instantiation(module, profile, right, symbols, types);
+        let normalize_mode = if needs_instantiation {
+            NormalizationMode::Flow
+        } else {
+            mode
+        };
+
         // normalize the operand before extracting keys
         let normalized_right = self.normalize_type_inner(
             module,
@@ -63,10 +74,23 @@ impl Compiler {
             right,
             symbols,
             types,
-            mode,
+            normalize_mode,
             key_relation_mode,
             visited,
         );
+
+        if needs_instantiation {
+            if let Some(keyof_type_id) = keyof_type_id
+                && normalized_right == right
+            {
+                return keyof_type_id;
+            }
+            let normalized = Type::Unary {
+                operator: TypeUnaryOperator::Keyof,
+                right: normalized_right,
+            };
+            return types.insert_type_from_any(normalized, source_id);
+        }
 
         // treat unconstrained type parameters as keyof any
         if let Type::Reference { symbol, .. } = types.get_type(normalized_right) {
@@ -2155,6 +2179,7 @@ impl Compiler {
                     module,
                     profile,
                     source_id,
+                    Some(type_id),
                     right,
                     symbols,
                     types,
@@ -2162,6 +2187,16 @@ impl Compiler {
                     relation_mode,
                     &mut normalize_visited,
                 );
+                if let Type::Unary {
+                    operator: TypeUnaryOperator::Keyof,
+                    right,
+                } = types.get_type(normalized)
+                    && self.type_needs_instantiation(module, profile, *right, symbols, types)
+                {
+                    // TODO #Cleanup: remove this bailout once key collection uses structural normalization
+                    // avoid recursing on unresolved keyof shapes
+                    return;
+                }
                 self.collect_mapped_keys_for_type_inner(
                     module,
                     profile,

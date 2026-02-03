@@ -4,18 +4,20 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 
 ## Status
 
+The pass rate intentionally excludes the explicitly skipped tests.
+
 <!-- (results are automatically updated by the conformance test runner) -->
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   693  |     0  |    22  |   693 | 100.00% |
-| biome    |   428  |   209  |     -  |   637 |  67.19% |
+| biome    |   489  |   148  |     -  |   637 |  76.77% |
 | swc      |   527  |     0  |    11  |   527 | 100.00% |
-| test262  |  4230  |  1133  |     -  |  5363 |  78.87% |
+| test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  5878  |  1342  |     33  |  7220 |  81.41% |
+| total    |  6119  |  1101  |     33  |  7220 |  84.75% |
 
-Total Blended Pass Rate: **81.41%**
+Total Blended Pass Rate: **84.75%**
 <!-- end:summary-results -->
 
 ### babel
@@ -67,10 +69,10 @@ Total Blended Pass Rate: **81.41%**
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| error                |   165  |   137  |       -  |   302 |  54.64% |
-| ok                   |   263  |    72  |       -  |   335 |  78.51% |
+| error                |   197  |   105  |       -  |   302 |  65.23% |
+| ok                   |   292  |    43  |       -  |   335 |  87.16% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   428  |   209  |       -  |   637 |  67.19% |
+| total                |   489  |   148  |       -  |   637 |  76.77% |
 <!-- end:biome-results -->
 
 ### swc
@@ -130,12 +132,12 @@ Total Blended Pass Rate: **81.41%**
 <!-- begin:test262-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| early                |   216  |   452  |       -  |   668 |  32.34% |
-| fail                 |   341  |   388  |       -  |   729 |  46.78% |
-| pass                 |  1809  |   174  |       -  |  1983 |  91.23% |
-| pass-explicit        |  1864  |   119  |       -  |  1983 |  94.00% |
+| early                |   338  |   330  |       -  |   668 |  50.60% |
+| fail                 |   380  |   349  |       -  |   729 |  52.13% |
+| pass                 |  1829  |   154  |       -  |  1983 |  92.23% |
+| pass-explicit        |  1863  |   120  |       -  |  1983 |  93.95% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |  4230  |  1133  |       -  |  5363 |  78.87% |
+| total                |  4410  |   953  |       -  |  5363 |  82.23% |
 <!-- end:test262-results -->
 
 ## Notes
