@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, EnumKind, GlobalNodeIdAny, LocalSymbolId, NodeTree,
-    NodeType, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolType,
+    Declaration, DependencyItem, DependencyKind, EnumKind, GlobalNodeIdAny, LocalSymbolId,
+    NodeTree, NodeType, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolType,
 };
 use destack_workspace::Module;
 
@@ -12,12 +12,13 @@ use crate::{Compiler, ImportError};
 impl Compiler {
     /// Check for conflicting bindings in module scopes.
     pub(super) fn validate_binding_conflicts(&self, module: &Module) {
+        // resolve local redeclaration policy
         let no_redeclare_locals = self
             .program
             .with_dsconfig_options(module, |opts| opts.compiler.no_redeclared_locals)
             .unwrap_or(!module.language_type.is_destack());
 
-        // cross check all named symbols in all scopes in the module
+        // load symbol tables
         let tree = module.dir_base().tree.read();
         let symbols = module.dir_base().symbols.read();
 
@@ -31,9 +32,8 @@ impl Compiler {
                     continue;
                 };
 
-                if let Some((node, other_node)) =
-                    self.enum_kind_mismatch_nodes(&tree, symbol)
-                {
+                // detect enum kind mismatches within a single symbol
+                if let Some((node, other_node)) = self.enum_kind_mismatch_nodes(&tree, symbol) {
                     let error = ImportError::ConflictingBinding {
                         node: node.into_anchored(None),
                         other_node: other_node.into_anchored(None),
@@ -43,8 +43,9 @@ impl Compiler {
                     self.error(error);
                 }
 
-                let category = SymbolCategory::from(symbol);
+                // compare against previously seen symbols with the same name
                 let entry = buckets.entry(key).or_default();
+                let category = SymbolCategory::from(symbol);
                 for other_symbol_id in entry.values() {
                     if *other_symbol_id == symbol_id {
                         continue;
@@ -69,19 +70,16 @@ impl Compiler {
                         continue;
                     }
 
-                    // local conflicts are allowed unless configured otherwise, parameters always conflict
-                    // (parameter bindings are "local", but conflicts are errors, even with no_redeclare_locals)
+                    // local conflicts are allowed unless configured otherwise
+                    let is_local_pair =
+                        symbol.kind == SymbolKind::Local && other_symbol.kind == SymbolKind::Local;
+                    let is_parameter_pair = self.is_parameter_binding(&tree, symbol)
+                        || self.is_parameter_binding(&tree, other_symbol);
                     let is_strict_local_conflict =
-                        matches!(symbol.ty, SymbolType::TypeAlias | SymbolType::Newtype)
-                            || matches!(
-                                other_symbol.ty,
-                                SymbolType::TypeAlias | SymbolType::Newtype
-                            );
-                    if symbol.kind == SymbolKind::Local
-                        && other_symbol.kind == SymbolKind::Local
+                        self.is_strict_local_conflict(symbol, other_symbol);
+                    if is_local_pair
                         && !no_redeclare_locals
-                        && !self.is_parameter_binding(&tree, symbol)
-                        && !self.is_parameter_binding(&tree, other_symbol)
+                        && !is_parameter_pair
                         && !is_strict_local_conflict
                     {
                         continue;
@@ -114,6 +112,13 @@ impl Compiler {
         }
     }
 
+    /// Check if the symbols are a strict local conflict.
+    fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {
+        matches!(left.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+            || matches!(right.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+    }
+
+    /// Check if the symbols are a const enum mismatch.
     fn is_const_enum_mismatch(&self, tree: &NodeTree, left: &Symbol, right: &Symbol) -> bool {
         let Some(left_kind) = self.enum_kind_for_symbol(tree, left) else {
             return false;
@@ -124,6 +129,7 @@ impl Compiler {
         left_kind != right_kind
     }
 
+    /// Get the enum kind for a symbol.
     fn enum_kind_for_symbol(&self, tree: &NodeTree, symbol: &Symbol) -> Option<EnumKind> {
         let primary = symbol.primary_declaration?;
         if primary.local_id.ty != NodeType::Declaration {
@@ -136,6 +142,7 @@ impl Compiler {
         }
     }
 
+    /// Get the enum kind for a declaration.
     fn enum_kind_for_declaration(
         &self,
         tree: &NodeTree,
@@ -151,6 +158,7 @@ impl Compiler {
         }
     }
 
+    /// Check if the nodes are a enum kind mismatch.
     fn enum_kind_mismatch_nodes(
         &self,
         tree: &NodeTree,
@@ -161,9 +169,7 @@ impl Compiler {
         }
         let primary = symbol.primary_declaration?;
         let primary_kind = self.enum_kind_for_declaration(tree, primary)?;
-        let Some(secondaries) = symbol.secondary_declarations.as_deref() else {
-            return None;
-        };
+        let secondaries = symbol.secondary_declarations.as_deref()?;
         for secondary in secondaries {
             let Some(kind) = self.enum_kind_for_declaration(tree, *secondary) else {
                 continue;
@@ -175,6 +181,7 @@ impl Compiler {
         None
     }
 
+    /// Check if the symbols are a type value import conflict.
     fn is_type_value_import_conflict(
         &self,
         tree: &NodeTree,
@@ -190,6 +197,7 @@ impl Compiler {
         left_kind != right_kind
     }
 
+    /// Get the dependency kind for a symbol.
     fn dependency_kind_for_symbol(
         &self,
         tree: &NodeTree,

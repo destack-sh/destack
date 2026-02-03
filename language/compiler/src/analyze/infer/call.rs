@@ -204,9 +204,12 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        prefilled_static_arguments: Option<&[StaticArgument]>,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
         signature_ty_id: LocalTypeId,
         call_receiver_ty_id: Option<LocalTypeId>,
+        expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
         profile: ProfileId,
@@ -255,10 +258,13 @@ impl Compiler {
             expression_id.into_any(),
             callee_symbol,
             static_arguments,
+            prefilled_static_arguments,
+            bound_substitutions,
             dynamic_arguments,
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            expected_return_type,
             mode,
             allow_missing_value_arguments,
             profile,
@@ -300,6 +306,8 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        prefilled_static_arguments: Option<&[StaticArgument]>,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         signature_ids: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
@@ -324,6 +332,8 @@ impl Compiler {
             expression_id,
             callee_symbol,
             static_arguments,
+            prefilled_static_arguments,
+            bound_substitutions,
             signature_ids,
             dynamic_arguments,
             call_receiver_ty_id,
@@ -358,6 +368,8 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        prefilled_static_arguments: Option<&[StaticArgument]>,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         signature_ids: &[LocalTypeId],
         dynamic_arguments: &[LocalNodeId<Argument>],
         call_receiver_ty_id: Option<LocalTypeId>,
@@ -378,9 +390,12 @@ impl Compiler {
                 expression_id,
                 callee_symbol,
                 static_arguments,
+                prefilled_static_arguments,
+                bound_substitutions,
                 Some(dynamic_arguments),
                 *signature_ty_id,
                 call_receiver_ty_id,
+                None,
                 mode,
                 true,
                 profile,
@@ -708,6 +723,7 @@ impl Compiler {
             let Some(constraint_id) = constraint_id else {
                 continue;
             };
+            // TODO #Cleanup: move bound substitutions into a shared instantiation context
             let constraint_id = if let Some(bound_substitutions) = bound_substitutions
                 && !bound_substitutions.is_empty()
             {
@@ -1184,12 +1200,17 @@ impl Compiler {
 
             // resolve call signatures for the member type
             let call_signatures = self.call_signatures_for_type(member_ty_id, types);
+
             let (_signature_ty_id, resolved) = if call_signatures.len() > 1 {
                 let selection = self.select_call_signature(
                     module,
                     expression_id,
                     Some(member_symbol),
                     static_arguments,
+                    extension_context
+                        .as_ref()
+                        .map(|context| context.arguments.as_slice()),
+                    (!substitutions.is_empty()).then_some(&substitutions),
                     &call_signatures,
                     dynamic_arguments,
                     Some(*element_id),
@@ -1217,9 +1238,14 @@ impl Compiler {
                     expression_id,
                     Some(member_symbol),
                     static_arguments,
+                    extension_context
+                        .as_ref()
+                        .map(|context| context.arguments.as_slice()),
+                    (!substitutions.is_empty()).then_some(&substitutions),
                     Some(dynamic_arguments),
                     signature_ty_id,
                     Some(*element_id),
+                    None,
                     SignatureResolutionMode::Inference,
                     false,
                     profile,
@@ -1312,6 +1338,7 @@ impl Compiler {
         let mut call_member_resolution = None;
         let mut call_receiver_ty_id = None;
         let mut member_call_context = None;
+        let mut prefilled_static_arguments = None;
         let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, tree);
 
         // resolve inherited static arguments and the callee symbol
@@ -1372,6 +1399,23 @@ impl Compiler {
                     _ => None,
                 };
                 call_member_resolution = Some(member_resolution);
+
+                // resolve extension arguments for member calls
+                if let Some(member_symbol) = member_symbol
+                    && let Some(context) = self.resolve_extension_member_context(
+                        module,
+                        ctx.profile,
+                        receiver_id.into_any(),
+                        member_symbol,
+                        &inherited_static_arguments,
+                        &options,
+                        tree,
+                        symbols,
+                        types,
+                    )?
+                {
+                    prefilled_static_arguments = Some(context.arguments);
+                }
 
                 // prefer member instance arguments when static arguments live on the member
                 let member_has_static_arguments = member_static_arguments
@@ -1658,12 +1702,17 @@ impl Compiler {
 
         let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
         let ty_id = if !call_signatures.is_empty() {
+            let bound_substitutions =
+                (!inherited_substitutions.is_empty()).then_some(&inherited_substitutions);
+
             // select the matching overload
             let selection = self.select_call_signature(
                 module,
                 expression_id,
                 callee_symbol,
                 effective_static_arguments,
+                prefilled_static_arguments.as_deref(),
+                bound_substitutions,
                 &call_signatures,
                 dynamic_arguments,
                 call_receiver_ty_id,
@@ -1708,9 +1757,12 @@ impl Compiler {
                     expression_id,
                     callee_symbol,
                     effective_static_arguments,
+                    prefilled_static_arguments.as_deref(),
+                    bound_substitutions,
                     Some(dynamic_arguments),
                     signature_ty_id,
                     call_receiver_ty_id,
+                    ctx.expected_type,
                     SignatureResolutionMode::Inference,
                     false,
                     ctx.profile,
@@ -1967,6 +2019,8 @@ impl Compiler {
                 expression_id,
                 callee_symbol,
                 static_arguments,
+                None,
+                None,
                 &construct_signatures,
                 dynamic_arguments,
                 None,
@@ -2011,9 +2065,12 @@ impl Compiler {
                     expression_id,
                     callee_symbol,
                     static_arguments,
+                    None,
+                    None,
                     Some(dynamic_arguments),
                     signature_ty_id,
                     None,
+                    ctx.expected_type,
                     SignatureResolutionMode::Inference,
                     false,
                     ctx.profile,
@@ -2185,10 +2242,13 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        prefilled_static_arguments: Option<&[StaticArgument]>,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
         profile: ProfileId,
@@ -2203,10 +2263,13 @@ impl Compiler {
             node_id,
             owner_symbol,
             static_arguments,
+            prefilled_static_arguments,
+            bound_substitutions,
             dynamic_arguments,
             static_parameters,
             dynamic_parameters,
             return_type,
+            expected_return_type,
             mode,
             allow_missing_value_arguments,
             profile,
@@ -2235,10 +2298,13 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_argument_ids: Option<&[LocalNodeId<Argument>]>,
+        prefilled_static_arguments: Option<&[StaticArgument]>,
+        bound_substitutions: Option<&HashMap<GlobalSymbolId, LocalTypeId>>,
         dynamic_argument_ids: Option<&[LocalNodeId<Argument>]>,
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
+        expected_return_type: Option<LocalTypeId>,
         mode: SignatureResolutionMode,
         allow_missing_value_arguments: bool,
         profile: ProfileId,
@@ -2302,18 +2368,58 @@ impl Compiler {
                 node: argument_id.into_global_any(module.id),
             })
             .collect::<Vec<_>>();
-        let assigned_arguments = self.assign_static_argument_values(
+        let prefilled_arguments = prefilled_static_arguments.unwrap_or(&[]);
+        let prefilled_count = prefilled_arguments.len().min(static_parameters.len());
+        let parameters_for_call = static_parameters.get(prefilled_count..).unwrap_or_default();
+        let assigned_for_call = self.assign_static_argument_values(
             module,
             profile,
             node_id,
             &argument_values,
-            &static_parameters,
+            parameters_for_call,
             tree,
             symbols,
         );
+        let mut assigned_arguments: Vec<Option<StaticArgument>> =
+            vec![None; static_parameters.len()];
+        for (index, argument) in prefilled_arguments.iter().take(prefilled_count).enumerate() {
+            assigned_arguments[index] = Some(argument.clone());
+        }
+        for (index, argument) in assigned_for_call.into_iter().enumerate() {
+            let target_index = prefilled_count + index;
+            if target_index >= assigned_arguments.len() {
+                break;
+            }
+            if assigned_arguments[target_index].is_none() {
+                assigned_arguments[target_index] = argument;
+            }
+        }
 
         // resolve each parameter and build substitutions
         let mut substitutions = HashMap::new();
+        let mut bound_substitutions = bound_substitutions.cloned().unwrap_or_default();
+
+        // infer missing static arguments from an expected return type
+        let expected_return_mapping = if mode == SignatureResolutionMode::Inference {
+            if let (Some(return_type), Some(expected_return_type)) =
+                (return_type, expected_return_type)
+            {
+                self.static_arguments_from_expected_return_type(
+                    module,
+                    profile,
+                    return_type,
+                    expected_return_type,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
         let mut has_missing_value_argument = false;
         let mut has_value_substitution = false;
@@ -2334,6 +2440,34 @@ impl Compiler {
                 } else {
                     None
                 }
+            } else {
+                None
+            };
+
+            // inherit missing type arguments from the expected return type
+            let expected_argument = if assigned_argument.is_none()
+                && static_parameter.kind == StaticParameterKind::Type
+            {
+                expected_return_mapping
+                    .as_ref()
+                    .and_then(|mapping| mapping.get(&static_parameter.symbol))
+                    .cloned()
+            } else {
+                None
+            };
+
+            // resolve expected argument values when present
+            let expected_argument = if let Some(expected_argument) = expected_argument {
+                self.resolve_static_argument(
+                    module,
+                    profile,
+                    static_parameter,
+                    Some(expected_argument),
+                    true,
+                    tree,
+                    symbols,
+                    types,
+                )?
             } else {
                 None
             };
@@ -2366,6 +2500,8 @@ impl Compiler {
                 None => {
                     if let Some(inferred_argument) = inferred_argument {
                         inferred_argument
+                    } else if let Some(expected_argument) = expected_argument {
+                        expected_argument
                     } else {
                         if static_parameter.kind == StaticParameterKind::Value
                             && mode == SignatureResolutionMode::Inference
@@ -2415,7 +2551,7 @@ impl Compiler {
                 static_parameter,
                 &resolved_argument,
                 materialized_substitution,
-                &substitutions,
+                &bound_substitutions,
                 tree,
                 symbols,
                 types,
@@ -2423,6 +2559,7 @@ impl Compiler {
                 options,
             )? {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
+                bound_substitutions.insert(static_parameter.symbol, substitution_ty_id);
 
                 if static_parameter.kind == StaticParameterKind::Value
                     && !matches!(types.get_type(substitution_ty_id), Type::Error)
@@ -2680,9 +2817,12 @@ impl Compiler {
             member_symbol,
             None,
             None,
+            (!substitutions.is_empty()).then_some(&substitutions),
+            None,
             &static_parameters,
             &dynamic_parameters,
             return_type,
+            None,
             SignatureResolutionMode::Checking,
             false,
             profile,

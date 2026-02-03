@@ -513,14 +513,6 @@ impl Compiler {
 
         let options = ctx.options;
 
-        // validate assignment target shape
-        if !self.is_valid_assignment_target(tree, left_id) {
-            let node = left_id
-                .into_global_any(module.id)
-                .into_anchored(Some(ctx.profile));
-            self.error(AnalyzeError::InvalidAssignmentTarget { node });
-        }
-
         // route index assignment to index set resolution
         if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
             return self.infer_index_assignment_expression(
@@ -1488,9 +1480,7 @@ impl Compiler {
                             .into_anchored(Some(ctx.profile)),
                         receiver_ty: left_ty_id.into_global(module.id),
                     });
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
+                    let ty = Type::Error;
                     return Ok(types.insert_type_from(ty, expression_id));
                 }
 
@@ -1515,9 +1505,7 @@ impl Compiler {
                             .into_anchored(Some(ctx.profile)),
                         receiver_ty: element_id.into_global(module.id),
                     });
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
+                    let ty = Type::Error;
                     return Ok(types.insert_type_from(ty, expression_id));
                 }
 
@@ -1600,9 +1588,7 @@ impl Compiler {
                     .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
+            let ty = Type::Error;
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
@@ -1629,9 +1615,7 @@ impl Compiler {
                     .into_anchored(Some(ctx.profile)),
                 receiver_ty: left_ty_id.into_global(module.id),
             });
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
+            let ty = Type::Error;
             return Ok(types.insert_type_from(ty, expression_id));
         }
 

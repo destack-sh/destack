@@ -2,6 +2,7 @@ mod canonical;
 mod conditional;
 mod context;
 mod declarator;
+mod extension;
 mod global;
 mod json;
 mod key;

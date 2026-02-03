@@ -3,6 +3,8 @@ use std::path::Path;
 use std::process::{Command, ExitCode};
 
 use clap::{Parser, ValueEnum};
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::prelude::*;
 
 use destack_test::harness::{Runner, Suite, TestOptions, fixtures_dir};
 use destack_test::mdtest::discover_md_files;
@@ -31,6 +33,8 @@ struct SpecificationOptions {
 }
 
 fn main() -> ExitCode {
+    init_tracing();
+
     // increase worker stack size to reduce aborts from deep type recursion
     unsafe {
         // safe: set once before worker threads spawn
@@ -48,6 +52,18 @@ fn main() -> ExitCode {
     }
 
     run_isolated(&options.test, options.isolate)
+}
+
+fn init_tracing() {
+    // enable tracing when RUST_LOG is set
+    if std::env::var_os("RUST_LOG").is_none() {
+        return;
+    }
+
+    let _ = tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer().with_test_writer())
+        .try_init();
 }
 
 fn run_isolated(options: &TestOptions, isolate: IsolationLevel) -> ExitCode {

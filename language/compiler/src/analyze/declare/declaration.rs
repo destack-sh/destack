@@ -801,8 +801,8 @@ impl Compiler {
                 )?;
 
                 // build instance shape from members
-                let shape =
-                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+                let shape = self
+                    .declare_member_shape(module, profile, members, None, tree, symbols, types)?;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
@@ -995,8 +995,16 @@ impl Compiler {
                 }
 
                 // build the extension instance shape
-                let shape =
-                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+                let extension_static_parameters = generics.static_parameters.as_deref();
+                let shape = self.declare_member_shape(
+                    module,
+                    profile,
+                    members,
+                    extension_static_parameters,
+                    tree,
+                    symbols,
+                    types,
+                )?;
                 let instance_ty = shape.into_object_type();
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
                 types.set_instance_type(extension_symbol, instance_ty_id);
@@ -1283,6 +1291,62 @@ impl Compiler {
         }
 
         placeholders
+    }
+
+    /// Prepend extension static parameters to a function signature when needed.
+    fn extend_signature_static_parameters(
+        &self,
+        module: &Module,
+        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        ty: Type,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Type {
+        // TODO #Cleanup: fold extension static parameters during type evaluation once instantiation boundaries are explicit
+        let Some(extension_static_parameters) = extension_static_parameters else {
+            return ty;
+        };
+
+        let Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+        } = ty
+        else {
+            return ty;
+        };
+
+        let extension_placeholders = self.static_parameter_placeholders_for_declaration(
+            module,
+            Some(extension_static_parameters),
+            tree,
+            types,
+        );
+        if extension_placeholders.is_empty() {
+            return Type::Function {
+                asynchrony,
+                cardinality,
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+            };
+        }
+
+        let mut combined = extension_placeholders;
+        combined.extend(static_parameters);
+
+        Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters: combined,
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+        }
     }
 
     /// Declare instance and value shapes for a list of members.
@@ -1646,6 +1710,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         members: &[LocalNodeId<Member>],
+        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1660,6 +1725,7 @@ impl Compiler {
                 module,
                 profile,
                 *member_id,
+                extension_static_parameters,
                 tree,
                 symbols,
                 types,
@@ -1677,6 +1743,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         member_id: LocalNodeId<Member>,
+        extension_static_parameters: Option<&[LocalNodeId<Parameter>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1810,6 +1877,13 @@ impl Compiler {
                         types,
                         defer_type_evaluation,
                     )?;
+                    let ty = self.extend_signature_static_parameters(
+                        module,
+                        extension_static_parameters,
+                        ty,
+                        tree,
+                        types,
+                    );
                     let ty_id = types.insert_type_from_any(ty, member_id.into_any());
 
                     // record the declared signature for inference
@@ -1845,6 +1919,13 @@ impl Compiler {
                     types,
                     defer_type_evaluation,
                 )?;
+                let ty = self.extend_signature_static_parameters(
+                    module,
+                    extension_static_parameters,
+                    ty,
+                    tree,
+                    types,
+                );
                 let ty_id = types.insert_type_from_any(ty, member_id.into_any());
 
                 // record the declared signature for inference

@@ -23,6 +23,9 @@ impl Compiler {
             Expression::Assign { left, .. } => {
                 self.validate_assignment_target(module, profile, tree, *left);
             }
+            Expression::AssignBinary { left, .. } => {
+                self.validate_assignment_target(module, profile, tree, *left);
+            }
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => {
@@ -829,5 +832,54 @@ impl Compiler {
             }
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::TestProgram;
+    use destack_dir::Expression;
+
+    /// Reject assignments to instantiation expressions.
+    #[test]
+    fn test_reject_instantiation_assignment_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ts",
+            r#"
+class ConcreteClass {
+    static myFunc?: <M>(instance: M) => void;
+}
+
+const cls = ConcreteClass;
+cls.myFunc<ConcreteClass> = (instance) => {
+    instance;
+};
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        // confirm assignment target shape
+        test.with_dir_read(module_id, |_, _, _, tree, symbols, _| {
+            for (id, expression) in tree.iter_nodes_of_type::<Expression>() {
+                let Expression::Assign { left, .. } = expression else {
+                    continue;
+                };
+
+                let is_active = test.compiler.is_node_active(tree, symbols, id.into_any());
+                assert!(is_active, "assignment expression unexpectedly inactive");
+
+                let is_valid = test.compiler.is_valid_assignment_target(tree, *left);
+                assert!(!is_valid, "assignment target was unexpectedly valid");
+                return;
+            }
+
+            panic!("expected assignment expression");
+        });
+        test.check_has_diagnostic("EA226");
     }
 }

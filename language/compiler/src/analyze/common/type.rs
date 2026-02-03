@@ -908,6 +908,46 @@ impl Compiler {
         visitor.found
     }
 
+    /// Check whether a type needs instantiation before evaluation.
+    pub(crate) fn type_needs_instantiation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // TODO #Cleanup: centralize this gate in the evaluation boundary once we split structural and evaluative normalization
+        // check for free static parameter references
+        let mut static_visited = HashSet::new();
+        let bound = HashSet::new();
+        if self.type_contains_free_static_parameters(
+            module,
+            profile,
+            type_id,
+            &bound,
+            symbols,
+            types,
+            &mut static_visited,
+        ) {
+            return true;
+        }
+
+        // check for inference variables
+        let mut infer_visited = HashSet::new();
+        if self.type_contains_infer_vars(type_id, types, &mut infer_visited) {
+            return true;
+        }
+
+        // check for conditional infer bindings
+        let mut binding_visited = HashSet::new();
+        if self.type_contains_infer(type_id, types, &mut binding_visited) {
+            return true;
+        }
+
+        false
+    }
+
     /// Ensure a type id is evaluated when it is unevaluated.
     pub(crate) fn ensure_type_evaluated(
         &self,

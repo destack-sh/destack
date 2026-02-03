@@ -1,6 +1,5 @@
 use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
-use crate::analyze::common::CanonicalSymbolMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
@@ -271,7 +270,7 @@ impl Compiler {
         )?;
         // prefer declared or inferred symbol types for resolved members
         let member_ty_id = if let Some(member_symbol) = member_symbol {
-            match (types.get_value_type_id(member_symbol), member_ty_id) {
+            let mut member_ty_id = match (types.get_value_type_id(member_symbol), member_ty_id) {
                 (Some(value_ty_id), Some(member_ty_id)) => {
                     if self.is_infer_var_type(value_ty_id, types) {
                         Some(member_ty_id)
@@ -282,7 +281,22 @@ impl Compiler {
                 (Some(value_ty_id), None) => Some(value_ty_id),
                 (None, Some(member_ty_id)) => Some(member_ty_id),
                 (None, None) => None,
+            };
+
+            // import remote member types when needed
+            if member_ty_id.is_none() && member_symbol.module_id != module.id {
+                let remote_ty_id = self.resolve_remote_symbol_value_type(
+                    module,
+                    ctx.profile,
+                    expression_id.into_any(),
+                    member_symbol,
+                    ctx.is_surface_inference,
+                    types,
+                )?;
+                member_ty_id = Some(remote_ty_id);
             }
+
+            member_ty_id
         } else {
             member_ty_id
         };
@@ -313,9 +327,12 @@ impl Compiler {
                             member_symbol,
                             Some(static_argument_ids),
                             None,
+                            (!substitutions.is_empty()).then_some(&substitutions),
+                            None,
                             &static_parameters,
                             &dynamic_parameters,
                             return_type,
+                            None,
                             SignatureResolutionMode::Checking,
                             false,
                             ctx.profile,
@@ -415,9 +432,12 @@ impl Compiler {
                                 member_symbol,
                                 Some(static_argument_ids),
                                 None,
+                                (!substitutions.is_empty()).then_some(&substitutions),
+                                None,
                                 &static_parameters,
                                 &dynamic_parameters,
                                 return_type,
+                                None,
                                 SignatureResolutionMode::Checking,
                                 false,
                                 ctx.profile,
@@ -960,6 +980,14 @@ impl Compiler {
             }));
         }
 
+        // avoid defaulting unresolved extension parameters to unknown
+        if inherited_arguments.is_empty() {
+            return Ok(Some(ExtensionMemberContext {
+                arguments: Vec::new(),
+                substitutions: HashMap::new(),
+            }));
+        }
+
         // map inherited arguments to extension parameters using the target type argument order
         let mut positional_arguments = self.map_extension_inherited_arguments(
             extension_symbol,
@@ -1062,7 +1090,7 @@ impl Compiler {
     }
 
     /// Resolve the extension symbol that owns a member symbol.
-    fn extension_symbol_for_member(
+    pub(super) fn extension_symbol_for_member(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1241,6 +1269,7 @@ impl Compiler {
                 profile,
                 current_class,
                 context.owner_symbol,
+                symbols,
                 types,
             )
         {
@@ -1264,6 +1293,7 @@ impl Compiler {
                     profile,
                     receiver_symbol,
                     current_class,
+                    symbols,
                     types,
                 )
             {
@@ -1491,7 +1521,7 @@ impl Compiler {
         // keep only nominal symbols in value space
         if !matches!(
             symbol.ty(),
-            SymbolType::Class | SymbolType::Struct | SymbolType::Enum
+            SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
         ) {
             return None;
         }
@@ -1897,36 +1927,31 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
-        // resolve the canonical symbol for extension lookup
-        let canonical_symbol = self.canonical_symbol_id(
-            module,
-            symbols,
-            profile,
-            symbol,
-            CanonicalSymbolMode::FollowAliases,
-        );
-
         // check visible extensions for this symbol
-        if let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) {
-            for extension_id in extension_ids {
-                let extension = types.get_extension(*extension_id);
-                if !self.is_extension_visible(module, extension) {
-                    continue;
-                }
+        let extension_symbols =
+            self.visible_extension_symbols_for_target(module, profile, symbols, types, symbol)?;
+        for extension_symbol in extension_symbols {
+            let Some(extension) =
+                self.extension_for_symbol_in_module(module, profile, extension_symbol, types)?
+            else {
+                continue;
+            };
+            if !self.is_extension_visible(module, &extension) {
+                continue;
+            }
 
-                let member_symbol = self.find_member_symbol_in_extension(
-                    module,
-                    profile,
-                    extension.symbol,
-                    member_key,
-                    lookup_mode,
-                    tree,
-                    symbols,
-                    types,
-                )?;
-                if let Some(member_symbol) = member_symbol {
-                    return Ok(Some(member_symbol));
-                }
+            let member_symbol = self.find_member_symbol_in_extension(
+                module,
+                profile,
+                extension_symbol,
+                member_key,
+                lookup_mode,
+                tree,
+                symbols,
+                types,
+            )?;
+            if let Some(member_symbol) = member_symbol {
+                return Ok(Some(member_symbol));
             }
         }
 

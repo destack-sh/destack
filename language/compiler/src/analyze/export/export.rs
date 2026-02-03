@@ -41,9 +41,6 @@ impl Compiler {
 
         // ensure local declarations are ready
         self.require_analyze_module_declare(module_id, profile)?;
-        if !self.is_code_module(module_id) {
-            return Ok(());
-        }
 
         // load module state and dir tables
         let module = self.program.modules.get(module_id);
@@ -59,9 +56,14 @@ impl Compiler {
         let tree = dir.tree.read();
         let mut types = dir.types.write();
         let symbols = dir.symbols.read();
+        let mut collector = TaskResultCollector::new();
+
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         let exported_symbols = dir.exported_symbols.read();
         let binding_exports = dir.module_binding_exports.read();
-        let mut collector = TaskResultCollector::new();
 
         {
             let _timing = self.timing_scope(tags::ANALYZE_EXPORT_VALUES);

@@ -5,6 +5,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferContext, TaskDependencyError,
     TaskResultCollector,
 };
+use destack_builtin::BuiltinLibKind;
 use destack_dir::{
     Declaration, Expression, FlowGraphBuilder, InferTable, IntType, LocalNodeId, NodeTree,
     PrimitiveType, Type, TypeLiteral,
@@ -232,6 +233,13 @@ impl Compiler {
 
         // require export inference for direct dependencies
         for dependency in graph.dependencies_for(module_id) {
+            if !self.options.load_libs {
+                let module = self.program.modules.get(dependency);
+                let module = module.read();
+                if matches!(module.source, ModuleSource::Builtin(BuiltinLibKind::Lib)) {
+                    continue;
+                }
+            }
             if let Err(error) = self.require_analyze_module_export(dependency, profile) {
                 return Err(AnalyzeError::from(error));
             }
@@ -242,6 +250,10 @@ impl Compiler {
 
     /// Ensure export inference tasks are complete for ambient lib modules.
     fn require_export_inference_for_ambient_libs(&self, profile: ProfileId) -> AnalyzeResult<()> {
+        if !self.options.load_libs {
+            return Ok(());
+        }
+
         // skip when builtins are not loaded
         let Some(builtins) = self.builtins() else {
             return Ok(());

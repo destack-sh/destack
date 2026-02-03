@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::analyze::common::{
-    CanonicalSymbolMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT, TypeRewriteCache,
-    TypeWalkContext, rewrite_type_with_cache,
+    CanonicalSymbolMode, ContextualTypingMode, MaterializationMode, REWRITER_TAG_STATIC_ARGUMENT,
+    TypeRewriteCache, TypeWalkContext, rewrite_type_with_cache,
 };
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
@@ -243,6 +243,64 @@ impl TypeRewriter for StaticArgumentMaterializer<'_> {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve a static parameter symbol for a reference expression.
+    fn static_parameter_symbol_for_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // resolve the referenced symbol first
+        let (Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. }) = tree.get(expression_id)
+        else {
+            return None;
+        };
+
+        // prefer local symbol tables for local references
+        if target_symbol.module_id == module.id {
+            return self.static_parameter_symbol_for_reference_in_symbols(
+                module,
+                profile,
+                *target_symbol,
+                symbols,
+                types,
+            );
+        }
+
+        // use the owning module to avoid indexing the wrong symbol table
+        let remote_module = self.program.modules.get(target_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        self.static_parameter_symbol_for_reference_in_symbols(
+            &remote_module,
+            profile,
+            *target_symbol,
+            &remote_symbols,
+            types,
+        )
+    }
+
+    /// Resolve a static parameter symbol within a symbol table.
+    fn static_parameter_symbol_for_reference_in_symbols(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // resolve direct static parameter references
+        if self.symbol_is_static_parameter(module, profile, target_symbol, symbols, types) {
+            return Some(target_symbol);
+        }
+        None
+    }
+
     /// Run logic with the module and tree that own a static argument node.
     fn with_static_argument_owner<T>(
         &self,
@@ -445,12 +503,59 @@ impl Compiler {
                         _ => None,
                     })
             });
+        let mut reference = reference;
+
+        // fall back to instance arguments when the receiver type does not preserve them (#Suspicious?)
+        let instance_reference = || {
+            // prefer instances registered on the receiver expression
+            let receiver_global_id = receiver_id.into_global(module.id);
+            if let Some(instance_id) = types.get_instance_for_node(receiver_global_id) {
+                let instance = types.get_instance(instance_id);
+                if !instance.static_arguments.is_empty() {
+                    return Some((instance.symbol_id, instance.static_arguments.clone()));
+                }
+            }
+
+            // fall back to the source node for the inferred type
+            if let Some(receiver_ty_id) = receiver_ty_id {
+                let source_id = types.get_type_source(receiver_ty_id);
+                let source_global_id = source_id.into_global(module.id);
+                if let Some(instance_id) = types.get_instance_for_node(source_global_id) {
+                    let instance = types.get_instance(instance_id);
+                    if !instance.static_arguments.is_empty() {
+                        return Some((instance.symbol_id, instance.static_arguments.clone()));
+                    }
+                }
+            }
+
+            None
+        };
+        // use instance arguments when reference arguments are missing
+        if reference
+            .as_ref()
+            .is_none_or(|(_, args)| args.as_ref().is_none_or(|args| args.is_empty()))
+            && let Some(instance_reference) = instance_reference()
+        {
+            reference = Some((instance_reference.0, Some(instance_reference.1)));
+        }
+
         let Some((symbol, static_arguments)) = reference else {
             return Ok(InheritedStaticArguments {
                 arguments: Vec::new(),
                 substitutions: HashMap::new(),
             });
         };
+
+        // skip resolution when no explicit static arguments exist
+        let has_arguments = static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty());
+        if !has_arguments {
+            return Ok(InheritedStaticArguments {
+                arguments: Vec::new(),
+                substitutions: HashMap::new(),
+            });
+        }
 
         // prefer static argument nodes or type sources to avoid node instance collisions
         let argument_node = static_arguments.as_ref().and_then(|arguments| {
@@ -575,6 +680,176 @@ impl Compiler {
         })
     }
 
+    /// Infer static arguments for a generic return type from an expected return type.
+    pub(super) fn static_arguments_from_expected_return_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        return_type: LocalTypeId,
+        expected_return_type: LocalTypeId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<HashMap<GlobalSymbolId, StaticArgument>> {
+        // unwrap type value wrappers
+        let return_type = self.unwrap_type_value(return_type, types);
+        let expected_return_type = self.unwrap_type_value(expected_return_type, types);
+
+        // extract reference metadata from the return types
+        let (return_symbol, mut return_arguments) = match types.get_type(return_type) {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => (*symbol, static_arguments.clone()),
+            _ => return None,
+        };
+        let (expected_symbol, mut expected_arguments) = match types.get_type(expected_return_type) {
+            Type::Reference {
+                symbol,
+                static_arguments: Some(arguments),
+            } => (*symbol, arguments.clone()),
+            _ => return None,
+        };
+
+        // resolve return arguments when possible
+        if let Some(arguments) = return_arguments.as_deref() {
+            let resolved = self
+                .resolve_type_reference_static_arguments(
+                    module,
+                    profile,
+                    types.get_type_source(return_type),
+                    return_symbol,
+                    Some(arguments),
+                    false,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .ok()
+                .flatten();
+            if let Some(resolved) = resolved {
+                return_arguments = Some(resolved);
+            }
+        }
+
+        // resolve expected arguments when possible
+        if !expected_arguments.is_empty() {
+            let resolved = self
+                .resolve_type_reference_static_arguments(
+                    module,
+                    profile,
+                    types.get_type_source(expected_return_type),
+                    expected_symbol,
+                    Some(expected_arguments.as_slice()),
+                    false,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                )
+                .ok()
+                .flatten();
+            if let Some(resolved) = resolved {
+                expected_arguments = resolved;
+            }
+        }
+
+        // require a shared canonical target for inference
+        let canonical_return = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            return_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        let canonical_expected = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            expected_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
+        if canonical_return != canonical_expected {
+            return None;
+        }
+
+        let mut mapping = HashMap::new();
+        // map parameter references in the return type to expected arguments
+        if let Some(return_arguments) = return_arguments
+            && !return_arguments.is_empty()
+        {
+            // require a one to one argument mapping
+            if return_arguments.len() != expected_arguments.len() {
+                return None;
+            }
+
+            for (return_argument, expected_argument) in
+                return_arguments.iter().zip(expected_arguments.iter())
+            {
+                let StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } = return_argument
+                else {
+                    continue;
+                };
+
+                let Type::Reference {
+                    symbol: parameter_symbol,
+                    ..
+                } = types.get_type(*ty)
+                else {
+                    continue;
+                };
+
+                if !self.symbol_is_static_parameter(
+                    module,
+                    profile,
+                    *parameter_symbol,
+                    symbols,
+                    types,
+                ) {
+                    continue;
+                }
+
+                mapping
+                    .entry(*parameter_symbol)
+                    .or_insert_with(|| expected_argument.clone());
+            }
+        } else {
+            // fall back to parameter order when return arguments are absent
+            let tree = module.dir(profile).tree.read();
+            let parameter_symbols = self.collect_static_parameter_symbols(
+                module,
+                return_symbol,
+                profile,
+                &tree,
+                symbols,
+            )?;
+            if parameter_symbols.len() != expected_arguments.len() {
+                return None;
+            }
+
+            for (parameter_symbol, expected_argument) in
+                parameter_symbols.iter().zip(expected_arguments.iter())
+            {
+                mapping
+                    .entry(*parameter_symbol)
+                    .or_insert_with(|| expected_argument.clone());
+            }
+        }
+
+        // bail when the return type does not expose parameters
+        if mapping.is_empty() {
+            return None;
+        }
+
+        // return the inferred mapping
+        Some(mapping)
+    }
+
     /// Extract a reference symbol from receiver types that preserve static arguments.
     fn receiver_reference_for_inherited_arguments(
         &self,
@@ -634,6 +909,15 @@ impl Compiler {
         let mut argument_ctx = ctx
             .nested_expression_context()
             .with_expected_type(expected_ty_id);
+        if expected_ty_id.is_some()
+            && matches!(
+                argument_ctx.contextual_typing,
+                ContextualTypingMode::Satisfies
+            )
+        {
+            // allow contextual typing for argument inference under satisfies
+            argument_ctx = argument_ctx.with_contextual_typing_mode(ContextualTypingMode::Default);
+        }
 
         match argument {
             Argument::Positional { value, .. } => {
@@ -2566,8 +2850,30 @@ impl Compiler {
                     _ => None,
                 };
 
-                // try evaluate expression as a type
                 let expression_id = argument.value();
+
+                // preserve static parameter references in type arguments
+                if let Some(parameter_symbol) = self.static_parameter_symbol_for_reference(
+                    argument_module,
+                    profile,
+                    expression_id,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                ) {
+                    let reference_ty = Type::Reference {
+                        symbol: parameter_symbol,
+                        static_arguments: None,
+                    };
+                    let ty_id = types.insert_type_from_any(reference_ty, expression_id.into_any());
+                    evaluated = Some(StaticArgument::Evaluated {
+                        name: argument_name,
+                        value: StaticExpression::Type { ty: ty_id },
+                    });
+                    return Ok(());
+                }
+
+                // try evaluate expression as a type
                 let ty_id = self.try_evaluate_expression_to_type(
                     argument_module,
                     profile,
@@ -4239,7 +4545,25 @@ impl Compiler {
                     let expression_id = argument.value();
                     evaluated = match parameter_kind {
                         StaticParameterKind::Type => {
-                            if let Ok(ty_id) = self.try_evaluate_expression_to_type(
+                            // preserve static parameter references during materialization
+                            if let Some(parameter_symbol) = self
+                                .static_parameter_symbol_for_reference(
+                                    owner_module,
+                                    profile,
+                                    expression_id,
+                                    owner_tree,
+                                    owner_symbols,
+                                    types,
+                                )
+                            {
+                                let reference_ty = Type::Reference {
+                                    symbol: parameter_symbol,
+                                    static_arguments: None,
+                                };
+                                let ty_id = types
+                                    .insert_type_from_any(reference_ty, expression_id.into_any());
+                                Some(StaticExpression::Type { ty: ty_id })
+                            } else if let Ok(ty_id) = self.try_evaluate_expression_to_type(
                                 owner_module,
                                 profile,
                                 expression_id,

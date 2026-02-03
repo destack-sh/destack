@@ -6,13 +6,13 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
 
-use super::super::common::{NormalizationMode, RelationMode};
+use super::super::common::{CanonicalSymbolMode, NormalizationMode, RelationMode};
 use super::{
     field_key_matches_index_kind, index_key_kind_for_type,
     index_key_kinds_compatible_for_assignability,
 };
 use crate::timing::tags;
-use crate::{AnalyzeOptions, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 /// Clear assignability recursion state on drop.
 struct AssignabilityGuard {
@@ -1367,6 +1367,22 @@ impl Compiler {
                     static_arguments: source_arguments,
                 },
             ) => {
+                // normalize aliases for nominal comparison
+                let target_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let source_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    source_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+
                 // nominal check: same symbol or lineage
                 if target_symbol == source_symbol {
                     if self.reference_static_arguments_assignable(
@@ -1390,6 +1406,7 @@ impl Compiler {
                     profile,
                     source_symbol,
                     target_symbol,
+                    symbols,
                     types,
                 ) {
                     return Assignability::Assignable;
@@ -2870,6 +2887,7 @@ impl Compiler {
         profile: ProfileId,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
         let mut visited = HashSet::new();
@@ -2878,6 +2896,7 @@ impl Compiler {
             profile,
             source_symbol,
             target_symbol,
+            symbols,
             types,
             &mut visited,
         )
@@ -2890,6 +2909,7 @@ impl Compiler {
         profile: ProfileId,
         source_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
         types: &TypeTable,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -2910,6 +2930,7 @@ impl Compiler {
                     profile,
                     extends,
                     target_symbol,
+                    symbols,
                     types,
                     visited,
                 ) {
@@ -2927,6 +2948,7 @@ impl Compiler {
                     profile,
                     implements,
                     target_symbol,
+                    symbols,
                     types,
                     visited,
                 ) {
@@ -2944,6 +2966,7 @@ impl Compiler {
                     profile,
                     embedded,
                     target_symbol,
+                    symbols,
                     types,
                     visited,
                 ) {
@@ -2953,38 +2976,69 @@ impl Compiler {
         }
 
         // step 2: check visible extensions that add implements clauses
-        if let Some(extension_ids) = types.get_extensions_for_target(source_symbol) {
-            let types_module = self.program.modules.get(types.module_id);
-            let types_module = types_module.read();
-
-            for extension_id in extension_ids {
-                let extension = types.get_extension(*extension_id);
-
-                // check visibility (reuses the same function as member lookup)
-                if !self.is_extension_visible(&types_module, extension) {
-                    continue;
-                }
-
-                // check extension's lineage (implements clauses)
-                if let Some(lineage_id) = extension.lineage {
-                    let lineage = types.get_lineage(lineage_id);
-
-                    // extensions typically only add implements, but check all for completeness
-                    for &implements in &lineage.implements {
-                        if implements == target_symbol {
-                            return true;
-                        }
-                        if self.is_type_lineage_assignable_inner(
-                            module,
-                            profile,
-                            implements,
-                            target_symbol,
-                            types,
-                            visited,
-                        ) {
-                            return true;
-                        }
+        let extension_symbols = match self.visible_extension_symbols_for_target(
+            module,
+            profile,
+            symbols,
+            types,
+            source_symbol,
+        ) {
+            Ok(symbols) => symbols,
+            Err(AnalyzeError::Yield { .. }) => return false,
+            Err(error) => {
+                self.error(error);
+                return false;
+            }
+        };
+        for extension_symbol in extension_symbols {
+            let extension =
+                match self.extension_for_symbol_in_module(module, profile, extension_symbol, types)
+                {
+                    Ok(extension) => extension,
+                    Err(AnalyzeError::Yield { .. }) => return false,
+                    Err(error) => {
+                        self.error(error);
+                        return false;
                     }
+                };
+            let Some(extension) = extension else {
+                continue;
+            };
+            if !self.is_extension_visible(module, &extension) {
+                continue;
+            }
+            let lineage = match self.extension_lineage_for_symbol_in_module(
+                module,
+                profile,
+                extension_symbol,
+                types,
+            ) {
+                Ok(lineage) => lineage,
+                Err(AnalyzeError::Yield { .. }) => return false,
+                Err(error) => {
+                    self.error(error);
+                    return false;
+                }
+            };
+            let Some(lineage) = lineage else {
+                continue;
+            };
+
+            // extensions typically only add implements, but check all for completeness
+            for &implements in &lineage.implements {
+                if implements == target_symbol {
+                    return true;
+                }
+                if self.is_type_lineage_assignable_inner(
+                    module,
+                    profile,
+                    implements,
+                    target_symbol,
+                    symbols,
+                    types,
+                    visited,
+                ) {
+                    return true;
                 }
             }
         }

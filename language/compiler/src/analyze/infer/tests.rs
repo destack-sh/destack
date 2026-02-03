@@ -257,18 +257,33 @@ impl<'a> TestModuleView<'a> {
 
 /// Collect extension kinds for a target symbol.
 fn extension_kinds_for_target(
+    test: &TestProgram,
+    module_id: ModuleId,
+    symbols: &SymbolTable,
     types: &TypeTable,
     target_symbol: GlobalSymbolId,
 ) -> Vec<ExtensionKind> {
-    // collect extension ids for the target symbol
-    let Some(extension_ids) = types.get_extensions_for_target(target_symbol) else {
-        return Vec::new();
-    };
+    // load module state for extension visibility
+    let profile = test.default_profile_id(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
 
-    // map extension ids to kinds
-    extension_ids
-        .iter()
-        .map(|extension_id| types.get_extension(*extension_id).kind)
+    // collect visible extensions for the target symbol
+    let extension_symbols = test
+        .compiler
+        .visible_extension_symbols_for_target(&module, profile, symbols, types, target_symbol)
+        .unwrap_or_default();
+
+    // map extension symbols to kinds
+    extension_symbols
+        .into_iter()
+        .filter_map(|symbol| {
+            test.compiler
+                .extension_for_symbol_in_module(&module, profile, symbol, types)
+                .ok()
+                .flatten()
+        })
+        .map(|extension| extension.kind)
         .collect()
 }
 
@@ -1836,7 +1851,13 @@ let distance = origin.distance(origin);
     let point_symbol = test.canonical_symbol_for_path("test.ds", "Point");
 
     // verify extension kinds
-    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
+    let extension_kinds = extension_kinds_for_target(
+        &test,
+        view.module_id,
+        view.symbols(),
+        view.types(),
+        point_symbol,
+    );
     assert_eq!(extension_kinds.len(), 2);
     assert!(
         extension_kinds
@@ -1922,7 +1943,13 @@ let origin = Point { x: 0, y: 0 };
     let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the defining module
-    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
+    let extension_kinds = extension_kinds_for_target(
+        &test,
+        view.module_id,
+        view.symbols(),
+        view.types(),
+        point_symbol,
+    );
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -1931,7 +1958,13 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not leak into other modules
-    let consumer_kinds = extension_kinds_for_target(consumer_view.types(), consumer_point_symbol);
+    let consumer_kinds = extension_kinds_for_target(
+        &test,
+        consumer_view.module_id,
+        consumer_view.symbols(),
+        consumer_view.types(),
+        consumer_point_symbol,
+    );
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type
@@ -2007,7 +2040,13 @@ let origin = Point { x: 0, y: 0 };
     let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the importing module
-    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
+    let extension_kinds = extension_kinds_for_target(
+        &test,
+        view.module_id,
+        view.symbols(),
+        view.types(),
+        point_symbol,
+    );
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -2016,7 +2055,13 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not appear without an import
-    let consumer_kinds = extension_kinds_for_target(consumer_view.types(), consumer_point_symbol);
+    let consumer_kinds = extension_kinds_for_target(
+        &test,
+        consumer_view.module_id,
+        consumer_view.symbols(),
+        consumer_view.types(),
+        consumer_point_symbol,
+    );
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type
