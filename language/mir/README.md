@@ -98,31 +98,10 @@ store v0, v3                               ; store through pointer
 | **MLIR** | Yes | Dialect-dependent | Dialect-dependent | Extensible framework |
 | **Destack MIR** | Yes | Yes | Yes | Matches source semantics |
 
-Cranelift chose memory-only to simplify their implementation—they're optimized for fast compilation as a JIT backend, not maximum optimization potential.
-LLVM and Swift SIL use the same hybrid approach as MIR because:
+Cranelift chose memory-only to simplify their implementation because they're optimized for fast compilation as a JIT backend, not maximum optimization potential.
+LLVM and Swift SIL use the same hybrid approach as MIR for the same reasons:
 - Value operations enable cleaner dataflow analysis (no aliasing concerns)
 - Memory operations are necessary when addresses are taken or data is behind references
-
-### When to Use Which
-
-**Use value operations when:**
-- Constructing fresh aggregates (`struct`, `tuple`, `array`)
-- Destructuring local values (`field.get`, `element.get`)
-- Transforming values without aliasing (`field.set`, `element.set`)
-- The aggregate is an SSA value, not behind a reference
-
-**Use memory operations when:**
-- Accessing through a reference (`&T`, `&mut T`, `^T`, `*T`)
-- Taking the address of a field or element
-- The result needs to be a pointer (for passing to functions, etc.)
-
-### Benefits of the Hybrid Approach
-
-1. **VM execution**: The comptime interpreter can manipulate aggregate values directly without simulating memory.
-2. **Optimization**: Value-semantic operations have no aliasing and make SROA (scalar replacement of aggregates) straightforward.
-3. **Backend flexibility**: Native codegen can lower large value aggregates to stack slots while keeping small ones in registers without forcing a choice.
-4. **Source semantics**: TypeScript++ has both value types (tuples, small structs) and reference types (objects, classes), and MIR represents both.
-5. **Clear intent**: `field.get` on an SSA value vs `load` through `field.addr` communicates whether we're extracting a copy or accessing shared mutable state.
 
 ## Instructions
 
@@ -140,8 +119,8 @@ Each instruction defines at most one `Value`.
 | Functions | `function.addr`, `function.env` |
 | Memory | `load`, `store`, `raw.drop`, `stack.drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
-| Vector | `vector.*` (splat, extract, insert, shuffle, reduce, compare, convert) |
-| Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, reduce, dot, convolution, gather, scatter, convert) |
+| Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
+| Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
 | Allocation | `managed.alloc`, `managed.alloc_array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
@@ -202,36 +181,6 @@ The execution model defines the pipeline stage for graphics and compute pipeline
 Compute kernels may specify a fixed workgroup size as `[x, y, z]`.
 Stages include `compute`, `vertex`, `fragment`, `task`, `mesh`, `raygen`, `any_hit`, `closest_hit`, `miss`, `intersection`, and `callable`.
 
-### Metadata Invariants
-
-These invariants keep metadata sound for optimization and codegen.
-- Pointer attributes: `readonly` and `writeonly` are mutually exclusive.
-- Pointer attributes: `dereferenceableOrNullBytes` is only valid when the pointer can be null.
-- Call behavior: `noreturn` implies `willReturn` is false.
-- Call behavior: `allocLocations` is only set when `allocates` is true.
-- Call behavior: `allocAddressSpaces` is only set when `allocates` is true.
-- Call behavior: `freeLocations` is only set when `frees` is true.
-- Call behavior: `freeAddressSpaces` is only set when `frees` is true.
-- Call behavior: `pure` repeatability implies `may_suspend` is false.
-- Call behavior: `no_replay` implies `non_repeatable`.
-- Memory effects: `reads` and `writes` are both false only when `locations` is `NONE`.
-- Memory effects: `argmemonly` implies `locations` is `ARGUMENTS` or `NONE`.
-- Memory effects: `inaccessibleMemOnly` implies `locations` is `INACCESSIBLE` or `NONE`.
-- Memory effects: `nosync` implies the operation does not perform atomic or fence operations.
-- Memory access: `ordering` is only set for atomic accesses.
-- Memory access: `scope`, `memory_scope`, and `semantics` are only set for atomic accesses.
-- Memory access: `isInvariant` is only set for read only accesses.
-- Memory access: `isVolatile` implies the access cannot be eliminated or reordered.
-- Type layout: `fieldOffsets` length matches the field or element count for the type.
-- Dispatch tables: `slots` are ordered exactly as the lowering rules define.
-
-### Metadata Update Points
-
-Lowering provides the initial metadata for types, functions, and debug scopes.
-Lowering records dispatch and call effects on call instructions when known.
-Optimization passes may refine call effects and memory access descriptors.
-Codegen consumes the metadata without mutating it.
-
 ### Terminators
 
 Blocks end with a terminator that transfers control:
@@ -244,31 +193,31 @@ Blocks end with a terminator that transfers control:
 | `switch` | Multi-way branch on integer |
 | `yield` | Suspend coroutine (generators, async) |
 | `check` | Checked branch with semantic constraint |
-| `unreachable` | UB if reached (traps/panics usually) |
+| `unreachable` | UB if reached (traps/panics somehow) |
 
 `check` carries a semantic constraint (bounds, null, division, shift, overflow, etc.) and splits control flow into success and failure paths.
 
 ## Intrinsics
 
 Intrinsics are primitive operations handled directly by backends.
-Inspired by Rust and Zig (especially for SIMD).
 They have no function body: each backend implements them specially.
 
 | Category | Examples |
 |----------|----------|
 | Reflection | `size_of`, `align_of`, `type_of` |
-| Bit manipulation | `clz`, `ctz`, `popcnt`, `byte_swap`, `rotate_left` |
+| Bit manipulation | `clz`, `ctz`, `popcnt`, `byte_swap`, `bit_reverse`, `rotate_left`, `rotate_right` |
 | Checked arithmetic | `add.overflow`, `sub.overflow`, `mul.overflow` |
-| Unchecked arithmetic | `add.unchecked`, `div.unchecked`, `shl.unchecked` (UB on overflow, division by zero, or shift out of range) |
+| Unchecked arithmetic | `add.unchecked`, `sub.unchecked`, `mul.unchecked`, `div.unchecked`, `rem.unchecked`, `shl.unchecked`, `shr.unchecked` |
 | Saturating arithmetic | `add.sat`, `sub.sat` |
 | Pointer ops | `transmute`, `addrspace.cast`, `ptr_offset_from`, `raw_eq` |
-| Memory | `memcpy`, `memmove`, `memset`, `volatile.load` |
-| Atomics | `atomic.load`, `atomic.cas`, `atomic.fetch.add`, etc. |
+| Memory | `memcpy`, `memmove`, `memset`, `memcmp`, `volatile.load`, `volatile.store`, `prefetch.read`, `prefetch.write` |
+| Atomics | `atomic.load`, `atomic.store`, `atomic.cas`, `atomic.xchg`, `atomic.fetch.add`, `atomic.fetch.sub`, `atomic.fetch.and`, `atomic.fetch.or`, `atomic.fetch.xor`, `atomic.fetch.min`, `atomic.fetch.max`, `atomic.fetch.fadd`, etc. |
 | Barriers | `atomic.fence`, `barrier` |
-| Float math | `sqrt`, `sin`, `cos`, `pow`, `floor`, etc. |
-| GC barriers | `gc.write_barrier`, `gc.read_barrier` |
-| Control | `unreachable`, `abort`, `breakpoint` |
-| SIMD | `shuffle`, `splat`, `reduce.add`, etc. |
+| Float math | `sqrt`, `abs`, `fma`, `copysign`, `min`, `max`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `exp2`, `log`, `log2`, `log10`, `pow`, `floor`, `ceil`, `trunc`, `round` |
+| GC barriers | `gc.write_barrier` |
+| Control | `unreachable`, `abort`, `breakpoint`, `panic`, `return_address`, `frame_address` |
+| Branch hints | `expect`, `likely`, `unlikely` |
+| Optimization | `black_box` |
 
 Reflection intrinsics (`size_of`, etc.) are comptime-only—they get evaluated during compilation and replaced with constants.
 The VM handles these; native codegen never sees them.
@@ -426,8 +375,7 @@ The MIR text format supports named type aliases for readability.
 Aliases are purely syntactic sugar over concrete layouts.
 
 ```mir
-type @Point = { i32, i32 }
-type @PointRef = ref<managed @Point>
+type @Point = { x: i32, y: i32 }
 
 function @use_point(v0: ref<managed @Point>) -> ref<managed @Point> {
 block0(v0: ref<managed @Point>):
