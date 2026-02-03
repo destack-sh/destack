@@ -276,7 +276,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     compiler.compile();
     drop(compiler);
 
-    // collect actual errors
+    // collect actual diagnostics
     let diagnostics = program.diagnostics.collect();
     let diagnostics_vec = diagnostics.iter();
     let actual_errors: Vec<String> = diagnostics_vec
@@ -284,9 +284,24 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         .filter(|d| d.severity == destack_source::DiagnosticSeverity::Error)
         .map(|d| d.message.clone())
         .collect();
+    let actual_warnings: Vec<String> = diagnostics_vec
+        .iter()
+        .filter(|d| d.severity == destack_source::DiagnosticSeverity::Warning)
+        .map(|d| d.message.clone())
+        .collect();
 
-    // compare against expected errors
-    let result = compare_errors(&test.bullet_items, &actual_errors);
+    // split expected errors and warnings from bullet items
+    let (expected_errors, expected_warnings) = split_expected_diagnostics(&test.bullet_items);
+
+    // compare against expected diagnostics
+    let error_result = compare_expected("error", &expected_errors, &actual_errors);
+    // compare warnings only when warnings are expected
+    let warning_result = if expected_warnings.is_empty() {
+        TestResult::Passed
+    } else {
+        compare_expected("warning", &expected_warnings, &actual_warnings)
+    };
+    let result = merge_results(error_result, warning_result);
 
     // append rendered diagnostics for failures
     match result {
@@ -458,14 +473,47 @@ fn apply_dsconfig_for_spec(
     Ok(())
 }
 
-/// Compare expected errors against actual errors.
-fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
-    // normalize expected and actual errors
+/// Split expected diagnostics into error and warning buckets.
+fn split_expected_diagnostics(items: &[String]) -> (Vec<String>, Vec<String>) {
+    // allocate result buckets
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+
+    // split bullet items into expected errors and warnings
+    for item in items {
+        let trimmed = item.trim();
+        let lower = trimmed.to_lowercase();
+
+        // prefer explicit warning prefix
+        if lower.starts_with("warning:") {
+            let rest = trimmed[("warning:".len())..].trim();
+            warnings.push(rest.to_string());
+            continue;
+        }
+
+        // accept short warning prefix
+        if lower.starts_with("warn:") {
+            let rest = trimmed[("warn:".len())..].trim();
+            warnings.push(rest.to_string());
+            continue;
+        }
+
+        // default to errors
+        errors.push(trimmed.to_string());
+    }
+
+    // return the split expectations
+    (errors, warnings)
+}
+
+/// Compare expected diagnostics against actual diagnostics.
+fn compare_expected(kind: &str, expected: &[String], actual: &[String]) -> TestResult {
+    // normalize expected and actual diagnostics
     let expected_patterns: Vec<ExpectedError> =
         expected.iter().map(|s| ExpectedError::parse(s)).collect();
     let actual_normalized: Vec<String> = actual.iter().map(|s| normalize_error(s)).collect();
 
-    // find expected errors that did not occur
+    // find expected diagnostics that did not occur
     let mut missing: Vec<&str> = Vec::new();
     for expected in &expected_patterns {
         if !actual_normalized.iter().any(|a| expected.matches(a)) {
@@ -473,7 +521,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         }
     }
 
-    // find unexpected actual errors
+    // find unexpected actual diagnostics
     let mut unexpected: Vec<&str> = Vec::new();
     for act in &actual_normalized {
         if !expected_patterns.iter().any(|e| e.matches(act)) {
@@ -489,26 +537,49 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
     // build failure message
     let mut message = String::new();
     if !missing.is_empty() {
-        message.push_str(&format!("{}\n", color::red("missing expected errors:")));
-        for err in &missing {
-            message.push_str(&format!("  {}\n", color::red(&format!("- {err}"))));
+        message.push_str(&format!(
+            "{}\n",
+            color::red(&format!("missing expected {kind}s:"))
+        ));
+        for diag in &missing {
+            message.push_str(&format!("  {}\n", color::red(&format!("- {diag}"))));
         }
     }
     if !unexpected.is_empty() {
-        // add unexpected errors block
+        // add unexpected diagnostics block
         if !message.is_empty() {
             message.push('\n');
         }
         message.push_str(&format!(
             "{}\n",
-            color::green("additional unexpected errors:")
+            color::green(&format!("additional unexpected {kind}s:"))
         ));
-        for err in &unexpected {
-            message.push_str(&format!("  {}\n", color::green(&format!("+ {err}"))));
+        for diag in &unexpected {
+            message.push_str(&format!("  {}\n", color::green(&format!("+ {diag}"))));
         }
     }
 
     TestResult::Failed { message }
+}
+
+/// Merge two diagnostic comparison results.
+fn merge_results(first: TestResult, second: TestResult) -> TestResult {
+    // merge two diagnostic comparison results
+    match (first, second) {
+        (TestResult::Passed, TestResult::Passed) => TestResult::Passed,
+        (TestResult::Failed { message }, TestResult::Passed)
+        | (TestResult::Passed, TestResult::Failed { message }) => {
+            TestResult::Failed { message }
+        }
+        (TestResult::Failed { message: left }, TestResult::Failed { message: right }) => {
+            let message = format!("{left}\n\n{right}");
+            TestResult::Failed { message }
+        }
+        (TestResult::Skipped { reason }, _) | (_, TestResult::Skipped { reason }) => {
+            TestResult::Skipped { reason }
+        }
+        (TestResult::Suite { .. }, other) | (other, TestResult::Suite { .. }) => other,
+    }
 }
 
 /// Normalize an error message for fuzzy comparison.

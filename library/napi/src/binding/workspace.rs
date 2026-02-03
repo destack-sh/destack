@@ -37,6 +37,11 @@ impl Workspace {
             inner: destack_workspace::Workspace::single_package(cwd),
         }
     }
+
+    /// Get the workspace root directory.
+    pub fn root(&self) -> String {
+        self.inner.root.to_string_lossy().to_string()
+    }
 }
 
 /// Get the default workspace options.

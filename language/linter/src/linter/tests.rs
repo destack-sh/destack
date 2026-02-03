@@ -420,7 +420,7 @@ impl<'a> LintResult<'a> {
 
         // sort by span start, descending (apply from end to preserve offsets)
         let mut sorted_edits = edits;
-        sorted_edits.sort_by(|a, b| b.span.start.cmp(&a.span.start));
+        sorted_edits.sort_by_key(|b| std::cmp::Reverse(b.span.start));
 
         // apply all edits to the source
         let file_id = sorted_edits[0].span.file;

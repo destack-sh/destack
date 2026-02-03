@@ -8,6 +8,13 @@ use destack_workspace::Program;
 #[phase(Elaborate)]
 pub enum ElaborateWarning {
     // -------------------------------------------------------------------------
+    // 1xx: Configuration
+    // -------------------------------------------------------------------------
+    /// Implicit collection conversions are enabled with warnings.
+    #[warning(code = "WE100", message = "implicit collection conversion")]
+    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+
+    // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.

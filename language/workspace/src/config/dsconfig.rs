@@ -167,6 +167,13 @@ impl DsConfig {
             compiler.no_imprecise_primitives || parent_compiler.no_imprecise_primitives;
         compiler.no_implicit_conversions =
             compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
+        if parent_compiler
+            .implicit_collection_conversions
+            .is_stricter_than(compiler.implicit_collection_conversions)
+        {
+            compiler.implicit_collection_conversions =
+                parent_compiler.implicit_collection_conversions;
+        }
         compiler.no_unsafe_type_assertions =
             compiler.no_unsafe_type_assertions || parent_compiler.no_unsafe_type_assertions;
         compiler.no_redeclared_locals =
@@ -550,6 +557,8 @@ pub struct DsConfigCompilerOptions {
     pub no_imprecise_primitives: bool,
     /// Require explicit widening/narrowing conversions.
     pub no_implicit_conversions: bool,
+    /// Policy for implicit collection conversions (record-like and sized arrays).
+    pub implicit_collection_conversions: ImplicitCollectionConversionPolicy,
     /// Forbid unsafe type assertions (`as T`).
     pub no_unsafe_type_assertions: bool,
     /// Forbid re-declaration of local variables.
@@ -650,6 +659,7 @@ impl Default for DsConfigCompilerOptions {
             no_unknown: false,
             no_imprecise_primitives: false,
             no_implicit_conversions: false,
+            implicit_collection_conversions: ImplicitCollectionConversionPolicy::Allow,
             no_unsafe_type_assertions: false,
             no_redeclared_locals: false,
             no_implicit_managed: false,
@@ -730,6 +740,7 @@ impl DsConfigCompilerOptions {
         self.no_managed = true;
         self.no_property_access_from_index_signature = true;
         self.borrow_mode = BorrowMode::Strict;
+        self.implicit_collection_conversions = ImplicitCollectionConversionPolicy::Warn;
 
         // disable runtime features that native backends cannot support
         self.no_dynamic_evaluation = true;
@@ -2250,6 +2261,59 @@ impl From<BorrowModeJson> for BorrowMode {
     }
 }
 
+/// Implicit collection conversion policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ImplicitCollectionConversionPolicyJson {
+    Allow,
+    Warn,
+    Deny,
+}
+
+impl From<ImplicitCollectionConversionPolicyJson> for ImplicitCollectionConversionPolicy {
+    fn from(value: ImplicitCollectionConversionPolicyJson) -> Self {
+        match value {
+            ImplicitCollectionConversionPolicyJson::Allow => {
+                ImplicitCollectionConversionPolicy::Allow
+            }
+            ImplicitCollectionConversionPolicyJson::Warn => {
+                ImplicitCollectionConversionPolicy::Warn
+            }
+            ImplicitCollectionConversionPolicyJson::Deny => {
+                ImplicitCollectionConversionPolicy::Deny
+            }
+        }
+    }
+}
+
+/// Policy for implicit collection conversions (record-like and sized arrays).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImplicitCollectionConversionPolicy {
+    /// Allow implicit reification without diagnostics.
+    Allow,
+    /// Allow implicit reification with a warning.
+    Warn,
+    /// Forbid implicit reification with an error.
+    Deny,
+}
+
+impl ImplicitCollectionConversionPolicy {
+    /// Return whether this policy is stricter than another.
+    pub fn is_stricter_than(self, other: Self) -> bool {
+        self.rank() > other.rank()
+    }
+
+    /// Return a stable numeric rank for ordering.
+    fn rank(self) -> u8 {
+        match self {
+            ImplicitCollectionConversionPolicy::Allow => 0,
+            ImplicitCollectionConversionPolicy::Warn => 1,
+            ImplicitCollectionConversionPolicy::Deny => 2,
+        }
+    }
+}
+
 /// Destack configuration compiler options.
 #[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -2328,6 +2392,8 @@ pub struct CompilerOptionsJson {
     pub no_imprecise_primitives: Option<bool>,
     /// Require explicit widening/narrowing conversions.
     pub no_implicit_conversions: Option<bool>,
+    /// Policy for implicit collection conversions (record-like and sized arrays).
+    pub implicit_collection_conversions: Option<ImplicitCollectionConversionPolicyJson>,
     /// Forbid unsafe type assertions (`as T`).
     pub no_unsafe_type_assertions: Option<bool>,
     /// Forbid re-declaration of local variables.
@@ -2437,6 +2503,10 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_unknown: json.no_unknown.unwrap_or(false),
             no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
             no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
+            implicit_collection_conversions: json
+                .implicit_collection_conversions
+                .map(ImplicitCollectionConversionPolicy::from)
+                .unwrap_or(ImplicitCollectionConversionPolicy::Allow),
             no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
             no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
             no_implicit_managed: json.no_implicit_managed.unwrap_or(false),

@@ -201,7 +201,7 @@ fn libcall_function() {
         let callee = module
             .declare_function("malloc", Linkage::Import, &signature)
             .expect("declare malloc function");
-        let local_callee = module.declare_func_in_func(callee, &mut bcx.func);
+        let local_callee = module.declare_func_in_func(callee, bcx.func);
         let argument_exprs = vec![size];
         let call = bcx.ins().call(local_callee, &argument_exprs);
         let buffer = bcx.inst_results(call)[0];

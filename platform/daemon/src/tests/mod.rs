@@ -1,6 +1,8 @@
 mod tests;
 
-pub use tests::{TestDaemon, TestProtocolHarness, TestWatchBatch, TestWatchHarness};
+pub use tests::{
+    RequestRetryPolicy, TestDaemon, TestProtocolHarness, TestWatchBatch, TestWatchHarness,
+};
 
 pub mod incremental;
 pub mod ipc;

@@ -650,7 +650,7 @@ fn finish_output(output: Result<String, String>) -> i32 {
 pub fn run(args: &QueryArgs) -> i32 {
     // resolve the command name
     let method_name = args.method.as_deref();
-    let command_name = method_name.map(|name| normalize_command_name(name));
+    let command_name = method_name.map(normalize_command_name);
 
     // handle the list command
     if command_name.as_deref() == Some("list") {

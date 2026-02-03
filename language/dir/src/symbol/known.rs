@@ -8,6 +8,12 @@ pub enum WellKnownSymbol {
     Array,
     /// Builtin ReadonlyArray constructor symbol.
     ReadonlyArray,
+    /// Builtin Map constructor symbol.
+    Map,
+    /// Builtin Set constructor symbol.
+    Set,
+    /// Builtin Record type symbol.
+    Record,
     /// Builtin Slice type symbol.
     Slice,
     /// Builtin Object constructor symbol.
@@ -50,6 +56,9 @@ impl WellKnownSymbol {
         match self {
             WellKnownSymbol::Array => "Array",
             WellKnownSymbol::ReadonlyArray => "ReadonlyArray",
+            WellKnownSymbol::Map => "Map",
+            WellKnownSymbol::Set => "Set",
+            WellKnownSymbol::Record => "Record",
             WellKnownSymbol::Slice => "Slice",
             WellKnownSymbol::Object => "Object",
             WellKnownSymbol::Function => "Function",
@@ -75,6 +84,9 @@ impl WellKnownSymbol {
         const ALL: &[WellKnownSymbol] = &[
             WellKnownSymbol::Array,
             WellKnownSymbol::ReadonlyArray,
+            WellKnownSymbol::Map,
+            WellKnownSymbol::Set,
+            WellKnownSymbol::Record,
             WellKnownSymbol::Slice,
             WellKnownSymbol::Object,
             WellKnownSymbol::Function,

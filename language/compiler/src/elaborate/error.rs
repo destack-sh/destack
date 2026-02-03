@@ -26,6 +26,16 @@ pub enum ElaborateError {
     Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
+    // 1xx: Configuration
+    // -------------------------------------------------------------------------
+    /// Implicit collection conversions are disabled by configuration.
+    #[error(
+        code = "EE100",
+        message = "implicit collection conversions are disabled"
+    )]
+    ImplicitCollectionConversion { node: AnchoredGlobalNodeId },
+
+    // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.

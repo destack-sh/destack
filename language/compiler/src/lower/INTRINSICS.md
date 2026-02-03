@@ -56,7 +56,7 @@ The VM handles them; native codegen never sees them.
 
 ### Unchecked (UB on overflow)
 
-These allow the optimizer to assume no overflow occurs.
+These allow the optimizer to assume (or rather, pretend) no overflow ever occurs.
 
 | Intrinsic | Signature | Description |
 |-----------|-----------|-------------|

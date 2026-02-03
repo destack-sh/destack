@@ -1243,10 +1243,7 @@ impl Compiler {
         let mut current = argument;
         let mut visited = HashSet::new();
 
-        loop {
-            let StaticArgument::Evaluated { name, value } = current else {
-                break;
-            };
+        while let StaticArgument::Evaluated { name, value } = current {
             let StaticExpression::Type { ty } = value else {
                 // preserve non-reference values as-is
                 current = StaticArgument::Evaluated { name, value };

@@ -5029,11 +5029,16 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
-        // collect candidates for excess property checks
-        // bail when no contextual type is available
+        // resolve the contextual target type for excess property checks
         let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, types) else {
             return Ok(());
         };
+
+        // skip excess checks for record-like literal targets
+        if self.is_record_like_object_literal_target(profile, expected_ty_id, types) {
+            return Ok(());
+        }
+
         let mut candidates: Vec<LocalTypeId> = Vec::new();
         let mut visited = HashSet::new();
         self.collect_object_literal_candidates(
@@ -5080,6 +5085,53 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Check if an object literal target is a record-like alias.
+    fn is_record_like_object_literal_target(
+        &self,
+        profile: ProfileId,
+        target_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
+        // locate the map and record symbols
+        let map_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Map);
+        let record_symbol = self.get_well_known_type_symbol(profile, WellKnownSymbol::Record);
+        let Some(map_symbol) = map_symbol else {
+            return false;
+        };
+
+        // walk aliases to find map and record references
+        let mut current = target_ty_id;
+        let mut visited = HashSet::new();
+        loop {
+            if !visited.insert(current) {
+                return false;
+            }
+
+            match types.get_type(current) {
+                // unwrap value wrapper types
+                Type::Value { value } => {
+                    current = *value;
+                }
+                // accept direct map and record references
+                Type::Reference { symbol, .. } => {
+                    if *symbol == map_symbol
+                        || record_symbol.is_some_and(|record_symbol| record_symbol == *symbol)
+                    {
+                        return true;
+                    }
+
+                    // follow alias targets when available
+                    if let Some(alias_target) = types.get_alias_target_type_id(*symbol) {
+                        current = alias_target;
+                    } else {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        }
     }
 
     /// Collect object style candidates for excess property checks.

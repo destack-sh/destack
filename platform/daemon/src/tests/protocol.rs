@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::protocol::{
     AnalyzeRequest, CacheStatsPayload, DaemonNotification, DaemonQuery, DaemonQueryResponse,

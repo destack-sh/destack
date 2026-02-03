@@ -65,6 +65,10 @@
       "description": "Watch options.",
       "$ref": "#/$defs/DsConfigWatchJson"
     },
+    "daemon": {
+      "description": "Daemon options.",
+      "$ref": "#/$defs/DsConfigDaemonJson"
+    },
     "targets": {
       "description": "Build targets.",
       "type": [
@@ -360,6 +364,17 @@
             "null"
           ]
         },
+        "implicitCollectionConversions": {
+          "description": "Policy for implicit collection conversions (record-like and sized arrays).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImplicitCollectionConversionPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "noUnsafeTypeAssertions": {
           "description": "Forbid unsafe type assertions (`as T`).",
           "type": [
@@ -547,6 +562,15 @@
           ]
         }
       }
+    },
+    "ImplicitCollectionConversionPolicyJson": {
+      "description": "Implicit collection conversion policy for JSON deserialization.",
+      "type": "string",
+      "enum": [
+        "allow",
+        "warn",
+        "deny"
+      ]
     },
     "BorrowModeJson": {
       "description": "Borrow checking mode for JSON deserialization.",
@@ -1341,6 +1365,21 @@
         },
         "pollIntervalMs": {
           "description": "Poll interval in milliseconds for polling watchers.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "DsConfigDaemonJson": {
+      "description": "Daemon options (top-level).",
+      "type": "object",
+      "properties": {
+        "idleShutdownMs": {
+          "description": "Idle shutdown timeout in milliseconds.",
           "type": [
             "integer",
             "null"
