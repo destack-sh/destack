@@ -64,6 +64,7 @@ impl FunctionContext<'_> {
         Ok((value, result_type))
     }
 
+    /// Lower a call as a statement (no result value).
     pub(crate) fn lower_call_statement(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -82,6 +83,7 @@ impl FunctionContext<'_> {
         Ok(())
     }
 
+    /// Lower a call expression to its result value and type.
     fn lower_call(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -124,7 +126,7 @@ impl FunctionContext<'_> {
             return Ok((Some(result.0), result.1));
         }
 
-        // NOTE #Incomplete: lower/monomorphize generic functions
+        // TODO #Incomplete: lower/monomorphize generic functions
         if static_arguments.is_some() {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
@@ -141,7 +143,7 @@ impl FunctionContext<'_> {
             && matches!(self.env.types.get_type(type_id), dir::Type::Function { .. })
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call_from_value_with_usage(
+            return self.lower_closure_call(
                 expression_id,
                 closure_value,
                 closure_type,
@@ -160,7 +162,7 @@ impl FunctionContext<'_> {
             && has_captures
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call_from_value_with_usage(
+            return self.lower_closure_call(
                 expression_id,
                 closure_value,
                 closure_type,
@@ -334,6 +336,7 @@ impl FunctionContext<'_> {
             self.state.builder.call(function_id, signature, arguments)
         };
 
+        // reject void calls for expression results (void is not a value)
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
@@ -347,7 +350,7 @@ impl FunctionContext<'_> {
     }
 
     /// Lower a call through a closure value.
-    fn lower_closure_call_from_value_with_usage(
+    fn lower_closure_call(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         closure_value: mir::Value,
@@ -407,6 +410,7 @@ impl FunctionContext<'_> {
             )
         };
 
+        // reject void calls for expression results (void is not a value)
         if returns_void && matches!(kind, CallKind::Expression) {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id

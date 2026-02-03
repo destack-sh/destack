@@ -2,8 +2,9 @@ use destack_dir::{
     Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, DynamicKey,
     EnumBackingType, Expression, GlobalSymbolId, IfCondition, IfKind, LocalNodeId, LocalTypeId,
     MatchCase, NodeTree, NodeType, Path, Resolution, ResolutionCandidate, ResolvedSignature,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolTable, SymbolType, Type,
-    TypeElement, TypeLiteral, TypeTable, WellKnownSymbol,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeBinaryOperator, TypeElement, TypeLiteral, TypeTable, UnaryOperator,
+    WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
@@ -120,6 +121,192 @@ impl Compiler {
         );
 
         Ok(())
+    }
+
+    /// Reify implicit casts for reference expressions when the node type narrows.
+    pub(super) fn reify_implicit_casts_in_reference(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        module: &Module,
+    ) -> ElaborateResult<()> {
+        // skip references used by guard operators
+        if self.reference_is_guard_operand(expression_id, tree) {
+            return Ok(());
+        }
+
+        // skip references that resolve in type-only space
+        let symbol_space = if target_symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+            symbol_entry.space
+        } else {
+            let remote_module = self.program.modules.get(target_symbol.module_id);
+            let remote_module = remote_module.read();
+            let dir = remote_module.dir(profile);
+            let remote_symbols = dir.symbols.read();
+            let symbol_entry = remote_symbols.get_symbol(target_symbol.local_id);
+            symbol_entry.space
+        };
+        if !matches!(symbol_space, SymbolSpace::Value | SymbolSpace::TypeValue) {
+            return Ok(());
+        }
+
+        // skip references marked as type expressions
+        if let Some(inferred_type_id) =
+            types.get_inferred_type_id(expression_id.into_global_any(module_id))
+            && matches!(types.get_type(inferred_type_id), Type::Value { .. })
+        {
+            return Ok(());
+        }
+
+        // require a declared or inferred node type
+        let Some(target_type_id) =
+            types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))
+        else {
+            return Ok(());
+        };
+
+        // require a source value type from the referenced symbol
+        let Some(source_type_id) = types.get_value_type_id(target_symbol) else {
+            return Ok(());
+        };
+
+        // unwrap type aliases and values
+        let target_type_id = self.unwrap_value_type_id(types, target_type_id);
+        let source_type_id = self.unwrap_value_type_id(types, source_type_id);
+
+        // skip when the types are semantically identical
+        if are_types_semantically_equal(
+            types.get_type(source_type_id),
+            types.get_type(target_type_id),
+            types,
+        ) {
+            return Ok(());
+        }
+
+        // classify the cast for this narrowing
+        let operator = self.cast_operator_for_types(
+            module_id,
+            profile,
+            symbols,
+            types,
+            source_type_id,
+            target_type_id,
+            module,
+        );
+        if operator == CastOperator::Identity {
+            return Ok(());
+        }
+
+        // move the reference into a new value node
+        let expression = tree.get(expression_id).clone();
+        let scope = tree.get_scope(expression_id);
+        let value_expression_id =
+            tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let value_expression_id = tree.insert(value_expression_id, expression);
+        types.set_inferred_type(
+            value_expression_id.into_global_any(module_id),
+            source_type_id,
+        );
+
+        // build the target type expression
+        let target_expression_id =
+            tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+        let target_expression = match types.get_type(target_type_id) {
+            Type::TypeLiteral { value } => Expression::TypeLiteral {
+                value: value.clone(),
+            },
+            _ => Expression::Type {
+                value: target_type_id,
+            },
+        };
+        let target_expression_id = tree.insert(target_expression_id, target_expression);
+
+        // set the inferred type for the target type expression
+        let target_type_value = Type::Value {
+            value: target_type_id,
+        };
+        let target_type_value_id = types.insert_type_from(target_type_value, target_expression_id);
+        types.set_inferred_type(
+            target_expression_id.into_global_any(module_id),
+            target_type_value_id,
+        );
+
+        // replace the reference with the cast expression
+        let cast_expression = Expression::Cast {
+            operator,
+            source: CastSource::Implicit,
+            value: value_expression_id,
+            target_type: target_expression_id,
+        };
+        if self.options.elaborate_parenthesize_casts {
+            let cast_expression_id =
+                tree.reserve_from(NodeType::Expression, expression_id.into_any(), scope, None);
+            let cast_expression_id = tree.insert(cast_expression_id, cast_expression);
+            types.set_inferred_type(
+                cast_expression_id.into_global_any(module_id),
+                target_type_id,
+            );
+            tree.replace(
+                expression_id,
+                Expression::Parenthesized {
+                    expression: cast_expression_id,
+                },
+            );
+        } else {
+            tree.replace(expression_id, cast_expression);
+        }
+        types.set_inferred_type(expression_id.into_global_any(module_id), target_type_id);
+
+        Ok(())
+    }
+
+    /// Return true when a reference is used by a guard operator.
+    fn reference_is_guard_operand(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+    ) -> bool {
+        let Some(parent_id) = tree.get_parent(expression_id.id) else {
+            return false;
+        };
+        let Ok(parent_id) = parent_id.try_into_typed::<Expression>() else {
+            return false;
+        };
+
+        let parent = tree.get(parent_id);
+        match parent {
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                matches!(
+                    operator,
+                    TypeBinaryOperator::Is
+                        | TypeBinaryOperator::InstanceOf
+                        | TypeBinaryOperator::Cast
+                ) && (*left == expression_id || *right == expression_id)
+            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => match operator {
+                BinaryOperator::InstanceOf => *left == expression_id || *right == expression_id,
+                BinaryOperator::In => *right == expression_id,
+                _ => false,
+            },
+            Expression::Unary { operator, right } => {
+                matches!(operator, UnaryOperator::Typeof) && *right == expression_id
+            }
+            _ => false,
+        }
     }
 
     /// Reify implicit casts in let and using bindings.
@@ -1007,6 +1194,18 @@ impl Compiler {
             cast_expression_id.into_global_any(module_id),
             target_type_id,
         );
+        if self.options.elaborate_parenthesize_casts {
+            let parenthesized_id =
+                tree.reserve_from(NodeType::Expression, origin_id.into_any(), scope, None);
+            let parenthesized_id = tree.insert(
+                parenthesized_id,
+                Expression::Parenthesized {
+                    expression: cast_expression_id,
+                },
+            );
+            types.set_inferred_type(parenthesized_id.into_global_any(module_id), target_type_id);
+            return Ok(parenthesized_id);
+        }
 
         Ok(cast_expression_id)
     }
@@ -1020,6 +1219,13 @@ impl Compiler {
         _symbols: &SymbolTable,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
+        // prefer declared or inferred types on the node
+        if let Some(type_id) =
+            types.get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
+        {
+            return Some(self.unwrap_value_type_id(types, type_id));
+        }
+
         // read the expression node
         let expression = tree.get(value_id);
 
@@ -1038,10 +1244,7 @@ impl Compiler {
             return Some(self.unwrap_value_type_id(types, type_id));
         }
 
-        // fall back to declared or inferred types on the node
-        types
-            .get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
-            .map(|type_id| self.unwrap_value_type_id(types, type_id))
+        None
     }
 
     /// Resolve the type id encoded in a type expression.
@@ -2249,7 +2452,7 @@ function intValue(): int32 {
 }
 
 function test(): float64 {
-    let value = intValue() as float64;
+    let value = (intValue() as float64);
     return value;
 }
 "#,
@@ -2286,8 +2489,8 @@ function intValue(): int32 {
 }
 
 function test(): float64 {
-    let value = intValue() as float64;
-    value = intValue() as float64;
+    let value = (intValue() as float64);
+    value = (intValue() as float64);
     return value;
 }
 "#,
@@ -2322,7 +2525,7 @@ function intValue(): int32 {
 }
 
 function test(): float64 {
-    return intValue() as float64;
+    return (intValue() as float64);
 }
 "#,
         );
@@ -2364,7 +2567,7 @@ function takeFloat(value): float64 {
 }
 
 function test(): float64 {
-    return takeFloat(intValue() as float64);
+    return takeFloat((intValue() as float64));
 }
 "#,
         );
@@ -2406,7 +2609,7 @@ function intValue(): int32 {
 }
 
 function test(condition): float64 {
-    return condition ? floatValue() : intValue() as float64;
+    return condition ? floatValue() : (intValue() as float64);
 }
 "#,
         );
@@ -2446,9 +2649,9 @@ function intValue(): int32 {
 function test(condition): float64 {
     let value;
     if (condition == true) {
-        value = intValue() as float64;
+        value = (intValue() as float64);
     } else {
-        value = intValue() as float64;
+        value = (intValue() as float64);
     }
     return value;
 }
@@ -2497,10 +2700,10 @@ function test(condition): float64 {
     let value;
     if (condition == true) {
         let value = intValue();
-        value = value as float64;
+        value = (value as float64);
     } else {
         let value = intValue();
-        value = value as float64;
+        value = (value as float64);
     }
     return value;
 }
@@ -2528,7 +2731,7 @@ function test(value: float): boolean {
             module_id,
             r#"
 function test(value): boolean {
-    return value < 2 as float64;
+    return value < (2 as float64);
 }
 "#,
         );
@@ -2611,8 +2814,473 @@ function intValue(): int32 {
 }
 
 function test(): int32 | float64 {
-    let value = intValue() as int32 | float64;
+    let value = (intValue() as int32 | float64);
     return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_reference_narrowing() {
+        // narrowed references insert implicit downcasts
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): int32 {
+    if (value is Foo) {
+        return value.x;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): int32 {
+    if (value is Foo) {
+        return (value as Foo).x;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_guard_after_narrowing() {
+        // narrowed references inside guard expressions insert casts
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): int32 {
+    if (value is Foo && value.x > 0) {
+        return value.x;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): int32 {
+    if (value is Foo && (value as Foo).x > (0 as int32)) {
+        return (value as Foo).x;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_guard_multiple_checks() {
+        // narrowed references inside compound guards insert casts consistently
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): int32 {
+    if (value is Foo && value.x > 0 && value.x < 10) {
+        return value.x;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): int32 {
+    if (value is Foo && (value as Foo).x > (0 as int32) && (value as Foo).x < (10 as int32)) {
+        return (value as Foo).x;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_while_guard() {
+        // while guards insert casts for narrowed references
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): int32 {
+    while (value is Foo && value.x > 0) {
+        break;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): int32 {
+    while (value is Foo && (value as Foo).x > (0 as int32)) {
+        break;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_skips_is_operand() {
+        // guard operands keep their original references
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function isFoo(value: Foo | Bar): boolean {
+    return value is Foo;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function isFoo(value): boolean {
+    return value is Foo;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_typeof_guard() {
+        // typeof guards narrow references without casting the guard operand
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function test(value: (() => int32) | int32): int32 {
+    if (typeof value == "function") {
+        return value();
+    }
+    return value;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function test(value): int32 {
+    if (typeof value == "function") {
+        return (value as () => int32)();
+    }
+    return (value as int32);
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_instanceof_guard() {
+        // instanceof guards narrow references without casting the guard operand
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+class Foo {
+    x: int32 = 0;
+}
+
+class Bar {
+    y: int32 = 0;
+}
+
+function test(value: Foo | Bar): int32 {
+    if (value instanceof Foo) {
+        return value.x;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+class Foo {
+    x: int32 = 0,
+}
+
+class Bar {
+    y: int32 = 0,
+}
+
+function test(value): int32 {
+    if (value instanceof Foo) {
+        return (value as Foo).x;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_in_guard() {
+        // in guards narrow references without casting the guard operand
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+type WithX = { x: int32 };
+type WithY = { y: int32 };
+
+function test(value: WithX | WithY): int32 {
+    if ("x" in value) {
+        return value.x;
+    }
+    return 0;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+type WithX = { x: int32 };
+
+type WithY = { y: int32 };
+
+function test(value): int32 {
+    if ('x' in value) {
+        return (value as { x: int32 }).x;
+    }
+    return 0;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_match_guard() {
+        // match guards narrow case bodies without casting the guard operand
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): int32 {
+    match (value) {
+        _ if value is Foo => value.x
+        _ => 0
+    }
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): int32 {
+    if (value is Foo) return (value as Foo).x; else {
+        return 0;
+    }
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_skips_cast_operand() {
+        // explicit casts do not add extra implicit casts
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Foo {
+    x: int32;
+}
+
+struct Bar {
+    y: int32;
+}
+
+function test(value: Foo | Bar): Foo {
+    return value as Foo;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Foo {
+    x: int32,
+}
+
+struct Bar {
+    y: int32,
+}
+
+function test(value): Foo {
+    return value as Foo;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_skips_tagged_type_reference() {
+        // tagged constructors keep their type reference intact
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Counter {
+    value: int32;
+}
+
+function make(value: int32): Counter {
+    return Counter { value };
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Counter {
+    value: int32,
+}
+
+function make(value): Counter {
+    return Counter { value };
 }
 "#,
         );
@@ -2670,7 +3338,7 @@ class GreeterImpl implements Greeter {
 }
 
 function test(): Greeter {
-    let value = new GreeterImpl(1) as Greeter;
+    let value = (new GreeterImpl(1) as Greeter);
     return value;
 }
 "#,
@@ -2713,7 +3381,7 @@ interface Speaker {
 }
 
 function test(value): Speaker {
-    let assigned = value as Speaker;
+    let assigned = (value as Speaker);
     return assigned;
 }
 "#,
@@ -2747,7 +3415,7 @@ function intValue(): int32 {
 }
 
 function test(): int32 | null {
-    let value = intValue() as int32 | null;
+    let value = (intValue() as int32 | null);
     return value;
 }
 "#,
@@ -2773,7 +3441,7 @@ function test(): int32 | null {
             module_id,
             r#"
 function test(): int32 | null {
-    let value = null as int32 | null;
+    let value = (null as int32 | null);
     return value;
 }
 "#,
@@ -2799,7 +3467,7 @@ function test(): int32 | undefined {
             module_id,
             r#"
 function test(): int32 | undefined {
-    let value = undefined as int32 | undefined;
+    let value = (undefined as int32 | undefined);
     return value;
 }
 "#,
@@ -2824,7 +3492,7 @@ function test(): int32 | null {
             module_id,
             r#"
 function test(): int32 | null {
-    return null as int32 | null;
+    return (null as int32 | null);
 }
 "#,
         );
@@ -2857,7 +3525,7 @@ function intValue(): int32 {
 }
 
 function test(): int32 | undefined {
-    let value = intValue() as int32 | undefined;
+    let value = (intValue() as int32 | undefined);
     return value;
 }
 "#,
@@ -2898,7 +3566,7 @@ function intValue(): int32 {
 }
 
 function test(): int32 | null | undefined {
-    return accept(intValue() as int32 | null | undefined);
+    return accept((intValue() as int32 | null | undefined));
 }
 "#,
         );
@@ -2970,7 +3638,7 @@ function intValue(): int32 {
 }
 
 function test(): void {
-    using value = intValue() as float64;
+    using value = (intValue() as float64);
 }
 "#,
         );
@@ -3075,7 +3743,7 @@ function getArray(): int32[] {
 }
 
 function test(): object {
-    let value = getArray() as object;
+    let value = (getArray() as object);
     return value;
 }
 "#,
@@ -3114,7 +3782,7 @@ interface Foo {
 }
 
 function getObject(): object {
-    return { x: 1 } as object;
+    return ({ x: 1 } as object);
 }
 
 function test(): Foo {

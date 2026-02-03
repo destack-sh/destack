@@ -232,6 +232,7 @@ impl TestProgram {
             workers,
             inject_prelude,
             load_libs,
+            elaborate_parenthesize_casts: true,
             ..CompilerOptions::default()
         };
         let compiler = Arc::new(Compiler::new(

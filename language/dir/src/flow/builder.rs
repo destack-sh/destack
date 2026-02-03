@@ -1209,34 +1209,54 @@ impl<'tree> FlowGraphBuilder<'tree> {
         match match_case {
             MatchCase::Expression { selector, body, .. } => {
                 // evaluate selector then expression body
-                let selector_exit_block_id =
-                    self.build_match_selector(selector, current_block_id)?;
-                self.build_expression(*body, selector_exit_block_id)
+                self.build_match_case_body(selector, current_block_id, |builder, block_id| {
+                    builder.build_expression(*body, block_id)
+                })
             }
             MatchCase::Block { selector, body, .. } => {
                 // evaluate selector then block body
-                let selector_exit_block_id =
-                    self.build_match_selector(selector, current_block_id)?;
-                self.build_block(*body, selector_exit_block_id)
+                self.build_match_case_body(selector, current_block_id, |builder, block_id| {
+                    builder.build_block(*body, block_id)
+                })
             }
         }
     }
 
-    /// Build selector evaluation for a match case.
-    fn build_match_selector(
+    /// Build selector evaluation and body for a match case.
+    fn build_match_case_body(
         &mut self,
         selector: &MatchSelector,
         current_block_id: FlowBlockId,
+        build_body: impl FnOnce(&mut Self, FlowBlockId) -> Option<FlowBlockId>,
     ) -> Option<FlowBlockId> {
         match selector {
             MatchSelector::Pattern { pattern, guard } => {
                 // evaluate the pattern before any guard
                 let pattern_exit_block_id = self.build_pattern(*pattern, current_block_id)?;
+
+                // evaluate the guard before the body when present
                 if let Some(guard_id) = guard {
-                    // evaluate the guard expression when present
-                    return self.build_expression(*guard_id, pattern_exit_block_id);
+                    let guard_block_id = self.create_block();
+                    self.connect_blocks(
+                        pattern_exit_block_id,
+                        guard_block_id,
+                        FlowEdgeKind::Unconditional,
+                        None,
+                    );
+
+                    let guard_exit_block_id = self.build_expression(*guard_id, guard_block_id)?;
+                    let body_block_id = self.create_block();
+                    self.connect_blocks(
+                        guard_exit_block_id,
+                        body_block_id,
+                        FlowEdgeKind::Guard,
+                        Some(FlowGuard::Expression(*guard_id)),
+                    );
+
+                    return build_body(self, body_block_id);
                 }
-                Some(pattern_exit_block_id)
+
+                build_body(self, pattern_exit_block_id)
             }
             MatchSelector::Default => Some(current_block_id),
         }

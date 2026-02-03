@@ -142,6 +142,21 @@ impl Compiler {
                 )?;
             }
 
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                self.reify_implicit_casts_in_reference(
+                    module_id,
+                    profile,
+                    expression_id,
+                    target_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    module,
+                )?;
+            }
+
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
                 self.reify_implicit_casts_in_binding(
                     module_id,

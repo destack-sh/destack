@@ -71,6 +71,8 @@ pub struct CompilerOptions {
     /// Whether to make implicit returns explicit.
     /// e.g., `function f() { 42 }` → `function f() { return 42; }`
     pub elaborate_explicit_return: bool,
+    /// Whether to wrap implicit casts inserted during elaborate in parentheses.
+    pub elaborate_parenthesize_casts: bool,
 
     /// Whether to retain comptime expressions as comments after execution.
     pub retain_comptime_as_comment: bool,
@@ -118,6 +120,7 @@ impl Default for CompilerOptions {
             elaborate_with_ternary: true,
             elaborate_split_declarators: true,
             elaborate_explicit_return: true,
+            elaborate_parenthesize_casts: false,
             retain_comptime_as_comment: false,
             retain_comptime_comment_max_length: 120,
 
@@ -156,6 +159,10 @@ impl std::fmt::Debug for CompilerOptions {
                 &self.elaborate_split_declarators,
             )
             .field("elaborate_explicit_return", &self.elaborate_explicit_return)
+            .field(
+                "elaborate_parenthesize_casts",
+                &self.elaborate_parenthesize_casts,
+            )
             .field(
                 "retain_comptime_as_comment",
                 &self.retain_comptime_as_comment,

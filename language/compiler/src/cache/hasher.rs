@@ -55,6 +55,7 @@ impl CacheHasher {
         self.hash_value(&options.elaborate_with_ternary);
         self.hash_value(&options.elaborate_split_declarators);
         self.hash_value(&options.elaborate_explicit_return);
+        self.hash_value(&options.elaborate_parenthesize_casts);
         self.hash_value(&options.retain_comptime_as_comment);
         self.hash_value(&options.retain_comptime_comment_max_length);
 
