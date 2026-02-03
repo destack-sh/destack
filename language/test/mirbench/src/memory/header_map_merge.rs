@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const HEADER_MAP_CAPACITY: i64 = 32;
@@ -35,16 +35,24 @@ fn header_map_merge(ops: i64) -> Value {
     let mut keys = vec![0i64; HEADER_MAP_CAPACITY as usize];
     let mut values = vec![0i64; HEADER_MAP_CAPACITY as usize];
     for index in 0..HEADER_MAP_SIZE {
-        keys[index as usize] = index.wrapping_mul(HEADER_KEY_MUL).wrapping_add(HEADER_KEY_ADD);
-        values[index as usize] = index.wrapping_mul(HEADER_VAL_MUL).wrapping_add(HEADER_VAL_ADD);
+        keys[index as usize] = index
+            .wrapping_mul(HEADER_KEY_MUL)
+            .wrapping_add(HEADER_KEY_ADD);
+        values[index as usize] = index
+            .wrapping_mul(HEADER_VAL_MUL)
+            .wrapping_add(HEADER_VAL_ADD);
     }
 
     // init secondary map
     let mut merge_keys = vec![0i64; HEADER_MAP_CAPACITY as usize];
     let mut merge_values = vec![0i64; HEADER_MAP_CAPACITY as usize];
     for index in 0..HEADER_MAP_CAPACITY {
-        merge_keys[index as usize] = index.wrapping_mul(MERGE_KEY_MUL).wrapping_add(MERGE_KEY_ADD);
-        merge_values[index as usize] = index.wrapping_mul(MERGE_VAL_MUL).wrapping_add(MERGE_VAL_ADD);
+        merge_keys[index as usize] = index
+            .wrapping_mul(MERGE_KEY_MUL)
+            .wrapping_add(MERGE_KEY_ADD);
+        merge_values[index as usize] = index
+            .wrapping_mul(MERGE_VAL_MUL)
+            .wrapping_add(MERGE_VAL_ADD);
     }
 
     // merge maps

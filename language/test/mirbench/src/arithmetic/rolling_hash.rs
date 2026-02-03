@@ -28,17 +28,13 @@ fn rolling_hash(length: i64) -> Value {
 
     // run hash loop
     while index < length {
-        let value = index
-            .wrapping_mul(1103515245)
-            .wrapping_add(12345) & 255;
+        let value = index.wrapping_mul(1103515245).wrapping_add(12345) & 255;
 
         let old = buffer[head];
         buffer[head] = value;
         head = (head + 1) & 7;
 
-        acc1 = acc1
-            .wrapping_add(value)
-            .wrapping_sub(old);
+        acc1 = acc1.wrapping_add(value).wrapping_sub(old);
         acc2 = acc2
             .wrapping_mul(16777619)
             .wrapping_add(value ^ (acc1 & 255));

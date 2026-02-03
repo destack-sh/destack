@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const URL_HASH_MUL: i64 = 1103515245;
@@ -34,9 +34,7 @@ fn url_decode(length: i64) -> Value {
 
     // run decode loop
     while index < length {
-        let value = index
-            .wrapping_mul(URL_HASH_MUL)
-            .wrapping_add(URL_HASH_ADD);
+        let value = index.wrapping_mul(URL_HASH_MUL).wrapping_add(URL_HASH_ADD);
         let token = value & URL_TOKEN_MASK;
 
         if pending == 0 {
@@ -52,9 +50,7 @@ fn url_decode(length: i64) -> Value {
             pending = 2;
         } else {
             let low = token & URL_HEX_MASK;
-            let byte = first_hex
-                .wrapping_mul(URL_HEX_SHIFT)
-                .wrapping_add(low);
+            let byte = first_hex.wrapping_mul(URL_HEX_SHIFT).wrapping_add(low);
             acc = acc.wrapping_add(byte);
             pending = 0;
         }

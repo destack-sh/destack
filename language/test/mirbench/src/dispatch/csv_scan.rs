@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const CSV_HASH_MUL: i64 = 1664525;
@@ -36,9 +36,7 @@ fn csv_scan(length: i64) -> Value {
 
     // scan pseudo csv stream
     while index < length {
-        let hash = index
-            .wrapping_mul(CSV_HASH_MUL)
-            .wrapping_add(CSV_HASH_ADD);
+        let hash = index.wrapping_mul(CSV_HASH_MUL).wrapping_add(CSV_HASH_ADD);
         let token = hash % CSV_HASH_MOD;
 
         if token == CSV_TOKEN_QUOTE {

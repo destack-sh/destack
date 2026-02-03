@@ -1,5 +1,5 @@
-use super::super::{Program, ProgramRunner, scale_axis_range};
 use super::super::common::mix_result;
+use super::super::{Program, ProgramRunner, scale_axis_range};
 use destack_vm::memory::Value;
 
 /// Return a constant resume value of two.
@@ -39,9 +39,7 @@ fn yield_task_queue(iterations: i64) -> Value {
         let idx = index as i64;
         let parsed = value.wrapping_add(acc).wrapping_add(7);
         let executed = parsed.wrapping_add(idx).wrapping_add(3);
-        acc = acc
-            .wrapping_add(executed)
-            .wrapping_add(2);
+        acc = acc.wrapping_add(executed).wrapping_add(2);
     }
 
     let mixed = mix_result(acc, iterations);

@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 declare_program! {
@@ -24,9 +24,7 @@ fn memchr_scan(length: i64) -> Value {
     // fill buffer
     for (index, slot) in buffer.iter_mut().enumerate() {
         let idx = index as i64;
-        *slot = idx
-            .wrapping_mul(37)
-            .wrapping_add(11) & 255;
+        *slot = idx.wrapping_mul(37).wrapping_add(11) & 255;
     }
 
     // scan for sentinel

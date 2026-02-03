@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 declare_program! {
@@ -27,9 +27,7 @@ fn log_line_scan(length: i64) -> Value {
 
     // scan tokens
     while index < length {
-        let value = index
-            .wrapping_mul(1664525)
-            .wrapping_add(1013904223) & 15;
+        let value = index.wrapping_mul(1664525).wrapping_add(1013904223) & 15;
         if value <= 9 {
             digits = digits.wrapping_add(1);
             acc = acc.wrapping_add(value);

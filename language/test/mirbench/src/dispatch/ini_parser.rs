@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const INI_HASH_MUL: i64 = 1103515245;
@@ -46,9 +46,7 @@ fn ini_parser(length: i64) -> Value {
 
     // run parse loop
     while index < length {
-        let value = index
-            .wrapping_mul(INI_HASH_MUL)
-            .wrapping_add(INI_HASH_ADD);
+        let value = index.wrapping_mul(INI_HASH_MUL).wrapping_add(INI_HASH_ADD);
         let token = value & INI_TOKEN_MASK;
 
         if state == INI_STATE_COMMENT {

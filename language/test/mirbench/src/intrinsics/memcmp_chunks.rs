@@ -29,9 +29,7 @@ fn memcmp_chunks(iterations: i64, length: i64) -> Value {
     let mut left = vec![0u8; length_usize];
     let mut right = vec![0u8; length_usize];
     for index in 0..length_usize {
-        let value = (index as i64)
-            .wrapping_mul(3)
-            .wrapping_add(1) as u8;
+        let value = (index as i64).wrapping_mul(3).wrapping_add(1) as u8;
         left[index] = value;
         if (index & 7) == 0 {
             right[index] = value.wrapping_add(1);

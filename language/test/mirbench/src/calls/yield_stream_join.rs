@@ -1,5 +1,5 @@
-use super::super::{Program, ProgramRunner, scale_axis_range};
 use super::super::common::mix_result;
+use super::super::{Program, ProgramRunner, scale_axis_range};
 use destack_vm::memory::Value;
 
 /// Resume by adding one to the yielded value.
@@ -53,9 +53,7 @@ fn yield_stream_join(iterations: i64) -> Value {
         let joined = left_mapped ^ right_mapped;
         let joined = joined.wrapping_add(7);
         let resume = joined.wrapping_add(1);
-        acc = acc
-            .wrapping_add(joined)
-            .wrapping_add(resume);
+        acc = acc.wrapping_add(joined).wrapping_add(resume);
     }
 
     let mixed = mix_result(acc, iterations);

@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 declare_program! {
@@ -24,9 +24,7 @@ fn page_checksum(length: i64) -> Value {
 
     // compute checksum directly
     while index < length {
-        let value = index
-            .wrapping_mul(1103515245)
-            .wrapping_add(12345);
+        let value = index.wrapping_mul(1103515245).wrapping_add(12345);
         let mixed = value.wrapping_mul(3);
         acc = acc.wrapping_add(mixed).wrapping_add(index);
 
