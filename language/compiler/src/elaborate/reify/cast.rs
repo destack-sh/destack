@@ -187,7 +187,7 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // read the target type from the left hand side
         let target_type_id = self
-            .value_type_id_for_expression(module_id, left, tree, types)
+            .value_type_id_for_expression(module_id, left, tree, symbols, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: left.into_global_any(module_id).into_anchored(Some(profile)),
             })?;
@@ -641,12 +641,12 @@ impl Compiler {
 
         // read operand type ids
         let left_type_id = self
-            .value_type_id_for_expression(module_id, left, tree, types)
+            .value_type_id_for_expression(module_id, left, tree, symbols, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: left.into_global_any(module_id).into_anchored(Some(profile)),
             })?;
         let right_type_id = self
-            .value_type_id_for_expression(module_id, right, tree, types)
+            .value_type_id_for_expression(module_id, right, tree, symbols, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: right
                     .into_global_any(module_id)
@@ -772,7 +772,7 @@ impl Compiler {
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // read the source type id
         let value_type_id = self
-            .value_type_id_for_expression(module_id, value_id, tree, types)
+            .value_type_id_for_expression(module_id, value_id, tree, symbols, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: value_id
                     .into_global_any(module_id)
@@ -1017,6 +1017,7 @@ impl Compiler {
         module_id: ModuleId,
         value_id: LocalNodeId<Expression>,
         tree: &NodeTree,
+        _symbols: &SymbolTable,
         types: &TypeTable,
     ) -> Option<LocalTypeId> {
         // read the expression node
@@ -1259,7 +1260,6 @@ impl Compiler {
             record_like.map_symbol,
             tree,
             symbols,
-            types,
         )?;
 
         // register a concrete instance for Map.from<K, V>
@@ -1435,7 +1435,7 @@ impl Compiler {
 
         // resolve source and target types
         let value_type_id = self
-            .value_type_id_for_expression(module.id, value_id, tree, types)
+            .value_type_id_for_expression(module.id, value_id, tree, symbols, types)
             .ok_or(ElaborateError::UnsupportedConstruct {
                 node: value_id
                     .into_global_any(module.id)
@@ -1529,7 +1529,6 @@ impl Compiler {
             array_symbol,
             tree,
             symbols,
-            types,
         )?;
 
         // register a concrete instance for Array.fromSized<T>
@@ -1929,7 +1928,6 @@ impl Compiler {
         map_symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> ElaborateResult<GlobalSymbolId> {
         // locate the member key
         let name = self.program.strings.intern("from");
@@ -1943,7 +1941,6 @@ impl Compiler {
             member_key,
             tree,
             symbols,
-            types,
         )
         .map_err(|_| ElaborateError::UnsupportedConstruct {
             node: origin_id
@@ -1961,7 +1958,6 @@ impl Compiler {
         array_symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
     ) -> ElaborateResult<GlobalSymbolId> {
         // locate the member key
         let name = self.program.strings.intern("fromSized");
@@ -1975,7 +1971,6 @@ impl Compiler {
             member_key,
             tree,
             symbols,
-            types,
         )
         .map_err(|_| ElaborateError::UnsupportedConstruct {
             node: origin_id
@@ -2926,9 +2921,6 @@ function test(): float {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -2964,9 +2956,6 @@ function test(): void {
 }
 "#,
         );
-
-        // resolve libs
-        test.resolve_builtins_and_libs();
 
         // run elaborate
         test.elaborate_module(module_id);
@@ -3005,9 +2994,6 @@ function test(): int32 {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -3042,9 +3028,6 @@ function test(): float {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -3078,9 +3061,6 @@ function test(): object {
 }
 "#,
         );
-
-        // resolve libs
-        test.resolve_builtins_and_libs();
 
         // run elaborate
         test.elaborate_module(module_id);
@@ -3121,9 +3101,6 @@ function test(): Foo {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -3163,9 +3140,6 @@ function build(): Record<string, int32> {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -3199,9 +3173,6 @@ function build(): Record<string, int32> {
 "#,
         );
 
-        // resolve libs
-        test.resolve_builtins_and_libs();
-
         // run elaborate
         test.elaborate_module(module_id);
         test.compile_check_clean();
@@ -3233,9 +3204,6 @@ function build(): Record<string, int32> {
 }
 "#,
         );
-
-        // resolve libs
-        test.resolve_builtins_and_libs();
 
         // run elaborate
         test.elaborate_module(module_id);
