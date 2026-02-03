@@ -197,9 +197,27 @@ impl Compiler {
         // load the pattern node
         let pattern = tree.get(pattern_id).clone();
 
-        // wildcard: return the body directly
-        if matches!(pattern, Pattern::Wildcard) && guard.is_none() {
-            return Ok(Some(body));
+        // wildcard: return the body directly unless there is a guard
+        if matches!(pattern, Pattern::Wildcard) {
+            if guard.is_none() {
+                return Ok(Some(body));
+            }
+
+            let guard_expr = guard.unwrap();
+            let if_expr = self.build_case_if(
+                match_id,
+                guard_expr,
+                body,
+                value,
+                cases,
+                index,
+                tree,
+                scope,
+                types,
+                match_type_id,
+            )?;
+
+            return Ok(Some(if_expr));
         }
         // binding pattern without a nested pattern
         else if let Pattern::Binding {
@@ -1905,13 +1923,13 @@ function classify(x: number): string {
 function classify(x): string {
     if ({
         const n = x;
-        n > 0 as number
+        n > (0 as number)
     }) {
         const n = x;
         return "positive";
     } else if ({
         const n = x;
-        n < 0 as number
+        n < (0 as number)
     }) {
         const n = x;
         return "negative";

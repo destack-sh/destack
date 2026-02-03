@@ -711,10 +711,10 @@ impl Compiler {
                 | Expression::ModuleReference { .. }
                 | Expression::GlobalReference { .. }
         );
+        let mut cached_type_id = None;
         if let Some(existing) = types.get_expression_type_id_cache(cache_key) {
-            return Ok(existing);
-        }
-        if let Some(existing) = types.get_declared_type_id(global_node_id) {
+            cached_type_id = Some(existing);
+        } else if let Some(existing) = types.get_declared_type_id(global_node_id) {
             // avoid reusing unvalidated instantiations when bounds are required
             let has_static_arguments = matches!(
                 types.get_type(existing),
@@ -738,9 +738,16 @@ impl Compiler {
                         is_reference_expression,
                         types,
                     );
-                    return Ok(existing);
+                    cached_type_id = Some(existing);
                 }
             }
+        }
+        if let Some(existing) = cached_type_id {
+            // materialize the type value so downstream phases do not see an untyped expression
+            let type_value = Type::Value { value: existing };
+            let type_value_id = types.insert_type_from(type_value, expression_id);
+            types.set_inferred_type(expression_id.into_global_any(module.id), type_value_id);
+            return Ok(existing);
         }
 
         // evaluate to a concrete type when possible
@@ -780,6 +787,11 @@ impl Compiler {
             is_reference_expression,
             types,
         );
+
+        // materialize the type value so downstream phases do not see an untyped expression
+        let type_value = Type::Value { value: ty_id };
+        let type_value_id = types.insert_type_from(type_value, expression_id);
+        types.set_inferred_type(expression_id.into_global_any(module.id), type_value_id);
 
         Ok(ty_id)
     }
