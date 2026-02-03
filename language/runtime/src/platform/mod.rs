@@ -31,6 +31,7 @@ pub mod timer;
 
 pub use abi::{
     NativeArray, NativeSlice, NativeStringRef, NativeStringSlice, RuntimeStatus, VmArray, VmSlice,
+    VmValueCodec,
 };
 pub use bindings::{BindingPolicy, BindingRegistry, ExecutionMode, VmBindingSet};
 pub use context::PlatformContext;

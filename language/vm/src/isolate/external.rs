@@ -2,7 +2,7 @@ use std::fmt;
 use std::ptr::NonNull;
 
 use crate::diagnostic::Error;
-use crate::memory::{RawPointer, Value, ValueTag};
+use crate::memory::{RawCellStorage, RawPointer, SlotStorage, Value, ValueTag};
 
 use super::IsolateState;
 
@@ -75,6 +75,11 @@ impl<'ctx> RuntimeContext<'ctx> {
         self.state.allocate_raw_values(values)
     }
 
+    /// Allocate a raw heap byte buffer and return its pointer.
+    pub fn allocate_raw_bytes(&mut self, bytes: &[u8]) -> RawPointer {
+        self.state.allocate_raw_bytes(bytes)
+    }
+
     /// Read aggregate slots from the heap.
     pub fn aggregate_slots(&self, value: Value) -> Result<Vec<Value>, Error> {
         if value.tag() != ValueTag::Aggregate {
@@ -87,6 +92,68 @@ impl<'ctx> RuntimeContext<'ctx> {
         let heap = self.state.heap_borrow();
         let cell = heap.managed.get(handle).ok_or(Error::InvalidHeapHandle)?;
         Ok(cell.slots.as_slice().to_vec())
+    }
+
+    /// Read the raw cell storage for a raw pointer.
+    pub fn raw_cell_storage(&self, pointer: RawPointer) -> Result<RawCellStorage, Error> {
+        let heap = self.state.heap_borrow_read();
+        let cell = heap.raw.get(pointer).ok_or(Error::InvalidHeapHandle)?;
+        Ok(cell.storage.clone())
+    }
+
+    /// Read raw values from a pointer to a values cell.
+    pub fn raw_values(&self, pointer: RawPointer) -> Result<Vec<Value>, Error> {
+        match self.raw_cell_storage(pointer)? {
+            RawCellStorage::Values(storage) => Ok(storage.as_slice().to_vec()),
+            RawCellStorage::Bytes(_) => Err(Error::TypeMismatch {
+                expected: "values".to_string(),
+                actual: "bytes".to_string(),
+            }),
+        }
+    }
+
+    /// Read raw bytes from a pointer to a bytes cell.
+    pub fn raw_bytes(&self, pointer: RawPointer) -> Result<Vec<u8>, Error> {
+        match self.raw_cell_storage(pointer)? {
+            RawCellStorage::Bytes(bytes) => Ok(bytes),
+            RawCellStorage::Values(_) => Err(Error::TypeMismatch {
+                expected: "bytes".to_string(),
+                actual: "values".to_string(),
+            }),
+        }
+    }
+
+    /// Write raw values into a pointer to a values cell.
+    pub fn write_raw_values(&mut self, pointer: RawPointer, values: &[Value]) -> Result<(), Error> {
+        let mut heap = self.state.heap_borrow();
+        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
+        match &mut cell.storage {
+            RawCellStorage::Values(_) => {
+                cell.storage = RawCellStorage::Values(SlotStorage::from_values(values.to_vec()));
+                Ok(())
+            }
+            RawCellStorage::Bytes(_) => Err(Error::TypeMismatch {
+                expected: "values".to_string(),
+                actual: "bytes".to_string(),
+            }),
+        }
+    }
+
+    /// Write raw bytes into a pointer to a bytes cell.
+    pub fn write_raw_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> Result<(), Error> {
+        let mut heap = self.state.heap_borrow();
+        let cell = heap.raw.get_mut(pointer).ok_or(Error::InvalidHeapHandle)?;
+        match &mut cell.storage {
+            RawCellStorage::Bytes(storage) => {
+                storage.clear();
+                storage.extend_from_slice(bytes);
+                Ok(())
+            }
+            RawCellStorage::Values(_) => Err(Error::TypeMismatch {
+                expected: "bytes".to_string(),
+                actual: "values".to_string(),
+            }),
+        }
     }
 }
 

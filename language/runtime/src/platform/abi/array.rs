@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, VmSlice, VmValueCodec};
 
 /// FFI array for raw native bindings.
 #[repr(C)]
@@ -26,7 +26,7 @@ impl<T> NativeArray<T> {
     /// View the array as an immutable slice.
     pub unsafe fn as_slice<'a>(self) -> RuntimeResult<&'a [T]> {
         if self.data.is_null() && self.len != 0 {
-            return Err(RuntimeError::platform(PlatformError::null_pointer("array.data")).boxed());
+            return Err(RuntimeError::from(PlatformError::null_pointer("array.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime
         Ok(unsafe { std::slice::from_raw_parts(self.data, self.len as usize) })
@@ -35,7 +35,7 @@ impl<T> NativeArray<T> {
     /// View the array as a mutable slice.
     pub unsafe fn as_mut_slice<'a>(self) -> RuntimeResult<&'a mut [T]> {
         if self.data.is_null() && self.len != 0 {
-            return Err(RuntimeError::platform(PlatformError::null_pointer("array.data")).boxed());
+            return Err(RuntimeError::from(PlatformError::null_pointer("array.data")).boxed());
         }
         // safety: caller guarantees the slice is valid for the lifetime
         Ok(unsafe { std::slice::from_raw_parts_mut(self.data, self.len as usize) })
@@ -66,54 +66,49 @@ impl<T> VmArray<T> {
     ) -> RuntimeResult<Self> {
         // value must be an aggregate triple
         if value.tag() != vm::ValueTag::Aggregate {
-            return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
-                name, expected,
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+            );
         }
 
         // unpack aggregate slots
         let slots = context
             .aggregate_slots(value)
-            .map_err(|error| RuntimeError::vm(error).boxed())?;
+            .map_err(|error| RuntimeError::from(error).boxed())?;
         if slots.len() != 3 {
-            return Err(
-                RuntimeError::platform(PlatformError::invalid_argument_value(
-                    name,
-                    format!("expected {expected} with 3 fields"),
-                ))
-                .boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                name,
+                format!("expected {expected} with 3 fields"),
+            ))
+            .boxed());
         }
 
         // decode length + capacity + pointer
         let (len, len_width) = slots[0].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::platform(PlatformError::invalid_argument_type(name, expected)).boxed()
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
         if len_width != 32 {
-            return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
-                name, expected,
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+            );
         }
         let (capacity, capacity_width) = slots[1].as_uint_with_width().ok_or_else(|| {
-            RuntimeError::platform(PlatformError::invalid_argument_type(name, expected)).boxed()
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
         if capacity_width != 32 {
-            return Err(RuntimeError::platform(PlatformError::invalid_argument_type(
-                name, expected,
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed(),
+            );
         }
         let data = slots[2].as_raw_pointer().ok_or_else(|| {
-            RuntimeError::platform(PlatformError::invalid_argument_type(name, expected)).boxed()
+            RuntimeError::from(PlatformError::invalid_argument_type(name, expected)).boxed()
         })?;
 
         Ok(Self {
             data,
             len: len as u32,
             capacity: capacity as u32,
-            _marker: PhantomData,
+            _marker: PhantomData::<T>,
         })
     }
 
@@ -123,5 +118,89 @@ impl<T> VmArray<T> {
         let capacity = vm::Value::uint(self.capacity as u64, 32);
         let data = vm::Value::raw_pointer(self.data);
         context.allocate_aggregate(vec![len, capacity, data])
+    }
+
+    /// Read the raw VM values stored in this array.
+    pub fn raw_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<vm::Value>> {
+        VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<T>,
+        }
+        .raw_values(context)
+    }
+}
+
+impl<T: VmValueCodec> VmArray<T> {
+    /// Allocate a VM array from decoded values.
+    pub fn from_values(context: &mut vm::RuntimeContext<'_>, values: &[T]) -> RuntimeResult<Self> {
+        let slice = VmSlice::from_values(context, values)?;
+        Ok(Self {
+            data: slice.data,
+            len: slice.len,
+            capacity: slice.len,
+            _marker: PhantomData::<T>,
+        })
+    }
+
+    /// Read the VM array into a Vec of decoded values.
+    pub fn read_values(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<T>> {
+        VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<T>,
+        }
+        .read_values(context)
+    }
+
+    /// Write decoded values into the VM array.
+    pub fn write_values(
+        &self,
+        context: &mut vm::RuntimeContext<'_>,
+        values: &[T],
+    ) -> RuntimeResult<()> {
+        VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<T>,
+        }
+        .write_values(context, values)
+    }
+}
+
+impl VmArray<u8> {
+    /// Allocate a VM array from raw bytes.
+    pub fn from_bytes(context: &mut vm::RuntimeContext<'_>, bytes: &[u8]) -> Self {
+        let slice = VmSlice::from_bytes(context, bytes);
+        Self {
+            data: slice.data,
+            len: slice.len,
+            capacity: slice.len,
+            _marker: PhantomData::<u8>,
+        }
+    }
+
+    /// Read a byte array from the VM.
+    pub fn read_bytes(&self, context: &vm::RuntimeContext<'_>) -> RuntimeResult<Vec<u8>> {
+        VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<u8>,
+        }
+        .read_bytes(context)
+    }
+
+    /// Write a byte array into the VM.
+    pub fn write_bytes(
+        &self,
+        context: &mut vm::RuntimeContext<'_>,
+        bytes: &[u8],
+    ) -> RuntimeResult<()> {
+        VmSlice {
+            data: self.data,
+            len: self.len,
+            _marker: PhantomData::<u8>,
+        }
+        .write_bytes(context, bytes)
     }
 }

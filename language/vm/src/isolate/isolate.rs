@@ -106,9 +106,9 @@ impl Isolate {
         self.with_interpreter(|context| context.instruction_profile_report(target_percent))
     }
 
-    /// Register an external function handler.
-    pub fn register_external(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
-        self.state.register_external(name, handler);
+    /// Register a VM binding handler.
+    pub fn register_vm_binding(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
+        self.state.register_vm_binding(name, handler);
     }
 
     /// Intern a UTF-8 string and return the managed string value.

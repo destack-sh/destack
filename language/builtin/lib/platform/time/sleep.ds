@@ -3,13 +3,13 @@ import type { PlatformError } from "../error/index.ds";
 /// Sleep bindings for the native runtime.
 declare namespace time {
     /// Sleep for at least the given duration in nanoseconds.
-    @binding("destack.time.sleepNs", { effect: "external", replay: "recordable", log: "time" })
+    @binding("destack.time.sleepNs", { effect: "external", replay: "recordable" })
     export function sleepNs(duration: uint64): Result<void, PlatformError>;
 
     /// Sleep until the given wall clock time in nanoseconds.
     @binding(
         "destack.time.sleepUntilNs",
-        { effect: "external", replay: "recordable", log: "time" },
+        { effect: "external", replay: "recordable" },
     )
     export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>;
 }

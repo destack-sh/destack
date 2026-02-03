@@ -2,6 +2,9 @@
 
 #![allow(dead_code)]
 
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI newtype for DirectoryHandle.
@@ -12,6 +15,16 @@ pub struct DirectoryHandle(
     pub ResourceId,
 );
 
+impl VmValueCodec for DirectoryHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for FileHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -19,6 +32,16 @@ pub struct FileHandle(
     /// Inner value.
     pub ResourceId,
 );
+
+impl VmValueCodec for FileHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for ListenerHandle.
 #[repr(transparent)]
@@ -28,6 +51,16 @@ pub struct ListenerHandle(
     pub ResourceId,
 );
 
+impl VmValueCodec for ListenerHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for ResourceId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -35,6 +68,16 @@ pub struct ResourceId(
     /// Inner value.
     pub u64,
 );
+
+impl VmValueCodec for ResourceId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u64 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for SocketHandle.
 #[repr(transparent)]
@@ -44,6 +87,16 @@ pub struct SocketHandle(
     pub ResourceId,
 );
 
+impl VmValueCodec for SocketHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for TimerHandle.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -51,3 +104,13 @@ pub struct TimerHandle(
     /// Inner value.
     pub ResourceId,
 );
+
+impl VmValueCodec for TimerHandle {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <ResourceId as VmValueCodec>::encode(self.0)
+    }
+}

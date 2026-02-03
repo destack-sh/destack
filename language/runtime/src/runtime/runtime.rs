@@ -1,11 +1,12 @@
 use crate::diagnostic::RuntimeResult;
 use crate::memory::Heap;
-use crate::platform::PlatformPoller;
 #[cfg(unix)]
 use crate::platform::UnixPoller;
-use crate::platform::bindings::BindingRegistry;
+use crate::platform::bindings::{BindingPolicy, BindingRegistry};
+use crate::platform::{PlatformContext, PlatformPoller};
 use crate::scheduler::Scheduler;
 use crate::snapshot::SnapshotStore;
+use destack_workspace::RuntimeOptions;
 
 use super::RuntimeContext;
 
@@ -40,6 +41,7 @@ impl Runtime {
     pub fn new(context: RuntimeContext) -> Self {
         let scheduler = Box::new(Scheduler::default());
         let mut bindings = BindingRegistry::new();
+        bindings.set_policy(BindingPolicy::new(context.replay().mode()));
         bindings.set_runtime_handle(&context, scheduler.as_ref());
         bindings.install_native_defaults();
 
@@ -50,6 +52,12 @@ impl Runtime {
             scheduler,
             poller: None,
         }
+    }
+
+    /// Create a runtime with explicit runtime options.
+    pub fn from_runtime_options(platform: PlatformContext, options: &RuntimeOptions) -> Self {
+        let context = RuntimeContext::from_runtime_options(platform, options);
+        Self::new(context)
     }
 
     /// Create a runtime with the default platform poller.
@@ -88,7 +96,7 @@ impl Runtime {
         let ready_timers = self.scheduler.poll_timers(now)?;
         let mut progressed = !ready_timers.is_empty();
 
-        // TODO #Incomplete: wire timer callbacks into tasks yet
+        // NOTE #Incomplete: wire timer callbacks into tasks
 
         // poll platform events if a poller is installed
         if let Some(poller) = self.poller.as_mut() {
@@ -98,7 +106,7 @@ impl Runtime {
             }
         }
 
-        // TODO #Incomplete: wire scheduler runnables into tasks yet
+        // NOTE #Incomplete: wire scheduler runnables into tasks
 
         Ok(progressed)
     }
@@ -122,7 +130,7 @@ impl Runtime {
         self.context
             .replay()
             .log()
-            .record_checkpoint(metadata.into_checkpoint_index());
+            .record_checkpoint(metadata.into_checkpoint_index())?;
 
         Ok(())
     }

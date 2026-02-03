@@ -125,10 +125,13 @@ impl PlatformPoller for EpollPoller {
         flags: PlatformPollerFlags,
     ) -> RuntimeResult<()> {
         // resolve the existing registration
-        let entry = self
-            .registrations
-            .get_mut(&resource_id)
-            .ok_or_else(|| RuntimeError::resource_not_found(resource_id.0, None).boxed())?;
+        let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
+            RuntimeError::ResourceNotFound {
+                resource_id: resource_id.0,
+                resource_kind: None,
+            }
+            .boxed()
+        })?;
 
         // update the registration in epoll
         let mut event = epoll_event {
@@ -277,6 +280,7 @@ impl PlatformPoller for EpollPoller {
     }
 }
 
+/// Reserved resource id for the poller wake handle.
 const WAKE_RESOURCE_ID: u64 = 0;
 
 /// Convert interests and flags into epoll events.
@@ -302,7 +306,6 @@ fn epoll_events_for_interest(interests: PlatformInterest, flags: PlatformPollerF
     events
 }
 
-/// Build event flags from epoll events.
 /// Build event flags from registration flags.
 fn event_flags_from_registration(flags: PlatformPollerFlags) -> PlatformEventFlags {
     // expose edge and oneshot flags to consumers
@@ -410,7 +413,7 @@ fn io_error(context: &str, fd: Option<RawFd>) -> Box<RuntimeError> {
         error.fd = Some(fd);
     }
 
-    RuntimeError::platform(error).boxed()
+    RuntimeError::from(error).boxed()
 }
 
 #[cfg(test)]
@@ -420,6 +423,7 @@ mod tests {
         PlatformHandle, PlatformInterest, PlatformPoller, PlatformPollerFlags, ResourceId,
     };
 
+    /// Ensures epoll emits a readable event when data is available.
     #[test]
     fn test_poll_readable_event() {
         let mut poller = EpollPoller::new().expect("poller should initialize");

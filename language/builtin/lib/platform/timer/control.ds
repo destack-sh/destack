@@ -4,6 +4,6 @@ import type { PlatformError } from "../error/index.ds";
 /// Timer control bindings for the native runtime.
 declare namespace timer {
     /// Cancel a scheduled timer.
-    @binding("destack.timer.cancel", { effect: "external", replay: "recordable", log: "time" })
+    @binding("destack.timer.cancel", { effect: "external", replay: "recordable" })
     export function cancel(handle: TimerHandle): Result<void, PlatformError>;
 }

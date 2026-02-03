@@ -4,10 +4,10 @@ macro_rules! binding {
     ($registry:expr, $isolate:expr, $spec:expr, fn $name:ident($($args:tt)*) -> $ret:ty $body:block) => {{
         #[doc = "Binding handler."]
         fn $name($($args)*) -> $ret $body
-        $registry.register_external($isolate, $spec, $name);
+        $registry.register_vm_binding($isolate, $spec, $name);
     }};
     ($registry:expr, $isolate:expr, $spec:expr, $handler:expr) => {{
-        $registry.register_external($isolate, $spec, $handler);
+        $registry.register_vm_binding($isolate, $spec, $handler);
     }};
 }
 

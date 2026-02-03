@@ -1,8 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::process::core::process_args;
-use crate::platform::process::{
-    GroupId, ProcessId, Signal, UserId, bindings_generated as bindings,
-};
+use crate::platform::process::{GroupId, ProcessId, Signal, UserId};
 use crate::platform::{PlatformError, VmSlice};
 use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
@@ -12,24 +10,18 @@ pub fn destack_process_args(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<VmSlice<vm::StringHandle>> {
-    // check the binding policy
-    runtime.check_policy(bindings::ARGS)?;
-
     // build the argument slice
     build_process_args(context, process_args(runtime.platform()))
 }
 
 /// Return the current working directory.
 pub fn destack_process_cwd(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<vm::StringHandle> {
-    // check the binding policy
-    runtime.check_policy(bindings::CWD)?;
-
     // read the current working directory
     let cwd = std::env::current_dir().map_err(|error| {
-        RuntimeError::platform(PlatformError::io(format!("failed to read cwd: {error}"))).boxed()
+        RuntimeError::from(PlatformError::io(format!("failed to read cwd: {error}"))).boxed()
     })?;
     let cwd = cwd.to_string_lossy().to_string();
 
@@ -39,13 +31,10 @@ pub fn destack_process_cwd(
 
 /// Change the current working directory.
 pub fn destack_process_chdir(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     path: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    // check the binding policy
-    runtime.check_policy(bindings::CHDIR)?;
-
     // resolve the path string
     let path_ref = context
         .string_ref(path)
@@ -53,7 +42,7 @@ pub fn destack_process_chdir(
 
     // update the working directory
     std::env::set_current_dir(path_ref.as_str()).map_err(|error| {
-        RuntimeError::platform(PlatformError::io(format!("failed to change cwd: {error}"))).boxed()
+        RuntimeError::from(PlatformError::io(format!("failed to change cwd: {error}"))).boxed()
     })?;
 
     Ok(())
@@ -61,13 +50,10 @@ pub fn destack_process_chdir(
 
 /// Get an environment variable.
 pub fn destack_process_env_get(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<vm::StringHandle> {
-    // check the binding policy
-    runtime.check_policy(bindings::ENV_GET)?;
-
     // resolve the variable name
     let name = {
         let name_ref = context
@@ -80,22 +66,18 @@ pub fn destack_process_env_get(
     let value = match std::env::var(&name) {
         Ok(value) => value,
         Err(std::env::VarError::NotPresent) => {
-            return Err(
-                RuntimeError::platform(PlatformError::invalid_argument_value(
-                    "name",
-                    "environment variable not found",
-                ))
-                .boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "name",
+                "environment variable not found",
+            ))
+            .boxed());
         }
         Err(std::env::VarError::NotUnicode(_)) => {
-            return Err(
-                RuntimeError::platform(PlatformError::invalid_argument_value(
-                    "name",
-                    "environment variable is not valid unicode",
-                ))
-                .boxed(),
-            );
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "name",
+                "environment variable is not valid unicode",
+            ))
+            .boxed());
         }
     };
 
@@ -104,14 +86,11 @@ pub fn destack_process_env_get(
 
 /// Set an environment variable.
 pub fn destack_process_env_set(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     name: vm::StringHandle,
     value: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    // check the binding policy
-    runtime.check_policy(bindings::ENV_SET)?;
-
     // resolve the variable name and value
     let name_ref = context
         .string_ref(name)
@@ -124,13 +103,11 @@ pub fn destack_process_env_set(
 
     // reject nul bytes per platform API
     if name.contains('\0') || value.contains('\0') {
-        return Err(
-            RuntimeError::platform(PlatformError::invalid_argument_value(
-                "name",
-                "environment variable contains nul byte",
-            ))
-            .boxed(),
-        );
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "name",
+            "environment variable contains nul byte",
+        ))
+        .boxed());
     }
 
     // update the environment
@@ -143,13 +120,10 @@ pub fn destack_process_env_set(
 
 /// Delete an environment variable.
 pub fn destack_process_env_delete(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     name: vm::StringHandle,
 ) -> RuntimeResult<()> {
-    // check the binding policy
-    runtime.check_policy(bindings::ENV_DELETE)?;
-
     // resolve the variable name
     let name_ref = context
         .string_ref(name)
@@ -158,13 +132,11 @@ pub fn destack_process_env_delete(
 
     // reject nul bytes per platform API
     if name.contains('\0') {
-        return Err(
-            RuntimeError::platform(PlatformError::invalid_argument_value(
-                "name",
-                "environment variable contains nul byte",
-            ))
-            .boxed(),
-        );
+        return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+            "name",
+            "environment variable contains nul byte",
+        ))
+        .boxed());
     }
 
     // remove the environment entry
@@ -177,82 +149,61 @@ pub fn destack_process_env_delete(
 
 /// Return the process identifier.
 pub fn destack_process_pid(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<ProcessId> {
-    // check the binding policy
-    runtime.check_policy(bindings::PID)?;
-
     Ok(ProcessId(std::process::id()))
 }
 
 /// Return the parent process identifier.
 pub fn destack_process_ppid(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<ProcessId> {
-    // check the binding policy
-    runtime.check_policy(bindings::PPID)?;
-
     Ok(ProcessId(process_ppid()?))
 }
 
 /// Return the user id.
 pub fn destack_process_uid(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<UserId> {
-    // check the binding policy
-    runtime.check_policy(bindings::UID)?;
-
     Ok(UserId(process_uid()?))
 }
 
 /// Return the group id.
 pub fn destack_process_gid(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
 ) -> RuntimeResult<GroupId> {
-    // check the binding policy
-    runtime.check_policy(bindings::GID)?;
-
     Ok(GroupId(process_gid()?))
 }
 
 /// Update the process umask and return the previous value.
 pub fn destack_process_umask(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     mask: u32,
 ) -> RuntimeResult<u32> {
-    // check the binding policy
-    runtime.check_policy(bindings::UMASK)?;
-
     process_umask(mask)
 }
 
 /// Send a signal to a process.
 pub fn destack_process_kill(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     pid: ProcessId,
     signal: Signal,
 ) -> RuntimeResult<()> {
-    // check the binding policy
-    runtime.check_policy(bindings::KILL)?;
-
     process_kill(pid.0, signal.0)
 }
 
 /// Exit the current process.
 pub fn destack_process_exit(
-    runtime: &RuntimeCallContext,
+    _runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     code: u32,
 ) -> RuntimeResult<()> {
-    // check the binding policy
-    runtime.check_policy(bindings::EXIT)?;
-
     // exit the process immediately
     std::process::exit(code as i32);
 
@@ -305,7 +256,7 @@ fn process_ppid() -> RuntimeResult<u32> {
     }
     #[cfg(not(unix))]
     {
-        Err(RuntimeError::platform(PlatformError::not_supported("destack.process.ppid")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.ppid")).boxed())
     }
 }
 
@@ -318,7 +269,7 @@ fn process_uid() -> RuntimeResult<u32> {
     }
     #[cfg(not(unix))]
     {
-        Err(RuntimeError::platform(PlatformError::not_supported("destack.process.uid")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.uid")).boxed())
     }
 }
 
@@ -331,7 +282,7 @@ fn process_gid() -> RuntimeResult<u32> {
     }
     #[cfg(not(unix))]
     {
-        Err(RuntimeError::platform(PlatformError::not_supported("destack.process.gid")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.gid")).boxed())
     }
 }
 
@@ -344,7 +295,7 @@ fn process_umask(mask: u32) -> RuntimeResult<u32> {
     }
     #[cfg(not(unix))]
     {
-        Err(RuntimeError::platform(PlatformError::not_supported("destack.process.umask")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask")).boxed())
     }
 }
 
@@ -355,7 +306,7 @@ fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
     {
         let result = unsafe { libc::kill(pid as libc::pid_t, signal as libc::c_int) };
         if result < 0 {
-            return Err(RuntimeError::platform(PlatformError::io(format!(
+            return Err(RuntimeError::from(PlatformError::io(format!(
                 "failed to signal process {pid}"
             )))
             .boxed());
@@ -364,6 +315,6 @@ fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
     }
     #[cfg(not(unix))]
     {
-        Err(RuntimeError::platform(PlatformError::not_supported("destack.process.kill")).boxed())
+        Err(RuntimeError::from(PlatformError::not_supported("destack.process.kill")).boxed())
     }
 }

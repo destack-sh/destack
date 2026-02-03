@@ -3,7 +3,6 @@ use destack_vm as vm;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::resource::TimerHandle;
 use crate::platform::{ResourceEntry, ResourceKind};
-use crate::replay::{ReplayEvent, TimeEvent, TimeEventKind};
 use crate::runtime::RuntimeCallContext;
 use crate::scheduler::Timer;
 
@@ -59,15 +58,6 @@ fn schedule_timer(
         interval_nanos,
     };
 
-    runtime
-        .runtime()
-        .replay
-        .record_event(ReplayEvent::TimeEvent(TimeEvent {
-            kind: TimeEventKind::TimerScheduled,
-            time_nanos: fire_at,
-            interval_nanos,
-            timer_id: Some(resource_id.0),
-        }));
     runtime.scheduler().schedule_timer(timer)?;
 
     Ok(handle)
@@ -76,16 +66,5 @@ fn schedule_timer(
 /// Cancel a timer by handle.
 fn cancel_timer(runtime: &RuntimeCallContext, handle: TimerHandle) -> RuntimeResult<()> {
     runtime.scheduler().cancel_timer(handle.0)?;
-    let resource_id = handle.0;
-    let timer_id = resource_id.0;
-    runtime
-        .runtime()
-        .replay
-        .record_event(ReplayEvent::TimeEvent(TimeEvent {
-            kind: TimeEventKind::TimerCanceled,
-            time_nanos: runtime.runtime().time.wall_nanos(),
-            interval_nanos: None,
-            timer_id: Some(timer_id),
-        }));
     Ok(())
 }

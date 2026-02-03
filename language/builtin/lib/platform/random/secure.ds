@@ -6,7 +6,7 @@ declare namespace random {
     /// Fill a slice with cryptographically secure random bytes.
     @binding(
         "destack.random.secureBytes",
-        { effect: "external", replay: "recordable", log: "random" },
+        { effect: "external", replay: "recordable" },
     )
     export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>;
 }

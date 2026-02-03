@@ -6,5 +6,6 @@ mod bindings_generated;
 pub use abi_generated::*;
 #[allow(unused_imports, unreachable_pub)]
 pub use bindings_generated::*;
+pub mod core;
 pub mod native;
 pub mod vm;

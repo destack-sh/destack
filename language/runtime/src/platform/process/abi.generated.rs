@@ -2,6 +2,9 @@
 
 #![allow(dead_code)]
 
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 /// ABI newtype for GroupId.
@@ -12,6 +15,16 @@ pub struct GroupId(
     pub u32,
 );
 
+impl VmValueCodec for GroupId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for ProcessId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -19,6 +32,16 @@ pub struct ProcessId(
     /// Inner value.
     pub u32,
 );
+
+impl VmValueCodec for ProcessId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
 
 /// ABI newtype for Signal.
 #[repr(transparent)]
@@ -28,6 +51,16 @@ pub struct Signal(
     pub u32,
 );
 
+impl VmValueCodec for Signal {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}
+
 /// ABI newtype for UserId.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -35,3 +68,13 @@ pub struct UserId(
     /// Inner value.
     pub u32,
 );
+
+impl VmValueCodec for UserId {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        Ok(Self(<u32 as VmValueCodec>::decode(value)?))
+    }
+
+    fn encode(self) -> vm::Value {
+        <u32 as VmValueCodec>::encode(self.0)
+    }
+}

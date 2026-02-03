@@ -35,6 +35,35 @@ impl ExecutionMode {
     }
 }
 
+/// Replay payload selection for record/replay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum ReplayPayloadMode {
+    /// Record only the result value.
+    #[default]
+    ResultsOnly,
+    /// Record arguments and results for verification.
+    ArgumentsAndResults,
+}
+
+impl std::str::FromStr for ReplayPayloadMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "results" | "results_only" => Ok(Self::ResultsOnly),
+            "args" | "args_and_results" => Ok(Self::ArgumentsAndResults),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ReplayPayloadMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Trust policy for runtime execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TrustPolicy {
@@ -486,6 +515,26 @@ impl From<ExecutionModeJson> for ExecutionMode {
             ExecutionModeJson::Deterministic => ExecutionMode::Deterministic,
             ExecutionModeJson::Record => ExecutionMode::Record,
             ExecutionModeJson::Replay => ExecutionMode::Replay,
+        }
+    }
+}
+
+/// Replay payload mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ReplayPayloadModeJson {
+    /// Record only the result value.
+    ResultsOnly,
+    /// Record arguments and results for verification.
+    ArgumentsAndResults,
+}
+
+impl From<ReplayPayloadModeJson> for ReplayPayloadMode {
+    fn from(value: ReplayPayloadModeJson) -> Self {
+        match value {
+            ReplayPayloadModeJson::ResultsOnly => ReplayPayloadMode::ResultsOnly,
+            ReplayPayloadModeJson::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
         }
     }
 }

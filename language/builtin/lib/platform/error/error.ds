@@ -129,6 +129,6 @@ export newtype PlatformError = {
 /// Error bindings for runtime error propagation.
 export declare namespace error {
     /// Take a runtime platform error by id.
-    @binding("destack.error.takePlatformError", { effect: "external", replay: "recordable" })
+    @binding("destack.error.takePlatformError", { effect: "deterministic" })
     export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;
 }

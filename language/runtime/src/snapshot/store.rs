@@ -9,6 +9,7 @@ use destack_base::fnv1a_128;
 /// Snapshot persistence and restore service.
 #[derive(Debug)]
 pub struct SnapshotStore {
+    // NOTE #Incomplete: implement snapshot reading and verification
     /// Root directory where snapshot files are written.
     root: PathBuf,
     /// Next checkpoint identifier.
@@ -45,7 +46,10 @@ impl SnapshotStore {
     ) -> RuntimeResult<SnapshotMetadata> {
         // create snapshot directory if needed
         std::fs::create_dir_all(&self.root).map_err(|error| {
-            RuntimeError::internal(format!("snapshot directory create failed: {error}")).boxed()
+            RuntimeError::Internal {
+                message: format!("snapshot directory create failed: {error}"),
+            }
+            .boxed()
         })?;
 
         // determine output path
@@ -54,7 +58,10 @@ impl SnapshotStore {
 
         // write payload bytes to disk
         std::fs::write(&path, payload).map_err(|error| {
-            RuntimeError::internal(format!("snapshot write failed: {error}")).boxed()
+            RuntimeError::Internal {
+                message: format!("snapshot write failed: {error}"),
+            }
+            .boxed()
         })?;
 
         // compute payload hash and size

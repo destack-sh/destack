@@ -40,7 +40,10 @@ impl BindingPolicy {
     #[inline]
     pub fn check(self, spec: BindingDescriptor) -> RuntimeResult<()> {
         if !self.allowed.allows(spec.effect_mask) {
-            return Err(RuntimeError::policy_violation(spec.name.to_string()).boxed());
+            return Err(RuntimeError::PolicyViolation {
+                name: spec.name.to_string(),
+            }
+            .boxed());
         }
 
         Ok(())

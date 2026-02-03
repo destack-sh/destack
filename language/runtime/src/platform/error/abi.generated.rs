@@ -2,11 +2,15 @@
 
 #![allow(dead_code)]
 
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use destack_vm as vm;
+use serde::{Deserialize, Serialize};
 
 /// ABI enum for PlatformErrorCode.
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PlatformErrorCode {
     /// InvalidArgument.
     InvalidArgument = 1000,
@@ -102,6 +106,17 @@ pub enum PlatformErrorCode {
     Generic = 9000,
 }
 
+impl VmValueCodec for PlatformErrorCode {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u16 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u16, PlatformErrorCode>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u16 as VmValueCodec>::encode(self as u16)
+    }
+}
+
 /// ABI struct for PlatformError.
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -148,3 +163,46 @@ pub struct PlatformErrorAbi<A: BindingAbi> {
 
 pub type PlatformError = PlatformErrorAbi<NativeAbi>;
 pub type PlatformErrorVm = PlatformErrorAbi<VmAbi>;
+
+/// Replay struct for PlatformError.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PlatformErrorReplay {
+    /// The kind field.
+    pub kind: String,
+    /// The message field.
+    pub message: String,
+    /// The name field.
+    pub name: String,
+    /// The code field.
+    pub code: PlatformErrorCode,
+    /// The system_code field.
+    pub system_code: String,
+    /// The errno field.
+    pub errno: i32,
+    /// The syscall field.
+    pub syscall: String,
+    /// The path field.
+    pub path: String,
+    /// The dest field.
+    pub dest: String,
+    /// The fd field.
+    pub fd: i32,
+    /// The address field.
+    pub address: String,
+    /// The port field.
+    pub port: u16,
+    /// The hostname field.
+    pub hostname: String,
+    /// The signal field.
+    pub signal: String,
+    /// The exit_code field.
+    pub exit_code: i32,
+    /// The cause field.
+    pub cause: String,
+    /// The argument field.
+    pub argument: String,
+    /// The pointer field.
+    pub pointer: String,
+    /// The feature field.
+    pub feature: String,
+}

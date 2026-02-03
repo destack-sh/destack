@@ -1,30 +1,39 @@
-use destack_vm as vm;
-
 use crate::diagnostic::RuntimeResult;
-
-use super::EntryPoint;
 
 /// Execution outcome produced by a runtime engine.
 #[derive(Debug)]
-pub enum EngineOutcome {
+pub enum EngineOutcome<Output, Continuation, Value> {
     /// Execution completed with a result.
-    Completed { output: vm::ExecutionOutput },
+    Completed { output: Output },
     /// Execution yielded a continuation and resume value.
     Yielded {
-        continuation: vm::Continuation,
-        value: vm::Value,
+        continuation: Continuation,
+        value: Value,
     },
 }
 
 /// Execution engine used by the runtime scheduler.
 pub trait Engine {
+    /// Entry point handle for this engine.
+    type Entry;
+    /// Output value produced when execution completes.
+    type Output;
+    /// Continuation type used for yielding execution.
+    type Continuation;
+    /// Value type passed across yields.
+    type Value;
+
     /// Run the entrypoint function.
-    fn run(&mut self, entry: &EntryPoint, args: &[vm::Value]) -> RuntimeResult<EngineOutcome>;
+    fn run(
+        &mut self,
+        entry: &Self::Entry,
+        args: &[Self::Value],
+    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Continuation, Self::Value>>;
 
     /// Resume execution from a continuation.
     fn resume(
         &mut self,
-        continuation: vm::Continuation,
-        value: vm::Value,
-    ) -> RuntimeResult<EngineOutcome>;
+        continuation: Self::Continuation,
+        value: Self::Value,
+    ) -> RuntimeResult<EngineOutcome<Self::Output, Self::Continuation, Self::Value>>;
 }

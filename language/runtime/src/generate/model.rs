@@ -1,6 +1,52 @@
 use std::collections::BTreeMap;
 
 use destack_dir::EnumBackingType;
+/// Replay routing for generated bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BindingReplayKind {
+    /// Regular binding replay behavior.
+    Regular,
+    /// Time read bindings with specialized replay.
+    Time(TimeEventKind),
+    /// Randomness bindings with specialized replay.
+    Random(RandomEventKind),
+}
+
+/// Time event kinds supported by replay routing.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TimeEventKind {
+    /// Virtual clock seed event.
+    Seed,
+    /// Monotonic clock sample.
+    MonotonicSample,
+    /// Wall clock read.
+    WallClockRead,
+    /// Timer scheduled event.
+    TimerScheduled,
+    /// Timer fired event.
+    TimerFired,
+    /// Timer canceled event.
+    TimerCanceled,
+    /// Sleep scheduled event.
+    SleepScheduled,
+    /// Sleep wake event.
+    SleepWake,
+}
+
+/// Random event kinds supported by replay routing.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RandomEventKind {
+    /// Stream seed or reseed event.
+    Seed,
+    /// Stream allocation event.
+    Stream,
+    /// Random bytes produced by the stream.
+    Bytes,
+    /// Random u64 produced by the stream.
+    NextU64,
+}
 
 /// Replay behavior for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,6 +55,15 @@ pub(crate) enum ReplayPolicy {
     Recordable,
     /// Reject the call in deterministic or replay modes.
     NonRecordable,
+}
+
+/// Replay payload policy for recorded bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ReplayPayload {
+    /// Record only the result value.
+    ResultsOnly,
+    /// Record arguments and results for verification.
+    ArgumentsAndResults,
 }
 
 /// Effect classification for external bindings.
@@ -25,32 +80,23 @@ pub(crate) enum EffectClass {
     },
 }
 
-/// Specialized replay log variants for bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LogKind {
-    /// Log time-related effects with a dedicated record.
-    Time,
-    /// Log randomness with a dedicated record.
-    Random,
-    /// Log scheduler events with a dedicated record.
-    Scheduler,
-}
-
 /// Binding metadata extracted from builtin sources.
 #[derive(Debug, Clone)]
 pub(crate) struct BindingEntry {
     /// Canonical signature string for stability checks.
     pub signature: String,
     /// Parameter metadata for the binding.
-    pub params: Vec<BindingParam>,
+    pub parameters: Vec<BindingParameter>,
     /// Return binding type for generated wrappers.
     pub return_binding: BindingType,
     /// Whether the binding returns a Result wrapper.
     pub return_is_result: bool,
     /// Effect classification for replay and policy.
     pub effect_class: EffectClass,
-    /// Specialized log kind for replay.
-    pub log_kind: Option<LogKind>,
+    /// Replay routing for the binding.
+    pub replay_kind: BindingReplayKind,
+    /// Replay payload capability for recorded bindings.
+    pub replay_payload: ReplayPayload,
 }
 
 /// Return metadata extracted from a binding signature.
@@ -67,7 +113,7 @@ pub(crate) type BindingCatalog = BTreeMap<String, BTreeMap<String, BindingEntry>
 
 /// Parameter metadata extracted from signatures.
 #[derive(Debug, Clone)]
-pub(crate) struct BindingParam {
+pub(crate) struct BindingParameter {
     /// Parameter name for diagnostics.
     pub name: String,
     /// Parameter type text, if declared.

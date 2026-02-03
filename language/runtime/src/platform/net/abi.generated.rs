@@ -2,11 +2,15 @@
 
 #![allow(dead_code)]
 
+use crate::diagnostic::RuntimeResult;
+use crate::platform::VmValueCodec;
 use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};
+use destack_vm as vm;
+use serde::{Deserialize, Serialize};
 
 /// ABI enum for SocketFamily.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SocketFamily {
     /// IPv4.
     IPv4 = 4,
@@ -14,9 +18,20 @@ pub enum SocketFamily {
     IPv6 = 6,
 }
 
+impl VmValueCodec for SocketFamily {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u8, SocketFamily>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
 /// ABI enum for SocketShutdown.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SocketShutdown {
     /// Read.
     Read = 0,
@@ -24,6 +39,17 @@ pub enum SocketShutdown {
     Write = 1,
     /// ReadWrite.
     ReadWrite = 2,
+}
+
+impl VmValueCodec for SocketShutdown {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u8, SocketShutdown>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
 }
 
 /// ABI struct for SocketAddress.
@@ -40,3 +66,14 @@ pub struct SocketAddressAbi<A: BindingAbi> {
 
 pub type SocketAddress = SocketAddressAbi<NativeAbi>;
 pub type SocketAddressVm = SocketAddressAbi<VmAbi>;
+
+/// Replay struct for SocketAddress.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SocketAddressReplay {
+    /// The host field.
+    pub host: String,
+    /// The port field.
+    pub port: u16,
+    /// The family field.
+    pub family: SocketFamily,
+}

@@ -1,15 +1,23 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use crate::replay::codec::encode_event;
+use parking_lot::Mutex;
+
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::replay::codec::decode_event;
 use crate::replay::{
     BranchId, CheckpointEvent, LogSequence, ReplayCheckpointIndex, ReplayChunkHeader,
     ReplayChunkIndex, ReplayEvent, ReplayHeader, ReplayTrailer,
 };
 use destack_base::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
+use postcard::experimental::serialized_size;
 
+/// Default maximum number of events in a chunk.
 const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
+/// Default maximum chunk size in bytes.
 const DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
+/// FNV-1a 64-bit offset basis.
 const FNV_OFFSET_BASIS_64: u64 = 0xcbf29ce484222325;
+/// FNV-1a 64-bit prime.
 const FNV_PRIME_64: u64 = 0x100000001b3;
 
 /// In-memory replay log state.
@@ -42,13 +50,25 @@ struct ReplayLogState {
 struct ReplayChunk {
     /// Chunk header metadata.
     header: ReplayChunkHeader,
-    /// Events recorded in the chunk.
-    events: Vec<ReplayEvent>,
+    /// Chunk payload bytes.
+    data: Vec<u8>,
+    /// Recorded event offsets.
+    events: Vec<ReplayChunkEvent>,
+}
+
+/// Offset metadata for a chunked replay event.
+#[derive(Debug, Clone, Copy)]
+struct ReplayChunkEvent {
+    /// Offset into the chunk buffer.
+    offset: u64,
+    /// Byte length of the encoded event.
+    length: u32,
 }
 
 /// Record and replay log for deterministic execution.
 #[derive(Debug, Clone)]
 pub struct ReplayLog {
+    // NOTE #Incomplete: persist chunks to disk and stream across threads
     /// Shared replay log state.
     state: Arc<Mutex<ReplayLogState>>,
 }
@@ -105,14 +125,14 @@ impl ReplayLog {
     /// Return the replay log header.
     pub fn header(&self) -> ReplayHeader {
         // lock state for reading
-        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let state = self.state.lock();
         state.header.clone()
     }
 
     /// Return the replay log trailer.
     pub fn trailer(&self) -> ReplayTrailer {
         // lock state for reading
-        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let state = self.state.lock();
         let mut trailer = state.trailer.clone();
         trailer.log_hash = compute_log_hash(&trailer.chunks, &trailer.checkpoints);
         trailer
@@ -121,25 +141,29 @@ impl ReplayLog {
     /// Return the current branch identifier.
     pub fn branch_id(&self) -> BranchId {
         // lock state for reading
-        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let state = self.state.lock();
         state.branch_id
     }
 
     /// Return the next sequence number.
     pub fn next_sequence(&self) -> LogSequence {
         // lock state for reading
-        let state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let state = self.state.lock();
         state.next_sequence
     }
 
     /// Record an event in the log.
-    pub fn record_event(&self, event: ReplayEvent) -> LogSequence {
-        // encode the event payload
-        let encoded = encode_event(&event).expect("replay event encode failed");
-        let encoded_len = encoded.len() as u64;
+    pub fn record_event(&self, event: ReplayEvent) -> RuntimeResult<LogSequence> {
+        // compute the encoded size ahead of time
+        let encoded_len = serialized_size(&event).map_err(|_| {
+            RuntimeError::ReplayEncodeFailed {
+                name: "event".to_string(),
+            }
+            .boxed()
+        })? as u64;
 
         // lock state for mutation
-        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut state = self.state.lock();
 
         // assign the next sequence
         let sequence = state.next_sequence;
@@ -173,31 +197,53 @@ impl ReplayLog {
             .chunks
             .last_mut()
             .expect("replay log must have an active chunk");
-        chunk.header.byte_length = chunk.header.byte_length.saturating_add(encoded_len);
-        chunk.header.checksum = update_checksum(chunk.header.checksum, &encoded);
-        chunk.events.push(event);
+        let start = chunk.data.len();
+        let end = start + encoded_len as usize;
+        chunk.data.resize(end, 0);
+        postcard::to_slice(&event, &mut chunk.data[start..end]).map_err(|_| {
+            RuntimeError::ReplayEncodeFailed {
+                name: "event".to_string(),
+            }
+            .boxed()
+        })?;
+        let encoded = &chunk.data[start..end];
+        chunk.header.checksum = update_checksum(chunk.header.checksum, encoded);
+        chunk.header.byte_length = chunk.data.len() as u64;
+        chunk.events.push(ReplayChunkEvent {
+            offset: start as u64,
+            length: encoded_len as u32,
+        });
         chunk.header.event_count = chunk.events.len() as u32;
         chunk.header.sequence_end = sequence;
 
         // keep the trailer entry in sync
         update_trailer_entry(&mut state);
 
-        sequence
+        Ok(sequence)
     }
 
     /// Read the next recorded event if available.
-    pub fn next_event(&self) -> Option<ReplayEvent> {
+    pub fn next_event(&self) -> RuntimeResult<Option<ReplayEvent>> {
         // lock state for replay
-        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut state = self.state.lock();
 
         // advance to the next chunk if needed
         while state.read_chunk < state.chunks.len() {
             // read the next event in the current chunk
             let chunk = &state.chunks[state.read_chunk];
             if state.read_index < chunk.events.len() {
-                let event = chunk.events[state.read_index].clone();
+                let entry = chunk.events[state.read_index];
+                let start = entry.offset as usize;
+                let end = start + entry.length as usize;
+                let encoded = &chunk.data[start..end];
+                let event = decode_event(encoded).map_err(|_| {
+                    RuntimeError::ReplayDecodeFailed {
+                        name: "event".to_string(),
+                    }
+                    .boxed()
+                })?;
                 state.read_index += 1;
-                return Some(event);
+                return Ok(Some(event));
             }
 
             // move to the next chunk
@@ -205,11 +251,11 @@ impl ReplayLog {
             state.read_index = 0;
         }
 
-        None
+        Ok(None)
     }
 
     /// Record a checkpoint index entry and emit a checkpoint event.
-    pub fn record_checkpoint(&self, mut checkpoint: ReplayCheckpointIndex) {
+    pub fn record_checkpoint(&self, mut checkpoint: ReplayCheckpointIndex) -> RuntimeResult<()> {
         // align the checkpoint with the next log sequence
         let sequence = self.next_sequence();
         checkpoint.sequence = sequence;
@@ -218,11 +264,13 @@ impl ReplayLog {
         self.record_event(ReplayEvent::Checkpoint(CheckpointEvent {
             checkpoint_id: checkpoint.checkpoint_id,
             branch_id: checkpoint.branch_id,
-        }));
+        }))?;
 
         // update trailer index
-        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut state = self.state.lock();
         state.trailer.checkpoints.push(checkpoint);
+
+        Ok(())
     }
 }
 
@@ -237,6 +285,7 @@ fn new_chunk(index: u32, sequence_start: LogSequence) -> ReplayChunk {
             byte_length: 0,
             checksum: FNV_OFFSET_BASIS_64,
         },
+        data: Vec::new(),
         events: Vec::new(),
     }
 }
@@ -319,13 +368,14 @@ fn compute_log_hash(chunks: &[ReplayChunkIndex], checkpoints: &[ReplayCheckpoint
 }
 
 impl crate::replay::ReplayWriter for ReplayLog {
-    fn record_event(&mut self, event: ReplayEvent) {
-        ReplayLog::record_event(self, event);
+    fn record_event(&mut self, event: ReplayEvent) -> RuntimeResult<()> {
+        ReplayLog::record_event(self, event)?;
+        Ok(())
     }
 }
 
 impl crate::replay::ReplayReader for ReplayLog {
-    fn next_event(&mut self) -> Option<ReplayEvent> {
+    fn next_event(&mut self) -> RuntimeResult<Option<ReplayEvent>> {
         ReplayLog::next_event(self)
     }
 }

@@ -23,12 +23,12 @@ impl NativeStringRef {
     /// View the reference as a UTF-8 string.
     pub unsafe fn as_str<'a>(self) -> RuntimeResult<&'a str> {
         if self.data.is_null() && self.len != 0 {
-            return Err(RuntimeError::platform(PlatformError::null_pointer("string.data")).boxed());
+            return Err(RuntimeError::from(PlatformError::null_pointer("string.data")).boxed());
         }
         // map the raw bytes into a string
         let bytes = unsafe { std::slice::from_raw_parts(self.data, self.len as usize) };
         std::str::from_utf8(bytes).map_err(|_| {
-            RuntimeError::platform(PlatformError::invalid_argument_value(
+            RuntimeError::from(PlatformError::invalid_argument_value(
                 "value",
                 "invalid utf8 string",
             ))
@@ -82,5 +82,14 @@ impl NativeStringSlice {
             data,
             len: values.len() as u32,
         }
+    }
+
+    /// View the slice as an immutable slice.
+    pub unsafe fn as_slice<'a>(self) -> RuntimeResult<&'a [NativeStringRef]> {
+        if self.data.is_null() && self.len != 0 {
+            return Err(RuntimeError::from(PlatformError::null_pointer("slice.data")).boxed());
+        }
+        // safety: caller guarantees the slice is valid for the lifetime
+        Ok(unsafe { std::slice::from_raw_parts(self.data, self.len as usize) })
     }
 }
