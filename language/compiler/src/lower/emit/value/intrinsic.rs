@@ -56,10 +56,7 @@ impl FunctionContext<'_> {
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<Option<(mir::Value, mir::LocalNodeId<mir::Type>)>> {
         // resolve the intrinsic binding name
-        let anchor = expression_id
-            .into_global_any(self.env.module_id)
-            .into_anchored(Some(self.env.profile));
-        let name_id = match self.resolve_intrinsic_binding_name_id(anchor, target_symbol)? {
+        let name_id = match self.resolve_intrinsic_binding_name_id(target_symbol)? {
             Some(name_id) => name_id,
             None => return Ok(None),
         };

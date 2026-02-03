@@ -131,6 +131,13 @@ pub enum ResolveError {
         message: String,
     },
 
+    /// Invalid intrinsic binding in builtin modules.
+    #[error(code = "ER404", message = "invalid intrinsic binding: {message}")]
+    InvalidIntrinsicBinding {
+        node: AnchoredGlobalNodeId,
+        message: String,
+    },
+
     // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------

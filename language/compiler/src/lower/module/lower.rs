@@ -4,7 +4,9 @@ use destack_ast::StringId;
 use destack_base::StringPool;
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
+use destack_workspace::{
+    CheckFailurePolicy, Module, ProfileId, Target, TargetId, WellKnownIntrinsics,
+};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -42,6 +44,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) target: &'a TargetId,
     /// Runtime check configuration for this target.
     pub(crate) runtime_checks: RuntimeCheckConfig,
+    /// Well-known intrinsic bindings for this profile.
+    pub(crate) well_known_intrinsics: Option<WellKnownIntrinsics>,
 
     /// Build MIR nodes for this module.
     pub(crate) builder: mir::ModuleBuilder,
@@ -157,6 +161,11 @@ impl<'a> ModuleLowerer<'a> {
         let debug = compiler.program.profile(profile).key.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
 
+        let well_known_intrinsics = compiler.program.builtins.as_ref().and_then(|builtins| {
+            let profile_key = compiler.program.profile(profile).key.clone();
+            builtins.well_known_intrinsics(&profile_key)
+        });
+
         Self {
             compiler,
             module_id: module.id,
@@ -169,6 +178,7 @@ impl<'a> ModuleLowerer<'a> {
             captures,
             target,
             runtime_checks,
+            well_known_intrinsics,
             builder,
             functions_by_symbol: HashMap::new(),
             function_signature_types: HashMap::new(),
@@ -775,7 +785,7 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Initialize the canonical string type from builtin definitions.
     fn initialize_string_type(&mut self) -> LowerResult<()> {
-        // resolve a stable anchor for type lowering
+        // get some anchor for error reporting
         let Some(anchor) = self
             .dir_roots
             .first()

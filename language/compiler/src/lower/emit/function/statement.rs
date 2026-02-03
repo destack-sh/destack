@@ -59,6 +59,15 @@ impl FunctionContext<'_> {
 
                 // lower standard returns
                 let return_value = if let Some(value) = value {
+                    if self.env.return_type == self.env.type_lowerer.ty_void {
+                        return Err(LowerError::UnsupportedConstruct {
+                            node: expression_id
+                                .into_global_any(self.env.module_id)
+                                .into_anchored(Some(self.env.profile)),
+                            message: "return value not allowed for void function".to_string(),
+                        });
+                    }
+
                     let (value, _) = self.lower_value_expression(*value)?;
                     Some(value)
                 } else {
@@ -126,6 +135,20 @@ impl FunctionContext<'_> {
                 symbol,
                 ..
             } => self.lower_match_statement(expression_id, *kind, *value, cases, *symbol),
+
+            Expression::Call {
+                left,
+                dynamic_arguments,
+                static_arguments,
+            } => {
+                self.lower_call_statement(
+                    expression_id,
+                    left,
+                    dynamic_arguments,
+                    static_arguments,
+                )?;
+                Ok(Terminates::No)
+            }
 
             _ => {
                 self.lower_value_expression(expression_id)?;

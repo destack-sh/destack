@@ -985,12 +985,20 @@ impl Compiler {
                     types,
                 )?;
 
+                // skip already declared extensions for this symbol
+                let extension_symbol = descriptor.symbol.into_global(module.id);
+                if types
+                    .get_extension_id_for_symbol(extension_symbol)
+                    .is_some()
+                {
+                    return Ok(());
+                }
+
                 // build the extension instance shape
                 let shape =
                     self.declare_member_shape(module, profile, members, tree, symbols, types)?;
                 let instance_ty = shape.into_object_type();
                 let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                let extension_symbol = descriptor.symbol.into_global(module.id);
                 types.set_instance_type(extension_symbol, instance_ty_id);
 
                 // register the extension when a target symbol exists

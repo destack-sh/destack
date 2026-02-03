@@ -207,6 +207,41 @@ impl WellKnownSymbols {
     }
 }
 
+/// Resolved compiler-known intrinsic bindings for a profile.
+#[derive(Debug, Clone)]
+pub struct WellKnownIntrinsics {
+    /// Intrinsic names keyed by symbol id.
+    pub names_by_symbol: IndexMap<GlobalSymbolId, StringId>,
+    /// Intrinsic symbols keyed by name.
+    pub symbols_by_name: IndexMap<StringId, GlobalSymbolId>,
+}
+
+impl WellKnownIntrinsics {
+    /// Create an empty well-known intrinsic map.
+    pub fn new() -> Self {
+        Self {
+            names_by_symbol: IndexMap::new(),
+            symbols_by_name: IndexMap::new(),
+        }
+    }
+
+    /// Resolve an intrinsic name for a symbol.
+    pub fn name_for_symbol(&self, symbol: GlobalSymbolId) -> Option<StringId> {
+        self.names_by_symbol.get(&symbol).copied()
+    }
+
+    /// Resolve a symbol for an intrinsic name.
+    pub fn symbol_for_name(&self, name: StringId) -> Option<GlobalSymbolId> {
+        self.symbols_by_name.get(&name).copied()
+    }
+}
+
+impl Default for WellKnownIntrinsics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Language and library builtins.
 #[derive(Debug)]
 pub struct Builtins {
@@ -239,6 +274,8 @@ pub struct Builtins {
         DashMap<ProfileKey, IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>>,
     /// Well-known symbols per profile key.
     pub well_known_by_profile: DashMap<ProfileKey, WellKnownSymbols>,
+    /// Well-known intrinsic bindings per profile key.
+    pub well_known_intrinsics_by_profile: DashMap<ProfileKey, WellKnownIntrinsics>,
 
     /// Resolved language items cache (ProfileId, LanguageSymbol -> GlobalSymbolId).
     pub items: DashMap<(ProfileId, LanguageSymbol), GlobalSymbolId>,
@@ -354,6 +391,7 @@ impl Builtins {
             ambient_lib_symbols_by_profile: DashMap::new(),
             ambient_lib_symbol_sources_by_profile: DashMap::new(),
             well_known_by_profile: DashMap::new(),
+            well_known_intrinsics_by_profile: DashMap::new(),
             items: DashMap::new(),
         }
     }
@@ -554,6 +592,13 @@ impl Builtins {
             .map(|symbols| symbols.clone())
     }
 
+    /// Get well-known intrinsic bindings for a profile key.
+    pub fn well_known_intrinsics(&self, profile_key: &ProfileKey) -> Option<WellKnownIntrinsics> {
+        self.well_known_intrinsics_by_profile
+            .get(profile_key)
+            .map(|intrinsics| intrinsics.clone())
+    }
+
     /// Set the declared lib symbols for a profile key.
     pub fn set_declared_lib_symbols(
         &self,
@@ -614,6 +659,33 @@ impl Builtins {
     pub fn set_well_known_symbols(&self, profile_key: &ProfileKey, symbols: WellKnownSymbols) {
         self.well_known_by_profile
             .insert(profile_key.clone(), symbols);
+    }
+
+    /// Set well-known intrinsic bindings for a profile key.
+    pub fn set_well_known_intrinsics(
+        &self,
+        profile_key: &ProfileKey,
+        intrinsics: WellKnownIntrinsics,
+    ) {
+        self.well_known_intrinsics_by_profile
+            .insert(profile_key.clone(), intrinsics);
+    }
+
+    /// Get builtin modules that define intrinsic bindings.
+    pub fn intrinsic_module_ids(&self) -> Vec<ModuleId> {
+        // filter core modules to intrinsic paths
+        let mut module_ids = Vec::new();
+        let mut seen = HashSet::new();
+        for (path, module_id) in self.core_module_by_path.iter() {
+            if !path.starts_with("intrinsic/") {
+                // high-tech filter
+                continue;
+            }
+            if seen.insert(*module_id) {
+                module_ids.push(*module_id);
+            }
+        }
+        module_ids
     }
 
     /// Register a lib source as a module.

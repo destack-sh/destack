@@ -135,6 +135,14 @@ impl Compiler {
             drop(captures);
         }
 
+        // cache well-known intrinsics after decorator registration
+        if module.is_user() {
+            self.collect(
+                &mut collector,
+                self.ensure_well_known_intrinsics_for_profile(profile),
+            );
+        }
+
         // register visible extensions from imported symbols
         let symbols = dir.symbols.read();
         self.collect(

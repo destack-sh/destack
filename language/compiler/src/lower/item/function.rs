@@ -561,6 +561,7 @@ impl ModuleLowerer<'_> {
             types: self.types,
             captures: self.captures,
             strings: &self.compiler.program.strings,
+            well_known_intrinsics: self.well_known_intrinsics.as_ref(),
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
@@ -573,6 +574,7 @@ impl ModuleLowerer<'_> {
             dispatch_construct_name: self.dispatch_construct_name,
             checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
+            return_type,
             symbol: symbol_id,
             closure_env_layouts: &self.closure_env_layouts,
             empty_closure_env_pointer_type,
@@ -780,14 +782,10 @@ impl ModuleLowerer<'_> {
         else {
             return Ok(());
         };
-
-        // decide whether this method is a constructor
         let is_constructor = matches!(
             signature.mode,
             Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
         );
-
-        // determine whether this is a static method
         let is_static = self.member_is_static(modifiers.as_ref());
 
         // track constructor declaration symbol when needed
@@ -850,7 +848,7 @@ impl ModuleLowerer<'_> {
             }
         };
 
-        // capture this type for constructor initialization
+        // capture 'this' type for constructor initialization
         let constructor_this_type = if is_constructor {
             // require an instance type for constructors
             Some(this_type.ok_or_else(|| {
@@ -867,7 +865,7 @@ impl ModuleLowerer<'_> {
             None
         };
 
-        // drop this type for static methods
+        // drop 'this' type for static methods
         let method_this_type = if is_constructor {
             this_type
         } else if is_static {
@@ -964,6 +962,7 @@ impl ModuleLowerer<'_> {
             types: self.types,
             captures: self.captures,
             strings: &self.compiler.program.strings,
+            well_known_intrinsics: self.well_known_intrinsics.as_ref(),
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
@@ -976,6 +975,7 @@ impl ModuleLowerer<'_> {
             dispatch_construct_name: self.dispatch_construct_name,
             checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
+            return_type,
             symbol: method_symbol,
             closure_env_layouts: &self.closure_env_layouts,
             empty_closure_env_pointer_type,

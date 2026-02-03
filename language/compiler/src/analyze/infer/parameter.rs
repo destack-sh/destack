@@ -1,4 +1,4 @@
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
     Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
@@ -382,6 +382,9 @@ impl Compiler {
             // read the local symbol entry
             let symbol_entry = symbols.get_symbol(symbol.local_id);
             if !symbol_entry.is_static_parameter() {
+                self.error(AnalyzeError::InvalidStaticConstraint {
+                    node: source_id.into_anchored(module.id, Some(profile)),
+                });
                 None
             } else if let Some(primary_declaration) = symbol_entry.primary_declaration {
                 // read the declared constraint type or fall back to unknown
@@ -426,6 +429,9 @@ impl Compiler {
             // read the remote symbol
             let remote_symbol = remote_symbols.get_symbol(symbol.local_id);
             if !remote_symbol.is_static_parameter() {
+                self.error(AnalyzeError::InvalidStaticConstraint {
+                    node: source_id.into_anchored(module.id, Some(profile)),
+                });
                 None
             } else if let Some(primary_declaration) = remote_symbol.primary_declaration {
                 // read and import the declared constraint type

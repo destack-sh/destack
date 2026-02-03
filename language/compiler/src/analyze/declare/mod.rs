@@ -1,3 +1,4 @@
+mod builtin;
 mod cache;
 mod declaration;
 mod decorator;

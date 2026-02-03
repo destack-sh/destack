@@ -14,6 +14,14 @@ pub(super) struct InterfaceCallReceivers {
     pub(super) dispatch_receiver: mir::Value,
 }
 
+/// Kind of call to lower.
+enum CallKind {
+    /// Lower a call expression to its result value.
+    Expression,
+    /// Lower a call expression to its result statement.
+    Statement,
+}
+
 impl FunctionContext<'_> {
     /// Lower a call expression to its result value and type.
     ///
@@ -39,6 +47,49 @@ impl FunctionContext<'_> {
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
         static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let (value, result_type) = self.lower_call(
+            expression_id,
+            left,
+            dynamic_arguments,
+            static_arguments,
+            CallKind::Expression,
+        )?;
+        let value = value.ok_or_else(|| LowerError::UnsupportedConstruct {
+            node: expression_id
+                .into_global_any(self.env.module_id)
+                .into_anchored(Some(self.env.profile)),
+            message: "call returned no value".to_string(),
+        })?;
+
+        Ok((value, result_type))
+    }
+
+    pub(crate) fn lower_call_statement(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: &LocalNodeId<Expression>,
+        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+    ) -> LowerResult<()> {
+        self.lower_call(
+            expression_id,
+            left,
+            dynamic_arguments,
+            static_arguments,
+            CallKind::Statement,
+        )?;
+
+        Ok(())
+    }
+
+    fn lower_call(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: &LocalNodeId<Expression>,
+        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+        kind: CallKind,
+    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         // resolve call resolution (lower requires static resolution)
         let resolution =
             self.get_resolution(expression_id)
@@ -70,7 +121,7 @@ impl FunctionContext<'_> {
             resolution_receiver,
             dynamic_arguments,
         )? {
-            return Ok(result);
+            return Ok((Some(result.0), result.1));
         }
 
         // NOTE #Incomplete: lower/monomorphize generic functions
@@ -90,11 +141,12 @@ impl FunctionContext<'_> {
             && matches!(self.env.types.get_type(type_id), dir::Type::Function { .. })
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call_from_value(
+            return self.lower_closure_call_from_value_with_usage(
                 expression_id,
                 closure_value,
                 closure_type,
                 dynamic_arguments,
+                kind,
             );
         }
 
@@ -108,11 +160,12 @@ impl FunctionContext<'_> {
             && has_captures
         {
             let (closure_value, closure_type) = self.lower_value_expression(*left)?;
-            return self.lower_closure_call_from_value(
+            return self.lower_closure_call_from_value_with_usage(
                 expression_id,
                 closure_value,
                 closure_type,
                 dynamic_arguments,
+                kind,
             );
         }
 
@@ -195,6 +248,7 @@ impl FunctionContext<'_> {
 
         // emit call when we have a static resolution
         let result_type = self.lower_type_for_expression(expression_id)?;
+        let returns_void = result_type == self.env.type_lowerer.ty_void;
         let signature = self.signature_type_for_function(expression_id, function_id)?;
         let value = if let (Some(receiver_type_id), Some(receiver_value)) =
             (receiver_type_id, dispatch_receiver)
@@ -213,74 +267,94 @@ impl FunctionContext<'_> {
                         slot_id,
                         function_id,
                     } => {
-                        let value = self.state.builder.call_interface(
-                            receiver_value,
-                            declaring_type,
-                            slot_id,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
-                            message: "call returned no value".to_string(),
-                        })?
+                        if returns_void {
+                            self.state.builder.call_interface_void(
+                                receiver_value,
+                                declaring_type,
+                                slot_id,
+                                Some(function_id),
+                                signature,
+                                arguments,
+                            );
+                            None
+                        } else {
+                            self.state.builder.call_interface(
+                                receiver_value,
+                                declaring_type,
+                                slot_id,
+                                Some(function_id),
+                                signature,
+                                arguments,
+                            )
+                        }
                     }
                     DispatchTarget::Virtual {
                         declaring_type,
                         slot_id,
                         function_id,
                     } => {
-                        let value = self.state.builder.call_virtual(
-                            receiver_value,
-                            declaring_type,
-                            slot_id,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: expression_id
-                                .into_global_any(self.env.module_id)
-                                .into_anchored(Some(self.env.profile)),
-                            message: "call returned no value".to_string(),
-                        })?
+                        if returns_void {
+                            self.state.builder.call_virtual_void(
+                                receiver_value,
+                                declaring_type,
+                                slot_id,
+                                Some(function_id),
+                                signature,
+                                arguments,
+                            );
+                            None
+                        } else {
+                            self.state.builder.call_virtual(
+                                receiver_value,
+                                declaring_type,
+                                slot_id,
+                                Some(function_id),
+                                signature,
+                                arguments,
+                            )
+                        }
                     }
                 }
+            } else if returns_void {
+                self.state
+                    .builder
+                    .call_void(function_id, signature, arguments);
+                None
             } else {
-                let value = self.state.builder.call(function_id, signature, arguments);
-                value.ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                    message: "call returned no value".to_string(),
-                })?
+                self.state.builder.call(function_id, signature, arguments)
             }
         }
         // direct call when no receiver dispatch is needed
-        else {
-            let value = self.state.builder.call(function_id, signature, arguments);
-            value.ok_or_else(|| LowerError::UnsupportedConstruct {
+        else if returns_void {
+            self.state
+                .builder
+                .call_void(function_id, signature, arguments);
+            None
+        } else {
+            self.state.builder.call(function_id, signature, arguments)
+        };
+
+        if returns_void && matches!(kind, CallKind::Expression) {
+            return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)
                     .into_anchored(Some(self.env.profile)),
                 message: "call returned no value".to_string(),
-            })?
-        };
+            });
+        }
 
         Ok((value, result_type))
     }
 
     /// Lower a call through a closure value.
-    fn lower_closure_call_from_value(
+    fn lower_closure_call_from_value_with_usage(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         closure_value: mir::Value,
         closure_type: mir::LocalNodeId<mir::Type>,
         dynamic_arguments: &[LocalNodeId<dir::Argument>],
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        kind: CallKind,
+    ) -> LowerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
         let anchor = expression_id
             .into_global_any(self.env.module_id)
             .into_anchored(Some(self.env.profile));
@@ -319,10 +393,28 @@ impl FunctionContext<'_> {
 
         // call indirect
         let result_type = self.lower_type_for_expression(expression_id)?;
-        let value = self
-            .state
-            .builder
-            .call_indirect(fn_ptr, Some(env_ptr), fn_field.ty, arguments);
+        let returns_void = result_type == self.env.type_lowerer.ty_void;
+        let value = if returns_void {
+            self.state
+                .builder
+                .call_indirect_void(fn_ptr, Some(env_ptr), fn_field.ty, arguments);
+            None
+        } else {
+            Some(
+                self.state
+                    .builder
+                    .call_indirect(fn_ptr, Some(env_ptr), fn_field.ty, arguments),
+            )
+        };
+
+        if returns_void && matches!(kind, CallKind::Expression) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "call returned no value".to_string(),
+            });
+        }
 
         Ok((value, result_type))
     }
@@ -333,14 +425,12 @@ impl FunctionContext<'_> {
         expression_id: LocalNodeId<Expression>,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        // lookup the signature type for this function
         let signature = self
             .env
             .function_signature_types
             .get(&function_id)
             .copied()
             .ok_or_else(|| self.missing_type_error(expression_id))?;
-
         Ok(signature)
     }
 

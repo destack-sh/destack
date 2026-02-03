@@ -2298,7 +2298,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // resolve the fromError key once
         let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));

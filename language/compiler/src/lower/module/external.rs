@@ -36,11 +36,8 @@ impl ModuleLowerer<'_> {
             }
 
             // skip intrinsic bindings, they are lowered directly
-            let anchor = expression_id
-                .into_global_any(self.module_id)
-                .into_anchored(Some(self.profile));
             if self
-                .resolve_intrinsic_binding_name_id(anchor, target_symbol)?
+                .resolve_intrinsic_binding_name_id(target_symbol)?
                 .is_some()
             {
                 continue;

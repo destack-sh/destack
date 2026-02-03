@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_base::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Program};
+use destack_workspace::{ProfileId, Program, WellKnownIntrinsics};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -36,10 +36,14 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) captures: &'a dir::CaptureTable,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
+    /// Well-known intrinsic bindings for this profile.
+    pub(crate) well_known_intrinsics: Option<&'a WellKnownIntrinsics>,
     /// Runtime check configuration for this target.
     pub(crate) checks: RuntimeCheckConfig,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: &'a TypeLowerer,
+    /// MIR return type for this function.
+    pub(crate) return_type: mir::LocalNodeId<mir::Type>,
 
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,

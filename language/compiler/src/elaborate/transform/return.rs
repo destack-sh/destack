@@ -1,6 +1,6 @@
 use destack_dir::{
-    Declaration, Expression, IfKind, LocalNodeId, Member, NodeTree, NodeType, Type, TypeLiteral,
-    TypeTable,
+    Declaration, Expression, GlobalSymbolId, IfKind, LocalNodeId, LocalTypeId, Member, NodeTree,
+    NodeType, Type, TypeLiteral, TypeTable,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -38,6 +38,7 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // collect function and method bodies to rewrite
         let mut body_ids = Vec::new();
+        let module_id = types.module_id;
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
             if !self.is_node_active(tree, symbols, declaration_id.into_any()) {
                 continue;
@@ -48,10 +49,15 @@ impl Compiler {
             // function declarations
             if let Declaration::Function {
                 body: Some(body_id),
+                descriptor,
                 ..
-            } = declaration
+            } = &declaration
             {
-                body_ids.push(body_id);
+                let symbol = descriptor.symbol.into_global(module_id);
+                if self.function_returns_void(symbol, types) {
+                    continue;
+                }
+                body_ids.push(*body_id);
             }
 
             // method bodies on structured declarations
@@ -59,12 +65,17 @@ impl Compiler {
                 for member_id in member_ids {
                     let Member::Method {
                         body: Some(body_id),
+                        symbol,
                         ..
                     } = tree.get(*member_id)
                     else {
                         continue;
                     };
 
+                    let symbol = symbol.into_global(module_id);
+                    if self.function_returns_void(symbol, types) {
+                        continue;
+                    }
                     body_ids.push(*body_id);
                 }
             }
@@ -212,6 +223,40 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Check whether a function symbol has an explicit void return type.
+    fn function_returns_void(&self, symbol: GlobalSymbolId, types: &TypeTable) -> bool {
+        let Some(value_type_id) = types.get_value_type_id(symbol) else {
+            return false;
+        };
+
+        self.return_type_is_void(value_type_id, types)
+    }
+
+    /// Check whether a function return type is void.
+    fn return_type_is_void(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        match types.get_type(type_id) {
+            Type::Function { return_type, .. } => {
+                let Some(return_type_id) = return_type else {
+                    return false;
+                };
+                self.type_is_void(*return_type_id, types)
+            }
+            Type::Value { value } => self.return_type_is_void(*value, types),
+            _ => false,
+        }
+    }
+
+    /// Check whether a type id resolves to void.
+    fn type_is_void(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+        match types.get_type(type_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Void,
+            } => true,
+            Type::Value { value } => self.type_is_void(*value, types),
+            _ => false,
+        }
     }
 
     /// Update the inferred type for a block and its block expression.

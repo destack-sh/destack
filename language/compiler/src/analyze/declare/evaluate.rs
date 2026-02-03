@@ -513,14 +513,16 @@ impl Compiler {
                 }
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
-                    if let Some(constraint) = self.static_parameter_constraint_type(
-                        module,
-                        profile,
-                        symbol,
-                        types.get_type_source(current_type_id),
-                        symbols,
-                        types,
-                    ) {
+                    if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+                        && let Some(constraint) = self.static_parameter_constraint_type(
+                            module,
+                            profile,
+                            symbol,
+                            types.get_type_source(current_type_id),
+                            symbols,
+                            types,
+                        )
+                    {
                         current_type_id = constraint;
                         continue;
                     }
