@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 declare_program! {
@@ -28,9 +28,7 @@ fn symbol_table(length: i64) -> Value {
     // process keys
     let mut index = 0i64;
     while index < length {
-        let key = index
-            .wrapping_mul(1103515245)
-            .wrapping_add(12345) & 255;
+        let key = index.wrapping_mul(1103515245).wrapping_add(12345) & 255;
         let mut probe = 0usize;
         loop {
             if probe >= TABLE_CAPACITY {

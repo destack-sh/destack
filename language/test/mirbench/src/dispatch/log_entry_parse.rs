@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const LOG_HASH_MUL: i64 = 1664525;
@@ -44,9 +44,7 @@ fn log_entry_parse(length: i64) -> Value {
 
     // run parse loop
     while index < length {
-        let value = index
-            .wrapping_mul(LOG_HASH_MUL)
-            .wrapping_add(LOG_HASH_ADD);
+        let value = index.wrapping_mul(LOG_HASH_MUL).wrapping_add(LOG_HASH_ADD);
         let token = (value >> 16) & LOG_TOKEN_MASK;
 
         match token {

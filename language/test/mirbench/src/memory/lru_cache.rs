@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const LRU_CAPACITY: i64 = 16;
@@ -32,9 +32,7 @@ fn lru_cache(ops: i64) -> Value {
     // run cache loop
     let mut index = 0i64;
     while index < ops {
-        let hash = index
-            .wrapping_mul(LRU_HASH_MUL)
-            .wrapping_add(LRU_HASH_ADD);
+        let hash = index.wrapping_mul(LRU_HASH_MUL).wrapping_add(LRU_HASH_ADD);
         let key = hash ^ (hash >> 16);
 
         let mut slot = 0i64;

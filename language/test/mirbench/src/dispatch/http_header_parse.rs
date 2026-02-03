@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const HEADER_HASH_MUL: i64 = 1664525;
@@ -46,9 +46,7 @@ fn http_header_parse(length: i64) -> Value {
 
         match token {
             HEADER_TOKEN_NEWLINE => {
-                acc = acc
-                    .wrapping_add(key_hash)
-                    .wrapping_add(value_hash);
+                acc = acc.wrapping_add(key_hash).wrapping_add(value_hash);
                 headers = headers.wrapping_add(1);
                 key_hash = 0;
                 value_hash = 0;

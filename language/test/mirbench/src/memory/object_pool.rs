@@ -1,5 +1,5 @@
-use super::super::{Program, scale_axis};
 use super::super::common::mix_result;
+use super::super::{Program, scale_axis};
 use destack_vm::memory::Value;
 
 const POOL_CAPACITY: i64 = 32;
@@ -71,9 +71,7 @@ fn object_pool(ops: i64) -> Value {
     }
 
     // return result
-    acc = acc
-        .wrapping_add(head)
-        .wrapping_add(index);
+    acc = acc.wrapping_add(head).wrapping_add(index);
     let mixed = mix_result(acc, ops);
     Value::int64(mixed)
 }

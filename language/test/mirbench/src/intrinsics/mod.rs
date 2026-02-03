@@ -8,8 +8,8 @@ mod math_float;
 mod memchr_scan;
 mod memcmp_chunks;
 mod memcmp_prefix;
-mod memset_scrub;
 mod memcpy_stream;
+mod memset_scrub;
 mod string_builder_scan;
 
 pub use bit_ops::BIT_OPS;
@@ -20,8 +20,8 @@ pub use math_float::MATH_FLOAT;
 pub use memchr_scan::MEMCHR_SCAN;
 pub use memcmp_chunks::MEMCMP_CHUNKS;
 pub use memcmp_prefix::MEMCMP_PREFIX;
-pub use memset_scrub::MEMSET_SCRUB;
 pub use memcpy_stream::MEMCPY_STREAM;
+pub use memset_scrub::MEMSET_SCRUB;
 pub use string_builder_scan::STRING_BUILDER_SCAN;
 
 /// All benchmark programs in this category.

@@ -29,9 +29,7 @@ fn memcmp_prefix(length: i64) -> Value {
     // fill buffers
     let mut index = 0usize;
     while index < length_usize {
-        let value = (index as i64)
-            .wrapping_mul(3)
-            .wrapping_add(1) as u8;
+        let value = (index as i64).wrapping_mul(3).wrapping_add(1) as u8;
         left[index] = value;
         if (index & 3) == 0 {
             right[index] = value.wrapping_add(1);
