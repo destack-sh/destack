@@ -840,7 +840,7 @@ impl Parser {
                 Some(DependencyMode::Item)
             };
 
-            // export namespace: handled by export statement parsing
+            // export namespace handled by export statement parsing
             let is_export_namespace = self.peek_keyword(Keyword::As).is_ok()
                 && self.peek_next_keyword(Keyword::Namespace).is_ok();
             if is_export_namespace {
@@ -849,7 +849,7 @@ impl Parser {
                 return Ok(DescriptorParseResult::Expression(export));
             }
 
-            // export dependencies: handled by export statement parsing
+            // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
             let has_declaration_keyword =
                 next_keyword.is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw));
@@ -879,50 +879,59 @@ impl Parser {
 
         // declare modifier
         let is_declare = self.peek_keyword(Keyword::Declare).is_ok();
-
-        // declare target directly after keyword
         let direct_index = self.pos_index() + 1;
-        let mut declare_target_index = None;
-        if is_declare {
+
+        // locate a declare target
+        let declare_target_index = if is_declare {
             if self.is_declare_target_at(direct_index) {
-                declare_target_index = Some(direct_index);
+                Some(direct_index)
             } else if self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
                 let after_abstract = direct_index + 1;
                 let target_index = self.next_non_newline_index_from(after_abstract);
                 if target_index == after_abstract && self.is_declare_target_at(target_index) {
-                    declare_target_index = Some(target_index);
+                    Some(target_index)
+                } else {
+                    None
                 }
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        let mut declare_newline_error_span = None;
-        if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
-            let after_abstract = direct_index + 1;
-            let target_index = self.next_non_newline_index_from(after_abstract);
-            if target_index > after_abstract && self.is_declare_target_at(target_index) {
-                if let Some(token) = self.tokens.get(after_abstract) {
-                    declare_newline_error_span = Some(token.span);
+        // report newline errors for declare forms that must be contiguous
+        let declare_newline_error_span =
+            if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Abstract) {
+                let after_abstract = direct_index + 1;
+                let target_index = self.next_non_newline_index_from(after_abstract);
+                if target_index > after_abstract && self.is_declare_target_at(target_index) {
+                    self.tokens.get(after_abstract).map(|token| token.span)
+                } else {
+                    None
                 }
-            }
-        }
-        if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Type) {
-            let after_type = direct_index + 1;
-            let name_index = self.next_non_newline_index_from(after_type);
-            if name_index > after_type
-                && self
-                    .tokens
-                    .get(name_index)
-                    .is_some_and(|token| token.token.ty == TokenType::Identifier)
-            {
-                if let Some(token) = self.tokens.get(after_type) {
-                    declare_newline_error_span = Some(token.span);
+            } else if is_declare && self.keyword_for_index(direct_index) == Some(Keyword::Type) {
+                let after_type = direct_index + 1;
+                let name_index = self.next_non_newline_index_from(after_type);
+                if name_index > after_type
+                    && self
+                        .tokens
+                        .get(name_index)
+                        .is_some_and(|token| token.token.ty == TokenType::Identifier)
+                {
+                    self.tokens.get(after_type).map(|token| token.span)
+                } else {
+                    None
                 }
-            }
-        }
+            } else {
+                None
+            };
+
         if let Some(span) = declare_newline_error_span {
             let error = ParseError::unexpected(span);
             self.error(&error);
         }
+
         let declare_has_target = declare_target_index.is_some();
         descriptor.kind = if is_declare && declare_has_target {
             self.bump(); // eat declare
