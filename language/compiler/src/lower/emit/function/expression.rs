@@ -198,6 +198,34 @@ impl FunctionContext<'_> {
             });
         }
 
+        // require runtime check metadata from Analyze
+        let runtime_check_kind = self
+            .env
+            .types
+            .runtime_check_kind(expression_id.into_global_any(self.env.module_id));
+        let Some(runtime_check_kind) = runtime_check_kind else {
+            return Err(LowerError::Internal {
+                module: self.env.module_id,
+                message: "missing runtime check metadata for type guard".to_string(),
+            });
+        };
+
+        // handle constant guards early
+        if let dir::RuntimeCheckKind::Constant(value) = runtime_check_kind {
+            let value = self.state.builder.bconst(value);
+            return Ok((value, self.env.type_lowerer.ty_bool));
+        }
+
+        // reject type descriptor guards until RTTI is lowered (#Incomplete)
+        if runtime_check_kind == dir::RuntimeCheckKind::TypeDescriptor {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "type descriptor checks are not lowered yet".to_string(),
+            });
+        }
+
         // resolve expression and target types
         let (left_value, left_mir_type) = self.lower_value_expression(left)?;
         let left_type_id = self.type_for_expression_or_error(left)?;
@@ -213,10 +241,17 @@ impl FunctionContext<'_> {
         }
 
         // union types use the tag field for runtime checks
-        if matches!(
+        let is_union_value = matches!(
             self.env.types.get_type(left_type_id),
             dir::Type::Union { .. }
-        ) {
+        );
+        if runtime_check_kind == dir::RuntimeCheckKind::UnionTag && !is_union_value {
+            return Err(LowerError::Internal {
+                module: self.env.module_id,
+                message: "runtime check metadata expected union value".to_string(),
+            });
+        }
+        if is_union_value {
             let layout = self
                 .env
                 .type_lowerer

@@ -2,9 +2,10 @@ use destack_dir::{
     BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
     Declarator, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId, LocalTypeId,
     MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, Name, NodeTree, NodeType,
-    Pattern, PatternField, ScalarLiteral, StringId, TypeBinaryOperator, TypeTable,
+    Pattern, PatternField, ScalarLiteral, StringId, SymbolTable, TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
+use destack_workspace::{Module, ProfileId};
 
 use crate::{Compiler, ElaborateError, ElaborateResult};
 
@@ -29,8 +30,10 @@ impl Compiler {
     /// ```
     pub(super) fn transform_match(
         &self,
+        module: &Module,
+        profile: ProfileId,
         tree: &mut NodeTree,
-        symbols: &destack_dir::SymbolTable,
+        symbols: &SymbolTable,
         types: &mut destack_dir::TypeTable,
     ) -> ElaborateResult<()> {
         let match_ids: Vec<_> = tree
@@ -50,7 +53,7 @@ impl Compiler {
             .collect();
 
         for match_id in match_ids {
-            self.transform_single_match(match_id, tree, types)?;
+            self.transform_single_match(match_id, module, profile, tree, symbols, types)?;
         }
 
         Ok(())
@@ -60,7 +63,10 @@ impl Compiler {
     fn transform_single_match(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
         tree: &mut NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         let Expression::Match { value, cases, .. } = tree.get(match_id).clone() else {
@@ -76,6 +82,9 @@ impl Compiler {
         let scope = tree.get_scope(match_id);
         let result = self.build_match_chain(
             match_id,
+            module,
+            profile,
+            symbols,
             value,
             &cases,
             0,
@@ -152,6 +161,9 @@ impl Compiler {
     fn build_match_chain(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
@@ -229,6 +241,9 @@ impl Compiler {
         {
             return self.handle_binding_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 *name,
@@ -250,6 +265,9 @@ impl Compiler {
         {
             return self.handle_expression_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 *pattern_value,
@@ -266,6 +284,9 @@ impl Compiler {
         else if let Pattern::TaggedTuple { ty, fields } = &pattern {
             return self.handle_tagged_tuple_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 *ty,
@@ -283,6 +304,9 @@ impl Compiler {
         else if let Pattern::TaggedObject { ty, fields } = &pattern {
             return self.handle_tagged_object_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 *ty,
@@ -300,6 +324,9 @@ impl Compiler {
         else if let Pattern::Tuple { fields } = &pattern {
             return self.handle_tuple_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 fields,
@@ -316,6 +343,9 @@ impl Compiler {
         else if let Pattern::Object { fields } = &pattern {
             return self.handle_object_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 fields,
@@ -337,6 +367,9 @@ impl Compiler {
         {
             return self.handle_range_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 start,
@@ -355,6 +388,9 @@ impl Compiler {
         else if let Pattern::Union { patterns } = &pattern {
             return self.handle_union_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 patterns,
@@ -371,6 +407,9 @@ impl Compiler {
         else if let Pattern::Array { fields } = &pattern {
             return self.handle_array_pattern(
                 match_id,
+                module,
+                profile,
+                symbols,
                 value,
                 body,
                 fields,
@@ -424,6 +463,9 @@ impl Compiler {
     fn build_case_if(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         condition: LocalNodeId<Expression>,
         then_expression: LocalNodeId<Expression>,
         value: LocalNodeId<Expression>,
@@ -437,6 +479,9 @@ impl Compiler {
         // build the else branch from remaining cases
         let else_expr = self.build_match_chain(
             match_id,
+            module,
+            profile,
+            symbols,
             value,
             cases,
             index + 1,
@@ -469,6 +514,9 @@ impl Compiler {
     fn handle_binding_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         name: StringId,
@@ -509,6 +557,9 @@ impl Compiler {
         // build the if expression for the guard
         let if_expr = self.build_case_if(
             match_id,
+            module,
+            profile,
+            symbols,
             guard_condition,
             then_body,
             value,
@@ -528,6 +579,9 @@ impl Compiler {
     fn handle_expression_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         pattern_value: LocalNodeId<Expression>,
@@ -542,6 +596,9 @@ impl Compiler {
         // build the else chain from the remaining cases
         let else_expr = self.build_match_chain(
             match_id,
+            module,
+            profile,
+            symbols,
             value,
             cases,
             index + 1,
@@ -588,6 +645,9 @@ impl Compiler {
     fn handle_tagged_tuple_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
@@ -601,7 +661,9 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(match_id, value, ty, tree, scope, types)?;
+        let mut condition = self.build_type_check(
+            match_id, module, profile, symbols, value, ty, tree, scope, types,
+        )?;
 
         // refine the condition with field checks
         for (index, field_id) in fields.iter().enumerate() {
@@ -718,6 +780,9 @@ impl Compiler {
         // build the if expression
         let if_expr = self.build_case_if(
             match_id,
+            module,
+            profile,
+            symbols,
             condition,
             body_with_bindings,
             value,
@@ -737,6 +802,9 @@ impl Compiler {
     fn handle_tagged_object_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
@@ -750,7 +818,9 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // start with the type check for the tag
-        let mut condition = self.build_type_check(match_id, value, ty, tree, scope, types)?;
+        let mut condition = self.build_type_check(
+            match_id, module, profile, symbols, value, ty, tree, scope, types,
+        )?;
 
         // refine the condition with field checks
         for field_id in fields.iter() {
@@ -872,6 +942,9 @@ impl Compiler {
         // build the if expression
         let if_expr = self.build_case_if(
             match_id,
+            module,
+            profile,
+            symbols,
             condition,
             body_with_bindings,
             value,
@@ -891,6 +964,9 @@ impl Compiler {
     fn handle_tuple_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
@@ -910,6 +986,9 @@ impl Compiler {
         if let Some(guard_expr) = guard {
             let if_expr = self.build_case_if(
                 match_id,
+                module,
+                profile,
+                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
@@ -931,6 +1010,9 @@ impl Compiler {
     fn handle_object_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
@@ -950,6 +1032,9 @@ impl Compiler {
         if let Some(guard_expr) = guard {
             let if_expr = self.build_case_if(
                 match_id,
+                module,
+                profile,
+                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
@@ -971,6 +1056,9 @@ impl Compiler {
     fn handle_range_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         start: &Option<LocalNodeId<Pattern>>,
@@ -1005,6 +1093,9 @@ impl Compiler {
             let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
             let if_expr = self.build_case_if(
                 match_id,
+                module,
+                profile,
+                symbols,
                 condition,
                 then_block,
                 value,
@@ -1028,6 +1119,9 @@ impl Compiler {
         let then_block = self.wrap_in_block(match_id, body, scope, tree, types)?;
         let if_expr = self.build_case_if(
             match_id,
+            module,
+            profile,
+            symbols,
             guard.unwrap(),
             then_block,
             value,
@@ -1047,6 +1141,9 @@ impl Compiler {
     fn handle_union_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         patterns: &[LocalNodeId<Pattern>],
@@ -1059,7 +1156,9 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // build the union check
-        let condition = self.build_union_check(match_id, value, patterns, tree, scope, types)?;
+        let condition = self.build_union_check(
+            match_id, module, profile, symbols, value, patterns, tree, scope, types,
+        )?;
 
         // combine the union check with the guard
         let condition = self.combine_with_guard(match_id, condition, guard, tree, scope, types)?;
@@ -1070,6 +1169,9 @@ impl Compiler {
         // build the if expression
         let if_expr = self.build_case_if(
             match_id,
+            module,
+            profile,
+            symbols,
             condition,
             then_block,
             value,
@@ -1089,6 +1191,9 @@ impl Compiler {
     fn handle_array_pattern(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         body: LocalNodeId<Expression>,
         fields: &[LocalNodeId<PatternField>],
@@ -1108,6 +1213,9 @@ impl Compiler {
         if let Some(guard_expr) = guard {
             let if_expr = self.build_case_if(
                 match_id,
+                module,
+                profile,
+                symbols,
                 guard_expr,
                 body_with_bindings,
                 value,
@@ -1224,6 +1332,9 @@ impl Compiler {
     fn build_union_check(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         patterns: &[LocalNodeId<Pattern>],
         tree: &mut NodeTree,
@@ -1244,7 +1355,9 @@ impl Compiler {
                 }
                 Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
                     // type check
-                    self.build_type_check(match_id, value, ty, tree, scope, types)?
+                    self.build_type_check(
+                        match_id, module, profile, symbols, value, ty, tree, scope, types,
+                    )?
                 }
                 Pattern::Wildcard => {
                     // always matches, emit true literal
@@ -1357,6 +1470,9 @@ impl Compiler {
     fn build_type_check(
         &self,
         match_id: LocalNodeId<Expression>,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
         value: LocalNodeId<Expression>,
         ty: LocalNodeId<Expression>,
         tree: &mut NodeTree,
@@ -1378,6 +1494,48 @@ impl Compiler {
 
         // assign the boolean result type
         self.set_boolean_expression_type(types, tree.module_id, expr_id);
+
+        // resolve the value type for runtime checks
+        let Some(value_type_id) =
+            types.get_declared_or_inferred_type_id(value.into_global_any(tree.module_id))
+        else {
+            return Err(ElaborateError::UnsupportedConstruct {
+                node: value.into_global_any(tree.module_id).into_anchored(None),
+            });
+        };
+
+        // resolve the target type for runtime checks
+        let target_type_id = match tree.get(ty) {
+            Expression::Type { value } => *value,
+            _ => {
+                let Some(type_id) =
+                    types.get_declared_or_inferred_type_id(ty.into_global_any(tree.module_id))
+                else {
+                    return Err(ElaborateError::UnsupportedConstruct {
+                        node: ty.into_global_any(tree.module_id).into_anchored(None),
+                    });
+                };
+                types.unwrap_value_type_id(type_id)
+            }
+        };
+
+        // derive and record the runtime check kind
+        let options = self.analyze_context_options_for_module(module.id);
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            module,
+            profile,
+            symbols,
+            value_type_id,
+            target_type_id,
+            types,
+            &options,
+        );
+        let Some(runtime_check_kind) = runtime_check_kind else {
+            return Err(ElaborateError::UnsupportedConstruct {
+                node: expr_id.into_global_any(tree.module_id).into_anchored(None),
+            });
+        };
+        types.set_runtime_check_kind(expr_id.into_global_any(tree.module_id), runtime_check_kind);
         Ok(expr_id)
     }
 
