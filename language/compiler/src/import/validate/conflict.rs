@@ -4,7 +4,7 @@ use destack_dir::{
     Declaration, DependencyItem, DependencyKind, EnumKind, GlobalNodeIdAny, LocalSymbolId,
     NodeTree, NodeType, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolType,
 };
-use destack_workspace::Module;
+use destack_workspace::{DiagnosticPolicy, Module};
 
 use crate::import::{SymbolDescriptor, can_merge_declarations};
 use crate::{Compiler, ImportError};
@@ -13,10 +13,15 @@ impl Compiler {
     /// Check for conflicting bindings in module scopes.
     pub(super) fn validate_binding_conflicts(&self, module: &Module) {
         // resolve local redeclaration policy
-        let no_redeclare_locals = self
+        let local_redeclare_policy = self
             .program
             .with_dsconfig_options(module, |opts| opts.compiler.no_redeclared_locals)
-            .unwrap_or(!module.language_type.is_destack());
+            .unwrap_or(if module.language_type.is_destack() {
+                DiagnosticPolicy::Allow
+            } else {
+                DiagnosticPolicy::Deny
+            });
+        let no_redeclare_locals = !local_redeclare_policy.is_allow();
 
         // load symbol tables
         let tree = module.dir_base().tree.read();
@@ -39,6 +44,7 @@ impl Compiler {
                         other_node: other_node.into_anchored(None),
                         scope: symbol.scope.0.into_global(module.id),
                         name: Some(key),
+                        is_local: false,
                     };
                     self.error(error);
                 }
@@ -77,11 +83,9 @@ impl Compiler {
                         || self.is_parameter_binding(&tree, other_symbol);
                     let is_strict_local_conflict =
                         self.is_strict_local_conflict(symbol, other_symbol);
-                    if is_local_pair
-                        && !no_redeclare_locals
-                        && !is_parameter_pair
-                        && !is_strict_local_conflict
-                    {
+                    let is_policy_controlled_conflict =
+                        is_local_pair && !is_parameter_pair && !is_strict_local_conflict;
+                    if is_policy_controlled_conflict && !no_redeclare_locals {
                         continue;
                     }
 
@@ -102,6 +106,7 @@ impl Compiler {
                             other_node: other_primary_declaration.into_anchored(None),
                             scope: symbol.scope.0.into_global(module.id),
                             name: Some(key),
+                            is_local: is_local_pair,
                         }
                     };
                     self.error(error);

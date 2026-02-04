@@ -63,6 +63,7 @@ pub enum ImportError {
         other_node: AnchoredGlobalNodeId,
         scope: GlobalScopeId,
         name: Option<StaticKey>,
+        is_local: bool,
     },
 
     /// Conflicting export name in the same module.
