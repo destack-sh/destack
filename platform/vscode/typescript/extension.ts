@@ -188,6 +188,11 @@ export async function activate(ctx: vscode.ExtensionContext) {
     const serverLog = vscode.window.createOutputChannel("Destack Server", { log: true });
     const cfg = vscode.workspace.getConfiguration("destack");
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    status.command = "destack.restart";
+    status.text = "Destack: Starting";
+    status.tooltip = "Destack language server";
+    status.show();
 
     const serverOptions: ServerOptions = async (): Promise<StreamInfo> => {
         let resolved: ResolvedServerCommand;
@@ -278,6 +283,21 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     // When client fully stops, make sure the child is gone.
     client.onDidChangeState((e) => {
+        switch (e.newState) {
+            case State.Starting:
+                status.text = "Destack: Starting";
+                status.tooltip = "Destack language server is starting";
+                break;
+            case State.Running:
+                status.text = "Destack: Ready";
+                status.tooltip = "Destack language server is running";
+                break;
+            case State.Stopped:
+                status.text = "Destack: Stopped";
+                status.tooltip = "Destack language server is stopped";
+                break;
+        }
+
         // 2 === Stopped
         if (e.newState == State.Stopped) {
             stopServerProc(serverLog);
@@ -316,6 +336,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     ctx.subscriptions.push(
         clientLog,
         serverLog,
+        status,
         new vscode.Disposable(() => {
             // Final guard on extension deactivation/disposal.
             void stopServerProc(serverLog);
@@ -333,6 +354,57 @@ export async function activate(ctx: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Destack restarted.`);
             } catch (e: any) {
                 vscode.window.showErrorMessage(`Destack restart failed: ${e?.message || e}`);
+            }
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.commands.registerCommand("destack.rescan", async () => {
+            try {
+                status.text = "Destack: Rescanning";
+                await client!.sendRequest("workspace/executeCommand", {
+                    command: "destack.rescan",
+                    arguments: [],
+                });
+                status.text = "Destack: Ready";
+                vscode.window.showInformationMessage("Destack rescan completed.");
+            } catch (e: any) {
+                status.text = "Destack: Ready";
+                vscode.window.showErrorMessage(`Destack rescan failed: ${e?.message || e}`);
+            }
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.commands.registerCommand("destack.reindex", async () => {
+            try {
+                status.text = "Destack: Reindexing";
+                await client!.sendRequest("workspace/executeCommand", {
+                    command: "destack.reindex",
+                    arguments: [],
+                });
+                status.text = "Destack: Ready";
+                vscode.window.showInformationMessage("Destack reindex completed.");
+            } catch (e: any) {
+                status.text = "Destack: Ready";
+                vscode.window.showErrorMessage(`Destack reindex failed: ${e?.message || e}`);
+            }
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.commands.registerCommand("destack.clearCache", async () => {
+            try {
+                status.text = "Destack: Clearing Cache";
+                await client!.sendRequest("workspace/executeCommand", {
+                    command: "destack.clearCache",
+                    arguments: [],
+                });
+                status.text = "Destack: Ready";
+                vscode.window.showInformationMessage("Destack cache cleared.");
+            } catch (e: any) {
+                status.text = "Destack: Ready";
+                vscode.window.showErrorMessage(`Destack cache clear failed: ${e?.message || e}`);
             }
         }),
     );

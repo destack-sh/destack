@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::NumberOrString;
+use crate::{LSPAny, NumberOrString};
 
 /// A progress token, either a number or a string.
 pub type ProgressToken = NumberOrString;
@@ -23,6 +23,8 @@ pub struct ProgressParams {
 pub enum ProgressParamsValue {
     /// Work done progress value.
     WorkDone(WorkDoneProgress),
+    /// A partial result payload.
+    PartialResult(LSPAny),
 }
 
 /// The `window/workDoneProgress/create` request is sent

@@ -1,24 +1,21 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
-use dashmap::DashMap;
-use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
+use dashmap::{DashMap, DashSet};
 use destack_daemon::protocol::{
-    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
-    FileSnapshot, RescanReason,
+    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord, RescanReason,
 };
-use destack_fir::format as fir_format;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
-use destack_parser::Parser;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileSystem, FileType, FileWatchEvent, FileWatchEventKind,
-    LanguageType, OverlayFileSystem, PhysicalFileSystem, Span, WATCHABLE_FILE_TYPES,
+    File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
+    PhysicalFileSystem, Span,
 };
-use destack_workspace::{FormatterOptions, Session, Workspace, query};
-use serde_json::to_value;
+use destack_workspace::{Session, Workspace, query};
+use serde::{Deserialize, Serialize};
+use serde_json::{from_value, to_value};
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -32,8 +29,15 @@ use crate::query::navigation::{
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
 use crate::server::daemon::LspDaemonClient;
+use crate::server::helpers::{
+    apply_text_changes, build_file_watchers, completion_kind_to_lsp, create_daemon_client,
+    diagnostic_result_id, format_file, format_range, lsp_uri_for_file, normalize_line_endings,
+    semantic_tokens_edits, tracked_file_globs, upsert_file_from_snapshot,
+};
+use crate::server::progress::WorkDoneProgressTracker;
 
-pub const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
+const PARTIAL_RESULT_CHUNK_SIZE: usize = 128;
+const WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE: usize = 128;
 
 /// State for an open document.
 #[derive(Debug)]
@@ -42,6 +46,24 @@ struct OpenDocument {
     file_id: FileId,
     /// The current in editor document text normalized to LF.
     text: String,
+    /// The current LSP version for the document.
+    version: i32,
+}
+
+/// Additional information used when resolving completion items.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CompletionResolveData {
+    /// The documentation payload for the completion item.
+    documentation: Option<String>,
+}
+
+/// Cached semantic tokens for a document.
+#[derive(Debug, Clone)]
+struct SemanticTokensCache {
+    /// The current result id for the cached tokens.
+    result_id: String,
+    /// The last token payload.
+    data: Vec<lsp::SemanticToken>,
 }
 
 /// The Destack language server.
@@ -57,6 +79,12 @@ pub struct DestackLanguageServer {
     daemon: OnceLock<Arc<LspDaemonClient>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
+    /// Cached semantic tokens per document.
+    semantic_tokens_cache: DashMap<String, SemanticTokensCache>,
+    /// Monotonic counter for semantic token result ids.
+    semantic_tokens_counter: AtomicU64,
+    /// Progress tokens canceled by the client.
+    cancelled_progress_tokens: DashSet<lsp::ProgressToken>,
     /// The watch registration ID.
     watch_registration_id: OnceLock<String>,
 }
@@ -72,6 +100,9 @@ impl DestackLanguageServer {
             session: OnceLock::new(),
             daemon: OnceLock::new(),
             open_documents: DashMap::new(),
+            semantic_tokens_cache: DashMap::new(),
+            semantic_tokens_counter: AtomicU64::new(1),
+            cancelled_progress_tokens: DashSet::new(),
             watch_registration_id: OnceLock::new(),
         }
     }
@@ -86,6 +117,24 @@ impl DestackLanguageServer {
     #[inline]
     fn daemon(&self) -> &Arc<LspDaemonClient> {
         self.daemon.get().expect("daemon not initialized")
+    }
+
+    /// Allocate the next semantic tokens result id.
+    #[inline]
+    fn next_semantic_tokens_result_id(&self) -> String {
+        self.semantic_tokens_counter
+            .fetch_add(1, Ordering::Relaxed)
+            .to_string()
+    }
+
+    /// Check if a progress token has been cancelled.
+    pub(super) fn is_progress_cancelled(&self, token: &lsp::ProgressToken) -> bool {
+        self.cancelled_progress_tokens.contains(token)
+    }
+
+    /// Clear a cancelled progress token.
+    pub(super) fn clear_progress_cancel(&self, token: &lsp::ProgressToken) {
+        self.cancelled_progress_tokens.remove(token);
     }
 
     /// Ensure the module backing a file is analyzed.
@@ -164,6 +213,9 @@ impl DestackLanguageServer {
         // publish diagnostics for updates
         self.publish_watch_updates(result.updates).await;
         self.publish_watch_messages(result.messages).await;
+
+        let _ = self.client.workspace_diagnostic_refresh().await;
+        let _ = self.client.semantic_tokens_refresh().await;
     }
 
     /// Publish diagnostics for a batch of daemon updates.
@@ -198,6 +250,47 @@ impl DestackLanguageServer {
             };
             self.client.log_message(message_type, message.message).await;
         }
+    }
+
+    /// Publish a partial result payload.
+    async fn publish_partial_result<T: Serialize>(
+        &self,
+        token: &lsp::ProgressToken,
+        payload: T,
+        label: &str,
+    ) {
+        // serialize the partial result
+        let value = match to_value(payload) {
+            Ok(value) => value,
+            Err(error) => {
+                tracing::debug!(?error, label, "lsp.partial.serialize_failed");
+                return;
+            }
+        };
+
+        // dispatch the progress notification
+        self.client
+            .send_notification::<lsp::notification::Progress>(lsp::ProgressParams {
+                token: token.clone(),
+                value: lsp::ProgressParamsValue::PartialResult(value),
+            })
+            .await;
+    }
+
+    /// Publish a partial workspace diagnostics payload.
+    async fn publish_workspace_diagnostic_partial(
+        &self,
+        token: &lsp::ProgressToken,
+        items: Vec<lsp::WorkspaceDocumentDiagnosticReport>,
+    ) {
+        // skip empty payloads
+        if items.is_empty() {
+            return;
+        }
+
+        let report = lsp::WorkspaceDiagnosticReportPartialResult { items };
+        self.publish_partial_result(token, report, "diagnostic")
+            .await;
     }
 
     /// Invalidate a module at the given path and publish diagnostics.
@@ -260,154 +353,6 @@ impl DestackLanguageServer {
 
         self.publish_watch_messages(result.messages).await;
     }
-}
-
-/// Build an LSP URI for a file using its on-disk path when available.
-fn lsp_uri_for_file(file: &File) -> Option<lsp::Uri> {
-    // prefer a file:// URI derived from the file path
-    if let Some(path) = file.path.as_ref() {
-        return lsp::Uri::from_file_path(path);
-    }
-
-    // fall back to parsing the stored uri string
-    file.uri.as_ref().parse::<lsp::Uri>().ok()
-}
-
-/// Upsert a file in the session registry from a snapshot.
-fn upsert_file_from_snapshot(session: &Session, snapshot: &FileSnapshot) -> Option<Arc<File>> {
-    // resolve the existing file id when possible
-    let registry = &session.files;
-    let existing_id = snapshot
-        .path
-        .as_ref()
-        .and_then(|path| registry.get_id_by_path(path))
-        .or_else(|| registry.get_id_by_uri(&snapshot.uri));
-
-    // allocate a new id when the file is not tracked
-    let file_id = existing_id.unwrap_or_else(|| registry.next_id());
-
-    // return early when no content is available and the file already exists
-    let Some(content) = snapshot.content.as_ref() else {
-        if let Some(existing_id) = existing_id {
-            return registry.get_maybe(existing_id);
-        }
-
-        // register an unloaded file to keep ids stable
-        let file = File::unloaded(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-        );
-        registry.insert(file);
-        return registry.get_maybe(file_id);
-    };
-
-    // build a file from the snapshot content
-    let file = file_from_snapshot(snapshot, file_id, content);
-
-    // replace or insert the file into the registry
-    if existing_id.is_some() {
-        registry.replace(file);
-    } else {
-        registry.insert(file);
-    }
-
-    registry.get_maybe(file_id)
-}
-
-/// Build a file from a snapshot payload.
-fn file_from_snapshot(snapshot: &FileSnapshot, file_id: FileId, content: &str) -> File {
-    // parse JSON when possible
-    if matches!(snapshot.file_type, FileType::Json)
-        && is_config_json_snapshot(snapshot)
-        && let Ok(file) = File::from_text_as_jsonc(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-            content.to_string(),
-        )
-    {
-        return file;
-    }
-
-    // parse non config JSON strictly
-    if matches!(snapshot.file_type, FileType::Json)
-        && let Ok(file) = File::from_text_as_json(
-            file_id,
-            snapshot.name.clone(),
-            snapshot.uri.clone(),
-            snapshot.path.clone(),
-            snapshot.file_type,
-            content.to_string(),
-        )
-    {
-        return file;
-    }
-
-    // fall back to text files for all other types
-    File::from_text(
-        file_id,
-        snapshot.name.clone(),
-        snapshot.uri.clone(),
-        snapshot.path.clone(),
-        snapshot.file_type,
-        content.to_string(),
-    )
-}
-
-/// Return true when the snapshot refers to a JSON config file.
-fn is_config_json_snapshot(snapshot: &FileSnapshot) -> bool {
-    // resolve the effective filename
-    let name = snapshot
-        .path
-        .as_ref()
-        .and_then(|path| path.file_name())
-        .and_then(|name| name.to_str())
-        .unwrap_or(snapshot.name.as_str());
-
-    if name == "dsconfig.json" || name == "jsconfig.json" {
-        return true;
-    }
-
-    name.starts_with("tsconfig") && name.ends_with(".json")
-}
-
-/// Build file watcher patterns for the client.
-fn build_file_watchers() -> Vec<lsp::FileSystemWatcher> {
-    let mut watchers = Vec::new();
-    for pattern in tracked_file_globs() {
-        watchers.push(lsp::FileSystemWatcher {
-            glob_pattern: pattern.to_string().into(),
-            kind: None,
-        });
-    }
-
-    watchers
-}
-
-/// Build the set of file globs tracked by the LSP.
-fn tracked_file_globs() -> Vec<&'static str> {
-    let mut patterns = Vec::new();
-    for file_type in WATCHABLE_FILE_TYPES {
-        for pattern in file_type.globs() {
-            if !patterns.contains(pattern) {
-                patterns.push(pattern);
-            }
-        }
-    }
-
-    // append config globs
-    for pattern in CONFIG_GLOBS {
-        if !patterns.contains(&pattern) {
-            patterns.push(pattern);
-        }
-    }
-
-    patterns
 }
 
 // ----------------------------------------------------------------------------
@@ -485,6 +430,7 @@ impl LanguageServer for DestackLanguageServer {
             document_highlight_provider: Some(lsp::OneOf::Left(true)),
             completion_provider: Some(lsp::CompletionOptions {
                 trigger_characters: Some(vec![".".to_string(), ":".to_string()]),
+                resolve_provider: Some(true),
                 ..Default::default()
             }),
             signature_help_provider: Some(lsp::SignatureHelpOptions {
@@ -497,11 +443,20 @@ impl LanguageServer for DestackLanguageServer {
                     lsp::SemanticTokensOptions {
                         legend: semantic::legend(),
                         range: Some(true),
-                        full: Some(lsp::SemanticTokensFullOptions::Bool(true)),
+                        full: Some(lsp::SemanticTokensFullOptions::Delta { delta: Some(true) }),
                         work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
                     },
                 ),
             ),
+            diagnostic_provider: Some(lsp::DiagnosticServerCapabilities::Options(
+                lsp::DiagnosticOptions {
+                    identifier: Some("destack".to_string()),
+                    inter_file_dependencies: true,
+                    workspace_diagnostics: true,
+                    markup_message_support: None,
+                    work_done_progress_options: lsp::WorkDoneProgressOptions::default(),
+                },
+            )),
             document_formatting_provider: Some(lsp::OneOf::Left(true)),
             document_range_formatting_provider: Some(lsp::OneOf::Left(true)),
             folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
@@ -514,7 +469,13 @@ impl LanguageServer for DestackLanguageServer {
                 prepare_provider: Some(true),
                 work_done_progress_options: Default::default(),
             })),
-            code_action_provider: Some(lsp::CodeActionProviderCapability::Simple(true)),
+            code_action_provider: Some(lsp::CodeActionProviderCapability::Options(
+                lsp::CodeActionOptions {
+                    code_action_kinds: None,
+                    resolve_provider: Some(true),
+                    work_done_progress_options: Default::default(),
+                },
+            )),
             code_lens_provider: Some(lsp::CodeLensOptions {
                 resolve_provider: Some(true),
             }),
@@ -522,6 +483,14 @@ impl LanguageServer for DestackLanguageServer {
             implementation_provider: Some(lsp::ImplementationProviderCapability::Simple(true)),
             call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
             type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
+            execute_command_provider: Some(lsp::ExecuteCommandOptions {
+                commands: vec![
+                    "destack.rescan".to_string(),
+                    "destack.reindex".to_string(),
+                    "destack.clearCache".to_string(),
+                ],
+                work_done_progress_options: Default::default(),
+            }),
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {
                     supported: Some(true),
@@ -603,6 +572,7 @@ impl LanguageServer for DestackLanguageServer {
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
         let content = normalize_line_endings(params.text_document.text);
+        let version = params.text_document.version;
 
         self.client
             .log_message(lsp::MessageType::INFO, format!("did_open: {uri_str}"))
@@ -634,6 +604,7 @@ impl LanguageServer for DestackLanguageServer {
             OpenDocument {
                 file_id,
                 text: content,
+                version,
             },
         );
     }
@@ -648,11 +619,21 @@ impl LanguageServer for DestackLanguageServer {
             let Some(mut entry) = self.open_documents.get_mut(&uri_str) else {
                 return;
             };
+            if params.text_document.version <= entry.version {
+                tracing::debug!(
+                    uri = %uri_str,
+                    incoming = params.text_document.version,
+                    current = entry.version,
+                    "lsp.did_change.stale_version"
+                );
+                return;
+            }
             let applied = apply_text_changes(&mut entry.text, &params.content_changes);
             if !applied {
                 tracing::debug!(uri = %uri_str, "lsp.did_change.apply_failed");
                 return;
             }
+            entry.version = params.text_document.version;
             entry.text.clone()
         };
         let Some(path) = params
@@ -672,9 +653,43 @@ impl LanguageServer for DestackLanguageServer {
             .await;
     }
 
+    async fn did_save(&self, params: lsp::DidSaveTextDocumentParams) {
+        let uri_str = params.text_document.uri.to_string();
+        let Some(path) = params
+            .text_document
+            .uri
+            .to_file_path()
+            .map(|p| p.into_owned())
+        else {
+            return;
+        };
+
+        let content = if let Some(text) = params.text {
+            Some(normalize_line_endings(text))
+        } else {
+            std::fs::read_to_string(&path)
+                .ok()
+                .map(normalize_line_endings)
+        };
+
+        let Some(content) = content else {
+            tracing::debug!(uri = %uri_str, "lsp.did_save.read_failed");
+            return;
+        };
+
+        if let Some(mut entry) = self.open_documents.get_mut(&uri_str) {
+            entry.text = content.clone();
+        }
+
+        self.overlay_fs.set_overlay(&path, content.clone());
+        self.invalidate_and_publish(&params.text_document.uri, &path, content)
+            .await;
+    }
+
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
         self.open_documents.remove(&uri_str);
+        self.semantic_tokens_cache.remove(&uri_str);
 
         // remove overlay to fall back to disk content
         if let Some(path) = params
@@ -875,6 +890,245 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     // ------------------------------------------------------------------------
+    // DIAGNOSTICS
+    // ------------------------------------------------------------------------
+
+    async fn diagnostic(
+        &self,
+        params: lsp::DocumentDiagnosticParams,
+    ) -> jsonrpc::Result<lsp::DocumentDiagnosticReportResult> {
+        let session = self.session();
+        let uri_str = params.text_document.uri.to_string();
+        let doc_entry = self.open_documents.get(&uri_str);
+        let file_id = doc_entry
+            .as_ref()
+            .map(|doc| doc.file_id)
+            .or_else(|| {
+                params
+                    .text_document
+                    .uri
+                    .to_file_path()
+                    .map(|path| path.into_owned())
+                    .and_then(|path| session.files.get_id_by_path(&path))
+            })
+            .or_else(|| {
+                let uri = destack_source::Uri::from_string(uri_str.as_str());
+                session.files.get_id_by_uri(&uri)
+            });
+
+        let Some(file_id) = file_id else {
+            let report =
+                lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
+                    related_documents: None,
+                    full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                        result_id: None,
+                        items: Vec::new(),
+                    },
+                });
+            return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
+        };
+
+        let file = self.get_analyzed_file(file_id);
+        let program = query::program_for_file(session, file_id);
+        let diagnostics = program.diagnostic_store.diagnostics_for_file(file_id);
+        let result_id = diagnostic_result_id(&diagnostics);
+
+        if params.previous_result_id.as_ref() == Some(&result_id) {
+            let report = lsp::DocumentDiagnosticReport::Unchanged(
+                lsp::RelatedUnchangedDocumentDiagnosticReport {
+                    related_documents: None,
+                    unchanged_document_diagnostic_report: lsp::UnchangedDocumentDiagnosticReport {
+                        result_id,
+                    },
+                },
+            );
+            return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
+        }
+
+        let items: Vec<lsp::Diagnostic> = diagnostics
+            .into_iter()
+            .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file))
+            .collect();
+
+        let report =
+            lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
+                related_documents: None,
+                full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                    result_id: Some(result_id),
+                    items,
+                },
+            });
+
+        Ok(lsp::DocumentDiagnosticReportResult::Report(report))
+    }
+
+    async fn workspace_diagnostic(
+        &self,
+        params: lsp::WorkspaceDiagnosticParams,
+    ) -> jsonrpc::Result<lsp::WorkspaceDiagnosticReportResult> {
+        let session = self.session();
+        let previous_ids: std::collections::HashMap<String, String> = params
+            .previous_result_ids
+            .into_iter()
+            .map(|entry| (entry.uri.to_string(), entry.value))
+            .collect();
+
+        let mut diagnostics_by_file = std::collections::HashMap::new();
+        for entry in session.programs.iter() {
+            let program = entry.value();
+            for (file_id, diagnostics) in program.diagnostic_store.snapshot_by_file() {
+                diagnostics_by_file.entry(file_id).or_insert(diagnostics);
+            }
+        }
+
+        let mut open_versions = std::collections::HashMap::new();
+        for entry in self.open_documents.iter() {
+            let doc = entry.value();
+            open_versions.insert(doc.file_id, doc.version);
+            diagnostics_by_file.entry(doc.file_id).or_insert(Vec::new());
+        }
+
+        // collect partial results when supported
+        let partial_token = params.partial_result_params.partial_result_token;
+
+        let mut items = Vec::new();
+        let mut partial_items = Vec::new();
+
+        // start work done progress when supported
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Workspace diagnostics",
+            "collecting diagnostics",
+        )
+        .await;
+
+        // allow cancellation between chunks
+        let mut processed = 0usize;
+        for (file_id, diagnostics) in diagnostics_by_file {
+            let file = session.files.get(file_id);
+            let Some(uri) = lsp_uri_for_file(&file) else {
+                continue;
+            };
+            let result_id = diagnostic_result_id(&diagnostics);
+            let version = open_versions.get(&file_id).map(|version| *version as i64);
+            let uri_str = uri.to_string();
+            if previous_ids.get(&uri_str) == Some(&result_id) {
+                let report = lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
+                    lsp::WorkspaceUnchangedDocumentDiagnosticReport {
+                        uri,
+                        version,
+                        unchanged_document_diagnostic_report:
+                            lsp::UnchangedDocumentDiagnosticReport { result_id },
+                    },
+                );
+                items.push(report);
+                continue;
+            }
+
+            let lsp_diagnostics: Vec<lsp::Diagnostic> = diagnostics
+                .into_iter()
+                .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file))
+                .collect();
+            let report = lsp::WorkspaceDocumentDiagnosticReport::Full(
+                lsp::WorkspaceFullDocumentDiagnosticReport {
+                    uri,
+                    version,
+                    full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                        result_id: Some(result_id),
+                        items: lsp_diagnostics,
+                    },
+                },
+            );
+            if let Some(token) = partial_token.as_ref() {
+                partial_items.push(report.clone());
+                if partial_items.len() >= WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE {
+                    self.publish_workspace_diagnostic_partial(
+                        token,
+                        std::mem::take(&mut partial_items),
+                    )
+                    .await;
+                }
+            }
+            items.push(report);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE,
+                    |count| format!("scanned {count} files"),
+                    "diagnostics cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_workspace_diagnostic_partial(token, std::mem::take(&mut partial_items))
+                .await;
+        }
+
+        progress.finish(self, "diagnostics complete").await;
+
+        Ok(lsp::WorkspaceDiagnosticReportResult::Report(
+            lsp::WorkspaceDiagnosticReport { items },
+        ))
+    }
+
+    // ------------------------------------------------------------------------
+    // COMMANDS
+    // ------------------------------------------------------------------------
+
+    async fn execute_command(
+        &self,
+        params: lsp::ExecuteCommandParams,
+    ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
+        match params.command.as_str() {
+            "destack.rescan" | "destack.reindex" => {
+                let daemon = self.daemon();
+                let result = match daemon.rescan_all(RescanReason::Manual) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, "lsp.command.rescan_failed");
+                        return Err(jsonrpc::Error::internal_error());
+                    }
+                };
+                self.publish_watch_updates(result.updates).await;
+                self.publish_watch_messages(result.messages).await;
+                let _ = self.client.workspace_diagnostic_refresh().await;
+                let _ = self.client.semantic_tokens_refresh().await;
+                Ok(None)
+            }
+            "destack.clearCache" => {
+                let daemon = self.daemon();
+                if let Err(error) = daemon.clear_cache_all() {
+                    tracing::debug!(?error, "lsp.command.clear_cache_failed");
+                    return Err(jsonrpc::Error::internal_error());
+                }
+
+                let result = match daemon.rescan_all(RescanReason::Manual) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        tracing::debug!(?error, "lsp.command.rescan_failed");
+                        return Err(jsonrpc::Error::internal_error());
+                    }
+                };
+                self.publish_watch_updates(result.updates).await;
+                self.publish_watch_messages(result.messages).await;
+                let _ = self.client.workspace_diagnostic_refresh().await;
+                let _ = self.client.semantic_tokens_refresh().await;
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    async fn work_done_progress_cancel(&self, params: lsp::WorkDoneProgressCancelParams) {
+        self.cancelled_progress_tokens.insert(params.token);
+    }
+
+    // ------------------------------------------------------------------------
     // NAVIGATION
     // ------------------------------------------------------------------------
 
@@ -989,16 +1243,63 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "References",
+            "resolving references",
+        )
+        .await;
+
         // convert to LSP locations
-        let locations: Vec<lsp::Location> = refs
-            .references
-            .iter()
-            .filter_map(|span| span_to_location(session, *span))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut locations = Vec::new();
+        let mut partial_locations = Vec::new();
+        let mut processed = 0usize;
+        for span in refs.references.iter() {
+            let Some(location) = span_to_location(session, *span) else {
+                continue;
+            };
+
+            if let Some(token) = partial_token.as_ref() {
+                partial_locations.push(location.clone());
+                if partial_locations.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_locations),
+                        "references",
+                    )
+                    .await;
+                }
+            }
+            locations.push(location);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("resolved {count} references"),
+                    "references cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_locations),
+                "references",
+            )
+            .await;
+        }
 
         if locations.is_empty() {
+            progress.finish(self, "references complete").await;
             Ok(None)
         } else {
+            progress.finish(self, "references complete").await;
             Ok(Some(locations))
         }
     }
@@ -1020,16 +1321,63 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Document symbols",
+            "building symbols",
+        )
+        .await;
+
         // convert to LSP symbols
         let file = self.get_analyzed_file(doc.file_id);
-        let lsp_symbols: Vec<lsp::DocumentSymbol> = symbols
-            .iter()
-            .filter_map(|s| document_symbol_to_lsp(&file, s))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_symbols = Vec::new();
+        let mut partial_symbols = Vec::new();
+        let mut processed = 0usize;
+        for symbol in symbols.iter() {
+            let Some(lsp_symbol) = document_symbol_to_lsp(&file, symbol) else {
+                continue;
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_symbols.push(lsp_symbol.clone());
+                if partial_symbols.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_symbols),
+                        "document_symbol",
+                    )
+                    .await;
+                }
+            }
+            lsp_symbols.push(lsp_symbol);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} symbols"),
+                    "symbols cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_symbols),
+                "document_symbol",
+            )
+            .await;
+        }
 
         if lsp_symbols.is_empty() {
+            progress.finish(self, "symbols complete").await;
             Ok(None)
         } else {
+            progress.finish(self, "symbols complete").await;
             Ok(Some(lsp::DocumentSymbolResponse::Nested(lsp_symbols)))
         }
     }
@@ -1044,15 +1392,62 @@ impl LanguageServer for DestackLanguageServer {
         // query workspace symbols
         let symbols = query::workspace_symbols(session, &params.query, 100);
 
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Workspace symbols",
+            "building symbols",
+        )
+        .await;
+
         // convert to LSP
-        let lsp_symbols: Vec<lsp::SymbolInformation> = symbols
-            .iter()
-            .filter_map(|s| workspace_symbol_to_lsp(session, s))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_symbols = Vec::new();
+        let mut partial_symbols = Vec::new();
+        let mut processed = 0usize;
+        for symbol in symbols.iter() {
+            let Some(lsp_symbol) = workspace_symbol_to_lsp(session, symbol) else {
+                continue;
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_symbols.push(lsp_symbol.clone());
+                if partial_symbols.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_symbols),
+                        "workspace_symbol",
+                    )
+                    .await;
+                }
+            }
+            lsp_symbols.push(lsp_symbol);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} symbols"),
+                    "symbols cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_symbols),
+                "workspace_symbol",
+            )
+            .await;
+        }
 
         if lsp_symbols.is_empty() {
+            progress.finish(self, "symbols complete").await;
             Ok(None)
         } else {
+            progress.finish(self, "symbols complete").await;
             Ok(Some(lsp::OneOf::Left(lsp_symbols)))
         }
     }
@@ -1083,15 +1478,62 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Document highlights",
+            "building highlights",
+        )
+        .await;
+
         // convert to LSP highlights
-        let lsp_highlights: Vec<lsp::DocumentHighlight> = highlights
-            .iter()
-            .filter_map(|h| document_highlight_to_lsp(&file, h))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_highlights = Vec::new();
+        let mut partial_highlights = Vec::new();
+        let mut processed = 0usize;
+        for highlight in highlights.iter() {
+            let Some(lsp_highlight) = document_highlight_to_lsp(&file, highlight) else {
+                continue;
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_highlights.push(lsp_highlight.clone());
+                if partial_highlights.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_highlights),
+                        "document_highlight",
+                    )
+                    .await;
+                }
+            }
+            lsp_highlights.push(lsp_highlight);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} highlights"),
+                    "highlights cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_highlights),
+                "document_highlight",
+            )
+            .await;
+        }
 
         if lsp_highlights.is_empty() {
+            progress.finish(self, "highlights complete").await;
             Ok(None)
         } else {
+            progress.finish(self, "highlights complete").await;
             Ok(Some(lsp_highlights))
         }
     }
@@ -1193,16 +1635,18 @@ impl LanguageServer for DestackLanguageServer {
                     (None, None)
                 };
 
+                let data = c.documentation.as_ref().and_then(|doc| {
+                    to_value(CompletionResolveData {
+                        documentation: Some(doc.clone()),
+                    })
+                    .ok()
+                });
+
                 lsp::CompletionItem {
                     label: c.label,
                     kind: Some(completion_kind_to_lsp(c.kind)),
                     detail: c.detail,
-                    documentation: c.documentation.map(|d| {
-                        lsp::Documentation::MarkupContent(lsp::MarkupContent {
-                            kind: lsp::MarkupKind::Markdown,
-                            value: d,
-                        })
-                    }),
+                    documentation: None,
                     insert_text: c.insert_text,
                     insert_text_format,
                     sort_text: c.sort_text,
@@ -1210,12 +1654,43 @@ impl LanguageServer for DestackLanguageServer {
                     deprecated,
                     tags,
                     additional_text_edits,
+                    data,
                     ..Default::default()
                 }
             })
             .collect();
 
         Ok(Some(lsp::CompletionResponse::Array(items)))
+    }
+
+    async fn completion_resolve(
+        &self,
+        mut params: lsp::CompletionItem,
+    ) -> jsonrpc::Result<lsp::CompletionItem> {
+        if params.documentation.is_some() {
+            return Ok(params);
+        }
+
+        let Some(data) = params.data.take() else {
+            return Ok(params);
+        };
+
+        let resolved = match from_value::<CompletionResolveData>(data.clone()) {
+            Ok(resolved) => resolved,
+            Err(_) => {
+                params.data = Some(data);
+                return Ok(params);
+            }
+        };
+
+        if let Some(doc) = resolved.documentation {
+            params.documentation = Some(lsp::Documentation::MarkupContent(lsp::MarkupContent {
+                kind: lsp::MarkupKind::Markdown,
+                value: doc,
+            }));
+        }
+
+        Ok(params)
     }
 
     async fn signature_help(
@@ -1302,10 +1777,68 @@ impl LanguageServer for DestackLanguageServer {
 
         // convert to LSP
         let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+        let result_id = self.next_semantic_tokens_result_id();
+        self.semantic_tokens_cache.insert(
+            uri_str.clone(),
+            SemanticTokensCache {
+                result_id: result_id.clone(),
+                data: lsp_tokens.clone(),
+            },
+        );
 
         Ok(Some(lsp::SemanticTokensResult::Tokens(
             lsp::SemanticTokens {
-                result_id: None,
+                result_id: Some(result_id),
+                data: lsp_tokens,
+            },
+        )))
+    }
+
+    async fn semantic_tokens_full_delta(
+        &self,
+        params: lsp::SemanticTokensDeltaParams,
+    ) -> jsonrpc::Result<Option<lsp::SemanticTokensFullDeltaResult>> {
+        // look up file
+        let uri_str = params.text_document.uri.to_string();
+        let session = self.session();
+        let Some(doc) = self.open_documents.get(&uri_str) else {
+            return Ok(None);
+        };
+        let file = self.get_analyzed_file(doc.file_id);
+
+        // query semantic tokens
+        let tokens = query::semantic_tokens(session, doc.file_id);
+
+        // convert to LSP
+        let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
+        let result_id = self.next_semantic_tokens_result_id();
+
+        let mut edits = None;
+        if let Some(cache) = self.semantic_tokens_cache.get(&uri_str)
+            && cache.result_id == params.previous_result_id
+        {
+            edits = Some(semantic_tokens_edits(&cache.data, &lsp_tokens));
+        }
+
+        self.semantic_tokens_cache.insert(
+            uri_str.clone(),
+            SemanticTokensCache {
+                result_id: result_id.clone(),
+                data: lsp_tokens.clone(),
+            },
+        );
+
+        if let Some(edits) = edits {
+            let delta = lsp::SemanticTokensDelta {
+                result_id: Some(result_id),
+                edits,
+            };
+            return Ok(Some(lsp::SemanticTokensFullDeltaResult::TokensDelta(delta)));
+        }
+
+        Ok(Some(lsp::SemanticTokensFullDeltaResult::Tokens(
+            lsp::SemanticTokens {
+                result_id: Some(result_id),
                 data: lsp_tokens,
             },
         )))
@@ -1367,24 +1900,73 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         }
 
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Folding ranges",
+            "building folding ranges",
+        )
+        .await;
+
         // convert to LSP folding ranges
-        let lsp_ranges: Vec<lsp::FoldingRange> = ranges
-            .into_iter()
-            .map(|r| lsp::FoldingRange {
-                start_line: r.start_line,
-                start_character: r.start_character,
-                end_line: r.end_line,
-                end_character: r.end_character,
-                kind: r.kind.map(|k| match k {
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_ranges = Vec::new();
+        let mut partial_ranges = Vec::new();
+        let mut processed = 0usize;
+        for range in ranges.into_iter() {
+            let lsp_range = lsp::FoldingRange {
+                start_line: range.start_line,
+                start_character: range.start_character,
+                end_line: range.end_line,
+                end_character: range.end_character,
+                kind: range.kind.map(|kind| match kind {
                     query::FoldingRangeKind::Comment => lsp::FoldingRangeKind::Comment,
                     query::FoldingRangeKind::Imports => lsp::FoldingRangeKind::Imports,
                     query::FoldingRangeKind::Region => lsp::FoldingRangeKind::Region,
                 }),
-                collapsed_text: r.collapsed_text,
-            })
-            .collect();
+                collapsed_text: range.collapsed_text,
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_ranges.push(lsp_range.clone());
+                if partial_ranges.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_ranges),
+                        "folding_range",
+                    )
+                    .await;
+                }
+            }
+            lsp_ranges.push(lsp_range);
 
-        Ok(Some(lsp_ranges))
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} folding ranges"),
+                    "folding ranges cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_ranges),
+                "folding_range",
+            )
+            .await;
+        }
+
+        if lsp_ranges.is_empty() {
+            progress.finish(self, "folding ranges complete").await;
+            Ok(None)
+        } else {
+            progress.finish(self, "folding ranges complete").await;
+            Ok(Some(lsp_ranges))
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -1506,12 +2088,56 @@ impl LanguageServer for DestackLanguageServer {
         // query selection ranges
         let ranges = query::selection_ranges(session, doc.file_id, &positions);
 
-        // convert to LSP
-        let lsp_ranges: Vec<lsp::SelectionRange> = ranges
-            .into_iter()
-            .map(|r| selection_range_to_lsp(&file, r))
-            .collect();
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Selection ranges",
+            "building ranges",
+        )
+        .await;
 
+        // convert to LSP
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_ranges = Vec::new();
+        let mut partial_ranges = Vec::new();
+        let mut processed = 0usize;
+        for range in ranges {
+            let lsp_range = selection_range_to_lsp(&file, range);
+            if let Some(token) = partial_token.as_ref() {
+                partial_ranges.push(lsp_range.clone());
+                if partial_ranges.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_ranges),
+                        "selection_range",
+                    )
+                    .await;
+                }
+            }
+            lsp_ranges.push(lsp_range);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} ranges"),
+                    "ranges cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(
+                token,
+                std::mem::take(&mut partial_ranges),
+                "selection_range",
+            )
+            .await;
+        }
+
+        progress.finish(self, "ranges complete").await;
         Ok(Some(lsp_ranges))
     }
 
@@ -1566,14 +2192,64 @@ impl LanguageServer for DestackLanguageServer {
 
         // query document links
         let links = query::document_links(session, doc.file_id);
+        if links.is_empty() {
+            return Ok(None);
+        }
+
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Document links",
+            "building links",
+        )
+        .await;
 
         // convert to LSP
-        let lsp_links: Vec<lsp::DocumentLink> = links
-            .iter()
-            .filter_map(|link| document_link_to_lsp(&file, link))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_links = Vec::new();
+        let mut partial_links = Vec::new();
+        let mut processed = 0usize;
+        for link in links.iter() {
+            let Some(lsp_link) = document_link_to_lsp(&file, link) else {
+                continue;
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_links.push(lsp_link.clone());
+                if partial_links.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_links),
+                        "document_link",
+                    )
+                    .await;
+                }
+            }
+            lsp_links.push(lsp_link);
 
-        Ok(Some(lsp_links))
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} links"),
+                    "links cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(token, std::mem::take(&mut partial_links), "document_link")
+                .await;
+        }
+
+        if lsp_links.is_empty() {
+            progress.finish(self, "links complete").await;
+            Ok(None)
+        } else {
+            progress.finish(self, "links complete").await;
+            Ok(Some(lsp_links))
+        }
     }
 
     async fn document_link_resolve(
@@ -1612,14 +2288,71 @@ impl LanguageServer for DestackLanguageServer {
         // query code actions
         let context = query::CodeActionContext::default();
         let actions = query::code_actions(session, doc.file_id, span, &context);
+        if actions.is_empty() {
+            return Ok(None);
+        }
+
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Code actions",
+            "building actions",
+        )
+        .await;
 
         // convert to LSP
-        let lsp_actions: Vec<lsp::CodeActionOrCommand> = actions
-            .iter()
-            .filter_map(|a| code_action_to_lsp(session, a))
-            .collect();
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_actions = Vec::new();
+        let mut partial_actions = Vec::new();
+        let mut processed = 0usize;
+        for action in actions.iter() {
+            let Some(lsp_action) = code_action_to_lsp(session, action) else {
+                continue;
+            };
+            if let Some(token) = partial_token.as_ref() {
+                partial_actions.push(lsp_action.clone());
+                if partial_actions.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_actions),
+                        "code_action",
+                    )
+                    .await;
+                }
+            }
+            lsp_actions.push(lsp_action);
 
-        Ok(Some(lsp_actions))
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} actions"),
+                    "actions cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(token, std::mem::take(&mut partial_actions), "code_action")
+                .await;
+        }
+
+        if lsp_actions.is_empty() {
+            progress.finish(self, "actions complete").await;
+            Ok(None)
+        } else {
+            progress.finish(self, "actions complete").await;
+            Ok(Some(lsp_actions))
+        }
+    }
+
+    async fn code_action_resolve(
+        &self,
+        params: lsp::CodeAction,
+    ) -> jsonrpc::Result<lsp::CodeAction> {
+        Ok(params)
     }
 
     // ------------------------------------------------------------------------
@@ -1641,12 +2374,52 @@ impl LanguageServer for DestackLanguageServer {
         // query code lenses
         let lenses = query::code_lenses(session, doc.file_id);
 
-        // convert to LSP
-        let lsp_lenses: Vec<lsp::CodeLens> = lenses
-            .iter()
-            .map(|lens| code_lens_to_lsp(&file, lens))
-            .collect();
+        let mut progress = WorkDoneProgressTracker::start(
+            self,
+            params.work_done_progress_params.work_done_token,
+            "Code lens",
+            "building lenses",
+        )
+        .await;
 
+        // convert to LSP
+        let partial_token = params.partial_result_params.partial_result_token;
+        let mut lsp_lenses = Vec::new();
+        let mut partial_lenses = Vec::new();
+        let mut processed = 0usize;
+        for lens in lenses.iter() {
+            let lsp_lens = code_lens_to_lsp(&file, lens);
+            if let Some(token) = partial_token.as_ref() {
+                partial_lenses.push(lsp_lens.clone());
+                if partial_lenses.len() >= PARTIAL_RESULT_CHUNK_SIZE {
+                    self.publish_partial_result(
+                        token,
+                        std::mem::take(&mut partial_lenses),
+                        "code_lens",
+                    )
+                    .await;
+                }
+            }
+            lsp_lenses.push(lsp_lens);
+
+            processed += 1;
+            progress
+                .report_chunk(
+                    self,
+                    processed,
+                    PARTIAL_RESULT_CHUNK_SIZE,
+                    |count| format!("built {count} lenses"),
+                    "lenses cancelled",
+                )
+                .await?;
+        }
+
+        if let Some(token) = partial_token.as_ref() {
+            self.publish_partial_result(token, std::mem::take(&mut partial_lenses), "code_lens")
+                .await;
+        }
+
+        progress.finish(self, "lenses complete").await;
         Ok(Some(lsp_lenses))
     }
 
@@ -1926,302 +2699,4 @@ impl LanguageServer for DestackLanguageServer {
 
         Ok(Some(lsp_items))
     }
-}
-
-/// Create a daemon client for the LSP session.
-fn create_daemon_client(session: Arc<Session>, root: PathBuf) -> Result<LspDaemonClient, String> {
-    LspDaemonClient::new(session, vec![root])
-}
-
-// ----------------------------------------------------------------------------
-// HELPERS
-// ----------------------------------------------------------------------------
-
-/// Convert completion kind to LSP completion item kind.
-fn completion_kind_to_lsp(kind: query::CompletionKind) -> lsp::CompletionItemKind {
-    match kind {
-        query::CompletionKind::Text => lsp::CompletionItemKind::TEXT,
-        query::CompletionKind::Method => lsp::CompletionItemKind::METHOD,
-        query::CompletionKind::Function => lsp::CompletionItemKind::FUNCTION,
-        query::CompletionKind::Constructor => lsp::CompletionItemKind::CONSTRUCTOR,
-        query::CompletionKind::Field => lsp::CompletionItemKind::FIELD,
-        query::CompletionKind::Variable => lsp::CompletionItemKind::VARIABLE,
-        query::CompletionKind::Class => lsp::CompletionItemKind::CLASS,
-        query::CompletionKind::Interface => lsp::CompletionItemKind::INTERFACE,
-        query::CompletionKind::Module => lsp::CompletionItemKind::MODULE,
-        query::CompletionKind::Property => lsp::CompletionItemKind::PROPERTY,
-        query::CompletionKind::Unit => lsp::CompletionItemKind::UNIT,
-        query::CompletionKind::Value => lsp::CompletionItemKind::VALUE,
-        query::CompletionKind::Enum => lsp::CompletionItemKind::ENUM,
-        query::CompletionKind::Keyword => lsp::CompletionItemKind::KEYWORD,
-        query::CompletionKind::Snippet => lsp::CompletionItemKind::SNIPPET,
-        query::CompletionKind::Color => lsp::CompletionItemKind::COLOR,
-        query::CompletionKind::File => lsp::CompletionItemKind::FILE,
-        query::CompletionKind::Reference => lsp::CompletionItemKind::REFERENCE,
-        query::CompletionKind::Folder => lsp::CompletionItemKind::FOLDER,
-        query::CompletionKind::EnumMember => lsp::CompletionItemKind::ENUM_MEMBER,
-        query::CompletionKind::Constant => lsp::CompletionItemKind::CONSTANT,
-        query::CompletionKind::Struct => lsp::CompletionItemKind::STRUCT,
-        query::CompletionKind::Event => lsp::CompletionItemKind::EVENT,
-        query::CompletionKind::Operator => lsp::CompletionItemKind::OPERATOR,
-        query::CompletionKind::TypeParameter => lsp::CompletionItemKind::TYPE_PARAMETER,
-    }
-}
-
-/// Format a file and return the formatted content.
-/// Uses the module's pre-parsed AST when available, falls back to re-parsing.
-fn format_file(
-    session: &Session,
-    file_id: FileId,
-    file: &Arc<File>,
-    formatter: FormatterOptions,
-) -> Option<String> {
-    let language_type = LanguageType::from(file.ty);
-    let format_options = DestackFormatOptions {
-        language_type,
-        ..formatter.into()
-    };
-
-    // try to use module's pre-parsed AST
-    if let Some(module_lock) = query::get_module_by_file_id(session, file_id) {
-        let module = module_lock.read();
-        if let Some(ast) = module.ast_maybe() {
-            let side_span = Parser::compute_side_span_from_tree(&ast.tree);
-            let strings = ast.strings.clone().into_immutable();
-            let context = DestackFormatContext {
-                options: format_options,
-                file: file.as_ref(),
-                tree: &ast.tree,
-                source_map: &ast.tree.source_map,
-                parents: ast.parents.clone(),
-                tokens: &ast.tokens,
-                side_tokens: &ast.side_tokens,
-                side_span: &side_span,
-                strings: &strings,
-                current_argument_group_id: None,
-            };
-
-            return format_expressions(&context, &ast.roots);
-        }
-    }
-
-    // fallback if module doesn't have AST yet, parse file
-    let mut parser = Parser::lex_file(file.clone(), language_type);
-    let expressions = parser.parse();
-    parser.finish();
-
-    // bail if parse errors (don't format broken code)
-    if parser
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
-        return None;
-    }
-
-    // build format context
-    let side_span = parser.compute_side_span();
-    let strings = parser.strings.into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
-    let context = DestackFormatContext {
-        options: format_options,
-        file: file.as_ref(),
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
-        parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
-
-    format_expressions(&context, &expressions)
-}
-
-/// Format expressions and return the result string.
-fn format_expressions(
-    context: &DestackFormatContext<'_>,
-    expressions: &[LocalNodeId<Expression>],
-) -> Option<String> {
-    let mut result = if expressions.is_empty() {
-        String::new()
-    } else {
-        let formatted = fir_format!(context.clone(), [statement_list(expressions)]).ok()?;
-        let printed = formatted.print().ok()?;
-        printed.as_str().to_string()
-    };
-
-    // ensure trailing newline
-    if !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
-    Some(result)
-}
-
-/// Format a range within a file and return the formatted content with the actual range.
-fn format_range(
-    file: &Arc<File>,
-    formatter: FormatterOptions,
-    start_offset: u32,
-    end_offset: u32,
-) -> Option<(String, Span)> {
-    // parse file
-    let language_type = LanguageType::from(file.ty);
-    let mut parser = Parser::lex_file(file.clone(), language_type);
-    let expressions = parser.parse();
-    parser.finish();
-
-    // bail if parse errors
-    if parser
-        .diagnostics
-        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
-    {
-        return None;
-    }
-
-    // find expressions that overlap with the range
-    let overlapping: Vec<_> = expressions
-        .iter()
-        .filter(|expr_id| {
-            let span = parser.tree.get_span(**expr_id);
-            span.start < end_offset && span.end > start_offset
-        })
-        .copied()
-        .collect();
-
-    if overlapping.is_empty() {
-        return None;
-    }
-
-    // compute the actual range we're formatting (union of overlapping expressions)
-    let first_span = parser.tree.get_span(overlapping[0]);
-    let last_span = parser.tree.get_span(*overlapping.last().unwrap());
-    let actual_range = Span::new(file.id, first_span.start, last_span.end);
-
-    // build format context
-    let side_span = parser.compute_side_span();
-    let strings = parser.strings.into_immutable();
-    let parents = NodeParentIndex::from_tree(&parser.tree);
-    let format_options = DestackFormatOptions {
-        language_type,
-        ..formatter.into()
-    };
-    let context = DestackFormatContext {
-        options: format_options,
-        file: file.as_ref(),
-        tree: &parser.tree,
-        source_map: &parser.tree.source_map,
-        parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
-        side_span: &side_span,
-        strings: &strings,
-        current_argument_group_id: None,
-    };
-
-    // format overlapping expressions
-    let formatted = fir_format!(context.clone(), [statement_list(&overlapping)]).ok()?;
-    let printed = formatted.print().ok()?;
-    let mut result = printed.as_str().to_string();
-
-    // ensure trailing newline if we're at end of file
-    let is_at_end = last_span.end >= file.len.saturating_sub(1);
-    if is_at_end && !result.is_empty() && !result.ends_with('\n') {
-        result.push('\n');
-    }
-
-    Some((result, actual_range))
-}
-
-/// Normalize line endings to LF.
-fn normalize_line_endings(content: String) -> String {
-    if content.contains('\r') {
-        content.replace("\r\n", "\n").replace('\r', "\n")
-    } else {
-        content
-    }
-}
-
-/// Build line start offsets for a string.
-fn line_start_offsets(text: &str) -> Vec<u32> {
-    let mut offsets = vec![0];
-    for (index, ch) in text.char_indices() {
-        if ch == '\n' {
-            offsets.push(index as u32 + 1);
-        }
-    }
-    offsets
-}
-
-/// Convert an LSP position to a byte offset in raw text.
-fn position_to_byte_in_text(
-    text: &str,
-    line_start_offsets: &[u32],
-    position: &lsp::Position,
-) -> Option<u32> {
-    let line_index = position.line as usize;
-    let line_start = *line_start_offsets
-        .get(line_index)
-        .unwrap_or(&(text.len() as u32));
-    let next_start = line_start_offsets
-        .get(line_index + 1)
-        .copied()
-        .unwrap_or(text.len() as u32);
-    let slice = &text[line_start as usize..next_start as usize];
-
-    // walk characters counting utf16 units until we reach target
-    let mut utf16_units = 0u32;
-    let mut byte_offset = 0usize;
-    for ch in slice.chars() {
-        if utf16_units >= position.character {
-            break;
-        }
-        let ch_units = ch.len_utf16() as u32;
-        if utf16_units + ch_units > position.character {
-            break;
-        }
-        utf16_units += ch_units;
-        byte_offset += ch.len_utf8();
-    }
-
-    // if we didn't reach the target character, clamp to end of line
-    if utf16_units < position.character {
-        return Some(next_start);
-    }
-
-    Some(line_start + byte_offset as u32)
-}
-
-/// Apply a batch of incremental text changes to the document text.
-fn apply_text_changes(text: &mut String, changes: &[lsp::TextDocumentContentChangeEvent]) -> bool {
-    for change in changes {
-        let change_text = normalize_line_endings(change.text.clone());
-        let Some(range) = &change.range else {
-            *text = change_text;
-            continue;
-        };
-
-        let line_offsets = line_start_offsets(text);
-        let Some(start) = position_to_byte_in_text(text, &line_offsets, &range.start) else {
-            return false;
-        };
-        let Some(end) = position_to_byte_in_text(text, &line_offsets, &range.end) else {
-            return false;
-        };
-        let (start, end) = if start <= end {
-            (start, end)
-        } else {
-            (end, start)
-        };
-        let start = start as usize;
-        let end = end as usize;
-        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
-            return false;
-        }
-
-        text.replace_range(start..end, &change_text);
-    }
-
-    true
 }
