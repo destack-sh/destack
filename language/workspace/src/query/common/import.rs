@@ -283,10 +283,18 @@ pub fn build_import_edits_with_mode(
 /// Build a display path for an import.
 ///
 /// Tries to compute a relative path from the current file to the target module.
-pub(crate) fn build_import_display_path(
+pub fn build_import_display_path(session: &Session, file_id: FileId, module_path: &str) -> String {
+    build_import_display_path_with_options(session, file_id, module_path, true)
+}
+
+/// Build a display path for an import with optional extension stripping.
+///
+/// Tries to compute a relative path from the current file to the target module.
+pub fn build_import_display_path_with_options(
     session: &Session,
     file_id: FileId,
     module_path: &str,
+    strip_extension: bool,
 ) -> String {
     // resolve the source file path
     let source_file = session.files.get(file_id);
@@ -311,8 +319,10 @@ pub(crate) fn build_import_display_path(
         display_path = format!("./{display_path}");
     }
 
-    // strip common source extensions
-    display_path = strip_module_extension(&display_path);
+    // strip common source extensions when requested
+    if strip_extension {
+        display_path = strip_module_extension(&display_path);
+    }
 
     // return the normalized display path
     display_path
@@ -333,7 +343,8 @@ pub(crate) fn module_name_from_path(path: &Path) -> Option<String> {
 }
 
 /// Strip a code module extension from an import path.
-fn strip_module_extension(path: &str) -> String {
+/// Strip a code module extension from an import path.
+pub fn strip_module_extension(path: &str) -> String {
     // prefer compound extensions before simple ones
     let extensions = [
         ".d.ts", ".d.mts", ".d.cts", ".d.ds", ".tsx", ".ts", ".mts", ".cts", ".jsx", ".js", ".mjs",

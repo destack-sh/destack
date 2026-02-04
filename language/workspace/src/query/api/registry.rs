@@ -55,6 +55,7 @@ pub enum QueryMethodId {
     TypeHierarchySubtypes,
     PrepareRename,
     Rename,
+    RenameFiles,
     CodeActions,
 }
 
@@ -331,6 +332,15 @@ static QUERY_METHODS: &[QueryMethod] = &[
         result_type: "RenameResponse",
     },
     QueryMethod {
+        id: QueryMethodId::RenameFiles,
+        name: "rename_files",
+        aliases: &["renamefiles", "workspace/willrenamefiles"],
+        category: QueryCategory::Refactor,
+        summary: "rename file imports across the workspace",
+        params_type: "RenameFilesRequest",
+        result_type: "RenameFilesResponse",
+    },
+    QueryMethod {
         id: QueryMethodId::CodeActions,
         name: "code_actions",
         aliases: &["codeaction", "textdocument/codeaction"],
@@ -413,6 +423,7 @@ pub fn parse_query_request(method: &str, params: Value) -> Result<QueryRequest, 
         }
         QueryMethodId::PrepareRename => QueryRequest::PrepareRename(parse_params(params)?),
         QueryMethodId::Rename => QueryRequest::Rename(parse_params(params)?),
+        QueryMethodId::RenameFiles => QueryRequest::RenameFiles(parse_params(params)?),
         QueryMethodId::CodeActions => QueryRequest::CodeActions(parse_params(params)?),
     };
 

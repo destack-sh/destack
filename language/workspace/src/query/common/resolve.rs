@@ -613,6 +613,10 @@ pub(crate) fn resolve_module_id_for_import_target(
     if let Some(module_id) = session.modules.get_id_by_path(&candidate_target) {
         return Some(module_id);
     }
+    let candidate_uri = Uri::from_path(candidate_target.clone());
+    if let Some(module_id) = session.modules.get_id_by_uri(&candidate_uri) {
+        return Some(module_id);
+    }
 
     // try alternative extensions when initial lookup fails
     let extensions = [

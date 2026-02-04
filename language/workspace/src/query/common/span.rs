@@ -75,7 +75,7 @@ pub(crate) fn main_span_for_dir_node(
 }
 
 /// Resolve the main or enclosing span for a DIR node
-pub(crate) fn main_or_enclosing_span_for_dir_node(
+pub fn main_or_enclosing_span_for_dir_node(
     ctx: &QueryContext<'_>,
     dir_tree: &dir::NodeTree,
     node_id: LocalNodeIdAny,

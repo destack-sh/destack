@@ -191,6 +191,7 @@ pub enum QueryRequest {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesRequest),
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
+    RenameFiles(refactor::RenameFilesRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -224,6 +225,7 @@ pub enum QueryResponse {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesResponse),
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
+    RenameFiles(refactor::RenameFilesResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -258,6 +260,7 @@ enum QueryRequestHuman {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesRequest),
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
+    RenameFiles(refactor::RenameFilesRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -291,6 +294,7 @@ enum QueryRequestBinary {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesRequest),
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
+    RenameFiles(refactor::RenameFilesRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -325,6 +329,7 @@ enum QueryResponseHuman {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesResponse),
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
+    RenameFiles(refactor::RenameFilesResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -358,6 +363,7 @@ enum QueryResponseBinary {
     TypeHierarchySubtypes(navigation::TypeHierarchySubtypesResponse),
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
+    RenameFiles(refactor::RenameFilesResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -393,6 +399,7 @@ macro_rules! map_query_request {
             $from::TypeHierarchySubtypes(params) => $to::TypeHierarchySubtypes(params),
             $from::PrepareRename(params) => $to::PrepareRename(params),
             $from::Rename(params) => $to::Rename(params),
+            $from::RenameFiles(params) => $to::RenameFiles(params),
             $from::CodeActions(params) => $to::CodeActions(params),
         }
     };
@@ -430,6 +437,7 @@ macro_rules! map_query_response {
             $from::TypeHierarchySubtypes(result) => $to::TypeHierarchySubtypes(result),
             $from::PrepareRename(result) => $to::PrepareRename(result),
             $from::Rename(result) => $to::Rename(result),
+            $from::RenameFiles(result) => $to::RenameFiles(result),
             $from::CodeActions(result) => $to::CodeActions(result),
         }
     };
