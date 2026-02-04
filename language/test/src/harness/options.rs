@@ -13,7 +13,7 @@ pub struct TestOptions {
     pub no_parallel: bool,
 
     /// Number of parallel jobs.
-    #[arg(short = 'j', long, default_value_t = num_cpus())]
+    #[arg(short = 'j', long, alias = "test-threads", default_value_t = num_cpus())]
     pub jobs: usize,
 
     /// Parse timeout in milliseconds for conformance tests.
