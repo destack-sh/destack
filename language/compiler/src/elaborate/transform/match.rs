@@ -218,6 +218,9 @@ impl Compiler {
             let guard_expr = guard.unwrap();
             let if_expr = self.build_case_if(
                 match_id,
+                module,
+                profile,
+                symbols,
                 guard_expr,
                 body,
                 value,
