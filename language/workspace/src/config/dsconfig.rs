@@ -123,10 +123,20 @@ impl DsConfig {
         // inherit TypeScript-compatible checking options (stricter wins)
         compiler.strict = compiler.strict || parent_compiler.strict;
         compiler.always_strict = compiler.always_strict || parent_compiler.always_strict;
-        compiler.no_implicit_any = compiler.no_implicit_any || parent_compiler.no_implicit_any;
+        if parent_compiler
+            .no_implicit_any
+            .is_stricter_than(compiler.no_implicit_any)
+        {
+            compiler.no_implicit_any = parent_compiler.no_implicit_any;
+        }
         compiler.strict_null_checks =
             compiler.strict_null_checks || parent_compiler.strict_null_checks;
-        compiler.no_implicit_this = compiler.no_implicit_this || parent_compiler.no_implicit_this;
+        if parent_compiler
+            .no_implicit_this
+            .is_stricter_than(compiler.no_implicit_this)
+        {
+            compiler.no_implicit_this = parent_compiler.no_implicit_this;
+        }
         compiler.strict_function_types =
             compiler.strict_function_types || parent_compiler.strict_function_types;
         compiler.strict_bind_call_apply =
@@ -137,36 +147,87 @@ impl DsConfig {
             || parent_compiler.strict_property_initialization;
         compiler.use_unknown_in_catch_variables = compiler.use_unknown_in_catch_variables
             || parent_compiler.use_unknown_in_catch_variables;
-        compiler.no_unused_locals = compiler.no_unused_locals || parent_compiler.no_unused_locals;
-        compiler.no_unused_parameters =
-            compiler.no_unused_parameters || parent_compiler.no_unused_parameters;
-        compiler.no_implicit_returns =
-            compiler.no_implicit_returns || parent_compiler.no_implicit_returns;
-        // allow_unreachable_code: false is stricter (disallows), so AND them
-        compiler.allow_unreachable_code =
-            compiler.allow_unreachable_code && parent_compiler.allow_unreachable_code;
-        // allow_unused_labels: false is stricter (disallows), so AND them
-        compiler.allow_unused_labels =
-            compiler.allow_unused_labels && parent_compiler.allow_unused_labels;
-        compiler.no_implicit_override =
-            compiler.no_implicit_override || parent_compiler.no_implicit_override;
-        compiler.no_fallthrough_cases_in_switch = compiler.no_fallthrough_cases_in_switch
-            || parent_compiler.no_fallthrough_cases_in_switch;
+        if parent_compiler
+            .no_unused_locals
+            .is_stricter_than(compiler.no_unused_locals)
+        {
+            compiler.no_unused_locals = parent_compiler.no_unused_locals;
+        }
+        if parent_compiler
+            .no_unused_parameters
+            .is_stricter_than(compiler.no_unused_parameters)
+        {
+            compiler.no_unused_parameters = parent_compiler.no_unused_parameters;
+        }
+        if parent_compiler
+            .no_implicit_returns
+            .is_stricter_than(compiler.no_implicit_returns)
+        {
+            compiler.no_implicit_returns = parent_compiler.no_implicit_returns;
+        }
+        if parent_compiler
+            .allow_unreachable_code
+            .is_stricter_than(compiler.allow_unreachable_code)
+        {
+            compiler.allow_unreachable_code = parent_compiler.allow_unreachable_code;
+        }
+        if parent_compiler
+            .allow_unused_labels
+            .is_stricter_than(compiler.allow_unused_labels)
+        {
+            compiler.allow_unused_labels = parent_compiler.allow_unused_labels;
+        }
+        if parent_compiler
+            .no_implicit_override
+            .is_stricter_than(compiler.no_implicit_override)
+        {
+            compiler.no_implicit_override = parent_compiler.no_implicit_override;
+        }
+        if parent_compiler
+            .no_fallthrough_cases_in_switch
+            .is_stricter_than(compiler.no_fallthrough_cases_in_switch)
+        {
+            compiler.no_fallthrough_cases_in_switch =
+                parent_compiler.no_fallthrough_cases_in_switch;
+        }
         compiler.exact_optional_property_types =
             compiler.exact_optional_property_types || parent_compiler.exact_optional_property_types;
-        compiler.no_unchecked_indexed_access =
-            compiler.no_unchecked_indexed_access || parent_compiler.no_unchecked_indexed_access;
-        compiler.no_property_access_from_index_signature = compiler
+        if parent_compiler
+            .no_unchecked_indexed_access
+            .is_stricter_than(compiler.no_unchecked_indexed_access)
+        {
+            compiler.no_unchecked_indexed_access = parent_compiler.no_unchecked_indexed_access;
+        }
+        if parent_compiler
             .no_property_access_from_index_signature
-            || parent_compiler.no_property_access_from_index_signature;
+            .is_stricter_than(compiler.no_property_access_from_index_signature)
+        {
+            compiler.no_property_access_from_index_signature =
+                parent_compiler.no_property_access_from_index_signature;
+        }
 
         // inherit Destack-specific checking (stricter wins)
-        compiler.no_any = compiler.no_any || parent_compiler.no_any;
-        compiler.no_unknown = compiler.no_unknown || parent_compiler.no_unknown;
-        compiler.no_imprecise_primitives =
-            compiler.no_imprecise_primitives || parent_compiler.no_imprecise_primitives;
-        compiler.no_implicit_conversions =
-            compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
+        if parent_compiler.no_any.is_stricter_than(compiler.no_any) {
+            compiler.no_any = parent_compiler.no_any;
+        }
+        if parent_compiler
+            .no_unknown
+            .is_stricter_than(compiler.no_unknown)
+        {
+            compiler.no_unknown = parent_compiler.no_unknown;
+        }
+        if parent_compiler
+            .no_imprecise_primitives
+            .is_stricter_than(compiler.no_imprecise_primitives)
+        {
+            compiler.no_imprecise_primitives = parent_compiler.no_imprecise_primitives;
+        }
+        if parent_compiler
+            .no_implicit_conversions
+            .is_stricter_than(compiler.no_implicit_conversions)
+        {
+            compiler.no_implicit_conversions = parent_compiler.no_implicit_conversions;
+        }
         if parent_compiler
             .implicit_collection_conversions
             .is_stricter_than(compiler.implicit_collection_conversions)
@@ -174,26 +235,133 @@ impl DsConfig {
             compiler.implicit_collection_conversions =
                 parent_compiler.implicit_collection_conversions;
         }
-        compiler.no_unsafe_type_assertions =
-            compiler.no_unsafe_type_assertions || parent_compiler.no_unsafe_type_assertions;
-        compiler.no_redeclared_locals =
-            compiler.no_redeclared_locals || parent_compiler.no_redeclared_locals;
-        compiler.no_implicit_managed =
-            compiler.no_implicit_managed || parent_compiler.no_implicit_managed;
-        compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
-        compiler.no_dynamic_evaluation =
-            compiler.no_dynamic_evaluation || parent_compiler.no_dynamic_evaluation;
-        compiler.no_global_this = compiler.no_global_this || parent_compiler.no_global_this;
-        compiler.no_dynamic_import =
-            compiler.no_dynamic_import || parent_compiler.no_dynamic_import;
-        compiler.no_dynamic_shapes =
-            compiler.no_dynamic_shapes || parent_compiler.no_dynamic_shapes;
-        compiler.no_computed_property_access =
-            compiler.no_computed_property_access || parent_compiler.no_computed_property_access;
-        compiler.no_proxy = compiler.no_proxy || parent_compiler.no_proxy;
-        compiler.no_implicit_dynamic_dispatch =
-            compiler.no_implicit_dynamic_dispatch || parent_compiler.no_implicit_dynamic_dispatch;
-        compiler.no_exceptions = compiler.no_exceptions || parent_compiler.no_exceptions;
+        if parent_compiler
+            .no_unsafe_type_assertions
+            .is_stricter_than(compiler.no_unsafe_type_assertions)
+        {
+            compiler.no_unsafe_type_assertions = parent_compiler.no_unsafe_type_assertions;
+        }
+        if parent_compiler
+            .no_must_assertions
+            .is_stricter_than(compiler.no_must_assertions)
+        {
+            compiler.no_must_assertions = parent_compiler.no_must_assertions;
+        }
+        if parent_compiler
+            .no_definite_assignment_assertions
+            .is_stricter_than(compiler.no_definite_assignment_assertions)
+        {
+            compiler.no_definite_assignment_assertions =
+                parent_compiler.no_definite_assignment_assertions;
+        }
+        if parent_compiler
+            .no_custom_type_guards
+            .is_stricter_than(compiler.no_custom_type_guards)
+        {
+            compiler.no_custom_type_guards = parent_compiler.no_custom_type_guards;
+        }
+        if parent_compiler
+            .no_unsound_variance
+            .is_stricter_than(compiler.no_unsound_variance)
+        {
+            compiler.no_unsound_variance = parent_compiler.no_unsound_variance;
+        }
+        if parent_compiler
+            .no_unsound_narrowing
+            .is_stricter_than(compiler.no_unsound_narrowing)
+        {
+            compiler.no_unsound_narrowing = parent_compiler.no_unsound_narrowing;
+        }
+        if parent_compiler
+            .deep_readonly
+            .is_stricter_than(compiler.deep_readonly)
+        {
+            compiler.deep_readonly = parent_compiler.deep_readonly;
+            if !compiler.deep_readonly_explicit {
+                compiler.deep_readonly_explicit = parent_compiler.deep_readonly_explicit;
+            }
+        }
+        if parent_compiler
+            .no_untrusted_declarations
+            .is_stricter_than(compiler.no_untrusted_declarations)
+        {
+            compiler.no_untrusted_declarations = parent_compiler.no_untrusted_declarations;
+        }
+        if parent_compiler
+            .no_redeclared_locals
+            .is_stricter_than(compiler.no_redeclared_locals)
+        {
+            compiler.no_redeclared_locals = parent_compiler.no_redeclared_locals;
+        }
+        if parent_compiler
+            .no_implicit_managed
+            .is_stricter_than(compiler.no_implicit_managed)
+        {
+            compiler.no_implicit_managed = parent_compiler.no_implicit_managed;
+        }
+        if parent_compiler
+            .no_managed
+            .is_stricter_than(compiler.no_managed)
+        {
+            compiler.no_managed = parent_compiler.no_managed;
+        }
+        if parent_compiler
+            .no_runtime
+            .is_stricter_than(compiler.no_runtime)
+        {
+            compiler.no_runtime = parent_compiler.no_runtime;
+        }
+        if parent_compiler
+            .no_referential_equality
+            .is_stricter_than(compiler.no_referential_equality)
+        {
+            compiler.no_referential_equality = parent_compiler.no_referential_equality;
+        }
+        if parent_compiler
+            .no_dynamic_evaluation
+            .is_stricter_than(compiler.no_dynamic_evaluation)
+        {
+            compiler.no_dynamic_evaluation = parent_compiler.no_dynamic_evaluation;
+        }
+        if parent_compiler
+            .no_global_this
+            .is_stricter_than(compiler.no_global_this)
+        {
+            compiler.no_global_this = parent_compiler.no_global_this;
+        }
+        if parent_compiler
+            .no_dynamic_import
+            .is_stricter_than(compiler.no_dynamic_import)
+        {
+            compiler.no_dynamic_import = parent_compiler.no_dynamic_import;
+        }
+        if parent_compiler
+            .no_dynamic_shapes
+            .is_stricter_than(compiler.no_dynamic_shapes)
+        {
+            compiler.no_dynamic_shapes = parent_compiler.no_dynamic_shapes;
+        }
+        if parent_compiler
+            .no_computed_property_access
+            .is_stricter_than(compiler.no_computed_property_access)
+        {
+            compiler.no_computed_property_access = parent_compiler.no_computed_property_access;
+        }
+        if parent_compiler.no_proxy.is_stricter_than(compiler.no_proxy) {
+            compiler.no_proxy = parent_compiler.no_proxy;
+        }
+        if parent_compiler
+            .no_implicit_dynamic_dispatch
+            .is_stricter_than(compiler.no_implicit_dynamic_dispatch)
+        {
+            compiler.no_implicit_dynamic_dispatch = parent_compiler.no_implicit_dynamic_dispatch;
+        }
+        if parent_compiler
+            .no_exceptions
+            .is_stricter_than(compiler.no_exceptions)
+        {
+            compiler.no_exceptions = parent_compiler.no_exceptions;
+        }
         if parent_compiler
             .borrow_mode
             .is_stricter_than(compiler.borrow_mode)
@@ -511,12 +679,12 @@ pub struct DsConfigCompilerOptions {
     pub strict: bool,
     /// Parse in strict mode.
     pub always_strict: bool,
-    /// Error on expressions and declarations with implied `any` type.
-    pub no_implicit_any: bool,
+    /// Policy for expressions and declarations with implied `any` type.
+    pub no_implicit_any: DiagnosticPolicy,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
     pub strict_null_checks: bool,
-    /// Error on `this` expressions with implied `any` type.
-    pub no_implicit_this: bool,
+    /// Policy for `this` expressions with implied `any` type.
+    pub no_implicit_this: DiagnosticPolicy,
     /// Enable strict checking of function types.
     pub strict_function_types: bool,
     /// Enable strict checking of `bind`, `call`, and `apply`.
@@ -527,66 +695,82 @@ pub struct DsConfigCompilerOptions {
     pub strict_property_initialization: bool,
     /// Use `unknown` instead of `any` for catch clause variables.
     pub use_unknown_in_catch_variables: bool,
-    /// Report errors on unused local variables.
-    pub no_unused_locals: bool,
-    /// Report errors on unused parameters.
-    pub no_unused_parameters: bool,
-    /// Report errors when not all code paths return a value.
-    pub no_implicit_returns: bool,
-    /// Allow unreachable code.
-    pub allow_unreachable_code: bool,
-    /// Allow unused labels.
-    pub allow_unused_labels: bool,
-    /// Require `override` on class members that override base members.
-    pub no_implicit_override: bool,
-    /// Report errors for fallthrough cases in switch statements.
-    pub no_fallthrough_cases_in_switch: bool,
+    /// Policy for unused local variables.
+    pub no_unused_locals: DiagnosticPolicy,
+    /// Policy for unused parameters.
+    pub no_unused_parameters: DiagnosticPolicy,
+    /// Policy for missing return paths.
+    pub no_implicit_returns: DiagnosticPolicy,
+    /// Policy for unreachable code.
+    pub allow_unreachable_code: DiagnosticPolicy,
+    /// Policy for unused labels.
+    pub allow_unused_labels: DiagnosticPolicy,
+    /// Policy for missing `override` on class members.
+    pub no_implicit_override: DiagnosticPolicy,
+    /// Policy for fallthrough cases in switch statements.
+    pub no_fallthrough_cases_in_switch: DiagnosticPolicy,
     /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: bool,
-    /// Add `undefined` to index signature access results.
-    pub no_unchecked_indexed_access: bool,
-    /// Disallow property access from index signatures without explicit index access.
-    pub no_property_access_from_index_signature: bool,
+    /// Policy for unchecked index signature access results.
+    pub no_unchecked_indexed_access: DiagnosticPolicy,
+    /// Policy for property access from index signatures without explicit index access.
+    pub no_property_access_from_index_signature: DiagnosticPolicy,
 
     // Destack-specific checking
-    /// Forbid use of `any` type.
-    pub no_any: bool,
-    /// Forbid use of `unknown` type.
-    pub no_unknown: bool,
-    /// Require precise primitive types (int32 vs number, etc.).
-    pub no_imprecise_primitives: bool,
-    /// Require explicit widening/narrowing conversions.
-    pub no_implicit_conversions: bool,
+    /// Policy for forbidding `any` types.
+    pub no_any: DiagnosticPolicy,
+    /// Policy for forbidding `unknown` types.
+    pub no_unknown: DiagnosticPolicy,
+    /// Policy for imprecise primitive types (int32 vs number, etc.).
+    pub no_imprecise_primitives: DiagnosticPolicy,
+    /// Policy for implicit widening/narrowing conversions.
+    pub no_implicit_conversions: DiagnosticPolicy,
     /// Policy for implicit collection conversions (record-like and sized arrays).
     pub implicit_collection_conversions: ImplicitCollectionConversionPolicy,
-    /// Forbid unsafe type assertions (`as T`).
-    pub no_unsafe_type_assertions: bool,
-    /// Forbid re-declaration of local variables.
-    pub no_redeclared_locals: bool,
-    /// Require explicit ownership for managed types and values.
-    pub no_implicit_managed: bool,
-    /// Forbid GC-managed defaults and allocations (explicit ownership still allowed).
-    pub no_managed: bool,
-    /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...)
-    pub no_runtime: bool,
-    /// Forbid referential equality.
-    pub no_referential_equality: bool,
-    /// Forbid `eval()` and `Function` constructor.
-    pub no_dynamic_evaluation: bool,
-    /// Forbid `globalThis` access.
-    pub no_global_this: bool,
-    /// Forbid dynamic `import()` and `require()` expressions.
-    pub no_dynamic_import: bool,
-    /// Forbid defineProperty, prototype mutation, delete, and declaration expressions.
-    pub no_dynamic_shapes: bool,
-    /// Forbid computed property access `obj[expr]` where expr isn't constant.
-    pub no_computed_property_access: bool,
-    /// Forbid `Proxy`.
-    pub no_proxy: bool,
-    /// Require overloads to be statically resolvable (no implicit runtime dispatch).
-    pub no_implicit_dynamic_dispatch: bool,
-    /// Forbid `throw` and `try`/`catch` (use Result types instead).
-    pub no_exceptions: bool,
+    /// Policy for unsafe type assertions (`as T`).
+    pub no_unsafe_type_assertions: DiagnosticPolicy,
+    /// Policy for must assertions (`x!`).
+    pub no_must_assertions: DiagnosticPolicy,
+    /// Policy for definite assignment assertions (`field!: T`).
+    pub no_definite_assignment_assertions: DiagnosticPolicy,
+    /// Policy for custom type guards (`x is T`).
+    pub no_custom_type_guards: DiagnosticPolicy,
+    /// Policy for unsound variance (invariant mutable positions).
+    pub no_unsound_variance: DiagnosticPolicy,
+    /// Policy for unsound narrowing (`instanceof`, `in`, and predicates).
+    pub no_unsound_narrowing: DiagnosticPolicy,
+    /// Policy for shallow readonly behavior.
+    pub deep_readonly: DiagnosticPolicy,
+    /// Whether deepReadonly was explicitly configured in JSON.
+    pub deep_readonly_explicit: bool,
+    /// Policy for untrusted declaration files.
+    pub no_untrusted_declarations: DiagnosticPolicy,
+    /// Policy for re-declaration of local variables.
+    pub no_redeclared_locals: DiagnosticPolicy,
+    /// Policy for implicit ownership of managed types and values.
+    pub no_implicit_managed: DiagnosticPolicy,
+    /// Policy for GC-managed defaults and allocations.
+    pub no_managed: DiagnosticPolicy,
+    /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
+    pub no_runtime: DiagnosticPolicy,
+    /// Policy for referential equality.
+    pub no_referential_equality: DiagnosticPolicy,
+    /// Policy for `eval()` and `Function` constructor.
+    pub no_dynamic_evaluation: DiagnosticPolicy,
+    /// Policy for `globalThis` access.
+    pub no_global_this: DiagnosticPolicy,
+    /// Policy for dynamic `import()` and `require()` expressions.
+    pub no_dynamic_import: DiagnosticPolicy,
+    /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
+    pub no_dynamic_shapes: DiagnosticPolicy,
+    /// Policy for computed property access `obj[expr]` where expr isn't constant.
+    pub no_computed_property_access: DiagnosticPolicy,
+    /// Policy for `Proxy`.
+    pub no_proxy: DiagnosticPolicy,
+    /// Policy for overloads that are not statically resolvable.
+    pub no_implicit_dynamic_dispatch: DiagnosticPolicy,
+    /// Policy for `throw` and `try`/`catch` (use Result types instead).
+    pub no_exceptions: DiagnosticPolicy,
     /// Borrow checking mode for `&T` and `&mut T`.
     pub borrow_mode: BorrowMode,
 
@@ -635,45 +819,65 @@ impl Default for DsConfigCompilerOptions {
             // TypeScript-compatible checking
             strict,
             always_strict: strict,
-            no_implicit_any: strict,
+            no_implicit_any: if strict {
+                DiagnosticPolicy::Deny
+            } else {
+                DiagnosticPolicy::Allow
+            },
             strict_null_checks: strict,
-            no_implicit_this: strict,
+            no_implicit_this: if strict {
+                DiagnosticPolicy::Deny
+            } else {
+                DiagnosticPolicy::Allow
+            },
             strict_function_types: strict,
             strict_bind_call_apply: strict,
             strict_builtin_iterator_return: strict,
             strict_property_initialization: strict,
             use_unknown_in_catch_variables: strict,
-            no_unused_locals: false,
-            no_unused_parameters: false,
-            no_implicit_returns: true,
-            allow_unreachable_code: false,
-            allow_unused_labels: false,
-            no_implicit_override: true,
-            no_fallthrough_cases_in_switch: false,
+            no_unused_locals: DiagnosticPolicy::Allow,
+            no_unused_parameters: DiagnosticPolicy::Allow,
+            no_implicit_returns: DiagnosticPolicy::Deny,
+            allow_unreachable_code: DiagnosticPolicy::Deny,
+            allow_unused_labels: DiagnosticPolicy::Deny,
+            no_implicit_override: DiagnosticPolicy::Deny,
+            no_fallthrough_cases_in_switch: DiagnosticPolicy::Allow,
             exact_optional_property_types: true,
-            no_unchecked_indexed_access: true,
-            no_property_access_from_index_signature: false,
+            no_unchecked_indexed_access: DiagnosticPolicy::Deny,
+            no_property_access_from_index_signature: DiagnosticPolicy::Allow,
 
             // Destack-specific checking (all off by default, opt-in)
-            no_any: strict,
-            no_unknown: false,
-            no_imprecise_primitives: false,
-            no_implicit_conversions: false,
+            no_any: if strict {
+                DiagnosticPolicy::Deny
+            } else {
+                DiagnosticPolicy::Allow
+            },
+            no_unknown: DiagnosticPolicy::Allow,
+            no_imprecise_primitives: DiagnosticPolicy::Allow,
+            no_implicit_conversions: DiagnosticPolicy::Allow,
             implicit_collection_conversions: ImplicitCollectionConversionPolicy::Allow,
-            no_unsafe_type_assertions: false,
-            no_redeclared_locals: false,
-            no_implicit_managed: false,
-            no_managed: false,
-            no_runtime: false,
-            no_referential_equality: false,
-            no_dynamic_evaluation: false,
-            no_global_this: false,
-            no_dynamic_import: false,
-            no_dynamic_shapes: false,
-            no_computed_property_access: false,
-            no_proxy: false,
-            no_implicit_dynamic_dispatch: false,
-            no_exceptions: false,
+            no_unsafe_type_assertions: DiagnosticPolicy::Allow,
+            no_must_assertions: DiagnosticPolicy::Allow,
+            no_definite_assignment_assertions: DiagnosticPolicy::Allow,
+            no_custom_type_guards: DiagnosticPolicy::Allow,
+            no_unsound_variance: DiagnosticPolicy::Allow,
+            no_unsound_narrowing: DiagnosticPolicy::Allow,
+            deep_readonly: DiagnosticPolicy::Allow,
+            deep_readonly_explicit: false,
+            no_untrusted_declarations: DiagnosticPolicy::Allow,
+            no_redeclared_locals: DiagnosticPolicy::Allow,
+            no_implicit_managed: DiagnosticPolicy::Allow,
+            no_managed: DiagnosticPolicy::Allow,
+            no_runtime: DiagnosticPolicy::Allow,
+            no_referential_equality: DiagnosticPolicy::Allow,
+            no_dynamic_evaluation: DiagnosticPolicy::Allow,
+            no_global_this: DiagnosticPolicy::Allow,
+            no_dynamic_import: DiagnosticPolicy::Allow,
+            no_dynamic_shapes: DiagnosticPolicy::Allow,
+            no_computed_property_access: DiagnosticPolicy::Allow,
+            no_proxy: DiagnosticPolicy::Allow,
+            no_implicit_dynamic_dispatch: DiagnosticPolicy::Allow,
+            no_exceptions: DiagnosticPolicy::Allow,
             borrow_mode: BorrowMode::Hint,
 
             // emit
@@ -702,8 +906,8 @@ impl DsConfigCompilerOptions {
         self.always_strict = true;
 
         // enable strict checks under the TypeScript umbrella
-        self.no_implicit_any = true;
-        self.no_implicit_this = true;
+        self.no_implicit_any = DiagnosticPolicy::Deny;
+        self.no_implicit_this = DiagnosticPolicy::Deny;
         self.strict_null_checks = true;
         self.strict_function_types = true;
         self.strict_bind_call_apply = true;
@@ -712,18 +916,18 @@ impl DsConfigCompilerOptions {
         self.use_unknown_in_catch_variables = true;
 
         // enable stricter checking defaults beyond the TS strict umbrella
-        self.no_any = true;
-        self.no_implicit_returns = true;
-        self.no_implicit_override = true;
+        self.no_any = DiagnosticPolicy::Deny;
+        self.no_implicit_returns = DiagnosticPolicy::Deny;
+        self.no_implicit_override = DiagnosticPolicy::Deny;
         self.exact_optional_property_types = true;
-        self.no_unchecked_indexed_access = true;
+        self.no_unchecked_indexed_access = DiagnosticPolicy::Deny;
 
         // enable strict diagnostics by default
-        self.no_unused_locals = true;
-        self.no_unused_parameters = true;
-        self.no_fallthrough_cases_in_switch = true;
-        self.allow_unreachable_code = false;
-        self.allow_unused_labels = false;
+        self.no_unused_locals = DiagnosticPolicy::Deny;
+        self.no_unused_parameters = DiagnosticPolicy::Deny;
+        self.no_fallthrough_cases_in_switch = DiagnosticPolicy::Deny;
+        self.allow_unreachable_code = DiagnosticPolicy::Deny;
+        self.allow_unused_labels = DiagnosticPolicy::Deny;
     }
 
     /// Enable native-only restrictions for native and wasm targets.
@@ -732,44 +936,51 @@ impl DsConfigCompilerOptions {
         self.apply_strict_defaults();
 
         // enforce soundness defaults for native targets
-        self.no_any = true;
-        self.no_imprecise_primitives = true;
-        self.no_implicit_conversions = true;
-        self.no_unsafe_type_assertions = true;
-        self.no_implicit_managed = true;
-        self.no_managed = true;
-        self.no_property_access_from_index_signature = true;
+        self.no_any = DiagnosticPolicy::Deny;
+        self.no_imprecise_primitives = DiagnosticPolicy::Deny;
+        self.no_implicit_conversions = DiagnosticPolicy::Deny;
+        self.no_unsafe_type_assertions = DiagnosticPolicy::Deny;
+        self.no_must_assertions = DiagnosticPolicy::Deny;
+        self.no_definite_assignment_assertions = DiagnosticPolicy::Deny;
+        self.no_custom_type_guards = DiagnosticPolicy::Deny;
+        self.no_unsound_variance = DiagnosticPolicy::Deny;
+        self.no_unsound_narrowing = DiagnosticPolicy::Deny;
+        self.deep_readonly = DiagnosticPolicy::Deny;
+        self.no_untrusted_declarations = DiagnosticPolicy::Deny;
+        self.no_implicit_managed = DiagnosticPolicy::Deny;
+        self.no_managed = DiagnosticPolicy::Deny;
+        self.no_property_access_from_index_signature = DiagnosticPolicy::Deny;
         self.borrow_mode = BorrowMode::Strict;
         self.implicit_collection_conversions = ImplicitCollectionConversionPolicy::Warn;
 
         // disable runtime features that native backends cannot support
-        self.no_dynamic_evaluation = true;
-        self.no_dynamic_import = true;
-        self.no_proxy = true;
-        self.no_dynamic_shapes = true;
-        self.no_exceptions = true;
-        self.no_global_this = true;
+        self.no_dynamic_evaluation = DiagnosticPolicy::Deny;
+        self.no_dynamic_import = DiagnosticPolicy::Deny;
+        self.no_proxy = DiagnosticPolicy::Deny;
+        self.no_dynamic_shapes = DiagnosticPolicy::Deny;
+        self.no_exceptions = DiagnosticPolicy::Deny;
+        self.no_global_this = DiagnosticPolicy::Deny;
     }
 
     /// Enable explicit ownership defaults for managed memory control.
     pub fn apply_no_managed_defaults(&mut self) {
         // require explicit ownership markers for managed types and values
-        self.no_implicit_managed = true;
+        self.no_implicit_managed = DiagnosticPolicy::Deny;
     }
 
     /// Enable runtime-free restrictions for compile-time only targets.
     pub fn apply_no_runtime_restrictions(&mut self) {
         // force runtime control flags on when runtime is disabled
-        self.no_runtime = true;
-        self.no_managed = true;
-        self.no_exceptions = true;
-        self.no_dynamic_evaluation = true;
-        self.no_dynamic_import = true;
-        self.no_dynamic_shapes = true;
-        self.no_computed_property_access = true;
-        self.no_proxy = true;
-        self.no_global_this = true;
-        self.no_implicit_dynamic_dispatch = true;
+        self.no_runtime = DiagnosticPolicy::Deny;
+        self.no_managed = DiagnosticPolicy::Deny;
+        self.no_exceptions = DiagnosticPolicy::Deny;
+        self.no_dynamic_evaluation = DiagnosticPolicy::Deny;
+        self.no_dynamic_import = DiagnosticPolicy::Deny;
+        self.no_dynamic_shapes = DiagnosticPolicy::Deny;
+        self.no_computed_property_access = DiagnosticPolicy::Deny;
+        self.no_proxy = DiagnosticPolicy::Deny;
+        self.no_global_this = DiagnosticPolicy::Deny;
+        self.no_implicit_dynamic_dispatch = DiagnosticPolicy::Deny;
 
         // require explicit ownership markers for managed types and values
         self.apply_no_managed_defaults();
@@ -2261,6 +2472,97 @@ impl From<BorrowModeJson> for BorrowMode {
     }
 }
 
+/// Diagnostic policy for allow/warn/deny enforcement.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DiagnosticPolicyValueJson {
+    Allow,
+    Warn,
+    #[serde(alias = "error")]
+    Deny,
+}
+
+/// Diagnostic policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum DiagnosticPolicyJson {
+    Bool(bool),
+    Value(DiagnosticPolicyValueJson),
+}
+
+impl From<DiagnosticPolicyJson> for DiagnosticPolicy {
+    fn from(value: DiagnosticPolicyJson) -> Self {
+        match value {
+            DiagnosticPolicyJson::Bool(true) => DiagnosticPolicy::Deny,
+            DiagnosticPolicyJson::Bool(false) => DiagnosticPolicy::Allow,
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Allow) => {
+                DiagnosticPolicy::Allow
+            }
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Warn) => DiagnosticPolicy::Warn,
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Deny) => DiagnosticPolicy::Deny,
+        }
+    }
+}
+
+impl DiagnosticPolicyJson {
+    /// Convert allow-style policies where `true` means allow.
+    pub fn into_allow_policy(self) -> DiagnosticPolicy {
+        match self {
+            DiagnosticPolicyJson::Bool(true) => DiagnosticPolicy::Allow,
+            DiagnosticPolicyJson::Bool(false) => DiagnosticPolicy::Deny,
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Allow) => {
+                DiagnosticPolicy::Allow
+            }
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Warn) => DiagnosticPolicy::Warn,
+            DiagnosticPolicyJson::Value(DiagnosticPolicyValueJson::Deny) => DiagnosticPolicy::Deny,
+        }
+    }
+}
+
+/// Diagnostic policy for allow/warn/deny enforcement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticPolicy {
+    /// Allow without diagnostics.
+    Allow,
+    /// Allow with a warning.
+    Warn,
+    /// Forbid with an error.
+    Deny,
+}
+
+impl DiagnosticPolicy {
+    /// Return whether this policy is stricter than another.
+    pub fn is_stricter_than(self, other: Self) -> bool {
+        self.rank() > other.rank()
+    }
+
+    /// Return whether this policy is Allow.
+    pub fn is_allow(self) -> bool {
+        matches!(self, DiagnosticPolicy::Allow)
+    }
+
+    /// Return whether this policy is Warn.
+    pub fn is_warn(self) -> bool {
+        matches!(self, DiagnosticPolicy::Warn)
+    }
+
+    /// Return whether this policy is Deny.
+    pub fn is_deny(self) -> bool {
+        matches!(self, DiagnosticPolicy::Deny)
+    }
+
+    /// Return a stable numeric rank for ordering.
+    pub fn rank(self) -> u8 {
+        match self {
+            DiagnosticPolicy::Allow => 0,
+            DiagnosticPolicy::Warn => 1,
+            DiagnosticPolicy::Deny => 2,
+        }
+    }
+}
+
 /// Implicit collection conversion policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -2346,12 +2648,12 @@ pub struct CompilerOptionsJson {
     pub strict: Option<bool>,
     /// Parse in strict mode.
     pub always_strict: Option<bool>,
-    /// Error on expressions and declarations with implied `any` type.
-    pub no_implicit_any: Option<bool>,
+    /// Policy for expressions and declarations with implied `any` type.
+    pub no_implicit_any: Option<DiagnosticPolicyJson>,
     /// Enable strict null checks (`null` and `undefined` are distinct types).
     pub strict_null_checks: Option<bool>,
-    /// Error on `this` expressions with implied `any` type.
-    pub no_implicit_this: Option<bool>,
+    /// Policy for `this` expressions with implied `any` type.
+    pub no_implicit_this: Option<DiagnosticPolicyJson>,
     /// Enable strict checking of function types.
     pub strict_function_types: Option<bool>,
     /// Enable strict checking of `bind`, `call`, and `apply` methods.
@@ -2362,66 +2664,86 @@ pub struct CompilerOptionsJson {
     pub strict_property_initialization: Option<bool>,
     /// Use `unknown` instead of `any` for catch clause variables.
     pub use_unknown_in_catch_variables: Option<bool>,
-    /// Report errors on unused local variables.
-    pub no_unused_locals: Option<bool>,
-    /// Report errors on unused function parameters.
-    pub no_unused_parameters: Option<bool>,
-    /// Report errors when not all code paths return a value.
-    pub no_implicit_returns: Option<bool>,
-    /// Allow unreachable code.
-    pub allow_unreachable_code: Option<bool>,
-    /// Allow unused labels.
-    pub allow_unused_labels: Option<bool>,
-    /// Require `override` on class members that override base members.
-    pub no_implicit_override: Option<bool>,
-    /// Report errors for fallthrough cases in switch statements.
-    pub no_fallthrough_cases_in_switch: Option<bool>,
+    /// Policy for unused local variables.
+    pub no_unused_locals: Option<DiagnosticPolicyJson>,
+    /// Policy for unused function parameters.
+    pub no_unused_parameters: Option<DiagnosticPolicyJson>,
+    /// Policy for missing return paths.
+    pub no_implicit_returns: Option<DiagnosticPolicyJson>,
+    /// Policy for unreachable code.
+    pub allow_unreachable_code: Option<DiagnosticPolicyJson>,
+    /// Policy for unused labels.
+    pub allow_unused_labels: Option<DiagnosticPolicyJson>,
+    /// Policy for missing `override` on class members.
+    pub no_implicit_override: Option<DiagnosticPolicyJson>,
+    /// Policy for fallthrough cases in switch statements.
+    pub no_fallthrough_cases_in_switch: Option<DiagnosticPolicyJson>,
     /// Interpret optional property types as written without implicit `undefined`.
     pub exact_optional_property_types: Option<bool>,
-    /// Add `undefined` to index signature access results.
-    pub no_unchecked_indexed_access: Option<bool>,
-    /// Disallow property access from index signatures without explicit index access.
-    pub no_property_access_from_index_signature: Option<bool>,
+    /// Policy for unchecked index signature access results.
+    pub no_unchecked_indexed_access: Option<DiagnosticPolicyJson>,
+    /// Policy for property access from index signatures without explicit index access.
+    pub no_property_access_from_index_signature: Option<DiagnosticPolicyJson>,
 
     // Destack-specific checking
-    /// Forbid use of `any` type.
-    pub no_any: Option<bool>,
-    /// Forbid use of `unknown` type.
-    pub no_unknown: Option<bool>,
-    /// Require precise primitive types (int32 vs number, etc.).
-    pub no_imprecise_primitives: Option<bool>,
-    /// Require explicit widening/narrowing conversions.
-    pub no_implicit_conversions: Option<bool>,
+    /// Policy for forbidding `any` types.
+    pub no_any: Option<DiagnosticPolicyJson>,
+    /// Policy for forbidding `unknown` types.
+    pub no_unknown: Option<DiagnosticPolicyJson>,
+    /// Policy for imprecise primitive types (int32 vs number, etc.).
+    pub no_imprecise_primitives: Option<DiagnosticPolicyJson>,
+    /// Policy for implicit widening/narrowing conversions.
+    pub no_implicit_conversions: Option<DiagnosticPolicyJson>,
     /// Policy for implicit collection conversions (record-like and sized arrays).
     pub implicit_collection_conversions: Option<ImplicitCollectionConversionPolicyJson>,
-    /// Forbid unsafe type assertions (`as T`).
-    pub no_unsafe_type_assertions: Option<bool>,
-    /// Forbid re-declaration of local variables.
-    pub no_redeclared_locals: Option<bool>,
-    /// Require explicit ownership for managed types and values.
-    pub no_implicit_managed: Option<bool>,
-    /// Forbid managed runtime features entirely (no &T at all, pure value types only).
-    pub no_managed: Option<bool>,
-    /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).
-    pub no_runtime: Option<bool>,
-    /// Forbid referential equality.
-    pub no_referential_equality: Option<bool>,
-    /// Forbid `eval()` and `Function` constructor.
-    pub no_dynamic_evaluation: Option<bool>,
-    /// Forbid `globalThis` access.
-    pub no_global_this: Option<bool>,
-    /// Forbid dynamic `import()` and `require()` expressions.
-    pub no_dynamic_import: Option<bool>,
-    /// Forbid defineProperty, prototype mutation, delete, and declaration expressions.
-    pub no_dynamic_shapes: Option<bool>,
-    /// Forbid computed property access `obj[expr]` where expr isn't constant.
-    pub no_computed_property_access: Option<bool>,
-    /// Forbid `Proxy`.
-    pub no_proxy: Option<bool>,
-    /// Require overloads to be statically resolvable (no implicit runtime dispatch).
-    pub no_implicit_dynamic_dispatch: Option<bool>,
-    /// Forbid `throw` and `try`/`catch` (use Result types instead).
-    pub no_exceptions: Option<bool>,
+    /// Policy for unsafe type assertions (`as T`).
+    pub no_unsafe_type_assertions: Option<DiagnosticPolicyJson>,
+    /// Policy for must assertions (`x!`).
+    #[serde(
+        rename = "noMustAssertions",
+        alias = "noNonNullAssertions",
+        alias = "no_non_null_assertions"
+    )]
+    pub no_must_assertions: Option<DiagnosticPolicyJson>,
+    /// Policy for definite assignment assertions (`field!: T`).
+    pub no_definite_assignment_assertions: Option<DiagnosticPolicyJson>,
+    /// Policy for custom type guards (`x is T`).
+    #[serde(alias = "noUserDefinedTypeGuards")]
+    pub no_custom_type_guards: Option<DiagnosticPolicyJson>,
+    /// Policy for unsound variance (invariant mutable positions).
+    pub no_unsound_variance: Option<DiagnosticPolicyJson>,
+    /// Policy for unsound narrowing (`instanceof`, `in`, and predicates).
+    pub no_unsound_narrowing: Option<DiagnosticPolicyJson>,
+    /// Policy for shallow readonly behavior.
+    pub deep_readonly: Option<DiagnosticPolicyJson>,
+    /// Policy for untrusted declaration files.
+    pub no_untrusted_declarations: Option<DiagnosticPolicyJson>,
+    /// Policy for re-declaration of local variables.
+    pub no_redeclared_locals: Option<DiagnosticPolicyJson>,
+    /// Policy for implicit ownership of managed types and values.
+    pub no_implicit_managed: Option<DiagnosticPolicyJson>,
+    /// Policy for GC-managed defaults and allocations.
+    pub no_managed: Option<DiagnosticPolicyJson>,
+    /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
+    pub no_runtime: Option<DiagnosticPolicyJson>,
+    /// Policy for referential equality.
+    pub no_referential_equality: Option<DiagnosticPolicyJson>,
+    /// Policy for `eval()` and `Function` constructor.
+    pub no_dynamic_evaluation: Option<DiagnosticPolicyJson>,
+    /// Policy for `globalThis` access.
+    pub no_global_this: Option<DiagnosticPolicyJson>,
+    /// Policy for dynamic `import()` and `require()` expressions.
+    pub no_dynamic_import: Option<DiagnosticPolicyJson>,
+    /// Policy for defineProperty, prototype mutation, delete, and declaration expressions.
+    pub no_dynamic_shapes: Option<DiagnosticPolicyJson>,
+    /// Policy for computed property access `obj[expr]` where expr isn't constant.
+    pub no_computed_property_access: Option<DiagnosticPolicyJson>,
+    /// Policy for `Proxy`.
+    pub no_proxy: Option<DiagnosticPolicyJson>,
+    /// Policy for overloads that are not statically resolvable.
+    pub no_implicit_dynamic_dispatch: Option<DiagnosticPolicyJson>,
+    /// Policy for `throw` and `try`/`catch` (use Result types instead).
+    pub no_exceptions: Option<DiagnosticPolicyJson>,
     /// Borrow checking mode for `&T` and `&mut T`.
     pub borrow_mode: Option<BorrowModeJson>,
 
@@ -2477,50 +2799,174 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             // TypeScript-compatible checking
             strict,
             always_strict: json.always_strict.unwrap_or(strict),
-            no_implicit_any: json.no_implicit_any.unwrap_or(strict),
+            no_implicit_any: json.no_implicit_any.map(DiagnosticPolicy::from).unwrap_or(
+                if strict {
+                    DiagnosticPolicy::Deny
+                } else {
+                    DiagnosticPolicy::Allow
+                },
+            ),
             strict_null_checks: json.strict_null_checks.unwrap_or(strict),
-            no_implicit_this: json.no_implicit_this.unwrap_or(strict),
+            no_implicit_this: json.no_implicit_this.map(DiagnosticPolicy::from).unwrap_or(
+                if strict {
+                    DiagnosticPolicy::Deny
+                } else {
+                    DiagnosticPolicy::Allow
+                },
+            ),
             strict_function_types: json.strict_function_types.unwrap_or(strict),
             strict_bind_call_apply: json.strict_bind_call_apply.unwrap_or(strict),
             strict_builtin_iterator_return: json.strict_builtin_iterator_return.unwrap_or(strict),
             strict_property_initialization: json.strict_property_initialization.unwrap_or(strict),
             use_unknown_in_catch_variables: json.use_unknown_in_catch_variables.unwrap_or(strict),
-            no_unused_locals: json.no_unused_locals.unwrap_or(false),
-            no_unused_parameters: json.no_unused_parameters.unwrap_or(false),
-            no_implicit_returns: json.no_implicit_returns.unwrap_or(true),
-            allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
-            allow_unused_labels: json.allow_unused_labels.unwrap_or(false),
-            no_implicit_override: json.no_implicit_override.unwrap_or(true),
-            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(false),
+            no_unused_locals: json
+                .no_unused_locals
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_unused_parameters: json
+                .no_unused_parameters
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_implicit_returns: json
+                .no_implicit_returns
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Deny),
+            allow_unreachable_code: json
+                .allow_unreachable_code
+                .map(DiagnosticPolicyJson::into_allow_policy)
+                .unwrap_or(DiagnosticPolicy::Deny),
+            allow_unused_labels: json
+                .allow_unused_labels
+                .map(DiagnosticPolicyJson::into_allow_policy)
+                .unwrap_or(DiagnosticPolicy::Deny),
+            no_implicit_override: json
+                .no_implicit_override
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Deny),
+            no_fallthrough_cases_in_switch: json
+                .no_fallthrough_cases_in_switch
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(true),
-            no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(true),
+            no_unchecked_indexed_access: json
+                .no_unchecked_indexed_access
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Deny),
             no_property_access_from_index_signature: json
                 .no_property_access_from_index_signature
-                .unwrap_or(true),
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Deny),
 
             // Destack-specific checking
-            no_any: json.no_any.unwrap_or(strict),
-            no_unknown: json.no_unknown.unwrap_or(false),
-            no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
-            no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
+            no_any: json
+                .no_any
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(if strict {
+                    DiagnosticPolicy::Deny
+                } else {
+                    DiagnosticPolicy::Allow
+                }),
+            no_unknown: json
+                .no_unknown
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_imprecise_primitives: json
+                .no_imprecise_primitives
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_implicit_conversions: json
+                .no_implicit_conversions
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
             implicit_collection_conversions: json
                 .implicit_collection_conversions
                 .map(ImplicitCollectionConversionPolicy::from)
                 .unwrap_or(ImplicitCollectionConversionPolicy::Allow),
-            no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
-            no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
-            no_implicit_managed: json.no_implicit_managed.unwrap_or(false),
-            no_managed: json.no_managed.unwrap_or(false),
-            no_runtime: json.no_runtime.unwrap_or(false),
-            no_referential_equality: json.no_referential_equality.unwrap_or(false),
-            no_dynamic_evaluation: json.no_dynamic_evaluation.unwrap_or(false),
-            no_global_this: json.no_global_this.unwrap_or(false),
-            no_dynamic_import: json.no_dynamic_import.unwrap_or(false),
-            no_dynamic_shapes: json.no_dynamic_shapes.unwrap_or(false),
-            no_computed_property_access: json.no_computed_property_access.unwrap_or(false),
-            no_proxy: json.no_proxy.unwrap_or(false),
-            no_implicit_dynamic_dispatch: json.no_implicit_dynamic_dispatch.unwrap_or(false),
-            no_exceptions: json.no_exceptions.unwrap_or(false),
+            no_unsafe_type_assertions: json
+                .no_unsafe_type_assertions
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_must_assertions: json
+                .no_must_assertions
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_definite_assignment_assertions: json
+                .no_definite_assignment_assertions
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_custom_type_guards: json
+                .no_custom_type_guards
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_unsound_variance: json
+                .no_unsound_variance
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_unsound_narrowing: json
+                .no_unsound_narrowing
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            deep_readonly: json
+                .deep_readonly
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            deep_readonly_explicit: json.deep_readonly.is_some(),
+            no_untrusted_declarations: json
+                .no_untrusted_declarations
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_redeclared_locals: json
+                .no_redeclared_locals
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_implicit_managed: json
+                .no_implicit_managed
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_managed: json
+                .no_managed
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_runtime: json
+                .no_runtime
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_referential_equality: json
+                .no_referential_equality
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_dynamic_evaluation: json
+                .no_dynamic_evaluation
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_global_this: json
+                .no_global_this
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_dynamic_import: json
+                .no_dynamic_import
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_dynamic_shapes: json
+                .no_dynamic_shapes
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_computed_property_access: json
+                .no_computed_property_access
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_proxy: json
+                .no_proxy
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_implicit_dynamic_dispatch: json
+                .no_implicit_dynamic_dispatch
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
+            no_exceptions: json
+                .no_exceptions
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
             borrow_mode: json
                 .borrow_mode
                 .map(BorrowMode::from)
@@ -2543,12 +2989,12 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
         };
 
         // apply managed defaults when managed runtime is explicitly disabled
-        if options.no_managed {
+        if options.no_managed.is_deny() {
             options.apply_no_managed_defaults();
         }
 
         // apply runtime-free restrictions when requested
-        if options.no_runtime {
+        if options.no_runtime.is_deny() {
             options.apply_no_runtime_restrictions();
         }
 
