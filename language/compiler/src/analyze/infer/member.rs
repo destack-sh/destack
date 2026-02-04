@@ -84,8 +84,27 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         let _timing = self.timing_scope(tags::ANALYZE_INFER_EXPRESSION_MEMBER);
 
-        let left_ty_id =
-            self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        // optional chain receivers must unwrap maybe before member lookup
+        let optional_chain =
+            self.infer_optional_chain_receiver(module, left_id, tree, symbols, types, infer, ctx)?;
+        let (left_id, left_ty_id, optional_chain_has_nullish) =
+            if let Some(optional_chain) = optional_chain {
+                let Some(receiver_ty_id) = optional_chain.receiver_ty_id else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Undefined,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                };
+                (
+                    optional_chain.receiver_id,
+                    receiver_ty_id,
+                    optional_chain.has_nullish,
+                )
+            } else {
+                let left_ty_id =
+                    self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+                (left_id, left_ty_id, false)
+            };
         let left_ty_id = self.materialize_infer_type_for_check(
             module,
             ctx.profile,
@@ -97,6 +116,14 @@ impl Compiler {
         );
         let left_ty = types.get_type(left_ty_id).clone();
         let mut member_instance_id = None;
+        let finish_result = |type_id: LocalTypeId, types: &mut TypeTable| {
+            self.optional_chain_result_type(
+                expression_id,
+                type_id,
+                optional_chain_has_nullish,
+                types,
+            )
+        };
 
         // short circuit member access on any
         if matches!(
@@ -105,7 +132,8 @@ impl Compiler {
                 value: TypeLiteral::Any,
             }
         ) {
-            return Ok(self.any_member_access_type(expression_id, types));
+            let type_id = self.any_member_access_type(expression_id, types);
+            return Ok(finish_result(type_id, types));
         }
 
         // resolve the member key for lookup
@@ -124,7 +152,7 @@ impl Compiler {
             symbols,
             types,
         )? {
-            return Ok(enum_reference_id);
+            return Ok(finish_result(enum_reference_id, types));
         }
 
         // ensure instance types are available for reference receivers
@@ -629,7 +657,7 @@ impl Compiler {
             self.substitute_this_type(resolved_member_ty_id, left_ty_id, types, &mut cache)
         };
 
-        Ok(resolved_member_ty_id)
+        Ok(finish_result(resolved_member_ty_id, types))
     }
 
     /// Return the member access type for `any` receivers.

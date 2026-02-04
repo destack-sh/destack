@@ -45,6 +45,17 @@ impl ObjectLiteralField {
     }
 }
 
+/// Optional chain receiver metadata.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct OptionalChainReceiver {
+    /// The receiver expression id.
+    pub(super) receiver_id: LocalNodeId<Expression>,
+    /// The non-nullish receiver type id, when available.
+    pub(super) receiver_ty_id: Option<LocalTypeId>,
+    /// Whether the receiver included nullish types.
+    pub(super) has_nullish: bool,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Recover static parameters for a signature when the type omitted them.
@@ -131,6 +142,55 @@ impl Compiler {
             return_type,
         };
         types.update_type(signature_ty_id, updated);
+    }
+
+    /// Infer optional chain receiver metadata when a maybe wrapper is present.
+    pub(super) fn infer_optional_chain_receiver(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Option<OptionalChainReceiver>> {
+        let Expression::Maybe { left } = tree.get(receiver_id) else {
+            return Ok(None);
+        };
+
+        // infer the underlying receiver expression
+        let receiver_ty_id =
+            self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
+        let (non_nullish, has_nullish) = self.strip_nullish_from_union(receiver_ty_id, types);
+
+        Ok(Some(OptionalChainReceiver {
+            receiver_id: *left,
+            receiver_ty_id: non_nullish,
+            has_nullish,
+        }))
+    }
+
+    /// Add undefined to an optional chain result when needed.
+    pub(super) fn optional_chain_result_type(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        base_type_id: LocalTypeId,
+        has_nullish: bool,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        if !has_nullish {
+            return base_type_id;
+        }
+
+        let undefined_type_id = types.insert_type_from(
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            },
+            expression_id,
+        );
+        let combined = vec![base_type_id, undefined_type_id];
+        self.union_type_from_list(combined, base_type_id, types)
     }
 
     /// Decide whether a scalar literal should be widened in this context.
@@ -978,7 +1038,6 @@ impl Compiler {
                         let mut left_ctx = ctx
                             .fork()
                             .with_expected_type(Some(right_ty_id))
-                            .without_const_context()
                             .with_contextual_typing_mode(ContextualTypingMode::Satisfies);
                         let left_ty_id =
                             self.infer_expression(module, *left, tree, symbols, types, infer, &mut left_ctx)?;

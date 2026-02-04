@@ -867,7 +867,35 @@ impl Compiler {
                     type_id
                 }
             }
-            Type::Import { .. } => type_id,
+            Type::Import {
+                target,
+                qualifier,
+                static_arguments,
+            } => {
+                let resolved = self.resolve_import_type_reference(
+                    module,
+                    profile,
+                    source_id,
+                    target,
+                    qualifier.as_ref(),
+                    static_arguments.as_deref(),
+                    types,
+                );
+                if let Some(resolved) = resolved {
+                    self.normalize_type_inner(
+                        module,
+                        profile,
+                        resolved,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
+                    )
+                } else {
+                    type_id
+                }
+            }
             Type::Infer { name, constraint } => {
                 // normalize the inference constraint when present
                 let original_constraint = constraint;

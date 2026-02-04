@@ -892,10 +892,45 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // optional chain receivers must unwrap maybe before index lookup
+        let optional_chain = self.infer_optional_chain_receiver(
+            module,
+            receiver_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
+        let (receiver_id, receiver_ty_id, optional_chain_has_nullish) =
+            if let Some(optional_chain) = optional_chain {
+                let Some(receiver_ty_id) = optional_chain.receiver_ty_id else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Undefined,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                };
+                (
+                    optional_chain.receiver_id,
+                    receiver_ty_id,
+                    optional_chain.has_nullish,
+                )
+            } else {
+                let receiver_ty_id =
+                    self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
+                (receiver_id, receiver_ty_id, false)
+            };
+        let finish_result = |type_id: LocalTypeId, types: &mut TypeTable| {
+            self.optional_chain_result_type(
+                expression_id,
+                type_id,
+                optional_chain_has_nullish,
+                types,
+            )
+        };
+
         // resolve receiver type
         let options = ctx.options;
-        let receiver_ty_id =
-            self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
         // short circuit index access on any
@@ -908,7 +943,8 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Any,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            let type_id = types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, types));
         }
 
         // ensure instance types for reference receivers
@@ -963,7 +999,8 @@ impl Compiler {
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 };
-                return Ok(types.insert_type_from(ty, expression_id));
+                let type_id = types.insert_type_from(ty, expression_id);
+                return Ok(finish_result(type_id, types));
             }
         }
 
@@ -983,7 +1020,7 @@ impl Compiler {
                 Some(receiver_ty_id),
                 types,
             );
-            return Ok(builtin_ty_id);
+            return Ok(finish_result(builtin_ty_id, types));
         }
 
         // treat indexed access with a literal key as a property lookup
@@ -1000,7 +1037,7 @@ impl Compiler {
                 types,
                 &mut visited,
             )? {
-                return Ok(member_ty_id);
+                return Ok(finish_result(member_ty_id, types));
             }
         }
 
@@ -1021,7 +1058,8 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            let type_id = types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, types));
         }
 
         // resolve the index member function
@@ -1049,7 +1087,8 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            let type_id = types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, types));
         };
 
         // handle missing member
@@ -1070,7 +1109,8 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            return Ok(types.insert_type_from(ty, expression_id));
+            let type_id = types.insert_type_from(ty, expression_id);
+            return Ok(finish_result(type_id, types));
         }
 
         // resolve index parameter type
@@ -1127,7 +1167,7 @@ impl Compiler {
             )
         });
 
-        Ok(value_ty_id)
+        Ok(finish_result(value_ty_id, types))
     }
 
     /// Infer an index assignment expression.

@@ -4,6 +4,7 @@ mod context;
 mod declarator;
 mod extension;
 mod global;
+mod import;
 mod json;
 mod key;
 mod literal;
