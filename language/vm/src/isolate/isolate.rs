@@ -6,7 +6,7 @@ use destack_mir as mir;
 use super::{ExternalHandler, IsolateState, StringRef};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::interpreter::{InterpreterContext, InterpreterEngine};
+use crate::interpreter::{InterpreterContext, Interpreter};
 use crate::memory::{GcStats, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 
@@ -15,7 +15,7 @@ pub struct Isolate {
     /// Shared isolate state for all engines.
     state: IsolateState,
     /// Interpreter engine backing this isolate.
-    interpreter: InterpreterEngine,
+    interpreter: Interpreter,
 }
 
 impl fmt::Debug for Isolate {
@@ -39,7 +39,7 @@ impl Isolate {
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new(tree, strings, options);
-        let mut interpreter = InterpreterEngine::new(&state);
+        let mut interpreter = Interpreter::new(&state);
         // initialize globals and interned literals
         {
             let mut context = interpreter.context(&mut state);
@@ -57,7 +57,7 @@ impl Isolate {
         heap: SharedHeap,
     ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new_with_heap_store(tree, strings, options, heap);
-        let mut interpreter = InterpreterEngine::new(&state);
+        let mut interpreter = Interpreter::new(&state);
         // initialize globals and interned literals
         {
             let mut context = interpreter.context(&mut state);

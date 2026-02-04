@@ -11,4 +11,4 @@ pub use decode::{
     ThreadedFunction, ThreadedHandler, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
 };
 pub(crate) use state::InterpreterContext;
-pub use state::{Frame, InterpreterEngine};
+pub use state::{Frame, Interpreter};

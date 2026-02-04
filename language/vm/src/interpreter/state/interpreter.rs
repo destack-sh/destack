@@ -38,12 +38,12 @@ pub(crate) struct InterpreterState {
 
 /// Interpreter execution engine for threaded dispatch.
 #[derive(Debug)]
-pub struct InterpreterEngine {
+pub struct Interpreter {
     /// Interpreter engine state for execution.
     pub(crate) state: InterpreterState,
 }
 
-impl InterpreterEngine {
+impl Interpreter {
     /// Create a new interpreter engine for the given isolate state.
     pub(crate) fn new(isolate: &IsolateState) -> Self {
         let threaded_functions = ThreadedFunctionTable::new(&isolate.tree);
