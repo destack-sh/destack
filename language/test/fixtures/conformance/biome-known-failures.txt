@@ -108,10 +108,8 @@ ok/arrow_expr_in_alternate.js
 ok/class_member_modifiers.js
 ok/decorator.ts
 ok/decorator_class_member.ts
-ok/decorator_export_class_clause.js
 ok/decorator_export_default_top_level_3.ts
 ok/decorator_export_default_top_level_5.ts
-ok/decorator_export_top_level.js
 ok/do_while_statement.js
 ok/export_named_clause.js
 ok/export_named_from_clause.js
@@ -138,11 +136,8 @@ ok/ts_import_type_arguments.ts
 ok/ts_instantiation_expressions_new_line.ts
 ok/ts_satisfies_assignment.ts
 ok/ts_tagged_template_literal.ts
-ok/ts_type_assertion.ts
-ok/ts_type_assertion_expression.ts
 ok/ts_type_parameters.ts
 ok/ts_typeof_type2.tsx
 ok/tsx_type_arguments.tsx
-ok/type_assertion_primary_expression.ts
 ok/unary_delete_nested.js
 ok/using_declaration_statement.js
