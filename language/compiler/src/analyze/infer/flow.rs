@@ -5,10 +5,10 @@ use indexmap::IndexMap;
 use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, DynamicKey, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment,
-    FlowGraph, FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId,
-    NodeTree, NodeVisitor, NodeVisitorOptions, Pattern, PatternField, ScalarLiteral, StaticKey,
-    SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
-    UnaryOperator, walk_expression,
+    FlowGraph, FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, NodeTree, NodeVisitor, NodeVisitorOptions, Pattern, PatternField,
+    RuntimeCheckKind, ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1332,6 +1332,23 @@ impl Compiler {
             context,
         )?;
 
+        // ensure sound property narrowing when requested
+        if context.options.no_unsound_narrowing {
+            let is_required = self.type_has_required_property(
+                module,
+                context.profile,
+                base_type_id,
+                &key,
+                guard_id.into_any(),
+                tree,
+                symbols,
+                types,
+            )?;
+            if !is_required {
+                return Ok(None);
+            }
+        }
+
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) =
             self.property_guard_types(module, context.profile, base_type_id, &key, symbols, types);
@@ -1392,6 +1409,29 @@ impl Compiler {
             environment,
             context,
         )?;
+
+        // compute runtime check kind for guard validity
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
+        if let Some(kind) = runtime_check_kind {
+            types.set_runtime_check_kind(guard_id.into_global_any(module.id), kind);
+        }
+
+        // skip unsound narrowing when runtime checks are unavailable
+        let is_sound_narrowing = matches!(
+            runtime_check_kind,
+            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+        );
+        if context.options.no_unsound_narrowing && !is_sound_narrowing {
+            return Ok(None);
+        }
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) = self.type_guard_types(
@@ -1460,6 +1500,29 @@ impl Compiler {
             environment,
             context,
         )?;
+
+        // compute runtime check kind for guard validity
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
+        if let Some(kind) = runtime_check_kind {
+            types.set_runtime_check_kind(guard_id.into_global_any(module.id), kind);
+        }
+
+        // skip unsound narrowing when runtime checks are unavailable
+        let is_sound_narrowing = matches!(
+            runtime_check_kind,
+            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+        );
+        if context.options.no_unsound_narrowing && !is_sound_narrowing {
+            return Ok(None);
+        }
 
         // compute narrowed types for each branch
         let (true_type_id, false_type_id) = self.type_guard_types(
@@ -1918,6 +1981,68 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    /// Check whether a property guard is guaranteed by the type.
+    fn type_has_required_property(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        key: &StaticKey,
+        anchor_node: LocalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<bool> {
+        // avoid soundness gaps when index signatures accept the key
+        if self.type_has_index_signature(module, profile, type_id, key, anchor_node, symbols, types)
+        {
+            return Ok(false);
+        }
+
+        // read the field and ensure it is required
+        let Some((_, is_optional)) =
+            self.type_field_type_for_key(module, profile, type_id, key, tree, symbols, types)?
+        else {
+            return Ok(false);
+        };
+
+        Ok(!is_optional)
+    }
+
+    /// Check if a type provides an index signature for a static key.
+    fn type_has_index_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        key: &StaticKey,
+        anchor_node: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let mut visited = Vec::new();
+        let type_value = types.get_type(type_id).clone();
+        let Some(type_id) = self.infer_index_signature_value_type_for_key(
+            module,
+            profile,
+            anchor_node,
+            symbols,
+            &type_value,
+            key,
+            types,
+            &mut visited,
+        ) else {
+            return false;
+        };
+
+        !matches!(
+            types.get_type(type_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Never
+            }
+        )
     }
 
     /// Strip assignable elements from a union for guard negation.

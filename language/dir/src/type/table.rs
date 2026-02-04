@@ -154,6 +154,9 @@ pub struct TypeTable {
     pub(crate) signature_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The addressability by node id.
     pub(crate) addressability_by_node_id: IndexMap<GlobalNodeIdAny, Addressability>,
+    /// The runtime check kind for guard expressions.
+    #[serde(skip)]
+    pub(crate) runtime_check_kind_by_node_id: IndexMap<GlobalNodeIdAny, RuntimeCheckKind>,
 
     // symbol types
     /// The instance type by symbol id (for type declarations: the shape of instances).
@@ -212,6 +215,17 @@ pub struct ResolvedAccessType {
     pub is_newtype: bool,
 }
 
+/// Runtime type check strategy for a guard expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeCheckKind {
+    /// The runtime check was reduced to a constant.
+    Constant(bool),
+    /// The runtime check uses a union tag.
+    UnionTag,
+    /// The runtime check compares type identities.
+    TypeDescriptor,
+}
+
 impl TypeTable {
     /// Create a new TypeTable.
     pub fn new(module_id: ModuleId) -> Self {
@@ -252,6 +266,7 @@ impl TypeTable {
             inferred_type_by_node_id: IndexMap::new(),
             signature_type_by_node_id: IndexMap::new(),
             addressability_by_node_id: IndexMap::new(),
+            runtime_check_kind_by_node_id: IndexMap::new(),
             // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
@@ -420,6 +435,16 @@ impl TypeTable {
             }
             _ => None,
         }
+    }
+
+    /// Record a runtime check kind for a guard expression.
+    pub fn set_runtime_check_kind(&mut self, node_id: GlobalNodeIdAny, kind: RuntimeCheckKind) {
+        self.runtime_check_kind_by_node_id.insert(node_id, kind);
+    }
+
+    /// Get the runtime check kind for a guard expression.
+    pub fn runtime_check_kind(&self, node_id: GlobalNodeIdAny) -> Option<RuntimeCheckKind> {
+        self.runtime_check_kind_by_node_id.get(&node_id).copied()
     }
 
     /// Resolve the base type for index or member access.

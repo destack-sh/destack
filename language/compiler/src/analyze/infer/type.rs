@@ -1301,11 +1301,29 @@ impl Compiler {
                 }
                 Type::Value { value: right_ty_id }
             }
-            TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
-                // normalize readonly or const modifiers
+            TypeUnaryOperator::Readonly => {
+                // normalize readonly modifiers
                 let right_ty_id = self.unwrap_type_value(right_ty_id, types);
-                let readonly_id =
-                    self.materialize_readonly_type(expression_id.into_any(), right_ty_id, types);
+                let deep_readonly = self
+                    .analyze_context_options_for_module(module.id)
+                    .deep_readonly;
+                let readonly_id = self.materialize_readonly_type(
+                    expression_id.into_any(),
+                    right_ty_id,
+                    types,
+                    deep_readonly,
+                );
+                types.get_type(readonly_id).clone()
+            }
+            TypeUnaryOperator::AsConst => {
+                // normalize const modifiers with deep readonly
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let readonly_id = self.materialize_readonly_type(
+                    expression_id.into_any(),
+                    right_ty_id,
+                    types,
+                    true,
+                );
                 types.get_type(readonly_id).clone()
             }
             TypeUnaryOperator::Keyof => {
@@ -1523,6 +1541,21 @@ impl Compiler {
                     }
                 }
 
+                // record runtime check kind for guard expressions
+                let value_type_id = self.unwrap_type_value(left_ty_id, types);
+                let runtime_check_kind = self.runtime_check_kind_for_relation(
+                    module,
+                    profile,
+                    symbols,
+                    value_type_id,
+                    target_ty_id,
+                    types,
+                    options,
+                );
+                if let Some(kind) = runtime_check_kind {
+                    types.set_runtime_check_kind(expression_id.into_global_any(module.id), kind);
+                }
+
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::Boolean),
                 }
@@ -1655,9 +1688,14 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         ty_id: LocalTypeId,
         types: &mut TypeTable,
+        deep_readonly: bool,
     ) -> LocalTypeId {
         let mut rewriter = ReadonlyMaterializer::new(source_id);
-        rewriter.rewrite_type_id(types, ty_id)
+        if deep_readonly {
+            return rewriter.rewrite_type_id(types, ty_id);
+        }
+
+        rewriter.apply_shallow(types, ty_id)
     }
 
     /// Infer the result type of a value of operation.
