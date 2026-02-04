@@ -352,13 +352,14 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
             // literals
             dir::Expression::ScalarLiteral { value } => {
                 let token_type = match value {
-                    dir::ScalarLiteral::String(_)
-                    | dir::ScalarLiteral::Character(_)
-                    | dir::ScalarLiteral::RegexString { .. } => SemanticTokenType::String,
+                    dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Character(_) => {
+                        SemanticTokenType::String
+                    }
+                    dir::ScalarLiteral::RegexString { .. } => SemanticTokenType::Regexp,
                     dir::ScalarLiteral::Integer(_)
                     | dir::ScalarLiteral::Float(_)
-                    | dir::ScalarLiteral::Bigint(_)
-                    | dir::ScalarLiteral::Boolean(_) => SemanticTokenType::Number,
+                    | dir::ScalarLiteral::Bigint(_) => SemanticTokenType::Number,
+                    dir::ScalarLiteral::Boolean(_) => SemanticTokenType::Keyword,
                 };
                 tokens.push(SemanticToken::new(span, token_type));
             }
