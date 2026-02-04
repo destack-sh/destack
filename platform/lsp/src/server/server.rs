@@ -4,7 +4,8 @@ use std::sync::{Arc, OnceLock};
 use dashmap::DashMap;
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
 use destack_daemon::protocol::{
-    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord, FileSnapshot,
+    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
+    FileSnapshot, RescanReason,
 };
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
@@ -37,7 +38,10 @@ pub const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
 /// State for an open document.
 #[derive(Debug)]
 struct OpenDocument {
+    /// The file id in the session registry.
     file_id: FileId,
+    /// The current in editor document text normalized to LF.
+    text: String,
 }
 
 /// The Destack language server.
@@ -469,7 +473,7 @@ impl LanguageServer for DestackLanguageServer {
         // declare server capabilities
         let capabilities = lsp::ServerCapabilities {
             text_document_sync: Some(lsp::TextDocumentSyncCapability::Kind(
-                lsp::TextDocumentSyncKind::FULL,
+                lsp::TextDocumentSyncKind::INCREMENTAL,
             )),
             hover_provider: Some(lsp::HoverProviderCapability::Simple(true)),
             definition_provider: Some(lsp::OneOf::Left(true)),
@@ -517,7 +521,7 @@ impl LanguageServer for DestackLanguageServer {
             inlay_hint_provider: Some(lsp::OneOf::Left(true)),
             implementation_provider: Some(lsp::ImplementationProviderCapability::Simple(true)),
             call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
-            // NOTE #Incomplete: type_hierarchy_provider not in lsp-types ServerCapabilities (?)
+            type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
             workspace: Some(lsp::WorkspaceServerCapabilities {
                 workspace_folders: Some(lsp::WorkspaceFoldersServerCapabilities {
                     supported: Some(true),
@@ -564,6 +568,24 @@ impl LanguageServer for DestackLanguageServer {
         self.register_file_watchers().await;
     }
 
+    async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
+        let Some(daemon) = self.daemon.get() else {
+            return;
+        };
+
+        // rescan workspaces so config changes refresh diagnostics
+        let result = match daemon.rescan_all(RescanReason::Manual) {
+            Ok(result) => result,
+            Err(error) => {
+                tracing::debug!(?error, "lsp.config.rescan_failed");
+                return;
+            }
+        };
+
+        self.publish_watch_updates(result.updates).await;
+        self.publish_watch_messages(result.messages).await;
+    }
+
     async fn shutdown(&self) -> jsonrpc::Result<()> {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.shutdown")
@@ -580,7 +602,7 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
         let uri_str = params.text_document.uri.to_string();
-        let content = params.text_document.text;
+        let content = normalize_line_endings(params.text_document.text);
 
         self.client
             .log_message(lsp::MessageType::INFO, format!("did_open: {uri_str}"))
@@ -600,23 +622,39 @@ impl LanguageServer for DestackLanguageServer {
         self.overlay_fs.set_overlay(&path, content.clone());
 
         // invalidate and publish diagnostics
-        self.invalidate_and_publish(&params.text_document.uri, &path, content)
+        self.invalidate_and_publish(&params.text_document.uri, &path, content.clone())
             .await;
 
         // track open document after the file registry is updated
         let Some(file_id) = session.files.get_id_by_path(&path) else {
             return;
         };
-        self.open_documents
-            .insert(uri_str, OpenDocument { file_id });
+        self.open_documents.insert(
+            uri_str,
+            OpenDocument {
+                file_id,
+                text: content,
+            },
+        );
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
-        // full sync: we receive entire new content
-        let Some(change) = params.content_changes.into_iter().next() else {
+        // incremental sync: apply change ranges to stored text
+        if params.content_changes.is_empty() {
             return;
         };
-        let content = change.text;
+        let uri_str = params.text_document.uri.to_string();
+        let content = {
+            let Some(mut entry) = self.open_documents.get_mut(&uri_str) else {
+                return;
+            };
+            let applied = apply_text_changes(&mut entry.text, &params.content_changes);
+            if !applied {
+                tracing::debug!(uri = %uri_str, "lsp.did_change.apply_failed");
+                return;
+            }
+            entry.text.clone()
+        };
         let Some(path) = params
             .text_document
             .uri
@@ -2094,4 +2132,96 @@ fn format_range(
     }
 
     Some((result, actual_range))
+}
+
+/// Normalize line endings to LF.
+fn normalize_line_endings(content: String) -> String {
+    if content.contains('\r') {
+        content.replace("\r\n", "\n").replace('\r', "\n")
+    } else {
+        content
+    }
+}
+
+/// Build line start offsets for a string.
+fn line_start_offsets(text: &str) -> Vec<u32> {
+    let mut offsets = vec![0];
+    for (index, ch) in text.char_indices() {
+        if ch == '\n' {
+            offsets.push(index as u32 + 1);
+        }
+    }
+    offsets
+}
+
+/// Convert an LSP position to a byte offset in raw text.
+fn position_to_byte_in_text(
+    text: &str,
+    line_start_offsets: &[u32],
+    position: &lsp::Position,
+) -> Option<u32> {
+    let line_index = position.line as usize;
+    let line_start = *line_start_offsets
+        .get(line_index)
+        .unwrap_or(&(text.len() as u32));
+    let next_start = line_start_offsets
+        .get(line_index + 1)
+        .copied()
+        .unwrap_or(text.len() as u32);
+    let slice = &text[line_start as usize..next_start as usize];
+
+    // walk characters counting utf16 units until we reach target
+    let mut utf16_units = 0u32;
+    let mut byte_offset = 0usize;
+    for ch in slice.chars() {
+        if utf16_units >= position.character {
+            break;
+        }
+        let ch_units = ch.len_utf16() as u32;
+        if utf16_units + ch_units > position.character {
+            break;
+        }
+        utf16_units += ch_units;
+        byte_offset += ch.len_utf8();
+    }
+
+    // if we didn't reach the target character, clamp to end of line
+    if utf16_units < position.character {
+        return Some(next_start);
+    }
+
+    Some(line_start + byte_offset as u32)
+}
+
+/// Apply a batch of incremental text changes to the document text.
+fn apply_text_changes(text: &mut String, changes: &[lsp::TextDocumentContentChangeEvent]) -> bool {
+    for change in changes {
+        let change_text = normalize_line_endings(change.text.clone());
+        let Some(range) = &change.range else {
+            *text = change_text;
+            continue;
+        };
+
+        let line_offsets = line_start_offsets(text);
+        let Some(start) = position_to_byte_in_text(text, &line_offsets, &range.start) else {
+            return false;
+        };
+        let Some(end) = position_to_byte_in_text(text, &line_offsets, &range.end) else {
+            return false;
+        };
+        let (start, end) = if start <= end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        let start = start as usize;
+        let end = end as usize;
+        if !text.is_char_boundary(start) || !text.is_char_boundary(end) {
+            return false;
+        }
+
+        text.replace_range(start..end, &change_text);
+    }
+
+    true
 }

@@ -31,7 +31,7 @@ pub const SEMANTIC_TOKEN_TYPES: [lsp::SemanticTokenType; 22] = [
 ];
 
 /// Semantic token modifiers in legend order (bit index = modifier id).
-pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 10] = [
+pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 11] = [
     lsp::SemanticTokenModifier::DECLARATION,
     lsp::SemanticTokenModifier::DEFINITION,
     lsp::SemanticTokenModifier::READONLY,
@@ -42,6 +42,7 @@ pub const SEMANTIC_TOKEN_MODIFIERS: [lsp::SemanticTokenModifier; 10] = [
     lsp::SemanticTokenModifier::MODIFICATION,
     lsp::SemanticTokenModifier::DOCUMENTATION,
     lsp::SemanticTokenModifier::DEFAULT_LIBRARY,
+    lsp::SemanticTokenModifier::new("mutable"),
 ];
 
 /// Build the legend advertised to the client.
@@ -83,47 +84,139 @@ fn token_type_to_index(token_type: query::SemanticTokenType) -> u32 {
 
 /// Convert semantic tokens to delta-encoded LSP format.
 pub fn tokens_to_lsp(file: &File, tokens: &[query::SemanticToken]) -> Vec<lsp::SemanticToken> {
+    // set up delta encoding state
     let mut result = Vec::with_capacity(tokens.len());
     let mut prev_line = 0u32;
     let mut prev_char = 0u32;
 
+    // emit tokens in document order
     for token in tokens {
-        // convert byte offset to line/column
-        let Some((line, character)) = byte_to_utf16_position(file, token.span.start) else {
+        // resolve token positions
+        let Some((start_line, start_char)) = byte_to_utf16_position(file, token.span.start) else {
             continue;
         };
         let Some((end_line, end_char)) = byte_to_utf16_position(file, token.span.end) else {
             continue;
         };
 
-        // compute length (handle multi-line tokens)
-        let length = if line == end_line {
-            end_char - character
-        } else {
-            // for multi-line tokens, just use end of first line
-            // this is a simplification; proper handling would split tokens
-            end_char
+        // cache type and modifiers for split segments
+        let token_type = token_type_to_index(token.token_type);
+        let modifiers = token.modifiers.bits();
+
+        // emit single line tokens
+        if start_line == end_line {
+            let length = end_char.saturating_sub(start_char);
+            if length == 0 {
+                continue;
+            }
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                start_line,
+                start_char,
+                length,
+                token_type,
+                modifiers,
+            );
+            continue;
+        }
+
+        // emit first line segment
+        let Some(line_span) = file.get_line_span(start_line) else {
+            continue;
         };
+        if let Some(length) = utf16_len_between(file, token.span.start, line_span.end) {
+            if length > 0 {
+                push_token(
+                    &mut result,
+                    &mut prev_line,
+                    &mut prev_char,
+                    start_line,
+                    start_char,
+                    length,
+                    token_type,
+                    modifiers,
+                );
+            }
+        }
 
-        // compute deltas
-        let delta_line = line - prev_line;
-        let delta_start = if delta_line == 0 {
-            character - prev_char
-        } else {
-            character
-        };
+        // emit middle line segments
+        for line in (start_line + 1)..end_line {
+            let Some(line_span) = file.get_line_span(line) else {
+                continue;
+            };
+            if let Some(length) = utf16_len_between(file, line_span.start, line_span.end) {
+                if length > 0 {
+                    push_token(
+                        &mut result,
+                        &mut prev_line,
+                        &mut prev_char,
+                        line,
+                        0,
+                        length,
+                        token_type,
+                        modifiers,
+                    );
+                }
+            }
+        }
 
-        result.push(lsp::SemanticToken {
-            delta_line,
-            delta_start,
-            length,
-            token_type: token_type_to_index(token.token_type),
-            token_modifiers_bitset: token.modifiers.bits(),
-        });
-
-        prev_line = line;
-        prev_char = character;
+        // emit last line segment
+        if end_char > 0 {
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                end_line,
+                0,
+                end_char,
+                token_type,
+                modifiers,
+            );
+        }
     }
 
     result
+}
+
+/// Convert a byte span to utf16 length.
+fn utf16_len_between(file: &File, start: u32, end: u32) -> Option<u32> {
+    if start > end || end > file.len {
+        return None;
+    }
+    let slice = &file.text()[start as usize..end as usize];
+    Some(slice.encode_utf16().count() as u32)
+}
+
+/// Push a token in delta encoded form.
+fn push_token(
+    output: &mut Vec<lsp::SemanticToken>,
+    prev_line: &mut u32,
+    prev_char: &mut u32,
+    line: u32,
+    character: u32,
+    length: u32,
+    token_type: u32,
+    modifiers: u32,
+) {
+    // compute delta encoding
+    let delta_line = line.saturating_sub(*prev_line);
+    let delta_start = if delta_line == 0 {
+        character.saturating_sub(*prev_char)
+    } else {
+        character
+    };
+
+    output.push(lsp::SemanticToken {
+        delta_line,
+        delta_start,
+        length,
+        token_type,
+        token_modifiers_bitset: modifiers,
+    });
+
+    // update previous position
+    *prev_line = line;
+    *prev_char = character;
 }
