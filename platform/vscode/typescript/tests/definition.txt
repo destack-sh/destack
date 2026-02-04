@@ -3,6 +3,13 @@
 struct Foo {}
 //      ^ entity.name.type.definition.ds
 
+struct Point {
+    x: float32
+//  ^ variable.other.property.ds
+    y: float32
+//  ^ variable.other.property.ds
+}
+
 interface Bar {}
 //         ^ entity.name.type.definition.ds
 
@@ -14,6 +21,25 @@ namespace MyNs {}
 
 newtype UserId {}
 //        ^ entity.name.type.definition.ds
+
+enum Status {
+    Active
+//  ^^^^^^ variable.other.enummember.ds
+    Inactive = 2
+//  ^^^^^^^^ variable.other.enummember.ds
+    Pending(Result)
+//  ^^^^^^^ variable.other.enummember.ds
+}
+
+union Result {
+    Ok(Value)
+//  ^^ variable.other.enummember.ds
+    Err(Error)
+//  ^^^ variable.other.enummember.ds
+}
+
+type Alias = Foo
+//   ^^^^^ entity.name.type.definition.ds
 
 newtype interface Foo {}
 //  ^ keyword.declaration.type.ds

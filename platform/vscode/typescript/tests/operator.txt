@@ -22,10 +22,10 @@ value + -other
 value + -%other
 //      ^^ keyword.operator.addition.ds
 
-0..10
+  0..10
 // ^^ keyword.operator.range.ds
 
-0..=10
+  0..=10
 // ^^^ keyword.operator.range.ds
 
 value => value
@@ -210,6 +210,10 @@ value ??= other
 // type operators
 value as Type
 //    ^^ keyword.operator.type.binary.ds
+
+value as const
+//    ^^ keyword.operator.type.binary.ds
+//       ^^^^^ keyword.declaration.type.ds
 
 value is Type
 //    ^^ keyword.operator.type.binary.ds
