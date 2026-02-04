@@ -62,7 +62,7 @@ pub enum FileType {
     DestackAst,
     /// `.dir` - Destack DIR cache
     DestackDir,
-    /// `.mir` - Destack MIR cache
+    /// `.mir` - Destack MIR text
     DestackMir,
 
     // media: coarse categories (pass-through)
@@ -309,7 +309,12 @@ impl FileType {
     pub fn is_text(&self) -> bool {
         matches!(
             self,
-            FileType::Text | FileType::Markdown | FileType::Html | FileType::Css | FileType::Svg
+            FileType::Text
+                | FileType::Markdown
+                | FileType::Html
+                | FileType::Css
+                | FileType::Svg
+                | FileType::DestackMir
         )
     }
 
@@ -323,7 +328,6 @@ impl FileType {
                 | FileType::DestackBinary
                 | FileType::DestackAst
                 | FileType::DestackDir
-                | FileType::DestackMir
                 | FileType::Image
                 | FileType::Font
                 | FileType::Audio
