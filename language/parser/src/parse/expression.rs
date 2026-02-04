@@ -241,10 +241,15 @@ impl Parser {
         AssignOperator::from_token(token.token.ty).ok_or(ParseError::unexpected(token.span))
     }
 
-    /// Return true when the next token could be an infix or assign operator.
+    /// Return true when a token index could be an infix or assign operator.
     #[inline]
-    fn has_infix_or_assign_operator_fast(&self) -> bool {
-        let token_type = self.peek_token_type();
+    fn has_infix_or_assign_operator_at_index(&self, index: usize) -> bool {
+        let token_type = self
+            .tokens
+            .get(index)
+            .unwrap_or(&self.eof_token)
+            .token
+            .ty;
         if AssignOperator::from_token(token_type).is_some() {
             return true;
         }
@@ -255,7 +260,7 @@ impl Parser {
             return false;
         }
         matches!(
-            self.keyword_for_index(self.pos_index()),
+            self.keyword_for_index(index),
             Some(
                 Keyword::In
                     | Keyword::InstanceOf
@@ -333,72 +338,95 @@ impl Parser {
 
     /// Check whether a parsed static argument list can be followed in expression position.
     #[inline]
-    pub fn can_follow_type_arguments_in_expression(&self) -> bool {
-        if self.peek_is(TokenType::End) {
+    pub fn can_follow_type_arguments_in_expression(&mut self) -> bool {
+        let index = if self.peek_is(TokenType::Newline) {
+            self.next_non_newline_index_from(self.pos_index())
+        } else {
+            self.pos_index()
+        };
+        self.can_follow_type_arguments_at_index(index)
+    }
+
+    /// Check whether a static argument list can be followed by a specific token.
+    fn can_follow_type_arguments_at_index(&self, index: usize) -> bool {
+        let token_type = self
+            .tokens
+            .get(index)
+            .unwrap_or(&self.eof_token)
+            .token
+            .ty;
+
+        // allow end and static closers
+        if token_type == TokenType::End {
             return true;
         }
-        if self.options.in_static && self.peek_is(TokenType::GreaterThan) {
+        if self.options.in_static && token_type == TokenType::GreaterThan {
             return true;
         }
-        if self.options.in_ternary_condition
-            && (self.peek_is(TokenType::Colon)
-                || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Colon))
-        {
+
+        // allow ternary and arrow continuations
+        if self.options.in_ternary_condition && token_type == TokenType::Colon {
             return true;
         }
         if self.options.in_type
-            && (self.peek_is(TokenType::Arrow) || self.peek_is(TokenType::ArrowWide))
+            && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
         {
             return true;
         }
+
         // allow statement-start keywords after static args in new receivers
         if self.options.in_new_receiver
-            && self.peek_is(TokenType::Identifier)
-            && self.peek_any_keyword().is_ok()
+            && token_type == TokenType::Identifier
+            && self.keyword_for_index(index).is_some()
         {
             return true;
         }
-        if self.is_any_stop() {
+
+        // allow stops and delimiters
+        if matches!(
+            token_type,
+            TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
+        ) {
             return true;
         }
-        if self
-            .peek_token_in(&[
-                TokenType::CloseParenthesis,
-                TokenType::CloseBracket,
-                TokenType::CloseBrace,
-            ])
-            .is_ok()
-        {
+        if matches!(
+            token_type,
+            TokenType::CloseParenthesis | TokenType::CloseBracket | TokenType::CloseBrace
+        ) {
             return true;
         }
-        if self
-            .peek_token_in(&[
-                TokenType::OpenParenthesis,
-                TokenType::OpenBracket,
-                TokenType::Dot,
-            ])
-            .is_ok()
-        {
+        if matches!(
+            token_type,
+            TokenType::OpenParenthesis | TokenType::OpenBracket | TokenType::Dot
+        ) {
             return true;
         }
-        if self.peek_is(TokenType::Maybe) {
+        if token_type == TokenType::Maybe {
             return true;
         }
+        if matches!(token_type, TokenType::TemplateString | TokenType::TemplateStringStart) {
+            return true;
+        }
+
         // allow heritage terminators after static arguments
         if self.options.in_super_type {
-            if self.peek_is(TokenType::OpenBrace) {
+            if token_type == TokenType::OpenBrace {
                 return true;
             }
-            if self.peek_keyword(Keyword::Implements).is_ok()
-                || self.peek_keyword(Keyword::With).is_ok()
-                || self.peek_keyword(Keyword::Where).is_ok()
+            if token_type == TokenType::Identifier
+                && matches!(
+                    self.keyword_for_index(index),
+                    Some(Keyword::Implements | Keyword::With | Keyword::Where)
+                )
             {
                 return true;
             }
         }
-        if self.has_infix_or_assign_operator_fast() {
+
+        if self.has_infix_or_assign_operator_at_index(index) {
             return true;
         }
+
         false
     }
 
@@ -786,6 +814,27 @@ impl Parser {
         }
 
         false
+    }
+
+    /// Check whether a using declaration can be parsed at the current position.
+    fn can_parse_using_declaration(
+        &mut self,
+        descriptor: &DeclarationDescriptor,
+        asynchrony: Asynchrony,
+    ) -> bool {
+        // only allow using declarations in statement position
+        if !self.options.in_statement_position {
+            return false;
+        }
+
+        // speculatively parse a using declaration
+        let speculative_start = self.mark();
+        let speculative_start_idx = self.tree.next_id();
+        let result = self
+            .eat_using(speculative_start, descriptor.clone(), asynchrony)
+            .is_ok();
+        self.restore(speculative_start, speculative_start_idx);
+        result
     }
 
     /// Eat declaration modifiers and return a descriptor or a parsed expression.
@@ -1310,7 +1359,7 @@ impl Parser {
                     Ok(None)
                 }
             }
-            Keyword::Delete if next_token_type == TokenType::Identifier => {
+            Keyword::Delete if next_token_type != TokenType::Colon => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 Ok(Some(self.eat_delete()?))
             }
@@ -1363,7 +1412,11 @@ impl Parser {
             }
             Keyword::Using => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
-                Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
+                    Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                } else {
+                    Ok(None)
+                }
             }
             Keyword::Type | Keyword::Readonly => {
                 let can_start_type_alias = matches!(
@@ -1422,12 +1475,7 @@ impl Parser {
                 Ok(Some(self.eat_continue()?))
             }
             Keyword::Await => {
-                let next_keyword = if next_token_type == TokenType::Identifier {
-                    self.keyword_for_index(self.index_for_next())
-                } else {
-                    None
-                };
-                if next_keyword == Some(Keyword::Using) {
+                if self.can_parse_using_declaration(&descriptor, Asynchrony::Async) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_using(
                         start,
@@ -1945,6 +1993,7 @@ impl Parser {
                         );
                         let has_colon = matches!(next_token_type, Some(TokenType::Colon));
                         let is_colon_lambda_allowed = has_colon
+                            && (self.language.is_destack() || self.language.is_typescript())
                             && !self.options.in_before_type
                             && !self.options.in_match_case
                             && (!self.options.in_type
@@ -1953,8 +2002,7 @@ impl Parser {
                         let mut lambda_expression_id = None;
 
                         // parse lambda when we see a likely arrow or colon
-                        if (has_arrow || is_colon_lambda_allowed)
-                            && !self.options.in_arrow_return_type
+                        if (has_arrow || is_colon_lambda_allowed) && !self.options.in_arrow_return_type
                         {
                             // avoid colon lambdas that are actually ternary type tuples
                             if self.options.in_ternary_condition && has_colon {
@@ -2363,8 +2411,8 @@ impl Parser {
             }
             // eat all regular postfix operators
             while self.has_more_tokens() {
-                // stop before ternary boundary so postfix parsing does not consume ':'
-                if self.options.in_ternary_condition
+                // stop before ternary or switch case boundary so postfix parsing does not consume ':'
+                if (self.options.in_ternary_condition || self.options.in_match_case)
                     && (self.peek_is(TokenType::Colon)
                         || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Colon))
                 {
@@ -2734,10 +2782,12 @@ impl Parser {
                                 continue;
                             }
                             // parse next expression
-                            let expr_id = self
-                                .with_options(self.options.not_in_position(), |parser| {
-                                    parser.eat_expression()
-                                })?;
+                            let expr_id = self.with_options(
+                                self.options
+                                    .not_in_position()
+                                    .not_in_sequence_expression(),
+                                |parser| parser.eat_expression(),
+                            )?;
                             expressions.push(expr_id);
                             self.eat_newlines_maybe()?;
                         }
@@ -2908,13 +2958,20 @@ impl Parser {
         if !self.options.in_type
             && self.options.left_precedence.is_none()
             && self.options.allow_sequence_expression
-            && self.language.is_typescript()
+            && (self.language.is_typescript() || self.language.is_javascript())
             && (self.peek_is(TokenType::Comma)
                 || self.peek_is(TokenType::Newline) && self.peek_next_is(TokenType::Comma))
         {
             let mut expressions = vec![left_expression_id];
             loop {
-                self.eat_newlines_maybe()?;
+                if self.peek_is(TokenType::Newline) {
+                    let has_comma_after_newlines =
+                        self.peek_token_after_newlines(self.pos(), TokenType::Comma).is_ok();
+                    if !has_comma_after_newlines {
+                        break;
+                    }
+                    self.eat_newlines_maybe()?;
+                }
                 if !self.peek_is(TokenType::Comma) {
                     break;
                 }

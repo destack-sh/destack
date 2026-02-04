@@ -130,7 +130,10 @@ impl Parser {
                             .insert(Pattern::Wildcard, self.get_span_from(pattern_start))
                     } else {
                         let value = self.with_options(
-                            self.options.in_match_case().in_before_block(),
+                            self.options
+                                .not_in_position()
+                                .in_match_case()
+                                .in_before_block(),
                             |parser| parser.eat_expression(),
                         )?;
                         self.tree.insert(
@@ -204,11 +207,44 @@ impl Parser {
         else if kind == MatchKind::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
             self.eat_newlines_maybe()?;
+            // empty case body before the next case, default, or closing brace
+            let is_empty_case = self.peek_keyword(Keyword::Case).is_ok()
+                || self.peek_keyword(Keyword::Default).is_ok()
+                || self.peek_is(TokenType::CloseBrace)
+                || self.peek_is(TokenType::Newline)
+                    && (self.peek_keyword_after_newlines(Keyword::Case).is_ok()
+                        || self.peek_keyword_after_newlines(Keyword::Default).is_ok()
+                        || self
+                            .peek_token_after_newlines(self.pos(), TokenType::CloseBrace)
+                            .is_ok());
+            if is_empty_case {
+                self.eat_newlines_maybe()?;
+                let block_id = self.tree.insert(
+                    Block {
+                        format: BlockFormat::Implicit,
+                        expressions: Vec::new(),
+                    },
+                    self.get_span_from(start),
+                );
+                let match_case_id = self.tree.insert(
+                    MatchCase::Block {
+                        selector,
+                        body: block_id,
+                    },
+                    self.get_span_from(start),
+                );
+                return Ok(match_case_id);
+            }
             let mut expressions: Vec<LocalNodeId<Expression>> = Vec::new();
-            while self.peek_keyword(Keyword::Case).is_err()
-                && self.peek_keyword(Keyword::Default).is_err()
-                && !self.peek_is(TokenType::CloseBrace)
-            {
+            loop {
+                // skip empty lines before statements
+                self.eat_newlines_maybe()?;
+                if self.peek_keyword(Keyword::Case).is_ok()
+                    || self.peek_keyword(Keyword::Default).is_ok()
+                    || self.peek_is(TokenType::CloseBrace)
+                {
+                    break;
+                }
                 let expression_id = self.try_eat_expression(TokenType::Newline)?;
                 expressions.push(expression_id);
                 if self.is_any_stop() {

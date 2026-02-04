@@ -55,7 +55,9 @@ impl Parser {
     #[inline]
     pub fn peek_block(&self) -> ParseResult<()> {
         if self.peek_is(TokenType::OpenBrace)
-            || self.peek_keyword(Keyword::Do).is_ok() && self.peek_next_is(TokenType::OpenBrace)
+            || self.language.is_destack()
+                && self.peek_keyword(Keyword::Do).is_ok()
+                && self.peek_next_is(TokenType::OpenBrace)
         {
             Ok(())
         } else {
@@ -70,7 +72,8 @@ impl Parser {
     #[inline]
     pub fn peek_next_block(&self) -> ParseResult<()> {
         if self.peek_next_is(TokenType::OpenBrace)
-            || self.peek_next_keyword(Keyword::Do).is_ok()
+            || self.language.is_destack()
+                && self.peek_next_keyword(Keyword::Do).is_ok()
                 && self.peek_next_next_token(TokenType::OpenBrace).is_ok()
         {
             Ok(())
@@ -92,7 +95,7 @@ impl Parser {
         let start = self.mark();
 
         // `do` prefix
-        if self.peek_keyword(Keyword::Do).is_ok() {
+        if self.language.is_destack() && self.peek_keyword(Keyword::Do).is_ok() {
             self.bump(); // eat keyword
         }
 

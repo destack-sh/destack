@@ -26,7 +26,10 @@ impl Parser {
             if self.peek_is(TokenType::CloseParenthesis) {
                 Some(vec![])
             } else {
-                Some(self.eat_positional_arguments_body(TokenType::CloseParenthesis)?)
+                let arguments = self.with_options(self.options.nested(), |parser| {
+                    parser.eat_positional_arguments_body(TokenType::CloseParenthesis)
+                })?;
+                Some(arguments)
             }
         } else {
             None
@@ -503,6 +506,7 @@ impl Parser {
     ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
         if self.peek_keyword(Keyword::With).is_ok() || self.peek_keyword(Keyword::Assert).is_ok() {
             self.bump(); // eat with or assert
+            self.eat_newlines_maybe()?;
             self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)?;
             let arguments = self.with_options(self.options.nested(), |parser| {
                 parser.eat_arguments_body(TokenType::CloseBrace)

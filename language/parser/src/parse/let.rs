@@ -158,6 +158,7 @@ impl Parser {
         }
 
         // using keyword
+        self.eat_newlines_maybe()?;
         self.eat_keyword(Keyword::Using)?;
 
         // parse declarators (comma-separated list)
@@ -285,7 +286,12 @@ impl Parser {
         };
 
         // value
-        let value = if self.peek_is(TokenType::Assign) {
+        let value = if self.peek_is(TokenType::Assign)
+            || self
+                .peek_token_after_newlines(self.pos(), TokenType::Assign)
+                .is_ok()
+        {
+            self.eat_newlines_maybe()?;
             self.bump(); // eat assign
             self.eat_newlines_maybe()?;
             Some(self.with_options(
