@@ -184,6 +184,42 @@ declare const value;
 
 - contains: implicit any
 
+## noUntrustedDeclarations
+
+### noUntrustedDeclarations rejects declaration files when true
+
+> Untrusted declaration files are rejected when noUntrustedDeclarations is true.
+
+```ts:main.d.ts
+export const value: string;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUntrustedDeclarations": true } }
+```
+
+- contains: untrusted declaration files are disabled
+
+### noUntrustedDeclarations allows declaration files when false
+
+> Declaration files are allowed when noUntrustedDeclarations is false.
+
+```ts:main.d.ts
+export const value: string;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUntrustedDeclarations": false } }
+```
+
 ## alwaysStrict
 
 ### alwaysStrict does not permit duplicate parameters
