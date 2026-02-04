@@ -611,6 +611,12 @@ impl ProtocolServer {
 
                     query::QueryResponse::Rename(query::RenameResponse { result })
                 }
+                query::QueryRequest::RenameFiles(params) => {
+                    // compute rename files when available
+                    let result = query::rename_files(session, &params.renames);
+
+                    query::QueryResponse::RenameFiles(query::RenameFilesResponse { result })
+                }
                 query::QueryRequest::CodeActions(params) => {
                     // resolve the file id
                     let file_id = self.resolve_file_id(program, &params.uri);

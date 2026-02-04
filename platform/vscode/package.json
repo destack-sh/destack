@@ -63,6 +63,11 @@
                     "type": "string",
                     "default": "",
                     "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
+                },
+                "destack.completion.autoImports": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Include auto import completions in the completion list."
                 }
             }
         },

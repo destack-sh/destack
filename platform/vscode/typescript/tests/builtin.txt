@@ -42,6 +42,12 @@ int
 uint
 // <- support.type.numeric.ds
 
+isize
+// <- support.type.numeric.ds
+
+usize
+// <- support.type.numeric.ds
+
 float
 // <- support.type.numeric.ds
 

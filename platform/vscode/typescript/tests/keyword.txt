@@ -48,8 +48,16 @@ package
 import
 // <- keyword.declaration.import.ds
 
+import type Foo from "bar"
+// <- keyword.declaration.import.ds
+//     ^^^^ keyword.declaration.type.ds
+
 export
 // <- keyword.declaration.import.ds
+
+export type { Foo }
+// <- keyword.declaration.import.ds
+//     ^^^^ keyword.declaration.type.ds
 
 from
 // <- keyword.declaration.import.ds
