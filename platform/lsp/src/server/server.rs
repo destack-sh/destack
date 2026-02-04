@@ -1,6 +1,7 @@
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use dashmap::{DashMap, DashSet};
 use destack_daemon::protocol::{
@@ -29,15 +30,17 @@ use crate::query::navigation::{
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
 use crate::server::daemon::LspDaemonClient;
-use crate::server::helpers::{
+use crate::server::file::{
     apply_text_changes, build_file_watchers, completion_kind_to_lsp, create_daemon_client,
     diagnostic_result_id, format_file, format_range, lsp_uri_for_file, normalize_line_endings,
-    semantic_tokens_edits, tracked_file_globs, upsert_file_from_snapshot,
+    tracked_file_globs, upsert_file_from_snapshot,
 };
 use crate::server::progress::WorkDoneProgressTracker;
+use crate::server::token::semantic_tokens_edits;
 
 const PARTIAL_RESULT_CHUNK_SIZE: usize = 128;
 const WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE: usize = 128;
+const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
 
 /// State for an open document.
 #[derive(Debug)]
@@ -57,6 +60,29 @@ struct CompletionResolveData {
     documentation: Option<String>,
 }
 
+/// Configuration for completion behavior.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CompletionSettings {
+    /// Whether auto import completions are enabled.
+    auto_imports: Option<bool>,
+}
+
+impl Default for CompletionSettings {
+    fn default() -> Self {
+        Self {
+            auto_imports: Some(true),
+        }
+    }
+}
+
+/// LSP configuration settings.
+#[derive(Debug, Clone, Default)]
+struct LspSettings {
+    /// Completion-related settings.
+    completion: CompletionSettings,
+}
+
 /// Cached semantic tokens for a document.
 #[derive(Debug, Clone)]
 struct SemanticTokensCache {
@@ -64,6 +90,8 @@ struct SemanticTokensCache {
     result_id: String,
     /// The last token payload.
     data: Vec<lsp::SemanticToken>,
+    /// The hash of the cached token payload.
+    hash: u64,
 }
 
 /// The Destack language server.
@@ -87,6 +115,10 @@ pub struct DestackLanguageServer {
     cancelled_progress_tokens: DashSet<lsp::ProgressToken>,
     /// The watch registration ID.
     watch_registration_id: OnceLock<String>,
+    /// Whether completion label details are supported by the client.
+    completion_label_details_supported: OnceLock<bool>,
+    /// LSP configuration settings.
+    settings: RwLock<LspSettings>,
 }
 
 impl DestackLanguageServer {
@@ -104,6 +136,8 @@ impl DestackLanguageServer {
             semantic_tokens_counter: AtomicU64::new(1),
             cancelled_progress_tokens: DashSet::new(),
             watch_registration_id: OnceLock::new(),
+            completion_label_details_supported: OnceLock::new(),
+            settings: RwLock::new(LspSettings::default()),
         }
     }
 
@@ -125,6 +159,68 @@ impl DestackLanguageServer {
         self.semantic_tokens_counter
             .fetch_add(1, Ordering::Relaxed)
             .to_string()
+    }
+
+    /// Compute a hash for semantic tokens.
+    fn semantic_tokens_hash(tokens: &[lsp::SemanticToken]) -> u64 {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        tokens.len().hash(&mut hasher);
+        for token in tokens {
+            token.delta_line.hash(&mut hasher);
+            token.delta_start.hash(&mut hasher);
+            token.length.hash(&mut hasher);
+            token.token_type.hash(&mut hasher);
+            token.token_modifiers_bitset.hash(&mut hasher);
+        }
+        hasher.finish()
+    }
+
+    /// Check whether completion label details are supported.
+    fn completion_label_details_supported(&self) -> bool {
+        self.completion_label_details_supported
+            .get()
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Check whether auto import completions are enabled.
+    fn completion_auto_imports_enabled(&self) -> bool {
+        self.settings
+            .read()
+            .map(|settings| settings.completion.auto_imports.unwrap_or(true))
+            .unwrap_or(true)
+    }
+
+    /// Refresh configuration from the client.
+    async fn refresh_configuration(&self) {
+        let items = vec![lsp::ConfigurationItem {
+            scope_uri: None,
+            section: Some("destack.completion".to_string()),
+        }];
+        let values = match self.client.configuration(items).await {
+            Ok(values) => values,
+            Err(error) => {
+                tracing::debug!(?error, "lsp.config.fetch_failed");
+                return;
+            }
+        };
+        let Some(value) = values.into_iter().next() else {
+            return;
+        };
+        let parsed = match from_value::<CompletionSettings>(value) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                tracing::debug!(?error, "lsp.config.parse_failed");
+                return;
+            }
+        };
+
+        let Ok(mut settings) = self.settings.write() else {
+            return;
+        };
+        if let Some(auto_imports) = parsed.auto_imports {
+            settings.completion.auto_imports = Some(auto_imports);
+        }
     }
 
     /// Check if a progress token has been cancelled.
@@ -400,6 +496,19 @@ impl LanguageServer for DestackLanguageServer {
         };
         let _ = self.daemon.set(daemon);
 
+        // record client completion capabilities
+        let label_details_supported = params
+            .capabilities
+            .text_document
+            .as_ref()
+            .and_then(|text| text.completion.as_ref())
+            .and_then(|completion| completion.completion_item.as_ref())
+            .and_then(|item| item.label_details_support)
+            .unwrap_or(false);
+        let _ = self
+            .completion_label_details_supported
+            .set(label_details_supported);
+
         // build file operation filters for workspace notifications
         let file_operation_filters: Vec<lsp::FileOperationFilter> = tracked_file_globs()
             .into_iter()
@@ -507,8 +616,12 @@ impl LanguageServer for DestackLanguageServer {
                         filters: file_operation_filters.clone(),
                     }),
                     will_create: None,
-                    will_rename: None,
-                    will_delete: None,
+                    will_rename: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
+                    will_delete: Some(lsp::FileOperationRegistrationOptions {
+                        filters: file_operation_filters.clone(),
+                    }),
                 }),
                 text_document_content: None,
             }),
@@ -535,9 +648,12 @@ impl LanguageServer for DestackLanguageServer {
             .await;
 
         self.register_file_watchers().await;
+        self.refresh_configuration().await;
     }
 
     async fn did_change_configuration(&self, _: lsp::DidChangeConfigurationParams) {
+        self.refresh_configuration().await;
+
         let Some(daemon) = self.daemon.get() else {
             return;
         };
@@ -764,6 +880,50 @@ impl LanguageServer for DestackLanguageServer {
 
         // apply watch updates
         self.apply_watch_events(events).await;
+    }
+
+    async fn will_rename_files(
+        &self,
+        params: lsp::RenameFilesParams,
+    ) -> jsonrpc::Result<Option<lsp::WorkspaceEdit>> {
+        // collect rename targets from uris
+        let mut renames = Vec::new();
+        for file in params.files {
+            let Ok(old_uri) = file.old_uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+            let Ok(new_uri) = file.new_uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+
+            let Some(old_path) = old_uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+            let Some(new_path) = new_uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+
+            renames.push(query::FileRenameEntry { old_path, new_path });
+        }
+
+        // build workspace edits for import specifiers
+        let Some(result) = query::rename_files(self.session(), &renames) else {
+            return Ok(None);
+        };
+        if result.is_empty() {
+            return Ok(None);
+        }
+
+        let edit = batch_edit_to_workspace_edit(self.session(), &result.edits);
+        Ok(Some(edit))
+    }
+
+    async fn will_delete_files(
+        &self,
+        params: lsp::DeleteFilesParams,
+    ) -> jsonrpc::Result<Option<lsp::WorkspaceEdit>> {
+        let _ = params;
+        Ok(None)
     }
 
     async fn did_create_files(&self, params: lsp::CreateFilesParams) {
@@ -1590,11 +1750,32 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(None);
         };
 
+        // map the LSP trigger kind to completion behavior
+        let trigger = match params.context.as_ref().map(|ctx| ctx.trigger_kind) {
+            Some(kind) if kind == lsp::CompletionTriggerKind::TRIGGER_CHARACTER => params
+                .context
+                .as_ref()
+                .and_then(|ctx| ctx.trigger_character.as_ref())
+                .and_then(|s| s.chars().next())
+                .map(query::CompletionTrigger::Character)
+                .unwrap_or(query::CompletionTrigger::Invoked),
+            Some(kind)
+                if kind == lsp::CompletionTriggerKind::TRIGGER_FOR_INCOMPLETE_COMPLETIONS =>
+            {
+                query::CompletionTrigger::Incomplete
+            }
+            _ => query::CompletionTrigger::Invoked,
+        };
+
         // query for completions
-        let trigger = query::CompletionTrigger::Invoked;
-        let completions = query::completions(session, doc.file_id, offset, trigger);
+        let mut completions = query::completions(session, doc.file_id, offset, trigger);
         if completions.is_empty() {
             return Ok(None);
+        }
+
+        // filter auto imports when disabled
+        if !self.completion_auto_imports_enabled() {
+            completions.retain(|completion| !completion.is_auto_import);
         }
 
         // convert to LSP completion items
@@ -1635,6 +1816,27 @@ impl LanguageServer for DestackLanguageServer {
                     (None, None)
                 };
 
+                let sort_text = c
+                    .sort_text
+                    .clone()
+                    .or_else(|| Some(format!("{:04}:{}", c.sort_order, c.label.as_str())));
+
+                let (detail, label_details) = if c.is_auto_import
+                    && self.completion_label_details_supported()
+                    && let Some(detail_text) = c.detail.as_ref()
+                    && let Some(path) = detail_text.strip_prefix(AUTO_IMPORT_DETAIL_PREFIX)
+                {
+                    (
+                        None,
+                        Some(lsp::CompletionItemLabelDetails {
+                            detail: None,
+                            description: Some(path.to_string()),
+                        }),
+                    )
+                } else {
+                    (c.detail.clone(), None)
+                };
+
                 let data = c.documentation.as_ref().and_then(|doc| {
                     to_value(CompletionResolveData {
                         documentation: Some(doc.clone()),
@@ -1644,12 +1846,13 @@ impl LanguageServer for DestackLanguageServer {
 
                 lsp::CompletionItem {
                     label: c.label,
+                    label_details,
                     kind: Some(completion_kind_to_lsp(c.kind)),
-                    detail: c.detail,
+                    detail,
                     documentation: None,
                     insert_text: c.insert_text,
                     insert_text_format,
-                    sort_text: c.sort_text,
+                    sort_text,
                     preselect: if c.preselect { Some(true) } else { None },
                     deprecated,
                     tags,
@@ -1660,7 +1863,12 @@ impl LanguageServer for DestackLanguageServer {
             })
             .collect();
 
-        Ok(Some(lsp::CompletionResponse::Array(items)))
+        let is_incomplete = matches!(trigger, query::CompletionTrigger::Incomplete);
+        Ok(Some(lsp::CompletionResponse::List(lsp::CompletionList {
+            is_incomplete,
+            items,
+            ..Default::default()
+        })))
     }
 
     async fn completion_resolve(
@@ -1777,12 +1985,19 @@ impl LanguageServer for DestackLanguageServer {
 
         // convert to LSP
         let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
-        let result_id = self.next_semantic_tokens_result_id();
+        let tokens_hash = Self::semantic_tokens_hash(&lsp_tokens);
+        let mut result_id = self.next_semantic_tokens_result_id();
+        if let Some(cache) = self.semantic_tokens_cache.get(&uri_str)
+            && cache.hash == tokens_hash
+        {
+            result_id = cache.result_id.clone();
+        }
         self.semantic_tokens_cache.insert(
             uri_str.clone(),
             SemanticTokensCache {
                 result_id: result_id.clone(),
                 data: lsp_tokens.clone(),
+                hash: tokens_hash,
             },
         );
 
@@ -1811,13 +2026,19 @@ impl LanguageServer for DestackLanguageServer {
 
         // convert to LSP
         let lsp_tokens = semantic::tokens_to_lsp(&file, &tokens);
-        let result_id = self.next_semantic_tokens_result_id();
+        let tokens_hash = Self::semantic_tokens_hash(&lsp_tokens);
 
+        let mut result_id = self.next_semantic_tokens_result_id();
         let mut edits = None;
-        if let Some(cache) = self.semantic_tokens_cache.get(&uri_str)
-            && cache.result_id == params.previous_result_id
-        {
-            edits = Some(semantic_tokens_edits(&cache.data, &lsp_tokens));
+        if let Some(cache) = self.semantic_tokens_cache.get(&uri_str) {
+            if cache.hash == tokens_hash {
+                result_id = cache.result_id.clone();
+                if cache.result_id == params.previous_result_id {
+                    edits = Some(Vec::new());
+                }
+            } else if cache.result_id == params.previous_result_id {
+                edits = Some(semantic_tokens_edits(&cache.data, &lsp_tokens));
+            }
         }
 
         self.semantic_tokens_cache.insert(
@@ -1825,6 +2046,7 @@ impl LanguageServer for DestackLanguageServer {
             SemanticTokensCache {
                 result_id: result_id.clone(),
                 data: lsp_tokens.clone(),
+                hash: tokens_hash,
             },
         );
 

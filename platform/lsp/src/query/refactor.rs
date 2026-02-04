@@ -1,17 +1,65 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use destack_lsp_types as lsp;
-use destack_source::BatchEdit;
+use destack_source::{BatchEdit, File, FileId};
 use destack_workspace::Session;
 
 use super::common::byte_span_to_range;
 
+/// File content view for workspace edits.
+enum FileForEdit {
+    /// A borrowed file reference.
+    Borrowed(Arc<File>),
+    /// An owned file reference.
+    Owned(Box<File>),
+}
+
+impl FileForEdit {
+    /// Return a file reference for edits.
+    fn file(&self) -> &File {
+        match self {
+            Self::Borrowed(file) => file,
+            Self::Owned(file) => file.as_ref(),
+        }
+    }
+}
+
+/// Resolve file content for workspace edit calculations.
+fn file_for_workspace_edit(session: &Session, file_id: FileId) -> Option<FileForEdit> {
+    // return the file when content is loaded
+    let file = session.files.get(file_id);
+    if file.is_loaded() && file.line_start_offsets.is_some() {
+        return Some(FileForEdit::Borrowed(file));
+    }
+
+    // fall back to reading from the file system
+    let path = file.path.as_ref()?;
+    let content = session.fs.read_to_string(path).ok()?;
+    let loaded = File::from_text(
+        file.id,
+        file.name.clone(),
+        file.uri.clone(),
+        file.path.clone(),
+        file.ty,
+        content,
+    );
+
+    Some(FileForEdit::Owned(Box::new(loaded)))
+}
+
 /// Convert a batch edit to an LSP workspace edit.
 #[allow(clippy::mutable_key_type)]
 pub fn batch_edit_to_workspace_edit(session: &Session, batch: &BatchEdit) -> lsp::WorkspaceEdit {
+    // collect edits grouped by uri
     let mut changes: HashMap<lsp::Uri, Vec<lsp::TextEdit>> = HashMap::new();
+
+    // build edits per file
     for file_edit in batch.files.iter() {
-        let file = session.files.get(file_edit.file);
+        let Some(file_view) = file_for_workspace_edit(session, file_edit.file) else {
+            continue;
+        };
+        let file = file_view.file();
         let Some(uri) = file.uri.as_ref().parse::<lsp::Uri>().ok() else {
             continue;
         };
@@ -20,7 +68,7 @@ pub fn batch_edit_to_workspace_edit(session: &Session, batch: &BatchEdit) -> lsp
             .edits
             .iter()
             .map(|edit| lsp::TextEdit {
-                range: byte_span_to_range(&file, edit.span),
+                range: byte_span_to_range(file, edit.span),
                 new_text: edit.new_text.clone(),
             })
             .collect();
@@ -28,6 +76,7 @@ pub fn batch_edit_to_workspace_edit(session: &Session, batch: &BatchEdit) -> lsp
         changes.insert(uri, text_edits);
     }
 
+    // return the assembled workspace edit
     lsp::WorkspaceEdit {
         changes: Some(changes),
         document_changes: None,
