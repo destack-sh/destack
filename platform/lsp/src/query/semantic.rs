@@ -126,19 +126,19 @@ pub fn tokens_to_lsp(file: &File, tokens: &[query::SemanticToken]) -> Vec<lsp::S
         let Some(line_span) = file.get_line_span(start_line) else {
             continue;
         };
-        if let Some(length) = utf16_len_between(file, token.span.start, line_span.end) {
-            if length > 0 {
-                push_token(
-                    &mut result,
-                    &mut prev_line,
-                    &mut prev_char,
-                    start_line,
-                    start_char,
-                    length,
-                    token_type,
-                    modifiers,
-                );
-            }
+        if let Some(length) = utf16_len_between(file, token.span.start, line_span.end)
+            && length > 0
+        {
+            push_token(
+                &mut result,
+                &mut prev_line,
+                &mut prev_char,
+                start_line,
+                start_char,
+                length,
+                token_type,
+                modifiers,
+            );
         }
 
         // emit middle line segments
@@ -146,19 +146,19 @@ pub fn tokens_to_lsp(file: &File, tokens: &[query::SemanticToken]) -> Vec<lsp::S
             let Some(line_span) = file.get_line_span(line) else {
                 continue;
             };
-            if let Some(length) = utf16_len_between(file, line_span.start, line_span.end) {
-                if length > 0 {
-                    push_token(
-                        &mut result,
-                        &mut prev_line,
-                        &mut prev_char,
-                        line,
-                        0,
-                        length,
-                        token_type,
-                        modifiers,
-                    );
-                }
+            if let Some(length) = utf16_len_between(file, line_span.start, line_span.end)
+                && length > 0
+            {
+                push_token(
+                    &mut result,
+                    &mut prev_line,
+                    &mut prev_char,
+                    line,
+                    0,
+                    length,
+                    token_type,
+                    modifiers,
+                );
             }
         }
 
@@ -190,6 +190,7 @@ fn utf16_len_between(file: &File, start: u32, end: u32) -> Option<u32> {
 }
 
 /// Push a token in delta encoded form.
+#[allow(clippy::too_many_arguments)]
 fn push_token(
     output: &mut Vec<lsp::SemanticToken>,
     prev_line: &mut u32,

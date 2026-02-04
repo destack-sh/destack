@@ -4,10 +4,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use dashmap::DashMap;
 use destack_daemon::protocol::{
-    AnalyzeRequest, CloseWorkspaceRequest, DaemonMessageRecord, DaemonRequest, DaemonResponse,
-    DaemonUpdateRecord, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
-    ProtocolClient, RescanReason, RescanWorkspaceRequest, WatchBatch, WatchBatchRequest,
-    WatchEvent, WorkspaceHandleId, WorkspaceOpenOptions,
+    AnalyzeRequest, CacheRequest, CloseWorkspaceRequest, DaemonMessageRecord, DaemonRequest,
+    DaemonResponse, DaemonUpdateRecord, FileUpdate, FileUpdateKind, FileUpdateRequest,
+    OpenWorkspaceRequest, ProtocolClient, RescanReason, RescanWorkspaceRequest, WatchBatch,
+    WatchBatchRequest, WatchEvent, WorkspaceHandleId, WorkspaceOpenOptions,
 };
 use destack_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
@@ -289,6 +289,32 @@ impl LspDaemonClient {
             result.messages.extend(rescan.messages);
         }
         Ok(result)
+    }
+
+    /// Clear all cache entries for every workspace handle.
+    pub fn clear_cache_all(&self) -> Result<(), String> {
+        for handle in self.handles.iter() {
+            let response = self
+                .client
+                .send_request(DaemonRequest::Cache(CacheRequest::Clear {
+                    handle: *handle.value(),
+                }))
+                .map_err(|error| format!("cache clear failed: {error}"))?;
+            match response {
+                DaemonResponse::CacheResult(response) => {
+                    if !response.success {
+                        return Err("cache clear failed".to_string());
+                    }
+                }
+                DaemonResponse::Error(error) => {
+                    return Err(format!("cache clear failed: {error}"));
+                }
+                other => {
+                    return Err(format!("unexpected response: {other:?}"));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Look up the workspace handle for a root.

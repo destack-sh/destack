@@ -70,6 +70,18 @@
             {
                 "command": "destack.restart",
                 "title": "Destack: Restart Server"
+            },
+            {
+                "command": "destack.rescan",
+                "title": "Destack: Rescan Workspace"
+            },
+            {
+                "command": "destack.reindex",
+                "title": "Destack: Reindex Workspace"
+            },
+            {
+                "command": "destack.clearCache",
+                "title": "Destack: Clear Cache"
             }
         ],
         "languages": [

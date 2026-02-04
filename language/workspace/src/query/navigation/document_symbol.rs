@@ -180,7 +180,7 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
             | ast::Declaration::Interface { members, .. }
             | ast::Declaration::Extension { members, .. } => {
                 for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
+                    if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
                         symbol = symbol.with_child(child);
                     }
                 }
@@ -189,12 +189,12 @@ fn document_symbols_with_ast(session: &Session, file: FileId) -> Vec<DocumentSym
                 fields, members, ..
             } => {
                 for member_id in members {
-                    if let Some(child) = member_to_document_symbol_ast(&ast, *member_id) {
+                    if let Some(child) = member_to_document_symbol_ast(ast, *member_id) {
                         symbol = symbol.with_child(child);
                     }
                 }
                 for field_id in fields {
-                    if let Some(child) = enum_field_to_document_symbol_ast(&ast, *field_id) {
+                    if let Some(child) = enum_field_to_document_symbol_ast(ast, *field_id) {
                         symbol = symbol.with_child(child);
                     }
                 }
@@ -359,7 +359,10 @@ fn enum_field_to_document_symbol_ast(
 fn member_key_name_ast(ast: &ModuleAst, key: &ast::Key) -> Option<String> {
     match key {
         ast::Key::Name(name) => Some(ast.strings.get(name.string()).to_string()),
-        ast::Key::Private(name) => Some(format!("#{}", ast.strings.get(*name).to_string())),
+        ast::Key::Private(name) => {
+            let name = ast.strings.get(*name).to_string();
+            Some(format!("#{name}"))
+        }
         ast::Key::NamedExpression { name, .. } => Some(ast.strings.get(*name).to_string()),
         ast::Key::Expression(_) => None,
     }
@@ -379,7 +382,8 @@ fn expression_name_ast(
             Some(ast.strings.get(*segment).to_string())
         }
         ast::Expression::PrivateIdentifier { name } => {
-            Some(format!("#{}", ast.strings.get(*name).to_string()))
+            let name = ast.strings.get(*name).to_string();
+            Some(format!("#{name}"))
         }
         _ => None,
     }

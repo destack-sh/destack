@@ -1,14 +1,21 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_lsp_server::jsonrpc::Response;
+use destack_lsp_server::{LanguageServer, LspService};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
+use futures::{SinkExt, StreamExt};
+use tower::Service;
 
-use super::harness::{LspHarness, harness_for_fs, test_fs, uri_for_path};
+use super::harness::{
+    LspHarness, harness_for_fs, notification_with_params, request_with_params, test_fs,
+    uri_for_path,
+};
 use crate::server::daemon::LspDaemonClient;
 
 /// LSP didOpen publishes diagnostics for the document.
@@ -357,4 +364,188 @@ async fn test_lsp_multi_root_scopes_diagnostics() {
         .collect_diagnostics_for_timeout(Duration::from_millis(200))
         .await;
     assert!(!remaining.iter().any(|entry| entry.uri == uri_a));
+}
+
+/// Workspace diagnostics stream partial results.
+#[tokio::test]
+async fn test_lsp_workspace_diagnostic_streams_partial_results() {
+    let fs = test_fs("workspace_partial_results");
+    let path = fs
+        .write_text("main.ds", "export const x = ;\n")
+        .expect("write module");
+
+    let mut harness = harness_for_fs(&fs).await;
+    let uri = uri_for_path(&path);
+    harness.did_open(uri.clone(), "export const x = ;\n").await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    let params = lsp::WorkspaceDiagnosticParams {
+        identifier: None,
+        previous_result_ids: Vec::new(),
+        work_done_progress_params: lsp::WorkDoneProgressParams {
+            work_done_token: None,
+        },
+        partial_result_params: lsp::PartialResultParams {
+            partial_result_token: Some(lsp::ProgressToken::Number(1)),
+        },
+    };
+    let request = request_with_params("workspace/diagnostic", 10, params);
+    let response = harness.call(request).await.expect("diagnostic response");
+    assert!(response.is_ok());
+
+    let progress = next_partial_progress(&mut harness).await;
+    let report: lsp::WorkspaceDiagnosticReportPartialResult =
+        serde_json::from_value(progress).expect("decode partial diagnostics");
+    assert!(!report.items.is_empty());
+}
+
+/// Selection ranges stream partial results.
+#[tokio::test]
+async fn test_lsp_selection_range_streams_partial_results() {
+    let fs = test_fs("selection_range_partial");
+    let main_path = fs
+        .write_text("main.ds", "export const foo = 1 + 2;\n")
+        .expect("write main");
+
+    let mut harness = harness_for_fs(&fs).await;
+    let uri = uri_for_path(&main_path);
+    harness
+        .did_open(uri.clone(), "export const foo = 1 + 2;\n")
+        .await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    let params = lsp::SelectionRangeParams {
+        text_document: lsp::TextDocumentIdentifier::new(uri.clone()),
+        positions: vec![
+            lsp::Position {
+                line: 0,
+                character: 0,
+            },
+            lsp::Position {
+                line: 0,
+                character: 10,
+            },
+        ],
+        work_done_progress_params: lsp::WorkDoneProgressParams {
+            work_done_token: None,
+        },
+        partial_result_params: lsp::PartialResultParams {
+            partial_result_token: Some(lsp::ProgressToken::Number(7)),
+        },
+    };
+    let request = request_with_params("textDocument/selectionRange", 11, params);
+    let response = harness
+        .call(request)
+        .await
+        .expect("selection range response");
+    assert!(response.is_ok());
+
+    let progress = next_partial_progress(&mut harness).await;
+    let ranges: Vec<lsp::SelectionRange> =
+        serde_json::from_value(progress).expect("decode selection ranges");
+    assert!(!ranges.is_empty());
+}
+
+/// Workspace diagnostics honor cancel requests.
+#[tokio::test]
+async fn test_lsp_workspace_diagnostic_cancels() {
+    let fs = test_fs("workspace_cancel");
+    let mut file_paths = Vec::new();
+    for index in 0..256 {
+        let name = format!("file_{index}.ds");
+        let path = fs
+            .write_text(&name, "export const x = ;\n")
+            .expect("write module");
+        file_paths.push(path);
+    }
+
+    let (mut service, client) = LspService::new(crate::DestackLanguageServer::new);
+    let (mut requests, mut responses) = client.split();
+    let client_task = tokio::spawn(async move {
+        while let Some(request) = requests.next().await {
+            if let Some(id) = request.id().cloned() {
+                let response = Response::from_ok(id, serde_json::Value::Null);
+                let _ = responses.send(response).await;
+            }
+        }
+    });
+
+    #[allow(deprecated)]
+    let params = lsp::InitializeParams {
+        root_uri: Some(uri_for_path(fs.root())),
+        ..Default::default()
+    };
+    let request = request_with_params("initialize", 1, params);
+    let response = service.call(request).await.expect("initialize response");
+    let response = response.expect("initialize response missing");
+    assert!(response.is_ok());
+    let initialized = notification_with_params("initialized", lsp::InitializedParams {});
+    let _ = service.call(initialized).await;
+
+    let server = service.inner();
+
+    for path in file_paths.iter() {
+        let uri = uri_for_path(path);
+        server
+            .did_open(lsp::DidOpenTextDocumentParams {
+                text_document: lsp::TextDocumentItem::new(
+                    uri,
+                    "destack".to_string(),
+                    1,
+                    "export const x = ;\n".to_string(),
+                ),
+            })
+            .await;
+    }
+
+    let work_done_token = lsp::ProgressToken::Number(2);
+    let diag_params = lsp::WorkspaceDiagnosticParams {
+        identifier: None,
+        previous_result_ids: Vec::new(),
+        work_done_progress_params: lsp::WorkDoneProgressParams {
+            work_done_token: Some(work_done_token.clone()),
+        },
+        partial_result_params: lsp::PartialResultParams {
+            partial_result_token: None,
+        },
+    };
+
+    let diagnostic_future = server.workspace_diagnostic(diag_params);
+    let cancel_future = async {
+        for _ in 0..32 {
+            server
+                .work_done_progress_cancel(lsp::WorkDoneProgressCancelParams {
+                    token: work_done_token.clone(),
+                })
+                .await;
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    };
+
+    let (result, _) = tokio::join!(diagnostic_future, cancel_future);
+    client_task.abort();
+    assert_eq!(
+        result.unwrap_err(),
+        destack_lsp_server::jsonrpc::Error::request_cancelled()
+    );
+}
+
+async fn next_partial_progress(harness: &mut LspHarness) -> serde_json::Value {
+    let timeout = Duration::from_secs(5);
+    for _ in 0..64 {
+        let request = tokio::time::timeout(timeout, harness.next_client_request())
+            .await
+            .expect("timeout waiting for partial progress");
+        if request.method() != "$/progress" {
+            continue;
+        }
+        let params = request.params().cloned().expect("missing progress params");
+        let progress: lsp::ProgressParams =
+            serde_json::from_value(params).expect("decode progress params");
+        if let lsp::ProgressParamsValue::PartialResult(value) = progress.value {
+            return value;
+        }
+    }
+
+    panic!("missing partial progress result");
 }
