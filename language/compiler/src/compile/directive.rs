@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use destack_dir as dir;
 use destack_source::DiagnosticSeverity;
-use destack_workspace::LintSeverity;
+use destack_workspace::{DiagnosticPolicy, LintSeverity};
 
-use crate::{Compiler, DiagnosticAnchor, TaskError, TaskWarning};
+use crate::{AnalyzeError, Compiler, DiagnosticAnchor, ImportError, TaskError, TaskWarning};
 
 /// Severity override derived from a diagnostic directive decorator.
 #[derive(Debug, Clone, Copy)]
@@ -18,6 +18,18 @@ struct DiagnosticDirectiveOverride {
 impl Compiler {
     /// Resolve the effective error severity after diagnostic overrides.
     pub(crate) fn error_effective_severity(&self, error: &TaskError) -> Option<DiagnosticSeverity> {
+        if let TaskError::Analyze(error) = error
+            && let Some(severity) = self.analyze_policy_severity(error)
+        {
+            return Some(severity);
+        }
+
+        if let TaskError::Import(error) = error
+            && let Some(severity) = self.import_policy_severity(error)
+        {
+            return Some(severity);
+        }
+
         let TaskError::Optimize(error) = error else {
             return Some(DiagnosticSeverity::Error);
         };
@@ -69,6 +81,145 @@ impl Compiler {
             LintSeverity::Note => Some(DiagnosticSeverity::Note),
             LintSeverity::Warning => Some(DiagnosticSeverity::Warning),
             LintSeverity::Error => Some(DiagnosticSeverity::Error),
+        }
+    }
+
+    /// Resolve analyze error severity from policy settings.
+    fn analyze_policy_severity(&self, error: &AnalyzeError) -> Option<DiagnosticSeverity> {
+        let module_id = error.anchor().module_id()?;
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let policy = match error {
+            AnalyzeError::AnyTypeDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_any),
+            AnalyzeError::ImplicitAny { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_any),
+            AnalyzeError::UnknownTypeDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unknown),
+            AnalyzeError::ImprecisePrimitiveDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_imprecise_primitives),
+            AnalyzeError::UnsafeTypeAssertionDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsafe_type_assertions),
+            AnalyzeError::MustAssertionDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_must_assertions),
+            AnalyzeError::DefiniteAssignmentAssertionDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_definite_assignment_assertions),
+            AnalyzeError::CustomTypeGuardDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_custom_type_guards),
+            AnalyzeError::UntrustedDeclarationDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_untrusted_declarations),
+            AnalyzeError::UnsoundVarianceDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsound_variance),
+            AnalyzeError::UnsoundNarrowingDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unsound_narrowing),
+            AnalyzeError::UnreachableCode { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.allow_unreachable_code),
+            AnalyzeError::UnusedLabel { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.allow_unused_labels),
+            AnalyzeError::ImplicitThis { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_this),
+            AnalyzeError::DynamicImportDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_import),
+            AnalyzeError::DynamicEvaluationDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_evaluation),
+            AnalyzeError::ProxyDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_proxy),
+            AnalyzeError::DynamicShapesDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_dynamic_shapes),
+            AnalyzeError::ComputedPropertyAccessDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_computed_property_access),
+            AnalyzeError::ReferentialEqualityDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_referential_equality),
+            AnalyzeError::GlobalThisDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_global_this),
+            AnalyzeError::ImplicitDynamicDispatchDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_dynamic_dispatch),
+            AnalyzeError::MissingOverride { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_override),
+            AnalyzeError::MissingReturn { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_returns),
+            AnalyzeError::SwitchFallthrough { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_fallthrough_cases_in_switch),
+            AnalyzeError::PropertyAccessFromIndexSignature { .. } => {
+                self.program.with_dsconfig_options(&module, |ds| {
+                    ds.compiler.no_property_access_from_index_signature
+                })
+            }
+            AnalyzeError::UnusedLocal { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unused_locals),
+            AnalyzeError::UnusedParameter { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_unused_parameters),
+            AnalyzeError::ImplicitManagedTypeDisabled { .. }
+            | AnalyzeError::ImplicitManagedValueDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_implicit_managed),
+            AnalyzeError::ManagedMemoryDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_managed),
+            AnalyzeError::RuntimeDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_runtime),
+            AnalyzeError::ExceptionsDisabled { .. } => self
+                .program
+                .with_dsconfig_options(&module, |ds| ds.compiler.no_exceptions),
+            _ => return None,
+        };
+
+        match policy.unwrap_or(DiagnosticPolicy::Allow) {
+            DiagnosticPolicy::Allow => None,
+            DiagnosticPolicy::Warn => Some(DiagnosticSeverity::Warning),
+            DiagnosticPolicy::Deny => Some(DiagnosticSeverity::Error),
+        }
+    }
+
+    /// Resolve import error severity from policy settings.
+    fn import_policy_severity(&self, error: &ImportError) -> Option<DiagnosticSeverity> {
+        let module_id = error.anchor().module_id()?;
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let policy = match error {
+            ImportError::ConflictingBinding { is_local, .. } => {
+                if *is_local {
+                    self.program
+                        .with_dsconfig_options(&module, |ds| ds.compiler.no_redeclared_locals)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        match policy.unwrap_or(DiagnosticPolicy::Allow) {
+            DiagnosticPolicy::Allow => None,
+            DiagnosticPolicy::Warn => Some(DiagnosticSeverity::Warning),
+            DiagnosticPolicy::Deny => Some(DiagnosticSeverity::Error),
         }
     }
 

@@ -1,11 +1,11 @@
 use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    Argument, BindingKind, DeclarationKind, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Mutability, NodeTree, Path, Pattern, Property, ScalarLiteral, StaticKey,
-    StringId, SymbolTable, SymbolType, TemplateLiteral, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, BindingKind, DeclarationKind, Declarator, DependencyItem,
+    DependencyKind, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
+    MatchCase, MatchKind, MatchSelector, Mutability, NodeTree, Path, Pattern, Property,
+    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -72,6 +72,30 @@ impl Compiler {
                         }
                     }
                 }
+            }
+            Expression::Must { .. } => {
+                self.validate_must_assertion(module, profile, tree, expression_id);
+            }
+            Expression::TypePredicate { .. } => {
+                self.validate_custom_type_guard(module, profile, expression_id);
+            }
+            Expression::Binary { operator, .. } => {
+                self.validate_unsound_narrowing_operator(
+                    module,
+                    profile,
+                    types,
+                    expression_id,
+                    *operator,
+                );
+            }
+            Expression::TypeBinary { operator, .. } => {
+                self.validate_unsound_narrowing_type_operator(
+                    module,
+                    profile,
+                    types,
+                    expression_id,
+                    *operator,
+                );
             }
             Expression::ExportNamespace { .. } => {
                 if !module.language_type.is_declaration() {
@@ -207,6 +231,109 @@ impl Compiler {
             }
             _ => {}
         }
+    }
+
+    /// Validate must assertion usage.
+    fn validate_must_assertion(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        _tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+
+        if !options.no_must_assertions {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::MustAssertionDisabled { node });
+    }
+
+    /// Validate custom type guard usage.
+    fn validate_custom_type_guard(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+
+        if !options.no_custom_type_guards {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::CustomTypeGuardDisabled { node });
+    }
+
+    /// Validate narrowing guards that depend on runtime checks.
+    fn validate_unsound_narrowing_operator(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        types: &TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+
+        if !options.no_unsound_narrowing {
+            return;
+        }
+
+        if !matches!(operator, BinaryOperator::InstanceOf) {
+            return;
+        }
+
+        let runtime_check = types.runtime_check_kind(expression_id.into_global_any(module.id));
+        if matches!(
+            runtime_check,
+            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+        ) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::UnsoundNarrowingDisabled { node });
+    }
+
+    /// Validate type guard expressions that rely on runtime narrowing.
+    fn validate_unsound_narrowing_type_operator(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        types: &TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        operator: TypeBinaryOperator,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+        if !options.no_unsound_narrowing {
+            return;
+        }
+        if !matches!(operator, TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf) {
+            return;
+        }
+
+        let runtime_check = types.runtime_check_kind(expression_id.into_global_any(module.id));
+        if matches!(
+            runtime_check,
+            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+        ) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::UnsoundNarrowingDisabled { node });
     }
 
     /// Validate instantiation expressions followed by member or index access.
@@ -693,11 +820,6 @@ impl Compiler {
         tree: &NodeTree,
         declarator_id: LocalNodeId<Declarator>,
     ) {
-        // destack allows definite assignment assertions in bindings
-        if module.language_type.is_destack() {
-            return;
-        }
-
         // report definite assignment assertions in variable declarators
         let declarator = tree.get(declarator_id);
         if !self.pattern_has_definite_assignment(tree, declarator.pattern) {
@@ -706,7 +828,16 @@ impl Compiler {
         let node = declarator_id
             .into_global_any(module.id)
             .into_anchored(Some(profile));
-        self.error(AnalyzeError::InvalidDefiniteAssignmentDeclarator { node });
+
+        let options = self.analyze_context_options_for_module(module.id);
+        if options.no_definite_assignment_assertions {
+            self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
+            return;
+        }
+
+        if !module.language_type.is_destack() {
+            self.error(AnalyzeError::InvalidDefiniteAssignmentDeclarator { node });
+        }
     }
 
     /// Check whether an ambient const initializer is valid.

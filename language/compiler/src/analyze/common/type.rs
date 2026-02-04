@@ -2,15 +2,15 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    NodeType, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticParameterKind,
-    SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator, TypeVisitor,
-    TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
+    NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    TypeVisitor, TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
-use super::{CanonicalSymbolMode, TypeCollector, TypeWalkContext, TypeWalkKey};
-use crate::{AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
+use super::{CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector, TypeWalkContext, TypeWalkKey};
+use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
 fn base_visitor_options() -> TypeVisitorOptions {
     TypeWalkContext::new(TypeWalkKey::BASE).visitor_options()
@@ -1405,6 +1405,161 @@ impl Compiler {
         // construct the intersection type
         let intersection = Type::Intersection { elements: filtered };
         types.insert_type_from_any(intersection, types.get_type_source(source_type_id))
+    }
+
+    /// Determine the runtime check kind for a type guard relation.
+    pub(crate) fn runtime_check_kind_for_relation(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        value_type_id: LocalTypeId,
+        target_type_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Option<RuntimeCheckKind> {
+        // normalize apparent types before relation checks
+        let value_type_id = self.normalize_apparent_type(
+            module,
+            profile,
+            value_type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+        let target_type_id = self.normalize_apparent_type(
+            module,
+            profile,
+            target_type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+
+        // constant true when the guard is already satisfied
+        let is_assignable = self
+            .is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_type_id,
+                value_type_id,
+                types,
+                options,
+            )
+            .is_assignable();
+        if is_assignable {
+            return Some(RuntimeCheckKind::Constant(true));
+        }
+
+        // require a runtime checkable target type
+        if !self.type_is_runtime_checkable_target(
+            module,
+            profile,
+            symbols,
+            target_type_id,
+            types,
+        ) {
+            return None;
+        }
+
+        // decide which runtime identity the value carries
+        self.runtime_check_kind_for_value_type(module, profile, symbols, value_type_id, types)
+    }
+
+    /// Check whether a target type can be validated at runtime.
+    fn type_is_runtime_checkable_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> bool {
+        // unwrap apparent types before inspection
+        let type_id = self.normalize_apparent_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+
+        // accept unions when all members are runtime checkable
+        let union_elements = match types.get_type(type_id) {
+            Type::Union { elements } => Some(elements.clone()),
+            _ => None,
+        };
+        if let Some(elements) = union_elements {
+            for element_id in elements {
+                if !self.type_is_runtime_checkable_target(
+                    module,
+                    profile,
+                    symbols,
+                    element_id,
+                    types,
+                ) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // accept nominal reference targets
+        match types.get_type(type_id) {
+            Type::Reference { symbol, .. } => matches!(
+                symbol.local_id.ty,
+                SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
+            ),
+            _ => false,
+        }
+    }
+
+    /// Determine the runtime identity carried by a value type.
+    fn runtime_check_kind_for_value_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> Option<RuntimeCheckKind> {
+        // unwrap apparent types before inspection
+        let type_id = self.normalize_apparent_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::TYPE_OPS,
+        );
+
+        match types.get_type(type_id) {
+            Type::Union { .. } => Some(RuntimeCheckKind::UnionTag),
+            Type::Reference { symbol, .. } => match symbol.local_id.ty {
+                SymbolType::Class
+                | SymbolType::Struct
+                | SymbolType::Enum
+                | SymbolType::Newtype => Some(RuntimeCheckKind::TypeDescriptor),
+                _ => None,
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            } => Some(RuntimeCheckKind::TypeDescriptor),
+            Type::Value { value } => self.runtime_check_kind_for_value_type(
+                module,
+                profile,
+                symbols,
+                *value,
+                types,
+            ),
+            _ => None,
+        }
     }
 
     /// Check whether a type contains an error type.

@@ -125,9 +125,8 @@ Each function has a CFG, and each block has a type environment.
 Guard expressions narrow types on outgoing edges.
 Merge points combine environments by union or a common supertype.
 Unreachable paths are tracked for return, throw, break, and continue.
+Analyze records a `RuntimeCheckKind` for guard expressions in `TypeTable`.
 
-This matches TypeScript narrowing semantics.
-Pattern matching and match guards are part of this flow model.
 
 ```
          ┌─────────┐
