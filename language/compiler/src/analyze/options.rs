@@ -1,6 +1,6 @@
 use destack_dir::SymbolDecorators;
 use destack_source::{File, FileType, ModuleId, TargetId, Uri};
-use destack_workspace::{DsConfigCompilerOptions, Module, TsCompilerOptions};
+use destack_workspace::{DiagnosticPolicy, DsConfigCompilerOptions, Module, TsCompilerOptions};
 
 use std::sync::Arc;
 
@@ -42,9 +42,9 @@ pub struct AnalyzeOptions {
     pub no_unchecked_indexed_access: bool,
     /// Disallow property access from index signatures without explicit index access.
     pub no_property_access_from_index_signature: bool,
-    /// Allow unreachable code without warnings.
+    /// Allow unreachable code without diagnostics.
     pub allow_unreachable_code: bool,
-    /// Allow unused labels.
+    /// Allow unused labels without diagnostics.
     pub allow_unused_labels: bool,
     /// Require `override` on class members that override base members.
     pub no_implicit_override: bool,
@@ -84,6 +84,20 @@ pub struct AnalyzeOptions {
     pub no_proxy: bool,
     /// Require overloads to be statically resolvable (no implicit runtime dispatch).
     pub no_implicit_dynamic_dispatch: bool,
+    /// Forbid must assertions (`expr!`).
+    pub no_must_assertions: bool,
+    /// Forbid definite assignment assertions (`x!: T`).
+    pub no_definite_assignment_assertions: bool,
+    /// Forbid custom type guard predicates (`x is T`).
+    pub no_custom_type_guards: bool,
+    /// Forbid unsound variance rules.
+    pub no_unsound_variance: bool,
+    /// Forbid unsound narrowing for `instanceof` and `in`.
+    pub no_unsound_narrowing: bool,
+    /// Require deep readonly semantics.
+    pub deep_readonly: bool,
+    /// Forbid untrusted declaration files.
+    pub no_untrusted_declarations: bool,
 }
 
 impl AnalyzeOptions {
@@ -148,6 +162,13 @@ impl AnalyzeOptions {
         key |= (self.no_computed_property_access as u64) << 34;
         key |= (self.no_proxy as u64) << 35;
         key |= (self.no_implicit_dynamic_dispatch as u64) << 36;
+        key |= (self.no_must_assertions as u64) << 37;
+        key |= (self.no_definite_assignment_assertions as u64) << 38;
+        key |= (self.no_custom_type_guards as u64) << 39;
+        key |= (self.no_unsound_variance as u64) << 40;
+        key |= (self.no_unsound_narrowing as u64) << 41;
+        key |= (self.deep_readonly as u64) << 42;
+        key |= (self.no_untrusted_declarations as u64) << 43;
         key
     }
 }
@@ -193,42 +214,52 @@ impl From<&DsConfigCompilerOptions> for AnalyzeOptions {
         Self {
             strict: options.strict,
             always_strict: options.always_strict,
-            no_implicit_any: options.no_implicit_any,
+            no_implicit_any: !options.no_implicit_any.is_allow(),
             strict_null_checks: options.strict_null_checks,
-            no_implicit_this: options.no_implicit_this,
+            no_implicit_this: !options.no_implicit_this.is_allow(),
             strict_function_types: options.strict_function_types,
             strict_bind_call_apply: options.strict_bind_call_apply,
             strict_builtin_iterator_return: options.strict_builtin_iterator_return,
             strict_property_initialization: options.strict_property_initialization,
             use_unknown_in_catch_variables: options.use_unknown_in_catch_variables,
-            no_unused_locals: options.no_unused_locals,
-            no_unused_parameters: options.no_unused_parameters,
-            no_implicit_returns: options.no_implicit_returns,
+            no_unused_locals: !options.no_unused_locals.is_allow(),
+            no_unused_parameters: !options.no_unused_parameters.is_allow(),
+            no_implicit_returns: !options.no_implicit_returns.is_allow(),
             exact_optional_property_types: options.exact_optional_property_types,
-            no_unchecked_indexed_access: options.no_unchecked_indexed_access,
-            no_property_access_from_index_signature: options
-                .no_property_access_from_index_signature,
-            allow_unreachable_code: options.allow_unreachable_code,
-            allow_unused_labels: options.allow_unused_labels,
-            no_implicit_override: options.no_implicit_override,
-            no_fallthrough_cases_in_switch: options.no_fallthrough_cases_in_switch,
-            no_exceptions: options.no_exceptions,
-            no_any: options.no_any,
-            no_unknown: options.no_unknown,
-            no_imprecise_primitives: options.no_imprecise_primitives,
-            no_implicit_conversions: options.no_implicit_conversions,
-            no_unsafe_type_assertions: options.no_unsafe_type_assertions,
-            no_implicit_managed: options.no_implicit_managed,
-            no_managed: options.no_managed,
-            no_runtime: options.no_runtime,
-            no_referential_equality: options.no_referential_equality,
-            no_dynamic_evaluation: options.no_dynamic_evaluation,
-            no_global_this: options.no_global_this,
-            no_dynamic_import: options.no_dynamic_import,
-            no_dynamic_shapes: options.no_dynamic_shapes,
-            no_computed_property_access: options.no_computed_property_access,
-            no_proxy: options.no_proxy,
-            no_implicit_dynamic_dispatch: options.no_implicit_dynamic_dispatch,
+            no_unchecked_indexed_access: !options.no_unchecked_indexed_access.is_allow(),
+            no_property_access_from_index_signature: !options
+                .no_property_access_from_index_signature
+                .is_allow(),
+            allow_unreachable_code: options.allow_unreachable_code.is_allow(),
+            allow_unused_labels: options.allow_unused_labels.is_allow(),
+            no_implicit_override: !options.no_implicit_override.is_allow(),
+            no_fallthrough_cases_in_switch: !options.no_fallthrough_cases_in_switch.is_allow(),
+            no_exceptions: !options.no_exceptions.is_allow(),
+            no_any: !options.no_any.is_allow(),
+            no_unknown: !options.no_unknown.is_allow(),
+            no_imprecise_primitives: !options.no_imprecise_primitives.is_allow(),
+            no_implicit_conversions: !options.no_implicit_conversions.is_allow(),
+            no_unsafe_type_assertions: !options.no_unsafe_type_assertions.is_allow(),
+            no_implicit_managed: !options.no_implicit_managed.is_allow(),
+            no_managed: !options.no_managed.is_allow(),
+            no_runtime: !options.no_runtime.is_allow(),
+            no_referential_equality: !options.no_referential_equality.is_allow(),
+            no_dynamic_evaluation: !options.no_dynamic_evaluation.is_allow(),
+            no_global_this: !options.no_global_this.is_allow(),
+            no_dynamic_import: !options.no_dynamic_import.is_allow(),
+            no_dynamic_shapes: !options.no_dynamic_shapes.is_allow(),
+            no_computed_property_access: !options.no_computed_property_access.is_allow(),
+            no_proxy: !options.no_proxy.is_allow(),
+            no_implicit_dynamic_dispatch: !options.no_implicit_dynamic_dispatch.is_allow(),
+            no_must_assertions: !options.no_must_assertions.is_allow(),
+            no_definite_assignment_assertions: !options
+                .no_definite_assignment_assertions
+                .is_allow(),
+            no_custom_type_guards: !options.no_custom_type_guards.is_allow(),
+            no_unsound_variance: !options.no_unsound_variance.is_allow(),
+            no_unsound_narrowing: !options.no_unsound_narrowing.is_allow(),
+            deep_readonly: !options.deep_readonly.is_allow(),
+            no_untrusted_declarations: !options.no_untrusted_declarations.is_allow(),
         }
     }
 }
@@ -275,6 +306,13 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
             no_computed_property_access: false,
             no_proxy: false,
             no_implicit_dynamic_dispatch: false,
+            no_must_assertions: false,
+            no_definite_assignment_assertions: false,
+            no_custom_type_guards: false,
+            no_unsound_variance: false,
+            no_unsound_narrowing: false,
+            deep_readonly: false,
+            no_untrusted_declarations: false,
         }
     }
 }
@@ -285,12 +323,12 @@ impl Compiler {
         &self,
         module: &Module,
         options: DsConfigCompilerOptions,
-    ) -> DsConfigCompilerOptions {
+    ) -> (DsConfigCompilerOptions, bool) {
         // use target-specific options when a dsconfig target is present
         let package = self.program.packages.get(module.package_id);
         let package = package.read();
         let Some(dsconfig) = package.dsconfig.as_ref() else {
-            return options;
+            return (options, false);
         };
 
         // select a target when we have an explicit default (or a single target)
@@ -305,16 +343,89 @@ impl Compiler {
 
         // skip target-derived restrictions when no default target is selected
         let Some(target) = target else {
-            return options;
+            return (options, false);
         };
 
-        destack_workspace::Program::compiler_options_for_target(&target, &options)
+        let is_native_output = target.output.is_wasm() || target.output.is_native();
+        let options = destack_workspace::Program::compiler_options_for_target(&target, &options);
+
+        (options, is_native_output)
+    }
+
+    /// Apply native target-specific overrides to analyze options.
+    fn apply_native_overrides(
+        &self,
+        analyze_options: &mut AnalyzeOptions,
+        native_options: &AnalyzeOptions,
+        is_native_output: bool,
+    ) {
+        if !is_native_output {
+            return;
+        }
+
+        // enforce strict + soundness options for native targets
+        analyze_options.strict = native_options.strict;
+        analyze_options.always_strict = native_options.always_strict;
+        analyze_options.no_implicit_any = native_options.no_implicit_any;
+        analyze_options.strict_null_checks = native_options.strict_null_checks;
+        analyze_options.no_implicit_this = native_options.no_implicit_this;
+        analyze_options.strict_function_types = native_options.strict_function_types;
+        analyze_options.strict_bind_call_apply = native_options.strict_bind_call_apply;
+        analyze_options.strict_builtin_iterator_return =
+            native_options.strict_builtin_iterator_return;
+        analyze_options.strict_property_initialization =
+            native_options.strict_property_initialization;
+        analyze_options.use_unknown_in_catch_variables =
+            native_options.use_unknown_in_catch_variables;
+        analyze_options.no_implicit_returns = native_options.no_implicit_returns;
+        analyze_options.no_implicit_override = native_options.no_implicit_override;
+        analyze_options.exact_optional_property_types =
+            native_options.exact_optional_property_types;
+        analyze_options.no_unchecked_indexed_access = native_options.no_unchecked_indexed_access;
+        analyze_options.no_property_access_from_index_signature =
+            native_options.no_property_access_from_index_signature;
+        analyze_options.no_any = native_options.no_any;
+        analyze_options.no_unsafe_type_assertions = native_options.no_unsafe_type_assertions;
+        analyze_options.no_must_assertions = native_options.no_must_assertions;
+        analyze_options.no_definite_assignment_assertions =
+            native_options.no_definite_assignment_assertions;
+        analyze_options.no_custom_type_guards = native_options.no_custom_type_guards;
+        analyze_options.no_unsound_variance = native_options.no_unsound_variance;
+        analyze_options.no_unsound_narrowing = native_options.no_unsound_narrowing;
+        analyze_options.deep_readonly = native_options.deep_readonly;
+        analyze_options.no_untrusted_declarations = native_options.no_untrusted_declarations;
+        analyze_options.no_implicit_managed = native_options.no_implicit_managed;
+        analyze_options.no_dynamic_evaluation = native_options.no_dynamic_evaluation;
+        analyze_options.no_dynamic_import = native_options.no_dynamic_import;
+        analyze_options.no_dynamic_shapes = native_options.no_dynamic_shapes;
+        analyze_options.no_proxy = native_options.no_proxy;
+        analyze_options.no_exceptions = native_options.no_exceptions;
+        analyze_options.no_global_this = native_options.no_global_this;
+        analyze_options.no_computed_property_access = native_options.no_computed_property_access;
     }
 
     /// Get the effective TS-compatible semantic options for a module.
     pub(crate) fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
         let module = self.program.modules.get(module_id);
         let module = module.read();
+        let apply_language_defaults = |mut options: DsConfigCompilerOptions| {
+            // default destack modules to deep readonly unless explicitly configured
+            if module.language_type.is_destack() && !options.deep_readonly_explicit {
+                options.deep_readonly = DiagnosticPolicy::Deny;
+            }
+
+            // keep TS/JS semantics unless explicitly overridden
+            if (module.language_type.is_typescript() || module.language_type.is_javascript())
+                && !options.deep_readonly_explicit
+            {
+                options.deep_readonly = DiagnosticPolicy::Allow;
+            }
+
+            options
+        };
+        let apply_target_restrictions = |options: DsConfigCompilerOptions| {
+            self.compiler_options_for_module_target(&module, options)
+        };
 
         // use tsconfig options for ts/js modules when available
         if module.language_type.is_typescript() || module.language_type.is_javascript() {
@@ -322,14 +433,31 @@ impl Compiler {
                 .program
                 .with_tsconfig_options(&module, |ts| ts.compiler.clone())
             {
-                return AnalyzeOptions::from(&options);
+                let mut analyze_options = AnalyzeOptions::from(&options);
+
+                if let Some(ds_options) = self
+                    .program
+                    .with_dsconfig_options(&module, |ds| ds.compiler.clone())
+                {
+                    let ds_options = apply_language_defaults(ds_options);
+                    let (ds_options, is_native_output) = apply_target_restrictions(ds_options);
+                    let native_options = AnalyzeOptions::from(&ds_options);
+                    self.apply_native_overrides(
+                        &mut analyze_options,
+                        &native_options,
+                        is_native_output,
+                    );
+                }
+
+                return analyze_options;
             }
 
             if let Some(options) = self
                 .program
                 .with_dsconfig_options(&module, |ds| ds.compiler.clone())
             {
-                let options = self.compiler_options_for_module_target(&module, options);
+                let options = apply_language_defaults(options);
+                let (options, _is_native_output) = apply_target_restrictions(options);
                 return AnalyzeOptions::from(&options);
             }
 
@@ -340,11 +468,13 @@ impl Compiler {
             .program
             .with_dsconfig_options(&module, |ds| ds.compiler.clone())
         {
-            let options = self.compiler_options_for_module_target(&module, options);
+            let options = apply_language_defaults(options);
+            let (options, _is_native_output) = apply_target_restrictions(options);
             return AnalyzeOptions::from(&options);
         }
 
-        AnalyzeOptions::from(&DsConfigCompilerOptions::default())
+        let options = apply_language_defaults(DsConfigCompilerOptions::default());
+        AnalyzeOptions::from(&options)
     }
 
     /// Get the module compatibility options for a module.

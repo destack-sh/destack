@@ -962,7 +962,7 @@ impl Compiler {
                     relation_mode,
                     visited,
                 ),
-                TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
+                TypeUnaryOperator::Readonly => {
                     // materialize readonly modifiers during normalization
                     let normalized_right = self.normalize_type_inner(
                         module,
@@ -974,7 +974,29 @@ impl Compiler {
                         relation_mode,
                         visited,
                     );
-                    self.materialize_readonly_type(source_id, normalized_right, types)
+                    let deep_readonly = self
+                        .analyze_context_options_for_module(module.id)
+                        .deep_readonly;
+                    self.materialize_readonly_type(
+                        source_id,
+                        normalized_right,
+                        types,
+                        deep_readonly,
+                    )
+                }
+                TypeUnaryOperator::AsConst => {
+                    // materialize const modifiers with deep readonly
+                    let normalized_right = self.normalize_type_inner(
+                        module,
+                        profile,
+                        right,
+                        symbols,
+                        types,
+                        mode,
+                        relation_mode,
+                        visited,
+                    );
+                    self.materialize_readonly_type(source_id, normalized_right, types, true)
                 }
                 _ => {
                     // normalize unary operand

@@ -159,6 +159,8 @@ impl Compiler {
                 // normalize modifiers and flags
                 let modifiers = modifiers.as_ref();
                 let has_default = default.is_some();
+                let has_definite_assignment =
+                    modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Must));
                 let has_abstraction =
                     modifiers.is_some_and(|modifiers| modifiers.abstraction.is_some());
                 let is_private_key = matches!(key, Some(DynamicKey::Private(_)));
@@ -169,6 +171,15 @@ impl Compiler {
                         Some(AbstractionModifier::Abstract | AbstractionModifier::AbstractOverride)
                     )
                 });
+
+                // enforce definite assignment assertion policy
+                if has_definite_assignment {
+                    let options = self.analyze_context_options_for_module(module.id);
+                    if options.no_definite_assignment_assertions {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
+                    }
+                }
 
                 // class field constraints
                 if is_class {

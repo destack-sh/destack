@@ -47,6 +47,11 @@ impl ReadonlyMaterializer {
         }
     }
 
+    /// Materialize readonly modifiers at the surface only.
+    pub(crate) fn apply_shallow(&self, types: &mut TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+        self.apply_readonly_flags(type_id, types)
+    }
+
     /// Apply readonly flags to an already rewritten type.
     fn apply_readonly_flags(&self, mapped_id: LocalTypeId, types: &mut TypeTable) -> LocalTypeId {
         let ty = types.get_type(mapped_id).clone();
