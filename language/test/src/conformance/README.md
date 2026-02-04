@@ -11,13 +11,13 @@ The pass rate intentionally excludes the explicitly skipped tests.
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   693  |     0  |    22  |   693 | 100.00% |
-| biome    |   489  |   143  |     5  |   632 |  77.37% |
+| biome    |   489  |   142  |     6  |   631 |  77.50% |
 | swc      |   527  |     0  |    11  |   527 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6119  |  1096  |     38  |  7215 |  84.81% |
+| total    |  6119  |  1095  |     39  |  7214 |  84.82% |
 
-Total Blended Pass Rate: **84.81%**
+Total Blended Pass Rate: **84.82%**
 <!-- end:summary-results -->
 
 ### babel
@@ -70,9 +70,9 @@ Total Blended Pass Rate: **84.81%**
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | error                |   197  |   105  |       -  |   302 |  65.23% |
-| ok                   |   292  |    38  |       5  |   330 |  88.48% |
+| ok                   |   292  |    37  |       6  |   329 |  88.75% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   489  |   143  |       5  |   632 |  77.37% |
+| total                |   489  |   142  |       6  |   631 |  77.50% |
 <!-- end:biome-results -->
 
 ### swc
@@ -146,6 +146,7 @@ We do not expect to reach 100% _general_ conformance because:
 
 - **Modern TS modules only**: We target strict module semantics and do not support script mode.
 - **JS restrictions**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
+- **JSDoc typing**: JSDoc-based typing and `@ts-check` semantics are out of scope.
 - **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.
 - **TSX ambiguity**: TSX generic arrows are ambiguous and require the standard `<T,>` workaround.
 - **Annex B**: Legacy Annex B syntax is out of scope.

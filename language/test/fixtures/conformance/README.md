@@ -56,6 +56,7 @@ Reserved binding diagnostics belong in analysis, not parse errors, so parser sui
 Conformance expectations follow `language/INTEROPERABILITY.md`.
 All files parse as strict modules and script mode is out of scope.
 TypeScript syntax is rejected in `.js` and `.jsx` by default.
+JSDoc typing and `@ts-check` semantics are out of scope.
 JSX is only enabled in `.jsx` and `.tsx`.
 Decorators are only enabled in `.ts`, `.tsx`, and `.ds`.
 Import attributes and `using` are supported across file types.

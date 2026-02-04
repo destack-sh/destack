@@ -143,13 +143,13 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok() && self.peek_next_is(TokenType::Identifier) {
+            if self.peek_keyword(Keyword::Get).is_ok() && self.next_token_starts_member_name() {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
-                && self.peek_next_is(TokenType::Identifier)
+                && self.next_token_starts_member_name()
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
@@ -698,13 +698,13 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok() && self.peek_next_is(TokenType::Identifier) {
+            if self.peek_keyword(Keyword::Get).is_ok() && self.next_token_starts_member_name() {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
-                && self.peek_next_is(TokenType::Identifier)
+                && self.next_token_starts_member_name()
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)

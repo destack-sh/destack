@@ -211,7 +211,8 @@ impl Parser {
                 |parser| parser.eat_pattern(),
             )?;
             if (self.language.is_typescript() || self.language.is_destack())
-                && self.peek_keyword(Keyword::As).is_ok()
+                && (self.peek_keyword(Keyword::As).is_ok()
+                    || self.peek_keyword(Keyword::Satisfies).is_ok())
             {
                 self.restore(start, start_idx);
                 let expression = self.with_options(
@@ -260,9 +261,11 @@ impl Parser {
             self.bump(); // eat do keyword
 
             // body
+            self.eat_newlines_maybe()?;
             let body_id = self.eat_block_or_statement()?;
 
             // while keyword
+            self.eat_newlines_maybe()?;
             self.eat_keyword(Keyword::While)?;
 
             // condition

@@ -84,8 +84,17 @@ impl Parser {
 
         // async
         let is_async = if self.peek_keyword(Keyword::Async).is_ok() {
-            self.bump(); // eat async keyword
-            true
+            let next_token_type = self.peek_next_token_type();
+            let treats_async_as_parameter = matches!(
+                next_token_type,
+                TokenType::Arrow | TokenType::ArrowWide
+            );
+            if treats_async_as_parameter {
+                false
+            } else {
+                self.bump(); // eat async keyword
+                true
+            }
         } else {
             false
         };

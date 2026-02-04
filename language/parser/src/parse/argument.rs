@@ -11,7 +11,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
     /// Return true when the next token can start a member name.
-    fn next_token_starts_member_name(&self) -> bool {
+    pub(crate) fn next_token_starts_member_name(&self) -> bool {
         // skip newlines after the modifier keyword
         let mut pos = self.pos() as usize;
         while let Some(token) = self.tokens.get(pos + 1)
