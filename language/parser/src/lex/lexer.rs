@@ -20,6 +20,22 @@ pub(super) enum TreeState {
     Content,
 }
 
+/// Tracks the keyword prefix at the start of a line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(super) enum LinePrefixState {
+    #[default]
+    /// The line starts with a keyword.
+    Start,
+    /// The line saw an `export` keyword.
+    SawExport,
+    /// The line saw a `declare` keyword.
+    SawDeclare,
+    /// The line saw an `export declare` keyword.
+    SawExportDeclare,
+    /// The line does not start with a keyword.
+    Other,
+}
+
 /// Entry tracking where a tree expression container started.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct TreeExpressionEntry {
@@ -56,6 +72,12 @@ pub(super) struct LexerOptions {
     pub(super) prev_semantic_token: Option<TokenSpan>,
     /// The third-to-last semantic token (excludes whitespace, comments, and newlines).
     pub(super) prev_prev_semantic_token: Option<TokenSpan>,
+    /// The keyword prefix state at the start of the current line.
+    pub(super) line_prefix_state: LinePrefixState,
+    /// Whether the current line starts a type alias declaration.
+    pub(super) current_line_starts_type_decl: bool,
+    /// Whether the previous line started a type alias declaration.
+    pub(super) previous_line_starts_type_decl: bool,
 }
 
 /// Lexer over a source string.

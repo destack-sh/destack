@@ -7,6 +7,7 @@ use destack_ast::{
     is_identifier_continue, is_identifier_start, is_whitespace,
 };
 
+use super::lexer::LinePrefixState;
 use destack_source::{FileId, LanguageType, Span};
 use destack_unicode::UnicodeEmoji;
 
@@ -44,7 +45,6 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
 ];
 
 pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 16] = [
-    TokenType::Newline,
     TokenType::Assign,
     TokenType::Comma,
     TokenType::Colon,
@@ -60,6 +60,7 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 16] = [
     TokenType::LogicalOrAssign,
     TokenType::OpenParenthesis,
     TokenType::OpenBracket,
+    TokenType::OpenBrace,
 ];
 
 /// Token types after which `<` can start a tree literal (TSX-compatible).
@@ -219,6 +220,7 @@ impl Lexer<'_> {
                     self.options.prev_semantic_token = self.options.last_semantic_token;
                     self.options.last_semantic_token = Some(token_span);
                 }
+                self.update_line_prefix_state(token_span);
             }
             if token.ty == TokenType::End {
                 break;
@@ -263,77 +265,57 @@ impl Lexer<'_> {
 
             // slash, comments, regex, divide ops, or tree self-closing
             '/' => {
-                // in tree opening tag mode, / is part of self-closing tag
-                if self.tree_state() == TreeState::OpeningTag && self.peek() == '>'
-                    || self.tree_state() == TreeState::ClosingTag
-                {
-                    (TokenType::Divide, None)
-                } else {
-                    let bytes = self.as_str().as_bytes();
-                    let next = bytes.first().copied();
-                    match next {
-                        // //
-                        Some(b'/') => {
-                            // doc line comment if exactly three slashes and the fourth is not '/'
-                            let third_is_slash = bytes.get(1).copied() == Some(b'/');
-                            let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
-                            let is_doc_line = third_is_slash && !fourth_is_slash;
-                            self.eat_until(b'\n');
-                            if is_doc_line {
-                                (TokenType::DocLineComment, None)
-                            } else {
-                                (TokenType::LineComment, None)
-                            }
+                let bytes = self.as_str().as_bytes();
+                let next = bytes.first().copied();
+                match next {
+                    // //
+                    Some(b'/') => {
+                        // doc line comment if exactly three slashes and the fourth is not '/'
+                        let third_is_slash = bytes.get(1).copied() == Some(b'/');
+                        let fourth_is_slash = bytes.get(2).copied() == Some(b'/');
+                        let is_doc_line = third_is_slash && !fourth_is_slash;
+                        self.eat_until(b'\n');
+                        if is_doc_line {
+                            (TokenType::DocLineComment, None)
+                        } else {
+                            (TokenType::LineComment, None)
                         }
-                        // /*
-                        // block comments starting with '/*'
-                        Some(b'*') => {
-                            // detect doc block comment for exactly '/**' (not '/***')
-                            let third_is_star = bytes.get(1).copied() == Some(b'*');
-                            let fourth_is_star = bytes.get(2).copied() == Some(b'*');
-                            let is_doc_block = third_is_star && !fourth_is_star;
-                            // consume the initial '*'
-                            self.eat();
-                            // doc block comments do not nest
-                            let is_terminated = if is_doc_block {
-                                self.eat_doc_block_comment()
-                            } else {
-                                self.eat_block_comment()
-                            };
-                            // unterminated comment is an error
-                            if !is_terminated {
-                                (TokenType::Unknown, None)
-                            } else if is_doc_block {
-                                (TokenType::DocBlockComment, None)
-                            } else {
-                                (TokenType::BlockComment, None)
-                            }
+                    }
+                    // /*
+                    // block comments starting with '/*'
+                    Some(b'*') => {
+                        // detect doc block comment for exactly '/**' (not '/***')
+                        let third_is_star = bytes.get(1).copied() == Some(b'*');
+                        let fourth_is_star = bytes.get(2).copied() == Some(b'*');
+                        let is_doc_block = third_is_star && !fourth_is_star;
+                        // consume the initial '*'
+                        self.eat();
+                        // doc block comments do not nest
+                        let is_terminated = if is_doc_block {
+                            self.eat_doc_block_comment()
+                        } else {
+                            self.eat_block_comment()
+                        };
+                        // unterminated comment is an error
+                        if !is_terminated {
+                            (TokenType::Unknown, None)
+                        } else if is_doc_block {
+                            (TokenType::DocBlockComment, None)
+                        } else {
+                            (TokenType::BlockComment, None)
+                        }
+                    }
+                    _ => {
+                        // in tree opening tag mode, / is part of self-closing tag
+                        if self.tree_state() == TreeState::OpeningTag && self.peek() == '>'
+                            || self.tree_state() == TreeState::ClosingTag
+                        {
+                            (TokenType::Divide, None)
                         }
                         // regex or divide
-                        _ => {
-                            // /regex/ if we're in a "start" context, use cached token for O(1) lookup
-                            let prev_non_whitespace_token =
-                                self.options.last_non_whitespace_token.as_ref();
-                            let is_expression_start = {
-                                if let Some(prev_non_whitespace_token) = prev_non_whitespace_token {
-                                    EXPRESSION_START_TOKEN_TYPES
-                                        .contains(&prev_non_whitespace_token.token.ty)
-                                        || prev_non_whitespace_token.token.ty
-                                            == TokenType::Identifier
-                                            && Keyword::from_str(
-                                                self.get_span_str(prev_non_whitespace_token.span),
-                                            )
-                                            .map(|k| {
-                                                k.is_control()
-                                                    || k == Keyword::Delete
-                                                    || UnaryOperator::from_prefix_keyword(k)
-                                                        .is_some()
-                                            })
-                                            .unwrap_or(false)
-                                } else {
-                                    true
-                                }
-                            };
+                        else {
+                            // /regex/ if we're in a start context
+                            let is_expression_start = self.is_expression_start_for_regex();
                             // check it's not a closing tag
                             // (`/>` without a closing `/` on the same line)
                             let is_regex_start = {
@@ -1818,6 +1800,42 @@ impl Lexer<'_> {
         TREE_OPENING_TOKEN_TYPES.contains(&token.token.ty)
     }
 
+    /// Check if `/` can start a regex literal.
+    fn is_expression_start_for_regex(&self) -> bool {
+        let last_non_whitespace = self.options.last_non_whitespace_token.as_ref();
+        let Some(last_non_whitespace) = last_non_whitespace else {
+            return true;
+        };
+
+        // handle newline boundaries via statement termination rules
+        if last_non_whitespace.token.ty == TokenType::Newline {
+            let Some(last_semantic) = self.options.last_semantic_token.as_ref() else {
+                return true;
+            };
+            return self.is_statement_boundary_after_newline(
+                Some(last_non_whitespace),
+                last_semantic,
+                self.options.prev_semantic_token.as_ref(),
+            );
+        }
+
+        if EXPRESSION_START_TOKEN_TYPES.contains(&last_non_whitespace.token.ty) {
+            return true;
+        }
+
+        if last_non_whitespace.token.ty == TokenType::Identifier {
+            return Keyword::from_str(self.get_span_str(last_non_whitespace.span))
+                .map(|keyword| {
+                    keyword.is_control()
+                        || keyword == Keyword::Delete
+                        || UnaryOperator::from_prefix_keyword(keyword).is_some()
+                })
+                .unwrap_or(false);
+        }
+
+        false
+    }
+
     /// Check if a token is a control keyword that can precede an expression.
     #[inline]
     fn is_control_keyword_token(&self, token: &TokenSpan) -> bool {
@@ -1881,11 +1899,93 @@ impl Lexer<'_> {
             && last_semantic.token.ty == TokenType::Identifier
             && prev_token.token.ty == TokenType::Identifier
             && let Ok(keyword) = Keyword::from_str(self.get_span_str(prev_token.span))
+            && matches!(keyword, Keyword::Let | Keyword::Var)
         {
-            return matches!(keyword, Keyword::Let | Keyword::Var);
+            return true;
+        }
+
+        if self.options.previous_line_starts_type_decl {
+            if last_semantic.token.ty == TokenType::Identifier
+                && Keyword::from_str(self.get_span_str(last_semantic.span))
+                    .is_ok_and(|keyword| keyword == Keyword::Extends)
+            {
+                return false;
+            }
+            let is_continuation = matches!(
+                last_semantic.token.ty,
+                TokenType::Assign
+                    | TokenType::Comma
+                    | TokenType::Colon
+                    | TokenType::Dot
+                    | TokenType::Maybe
+                    | TokenType::LessThan
+                    | TokenType::ShiftLeft
+                    | TokenType::SaturatingShiftLeft
+                    | TokenType::ElementwiseOr
+                    | TokenType::ElementwiseAnd
+                    | TokenType::LogicalOr
+                    | TokenType::LogicalAnd
+                    | TokenType::Arrow
+                    | TokenType::ArrowWide
+                    | TokenType::OpenParenthesis
+                    | TokenType::OpenBracket
+                    | TokenType::OpenBrace
+            );
+            if !is_continuation {
+                return true;
+            }
         }
 
         false
+    }
+
+    fn update_line_prefix_state(&mut self, token: TokenSpan) {
+        if token.token.ty == TokenType::Newline {
+            self.options.previous_line_starts_type_decl =
+                self.options.current_line_starts_type_decl;
+            self.options.current_line_starts_type_decl = false;
+            self.options.line_prefix_state = LinePrefixState::Start;
+            return;
+        }
+
+        if self.options.current_line_starts_type_decl {
+            return;
+        }
+
+        if token.token.ty != TokenType::Identifier {
+            self.options.line_prefix_state = LinePrefixState::Other;
+            return;
+        }
+
+        let Ok(keyword) = Keyword::from_str(self.get_span_str(token.span)) else {
+            self.options.line_prefix_state = LinePrefixState::Other;
+            return;
+        };
+
+        match self.options.line_prefix_state {
+            LinePrefixState::Start => match keyword {
+                Keyword::Export => self.options.line_prefix_state = LinePrefixState::SawExport,
+                Keyword::Declare => self.options.line_prefix_state = LinePrefixState::SawDeclare,
+                Keyword::Type => self.options.current_line_starts_type_decl = true,
+                _ => self.options.line_prefix_state = LinePrefixState::Other,
+            },
+            LinePrefixState::SawExport => match keyword {
+                Keyword::Declare => {
+                    self.options.line_prefix_state = LinePrefixState::SawExportDeclare
+                }
+                Keyword::Type => self.options.current_line_starts_type_decl = true,
+                _ => self.options.line_prefix_state = LinePrefixState::Other,
+            },
+            LinePrefixState::SawDeclare => match keyword {
+                Keyword::Type => self.options.current_line_starts_type_decl = true,
+                _ => self.options.line_prefix_state = LinePrefixState::Other,
+            },
+            LinePrefixState::SawExportDeclare => match keyword {
+                Keyword::Type => self.options.current_line_starts_type_decl = true,
+                _ => self.options.line_prefix_state = LinePrefixState::Other,
+            },
+            LinePrefixState::Other => {}
+        }
     }
 
     /// Checks if the next characters look like a tree tag start, NOT a generic.
@@ -1910,22 +2010,55 @@ impl Lexer<'_> {
             return false;
         }
 
-        let first = bytes[i] as char;
+        let Some(first_char) = s[i..].chars().next() else {
+            return false;
+        };
 
         // `<>` is a fragment
-        if first == '>' {
+        if first_char == '>' {
             return true;
         }
 
         // must start with identifier for element name
-        if !is_identifier_start(first) {
+        if !is_identifier_start(first_char) {
             return false;
         }
 
         // skip the identifier to see what comes after
-        i += 1;
-        while i < bytes.len() && is_identifier_continue(bytes[i] as char) {
-            i += 1;
+        let ident_start = i;
+        let mut ident_end = i + first_char.len_utf8();
+        let ident_scan_start = ident_end;
+        for (offset, ch) in s[ident_scan_start..].char_indices() {
+            if !is_identifier_continue(ch) {
+                break;
+            }
+            ident_end = ident_scan_start + offset + ch.len_utf8();
+        }
+        let ident = &s[ident_start..ident_end];
+        i = ident_end;
+
+        // `const` type parameter modifier in TSX generic arrows
+        if ident == "const" {
+            let mut j = i;
+            while j < bytes.len() && (is_whitespace(bytes[j] as char) || bytes[j] == b'\n') {
+                j += 1;
+            }
+            if j < bytes.len() {
+                let Some(type_param_start) = s[j..].chars().next() else {
+                    return false;
+                };
+                if is_identifier_start(type_param_start) {
+                    let mut type_param_end = j + type_param_start.len_utf8();
+                    let type_param_scan_start = type_param_end;
+                    for (offset, ch) in s[type_param_scan_start..].char_indices() {
+                        if !is_identifier_continue(ch) {
+                            break;
+                        }
+                        type_param_end = type_param_scan_start + offset + ch.len_utf8();
+                    }
+                    i = type_param_end;
+                }
+            }
         }
 
         // skip whitespace AND newlines (TSX allows multiline opening tags)

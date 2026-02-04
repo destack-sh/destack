@@ -42,6 +42,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA215", // ObjectLiteralDefault
     "EA216", // ObjectPatternMultipleSpreads
     "EA217", // ObjectPatternSpreadNotLast
+    "EA235", // ObjectPatternRestNotIdentifier
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType
