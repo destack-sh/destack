@@ -10,6 +10,29 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
+    /// Reject unparenthesized sequence expressions in JSX containers.
+    fn reject_jsx_sequence_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> ParseResult<()> {
+        if !self.language.supports_jsx() {
+            return Ok(());
+        }
+        if !matches!(
+            self.tree.get(expression_id),
+            Expression::SequenceExpression { .. }
+        ) {
+            return Ok(());
+        }
+        let span = self.tree.get_span(expression_id);
+        let span_str = self.get_span_str(span);
+        let trimmed = span_str.trim();
+        if trimmed.starts_with('(') && trimmed.ends_with(')') {
+            return Ok(());
+        }
+        Err(ParseError::unexpected(span))
+    }
+
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&self) -> bool {
         // skip newlines after the modifier keyword
@@ -589,7 +612,7 @@ impl Parser {
 
         // regular static parameters
         let mut options = self.options.nested().in_static();
-        if self.options.in_type || self.language.is_typescript() {
+        if self.options.in_type || self.options.in_decorator || self.language.is_typescript() {
             options = options.in_type();
         }
         let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;
@@ -877,8 +900,7 @@ impl Parser {
                     self.options
                         .not_in_position()
                         .not_in_tree_literal()
-                        .not_in_left_precedence()
-                        .not_in_sequence_expression(),
+                        .not_in_left_precedence(),
                     |parser| parser.eat_expression(),
                 )?;
                 self.eat_newlines_maybe()?;
@@ -898,10 +920,10 @@ impl Parser {
                 self.options
                     .not_in_position()
                     .not_in_tree_literal()
-                    .not_in_left_precedence()
-                    .not_in_sequence_expression(),
+                    .not_in_left_precedence(),
                 |parser| parser.eat_expression(),
             )?;
+            self.reject_jsx_sequence_expression(value)?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self.tree.insert(
@@ -1017,10 +1039,10 @@ impl Parser {
                         self.options
                             .not_in_position()
                             .not_in_tree_literal()
-                            .not_in_left_precedence()
-                            .not_in_sequence_expression(),
+                            .not_in_left_precedence(),
                         |parser| parser.eat_expression(),
                     )?;
+                    self.reject_jsx_sequence_expression(value)?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::CloseBrace)?;
                     value
@@ -1044,6 +1066,15 @@ impl Parser {
                         Expression::ArrayExpression { elements },
                         self.get_span_from(value_start),
                     )
+                }
+                // tree literal attribute value
+                else if self.language.supports_jsx()
+                    && self.peek_is(TokenType::LessThan)
+                    && self.peek_tree_literal().is_ok()
+                {
+                    self.with_options(self.options.not_in_position().in_tree_literal(), |parser| {
+                        parser.eat_tree_literal()
+                    })?
                 }
                 // unexpected attribute value
                 else {
@@ -1111,7 +1142,11 @@ impl Parser {
 
         // regular static arguments (positional/spread only)
         let mut options = self.options.nested().in_static();
-        if self.options.in_type || self.language.is_typescript() {
+        if self.options.in_type
+            || self.options.in_decorator
+            || self.language.is_destack()
+            || self.language.is_typescript()
+        {
             options = options.in_type();
         }
         let static_arguments = self.with_options(options, |parser| {
