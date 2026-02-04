@@ -29,11 +29,25 @@ declare namespace net {
         buffer: Slice<uint8>,
     ): Result<uint64, PlatformError>;
 
+    /// Read into multiple buffers.
+    @binding("destack.net.readv", { effect: "external", replay: "recordable" })
+    export function readv(
+        handle: SocketHandle,
+        buffers: Slice<Slice<uint8>>,
+    ): Result<uint64, PlatformError>;
+
     /// Write to a socket from the provided slice.
     @binding("destack.net.write", { effect: "external", replay: "recordable" })
     export function write(
         handle: SocketHandle,
         buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
+
+    /// Write from multiple buffers.
+    @binding("destack.net.writev", { effect: "external", replay: "recordable" })
+    export function writev(
+        handle: SocketHandle,
+        buffers: Slice<Slice<uint8>>,
     ): Result<uint64, PlatformError>;
 
     /// Shut down a socket for reads, writes, or both.

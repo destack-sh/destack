@@ -8,11 +8,10 @@ use crate::platform::bindings::{
 };
 use crate::platform::fs::{
     AccessMode, AtFlags, Dirent, DirentKind, DirentReplay, DirentVm, FileLockFlags, FileMode,
-    FileOffset, OpenFlags, Stat, StatFs, StatFsVm, StatVm,
+    FileOffset, OpenFlags, PathBytes, PathBytesVm, PathUtf16, PathUtf16Vm, Stat, StatFs, StatFsVm,
+    StatVm, SymlinkType,
 };
-use crate::platform::{
-    NativeArray, NativeSlice, NativeStringRef, PlatformError, RuntimeStatus, VmArray, VmSlice,
-};
+use crate::platform::{NativeArray, NativeSlice, PlatformError, RuntimeStatus, VmArray, VmSlice};
 use crate::runtime::{RuntimeCallContext, with_runtime_call_context};
 #[cfg(feature = "replay")]
 use crate::vm_binding_set;
@@ -62,6 +61,15 @@ fn decode_uint8(value: vm::Value, name: &'static str, expected: &'static str) ->
     Ok(decode_uint(value, name, expected, 8)? as u8)
 }
 
+/// Decode a u16 argument.
+fn decode_uint16(
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<u16> {
+    Ok(decode_uint(value, name, expected, 16)? as u16)
+}
+
 /// Decode a u32 argument.
 fn decode_uint32(
     value: vm::Value,
@@ -105,25 +113,34 @@ fn decode_slice<T>(
     VmSlice::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.fs.access.
+/// Decode an array argument.
+fn decode_array<T>(
+    context: &mut vm::RuntimeContext<'_>,
+    value: vm::Value,
+    name: &'static str,
+    expected: &'static str,
+) -> RuntimeResult<VmArray<T>> {
+    VmArray::<T>::from_value(context, value, name, expected)
+}
+
+/// Decode arguments for destack.fs.accessBytes.
 #[inline]
-fn decode_destack_fs_access_args(
+fn decode_destack_fs_access_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, AccessMode)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(PathBytesVm, AccessMode)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let mode_value = arg_value(args, 1, "mode", "AccessMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "AccessMode")?;
     let mode = AccessMode(mode_inner);
     Ok((path, mode))
 }
 
-/// Encode the result for destack.fs.access.
+/// Encode the result for destack.fs.accessBytes.
 #[inline]
-fn encode_destack_fs_access_result(
+fn encode_destack_fs_access_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -132,25 +149,50 @@ fn encode_destack_fs_access_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.chmod.
+/// Decode arguments for destack.fs.accessUtf16.
 #[inline]
-fn decode_destack_fs_chmod_args(
+fn decode_destack_fs_access_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, FileMode)> {
+) -> RuntimeResult<(PathUtf16Vm, AccessMode)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let mode_value = arg_value(args, 1, "mode", "AccessMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "AccessMode")?;
+    let mode = AccessMode(mode_inner);
+    Ok((path, mode))
+}
+
+/// Encode the result for destack.fs.accessUtf16.
+#[inline]
+fn encode_destack_fs_access_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.chmodBytes.
+#[inline]
+fn decode_destack_fs_chmod_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
     Ok((path, mode))
 }
 
-/// Encode the result for destack.fs.chmod.
+/// Encode the result for destack.fs.chmodBytes.
 #[inline]
-fn encode_destack_fs_chmod_result(
+fn encode_destack_fs_chmod_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -159,16 +201,41 @@ fn encode_destack_fs_chmod_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.chown.
+/// Decode arguments for destack.fs.chmodUtf16.
 #[inline]
-fn decode_destack_fs_chown_args(
+fn decode_destack_fs_chmod_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, u32, u32)> {
+) -> RuntimeResult<(PathUtf16Vm, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let mode_value = arg_value(args, 1, "mode", "FileMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
+    let mode = FileMode(mode_inner);
+    Ok((path, mode))
+}
+
+/// Encode the result for destack.fs.chmodUtf16.
+#[inline]
+fn encode_destack_fs_chmod_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.chownBytes.
+#[inline]
+fn decode_destack_fs_chown_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, u32, u32)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let uid_value = arg_value(args, 1, "uid", "uint32")?;
     let uid = decode_uint32(uid_value, "uid", "uint32")?;
     let gid_value = arg_value(args, 2, "gid", "uint32")?;
@@ -176,9 +243,36 @@ fn decode_destack_fs_chown_args(
     Ok((path, uid, gid))
 }
 
-/// Encode the result for destack.fs.chown.
+/// Encode the result for destack.fs.chownBytes.
 #[inline]
-fn encode_destack_fs_chown_result(
+fn encode_destack_fs_chown_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.chownUtf16.
+#[inline]
+fn decode_destack_fs_chown_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, u32, u32)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let uid_value = arg_value(args, 1, "uid", "uint32")?;
+    let uid = decode_uint32(uid_value, "uid", "uint32")?;
+    let gid_value = arg_value(args, 2, "gid", "uint32")?;
+    let gid = decode_uint32(gid_value, "gid", "uint32")?;
+    Ok((path, uid, gid))
+}
+
+/// Encode the result for destack.fs.chownUtf16.
+#[inline]
+fn encode_destack_fs_chown_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -239,26 +333,54 @@ fn encode_destack_fs_closedir_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.copyfile.
+/// Decode arguments for destack.fs.copyfileBytes.
 #[inline]
-fn decode_destack_fs_copyfile_args(
+fn decode_destack_fs_copyfile_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle, u32)> {
-    let _ = context;
-
-    let from_value = arg_value(args, 0, "from", "string")?;
-    let from = decode_string(from_value, "from", "string")?;
-    let to_value = arg_value(args, 1, "to", "string")?;
-    let to = decode_string(to_value, "to", "string")?;
+) -> RuntimeResult<(PathBytesVm, PathBytesVm, u32)> {
+    let from_value = arg_value(args, 0, "from", "PathBytes")?;
+    let from_inner = decode_array::<u8>(context, from_value, "from_inner", "PathBytes")?;
+    let from = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_inner);
+    let to_value = arg_value(args, 1, "to", "PathBytes")?;
+    let to_inner = decode_array::<u8>(context, to_value, "to_inner", "PathBytes")?;
+    let to = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_inner);
     let flags_value = arg_value(args, 2, "flags", "uint32")?;
     let flags = decode_uint32(flags_value, "flags", "uint32")?;
     Ok((from, to, flags))
 }
 
-/// Encode the result for destack.fs.copyfile.
+/// Encode the result for destack.fs.copyfileBytes.
 #[inline]
-fn encode_destack_fs_copyfile_result(
+fn encode_destack_fs_copyfile_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.copyfileUtf16.
+#[inline]
+fn decode_destack_fs_copyfile_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, PathUtf16Vm, u32)> {
+    let from_value = arg_value(args, 0, "from", "PathUtf16")?;
+    let from_inner = decode_array::<u16>(context, from_value, "from_inner", "PathUtf16")?;
+    let from = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_inner);
+    let to_value = arg_value(args, 1, "to", "PathUtf16")?;
+    let to_inner = decode_array::<u16>(context, to_value, "to_inner", "PathUtf16")?;
+    let to = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_inner);
+    let flags_value = arg_value(args, 2, "flags", "uint32")?;
+    let flags = decode_uint32(flags_value, "flags", "uint32")?;
+    Ok((from, to, flags))
+}
+
+/// Encode the result for destack.fs.copyfileUtf16.
+#[inline]
+fn encode_destack_fs_copyfile_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -515,24 +637,30 @@ fn encode_destack_fs_futimes_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.link.
+/// Decode arguments for destack.fs.linkBytes.
 #[inline]
-fn decode_destack_fs_link_args(
+fn decode_destack_fs_link_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
-    let _ = context;
-
-    let existingpath_value = arg_value(args, 0, "existingpath", "string")?;
-    let existingpath = decode_string(existingpath_value, "existingpath", "string")?;
-    let newpath_value = arg_value(args, 1, "newpath", "string")?;
-    let newpath = decode_string(newpath_value, "newpath", "string")?;
+) -> RuntimeResult<(PathBytesVm, PathBytesVm)> {
+    let existingpath_value = arg_value(args, 0, "existingpath", "PathBytes")?;
+    let existingpath_inner = decode_array::<u8>(
+        context,
+        existingpath_value,
+        "existingpath_inner",
+        "PathBytes",
+    )?;
+    let existingpath =
+        crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(existingpath_inner);
+    let newpath_value = arg_value(args, 1, "newpath", "PathBytes")?;
+    let newpath_inner = decode_array::<u8>(context, newpath_value, "newpath_inner", "PathBytes")?;
+    let newpath = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_inner);
     Ok((existingpath, newpath))
 }
 
-/// Encode the result for destack.fs.link.
+/// Encode the result for destack.fs.linkBytes.
 #[inline]
-fn encode_destack_fs_link_result(
+fn encode_destack_fs_link_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -541,20 +669,50 @@ fn encode_destack_fs_link_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.linkat.
+/// Decode arguments for destack.fs.linkUtf16.
 #[inline]
-fn decode_destack_fs_linkat_args(
+fn decode_destack_fs_link_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, PathUtf16Vm)> {
+    let existingpath_value = arg_value(args, 0, "existingpath", "PathUtf16")?;
+    let existingpath_inner = decode_array::<u16>(
+        context,
+        existingpath_value,
+        "existingpath_inner",
+        "PathUtf16",
+    )?;
+    let existingpath =
+        crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(existingpath_inner);
+    let newpath_value = arg_value(args, 1, "newpath", "PathUtf16")?;
+    let newpath_inner = decode_array::<u16>(context, newpath_value, "newpath_inner", "PathUtf16")?;
+    let newpath = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(newpath_inner);
+    Ok((existingpath, newpath))
+}
+
+/// Encode the result for destack.fs.linkUtf16.
+#[inline]
+fn encode_destack_fs_link_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.linkatBytes.
+#[inline]
+fn decode_destack_fs_linkat_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::DirectoryHandle,
-    vm::StringHandle,
+    PathBytesVm,
     resource::DirectoryHandle,
-    vm::StringHandle,
+    PathBytesVm,
     AtFlags,
 )> {
-    let _ = context;
-
     let existingdir_value = arg_value(args, 0, "existingdir", "DirectoryHandle")?;
     let existingdir_inner_inner = decode_uint64(
         existingdir_value,
@@ -563,23 +721,84 @@ fn decode_destack_fs_linkat_args(
     )?;
     let existingdir_inner = resource::ResourceId(existingdir_inner_inner);
     let existingdir = resource::DirectoryHandle(existingdir_inner);
-    let existingpath_value = arg_value(args, 1, "existingpath", "string")?;
-    let existingpath = decode_string(existingpath_value, "existingpath", "string")?;
+    let existingpath_value = arg_value(args, 1, "existingpath", "PathBytes")?;
+    let existingpath_inner = decode_array::<u8>(
+        context,
+        existingpath_value,
+        "existingpath_inner",
+        "PathBytes",
+    )?;
+    let existingpath =
+        crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(existingpath_inner);
     let newdir_value = arg_value(args, 2, "newdir", "DirectoryHandle")?;
     let newdir_inner_inner = decode_uint64(newdir_value, "newdir_inner_inner", "DirectoryHandle")?;
     let newdir_inner = resource::ResourceId(newdir_inner_inner);
     let newdir = resource::DirectoryHandle(newdir_inner);
-    let newpath_value = arg_value(args, 3, "newpath", "string")?;
-    let newpath = decode_string(newpath_value, "newpath", "string")?;
+    let newpath_value = arg_value(args, 3, "newpath", "PathBytes")?;
+    let newpath_inner = decode_array::<u8>(context, newpath_value, "newpath_inner", "PathBytes")?;
+    let newpath = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(newpath_inner);
     let flags_value = arg_value(args, 4, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
     Ok((existingdir, existingpath, newdir, newpath, flags))
 }
 
-/// Encode the result for destack.fs.linkat.
+/// Encode the result for destack.fs.linkatBytes.
 #[inline]
-fn encode_destack_fs_linkat_result(
+fn encode_destack_fs_linkat_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.linkatUtf16.
+#[inline]
+fn decode_destack_fs_linkat_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(
+    resource::DirectoryHandle,
+    PathUtf16Vm,
+    resource::DirectoryHandle,
+    PathUtf16Vm,
+    AtFlags,
+)> {
+    let existingdir_value = arg_value(args, 0, "existingdir", "DirectoryHandle")?;
+    let existingdir_inner_inner = decode_uint64(
+        existingdir_value,
+        "existingdir_inner_inner",
+        "DirectoryHandle",
+    )?;
+    let existingdir_inner = resource::ResourceId(existingdir_inner_inner);
+    let existingdir = resource::DirectoryHandle(existingdir_inner);
+    let existingpath_value = arg_value(args, 1, "existingpath", "PathUtf16")?;
+    let existingpath_inner = decode_array::<u16>(
+        context,
+        existingpath_value,
+        "existingpath_inner",
+        "PathUtf16",
+    )?;
+    let existingpath =
+        crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(existingpath_inner);
+    let newdir_value = arg_value(args, 2, "newdir", "DirectoryHandle")?;
+    let newdir_inner_inner = decode_uint64(newdir_value, "newdir_inner_inner", "DirectoryHandle")?;
+    let newdir_inner = resource::ResourceId(newdir_inner_inner);
+    let newdir = resource::DirectoryHandle(newdir_inner);
+    let newpath_value = arg_value(args, 3, "newpath", "PathUtf16")?;
+    let newpath_inner = decode_array::<u16>(context, newpath_value, "newpath_inner", "PathUtf16")?;
+    let newpath = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(newpath_inner);
+    let flags_value = arg_value(args, 4, "flags", "AtFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
+    let flags = AtFlags(flags_inner);
+    Ok((existingdir, existingpath, newdir, newpath, flags))
+}
+
+/// Encode the result for destack.fs.linkatUtf16.
+#[inline]
+fn encode_destack_fs_linkat_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -617,22 +836,21 @@ fn encode_destack_fs_lock_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.lstat.
+/// Decode arguments for destack.fs.lstatBytes.
 #[inline]
-fn decode_destack_fs_lstat_args(
+fn decode_destack_fs_lstat_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.lstat.
+/// Encode the result for destack.fs.lstatBytes.
 #[inline]
-fn encode_destack_fs_lstat_result(
+fn encode_destack_fs_lstat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -656,16 +874,53 @@ fn encode_destack_fs_lstat_result(
     })
 }
 
-/// Decode arguments for destack.fs.lutimes.
+/// Decode arguments for destack.fs.lstatUtf16.
 #[inline]
-fn decode_destack_fs_lutimes_args(
+fn decode_destack_fs_lstat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, u64, u64)> {
-    let _ = context;
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+/// Encode the result for destack.fs.lstatUtf16.
+#[inline]
+fn encode_destack_fs_lstat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<StatVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        context.allocate_aggregate(vec![
+            vm::Value::uint(value.dev, 64),
+            vm::Value::uint(value.ino, 64),
+            vm::Value::uint(value.mode as u64, 32),
+            vm::Value::uint(value.nlink as u64, 32),
+            vm::Value::uint(value.uid as u64, 32),
+            vm::Value::uint(value.gid as u64, 32),
+            vm::Value::uint(value.rdev, 64),
+            vm::Value::uint(value.size.0, 64),
+            vm::Value::uint(value.blksize, 64),
+            vm::Value::uint(value.blocks, 64),
+            vm::Value::uint(value.atime_ns, 64),
+            vm::Value::uint(value.mtime_ns, 64),
+            vm::Value::uint(value.ctime_ns, 64),
+            vm::Value::uint(value.birthtime_ns, 64),
+        ])
+    })
+}
+
+/// Decode arguments for destack.fs.lutimesBytes.
+#[inline]
+fn decode_destack_fs_lutimes_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, u64, u64)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
     let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
     let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
@@ -673,9 +928,9 @@ fn decode_destack_fs_lutimes_args(
     Ok((path, atimens, mtimens))
 }
 
-/// Encode the result for destack.fs.lutimes.
+/// Encode the result for destack.fs.lutimesBytes.
 #[inline]
-fn encode_destack_fs_lutimes_result(
+fn encode_destack_fs_lutimes_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -684,25 +939,51 @@ fn encode_destack_fs_lutimes_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.mkdir.
+/// Decode arguments for destack.fs.lutimesUtf16.
 #[inline]
-fn decode_destack_fs_mkdir_args(
+fn decode_destack_fs_lutimes_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, FileMode)> {
+) -> RuntimeResult<(PathUtf16Vm, u64, u64)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
+    let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
+    let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
+    let mtimens = decode_uint64(mtimens_value, "mtimens", "uint64")?;
+    Ok((path, atimens, mtimens))
+}
+
+/// Encode the result for destack.fs.lutimesUtf16.
+#[inline]
+fn encode_destack_fs_lutimes_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.mkdirBytes.
+#[inline]
+fn decode_destack_fs_mkdir_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let mode_value = arg_value(args, 1, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
     Ok((path, mode))
 }
 
-/// Encode the result for destack.fs.mkdir.
+/// Encode the result for destack.fs.mkdirBytes.
 #[inline]
-fn encode_destack_fs_mkdir_result(
+fn encode_destack_fs_mkdir_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -711,29 +992,54 @@ fn encode_destack_fs_mkdir_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.mkdirat.
+/// Decode arguments for destack.fs.mkdirUtf16.
 #[inline]
-fn decode_destack_fs_mkdirat_args(
+fn decode_destack_fs_mkdir_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::DirectoryHandle, vm::StringHandle, FileMode)> {
+) -> RuntimeResult<(PathUtf16Vm, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let mode_value = arg_value(args, 1, "mode", "FileMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
+    let mode = FileMode(mode_inner);
+    Ok((path, mode))
+}
+
+/// Encode the result for destack.fs.mkdirUtf16.
+#[inline]
+fn encode_destack_fs_mkdir_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.mkdiratBytes.
+#[inline]
+fn decode_destack_fs_mkdirat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathBytesVm, FileMode)> {
     let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let mode_value = arg_value(args, 2, "mode", "FileMode")?;
     let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
     let mode = FileMode(mode_inner);
     Ok((dir, path, mode))
 }
 
-/// Encode the result for destack.fs.mkdirat.
+/// Encode the result for destack.fs.mkdiratBytes.
 #[inline]
-fn encode_destack_fs_mkdirat_result(
+fn encode_destack_fs_mkdirat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -742,40 +1048,89 @@ fn encode_destack_fs_mkdirat_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.mkdtemp.
+/// Decode arguments for destack.fs.mkdiratUtf16.
 #[inline]
-fn decode_destack_fs_mkdtemp_args(
+fn decode_destack_fs_mkdirat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let template_value = arg_value(args, 0, "template", "string")?;
-    let template = decode_string(template_value, "template", "string")?;
-    Ok((template,))
+) -> RuntimeResult<(resource::DirectoryHandle, PathUtf16Vm, FileMode)> {
+    let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let mode_value = arg_value(args, 2, "mode", "FileMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
+    let mode = FileMode(mode_inner);
+    Ok((dir, path, mode))
 }
 
-/// Encode the result for destack.fs.mkdtemp.
+/// Encode the result for destack.fs.mkdiratUtf16.
 #[inline]
-fn encode_destack_fs_mkdtemp_result(
+fn encode_destack_fs_mkdirat_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    result.map(|value| value.value())
+    result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.open.
+/// Decode arguments for destack.fs.mkdtempBytes.
 #[inline]
-fn decode_destack_fs_open_args(
+fn decode_destack_fs_mkdtemp_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, OpenFlags, FileMode)> {
-    let _ = context;
+) -> RuntimeResult<(PathBytesVm,)> {
+    let template_value = arg_value(args, 0, "template", "PathBytes")?;
+    let template_inner =
+        decode_array::<u8>(context, template_value, "template_inner", "PathBytes")?;
+    let template = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(template_inner);
+    Ok((template,))
+}
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+/// Encode the result for destack.fs.mkdtempBytes.
+#[inline]
+fn encode_destack_fs_mkdtemp_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<PathBytesVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.0.to_value(context))
+}
+
+/// Decode arguments for destack.fs.mkdtempUtf16.
+#[inline]
+fn decode_destack_fs_mkdtemp_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let template_value = arg_value(args, 0, "template", "PathUtf16")?;
+    let template_inner =
+        decode_array::<u16>(context, template_value, "template_inner", "PathUtf16")?;
+    let template = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(template_inner);
+    Ok((template,))
+}
+
+/// Encode the result for destack.fs.mkdtempUtf16.
+#[inline]
+fn encode_destack_fs_mkdtemp_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<PathUtf16Vm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.0.to_value(context))
+}
+
+/// Decode arguments for destack.fs.openBytes.
+#[inline]
+fn decode_destack_fs_open_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, OpenFlags, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let flags_value = arg_value(args, 1, "flags", "OpenFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
     let flags = OpenFlags(flags_inner);
@@ -785,9 +1140,9 @@ fn decode_destack_fs_open_args(
     Ok((path, flags, mode))
 }
 
-/// Encode the result for destack.fs.open.
+/// Encode the result for destack.fs.openBytes.
 #[inline]
-fn encode_destack_fs_open_result(
+fn encode_destack_fs_open_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -796,25 +1151,48 @@ fn encode_destack_fs_open_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.fs.openat.
+/// Decode arguments for destack.fs.openUtf16.
 #[inline]
-fn decode_destack_fs_openat_args(
+fn decode_destack_fs_open_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(
-    resource::DirectoryHandle,
-    vm::StringHandle,
-    OpenFlags,
-    FileMode,
-)> {
+) -> RuntimeResult<(PathUtf16Vm, OpenFlags, FileMode)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let flags_value = arg_value(args, 1, "flags", "OpenFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
+    let flags = OpenFlags(flags_inner);
+    let mode_value = arg_value(args, 2, "mode", "FileMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
+    let mode = FileMode(mode_inner);
+    Ok((path, flags, mode))
+}
+
+/// Encode the result for destack.fs.openUtf16.
+#[inline]
+fn encode_destack_fs_open_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::FileHandle>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.fs.openatBytes.
+#[inline]
+fn decode_destack_fs_openat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathBytesVm, OpenFlags, FileMode)> {
     let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let flags_value = arg_value(args, 2, "flags", "OpenFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
     let flags = OpenFlags(flags_inner);
@@ -824,9 +1202,9 @@ fn decode_destack_fs_openat_args(
     Ok((dir, path, flags, mode))
 }
 
-/// Encode the result for destack.fs.openat.
+/// Encode the result for destack.fs.openatBytes.
 #[inline]
-fn encode_destack_fs_openat_result(
+fn encode_destack_fs_openat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::FileHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -835,22 +1213,77 @@ fn encode_destack_fs_openat_result(
     result.map(|value| vm::Value::uint(value.0.0, 64))
 }
 
-/// Decode arguments for destack.fs.opendir.
+/// Decode arguments for destack.fs.openatUtf16.
 #[inline]
-fn decode_destack_fs_opendir_args(
+fn decode_destack_fs_openat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
+) -> RuntimeResult<(resource::DirectoryHandle, PathUtf16Vm, OpenFlags, FileMode)> {
+    let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let flags_value = arg_value(args, 2, "flags", "OpenFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "OpenFlags")?;
+    let flags = OpenFlags(flags_inner);
+    let mode_value = arg_value(args, 3, "mode", "FileMode")?;
+    let mode_inner = decode_uint32(mode_value, "mode_inner", "FileMode")?;
+    let mode = FileMode(mode_inner);
+    Ok((dir, path, flags, mode))
+}
+
+/// Encode the result for destack.fs.openatUtf16.
+#[inline]
+fn encode_destack_fs_openat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::FileHandle>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.fs.opendirBytes.
+#[inline]
+fn decode_destack_fs_opendir_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.opendir.
+/// Encode the result for destack.fs.opendirBytes.
 #[inline]
-fn encode_destack_fs_opendir_result(
+fn encode_destack_fs_opendir_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<resource::DirectoryHandle>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|value| vm::Value::uint(value.0.0, 64))
+}
+
+/// Decode arguments for destack.fs.opendirUtf16.
+#[inline]
+fn decode_destack_fs_opendir_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.opendirUtf16.
+#[inline]
+fn encode_destack_fs_opendir_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<resource::DirectoryHandle>,
 ) -> RuntimeResult<vm::Value> {
@@ -912,56 +1345,96 @@ fn encode_destack_fs_readdir_result(
     result.map(|value| value.to_value(context))
 }
 
-/// Decode arguments for destack.fs.readlink.
+/// Decode arguments for destack.fs.readlinkBytes.
 #[inline]
-fn decode_destack_fs_readlink_args(
+fn decode_destack_fs_readlink_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.readlink.
+/// Encode the result for destack.fs.readlinkBytes.
 #[inline]
-fn encode_destack_fs_readlink_result(
+fn encode_destack_fs_readlink_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<PathBytesVm>,
 ) -> RuntimeResult<vm::Value> {
-    let _ = context;
-
-    result.map(|value| value.value())
+    result.map(|value| value.0.to_value(context))
 }
 
-/// Decode arguments for destack.fs.readlinkat.
+/// Decode arguments for destack.fs.readlinkUtf16.
 #[inline]
-fn decode_destack_fs_readlinkat_args(
+fn decode_destack_fs_readlink_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::DirectoryHandle, vm::StringHandle)> {
-    let _ = context;
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
 
+/// Encode the result for destack.fs.readlinkUtf16.
+#[inline]
+fn encode_destack_fs_readlink_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<PathUtf16Vm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.0.to_value(context))
+}
+
+/// Decode arguments for destack.fs.readlinkatBytes.
+#[inline]
+fn decode_destack_fs_readlinkat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathBytesVm)> {
     let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((dir, path))
 }
 
-/// Encode the result for destack.fs.readlinkat.
+/// Encode the result for destack.fs.readlinkatBytes.
 #[inline]
-fn encode_destack_fs_readlinkat_result(
+fn encode_destack_fs_readlinkat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<PathBytesVm>,
 ) -> RuntimeResult<vm::Value> {
-    let _ = context;
+    result.map(|value| value.0.to_value(context))
+}
 
-    result.map(|value| value.value())
+/// Decode arguments for destack.fs.readlinkatUtf16.
+#[inline]
+fn decode_destack_fs_readlinkat_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathUtf16Vm)> {
+    let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((dir, path))
+}
+
+/// Encode the result for destack.fs.readlinkatUtf16.
+#[inline]
+fn encode_destack_fs_readlinkat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<PathUtf16Vm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.0.to_value(context))
 }
 
 /// Decode arguments for destack.fs.readv.
@@ -994,48 +1467,66 @@ fn encode_destack_fs_readv_result(
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Decode arguments for destack.fs.realpath.
+/// Decode arguments for destack.fs.realpathBytes.
 #[inline]
-fn decode_destack_fs_realpath_args(
+fn decode_destack_fs_realpath_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.realpath.
+/// Encode the result for destack.fs.realpathBytes.
 #[inline]
-fn encode_destack_fs_realpath_result(
+fn encode_destack_fs_realpath_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
-    result: RuntimeResult<vm::StringHandle>,
+    result: RuntimeResult<PathBytesVm>,
 ) -> RuntimeResult<vm::Value> {
-    let _ = context;
-
-    result.map(|value| value.value())
+    result.map(|value| value.0.to_value(context))
 }
 
-/// Decode arguments for destack.fs.rename.
+/// Decode arguments for destack.fs.realpathUtf16.
 #[inline]
-fn decode_destack_fs_rename_args(
+fn decode_destack_fs_realpath_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
-    let _ = context;
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
 
-    let from_value = arg_value(args, 0, "from", "string")?;
-    let from = decode_string(from_value, "from", "string")?;
-    let to_value = arg_value(args, 1, "to", "string")?;
-    let to = decode_string(to_value, "to", "string")?;
+/// Encode the result for destack.fs.realpathUtf16.
+#[inline]
+fn encode_destack_fs_realpath_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<PathUtf16Vm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| value.0.to_value(context))
+}
+
+/// Decode arguments for destack.fs.renameBytes.
+#[inline]
+fn decode_destack_fs_rename_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, PathBytesVm)> {
+    let from_value = arg_value(args, 0, "from", "PathBytes")?;
+    let from_inner = decode_array::<u8>(context, from_value, "from_inner", "PathBytes")?;
+    let from = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_inner);
+    let to_value = arg_value(args, 1, "to", "PathBytes")?;
+    let to_inner = decode_array::<u8>(context, to_value, "to_inner", "PathBytes")?;
+    let to = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_inner);
     Ok((from, to))
 }
 
-/// Encode the result for destack.fs.rename.
+/// Encode the result for destack.fs.renameBytes.
 #[inline]
-fn encode_destack_fs_rename_result(
+fn encode_destack_fs_rename_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1044,38 +1535,64 @@ fn encode_destack_fs_rename_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.renameat.
+/// Decode arguments for destack.fs.renameUtf16.
 #[inline]
-fn decode_destack_fs_renameat_args(
+fn decode_destack_fs_rename_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, PathUtf16Vm)> {
+    let from_value = arg_value(args, 0, "from", "PathUtf16")?;
+    let from_inner = decode_array::<u16>(context, from_value, "from_inner", "PathUtf16")?;
+    let from = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_inner);
+    let to_value = arg_value(args, 1, "to", "PathUtf16")?;
+    let to_inner = decode_array::<u16>(context, to_value, "to_inner", "PathUtf16")?;
+    let to = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_inner);
+    Ok((from, to))
+}
+
+/// Encode the result for destack.fs.renameUtf16.
+#[inline]
+fn encode_destack_fs_rename_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.renameatBytes.
+#[inline]
+fn decode_destack_fs_renameat_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
     resource::DirectoryHandle,
-    vm::StringHandle,
+    PathBytesVm,
     resource::DirectoryHandle,
-    vm::StringHandle,
+    PathBytesVm,
 )> {
-    let _ = context;
-
     let fromdir_value = arg_value(args, 0, "fromdir", "DirectoryHandle")?;
     let fromdir_inner_inner =
         decode_uint64(fromdir_value, "fromdir_inner_inner", "DirectoryHandle")?;
     let fromdir_inner = resource::ResourceId(fromdir_inner_inner);
     let fromdir = resource::DirectoryHandle(fromdir_inner);
-    let from_value = arg_value(args, 1, "from", "string")?;
-    let from = decode_string(from_value, "from", "string")?;
+    let from_value = arg_value(args, 1, "from", "PathBytes")?;
+    let from_inner = decode_array::<u8>(context, from_value, "from_inner", "PathBytes")?;
+    let from = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(from_inner);
     let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
     let todir_inner_inner = decode_uint64(todir_value, "todir_inner_inner", "DirectoryHandle")?;
     let todir_inner = resource::ResourceId(todir_inner_inner);
     let todir = resource::DirectoryHandle(todir_inner);
-    let to_value = arg_value(args, 3, "to", "string")?;
-    let to = decode_string(to_value, "to", "string")?;
+    let to_value = arg_value(args, 3, "to", "PathBytes")?;
+    let to_inner = decode_array::<u8>(context, to_value, "to_inner", "PathBytes")?;
+    let to = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(to_inner);
     Ok((fromdir, from, todir, to))
 }
 
-/// Encode the result for destack.fs.renameat.
+/// Encode the result for destack.fs.renameatBytes.
 #[inline]
-fn encode_destack_fs_renameat_result(
+fn encode_destack_fs_renameat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1084,22 +1601,38 @@ fn encode_destack_fs_renameat_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.rmdir.
+/// Decode arguments for destack.fs.renameatUtf16.
 #[inline]
-fn decode_destack_fs_rmdir_args(
+fn decode_destack_fs_renameat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
-    Ok((path,))
+) -> RuntimeResult<(
+    resource::DirectoryHandle,
+    PathUtf16Vm,
+    resource::DirectoryHandle,
+    PathUtf16Vm,
+)> {
+    let fromdir_value = arg_value(args, 0, "fromdir", "DirectoryHandle")?;
+    let fromdir_inner_inner =
+        decode_uint64(fromdir_value, "fromdir_inner_inner", "DirectoryHandle")?;
+    let fromdir_inner = resource::ResourceId(fromdir_inner_inner);
+    let fromdir = resource::DirectoryHandle(fromdir_inner);
+    let from_value = arg_value(args, 1, "from", "PathUtf16")?;
+    let from_inner = decode_array::<u16>(context, from_value, "from_inner", "PathUtf16")?;
+    let from = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(from_inner);
+    let todir_value = arg_value(args, 2, "todir", "DirectoryHandle")?;
+    let todir_inner_inner = decode_uint64(todir_value, "todir_inner_inner", "DirectoryHandle")?;
+    let todir_inner = resource::ResourceId(todir_inner_inner);
+    let todir = resource::DirectoryHandle(todir_inner);
+    let to_value = arg_value(args, 3, "to", "PathUtf16")?;
+    let to_inner = decode_array::<u16>(context, to_value, "to_inner", "PathUtf16")?;
+    let to = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(to_inner);
+    Ok((fromdir, from, todir, to))
 }
 
-/// Encode the result for destack.fs.rmdir.
+/// Encode the result for destack.fs.renameatUtf16.
 #[inline]
-fn encode_destack_fs_rmdir_result(
+fn encode_destack_fs_renameat_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1108,22 +1641,67 @@ fn encode_destack_fs_rmdir_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.stat.
+/// Decode arguments for destack.fs.rmdirBytes.
 #[inline]
-fn decode_destack_fs_stat_args(
+fn decode_destack_fs_rmdir_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
-
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.stat.
+/// Encode the result for destack.fs.rmdirBytes.
 #[inline]
-fn encode_destack_fs_stat_result(
+fn encode_destack_fs_rmdir_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.rmdirUtf16.
+#[inline]
+fn decode_destack_fs_rmdir_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.rmdirUtf16.
+#[inline]
+fn encode_destack_fs_rmdir_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.statBytes.
+#[inline]
+fn decode_destack_fs_stat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.statBytes.
+#[inline]
+fn encode_destack_fs_stat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -1147,29 +1725,66 @@ fn encode_destack_fs_stat_result(
     })
 }
 
-/// Decode arguments for destack.fs.statat.
+/// Decode arguments for destack.fs.statUtf16.
 #[inline]
-fn decode_destack_fs_statat_args(
+fn decode_destack_fs_stat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::DirectoryHandle, vm::StringHandle, AtFlags)> {
-    let _ = context;
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
 
+/// Encode the result for destack.fs.statUtf16.
+#[inline]
+fn encode_destack_fs_stat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<StatVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        context.allocate_aggregate(vec![
+            vm::Value::uint(value.dev, 64),
+            vm::Value::uint(value.ino, 64),
+            vm::Value::uint(value.mode as u64, 32),
+            vm::Value::uint(value.nlink as u64, 32),
+            vm::Value::uint(value.uid as u64, 32),
+            vm::Value::uint(value.gid as u64, 32),
+            vm::Value::uint(value.rdev, 64),
+            vm::Value::uint(value.size.0, 64),
+            vm::Value::uint(value.blksize, 64),
+            vm::Value::uint(value.blocks, 64),
+            vm::Value::uint(value.atime_ns, 64),
+            vm::Value::uint(value.mtime_ns, 64),
+            vm::Value::uint(value.ctime_ns, 64),
+            vm::Value::uint(value.birthtime_ns, 64),
+        ])
+    })
+}
+
+/// Decode arguments for destack.fs.statatBytes.
+#[inline]
+fn decode_destack_fs_statat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathBytesVm, AtFlags)> {
     let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
     Ok((dir, path, flags))
 }
 
-/// Encode the result for destack.fs.statat.
+/// Encode the result for destack.fs.statatBytes.
 #[inline]
-fn encode_destack_fs_statat_result(
+fn encode_destack_fs_statat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -1193,22 +1808,66 @@ fn encode_destack_fs_statat_result(
     })
 }
 
-/// Decode arguments for destack.fs.statfs.
+/// Decode arguments for destack.fs.statatUtf16.
 #[inline]
-fn decode_destack_fs_statfs_args(
+fn decode_destack_fs_statat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
-    let _ = context;
+) -> RuntimeResult<(resource::DirectoryHandle, PathUtf16Vm, AtFlags)> {
+    let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
+    let flags = AtFlags(flags_inner);
+    Ok((dir, path, flags))
+}
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+/// Encode the result for destack.fs.statatUtf16.
+#[inline]
+fn encode_destack_fs_statat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<StatVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        context.allocate_aggregate(vec![
+            vm::Value::uint(value.dev, 64),
+            vm::Value::uint(value.ino, 64),
+            vm::Value::uint(value.mode as u64, 32),
+            vm::Value::uint(value.nlink as u64, 32),
+            vm::Value::uint(value.uid as u64, 32),
+            vm::Value::uint(value.gid as u64, 32),
+            vm::Value::uint(value.rdev, 64),
+            vm::Value::uint(value.size.0, 64),
+            vm::Value::uint(value.blksize, 64),
+            vm::Value::uint(value.blocks, 64),
+            vm::Value::uint(value.atime_ns, 64),
+            vm::Value::uint(value.mtime_ns, 64),
+            vm::Value::uint(value.ctime_ns, 64),
+            vm::Value::uint(value.birthtime_ns, 64),
+        ])
+    })
+}
+
+/// Decode arguments for destack.fs.statfsBytes.
+#[inline]
+fn decode_destack_fs_statfs_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.statfs.
+/// Encode the result for destack.fs.statfsBytes.
 #[inline]
-fn encode_destack_fs_statfs_result(
+fn encode_destack_fs_statfs_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<StatFsVm>,
 ) -> RuntimeResult<vm::Value> {
@@ -1228,24 +1887,72 @@ fn encode_destack_fs_statfs_result(
     })
 }
 
-/// Decode arguments for destack.fs.symlink.
+/// Decode arguments for destack.fs.statfsUtf16.
 #[inline]
-fn decode_destack_fs_symlink_args(
+fn decode_destack_fs_statfs_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, vm::StringHandle)> {
-    let _ = context;
-
-    let target_value = arg_value(args, 0, "target", "string")?;
-    let target = decode_string(target_value, "target", "string")?;
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
-    Ok((target, path))
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
 }
 
-/// Encode the result for destack.fs.symlink.
+/// Encode the result for destack.fs.statfsUtf16.
 #[inline]
-fn encode_destack_fs_symlink_result(
+fn encode_destack_fs_statfs_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<StatFsVm>,
+) -> RuntimeResult<vm::Value> {
+    result.map(|value| {
+        context.allocate_aggregate(vec![
+            vm::Value::uint(value.bsize, 64),
+            vm::Value::uint(value.frsize, 64),
+            vm::Value::uint(value.blocks, 64),
+            vm::Value::uint(value.bfree, 64),
+            vm::Value::uint(value.bavail, 64),
+            vm::Value::uint(value.files, 64),
+            vm::Value::uint(value.ffree, 64),
+            vm::Value::uint(value.fsid, 64),
+            vm::Value::uint(value.flags, 64),
+            vm::Value::uint(value.namelen, 64),
+        ])
+    })
+}
+
+/// Decode arguments for destack.fs.symlinkBytes.
+#[inline]
+fn decode_destack_fs_symlink_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, PathBytesVm, SymlinkType)> {
+    let target_value = arg_value(args, 0, "target", "PathBytes")?;
+    let target_inner = decode_array::<u8>(context, target_value, "target_inner", "PathBytes")?;
+    let target = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_inner);
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
+    let kind_value = arg_value(args, 2, "kind", "SymlinkType")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind = match kind_raw {
+        0u8 => SymlinkType::Auto,
+        1u8 => SymlinkType::File,
+        2u8 => SymlinkType::Directory,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown SymlinkType value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((target, path, kind))
+}
+
+/// Encode the result for destack.fs.symlinkBytes.
+#[inline]
+fn encode_destack_fs_symlink_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1254,32 +1961,87 @@ fn encode_destack_fs_symlink_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.symlinkat.
+/// Decode arguments for destack.fs.symlinkUtf16.
 #[inline]
-fn decode_destack_fs_symlinkat_args(
+fn decode_destack_fs_symlink_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, PathUtf16Vm, SymlinkType)> {
+    let target_value = arg_value(args, 0, "target", "PathUtf16")?;
+    let target_inner = decode_array::<u16>(context, target_value, "target_inner", "PathUtf16")?;
+    let target = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(target_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let kind_value = arg_value(args, 2, "kind", "SymlinkType")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind = match kind_raw {
+        0u8 => SymlinkType::Auto,
+        1u8 => SymlinkType::File,
+        2u8 => SymlinkType::Directory,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown SymlinkType value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((target, path, kind))
+}
+
+/// Encode the result for destack.fs.symlinkUtf16.
+#[inline]
+fn encode_destack_fs_symlink_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.symlinkatBytes.
+#[inline]
+fn decode_destack_fs_symlinkat_bytes_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
 ) -> RuntimeResult<(
-    vm::StringHandle,
+    PathBytesVm,
     resource::DirectoryHandle,
-    vm::StringHandle,
+    PathBytesVm,
+    SymlinkType,
 )> {
-    let _ = context;
-
-    let target_value = arg_value(args, 0, "target", "string")?;
-    let target = decode_string(target_value, "target", "string")?;
+    let target_value = arg_value(args, 0, "target", "PathBytes")?;
+    let target_inner = decode_array::<u8>(context, target_value, "target_inner", "PathBytes")?;
+    let target = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(target_inner);
     let dir_value = arg_value(args, 1, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 2, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
-    Ok((target, dir, path))
+    let path_value = arg_value(args, 2, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
+    let kind_value = arg_value(args, 3, "kind", "SymlinkType")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind = match kind_raw {
+        0u8 => SymlinkType::Auto,
+        1u8 => SymlinkType::File,
+        2u8 => SymlinkType::Directory,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown SymlinkType value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((target, dir, path, kind))
 }
 
-/// Encode the result for destack.fs.symlinkat.
+/// Encode the result for destack.fs.symlinkatBytes.
 #[inline]
-fn encode_destack_fs_symlinkat_result(
+fn encode_destack_fs_symlinkat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1288,25 +2050,73 @@ fn encode_destack_fs_symlinkat_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.truncate.
+/// Decode arguments for destack.fs.symlinkatUtf16.
 #[inline]
-fn decode_destack_fs_truncate_args(
+fn decode_destack_fs_symlinkat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, FileOffset)> {
+) -> RuntimeResult<(
+    PathUtf16Vm,
+    resource::DirectoryHandle,
+    PathUtf16Vm,
+    SymlinkType,
+)> {
+    let target_value = arg_value(args, 0, "target", "PathUtf16")?;
+    let target_inner = decode_array::<u16>(context, target_value, "target_inner", "PathUtf16")?;
+    let target = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(target_inner);
+    let dir_value = arg_value(args, 1, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 2, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let kind_value = arg_value(args, 3, "kind", "SymlinkType")?;
+    let kind_raw = decode_uint8(kind_value, "kind_raw", "SymlinkType")?;
+    let kind = match kind_raw {
+        0u8 => SymlinkType::Auto,
+        1u8 => SymlinkType::File,
+        2u8 => SymlinkType::Directory,
+        _ => {
+            return Err(RuntimeError::from(PlatformError::invalid_argument_value(
+                "kind",
+                "unknown SymlinkType value",
+            ))
+            .boxed());
+        }
+    };
+    Ok((target, dir, path, kind))
+}
+
+/// Encode the result for destack.fs.symlinkatUtf16.
+#[inline]
+fn encode_destack_fs_symlinkat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.truncateBytes.
+#[inline]
+fn decode_destack_fs_truncate_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, FileOffset)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let size_value = arg_value(args, 1, "size", "FileOffset")?;
     let size_inner = decode_uint64(size_value, "size_inner", "FileOffset")?;
     let size = FileOffset(size_inner);
     Ok((path, size))
 }
 
-/// Encode the result for destack.fs.truncate.
+/// Encode the result for destack.fs.truncateBytes.
 #[inline]
-fn encode_destack_fs_truncate_result(
+fn encode_destack_fs_truncate_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1315,22 +2125,47 @@ fn encode_destack_fs_truncate_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.unlink.
+/// Decode arguments for destack.fs.truncateUtf16.
 #[inline]
-fn decode_destack_fs_unlink_args(
+fn decode_destack_fs_truncate_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle,)> {
+) -> RuntimeResult<(PathUtf16Vm, FileOffset)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let size_value = arg_value(args, 1, "size", "FileOffset")?;
+    let size_inner = decode_uint64(size_value, "size_inner", "FileOffset")?;
+    let size = FileOffset(size_inner);
+    Ok((path, size))
+}
+
+/// Encode the result for destack.fs.truncateUtf16.
+#[inline]
+fn encode_destack_fs_truncate_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.unlinkBytes.
+#[inline]
+fn decode_destack_fs_unlink_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm,)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     Ok((path,))
 }
 
-/// Encode the result for destack.fs.unlink.
+/// Encode the result for destack.fs.unlinkBytes.
 #[inline]
-fn encode_destack_fs_unlink_result(
+fn encode_destack_fs_unlink_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1339,29 +2174,51 @@ fn encode_destack_fs_unlink_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.unlinkat.
+/// Decode arguments for destack.fs.unlinkUtf16.
 #[inline]
-fn decode_destack_fs_unlinkat_args(
+fn decode_destack_fs_unlink_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(resource::DirectoryHandle, vm::StringHandle, AtFlags)> {
+) -> RuntimeResult<(PathUtf16Vm,)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    Ok((path,))
+}
+
+/// Encode the result for destack.fs.unlinkUtf16.
+#[inline]
+fn encode_destack_fs_unlink_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.unlinkatBytes.
+#[inline]
+fn decode_destack_fs_unlinkat_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(resource::DirectoryHandle, PathBytesVm, AtFlags)> {
     let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
     let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
     let dir_inner = resource::ResourceId(dir_inner_inner);
     let dir = resource::DirectoryHandle(dir_inner);
-    let path_value = arg_value(args, 1, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    let path_value = arg_value(args, 1, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
     let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
     let flags = AtFlags(flags_inner);
     Ok((dir, path, flags))
 }
 
-/// Encode the result for destack.fs.unlinkat.
+/// Encode the result for destack.fs.unlinkatBytes.
 #[inline]
-fn encode_destack_fs_unlinkat_result(
+fn encode_destack_fs_unlinkat_bytes_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1370,16 +2227,45 @@ fn encode_destack_fs_unlinkat_result(
     result.map(|_| vm::Value::VOID)
 }
 
-/// Decode arguments for destack.fs.utimes.
+/// Decode arguments for destack.fs.unlinkatUtf16.
 #[inline]
-fn decode_destack_fs_utimes_args(
+fn decode_destack_fs_unlinkat_utf16_args(
     context: &mut vm::RuntimeContext<'_>,
     args: &[vm::Value],
-) -> RuntimeResult<(vm::StringHandle, u64, u64)> {
+) -> RuntimeResult<(resource::DirectoryHandle, PathUtf16Vm, AtFlags)> {
+    let dir_value = arg_value(args, 0, "dir", "DirectoryHandle")?;
+    let dir_inner_inner = decode_uint64(dir_value, "dir_inner_inner", "DirectoryHandle")?;
+    let dir_inner = resource::ResourceId(dir_inner_inner);
+    let dir = resource::DirectoryHandle(dir_inner);
+    let path_value = arg_value(args, 1, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let flags_value = arg_value(args, 2, "flags", "AtFlags")?;
+    let flags_inner = decode_uint32(flags_value, "flags_inner", "AtFlags")?;
+    let flags = AtFlags(flags_inner);
+    Ok((dir, path, flags))
+}
+
+/// Encode the result for destack.fs.unlinkatUtf16.
+#[inline]
+fn encode_destack_fs_unlinkat_utf16_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
     let _ = context;
 
-    let path_value = arg_value(args, 0, "path", "string")?;
-    let path = decode_string(path_value, "path", "string")?;
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.utimesBytes.
+#[inline]
+fn decode_destack_fs_utimes_bytes_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathBytesVm, u64, u64)> {
+    let path_value = arg_value(args, 0, "path", "PathBytes")?;
+    let path_inner = decode_array::<u8>(context, path_value, "path_inner", "PathBytes")?;
+    let path = crate::platform::fs::PathBytesAbi::<crate::platform::abi::VmAbi>(path_inner);
     let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
     let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
     let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
@@ -1387,9 +2273,36 @@ fn decode_destack_fs_utimes_args(
     Ok((path, atimens, mtimens))
 }
 
-/// Encode the result for destack.fs.utimes.
+/// Encode the result for destack.fs.utimesBytes.
 #[inline]
-fn encode_destack_fs_utimes_result(
+fn encode_destack_fs_utimes_bytes_result(
+    context: &mut vm::RuntimeContext<'_>,
+    result: RuntimeResult<()>,
+) -> RuntimeResult<vm::Value> {
+    let _ = context;
+
+    result.map(|_| vm::Value::VOID)
+}
+
+/// Decode arguments for destack.fs.utimesUtf16.
+#[inline]
+fn decode_destack_fs_utimes_utf16_args(
+    context: &mut vm::RuntimeContext<'_>,
+    args: &[vm::Value],
+) -> RuntimeResult<(PathUtf16Vm, u64, u64)> {
+    let path_value = arg_value(args, 0, "path", "PathUtf16")?;
+    let path_inner = decode_array::<u16>(context, path_value, "path_inner", "PathUtf16")?;
+    let path = crate::platform::fs::PathUtf16Abi::<crate::platform::abi::VmAbi>(path_inner);
+    let atimens_value = arg_value(args, 1, "atimens", "uint64")?;
+    let atimens = decode_uint64(atimens_value, "atimens", "uint64")?;
+    let mtimens_value = arg_value(args, 2, "mtimens", "uint64")?;
+    let mtimens = decode_uint64(mtimens_value, "mtimens", "uint64")?;
+    Ok((path, atimens, mtimens))
+}
+
+/// Encode the result for destack.fs.utimesUtf16.
+#[inline]
+fn encode_destack_fs_utimes_utf16_result(
     context: &mut vm::RuntimeContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Value> {
@@ -1457,23 +2370,44 @@ fn encode_destack_fs_writev_result(
     result.map(|value| vm::Value::uint(value, 64))
 }
 
-/// Replay payload for destack.fs.access.
+/// Replay payload for destack.fs.accessBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct AccessReplay {
+struct AccessBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.chmod.
+/// Replay payload for destack.fs.accessUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ChmodReplay {
+struct AccessUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.chown.
+/// Replay payload for destack.fs.chmodBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ChownReplay {
+struct ChmodBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.chmodUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ChmodUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.chownBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ChownBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.chownUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ChownUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -1492,9 +2426,16 @@ struct ClosedirReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.copyfile.
+/// Replay payload for destack.fs.copyfileBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct CopyfileReplay {
+struct CopyfileBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.copyfileUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct CopyfileUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -1555,16 +2496,30 @@ struct FutimesReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.link.
+/// Replay payload for destack.fs.linkBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LinkReplay {
+struct LinkBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.linkat.
+/// Replay payload for destack.fs.linkUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LinkatReplay {
+struct LinkUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.linkatBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct LinkatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.linkatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct LinkatUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -1576,58 +2531,114 @@ struct LockReplay {
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.lstat.
+/// Replay payload for destack.fs.lstatBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LstatReplay {
+struct LstatBytesReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.lutimes.
+/// Replay payload for destack.fs.lstatUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct LutimesReplay {
+struct LstatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<Stat, PlatformError>,
+}
+
+/// Replay payload for destack.fs.lutimesBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct LutimesBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.mkdir.
+/// Replay payload for destack.fs.lutimesUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdirReplay {
+struct LutimesUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.mkdirat.
+/// Replay payload for destack.fs.mkdirBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdiratReplay {
+struct MkdirBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.mkdtemp.
+/// Replay payload for destack.fs.mkdirUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct MkdtempReplay {
+struct MkdirUtf16Replay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.open.
+/// Replay payload for destack.fs.mkdiratBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpenReplay {
+struct MkdiratBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.mkdiratUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct MkdiratUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.mkdtempBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct MkdtempBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.mkdtempUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct MkdtempUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<Vec<u16>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.openBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OpenBytesReplay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
-/// Replay payload for destack.fs.openat.
+/// Replay payload for destack.fs.openUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpenatReplay {
+struct OpenUtf16Replay {
     /// Replay result payload.
     pub result: Result<resource::FileHandle, PlatformError>,
 }
 
-/// Replay payload for destack.fs.opendir.
+/// Replay payload for destack.fs.openatBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct OpendirReplay {
+struct OpenatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<resource::FileHandle, PlatformError>,
+}
+
+/// Replay payload for destack.fs.openatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OpenatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<resource::FileHandle, PlatformError>,
+}
+
+/// Replay payload for destack.fs.opendirBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OpendirBytesReplay {
+    /// Replay result payload.
+    pub result: Result<resource::DirectoryHandle, PlatformError>,
+}
+
+/// Replay payload for destack.fs.opendirUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct OpendirUtf16Replay {
     /// Replay result payload.
     pub result: Result<resource::DirectoryHandle, PlatformError>,
 }
@@ -1646,18 +2657,32 @@ struct ReaddirReplay {
     pub result: Result<Vec<DirentReplay>, PlatformError>,
 }
 
-/// Replay payload for destack.fs.readlink.
+/// Replay payload for destack.fs.readlinkBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadlinkReplay {
+struct ReadlinkBytesReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<Vec<u8>, PlatformError>,
 }
 
-/// Replay payload for destack.fs.readlinkat.
+/// Replay payload for destack.fs.readlinkUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ReadlinkatReplay {
+struct ReadlinkUtf16Replay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<Vec<u16>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.readlinkatBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ReadlinkatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Vec<u8>, PlatformError>,
+}
+
+/// Replay payload for destack.fs.readlinkatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ReadlinkatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<Vec<u16>, PlatformError>,
 }
 
 /// Replay payload for destack.fs.readv.
@@ -1667,93 +2692,184 @@ struct ReadvReplay {
     pub result: Result<u64, PlatformError>,
 }
 
-/// Replay payload for destack.fs.realpath.
+/// Replay payload for destack.fs.realpathBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RealpathReplay {
+struct RealpathBytesReplay {
     /// Replay result payload.
-    pub result: Result<String, PlatformError>,
+    pub result: Result<Vec<u8>, PlatformError>,
 }
 
-/// Replay payload for destack.fs.rename.
+/// Replay payload for destack.fs.realpathUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RenameReplay {
+struct RealpathUtf16Replay {
     /// Replay result payload.
-    pub result: Result<(), PlatformError>,
+    pub result: Result<Vec<u16>, PlatformError>,
 }
 
-/// Replay payload for destack.fs.renameat.
+/// Replay payload for destack.fs.renameBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RenameatReplay {
-    /// Replay result payload.
-    pub result: Result<(), PlatformError>,
-}
-
-/// Replay payload for destack.fs.rmdir.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct RmdirReplay {
+struct RenameBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.stat.
+/// Replay payload for destack.fs.renameUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatReplay {
+struct RenameUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.renameatBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct RenameatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.renameatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct RenameatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.rmdirBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct RmdirBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.rmdirUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct RmdirUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.statBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct StatBytesReplay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.statat.
+/// Replay payload for destack.fs.statUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatatReplay {
+struct StatUtf16Replay {
     /// Replay result payload.
     pub result: Result<Stat, PlatformError>,
 }
 
-/// Replay payload for destack.fs.statfs.
+/// Replay payload for destack.fs.statatBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct StatfsReplay {
+struct StatatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<Stat, PlatformError>,
+}
+
+/// Replay payload for destack.fs.statatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct StatatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<Stat, PlatformError>,
+}
+
+/// Replay payload for destack.fs.statfsBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct StatfsBytesReplay {
     /// Replay result payload.
     pub result: Result<StatFs, PlatformError>,
 }
 
-/// Replay payload for destack.fs.symlink.
+/// Replay payload for destack.fs.statfsUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SymlinkReplay {
+struct StatfsUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<StatFs, PlatformError>,
+}
+
+/// Replay payload for destack.fs.symlinkBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct SymlinkBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.symlinkat.
+/// Replay payload for destack.fs.symlinkUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct SymlinkatReplay {
+struct SymlinkUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.truncate.
+/// Replay payload for destack.fs.symlinkatBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct TruncateReplay {
+struct SymlinkatBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.unlink.
+/// Replay payload for destack.fs.symlinkatUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UnlinkReplay {
+struct SymlinkatUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.unlinkat.
+/// Replay payload for destack.fs.truncateBytes.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UnlinkatReplay {
+struct TruncateBytesReplay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
 
-/// Replay payload for destack.fs.utimes.
+/// Replay payload for destack.fs.truncateUtf16.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct UtimesReplay {
+struct TruncateUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.unlinkBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UnlinkBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.unlinkUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UnlinkUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.unlinkatBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UnlinkatBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.unlinkatUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UnlinkatUtf16Replay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.utimesBytes.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UtimesBytesReplay {
+    /// Replay result payload.
+    pub result: Result<(), PlatformError>,
+}
+
+/// Replay payload for destack.fs.utimesUtf16.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct UtimesUtf16Replay {
     /// Replay result payload.
     pub result: Result<(), PlatformError>,
 }
@@ -1772,26 +2888,50 @@ struct WritevReplay {
     pub result: Result<u64, PlatformError>,
 }
 
-/// Binding descriptor for destack.fs.access.
-pub const ACCESS: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.access",
-    "export function access(path: string, mode: AccessMode): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.accessBytes.
+pub const ACCESS_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.accessBytes",
+    "export function accessBytes(path: PathBytes, mode: AccessMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.chmod.
-pub const CHMOD: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.chmod",
-    "export function chmod(path: string, mode: FileMode): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.accessUtf16.
+pub const ACCESS_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.accessUtf16",
+    "export function accessUtf16(path: PathUtf16, mode: AccessMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.chown.
-pub const CHOWN: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.chown",
-    "export function chown(path: string, uid: uint32, gid: uint32): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.chmodBytes.
+pub const CHMOD_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.chmodBytes",
+    "export function chmodBytes(path: PathBytes, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.chmodUtf16.
+pub const CHMOD_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.chmodUtf16",
+    "export function chmodUtf16(path: PathUtf16, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.chownBytes.
+pub const CHOWN_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.chownBytes",
+    "export function chownBytes(path: PathBytes, uid: uint32, gid: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.chownUtf16.
+pub const CHOWN_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.chownUtf16",
+    "export function chownUtf16(path: PathUtf16, uid: uint32, gid: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -1812,10 +2952,18 @@ pub const CLOSEDIR: BindingDescriptor = BindingDescriptor::external(
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.copyfile.
-pub const COPYFILE: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.copyfile",
-    "export function copyfile(from: string, to: string, flags: uint32): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.copyfileBytes.
+pub const COPYFILE_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.copyfileBytes",
+    "export function copyfileBytes(from: PathBytes, to: PathBytes, flags: uint32): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.copyfileUtf16.
+pub const COPYFILE_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.copyfileUtf16",
+    "export function copyfileUtf16(from: PathUtf16, to: PathUtf16, flags: uint32): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -1884,18 +3032,34 @@ pub const FUTIMES: BindingDescriptor = BindingDescriptor::external(
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.link.
-pub const LINK: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.link",
-    "export function link(existingPath: string, newPath: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.linkBytes.
+pub const LINK_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.linkBytes",
+    "export function linkBytes(existingPath: PathBytes, newPath: PathBytes): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.linkat.
-pub const LINKAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.linkat",
-    "export function linkat(existingDir: DirectoryHandle, existingPath: string, newDir: DirectoryHandle, newPath: string, flags: AtFlags): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.linkUtf16.
+pub const LINK_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.linkUtf16",
+    "export function linkUtf16(existingPath: PathUtf16, newPath: PathUtf16): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.linkatBytes.
+pub const LINKAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.linkatBytes",
+    "export function linkatBytes(existingDir: DirectoryHandle, existingPath: PathBytes, newDir: DirectoryHandle, newPath: PathBytes, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.linkatUtf16.
+pub const LINKAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.linkatUtf16",
+    "export function linkatUtf16(existingDir: DirectoryHandle, existingPath: PathUtf16, newDir: DirectoryHandle, newPath: PathUtf16, flags: AtFlags): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -1908,66 +3072,130 @@ pub const LOCK: BindingDescriptor = BindingDescriptor::external(
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.lstat.
-pub const LSTAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.lstat",
-    "export function lstat(path: string): Result<Stat, PlatformError>",
+/// Binding descriptor for destack.fs.lstatBytes.
+pub const LSTAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.lstatBytes",
+    "export function lstatBytes(path: PathBytes): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.lutimes.
-pub const LUTIMES: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.lutimes",
-    "export function lutimes(path: string, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.lstatUtf16.
+pub const LSTAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.lstatUtf16",
+    "export function lstatUtf16(path: PathUtf16): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.mkdir.
-pub const MKDIR: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.mkdir",
-    "export function mkdir(path: string, mode: FileMode): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.lutimesBytes.
+pub const LUTIMES_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.lutimesBytes",
+    "export function lutimesBytes(path: PathBytes, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.mkdirat.
-pub const MKDIRAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.mkdirat",
-    "export function mkdirat(dir: DirectoryHandle, path: string, mode: FileMode): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.lutimesUtf16.
+pub const LUTIMES_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.lutimesUtf16",
+    "export function lutimesUtf16(path: PathUtf16, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.mkdtemp.
-pub const MKDTEMP: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.mkdtemp",
-    "export function mkdtemp(template: string): Result<string, PlatformError>",
+/// Binding descriptor for destack.fs.mkdirBytes.
+pub const MKDIR_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdirBytes",
+    "export function mkdirBytes(path: PathBytes, mode: FileMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.open.
-pub const OPEN: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.open",
-    "export function open(path: string, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+/// Binding descriptor for destack.fs.mkdirUtf16.
+pub const MKDIR_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdirUtf16",
+    "export function mkdirUtf16(path: PathUtf16, mode: FileMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.openat.
-pub const OPENAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.openat",
-    "export function openat(dir: DirectoryHandle, path: string, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+/// Binding descriptor for destack.fs.mkdiratBytes.
+pub const MKDIRAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdiratBytes",
+    "export function mkdiratBytes(dir: DirectoryHandle, path: PathBytes, mode: FileMode): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.opendir.
-pub const OPENDIR: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.opendir",
-    "export function opendir(path: string): Result<DirectoryHandle, PlatformError>",
+/// Binding descriptor for destack.fs.mkdiratUtf16.
+pub const MKDIRAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdiratUtf16",
+    "export function mkdiratUtf16(dir: DirectoryHandle, path: PathUtf16, mode: FileMode): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.mkdtempBytes.
+pub const MKDTEMP_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdtempBytes",
+    "export function mkdtempBytes(template: PathBytes): Result<PathBytes, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.mkdtempUtf16.
+pub const MKDTEMP_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.mkdtempUtf16",
+    "export function mkdtempUtf16(template: PathUtf16): Result<PathUtf16, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.openBytes.
+pub const OPEN_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.openBytes",
+    "export function openBytes(path: PathBytes, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.openUtf16.
+pub const OPEN_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.openUtf16",
+    "export function openUtf16(path: PathUtf16, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.openatBytes.
+pub const OPENAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.openatBytes",
+    "export function openatBytes(dir: DirectoryHandle, path: PathBytes, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.openatUtf16.
+pub const OPENAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.openatUtf16",
+    "export function openatUtf16(dir: DirectoryHandle, path: PathUtf16, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.opendirBytes.
+pub const OPENDIR_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.opendirBytes",
+    "export function opendirBytes(path: PathBytes): Result<DirectoryHandle, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.opendirUtf16.
+pub const OPENDIR_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.opendirUtf16",
+    "export function opendirUtf16(path: PathUtf16): Result<DirectoryHandle, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -1988,18 +3216,34 @@ pub const READDIR: BindingDescriptor = BindingDescriptor::external(
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.readlink.
-pub const READLINK: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.readlink",
-    "export function readlink(path: string): Result<string, PlatformError>",
+/// Binding descriptor for destack.fs.readlinkBytes.
+pub const READLINK_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.readlinkBytes",
+    "export function readlinkBytes(path: PathBytes): Result<PathBytes, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.readlinkat.
-pub const READLINKAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.readlinkat",
-    "export function readlinkat(dir: DirectoryHandle, path: string): Result<string, PlatformError>",
+/// Binding descriptor for destack.fs.readlinkUtf16.
+pub const READLINK_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.readlinkUtf16",
+    "export function readlinkUtf16(path: PathUtf16): Result<PathUtf16, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.readlinkatBytes.
+pub const READLINKAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.readlinkatBytes",
+    "export function readlinkatBytes(dir: DirectoryHandle, path: PathBytes): Result<PathBytes, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.readlinkatUtf16.
+pub const READLINKAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.readlinkatUtf16",
+    "export function readlinkatUtf16(dir: DirectoryHandle, path: PathUtf16): Result<PathUtf16, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -2012,106 +3256,210 @@ pub const READV: BindingDescriptor = BindingDescriptor::external(
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.realpath.
-pub const REALPATH: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.realpath",
-    "export function realpath(path: string): Result<string, PlatformError>",
+/// Binding descriptor for destack.fs.realpathBytes.
+pub const REALPATH_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.realpathBytes",
+    "export function realpathBytes(path: PathBytes): Result<PathBytes, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.rename.
-pub const RENAME: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.rename",
-    "export function rename(from: string, to: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.realpathUtf16.
+pub const REALPATH_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.realpathUtf16",
+    "export function realpathUtf16(path: PathUtf16): Result<PathUtf16, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.renameat.
-pub const RENAMEAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.renameat",
-    "export function renameat(fromDir: DirectoryHandle, from: string, toDir: DirectoryHandle, to: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.renameBytes.
+pub const RENAME_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.renameBytes",
+    "export function renameBytes(from: PathBytes, to: PathBytes): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.rmdir.
-pub const RMDIR: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.rmdir",
-    "export function rmdir(path: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.renameUtf16.
+pub const RENAME_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.renameUtf16",
+    "export function renameUtf16(from: PathUtf16, to: PathUtf16): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.stat.
-pub const STAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.stat",
-    "export function stat(path: string): Result<Stat, PlatformError>",
+/// Binding descriptor for destack.fs.renameatBytes.
+pub const RENAMEAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.renameatBytes",
+    "export function renameatBytes(fromDir: DirectoryHandle, from: PathBytes, toDir: DirectoryHandle, to: PathBytes): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.statat.
-pub const STATAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.statat",
-    "export function statat(dir: DirectoryHandle, path: string, flags: AtFlags): Result<Stat, PlatformError>",
+/// Binding descriptor for destack.fs.renameatUtf16.
+pub const RENAMEAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.renameatUtf16",
+    "export function renameatUtf16(fromDir: DirectoryHandle, from: PathUtf16, toDir: DirectoryHandle, to: PathUtf16): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.statfs.
-pub const STATFS: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.statfs",
-    "export function statfs(path: string): Result<StatFs, PlatformError>",
+/// Binding descriptor for destack.fs.rmdirBytes.
+pub const RMDIR_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.rmdirBytes",
+    "export function rmdirBytes(path: PathBytes): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.symlink.
-pub const SYMLINK: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.symlink",
-    "export function symlink(target: string, path: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.rmdirUtf16.
+pub const RMDIR_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.rmdirUtf16",
+    "export function rmdirUtf16(path: PathUtf16): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.symlinkat.
-pub const SYMLINKAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.symlinkat",
-    "export function symlinkat(target: string, dir: DirectoryHandle, path: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.statBytes.
+pub const STAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statBytes",
+    "export function statBytes(path: PathBytes): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.truncate.
-pub const TRUNCATE: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.truncate",
-    "export function truncate(path: string, size: FileOffset): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.statUtf16.
+pub const STAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statUtf16",
+    "export function statUtf16(path: PathUtf16): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.unlink.
-pub const UNLINK: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.unlink",
-    "export function unlink(path: string): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.statatBytes.
+pub const STATAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statatBytes",
+    "export function statatBytes(dir: DirectoryHandle, path: PathBytes, flags: AtFlags): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.unlinkat.
-pub const UNLINKAT: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.unlinkat",
-    "export function unlinkat(dir: DirectoryHandle, path: string, flags: AtFlags): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.statatUtf16.
+pub const STATAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statatUtf16",
+    "export function statatUtf16(dir: DirectoryHandle, path: PathUtf16, flags: AtFlags): Result<Stat, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
 
-/// Binding descriptor for destack.fs.utimes.
-pub const UTIMES: BindingDescriptor = BindingDescriptor::external(
-    "destack.fs.utimes",
-    "export function utimes(path: string, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+/// Binding descriptor for destack.fs.statfsBytes.
+pub const STATFS_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statfsBytes",
+    "export function statfsBytes(path: PathBytes): Result<StatFs, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.statfsUtf16.
+pub const STATFS_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.statfsUtf16",
+    "export function statfsUtf16(path: PathUtf16): Result<StatFs, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.symlinkBytes.
+pub const SYMLINK_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.symlinkBytes",
+    "export function symlinkBytes(target: PathBytes, path: PathBytes, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.symlinkUtf16.
+pub const SYMLINK_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.symlinkUtf16",
+    "export function symlinkUtf16(target: PathUtf16, path: PathUtf16, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.symlinkatBytes.
+pub const SYMLINKAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.symlinkatBytes",
+    "export function symlinkatBytes(target: PathBytes, dir: DirectoryHandle, path: PathBytes, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.symlinkatUtf16.
+pub const SYMLINKAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.symlinkatUtf16",
+    "export function symlinkatUtf16(target: PathUtf16, dir: DirectoryHandle, path: PathUtf16, kind: SymlinkType): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.truncateBytes.
+pub const TRUNCATE_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.truncateBytes",
+    "export function truncateBytes(path: PathBytes, size: FileOffset): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.truncateUtf16.
+pub const TRUNCATE_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.truncateUtf16",
+    "export function truncateUtf16(path: PathUtf16, size: FileOffset): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.unlinkBytes.
+pub const UNLINK_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.unlinkBytes",
+    "export function unlinkBytes(path: PathBytes): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.unlinkUtf16.
+pub const UNLINK_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.unlinkUtf16",
+    "export function unlinkUtf16(path: PathUtf16): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.unlinkatBytes.
+pub const UNLINKAT_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.unlinkatBytes",
+    "export function unlinkatBytes(dir: DirectoryHandle, path: PathBytes, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.unlinkatUtf16.
+pub const UNLINKAT_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.unlinkatUtf16",
+    "export function unlinkatUtf16(dir: DirectoryHandle, path: PathUtf16, flags: AtFlags): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.utimesBytes.
+pub const UTIMES_BYTES: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.utimesBytes",
+    "export function utimesBytes(path: PathBytes, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
+    ReplayPolicy::Recordable,
+    BindingReplayKind::Regular,
+);
+
+/// Binding descriptor for destack.fs.utimesUtf16.
+pub const UTIMES_UTF16: BindingDescriptor = BindingDescriptor::external(
+    "destack.fs.utimesUtf16",
+    "export function utimesUtf16(path: PathUtf16, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
     ReplayPolicy::Recordable,
     BindingReplayKind::Regular,
 );
@@ -2134,19 +3482,116 @@ pub const WRITEV: BindingDescriptor = BindingDescriptor::external(
 
 /// Binding descriptors for fs.
 pub const BINDINGS: &[BindingDescriptor] = &[
-    ACCESS, CHMOD, CHOWN, CLOSE, CLOSEDIR, COPYFILE, FCHMOD, FCHOWN, FDATASYNC, FSTAT, FSTATFS,
-    FSYNC, FTRUNCATE, FUTIMES, LINK, LINKAT, LOCK, LSTAT, LUTIMES, MKDIR, MKDIRAT, MKDTEMP, OPEN,
-    OPENAT, OPENDIR, READ, READDIR, READLINK, READLINKAT, READV, REALPATH, RENAME, RENAMEAT, RMDIR,
-    STAT, STATAT, STATFS, SYMLINK, SYMLINKAT, TRUNCATE, UNLINK, UNLINKAT, UTIMES, WRITE, WRITEV,
+    ACCESS_BYTES,
+    ACCESS_UTF16,
+    CHMOD_BYTES,
+    CHMOD_UTF16,
+    CHOWN_BYTES,
+    CHOWN_UTF16,
+    CLOSE,
+    CLOSEDIR,
+    COPYFILE_BYTES,
+    COPYFILE_UTF16,
+    FCHMOD,
+    FCHOWN,
+    FDATASYNC,
+    FSTAT,
+    FSTATFS,
+    FSYNC,
+    FTRUNCATE,
+    FUTIMES,
+    LINK_BYTES,
+    LINK_UTF16,
+    LINKAT_BYTES,
+    LINKAT_UTF16,
+    LOCK,
+    LSTAT_BYTES,
+    LSTAT_UTF16,
+    LUTIMES_BYTES,
+    LUTIMES_UTF16,
+    MKDIR_BYTES,
+    MKDIR_UTF16,
+    MKDIRAT_BYTES,
+    MKDIRAT_UTF16,
+    MKDTEMP_BYTES,
+    MKDTEMP_UTF16,
+    OPEN_BYTES,
+    OPEN_UTF16,
+    OPENAT_BYTES,
+    OPENAT_UTF16,
+    OPENDIR_BYTES,
+    OPENDIR_UTF16,
+    READ,
+    READDIR,
+    READLINK_BYTES,
+    READLINK_UTF16,
+    READLINKAT_BYTES,
+    READLINKAT_UTF16,
+    READV,
+    REALPATH_BYTES,
+    REALPATH_UTF16,
+    RENAME_BYTES,
+    RENAME_UTF16,
+    RENAMEAT_BYTES,
+    RENAMEAT_UTF16,
+    RMDIR_BYTES,
+    RMDIR_UTF16,
+    STAT_BYTES,
+    STAT_UTF16,
+    STATAT_BYTES,
+    STATAT_UTF16,
+    STATFS_BYTES,
+    STATFS_UTF16,
+    SYMLINK_BYTES,
+    SYMLINK_UTF16,
+    SYMLINKAT_BYTES,
+    SYMLINKAT_UTF16,
+    TRUNCATE_BYTES,
+    TRUNCATE_UTF16,
+    UNLINK_BYTES,
+    UNLINK_UTF16,
+    UNLINKAT_BYTES,
+    UNLINKAT_UTF16,
+    UTIMES_BYTES,
+    UTIMES_UTF16,
+    WRITE,
+    WRITEV,
 ];
 
 /// Native binding set for fs.
 pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     name: "fs",
     bindings: &[
-        NativeBinding::new(ACCESS, "destack.fs.access", destack_fs_access as *const ()),
-        NativeBinding::new(CHMOD, "destack.fs.chmod", destack_fs_chmod as *const ()),
-        NativeBinding::new(CHOWN, "destack.fs.chown", destack_fs_chown as *const ()),
+        NativeBinding::new(
+            ACCESS_BYTES,
+            "destack.fs.accessBytes",
+            destack_fs_access_bytes as *const (),
+        ),
+        NativeBinding::new(
+            ACCESS_UTF16,
+            "destack.fs.accessUtf16",
+            destack_fs_access_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            CHMOD_BYTES,
+            "destack.fs.chmodBytes",
+            destack_fs_chmod_bytes as *const (),
+        ),
+        NativeBinding::new(
+            CHMOD_UTF16,
+            "destack.fs.chmodUtf16",
+            destack_fs_chmod_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            CHOWN_BYTES,
+            "destack.fs.chownBytes",
+            destack_fs_chown_bytes as *const (),
+        ),
+        NativeBinding::new(
+            CHOWN_UTF16,
+            "destack.fs.chownUtf16",
+            destack_fs_chown_utf16 as *const (),
+        ),
         NativeBinding::new(CLOSE, "destack.fs.close", destack_fs_close as *const ()),
         NativeBinding::new(
             CLOSEDIR,
@@ -2154,9 +3599,14 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_fs_closedir as *const (),
         ),
         NativeBinding::new(
-            COPYFILE,
-            "destack.fs.copyfile",
-            destack_fs_copyfile as *const (),
+            COPYFILE_BYTES,
+            "destack.fs.copyfileBytes",
+            destack_fs_copyfile_bytes as *const (),
+        ),
+        NativeBinding::new(
+            COPYFILE_UTF16,
+            "destack.fs.copyfileUtf16",
+            destack_fs_copyfile_utf16 as *const (),
         ),
         NativeBinding::new(FCHMOD, "destack.fs.fchmod", destack_fs_fchmod as *const ()),
         NativeBinding::new(FCHOWN, "destack.fs.fchown", destack_fs_fchown as *const ()),
@@ -2182,32 +3632,106 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             "destack.fs.futimes",
             destack_fs_futimes as *const (),
         ),
-        NativeBinding::new(LINK, "destack.fs.link", destack_fs_link as *const ()),
-        NativeBinding::new(LINKAT, "destack.fs.linkat", destack_fs_linkat as *const ()),
+        NativeBinding::new(
+            LINK_BYTES,
+            "destack.fs.linkBytes",
+            destack_fs_link_bytes as *const (),
+        ),
+        NativeBinding::new(
+            LINK_UTF16,
+            "destack.fs.linkUtf16",
+            destack_fs_link_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            LINKAT_BYTES,
+            "destack.fs.linkatBytes",
+            destack_fs_linkat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            LINKAT_UTF16,
+            "destack.fs.linkatUtf16",
+            destack_fs_linkat_utf16 as *const (),
+        ),
         NativeBinding::new(LOCK, "destack.fs.lock", destack_fs_lock as *const ()),
-        NativeBinding::new(LSTAT, "destack.fs.lstat", destack_fs_lstat as *const ()),
         NativeBinding::new(
-            LUTIMES,
-            "destack.fs.lutimes",
-            destack_fs_lutimes as *const (),
-        ),
-        NativeBinding::new(MKDIR, "destack.fs.mkdir", destack_fs_mkdir as *const ()),
-        NativeBinding::new(
-            MKDIRAT,
-            "destack.fs.mkdirat",
-            destack_fs_mkdirat as *const (),
+            LSTAT_BYTES,
+            "destack.fs.lstatBytes",
+            destack_fs_lstat_bytes as *const (),
         ),
         NativeBinding::new(
-            MKDTEMP,
-            "destack.fs.mkdtemp",
-            destack_fs_mkdtemp as *const (),
+            LSTAT_UTF16,
+            "destack.fs.lstatUtf16",
+            destack_fs_lstat_utf16 as *const (),
         ),
-        NativeBinding::new(OPEN, "destack.fs.open", destack_fs_open as *const ()),
-        NativeBinding::new(OPENAT, "destack.fs.openat", destack_fs_openat as *const ()),
         NativeBinding::new(
-            OPENDIR,
-            "destack.fs.opendir",
-            destack_fs_opendir as *const (),
+            LUTIMES_BYTES,
+            "destack.fs.lutimesBytes",
+            destack_fs_lutimes_bytes as *const (),
+        ),
+        NativeBinding::new(
+            LUTIMES_UTF16,
+            "destack.fs.lutimesUtf16",
+            destack_fs_lutimes_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            MKDIR_BYTES,
+            "destack.fs.mkdirBytes",
+            destack_fs_mkdir_bytes as *const (),
+        ),
+        NativeBinding::new(
+            MKDIR_UTF16,
+            "destack.fs.mkdirUtf16",
+            destack_fs_mkdir_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            MKDIRAT_BYTES,
+            "destack.fs.mkdiratBytes",
+            destack_fs_mkdirat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            MKDIRAT_UTF16,
+            "destack.fs.mkdiratUtf16",
+            destack_fs_mkdirat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            MKDTEMP_BYTES,
+            "destack.fs.mkdtempBytes",
+            destack_fs_mkdtemp_bytes as *const (),
+        ),
+        NativeBinding::new(
+            MKDTEMP_UTF16,
+            "destack.fs.mkdtempUtf16",
+            destack_fs_mkdtemp_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            OPEN_BYTES,
+            "destack.fs.openBytes",
+            destack_fs_open_bytes as *const (),
+        ),
+        NativeBinding::new(
+            OPEN_UTF16,
+            "destack.fs.openUtf16",
+            destack_fs_open_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            OPENAT_BYTES,
+            "destack.fs.openatBytes",
+            destack_fs_openat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            OPENAT_UTF16,
+            "destack.fs.openatUtf16",
+            destack_fs_openat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            OPENDIR_BYTES,
+            "destack.fs.opendirBytes",
+            destack_fs_opendir_bytes as *const (),
+        ),
+        NativeBinding::new(
+            OPENDIR_UTF16,
+            "destack.fs.opendirUtf16",
+            destack_fs_opendir_utf16 as *const (),
         ),
         NativeBinding::new(READ, "destack.fs.read", destack_fs_read as *const ()),
         NativeBinding::new(
@@ -2216,53 +3740,156 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
             destack_fs_readdir as *const (),
         ),
         NativeBinding::new(
-            READLINK,
-            "destack.fs.readlink",
-            destack_fs_readlink as *const (),
+            READLINK_BYTES,
+            "destack.fs.readlinkBytes",
+            destack_fs_readlink_bytes as *const (),
         ),
         NativeBinding::new(
-            READLINKAT,
-            "destack.fs.readlinkat",
-            destack_fs_readlinkat as *const (),
+            READLINK_UTF16,
+            "destack.fs.readlinkUtf16",
+            destack_fs_readlink_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            READLINKAT_BYTES,
+            "destack.fs.readlinkatBytes",
+            destack_fs_readlinkat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            READLINKAT_UTF16,
+            "destack.fs.readlinkatUtf16",
+            destack_fs_readlinkat_utf16 as *const (),
         ),
         NativeBinding::new(READV, "destack.fs.readv", destack_fs_readv as *const ()),
         NativeBinding::new(
-            REALPATH,
-            "destack.fs.realpath",
-            destack_fs_realpath as *const (),
-        ),
-        NativeBinding::new(RENAME, "destack.fs.rename", destack_fs_rename as *const ()),
-        NativeBinding::new(
-            RENAMEAT,
-            "destack.fs.renameat",
-            destack_fs_renameat as *const (),
-        ),
-        NativeBinding::new(RMDIR, "destack.fs.rmdir", destack_fs_rmdir as *const ()),
-        NativeBinding::new(STAT, "destack.fs.stat", destack_fs_stat as *const ()),
-        NativeBinding::new(STATAT, "destack.fs.statat", destack_fs_statat as *const ()),
-        NativeBinding::new(STATFS, "destack.fs.statfs", destack_fs_statfs as *const ()),
-        NativeBinding::new(
-            SYMLINK,
-            "destack.fs.symlink",
-            destack_fs_symlink as *const (),
+            REALPATH_BYTES,
+            "destack.fs.realpathBytes",
+            destack_fs_realpath_bytes as *const (),
         ),
         NativeBinding::new(
-            SYMLINKAT,
-            "destack.fs.symlinkat",
-            destack_fs_symlinkat as *const (),
+            REALPATH_UTF16,
+            "destack.fs.realpathUtf16",
+            destack_fs_realpath_utf16 as *const (),
         ),
         NativeBinding::new(
-            TRUNCATE,
-            "destack.fs.truncate",
-            destack_fs_truncate as *const (),
+            RENAME_BYTES,
+            "destack.fs.renameBytes",
+            destack_fs_rename_bytes as *const (),
         ),
-        NativeBinding::new(UNLINK, "destack.fs.unlink", destack_fs_unlink as *const ()),
         NativeBinding::new(
-            UNLINKAT,
-            "destack.fs.unlinkat",
-            destack_fs_unlinkat as *const (),
+            RENAME_UTF16,
+            "destack.fs.renameUtf16",
+            destack_fs_rename_utf16 as *const (),
         ),
-        NativeBinding::new(UTIMES, "destack.fs.utimes", destack_fs_utimes as *const ()),
+        NativeBinding::new(
+            RENAMEAT_BYTES,
+            "destack.fs.renameatBytes",
+            destack_fs_renameat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            RENAMEAT_UTF16,
+            "destack.fs.renameatUtf16",
+            destack_fs_renameat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            RMDIR_BYTES,
+            "destack.fs.rmdirBytes",
+            destack_fs_rmdir_bytes as *const (),
+        ),
+        NativeBinding::new(
+            RMDIR_UTF16,
+            "destack.fs.rmdirUtf16",
+            destack_fs_rmdir_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            STAT_BYTES,
+            "destack.fs.statBytes",
+            destack_fs_stat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            STAT_UTF16,
+            "destack.fs.statUtf16",
+            destack_fs_stat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            STATAT_BYTES,
+            "destack.fs.statatBytes",
+            destack_fs_statat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            STATAT_UTF16,
+            "destack.fs.statatUtf16",
+            destack_fs_statat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            STATFS_BYTES,
+            "destack.fs.statfsBytes",
+            destack_fs_statfs_bytes as *const (),
+        ),
+        NativeBinding::new(
+            STATFS_UTF16,
+            "destack.fs.statfsUtf16",
+            destack_fs_statfs_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            SYMLINK_BYTES,
+            "destack.fs.symlinkBytes",
+            destack_fs_symlink_bytes as *const (),
+        ),
+        NativeBinding::new(
+            SYMLINK_UTF16,
+            "destack.fs.symlinkUtf16",
+            destack_fs_symlink_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            SYMLINKAT_BYTES,
+            "destack.fs.symlinkatBytes",
+            destack_fs_symlinkat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            SYMLINKAT_UTF16,
+            "destack.fs.symlinkatUtf16",
+            destack_fs_symlinkat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            TRUNCATE_BYTES,
+            "destack.fs.truncateBytes",
+            destack_fs_truncate_bytes as *const (),
+        ),
+        NativeBinding::new(
+            TRUNCATE_UTF16,
+            "destack.fs.truncateUtf16",
+            destack_fs_truncate_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            UNLINK_BYTES,
+            "destack.fs.unlinkBytes",
+            destack_fs_unlink_bytes as *const (),
+        ),
+        NativeBinding::new(
+            UNLINK_UTF16,
+            "destack.fs.unlinkUtf16",
+            destack_fs_unlink_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            UNLINKAT_BYTES,
+            "destack.fs.unlinkatBytes",
+            destack_fs_unlinkat_bytes as *const (),
+        ),
+        NativeBinding::new(
+            UNLINKAT_UTF16,
+            "destack.fs.unlinkatUtf16",
+            destack_fs_unlinkat_utf16 as *const (),
+        ),
+        NativeBinding::new(
+            UTIMES_BYTES,
+            "destack.fs.utimesBytes",
+            destack_fs_utimes_bytes as *const (),
+        ),
+        NativeBinding::new(
+            UTIMES_UTF16,
+            "destack.fs.utimesUtf16",
+            destack_fs_utimes_utf16 as *const (),
+        ),
         NativeBinding::new(WRITE, "destack.fs.write", destack_fs_write as *const ()),
         NativeBinding::new(WRITEV, "destack.fs.writev", destack_fs_writev as *const ()),
     ],
@@ -2270,20 +3897,20 @@ pub const FS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
 
 /// Native replay implementations for fs bindings.
 #[inline]
-fn destack_fs_access_replay(
+fn destack_fs_access_bytes_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        ACCESS,
-        || unsafe { platform_native::destack_fs_access(context, path, mode) },
+        ACCESS_BYTES,
+        || unsafe { platform_native::destack_fs_access_bytes(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessReplay {
+                let payload = AccessBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2292,7 +3919,7 @@ fn destack_fs_access_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessReplay { result }
+                    AccessBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2310,20 +3937,60 @@ fn destack_fs_access_replay(
 }
 
 #[inline]
-fn destack_fs_chmod_replay(
+fn destack_fs_access_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: PathUtf16,
+    mode: AccessMode,
+) -> RuntimeResult<()> {
+    let _ = (&path, &mode);
+
+    context.replay().run_binding(
+        ACCESS_UTF16,
+        || unsafe { platform_native::destack_fs_access_utf16(context, path, mode) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = AccessUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AccessUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_chmod_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        CHMOD,
-        || unsafe { platform_native::destack_fs_chmod(context, path, mode) },
+        CHMOD_BYTES,
+        || unsafe { platform_native::destack_fs_chmod_bytes(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChmodReplay {
+                let payload = ChmodBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2332,7 +3999,7 @@ fn destack_fs_chmod_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChmodReplay { result }
+                    ChmodBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2350,21 +4017,61 @@ fn destack_fs_chmod_replay(
 }
 
 #[inline]
-fn destack_fs_chown_replay(
+fn destack_fs_chmod_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: PathUtf16,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (&path, &mode);
+
+    context.replay().run_binding(
+        CHMOD_UTF16,
+        || unsafe { platform_native::destack_fs_chmod_utf16(context, path, mode) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ChmodUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ChmodUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_chown_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<()> {
     let _ = (&path, &uid, &gid);
 
     context.replay().run_binding(
-        CHOWN,
-        || unsafe { platform_native::destack_fs_chown(context, path, uid, gid) },
+        CHOWN_BYTES,
+        || unsafe { platform_native::destack_fs_chown_bytes(context, path, uid, gid) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChownReplay {
+                let payload = ChownBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2373,7 +4080,48 @@ fn destack_fs_chown_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChownReplay { result }
+                    ChownBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_chown_utf16_replay(
+    context: &RuntimeCallContext,
+    path: PathUtf16,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<()> {
+    let _ = (&path, &uid, &gid);
+
+    context.replay().run_binding(
+        CHOWN_UTF16,
+        || unsafe { platform_native::destack_fs_chown_utf16(context, path, uid, gid) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ChownUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ChownUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2469,21 +4217,21 @@ fn destack_fs_closedir_replay(
 }
 
 #[inline]
-fn destack_fs_copyfile_replay(
+fn destack_fs_copyfile_bytes_replay(
     context: &RuntimeCallContext,
-    from: NativeStringRef,
-    to: NativeStringRef,
+    from: PathBytes,
+    to: PathBytes,
     flags: u32,
 ) -> RuntimeResult<()> {
     let _ = (&from, &to, &flags);
 
     context.replay().run_binding(
-        COPYFILE,
-        || unsafe { platform_native::destack_fs_copyfile(context, from, to, flags) },
+        COPYFILE_BYTES,
+        || unsafe { platform_native::destack_fs_copyfile_bytes(context, from, to, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CopyfileReplay {
+                let payload = CopyfileBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2492,7 +4240,48 @@ fn destack_fs_copyfile_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyfileReplay { result }
+                    CopyfileBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_copyfile_utf16_replay(
+    context: &RuntimeCallContext,
+    from: PathUtf16,
+    to: PathUtf16,
+    flags: u32,
+) -> RuntimeResult<()> {
+    let _ = (&from, &to, &flags);
+
+    context.replay().run_binding(
+        COPYFILE_UTF16,
+        || unsafe { platform_native::destack_fs_copyfile_utf16(context, from, to, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = CopyfileUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CopyfileUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2954,20 +4743,20 @@ fn destack_fs_futimes_replay(
 }
 
 #[inline]
-fn destack_fs_link_replay(
+fn destack_fs_link_bytes_replay(
     context: &RuntimeCallContext,
-    existingpath: NativeStringRef,
-    newpath: NativeStringRef,
+    existingpath: PathBytes,
+    newpath: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (&existingpath, &newpath);
 
     context.replay().run_binding(
-        LINK,
-        || unsafe { platform_native::destack_fs_link(context, existingpath, newpath) },
+        LINK_BYTES,
+        || unsafe { platform_native::destack_fs_link_bytes(context, existingpath, newpath) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkReplay {
+                let payload = LinkBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -2976,7 +4765,7 @@ fn destack_fs_link_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkReplay { result }
+                    LinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -2994,20 +4783,60 @@ fn destack_fs_link_replay(
 }
 
 #[inline]
-fn destack_fs_linkat_replay(
+fn destack_fs_link_utf16_replay(
+    context: &RuntimeCallContext,
+    existingpath: PathUtf16,
+    newpath: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = (&existingpath, &newpath);
+
+    context.replay().run_binding(
+        LINK_UTF16,
+        || unsafe { platform_native::destack_fs_link_utf16(context, existingpath, newpath) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_linkat_bytes_replay(
     context: &RuntimeCallContext,
     existingdir: resource::DirectoryHandle,
-    existingpath: NativeStringRef,
+    existingpath: PathBytes,
     newdir: resource::DirectoryHandle,
-    newpath: NativeStringRef,
+    newpath: PathBytes,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
     context.replay().run_binding(
-        LINKAT,
+        LINKAT_BYTES,
         || unsafe {
-            platform_native::destack_fs_linkat(
+            platform_native::destack_fs_linkat_bytes(
                 context,
                 existingdir,
                 existingpath,
@@ -3019,7 +4848,7 @@ fn destack_fs_linkat_replay(
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkatReplay {
+                let payload = LinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3028,7 +4857,59 @@ fn destack_fs_linkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkatReplay { result }
+                    LinkatBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_linkat_utf16_replay(
+    context: &RuntimeCallContext,
+    existingdir: resource::DirectoryHandle,
+    existingpath: PathUtf16,
+    newdir: resource::DirectoryHandle,
+    newpath: PathUtf16,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
+
+    context.replay().run_binding(
+        LINKAT_UTF16,
+        || unsafe {
+            platform_native::destack_fs_linkat_utf16(
+                context,
+                existingdir,
+                existingpath,
+                newdir,
+                newpath,
+                flags,
+            )
+        },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LinkatUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3086,16 +4967,16 @@ fn destack_fs_lock_replay(
 }
 
 #[inline]
-fn destack_fs_lstat_replay(
+fn destack_fs_lstat_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
-    path: NativeStringRef,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        LSTAT,
-        || unsafe { platform_native::destack_fs_lstat(context, out, path) },
+        LSTAT_BYTES,
+        || unsafe { platform_native::destack_fs_lstat_bytes(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3134,7 +5015,7 @@ fn destack_fs_lstat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = LstatReplay {
+                let payload = LstatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3143,7 +5024,7 @@ fn destack_fs_lstat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LstatReplay { result }
+                    LstatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3196,21 +5077,131 @@ fn destack_fs_lstat_replay(
 }
 
 #[inline]
-fn destack_fs_lutimes_replay(
+fn destack_fs_lstat_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    out: *mut Stat,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        LSTAT_UTF16,
+        || unsafe { platform_native::destack_fs_lstat_utf16(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = LstatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LstatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_dev = value.dev;
+                    let value_native_ino = value.ino;
+                    let value_native_mode = value.mode;
+                    let value_native_nlink = value.nlink;
+                    let value_native_uid = value.uid;
+                    let value_native_gid = value.gid;
+                    let value_native_rdev = value.rdev;
+                    let value_native_size = value.size;
+                    let value_native_blksize = value.blksize;
+                    let value_native_blocks = value.blocks;
+                    let value_native_atime_ns = value.atime_ns;
+                    let value_native_mtime_ns = value.mtime_ns;
+                    let value_native_ctime_ns = value.ctime_ns;
+                    let value_native_birthtime_ns = value.birthtime_ns;
+                    let value_native = Stat {
+                        dev: value_native_dev,
+                        ino: value_native_ino,
+                        mode: value_native_mode,
+                        nlink: value_native_nlink,
+                        uid: value_native_uid,
+                        gid: value_native_gid,
+                        rdev: value_native_rdev,
+                        size: value_native_size,
+                        blksize: value_native_blksize,
+                        blocks: value_native_blocks,
+                        atime_ns: value_native_atime_ns,
+                        mtime_ns: value_native_mtime_ns,
+                        ctime_ns: value_native_ctime_ns,
+                        birthtime_ns: value_native_birthtime_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_lutimes_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
     context.replay().run_binding(
-        LUTIMES,
-        || unsafe { platform_native::destack_fs_lutimes(context, path, atimens, mtimens) },
+        LUTIMES_BYTES,
+        || unsafe { platform_native::destack_fs_lutimes_bytes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LutimesReplay {
+                let payload = LutimesBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3219,7 +5210,7 @@ fn destack_fs_lutimes_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LutimesReplay { result }
+                    LutimesBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3237,20 +5228,61 @@ fn destack_fs_lutimes_replay(
 }
 
 #[inline]
-fn destack_fs_mkdir_replay(
+fn destack_fs_lutimes_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: PathUtf16,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeResult<()> {
+    let _ = (&path, &atimens, &mtimens);
+
+    context.replay().run_binding(
+        LUTIMES_UTF16,
+        || unsafe { platform_native::destack_fs_lutimes_utf16(context, path, atimens, mtimens) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LutimesUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LutimesUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_mkdir_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &mode);
 
     context.replay().run_binding(
-        MKDIR,
-        || unsafe { platform_native::destack_fs_mkdir(context, path, mode) },
+        MKDIR_BYTES,
+        || unsafe { platform_native::destack_fs_mkdir_bytes(context, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdirReplay {
+                let payload = MkdirBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3259,7 +5291,7 @@ fn destack_fs_mkdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdirReplay { result }
+                    MkdirBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3277,21 +5309,61 @@ fn destack_fs_mkdir_replay(
 }
 
 #[inline]
-fn destack_fs_mkdirat_replay(
+fn destack_fs_mkdir_utf16_replay(
+    context: &RuntimeCallContext,
+    path: PathUtf16,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (&path, &mode);
+
+    context.replay().run_binding(
+        MKDIR_UTF16,
+        || unsafe { platform_native::destack_fs_mkdir_utf16(context, path, mode) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = MkdirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MkdirUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_mkdirat_bytes_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &mode);
 
     context.replay().run_binding(
-        MKDIRAT,
-        || unsafe { platform_native::destack_fs_mkdirat(context, dir, path, mode) },
+        MKDIRAT_BYTES,
+        || unsafe { platform_native::destack_fs_mkdirat_bytes(context, dir, path, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdiratReplay {
+                let payload = MkdiratBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3300,7 +5372,7 @@ fn destack_fs_mkdirat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdiratReplay { result }
+                    MkdiratBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3318,16 +5390,57 @@ fn destack_fs_mkdirat_replay(
 }
 
 #[inline]
-fn destack_fs_mkdtemp_replay(
+fn destack_fs_mkdirat_utf16_replay(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
-    template: NativeStringRef,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (&dir, &path, &mode);
+
+    context.replay().run_binding(
+        MKDIRAT_UTF16,
+        || unsafe { platform_native::destack_fs_mkdirat_utf16(context, dir, path, mode) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = MkdiratUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MkdiratUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_mkdtemp_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut PathBytes,
+    template: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &template;
 
     context.replay().run_binding(
-        MKDTEMP,
-        || unsafe { platform_native::destack_fs_mkdtemp(context, out, template) },
+        MKDTEMP_BYTES,
+        || unsafe { platform_native::destack_fs_mkdtemp_bytes(context, out, template) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3336,8 +5449,14 @@ fn destack_fs_mkdtemp_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = MkdtempReplay {
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = MkdtempBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3346,7 +5465,7 @@ fn destack_fs_mkdtemp_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdtempReplay { result }
+                    MkdtempBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3357,7 +5476,15 @@ fn destack_fs_mkdtemp_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3370,18 +5497,84 @@ fn destack_fs_mkdtemp_replay(
 }
 
 #[inline]
-fn destack_fs_open_replay(
+fn destack_fs_mkdtemp_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut PathUtf16,
+    template: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &template;
+
+    context.replay().run_binding(
+        MKDTEMP_UTF16,
+        || unsafe { platform_native::destack_fs_mkdtemp_utf16(context, out, template) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = MkdtempUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MkdtempUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathUtf16Abi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_open_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&path, &flags, &mode);
 
     context.replay().run_binding(
-        OPEN,
-        || unsafe { platform_native::destack_fs_open(context, out, path, flags, mode) },
+        OPEN_BYTES,
+        || unsafe { platform_native::destack_fs_open_bytes(context, out, path, flags, mode) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3391,7 +5584,7 @@ fn destack_fs_open_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpenReplay {
+                let payload = OpenBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3400,7 +5593,7 @@ fn destack_fs_open_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenReplay { result }
+                    OpenBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3424,19 +5617,75 @@ fn destack_fs_open_replay(
 }
 
 #[inline]
-fn destack_fs_openat_replay(
+fn destack_fs_open_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::FileHandle,
+    path: PathUtf16,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeResult<()> {
+    let _ = (&path, &flags, &mode);
+
+    context.replay().run_binding(
+        OPEN_UTF16,
+        || unsafe { platform_native::destack_fs_open_utf16(context, out, path, flags, mode) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = OpenUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpenUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_openat_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut resource::FileHandle,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags, &mode);
 
     context.replay().run_binding(
-        OPENAT,
-        || unsafe { platform_native::destack_fs_openat(context, out, dir, path, flags, mode) },
+        OPENAT_BYTES,
+        || unsafe {
+            platform_native::destack_fs_openat_bytes(context, out, dir, path, flags, mode)
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3446,7 +5695,7 @@ fn destack_fs_openat_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpenatReplay {
+                let payload = OpenatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3455,7 +5704,7 @@ fn destack_fs_openat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenatReplay { result }
+                    OpenatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3479,16 +5728,21 @@ fn destack_fs_openat_replay(
 }
 
 #[inline]
-fn destack_fs_opendir_replay(
+fn destack_fs_openat_utf16_replay(
     context: &RuntimeCallContext,
-    out: *mut resource::DirectoryHandle,
-    path: NativeStringRef,
+    out: *mut resource::FileHandle,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: OpenFlags,
+    mode: FileMode,
 ) -> RuntimeResult<()> {
-    let _ = &path;
+    let _ = (&dir, &path, &flags, &mode);
 
     context.replay().run_binding(
-        OPENDIR,
-        || unsafe { platform_native::destack_fs_opendir(context, out, path) },
+        OPENAT_UTF16,
+        || unsafe {
+            platform_native::destack_fs_openat_utf16(context, out, dir, path, flags, mode)
+        },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3498,7 +5752,7 @@ fn destack_fs_opendir_replay(
                     *out
                 };
                 let result_replay = result_value;
-                let payload = OpendirReplay {
+                let payload = OpenatUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3507,7 +5761,111 @@ fn destack_fs_opendir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpendirReplay { result }
+                    OpenatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_opendir_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::DirectoryHandle,
+    path: PathBytes,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        OPENDIR_BYTES,
+        || unsafe { platform_native::destack_fs_opendir_bytes(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = OpendirBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpendirBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native = value;
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_opendir_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut resource::DirectoryHandle,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        OPENDIR_UTF16,
+        || unsafe { platform_native::destack_fs_opendir_utf16(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay = result_value;
+                let payload = OpendirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpendirUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3606,7 +5964,7 @@ fn destack_fs_readdir_replay(
                 let result_replay_raw = unsafe { result_value.as_slice()? };
                 let mut result_replay = Vec::with_capacity(result_replay_raw.len());
                 for result_replay_item_value in result_replay_raw {
-                    let result_replay_item = result_replay_item_value;
+                    let result_replay_item = *result_replay_item_value;
                     let result_replay_item_replay_name =
                         unsafe { result_replay_item.name.as_str()? }.to_string();
                     let result_replay_item_replay_kind = result_replay_item.kind;
@@ -3637,8 +5995,7 @@ fn destack_fs_readdir_replay(
             match payload.result {
                 Ok(value) => {
                     let mut value_native_values = Vec::with_capacity(value.len());
-                    for value_native_item_value in value.iter() {
-                        let value_native_item = value_native_item_value.clone();
+                    for value_native_item in value {
                         let value_native_item_native_name =
                             context.store_string(&value_native_item.name);
                         let value_native_item_native_kind = value_native_item.kind;
@@ -3661,16 +6018,16 @@ fn destack_fs_readdir_replay(
 }
 
 #[inline]
-fn destack_fs_readlink_replay(
+fn destack_fs_readlink_bytes_replay(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
-    path: NativeStringRef,
+    out: *mut PathBytes,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        READLINK,
-        || unsafe { platform_native::destack_fs_readlink(context, out, path) },
+        READLINK_BYTES,
+        || unsafe { platform_native::destack_fs_readlink_bytes(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3679,8 +6036,14 @@ fn destack_fs_readlink_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = ReadlinkReplay {
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ReadlinkBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3689,7 +6052,7 @@ fn destack_fs_readlink_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkReplay { result }
+                    ReadlinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3700,7 +6063,15 @@ fn destack_fs_readlink_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3713,17 +6084,16 @@ fn destack_fs_readlink_replay(
 }
 
 #[inline]
-fn destack_fs_readlinkat_replay(
+fn destack_fs_readlink_utf16_replay(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
-    dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    out: *mut PathUtf16,
+    path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (&dir, &path);
+    let _ = &path;
 
     context.replay().run_binding(
-        READLINKAT,
-        || unsafe { platform_native::destack_fs_readlinkat(context, out, dir, path) },
+        READLINK_UTF16,
+        || unsafe { platform_native::destack_fs_readlink_utf16(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3732,8 +6102,14 @@ fn destack_fs_readlinkat_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = ReadlinkatReplay {
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ReadlinkUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3742,7 +6118,7 @@ fn destack_fs_readlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkatReplay { result }
+                    ReadlinkUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3753,7 +6129,149 @@ fn destack_fs_readlinkat_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathUtf16Abi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_readlinkat_bytes_replay(
+    context: &RuntimeCallContext,
+    out: *mut PathBytes,
+    dir: resource::DirectoryHandle,
+    path: PathBytes,
+) -> RuntimeResult<()> {
+    let _ = (&dir, &path);
+
+    context.replay().run_binding(
+        READLINKAT_BYTES,
+        || unsafe { platform_native::destack_fs_readlinkat_bytes(context, out, dir, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ReadlinkatBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ReadlinkatBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_readlinkat_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut PathUtf16,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = (&dir, &path);
+
+    context.replay().run_binding(
+        READLINKAT_UTF16,
+        || unsafe { platform_native::destack_fs_readlinkat_utf16(context, out, dir, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = ReadlinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ReadlinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathUtf16Abi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3820,16 +6338,16 @@ fn destack_fs_readv_replay(
 }
 
 #[inline]
-fn destack_fs_realpath_replay(
+fn destack_fs_realpath_bytes_replay(
     context: &RuntimeCallContext,
-    out: *mut NativeStringRef,
-    path: NativeStringRef,
+    out: *mut PathBytes,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        REALPATH,
-        || unsafe { platform_native::destack_fs_realpath(context, out, path) },
+        REALPATH_BYTES,
+        || unsafe { platform_native::destack_fs_realpath_bytes(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -3838,8 +6356,14 @@ fn destack_fs_realpath_replay(
                     }
                     *out
                 };
-                let result_replay = unsafe { result_value.as_str()? }.to_string();
-                let payload = RealpathReplay {
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = RealpathBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3848,7 +6372,7 @@ fn destack_fs_realpath_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RealpathReplay { result }
+                    RealpathBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3859,7 +6383,15 @@ fn destack_fs_realpath_replay(
             // replay result
             match payload.result {
                 Ok(value) => {
-                    let value_native = context.store_string(&value);
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathBytesAbi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
                     unsafe {
                         std::ptr::write(out, value_native);
                     }
@@ -3872,20 +6404,86 @@ fn destack_fs_realpath_replay(
 }
 
 #[inline]
-fn destack_fs_rename_replay(
+fn destack_fs_realpath_utf16_replay(
     context: &RuntimeCallContext,
-    from: NativeStringRef,
-    to: NativeStringRef,
+    out: *mut PathUtf16,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        REALPATH_UTF16,
+        || unsafe { platform_native::destack_fs_realpath_utf16(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_raw = unsafe { result_value.0.as_slice()? };
+                let mut result_replay = Vec::with_capacity(result_replay_raw.len());
+                for result_replay_item_value in result_replay_raw {
+                    let result_replay_item = *result_replay_item_value;
+                    let result_replay_item_replay = result_replay_item;
+                    result_replay.push(result_replay_item_replay);
+                }
+                let payload = RealpathUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RealpathUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let mut value_native_inner_values = Vec::with_capacity(value.len());
+                    for value_native_inner_item in value {
+                        let value_native_inner_item_native = value_native_inner_item;
+                        value_native_inner_values.push(value_native_inner_item_native);
+                    }
+                    let value_native_inner = context.store_array(value_native_inner_values);
+                    let value_native = crate::platform::fs::PathUtf16Abi::<
+                        crate::platform::abi::NativeAbi,
+                    >(value_native_inner);
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_rename_bytes_replay(
+    context: &RuntimeCallContext,
+    from: PathBytes,
+    to: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (&from, &to);
 
     context.replay().run_binding(
-        RENAME,
-        || unsafe { platform_native::destack_fs_rename(context, from, to) },
+        RENAME_BYTES,
+        || unsafe { platform_native::destack_fs_rename_bytes(context, from, to) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameReplay {
+                let payload = RenameBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3894,7 +6492,7 @@ fn destack_fs_rename_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameReplay { result }
+                    RenameBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3912,22 +6510,62 @@ fn destack_fs_rename_replay(
 }
 
 #[inline]
-fn destack_fs_renameat_replay(
+fn destack_fs_rename_utf16_replay(
+    context: &RuntimeCallContext,
+    from: PathUtf16,
+    to: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = (&from, &to);
+
+    context.replay().run_binding(
+        RENAME_UTF16,
+        || unsafe { platform_native::destack_fs_rename_utf16(context, from, to) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RenameUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RenameUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_renameat_bytes_replay(
     context: &RuntimeCallContext,
     fromdir: resource::DirectoryHandle,
-    from: NativeStringRef,
+    from: PathBytes,
     todir: resource::DirectoryHandle,
-    to: NativeStringRef,
+    to: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = (&fromdir, &from, &todir, &to);
 
     context.replay().run_binding(
-        RENAMEAT,
-        || unsafe { platform_native::destack_fs_renameat(context, fromdir, from, todir, to) },
+        RENAMEAT_BYTES,
+        || unsafe { platform_native::destack_fs_renameat_bytes(context, fromdir, from, todir, to) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameatReplay {
+                let payload = RenameatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3936,7 +6574,7 @@ fn destack_fs_renameat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameatReplay { result }
+                    RenameatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3954,19 +6592,61 @@ fn destack_fs_renameat_replay(
 }
 
 #[inline]
-fn destack_fs_rmdir_replay(
+fn destack_fs_renameat_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    fromdir: resource::DirectoryHandle,
+    from: PathUtf16,
+    todir: resource::DirectoryHandle,
+    to: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = (&fromdir, &from, &todir, &to);
+
+    context.replay().run_binding(
+        RENAMEAT_UTF16,
+        || unsafe { platform_native::destack_fs_renameat_utf16(context, fromdir, from, todir, to) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RenameatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RenameatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_rmdir_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        RMDIR,
-        || unsafe { platform_native::destack_fs_rmdir(context, path) },
+        RMDIR_BYTES,
+        || unsafe { platform_native::destack_fs_rmdir_bytes(context, path) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RmdirReplay {
+                let payload = RmdirBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -3975,7 +6655,7 @@ fn destack_fs_rmdir_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RmdirReplay { result }
+                    RmdirBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -3993,16 +6673,55 @@ fn destack_fs_rmdir_replay(
 }
 
 #[inline]
-fn destack_fs_stat_replay(
+fn destack_fs_rmdir_utf16_replay(
+    context: &RuntimeCallContext,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        RMDIR_UTF16,
+        || unsafe { platform_native::destack_fs_rmdir_utf16(context, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RmdirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RmdirUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_stat_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
-    path: NativeStringRef,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        STAT,
-        || unsafe { platform_native::destack_fs_stat(context, out, path) },
+        STAT_BYTES,
+        || unsafe { platform_native::destack_fs_stat_bytes(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -4041,7 +6760,7 @@ fn destack_fs_stat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatReplay {
+                let payload = StatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4050,7 +6769,7 @@ fn destack_fs_stat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatReplay { result }
+                    StatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4103,18 +6822,128 @@ fn destack_fs_stat_replay(
 }
 
 #[inline]
-fn destack_fs_statat_replay(
+fn destack_fs_stat_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut Stat,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        STAT_UTF16,
+        || unsafe { platform_native::destack_fs_stat_utf16(context, out, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = StatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    StatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_dev = value.dev;
+                    let value_native_ino = value.ino;
+                    let value_native_mode = value.mode;
+                    let value_native_nlink = value.nlink;
+                    let value_native_uid = value.uid;
+                    let value_native_gid = value.gid;
+                    let value_native_rdev = value.rdev;
+                    let value_native_size = value.size;
+                    let value_native_blksize = value.blksize;
+                    let value_native_blocks = value.blocks;
+                    let value_native_atime_ns = value.atime_ns;
+                    let value_native_mtime_ns = value.mtime_ns;
+                    let value_native_ctime_ns = value.ctime_ns;
+                    let value_native_birthtime_ns = value.birthtime_ns;
+                    let value_native = Stat {
+                        dev: value_native_dev,
+                        ino: value_native_ino,
+                        mode: value_native_mode,
+                        nlink: value_native_nlink,
+                        uid: value_native_uid,
+                        gid: value_native_gid,
+                        rdev: value_native_rdev,
+                        size: value_native_size,
+                        blksize: value_native_blksize,
+                        blocks: value_native_blocks,
+                        atime_ns: value_native_atime_ns,
+                        mtime_ns: value_native_mtime_ns,
+                        ctime_ns: value_native_ctime_ns,
+                        birthtime_ns: value_native_birthtime_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_statat_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut Stat,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
     context.replay().run_binding(
-        STATAT,
-        || unsafe { platform_native::destack_fs_statat(context, out, dir, path, flags) },
+        STATAT_BYTES,
+        || unsafe { platform_native::destack_fs_statat_bytes(context, out, dir, path, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -4153,7 +6982,7 @@ fn destack_fs_statat_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatatReplay {
+                let payload = StatatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4162,7 +6991,7 @@ fn destack_fs_statat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatatReplay { result }
+                    StatatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4215,16 +7044,128 @@ fn destack_fs_statat_replay(
 }
 
 #[inline]
-fn destack_fs_statfs_replay(
+fn destack_fs_statat_utf16_replay(
+    context: &RuntimeCallContext,
+    out: *mut Stat,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    let _ = (&dir, &path, &flags);
+
+    context.replay().run_binding(
+        STATAT_UTF16,
+        || unsafe { platform_native::destack_fs_statat_utf16(context, out, dir, path, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = StatatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    StatatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_dev = value.dev;
+                    let value_native_ino = value.ino;
+                    let value_native_mode = value.mode;
+                    let value_native_nlink = value.nlink;
+                    let value_native_uid = value.uid;
+                    let value_native_gid = value.gid;
+                    let value_native_rdev = value.rdev;
+                    let value_native_size = value.size;
+                    let value_native_blksize = value.blksize;
+                    let value_native_blocks = value.blocks;
+                    let value_native_atime_ns = value.atime_ns;
+                    let value_native_mtime_ns = value.mtime_ns;
+                    let value_native_ctime_ns = value.ctime_ns;
+                    let value_native_birthtime_ns = value.birthtime_ns;
+                    let value_native = Stat {
+                        dev: value_native_dev,
+                        ino: value_native_ino,
+                        mode: value_native_mode,
+                        nlink: value_native_nlink,
+                        uid: value_native_uid,
+                        gid: value_native_gid,
+                        rdev: value_native_rdev,
+                        size: value_native_size,
+                        blksize: value_native_blksize,
+                        blocks: value_native_blocks,
+                        atime_ns: value_native_atime_ns,
+                        mtime_ns: value_native_mtime_ns,
+                        ctime_ns: value_native_ctime_ns,
+                        birthtime_ns: value_native_birthtime_ns,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_statfs_bytes_replay(
     context: &RuntimeCallContext,
     out: *mut StatFs,
-    path: NativeStringRef,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        STATFS,
-        || unsafe { platform_native::destack_fs_statfs(context, out, path) },
+        STATFS_BYTES,
+        || unsafe { platform_native::destack_fs_statfs_bytes(context, out, path) },
         |result| {
             if let Ok(()) = result {
                 let result_value = unsafe {
@@ -4255,7 +7196,7 @@ fn destack_fs_statfs_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = StatfsReplay {
+                let payload = StatfsBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4264,7 +7205,7 @@ fn destack_fs_statfs_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatfsReplay { result }
+                    StatfsBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4309,20 +7250,47 @@ fn destack_fs_statfs_replay(
 }
 
 #[inline]
-fn destack_fs_symlink_replay(
+fn destack_fs_statfs_utf16_replay(
     context: &RuntimeCallContext,
-    target: NativeStringRef,
-    path: NativeStringRef,
+    out: *mut StatFs,
+    path: PathUtf16,
 ) -> RuntimeResult<()> {
-    let _ = (&target, &path);
+    let _ = &path;
 
     context.replay().run_binding(
-        SYMLINK,
-        || unsafe { platform_native::destack_fs_symlink(context, target, path) },
+        STATFS_UTF16,
+        || unsafe { platform_native::destack_fs_statfs_utf16(context, out, path) },
         |result| {
             if let Ok(()) = result {
-                let result_replay = ();
-                let payload = SymlinkReplay {
+                let result_value = unsafe {
+                    if out.is_null() {
+                        return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+                    }
+                    *out
+                };
+                let result_replay_bsize = result_value.bsize;
+                let result_replay_frsize = result_value.frsize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_bfree = result_value.bfree;
+                let result_replay_bavail = result_value.bavail;
+                let result_replay_files = result_value.files;
+                let result_replay_ffree = result_value.ffree;
+                let result_replay_fsid = result_value.fsid;
+                let result_replay_flags = result_value.flags;
+                let result_replay_namelen = result_value.namelen;
+                let result_replay = StatFs {
+                    bsize: result_replay_bsize,
+                    frsize: result_replay_frsize,
+                    blocks: result_replay_blocks,
+                    bfree: result_replay_bfree,
+                    bavail: result_replay_bavail,
+                    files: result_replay_files,
+                    ffree: result_replay_ffree,
+                    fsid: result_replay_fsid,
+                    flags: result_replay_flags,
+                    namelen: result_replay_namelen,
+                };
+                let payload = StatfsUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4331,7 +7299,75 @@ fn destack_fs_symlink_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkReplay { result }
+                    StatfsUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let value_native_bsize = value.bsize;
+                    let value_native_frsize = value.frsize;
+                    let value_native_blocks = value.blocks;
+                    let value_native_bfree = value.bfree;
+                    let value_native_bavail = value.bavail;
+                    let value_native_files = value.files;
+                    let value_native_ffree = value.ffree;
+                    let value_native_fsid = value.fsid;
+                    let value_native_flags = value.flags;
+                    let value_native_namelen = value.namelen;
+                    let value_native = StatFs {
+                        bsize: value_native_bsize,
+                        frsize: value_native_frsize,
+                        blocks: value_native_blocks,
+                        bfree: value_native_bfree,
+                        bavail: value_native_bavail,
+                        files: value_native_files,
+                        ffree: value_native_ffree,
+                        fsid: value_native_fsid,
+                        flags: value_native_flags,
+                        namelen: value_native_namelen,
+                    };
+                    unsafe {
+                        std::ptr::write(out, value_native);
+                    }
+                    Ok(())
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_symlink_bytes_replay(
+    context: &RuntimeCallContext,
+    target: PathBytes,
+    path: PathBytes,
+    kind: SymlinkType,
+) -> RuntimeResult<()> {
+    let _ = (&target, &path, &kind);
+
+    context.replay().run_binding(
+        SYMLINK_BYTES,
+        || unsafe { platform_native::destack_fs_symlink_bytes(context, target, path, kind) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4349,21 +7385,63 @@ fn destack_fs_symlink_replay(
 }
 
 #[inline]
-fn destack_fs_symlinkat_replay(
+fn destack_fs_symlink_utf16_replay(
     context: &RuntimeCallContext,
-    target: NativeStringRef,
+    target: PathUtf16,
+    path: PathUtf16,
+    kind: SymlinkType,
+) -> RuntimeResult<()> {
+    let _ = (&target, &path, &kind);
+
+    context.replay().run_binding(
+        SYMLINK_UTF16,
+        || unsafe { platform_native::destack_fs_symlink_utf16(context, target, path, kind) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_symlinkat_bytes_replay(
+    context: &RuntimeCallContext,
+    target: PathBytes,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
+    kind: SymlinkType,
 ) -> RuntimeResult<()> {
-    let _ = (&target, &dir, &path);
+    let _ = (&target, &dir, &path, &kind);
 
     context.replay().run_binding(
-        SYMLINKAT,
-        || unsafe { platform_native::destack_fs_symlinkat(context, target, dir, path) },
+        SYMLINKAT_BYTES,
+        || unsafe { platform_native::destack_fs_symlinkat_bytes(context, target, dir, path, kind) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkatReplay {
+                let payload = SymlinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4372,7 +7450,7 @@ fn destack_fs_symlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkatReplay { result }
+                    SymlinkatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4390,20 +7468,62 @@ fn destack_fs_symlinkat_replay(
 }
 
 #[inline]
-fn destack_fs_truncate_replay(
+fn destack_fs_symlinkat_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    target: PathUtf16,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    kind: SymlinkType,
+) -> RuntimeResult<()> {
+    let _ = (&target, &dir, &path, &kind);
+
+    context.replay().run_binding(
+        SYMLINKAT_UTF16,
+        || unsafe { platform_native::destack_fs_symlinkat_utf16(context, target, dir, path, kind) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_truncate_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     size: FileOffset,
 ) -> RuntimeResult<()> {
     let _ = (&path, &size);
 
     context.replay().run_binding(
-        TRUNCATE,
-        || unsafe { platform_native::destack_fs_truncate(context, path, size) },
+        TRUNCATE_BYTES,
+        || unsafe { platform_native::destack_fs_truncate_bytes(context, path, size) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = TruncateReplay {
+                let payload = TruncateBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4412,7 +7532,7 @@ fn destack_fs_truncate_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    TruncateReplay { result }
+                    TruncateBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4430,19 +7550,59 @@ fn destack_fs_truncate_replay(
 }
 
 #[inline]
-fn destack_fs_unlink_replay(
+fn destack_fs_truncate_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    path: PathUtf16,
+    size: FileOffset,
+) -> RuntimeResult<()> {
+    let _ = (&path, &size);
+
+    context.replay().run_binding(
+        TRUNCATE_UTF16,
+        || unsafe { platform_native::destack_fs_truncate_utf16(context, path, size) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = TruncateUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    TruncateUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_unlink_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
 ) -> RuntimeResult<()> {
     let _ = &path;
 
     context.replay().run_binding(
-        UNLINK,
-        || unsafe { platform_native::destack_fs_unlink(context, path) },
+        UNLINK_BYTES,
+        || unsafe { platform_native::destack_fs_unlink_bytes(context, path) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkReplay {
+                let payload = UnlinkBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4451,7 +7611,7 @@ fn destack_fs_unlink_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkReplay { result }
+                    UnlinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4469,21 +7629,60 @@ fn destack_fs_unlink_replay(
 }
 
 #[inline]
-fn destack_fs_unlinkat_replay(
+fn destack_fs_unlink_utf16_replay(
+    context: &RuntimeCallContext,
+    path: PathUtf16,
+) -> RuntimeResult<()> {
+    let _ = &path;
+
+    context.replay().run_binding(
+        UNLINK_UTF16,
+        || unsafe { platform_native::destack_fs_unlink_utf16(context, path) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UnlinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UnlinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_unlinkat_bytes_replay(
     context: &RuntimeCallContext,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeResult<()> {
     let _ = (&dir, &path, &flags);
 
     context.replay().run_binding(
-        UNLINKAT,
-        || unsafe { platform_native::destack_fs_unlinkat(context, dir, path, flags) },
+        UNLINKAT_BYTES,
+        || unsafe { platform_native::destack_fs_unlinkat_bytes(context, dir, path, flags) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkatReplay {
+                let payload = UnlinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4492,7 +7691,7 @@ fn destack_fs_unlinkat_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkatReplay { result }
+                    UnlinkatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4510,21 +7709,62 @@ fn destack_fs_unlinkat_replay(
 }
 
 #[inline]
-fn destack_fs_utimes_replay(
+fn destack_fs_unlinkat_utf16_replay(
     context: &RuntimeCallContext,
-    path: NativeStringRef,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: AtFlags,
+) -> RuntimeResult<()> {
+    let _ = (&dir, &path, &flags);
+
+    context.replay().run_binding(
+        UNLINKAT_UTF16,
+        || unsafe { platform_native::destack_fs_unlinkat_utf16(context, dir, path, flags) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UnlinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UnlinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_utimes_bytes_replay(
+    context: &RuntimeCallContext,
+    path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<()> {
     let _ = (&path, &atimens, &mtimens);
 
     context.replay().run_binding(
-        UTIMES,
-        || unsafe { platform_native::destack_fs_utimes(context, path, atimens, mtimens) },
+        UTIMES_BYTES,
+        || unsafe { platform_native::destack_fs_utimes_bytes(context, path, atimens, mtimens) },
         |result| {
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimesReplay {
+                let payload = UtimesBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -4533,7 +7773,48 @@ fn destack_fs_utimes_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimesReplay { result }
+                    UtimesBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |payload| {
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    )
+}
+
+#[inline]
+fn destack_fs_utimes_utf16_replay(
+    context: &RuntimeCallContext,
+    path: PathUtf16,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeResult<()> {
+    let _ = (&path, &atimens, &mtimens);
+
+    context.replay().run_binding(
+        UTIMES_UTF16,
+        || unsafe { platform_native::destack_fs_utimes_utf16(context, path, atimens, mtimens) },
+        |result| {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UtimesUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UtimesUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -4659,40 +7940,77 @@ fn destack_fs_writev_replay(
 }
 
 /// Native export wrappers for fs bindings.
-#[unsafe(export_name = "destack.fs.access")]
-pub unsafe extern "C" fn destack_fs_access(
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.accessBytes")]
+pub unsafe extern "C" fn destack_fs_access_bytes(
+    path: PathBytes,
     mode: AccessMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(ACCESS)?;
+        context.check_policy(ACCESS_BYTES)?;
         let _ = (&path, &mode);
 
-        destack_fs_access_replay(context, path, mode)
+        destack_fs_access_bytes_replay(context, path, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.chmod")]
-pub unsafe extern "C" fn destack_fs_chmod(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.accessUtf16")]
+pub unsafe extern "C" fn destack_fs_access_utf16(
+    path: PathUtf16,
+    mode: AccessMode,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CHMOD)?;
+        context.check_policy(ACCESS_UTF16)?;
         let _ = (&path, &mode);
 
-        destack_fs_chmod_replay(context, path, mode)
+        destack_fs_access_utf16_replay(context, path, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.chown")]
-pub unsafe extern "C" fn destack_fs_chown(
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.chmodBytes")]
+pub unsafe extern "C" fn destack_fs_chmod_bytes(path: PathBytes, mode: FileMode) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(CHMOD_BYTES)?;
+        let _ = (&path, &mode);
+
+        destack_fs_chmod_bytes_replay(context, path, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.chmodUtf16")]
+pub unsafe extern "C" fn destack_fs_chmod_utf16(path: PathUtf16, mode: FileMode) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(CHMOD_UTF16)?;
+        let _ = (&path, &mode);
+
+        destack_fs_chmod_utf16_replay(context, path, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.chownBytes")]
+pub unsafe extern "C" fn destack_fs_chown_bytes(
+    path: PathBytes,
     uid: u32,
     gid: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(CHOWN)?;
+        context.check_policy(CHOWN_BYTES)?;
         let _ = (&path, &uid, &gid);
 
-        destack_fs_chown_replay(context, path, uid, gid)
+        destack_fs_chown_bytes_replay(context, path, uid, gid)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.chownUtf16")]
+pub unsafe extern "C" fn destack_fs_chown_utf16(
+    path: PathUtf16,
+    uid: u32,
+    gid: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(CHOWN_UTF16)?;
+        let _ = (&path, &uid, &gid);
+
+        destack_fs_chown_utf16_replay(context, path, uid, gid)
     })
 }
 
@@ -4716,17 +8034,31 @@ pub unsafe extern "C" fn destack_fs_closedir(handle: resource::DirectoryHandle) 
     })
 }
 
-#[unsafe(export_name = "destack.fs.copyfile")]
-pub unsafe extern "C" fn destack_fs_copyfile(
-    from: NativeStringRef,
-    to: NativeStringRef,
+#[unsafe(export_name = "destack.fs.copyfileBytes")]
+pub unsafe extern "C" fn destack_fs_copyfile_bytes(
+    from: PathBytes,
+    to: PathBytes,
     flags: u32,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(COPYFILE)?;
+        context.check_policy(COPYFILE_BYTES)?;
         let _ = (&from, &to, &flags);
 
-        destack_fs_copyfile_replay(context, from, to, flags)
+        destack_fs_copyfile_bytes_replay(context, from, to, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.copyfileUtf16")]
+pub unsafe extern "C" fn destack_fs_copyfile_utf16(
+    from: PathUtf16,
+    to: PathUtf16,
+    flags: u32,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(COPYFILE_UTF16)?;
+        let _ = (&from, &to, &flags);
+
+        destack_fs_copyfile_utf16_replay(context, from, to, flags)
     })
 }
 
@@ -4836,32 +8168,61 @@ pub unsafe extern "C" fn destack_fs_futimes(
     })
 }
 
-#[unsafe(export_name = "destack.fs.link")]
-pub unsafe extern "C" fn destack_fs_link(
-    existingpath: NativeStringRef,
-    newpath: NativeStringRef,
+#[unsafe(export_name = "destack.fs.linkBytes")]
+pub unsafe extern "C" fn destack_fs_link_bytes(
+    existingpath: PathBytes,
+    newpath: PathBytes,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LINK)?;
+        context.check_policy(LINK_BYTES)?;
         let _ = (&existingpath, &newpath);
 
-        destack_fs_link_replay(context, existingpath, newpath)
+        destack_fs_link_bytes_replay(context, existingpath, newpath)
     })
 }
 
-#[unsafe(export_name = "destack.fs.linkat")]
-pub unsafe extern "C" fn destack_fs_linkat(
+#[unsafe(export_name = "destack.fs.linkUtf16")]
+pub unsafe extern "C" fn destack_fs_link_utf16(
+    existingpath: PathUtf16,
+    newpath: PathUtf16,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(LINK_UTF16)?;
+        let _ = (&existingpath, &newpath);
+
+        destack_fs_link_utf16_replay(context, existingpath, newpath)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.linkatBytes")]
+pub unsafe extern "C" fn destack_fs_linkat_bytes(
     existingdir: resource::DirectoryHandle,
-    existingpath: NativeStringRef,
+    existingpath: PathBytes,
     newdir: resource::DirectoryHandle,
-    newpath: NativeStringRef,
+    newpath: PathBytes,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LINKAT)?;
+        context.check_policy(LINKAT_BYTES)?;
         let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
 
-        destack_fs_linkat_replay(context, existingdir, existingpath, newdir, newpath, flags)
+        destack_fs_linkat_bytes_replay(context, existingdir, existingpath, newdir, newpath, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.linkatUtf16")]
+pub unsafe extern "C" fn destack_fs_linkat_utf16(
+    existingdir: resource::DirectoryHandle,
+    existingpath: PathUtf16,
+    newdir: resource::DirectoryHandle,
+    newpath: PathUtf16,
+    flags: AtFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(LINKAT_UTF16)?;
+        let _ = (&existingdir, &existingpath, &newdir, &newpath, &flags);
+
+        destack_fs_linkat_utf16_replay(context, existingdir, existingpath, newdir, newpath, flags)
     })
 }
 
@@ -4878,123 +8239,243 @@ pub unsafe extern "C" fn destack_fs_lock(
     })
 }
 
-#[unsafe(export_name = "destack.fs.lstat")]
-pub unsafe extern "C" fn destack_fs_lstat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.lstatBytes")]
+pub unsafe extern "C" fn destack_fs_lstat_bytes(out: *mut Stat, path: PathBytes) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LSTAT)?;
+        context.check_policy(LSTAT_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_lstat_replay(context, out, path)
+        destack_fs_lstat_bytes_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.lutimes")]
-pub unsafe extern "C" fn destack_fs_lutimes(
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.lstatUtf16")]
+pub unsafe extern "C" fn destack_fs_lstat_utf16(out: *mut Stat, path: PathUtf16) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(LSTAT_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_lstat_utf16_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.lutimesBytes")]
+pub unsafe extern "C" fn destack_fs_lutimes_bytes(
+    path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(LUTIMES)?;
+        context.check_policy(LUTIMES_BYTES)?;
         let _ = (&path, &atimens, &mtimens);
 
-        destack_fs_lutimes_replay(context, path, atimens, mtimens)
+        destack_fs_lutimes_bytes_replay(context, path, atimens, mtimens)
     })
 }
 
-#[unsafe(export_name = "destack.fs.mkdir")]
-pub unsafe extern "C" fn destack_fs_mkdir(path: NativeStringRef, mode: FileMode) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.lutimesUtf16")]
+pub unsafe extern "C" fn destack_fs_lutimes_utf16(
+    path: PathUtf16,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDIR)?;
+        context.check_policy(LUTIMES_UTF16)?;
+        let _ = (&path, &atimens, &mtimens);
+
+        destack_fs_lutimes_utf16_replay(context, path, atimens, mtimens)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.mkdirBytes")]
+pub unsafe extern "C" fn destack_fs_mkdir_bytes(path: PathBytes, mode: FileMode) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(MKDIR_BYTES)?;
         let _ = (&path, &mode);
 
-        destack_fs_mkdir_replay(context, path, mode)
+        destack_fs_mkdir_bytes_replay(context, path, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.mkdirat")]
-pub unsafe extern "C" fn destack_fs_mkdirat(
+#[unsafe(export_name = "destack.fs.mkdirUtf16")]
+pub unsafe extern "C" fn destack_fs_mkdir_utf16(path: PathUtf16, mode: FileMode) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(MKDIR_UTF16)?;
+        let _ = (&path, &mode);
+
+        destack_fs_mkdir_utf16_replay(context, path, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.mkdiratBytes")]
+pub unsafe extern "C" fn destack_fs_mkdirat_bytes(
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDIRAT)?;
+        context.check_policy(MKDIRAT_BYTES)?;
         let _ = (&dir, &path, &mode);
 
-        destack_fs_mkdirat_replay(context, dir, path, mode)
+        destack_fs_mkdirat_bytes_replay(context, dir, path, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.mkdtemp")]
-pub unsafe extern "C" fn destack_fs_mkdtemp(
-    out: *mut NativeStringRef,
-    template: NativeStringRef,
+#[unsafe(export_name = "destack.fs.mkdiratUtf16")]
+pub unsafe extern "C" fn destack_fs_mkdirat_utf16(
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(MKDTEMP)?;
+        context.check_policy(MKDIRAT_UTF16)?;
+        let _ = (&dir, &path, &mode);
+
+        destack_fs_mkdirat_utf16_replay(context, dir, path, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.mkdtempBytes")]
+pub unsafe extern "C" fn destack_fs_mkdtemp_bytes(
+    out: *mut PathBytes,
+    template: PathBytes,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(MKDTEMP_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &template);
 
-        destack_fs_mkdtemp_replay(context, out, template)
+        destack_fs_mkdtemp_bytes_replay(context, out, template)
     })
 }
 
-#[unsafe(export_name = "destack.fs.open")]
-pub unsafe extern "C" fn destack_fs_open(
+#[unsafe(export_name = "destack.fs.mkdtempUtf16")]
+pub unsafe extern "C" fn destack_fs_mkdtemp_utf16(
+    out: *mut PathUtf16,
+    template: PathUtf16,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(MKDTEMP_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &template);
+
+        destack_fs_mkdtemp_utf16_replay(context, out, template)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.openBytes")]
+pub unsafe extern "C" fn destack_fs_open_bytes(
     out: *mut resource::FileHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPEN)?;
+        context.check_policy(OPEN_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path, &flags, &mode);
 
-        destack_fs_open_replay(context, out, path, flags, mode)
+        destack_fs_open_bytes_replay(context, out, path, flags, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.openat")]
-pub unsafe extern "C" fn destack_fs_openat(
+#[unsafe(export_name = "destack.fs.openUtf16")]
+pub unsafe extern "C" fn destack_fs_open_utf16(
     out: *mut resource::FileHandle,
-    dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathUtf16,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPENAT)?;
+        context.check_policy(OPEN_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path, &flags, &mode);
+
+        destack_fs_open_utf16_replay(context, out, path, flags, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.openatBytes")]
+pub unsafe extern "C" fn destack_fs_openat_bytes(
+    out: *mut resource::FileHandle,
+    dir: resource::DirectoryHandle,
+    path: PathBytes,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(OPENAT_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &flags, &mode);
 
-        destack_fs_openat_replay(context, out, dir, path, flags, mode)
+        destack_fs_openat_bytes_replay(context, out, dir, path, flags, mode)
     })
 }
 
-#[unsafe(export_name = "destack.fs.opendir")]
-pub unsafe extern "C" fn destack_fs_opendir(
-    out: *mut resource::DirectoryHandle,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.openatUtf16")]
+pub unsafe extern "C" fn destack_fs_openat_utf16(
+    out: *mut resource::FileHandle,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: OpenFlags,
+    mode: FileMode,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(OPENDIR)?;
+        context.check_policy(OPENAT_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &dir, &path, &flags, &mode);
+
+        destack_fs_openat_utf16_replay(context, out, dir, path, flags, mode)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.opendirBytes")]
+pub unsafe extern "C" fn destack_fs_opendir_bytes(
+    out: *mut resource::DirectoryHandle,
+    path: PathBytes,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(OPENDIR_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_opendir_replay(context, out, path)
+        destack_fs_opendir_bytes_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.opendirUtf16")]
+pub unsafe extern "C" fn destack_fs_opendir_utf16(
+    out: *mut resource::DirectoryHandle,
+    path: PathUtf16,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(OPENDIR_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_opendir_utf16_replay(context, out, path)
     })
 }
 
@@ -5032,36 +8513,69 @@ pub unsafe extern "C" fn destack_fs_readdir(
     })
 }
 
-#[unsafe(export_name = "destack.fs.readlink")]
-pub unsafe extern "C" fn destack_fs_readlink(
-    out: *mut NativeStringRef,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.readlinkBytes")]
+pub unsafe extern "C" fn destack_fs_readlink_bytes(
+    out: *mut PathBytes,
+    path: PathBytes,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READLINK)?;
+        context.check_policy(READLINK_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_readlink_replay(context, out, path)
+        destack_fs_readlink_bytes_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.readlinkat")]
-pub unsafe extern "C" fn destack_fs_readlinkat(
-    out: *mut NativeStringRef,
-    dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.readlinkUtf16")]
+pub unsafe extern "C" fn destack_fs_readlink_utf16(
+    out: *mut PathUtf16,
+    path: PathUtf16,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(READLINKAT)?;
+        context.check_policy(READLINK_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_readlink_utf16_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.readlinkatBytes")]
+pub unsafe extern "C" fn destack_fs_readlinkat_bytes(
+    out: *mut PathBytes,
+    dir: resource::DirectoryHandle,
+    path: PathBytes,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(READLINKAT_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path);
 
-        destack_fs_readlinkat_replay(context, out, dir, path)
+        destack_fs_readlinkat_bytes_replay(context, out, dir, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.readlinkatUtf16")]
+pub unsafe extern "C" fn destack_fs_readlinkat_utf16(
+    out: *mut PathUtf16,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(READLINKAT_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &dir, &path);
+
+        destack_fs_readlinkat_utf16_replay(context, out, dir, path)
     })
 }
 
@@ -5083,182 +8597,359 @@ pub unsafe extern "C" fn destack_fs_readv(
     })
 }
 
-#[unsafe(export_name = "destack.fs.realpath")]
-pub unsafe extern "C" fn destack_fs_realpath(
-    out: *mut NativeStringRef,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.realpathBytes")]
+pub unsafe extern "C" fn destack_fs_realpath_bytes(
+    out: *mut PathBytes,
+    path: PathBytes,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(REALPATH)?;
+        context.check_policy(REALPATH_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_realpath_replay(context, out, path)
+        destack_fs_realpath_bytes_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.rename")]
-pub unsafe extern "C" fn destack_fs_rename(
-    from: NativeStringRef,
-    to: NativeStringRef,
+#[unsafe(export_name = "destack.fs.realpathUtf16")]
+pub unsafe extern "C" fn destack_fs_realpath_utf16(
+    out: *mut PathUtf16,
+    path: PathUtf16,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RENAME)?;
+        context.check_policy(REALPATH_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_realpath_utf16_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.renameBytes")]
+pub unsafe extern "C" fn destack_fs_rename_bytes(from: PathBytes, to: PathBytes) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(RENAME_BYTES)?;
         let _ = (&from, &to);
 
-        destack_fs_rename_replay(context, from, to)
+        destack_fs_rename_bytes_replay(context, from, to)
     })
 }
 
-#[unsafe(export_name = "destack.fs.renameat")]
-pub unsafe extern "C" fn destack_fs_renameat(
+#[unsafe(export_name = "destack.fs.renameUtf16")]
+pub unsafe extern "C" fn destack_fs_rename_utf16(from: PathUtf16, to: PathUtf16) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(RENAME_UTF16)?;
+        let _ = (&from, &to);
+
+        destack_fs_rename_utf16_replay(context, from, to)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.renameatBytes")]
+pub unsafe extern "C" fn destack_fs_renameat_bytes(
     fromdir: resource::DirectoryHandle,
-    from: NativeStringRef,
+    from: PathBytes,
     todir: resource::DirectoryHandle,
-    to: NativeStringRef,
+    to: PathBytes,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RENAMEAT)?;
+        context.check_policy(RENAMEAT_BYTES)?;
         let _ = (&fromdir, &from, &todir, &to);
 
-        destack_fs_renameat_replay(context, fromdir, from, todir, to)
+        destack_fs_renameat_bytes_replay(context, fromdir, from, todir, to)
     })
 }
 
-#[unsafe(export_name = "destack.fs.rmdir")]
-pub unsafe extern "C" fn destack_fs_rmdir(path: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.renameatUtf16")]
+pub unsafe extern "C" fn destack_fs_renameat_utf16(
+    fromdir: resource::DirectoryHandle,
+    from: PathUtf16,
+    todir: resource::DirectoryHandle,
+    to: PathUtf16,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(RMDIR)?;
+        context.check_policy(RENAMEAT_UTF16)?;
+        let _ = (&fromdir, &from, &todir, &to);
+
+        destack_fs_renameat_utf16_replay(context, fromdir, from, todir, to)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.rmdirBytes")]
+pub unsafe extern "C" fn destack_fs_rmdir_bytes(path: PathBytes) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(RMDIR_BYTES)?;
         let _ = &path;
 
-        destack_fs_rmdir_replay(context, path)
+        destack_fs_rmdir_bytes_replay(context, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.stat")]
-pub unsafe extern "C" fn destack_fs_stat(out: *mut Stat, path: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.rmdirUtf16")]
+pub unsafe extern "C" fn destack_fs_rmdir_utf16(path: PathUtf16) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STAT)?;
+        context.check_policy(RMDIR_UTF16)?;
+        let _ = &path;
+
+        destack_fs_rmdir_utf16_replay(context, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.statBytes")]
+pub unsafe extern "C" fn destack_fs_stat_bytes(out: *mut Stat, path: PathBytes) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(STAT_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_stat_replay(context, out, path)
+        destack_fs_stat_bytes_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.statat")]
-pub unsafe extern "C" fn destack_fs_statat(
+#[unsafe(export_name = "destack.fs.statUtf16")]
+pub unsafe extern "C" fn destack_fs_stat_utf16(out: *mut Stat, path: PathUtf16) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(STAT_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
+
+        destack_fs_stat_utf16_replay(context, out, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.statatBytes")]
+pub unsafe extern "C" fn destack_fs_statat_bytes(
     out: *mut Stat,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STATAT)?;
+        context.check_policy(STATAT_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &dir, &path, &flags);
 
-        destack_fs_statat_replay(context, out, dir, path, flags)
+        destack_fs_statat_bytes_replay(context, out, dir, path, flags)
     })
 }
 
-#[unsafe(export_name = "destack.fs.statfs")]
-pub unsafe extern "C" fn destack_fs_statfs(
-    out: *mut StatFs,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.statatUtf16")]
+pub unsafe extern "C" fn destack_fs_statat_utf16(
+    out: *mut Stat,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(STATFS)?;
+        context.check_policy(STATAT_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &dir, &path, &flags);
+
+        destack_fs_statat_utf16_replay(context, out, dir, path, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.statfsBytes")]
+pub unsafe extern "C" fn destack_fs_statfs_bytes(
+    out: *mut StatFs,
+    path: PathBytes,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(STATFS_BYTES)?;
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
         let _ = (&out, &path);
 
-        destack_fs_statfs_replay(context, out, path)
+        destack_fs_statfs_bytes_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.symlink")]
-pub unsafe extern "C" fn destack_fs_symlink(
-    target: NativeStringRef,
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.statfsUtf16")]
+pub unsafe extern "C" fn destack_fs_statfs_utf16(
+    out: *mut StatFs,
+    path: PathUtf16,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYMLINK)?;
-        let _ = (&target, &path);
+        context.check_policy(STATFS_UTF16)?;
+        if out.is_null() {
+            return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
+        }
+        let _ = (&out, &path);
 
-        destack_fs_symlink_replay(context, target, path)
+        destack_fs_statfs_utf16_replay(context, out, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.symlinkat")]
-pub unsafe extern "C" fn destack_fs_symlinkat(
-    target: NativeStringRef,
+#[unsafe(export_name = "destack.fs.symlinkBytes")]
+pub unsafe extern "C" fn destack_fs_symlink_bytes(
+    target: PathBytes,
+    path: PathBytes,
+    kind: SymlinkType,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(SYMLINK_BYTES)?;
+        let _ = (&target, &path, &kind);
+
+        destack_fs_symlink_bytes_replay(context, target, path, kind)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.symlinkUtf16")]
+pub unsafe extern "C" fn destack_fs_symlink_utf16(
+    target: PathUtf16,
+    path: PathUtf16,
+    kind: SymlinkType,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(SYMLINK_UTF16)?;
+        let _ = (&target, &path, &kind);
+
+        destack_fs_symlink_utf16_replay(context, target, path, kind)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.symlinkatBytes")]
+pub unsafe extern "C" fn destack_fs_symlinkat_bytes(
+    target: PathBytes,
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
+    kind: SymlinkType,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(SYMLINKAT)?;
-        let _ = (&target, &dir, &path);
+        context.check_policy(SYMLINKAT_BYTES)?;
+        let _ = (&target, &dir, &path, &kind);
 
-        destack_fs_symlinkat_replay(context, target, dir, path)
+        destack_fs_symlinkat_bytes_replay(context, target, dir, path, kind)
     })
 }
 
-#[unsafe(export_name = "destack.fs.truncate")]
-pub unsafe extern "C" fn destack_fs_truncate(
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.symlinkatUtf16")]
+pub unsafe extern "C" fn destack_fs_symlinkat_utf16(
+    target: PathUtf16,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    kind: SymlinkType,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(SYMLINKAT_UTF16)?;
+        let _ = (&target, &dir, &path, &kind);
+
+        destack_fs_symlinkat_utf16_replay(context, target, dir, path, kind)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.truncateBytes")]
+pub unsafe extern "C" fn destack_fs_truncate_bytes(
+    path: PathBytes,
     size: FileOffset,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(TRUNCATE)?;
+        context.check_policy(TRUNCATE_BYTES)?;
         let _ = (&path, &size);
 
-        destack_fs_truncate_replay(context, path, size)
+        destack_fs_truncate_bytes_replay(context, path, size)
     })
 }
 
-#[unsafe(export_name = "destack.fs.unlink")]
-pub unsafe extern "C" fn destack_fs_unlink(path: NativeStringRef) -> RuntimeStatus {
+#[unsafe(export_name = "destack.fs.truncateUtf16")]
+pub unsafe extern "C" fn destack_fs_truncate_utf16(
+    path: PathUtf16,
+    size: FileOffset,
+) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UNLINK)?;
+        context.check_policy(TRUNCATE_UTF16)?;
+        let _ = (&path, &size);
+
+        destack_fs_truncate_utf16_replay(context, path, size)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.unlinkBytes")]
+pub unsafe extern "C" fn destack_fs_unlink_bytes(path: PathBytes) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(UNLINK_BYTES)?;
         let _ = &path;
 
-        destack_fs_unlink_replay(context, path)
+        destack_fs_unlink_bytes_replay(context, path)
     })
 }
 
-#[unsafe(export_name = "destack.fs.unlinkat")]
-pub unsafe extern "C" fn destack_fs_unlinkat(
+#[unsafe(export_name = "destack.fs.unlinkUtf16")]
+pub unsafe extern "C" fn destack_fs_unlink_utf16(path: PathUtf16) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(UNLINK_UTF16)?;
+        let _ = &path;
+
+        destack_fs_unlink_utf16_replay(context, path)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.unlinkatBytes")]
+pub unsafe extern "C" fn destack_fs_unlinkat_bytes(
     dir: resource::DirectoryHandle,
-    path: NativeStringRef,
+    path: PathBytes,
     flags: AtFlags,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UNLINKAT)?;
+        context.check_policy(UNLINKAT_BYTES)?;
         let _ = (&dir, &path, &flags);
 
-        destack_fs_unlinkat_replay(context, dir, path, flags)
+        destack_fs_unlinkat_bytes_replay(context, dir, path, flags)
     })
 }
 
-#[unsafe(export_name = "destack.fs.utimes")]
-pub unsafe extern "C" fn destack_fs_utimes(
-    path: NativeStringRef,
+#[unsafe(export_name = "destack.fs.unlinkatUtf16")]
+pub unsafe extern "C" fn destack_fs_unlinkat_utf16(
+    dir: resource::DirectoryHandle,
+    path: PathUtf16,
+    flags: AtFlags,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(UNLINKAT_UTF16)?;
+        let _ = (&dir, &path, &flags);
+
+        destack_fs_unlinkat_utf16_replay(context, dir, path, flags)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.utimesBytes")]
+pub unsafe extern "C" fn destack_fs_utimes_bytes(
+    path: PathBytes,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeStatus {
     native_call(|context| {
-        context.check_policy(UTIMES)?;
+        context.check_policy(UTIMES_BYTES)?;
         let _ = (&path, &atimens, &mtimens);
 
-        destack_fs_utimes_replay(context, path, atimens, mtimens)
+        destack_fs_utimes_bytes_replay(context, path, atimens, mtimens)
+    })
+}
+
+#[unsafe(export_name = "destack.fs.utimesUtf16")]
+pub unsafe extern "C" fn destack_fs_utimes_utf16(
+    path: PathUtf16,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeStatus {
+    native_call(|context| {
+        context.check_policy(UTIMES_UTF16)?;
+        let _ = (&path, &atimens, &mtimens);
+
+        destack_fs_utimes_utf16_replay(context, path, atimens, mtimens)
     })
 }
 
@@ -5300,21 +8991,21 @@ pub unsafe extern "C" fn destack_fs_writev(
 
 /// VM replay implementations for fs bindings.
 #[inline]
-fn destack_fs_access_vm_replay(
+fn destack_fs_access_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathBytesVm,
     mode: AccessMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        ACCESS,
+        ACCESS_BYTES,
         context,
-        |context| platform_vm::destack_fs_access(runtime, context, path, mode),
+        |context| platform_vm::destack_fs_access_bytes(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = AccessReplay {
+                let payload = AccessBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -5323,7 +9014,7 @@ fn destack_fs_access_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    AccessReplay { result }
+                    AccessBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5339,26 +9030,70 @@ fn destack_fs_access_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_access_result(context, result)?;
+    let result = encode_destack_fs_access_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_chmod_vm_replay(
+fn destack_fs_access_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
+    mode: AccessMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        ACCESS_UTF16,
+        context,
+        |context| platform_vm::destack_fs_access_utf16(runtime, context, path, mode),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = AccessUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    AccessUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_access_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_chmod_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CHMOD,
+        CHMOD_BYTES,
         context,
-        |context| platform_vm::destack_fs_chmod(runtime, context, path, mode),
+        |context| platform_vm::destack_fs_chmod_bytes(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChmodReplay {
+                let payload = ChmodBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -5367,7 +9102,7 @@ fn destack_fs_chmod_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChmodReplay { result }
+                    ChmodBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5383,27 +9118,71 @@ fn destack_fs_chmod_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_chmod_result(context, result)?;
+    let result = encode_destack_fs_chmod_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_chown_vm_replay(
+fn destack_fs_chmod_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
+    mode: FileMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        CHMOD_UTF16,
+        context,
+        |context| platform_vm::destack_fs_chmod_utf16(runtime, context, path, mode),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ChmodUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ChmodUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_chmod_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_chown_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     uid: u32,
     gid: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        CHOWN,
+        CHOWN_BYTES,
         context,
-        |context| platform_vm::destack_fs_chown(runtime, context, path, uid, gid),
+        |context| platform_vm::destack_fs_chown_bytes(runtime, context, path, uid, gid),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = ChownReplay {
+                let payload = ChownBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -5412,7 +9191,7 @@ fn destack_fs_chown_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    ChownReplay { result }
+                    ChownBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5428,7 +9207,52 @@ fn destack_fs_chown_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_chown_result(context, result)?;
+    let result = encode_destack_fs_chown_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_chown_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+    uid: u32,
+    gid: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        CHOWN_UTF16,
+        context,
+        |context| platform_vm::destack_fs_chown_utf16(runtime, context, path, uid, gid),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = ChownUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    ChownUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_chown_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -5519,22 +9343,22 @@ fn destack_fs_closedir_vm_replay(
 }
 
 #[inline]
-fn destack_fs_copyfile_vm_replay(
+fn destack_fs_copyfile_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    from: vm::StringHandle,
-    to: vm::StringHandle,
+    from: PathBytesVm,
+    to: PathBytesVm,
     flags: u32,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        COPYFILE,
+        COPYFILE_BYTES,
         context,
-        |context| platform_vm::destack_fs_copyfile(runtime, context, from, to, flags),
+        |context| platform_vm::destack_fs_copyfile_bytes(runtime, context, from, to, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = CopyfileReplay {
+                let payload = CopyfileBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -5543,7 +9367,7 @@ fn destack_fs_copyfile_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    CopyfileReplay { result }
+                    CopyfileBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -5559,7 +9383,52 @@ fn destack_fs_copyfile_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_copyfile_result(context, result)?;
+    let result = encode_destack_fs_copyfile_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_copyfile_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    from: PathUtf16Vm,
+    to: PathUtf16Vm,
+    flags: u32,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        COPYFILE_UTF16,
+        context,
+        |context| platform_vm::destack_fs_copyfile_utf16(runtime, context, from, to, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = CopyfileUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    CopyfileUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_copyfile_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -6022,21 +9891,21 @@ fn destack_fs_futimes_vm_replay(
 }
 
 #[inline]
-fn destack_fs_link_vm_replay(
+fn destack_fs_link_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    existingpath: vm::StringHandle,
-    newpath: vm::StringHandle,
+    existingpath: PathBytesVm,
+    newpath: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LINK,
+        LINK_BYTES,
         context,
-        |context| platform_vm::destack_fs_link(runtime, context, existingpath, newpath),
+        |context| platform_vm::destack_fs_link_bytes(runtime, context, existingpath, newpath),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkReplay {
+                let payload = LinkBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6045,7 +9914,7 @@ fn destack_fs_link_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkReplay { result }
+                    LinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6061,25 +9930,69 @@ fn destack_fs_link_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_link_result(context, result)?;
+    let result = encode_destack_fs_link_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_linkat_vm_replay(
+fn destack_fs_link_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    existingpath: PathUtf16Vm,
+    newpath: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        LINK_UTF16,
+        context,
+        |context| platform_vm::destack_fs_link_utf16(runtime, context, existingpath, newpath),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_link_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_linkat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     existingdir: resource::DirectoryHandle,
-    existingpath: vm::StringHandle,
+    existingpath: PathBytesVm,
     newdir: resource::DirectoryHandle,
-    newpath: vm::StringHandle,
+    newpath: PathBytesVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LINKAT,
+        LINKAT_BYTES,
         context,
         |context| {
-            platform_vm::destack_fs_linkat(
+            platform_vm::destack_fs_linkat_bytes(
                 runtime,
                 context,
                 existingdir,
@@ -6093,7 +10006,7 @@ fn destack_fs_linkat_vm_replay(
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LinkatReplay {
+                let payload = LinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6102,7 +10015,7 @@ fn destack_fs_linkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LinkatReplay { result }
+                    LinkatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6118,7 +10031,64 @@ fn destack_fs_linkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_linkat_result(context, result)?;
+    let result = encode_destack_fs_linkat_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_linkat_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    existingdir: resource::DirectoryHandle,
+    existingpath: PathUtf16Vm,
+    newdir: resource::DirectoryHandle,
+    newpath: PathUtf16Vm,
+    flags: AtFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        LINKAT_UTF16,
+        context,
+        |context| {
+            platform_vm::destack_fs_linkat_utf16(
+                runtime,
+                context,
+                existingdir,
+                existingpath,
+                newdir,
+                newpath,
+                flags,
+            )
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_linkat_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -6167,15 +10137,15 @@ fn destack_fs_lock_vm_replay(
 }
 
 #[inline]
-fn destack_fs_lstat_vm_replay(
+fn destack_fs_lstat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LSTAT,
+        LSTAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_lstat(runtime, context, path),
+        |context| platform_vm::destack_fs_lstat_bytes(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -6210,7 +10180,7 @@ fn destack_fs_lstat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = LstatReplay {
+                let payload = LstatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6219,7 +10189,7 @@ fn destack_fs_lstat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LstatReplay { result }
+                    LstatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6267,27 +10237,132 @@ fn destack_fs_lstat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lstat_result(context, result)?;
+    let result = encode_destack_fs_lstat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_lutimes_vm_replay(
+fn destack_fs_lstat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        LSTAT_UTF16,
+        context,
+        |context| platform_vm::destack_fs_lstat_utf16(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = LstatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LstatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_lstat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_lutimes_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        LUTIMES,
+        LUTIMES_BYTES,
         context,
-        |context| platform_vm::destack_fs_lutimes(runtime, context, path, atimens, mtimens),
+        |context| platform_vm::destack_fs_lutimes_bytes(runtime, context, path, atimens, mtimens),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = LutimesReplay {
+                let payload = LutimesBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6296,7 +10371,7 @@ fn destack_fs_lutimes_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    LutimesReplay { result }
+                    LutimesBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6312,26 +10387,71 @@ fn destack_fs_lutimes_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_lutimes_result(context, result)?;
+    let result = encode_destack_fs_lutimes_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdir_vm_replay(
+fn destack_fs_lutimes_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        LUTIMES_UTF16,
+        context,
+        |context| platform_vm::destack_fs_lutimes_utf16(runtime, context, path, atimens, mtimens),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = LutimesUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    LutimesUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_lutimes_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_mkdir_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDIR,
+        MKDIR_BYTES,
         context,
-        |context| platform_vm::destack_fs_mkdir(runtime, context, path, mode),
+        |context| platform_vm::destack_fs_mkdir_bytes(runtime, context, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdirReplay {
+                let payload = MkdirBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6340,7 +10460,7 @@ fn destack_fs_mkdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdirReplay { result }
+                    MkdirBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6356,27 +10476,71 @@ fn destack_fs_mkdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkdir_result(context, result)?;
+    let result = encode_destack_fs_mkdir_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdirat_vm_replay(
+fn destack_fs_mkdir_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+    mode: FileMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        MKDIR_UTF16,
+        context,
+        |context| platform_vm::destack_fs_mkdir_utf16(runtime, context, path, mode),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = MkdirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    MkdirUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_mkdir_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_mkdirat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathBytesVm,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDIRAT,
+        MKDIRAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_mkdirat(runtime, context, dir, path, mode),
+        |context| platform_vm::destack_fs_mkdirat_bytes(runtime, context, dir, path, mode),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = MkdiratReplay {
+                let payload = MkdiratBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6385,7 +10549,7 @@ fn destack_fs_mkdirat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdiratReplay { result }
+                    MkdiratBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6401,31 +10565,27 @@ fn destack_fs_mkdirat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_mkdirat_result(context, result)?;
+    let result = encode_destack_fs_mkdirat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_mkdtemp_vm_replay(
+fn destack_fs_mkdirat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    template: vm::StringHandle,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+    mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        MKDTEMP,
+        MKDIRAT_UTF16,
         context,
-        |context| platform_vm::destack_fs_mkdtemp(runtime, context, template),
+        |context| platform_vm::destack_fs_mkdirat_utf16(runtime, context, dir, path, mode),
         |context, result| {
             let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
-                };
-                let payload = MkdtempReplay {
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = MkdiratUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6434,7 +10594,7 @@ fn destack_fs_mkdtemp_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    MkdtempReplay { result }
+                    MkdiratUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6445,37 +10605,154 @@ fn destack_fs_mkdtemp_vm_replay(
             let _ = &context;
             // replay result
             match payload.result {
-                Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
-                    Ok(vm_result)
-                }
+                Ok(()) => Ok(()),
                 Err(error) => Err(RuntimeError::from(error).boxed()),
             }
         },
     );
-    let result = encode_destack_fs_mkdtemp_result(context, result)?;
+    let result = encode_destack_fs_mkdirat_utf16_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_open_vm_replay(
+fn destack_fs_mkdtemp_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    template: PathBytesVm,
+) -> RuntimeResult<vm::Value> {
+    let result =
+        runtime.replay().run_binding_with_context(
+            MKDTEMP_BYTES,
+            context,
+            |context| platform_vm::destack_fs_mkdtemp_bytes(runtime, context, template),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner = result_value.0.read_bytes(context)?;
+                    let result_replay = result_replay_inner;
+                    let payload = MkdtempBytesReplay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        MkdtempBytesReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_inner = VmArray::from_bytes(context, value.as_slice());
+                        let vm_result = crate::platform::fs::PathBytesAbi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_mkdtemp_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_mkdtemp_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    template: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result =
+        runtime.replay().run_binding_with_context(
+            MKDTEMP_UTF16,
+            context,
+            |context| platform_vm::destack_fs_mkdtemp_utf16(runtime, context, template),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner_raw = result_value.0.raw_values(context)?;
+                    let mut result_replay_inner = Vec::with_capacity(result_replay_inner_raw.len());
+                    for result_replay_inner_item_value in result_replay_inner_raw {
+                        let result_replay_inner_item = decode_uint16(
+                            result_replay_inner_item_value,
+                            "result_replay_inner_item",
+                            "item",
+                        )?;
+                        let result_replay_inner_item_replay = result_replay_inner_item;
+                        result_replay_inner.push(result_replay_inner_item_replay);
+                    }
+                    let result_replay = result_replay_inner;
+                    let payload = MkdtempUtf16Replay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        MkdtempUtf16Replay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_inner_values = Vec::with_capacity(value.len());
+                        for vm_result_inner_item in value.iter() {
+                            let vm_result_inner_item = *vm_result_inner_item;
+                            let vm_result_inner_item_value = vm_result_inner_item;
+                            vm_result_inner_values.push(vm_result_inner_item_value);
+                        }
+                        let vm_result_inner =
+                            VmArray::from_values(context, &vm_result_inner_values)?;
+                        let vm_result = crate::platform::fs::PathUtf16Abi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_mkdtemp_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_open_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPEN,
+        OPEN_BYTES,
         context,
-        |context| platform_vm::destack_fs_open(runtime, context, path, flags, mode),
+        |context| platform_vm::destack_fs_open_bytes(runtime, context, path, flags, mode),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpenReplay {
+                let payload = OpenBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6484,7 +10761,7 @@ fn destack_fs_open_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenReplay { result }
+                    OpenBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6503,29 +10780,28 @@ fn destack_fs_open_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_open_result(context, result)?;
+    let result = encode_destack_fs_open_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_openat_vm_replay(
+fn destack_fs_open_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
     flags: OpenFlags,
     mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPENAT,
+        OPEN_UTF16,
         context,
-        |context| platform_vm::destack_fs_openat(runtime, context, dir, path, flags, mode),
+        |context| platform_vm::destack_fs_open_utf16(runtime, context, path, flags, mode),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpenatReplay {
+                let payload = OpenUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6534,7 +10810,7 @@ fn destack_fs_openat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpenatReplay { result }
+                    OpenUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6553,26 +10829,29 @@ fn destack_fs_openat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_openat_result(context, result)?;
+    let result = encode_destack_fs_open_utf16_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_opendir_vm_replay(
+fn destack_fs_openat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    dir: resource::DirectoryHandle,
+    path: PathBytesVm,
+    flags: OpenFlags,
+    mode: FileMode,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        OPENDIR,
+        OPENAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_opendir(runtime, context, path),
+        |context| platform_vm::destack_fs_openat_bytes(runtime, context, dir, path, flags, mode),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
                 let result_value = *value;
                 let result_replay = result_value;
-                let payload = OpendirReplay {
+                let payload = OpenatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -6581,7 +10860,7 @@ fn destack_fs_opendir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    OpendirReplay { result }
+                    OpenatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -6600,7 +10879,151 @@ fn destack_fs_opendir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_opendir_result(context, result)?;
+    let result = encode_destack_fs_openat_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_openat_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+    flags: OpenFlags,
+    mode: FileMode,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        OPENAT_UTF16,
+        context,
+        |context| platform_vm::destack_fs_openat_utf16(runtime, context, dir, path, flags, mode),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = OpenatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpenatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_openat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_opendir_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        OPENDIR_BYTES,
+        context,
+        |context| platform_vm::destack_fs_opendir_bytes(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = OpendirBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpendirBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_opendir_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_opendir_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        OPENDIR_UTF16,
+        context,
+        |context| platform_vm::destack_fs_opendir_utf16(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay = result_value;
+                let payload = OpendirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    OpendirUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result = value;
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_opendir_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -6786,109 +11209,246 @@ fn destack_fs_readdir_vm_replay(
 }
 
 #[inline]
-fn destack_fs_readlink_vm_replay(
+fn destack_fs_readlink_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context(
-        READLINK,
-        context,
-        |context| platform_vm::destack_fs_readlink(runtime, context, path),
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
-                };
-                let payload = ReadlinkReplay {
-                    result: Ok(result_replay),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
-                    Ok(vm_result)
+    let result =
+        runtime.replay().run_binding_with_context(
+            READLINK_BYTES,
+            context,
+            |context| platform_vm::destack_fs_readlink_bytes(runtime, context, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner = result_value.0.read_bytes(context)?;
+                    let result_replay = result_replay_inner;
+                    let payload = ReadlinkBytesReplay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    );
-    let result = encode_destack_fs_readlink_result(context, result)?;
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ReadlinkBytesReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_inner = VmArray::from_bytes(context, value.as_slice());
+                        let vm_result = crate::platform::fs::PathBytesAbi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_readlink_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_readlinkat_vm_replay(
+fn destack_fs_readlink_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result =
+        runtime.replay().run_binding_with_context(
+            READLINK_UTF16,
+            context,
+            |context| platform_vm::destack_fs_readlink_utf16(runtime, context, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner_raw = result_value.0.raw_values(context)?;
+                    let mut result_replay_inner = Vec::with_capacity(result_replay_inner_raw.len());
+                    for result_replay_inner_item_value in result_replay_inner_raw {
+                        let result_replay_inner_item = decode_uint16(
+                            result_replay_inner_item_value,
+                            "result_replay_inner_item",
+                            "item",
+                        )?;
+                        let result_replay_inner_item_replay = result_replay_inner_item;
+                        result_replay_inner.push(result_replay_inner_item_replay);
+                    }
+                    let result_replay = result_replay_inner;
+                    let payload = ReadlinkUtf16Replay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ReadlinkUtf16Replay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_inner_values = Vec::with_capacity(value.len());
+                        for vm_result_inner_item in value.iter() {
+                            let vm_result_inner_item = *vm_result_inner_item;
+                            let vm_result_inner_item_value = vm_result_inner_item;
+                            vm_result_inner_values.push(vm_result_inner_item_value);
+                        }
+                        let vm_result_inner =
+                            VmArray::from_values(context, &vm_result_inner_values)?;
+                        let vm_result = crate::platform::fs::PathUtf16Abi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_readlink_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_readlinkat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context(
-        READLINKAT,
-        context,
-        |context| platform_vm::destack_fs_readlinkat(runtime, context, dir, path),
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
-                };
-                let payload = ReadlinkatReplay {
-                    result: Ok(result_replay),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    ReadlinkatReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
-                    Ok(vm_result)
+    let result =
+        runtime.replay().run_binding_with_context(
+            READLINKAT_BYTES,
+            context,
+            |context| platform_vm::destack_fs_readlinkat_bytes(runtime, context, dir, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner = result_value.0.read_bytes(context)?;
+                    let result_replay = result_replay_inner;
+                    let payload = ReadlinkatBytesReplay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    );
-    let result = encode_destack_fs_readlinkat_result(context, result)?;
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ReadlinkatBytesReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_inner = VmArray::from_bytes(context, value.as_slice());
+                        let vm_result = crate::platform::fs::PathBytesAbi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_readlinkat_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_readlinkat_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result =
+        runtime.replay().run_binding_with_context(
+            READLINKAT_UTF16,
+            context,
+            |context| platform_vm::destack_fs_readlinkat_utf16(runtime, context, dir, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner_raw = result_value.0.raw_values(context)?;
+                    let mut result_replay_inner = Vec::with_capacity(result_replay_inner_raw.len());
+                    for result_replay_inner_item_value in result_replay_inner_raw {
+                        let result_replay_inner_item = decode_uint16(
+                            result_replay_inner_item_value,
+                            "result_replay_inner_item",
+                            "item",
+                        )?;
+                        let result_replay_inner_item_replay = result_replay_inner_item;
+                        result_replay_inner.push(result_replay_inner_item_replay);
+                    }
+                    let result_replay = result_replay_inner;
+                    let payload = ReadlinkatUtf16Replay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        ReadlinkatUtf16Replay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_inner_values = Vec::with_capacity(value.len());
+                        for vm_result_inner_item in value.iter() {
+                            let vm_result_inner_item = *vm_result_inner_item;
+                            let vm_result_inner_item_value = vm_result_inner_item;
+                            vm_result_inner_values.push(vm_result_inner_item_value);
+                        }
+                        let vm_result_inner =
+                            VmArray::from_values(context, &vm_result_inner_values)?;
+                        let vm_result = crate::platform::fs::PathUtf16Abi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_readlinkat_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -6942,74 +11502,142 @@ fn destack_fs_readv_vm_replay(
 }
 
 #[inline]
-fn destack_fs_realpath_vm_replay(
+fn destack_fs_realpath_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
-    let result = runtime.replay().run_binding_with_context(
-        REALPATH,
-        context,
-        |context| platform_vm::destack_fs_realpath(runtime, context, path),
-        |context, result| {
-            let _ = &context;
-            if let Ok(value) = result {
-                let result_value = *value;
-                let result_replay = {
-                    let result_replay_ref = context
-                        .string_ref(result_value)
-                        .map_err(|error| RuntimeError::from(error).boxed())?;
-                    result_replay_ref.as_str().to_string()
-                };
-                let payload = RealpathReplay {
-                    result: Ok(result_replay),
-                };
-                return Ok(Some(payload));
-            }
-
-            if let Err(error) = result {
-                let payload = {
-                    let result = Err(PlatformError::from(error.as_ref()));
-                    RealpathReplay { result }
-                };
-                return Ok(Some(payload));
-            }
-
-            Ok(None)
-        },
-        |context, payload| {
-            let _ = &context;
-            // replay result
-            match payload.result {
-                Ok(value) => {
-                    let vm_result_value = context.intern_string(value.as_str());
-                    let vm_result = vm::StringHandle::new(vm_result_value);
-                    Ok(vm_result)
+    let result =
+        runtime.replay().run_binding_with_context(
+            REALPATH_BYTES,
+            context,
+            |context| platform_vm::destack_fs_realpath_bytes(runtime, context, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner = result_value.0.read_bytes(context)?;
+                    let result_replay = result_replay_inner;
+                    let payload = RealpathBytesReplay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
                 }
-                Err(error) => Err(RuntimeError::from(error).boxed()),
-            }
-        },
-    );
-    let result = encode_destack_fs_realpath_result(context, result)?;
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        RealpathBytesReplay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let vm_result_inner = VmArray::from_bytes(context, value.as_slice());
+                        let vm_result = crate::platform::fs::PathBytesAbi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_realpath_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_rename_vm_replay(
+fn destack_fs_realpath_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    from: vm::StringHandle,
-    to: vm::StringHandle,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result =
+        runtime.replay().run_binding_with_context(
+            REALPATH_UTF16,
+            context,
+            |context| platform_vm::destack_fs_realpath_utf16(runtime, context, path),
+            |context, result| {
+                let _ = &context;
+                if let Ok(value) = result {
+                    let result_value = *value;
+                    let result_replay_inner_raw = result_value.0.raw_values(context)?;
+                    let mut result_replay_inner = Vec::with_capacity(result_replay_inner_raw.len());
+                    for result_replay_inner_item_value in result_replay_inner_raw {
+                        let result_replay_inner_item = decode_uint16(
+                            result_replay_inner_item_value,
+                            "result_replay_inner_item",
+                            "item",
+                        )?;
+                        let result_replay_inner_item_replay = result_replay_inner_item;
+                        result_replay_inner.push(result_replay_inner_item_replay);
+                    }
+                    let result_replay = result_replay_inner;
+                    let payload = RealpathUtf16Replay {
+                        result: Ok(result_replay),
+                    };
+                    return Ok(Some(payload));
+                }
+
+                if let Err(error) = result {
+                    let payload = {
+                        let result = Err(PlatformError::from(error.as_ref()));
+                        RealpathUtf16Replay { result }
+                    };
+                    return Ok(Some(payload));
+                }
+
+                Ok(None)
+            },
+            |context, payload| {
+                let _ = &context;
+                // replay result
+                match payload.result {
+                    Ok(value) => {
+                        let mut vm_result_inner_values = Vec::with_capacity(value.len());
+                        for vm_result_inner_item in value.iter() {
+                            let vm_result_inner_item = *vm_result_inner_item;
+                            let vm_result_inner_item_value = vm_result_inner_item;
+                            vm_result_inner_values.push(vm_result_inner_item_value);
+                        }
+                        let vm_result_inner =
+                            VmArray::from_values(context, &vm_result_inner_values)?;
+                        let vm_result = crate::platform::fs::PathUtf16Abi::<
+                            crate::platform::abi::VmAbi,
+                        >(vm_result_inner);
+                        Ok(vm_result)
+                    }
+                    Err(error) => Err(RuntimeError::from(error).boxed()),
+                }
+            },
+        );
+    let result = encode_destack_fs_realpath_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_rename_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    from: PathBytesVm,
+    to: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RENAME,
+        RENAME_BYTES,
         context,
-        |context| platform_vm::destack_fs_rename(runtime, context, from, to),
+        |context| platform_vm::destack_fs_rename_bytes(runtime, context, from, to),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameReplay {
+                let payload = RenameBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7018,7 +11646,7 @@ fn destack_fs_rename_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameReplay { result }
+                    RenameBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7034,28 +11662,74 @@ fn destack_fs_rename_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_rename_result(context, result)?;
+    let result = encode_destack_fs_rename_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_renameat_vm_replay(
+fn destack_fs_rename_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    from: PathUtf16Vm,
+    to: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        RENAME_UTF16,
+        context,
+        |context| platform_vm::destack_fs_rename_utf16(runtime, context, from, to),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RenameUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RenameUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_rename_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_renameat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     fromdir: resource::DirectoryHandle,
-    from: vm::StringHandle,
+    from: PathBytesVm,
     todir: resource::DirectoryHandle,
-    to: vm::StringHandle,
+    to: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RENAMEAT,
+        RENAMEAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_renameat(runtime, context, fromdir, from, todir, to),
+        |context| {
+            platform_vm::destack_fs_renameat_bytes(runtime, context, fromdir, from, todir, to)
+        },
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RenameatReplay {
+                let payload = RenameatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7064,7 +11738,7 @@ fn destack_fs_renameat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RenameatReplay { result }
+                    RenameatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7080,25 +11754,30 @@ fn destack_fs_renameat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_renameat_result(context, result)?;
+    let result = encode_destack_fs_renameat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_rmdir_vm_replay(
+fn destack_fs_renameat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    fromdir: resource::DirectoryHandle,
+    from: PathUtf16Vm,
+    todir: resource::DirectoryHandle,
+    to: PathUtf16Vm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        RMDIR,
+        RENAMEAT_UTF16,
         context,
-        |context| platform_vm::destack_fs_rmdir(runtime, context, path),
+        |context| {
+            platform_vm::destack_fs_renameat_utf16(runtime, context, fromdir, from, todir, to)
+        },
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = RmdirReplay {
+                let payload = RenameatUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7107,7 +11786,7 @@ fn destack_fs_rmdir_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    RmdirReplay { result }
+                    RenameatUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7123,20 +11802,106 @@ fn destack_fs_rmdir_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_rmdir_result(context, result)?;
+    let result = encode_destack_fs_renameat_utf16_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_stat_vm_replay(
+fn destack_fs_rmdir_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathBytesVm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STAT,
+        RMDIR_BYTES,
         context,
-        |context| platform_vm::destack_fs_stat(runtime, context, path),
+        |context| platform_vm::destack_fs_rmdir_bytes(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RmdirBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RmdirBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_rmdir_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_rmdir_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        RMDIR_UTF16,
+        context,
+        |context| platform_vm::destack_fs_rmdir_utf16(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = RmdirUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    RmdirUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_rmdir_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_stat_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        STAT_BYTES,
+        context,
+        |context| platform_vm::destack_fs_stat_bytes(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -7171,7 +11936,7 @@ fn destack_fs_stat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatReplay {
+                let payload = StatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7180,7 +11945,7 @@ fn destack_fs_stat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatReplay { result }
+                    StatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7228,22 +11993,127 @@ fn destack_fs_stat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_stat_result(context, result)?;
+    let result = encode_destack_fs_stat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_statat_vm_replay(
+fn destack_fs_stat_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        STAT_UTF16,
+        context,
+        |context| platform_vm::destack_fs_stat_utf16(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = StatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    StatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_stat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_statat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathBytesVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STATAT,
+        STATAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_statat(runtime, context, dir, path, flags),
+        |context| platform_vm::destack_fs_statat_bytes(runtime, context, dir, path, flags),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -7278,7 +12148,7 @@ fn destack_fs_statat_vm_replay(
                     ctime_ns: result_replay_ctime_ns,
                     birthtime_ns: result_replay_birthtime_ns,
                 };
-                let payload = StatatReplay {
+                let payload = StatatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7287,7 +12157,7 @@ fn destack_fs_statat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatatReplay { result }
+                    StatatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7335,20 +12205,127 @@ fn destack_fs_statat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_statat_result(context, result)?;
+    let result = encode_destack_fs_statat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_statfs_vm_replay(
+fn destack_fs_statat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+    flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        STATFS,
+        STATAT_UTF16,
         context,
-        |context| platform_vm::destack_fs_statfs(runtime, context, path),
+        |context| platform_vm::destack_fs_statat_utf16(runtime, context, dir, path, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_dev = result_value.dev;
+                let result_replay_ino = result_value.ino;
+                let result_replay_mode = result_value.mode;
+                let result_replay_nlink = result_value.nlink;
+                let result_replay_uid = result_value.uid;
+                let result_replay_gid = result_value.gid;
+                let result_replay_rdev = result_value.rdev;
+                let result_replay_size = result_value.size;
+                let result_replay_blksize = result_value.blksize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_atime_ns = result_value.atime_ns;
+                let result_replay_mtime_ns = result_value.mtime_ns;
+                let result_replay_ctime_ns = result_value.ctime_ns;
+                let result_replay_birthtime_ns = result_value.birthtime_ns;
+                let result_replay = Stat {
+                    dev: result_replay_dev,
+                    ino: result_replay_ino,
+                    mode: result_replay_mode,
+                    nlink: result_replay_nlink,
+                    uid: result_replay_uid,
+                    gid: result_replay_gid,
+                    rdev: result_replay_rdev,
+                    size: result_replay_size,
+                    blksize: result_replay_blksize,
+                    blocks: result_replay_blocks,
+                    atime_ns: result_replay_atime_ns,
+                    mtime_ns: result_replay_mtime_ns,
+                    ctime_ns: result_replay_ctime_ns,
+                    birthtime_ns: result_replay_birthtime_ns,
+                };
+                let payload = StatatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    StatatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_dev = value.dev;
+                    let vm_result_ino = value.ino;
+                    let vm_result_mode = value.mode;
+                    let vm_result_nlink = value.nlink;
+                    let vm_result_uid = value.uid;
+                    let vm_result_gid = value.gid;
+                    let vm_result_rdev = value.rdev;
+                    let vm_result_size = value.size;
+                    let vm_result_blksize = value.blksize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_atime_ns = value.atime_ns;
+                    let vm_result_mtime_ns = value.mtime_ns;
+                    let vm_result_ctime_ns = value.ctime_ns;
+                    let vm_result_birthtime_ns = value.birthtime_ns;
+                    let vm_result = StatVm {
+                        dev: vm_result_dev,
+                        ino: vm_result_ino,
+                        mode: vm_result_mode,
+                        nlink: vm_result_nlink,
+                        uid: vm_result_uid,
+                        gid: vm_result_gid,
+                        rdev: vm_result_rdev,
+                        size: vm_result_size,
+                        blksize: vm_result_blksize,
+                        blocks: vm_result_blocks,
+                        atime_ns: vm_result_atime_ns,
+                        mtime_ns: vm_result_mtime_ns,
+                        ctime_ns: vm_result_ctime_ns,
+                        birthtime_ns: vm_result_birthtime_ns,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_statat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_statfs_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        STATFS_BYTES,
+        context,
+        |context| platform_vm::destack_fs_statfs_bytes(runtime, context, path),
         |context, result| {
             let _ = &context;
             if let Ok(value) = result {
@@ -7375,7 +12352,7 @@ fn destack_fs_statfs_vm_replay(
                     flags: result_replay_flags,
                     namelen: result_replay_namelen,
                 };
-                let payload = StatfsReplay {
+                let payload = StatfsBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7384,7 +12361,7 @@ fn destack_fs_statfs_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    StatfsReplay { result }
+                    StatfsBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7424,26 +12401,47 @@ fn destack_fs_statfs_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_statfs_result(context, result)?;
+    let result = encode_destack_fs_statfs_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_symlink_vm_replay(
+fn destack_fs_statfs_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    target: vm::StringHandle,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYMLINK,
+        STATFS_UTF16,
         context,
-        |context| platform_vm::destack_fs_symlink(runtime, context, target, path),
+        |context| platform_vm::destack_fs_statfs_utf16(runtime, context, path),
         |context, result| {
             let _ = &context;
-            if let Ok(()) = result {
-                let result_replay = ();
-                let payload = SymlinkReplay {
+            if let Ok(value) = result {
+                let result_value = *value;
+                let result_replay_bsize = result_value.bsize;
+                let result_replay_frsize = result_value.frsize;
+                let result_replay_blocks = result_value.blocks;
+                let result_replay_bfree = result_value.bfree;
+                let result_replay_bavail = result_value.bavail;
+                let result_replay_files = result_value.files;
+                let result_replay_ffree = result_value.ffree;
+                let result_replay_fsid = result_value.fsid;
+                let result_replay_flags = result_value.flags;
+                let result_replay_namelen = result_value.namelen;
+                let result_replay = StatFs {
+                    bsize: result_replay_bsize,
+                    frsize: result_replay_frsize,
+                    blocks: result_replay_blocks,
+                    bfree: result_replay_bfree,
+                    bavail: result_replay_bavail,
+                    files: result_replay_files,
+                    ffree: result_replay_ffree,
+                    fsid: result_replay_fsid,
+                    flags: result_replay_flags,
+                    namelen: result_replay_namelen,
+                };
+                let payload = StatfsUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7452,7 +12450,76 @@ fn destack_fs_symlink_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkReplay { result }
+                    StatfsUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(value) => {
+                    let vm_result_bsize = value.bsize;
+                    let vm_result_frsize = value.frsize;
+                    let vm_result_blocks = value.blocks;
+                    let vm_result_bfree = value.bfree;
+                    let vm_result_bavail = value.bavail;
+                    let vm_result_files = value.files;
+                    let vm_result_ffree = value.ffree;
+                    let vm_result_fsid = value.fsid;
+                    let vm_result_flags = value.flags;
+                    let vm_result_namelen = value.namelen;
+                    let vm_result = StatFsVm {
+                        bsize: vm_result_bsize,
+                        frsize: vm_result_frsize,
+                        blocks: vm_result_blocks,
+                        bfree: vm_result_bfree,
+                        bavail: vm_result_bavail,
+                        files: vm_result_files,
+                        ffree: vm_result_ffree,
+                        fsid: vm_result_fsid,
+                        flags: vm_result_flags,
+                        namelen: vm_result_namelen,
+                    };
+                    Ok(vm_result)
+                }
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_statfs_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_symlink_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    target: PathBytesVm,
+    path: PathBytesVm,
+    kind: SymlinkType,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        SYMLINK_BYTES,
+        context,
+        |context| platform_vm::destack_fs_symlink_bytes(runtime, context, target, path, kind),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7468,27 +12535,75 @@ fn destack_fs_symlink_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_symlink_result(context, result)?;
+    let result = encode_destack_fs_symlink_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_symlinkat_vm_replay(
+fn destack_fs_symlink_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    target: vm::StringHandle,
+    target: PathUtf16Vm,
+    path: PathUtf16Vm,
+    kind: SymlinkType,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        SYMLINK_UTF16,
+        context,
+        |context| platform_vm::destack_fs_symlink_utf16(runtime, context, target, path, kind),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_symlink_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_symlinkat_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    target: PathBytesVm,
     dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathBytesVm,
+    kind: SymlinkType,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        SYMLINKAT,
+        SYMLINKAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_symlinkat(runtime, context, target, dir, path),
+        |context| {
+            platform_vm::destack_fs_symlinkat_bytes(runtime, context, target, dir, path, kind)
+        },
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = SymlinkatReplay {
+                let payload = SymlinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7497,7 +12612,7 @@ fn destack_fs_symlinkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    SymlinkatReplay { result }
+                    SymlinkatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7513,26 +12628,74 @@ fn destack_fs_symlinkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_symlinkat_result(context, result)?;
+    let result = encode_destack_fs_symlinkat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_truncate_vm_replay(
+fn destack_fs_symlinkat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    target: PathUtf16Vm,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+    kind: SymlinkType,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        SYMLINKAT_UTF16,
+        context,
+        |context| {
+            platform_vm::destack_fs_symlinkat_utf16(runtime, context, target, dir, path, kind)
+        },
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = SymlinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    SymlinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_symlinkat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_truncate_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        TRUNCATE,
+        TRUNCATE_BYTES,
         context,
-        |context| platform_vm::destack_fs_truncate(runtime, context, path, size),
+        |context| platform_vm::destack_fs_truncate_bytes(runtime, context, path, size),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = TruncateReplay {
+                let payload = TruncateBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7541,7 +12704,7 @@ fn destack_fs_truncate_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    TruncateReplay { result }
+                    TruncateBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7557,25 +12720,26 @@ fn destack_fs_truncate_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_truncate_result(context, result)?;
+    let result = encode_destack_fs_truncate_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_unlink_vm_replay(
+fn destack_fs_truncate_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    path: PathUtf16Vm,
+    size: FileOffset,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UNLINK,
+        TRUNCATE_UTF16,
         context,
-        |context| platform_vm::destack_fs_unlink(runtime, context, path),
+        |context| platform_vm::destack_fs_truncate_utf16(runtime, context, path, size),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkReplay {
+                let payload = TruncateUtf16Replay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7584,7 +12748,7 @@ fn destack_fs_unlink_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkReplay { result }
+                    TruncateUtf16Replay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7600,27 +12764,113 @@ fn destack_fs_unlink_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_unlink_result(context, result)?;
+    let result = encode_destack_fs_truncate_utf16_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_unlinkat_vm_replay(
+fn destack_fs_unlink_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        UNLINK_BYTES,
+        context,
+        |context| platform_vm::destack_fs_unlink_bytes(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UnlinkBytesReplay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UnlinkBytesReplay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_unlink_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_unlink_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        UNLINK_UTF16,
+        context,
+        |context| platform_vm::destack_fs_unlink_utf16(runtime, context, path),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UnlinkUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UnlinkUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_unlink_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_unlinkat_bytes_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
     dir: resource::DirectoryHandle,
-    path: vm::StringHandle,
+    path: PathBytesVm,
     flags: AtFlags,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UNLINKAT,
+        UNLINKAT_BYTES,
         context,
-        |context| platform_vm::destack_fs_unlinkat(runtime, context, dir, path, flags),
+        |context| platform_vm::destack_fs_unlinkat_bytes(runtime, context, dir, path, flags),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UnlinkatReplay {
+                let payload = UnlinkatBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7629,7 +12879,7 @@ fn destack_fs_unlinkat_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UnlinkatReplay { result }
+                    UnlinkatBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7645,27 +12895,72 @@ fn destack_fs_unlinkat_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_unlinkat_result(context, result)?;
+    let result = encode_destack_fs_unlinkat_bytes_result(context, result)?;
     Ok(result)
 }
 
 #[inline]
-fn destack_fs_utimes_vm_replay(
+fn destack_fs_unlinkat_utf16_vm_replay(
     runtime: &RuntimeCallContext,
     context: &mut vm::RuntimeContext<'_>,
-    path: vm::StringHandle,
+    dir: resource::DirectoryHandle,
+    path: PathUtf16Vm,
+    flags: AtFlags,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        UNLINKAT_UTF16,
+        context,
+        |context| platform_vm::destack_fs_unlinkat_utf16(runtime, context, dir, path, flags),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UnlinkatUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UnlinkatUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_unlinkat_utf16_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_utimes_bytes_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathBytesVm,
     atimens: u64,
     mtimens: u64,
 ) -> RuntimeResult<vm::Value> {
     let result = runtime.replay().run_binding_with_context(
-        UTIMES,
+        UTIMES_BYTES,
         context,
-        |context| platform_vm::destack_fs_utimes(runtime, context, path, atimens, mtimens),
+        |context| platform_vm::destack_fs_utimes_bytes(runtime, context, path, atimens, mtimens),
         |context, result| {
             let _ = &context;
             if let Ok(()) = result {
                 let result_replay = ();
-                let payload = UtimesReplay {
+                let payload = UtimesBytesReplay {
                     result: Ok(result_replay),
                 };
                 return Ok(Some(payload));
@@ -7674,7 +12969,7 @@ fn destack_fs_utimes_vm_replay(
             if let Err(error) = result {
                 let payload = {
                     let result = Err(PlatformError::from(error.as_ref()));
-                    UtimesReplay { result }
+                    UtimesBytesReplay { result }
                 };
                 return Ok(Some(payload));
             }
@@ -7690,7 +12985,52 @@ fn destack_fs_utimes_vm_replay(
             }
         },
     );
-    let result = encode_destack_fs_utimes_result(context, result)?;
+    let result = encode_destack_fs_utimes_bytes_result(context, result)?;
+    Ok(result)
+}
+
+#[inline]
+fn destack_fs_utimes_utf16_vm_replay(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    path: PathUtf16Vm,
+    atimens: u64,
+    mtimens: u64,
+) -> RuntimeResult<vm::Value> {
+    let result = runtime.replay().run_binding_with_context(
+        UTIMES_UTF16,
+        context,
+        |context| platform_vm::destack_fs_utimes_utf16(runtime, context, path, atimens, mtimens),
+        |context, result| {
+            let _ = &context;
+            if let Ok(()) = result {
+                let result_replay = ();
+                let payload = UtimesUtf16Replay {
+                    result: Ok(result_replay),
+                };
+                return Ok(Some(payload));
+            }
+
+            if let Err(error) = result {
+                let payload = {
+                    let result = Err(PlatformError::from(error.as_ref()));
+                    UtimesUtf16Replay { result }
+                };
+                return Ok(Some(payload));
+            }
+
+            Ok(None)
+        },
+        |context, payload| {
+            let _ = &context;
+            // replay result
+            match payload.result {
+                Ok(()) => Ok(()),
+                Err(error) => Err(RuntimeError::from(error).boxed()),
+            }
+        },
+    );
+    let result = encode_destack_fs_utimes_utf16_result(context, result)?;
     Ok(result)
 }
 
@@ -7795,46 +13135,91 @@ fn destack_fs_writev_vm_replay(
 /// Register VM bindings for fs.
 pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Isolate) {
     {
-        binding!(registry, isolate, ACCESS, move |context, args| {
+        binding!(registry, isolate, ACCESS_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(ACCESS)?;
+                runtime.check_policy(ACCESS_BYTES)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_access_args(context, args)?;
+                let (path, mode) = decode_destack_fs_access_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_access_vm_replay(runtime, context, path, mode)
+                destack_fs_access_bytes_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CHMOD, move |context, args| {
+        binding!(registry, isolate, ACCESS_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(CHMOD)?;
+                runtime.check_policy(ACCESS_UTF16)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_chmod_args(context, args)?;
+                let (path, mode) = decode_destack_fs_access_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_chmod_vm_replay(runtime, context, path, mode)
+                destack_fs_access_utf16_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, CHOWN, move |context, args| {
+        binding!(registry, isolate, CHMOD_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(CHOWN)?;
+                runtime.check_policy(CHMOD_BYTES)?;
 
                 // decode args
-                let (path, uid, gid) = decode_destack_fs_chown_args(context, args)?;
+                let (path, mode) = decode_destack_fs_chmod_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_chown_vm_replay(runtime, context, path, uid, gid)
+                destack_fs_chmod_bytes_vm_replay(runtime, context, path, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CHMOD_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(CHMOD_UTF16)?;
+
+                // decode args
+                let (path, mode) = decode_destack_fs_chmod_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_chmod_utf16_vm_replay(runtime, context, path, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CHOWN_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(CHOWN_BYTES)?;
+
+                // decode args
+                let (path, uid, gid) = decode_destack_fs_chown_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_chown_bytes_vm_replay(runtime, context, path, uid, gid)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, CHOWN_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(CHOWN_UTF16)?;
+
+                // decode args
+                let (path, uid, gid) = decode_destack_fs_chown_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_chown_utf16_vm_replay(runtime, context, path, uid, gid)
             })
             .map_err(Into::into)
         });
@@ -7870,16 +13255,31 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, COPYFILE, move |context, args| {
+        binding!(registry, isolate, COPYFILE_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(COPYFILE)?;
+                runtime.check_policy(COPYFILE_BYTES)?;
 
                 // decode args
-                let (from, to, flags) = decode_destack_fs_copyfile_args(context, args)?;
+                let (from, to, flags) = decode_destack_fs_copyfile_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_copyfile_vm_replay(runtime, context, from, to, flags)
+                destack_fs_copyfile_bytes_vm_replay(runtime, context, from, to, flags)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, COPYFILE_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(COPYFILE_UTF16)?;
+
+                // decode args
+                let (from, to, flags) = decode_destack_fs_copyfile_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_copyfile_utf16_vm_replay(runtime, context, from, to, flags)
             })
             .map_err(Into::into)
         });
@@ -8005,32 +13405,71 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, LINK, move |context, args| {
+        binding!(registry, isolate, LINK_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LINK)?;
+                runtime.check_policy(LINK_BYTES)?;
 
                 // decode args
-                let (existingpath, newpath) = decode_destack_fs_link_args(context, args)?;
+                let (existingpath, newpath) = decode_destack_fs_link_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_link_vm_replay(runtime, context, existingpath, newpath)
+                destack_fs_link_bytes_vm_replay(runtime, context, existingpath, newpath)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LINKAT, move |context, args| {
+        binding!(registry, isolate, LINK_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LINKAT)?;
+                runtime.check_policy(LINK_UTF16)?;
+
+                // decode args
+                let (existingpath, newpath) = decode_destack_fs_link_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_link_utf16_vm_replay(runtime, context, existingpath, newpath)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, LINKAT_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(LINKAT_BYTES)?;
 
                 // decode args
                 let (existingdir, existingpath, newdir, newpath, flags) =
-                    decode_destack_fs_linkat_args(context, args)?;
+                    decode_destack_fs_linkat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_linkat_vm_replay(
+                destack_fs_linkat_bytes_vm_replay(
+                    runtime,
+                    context,
+                    existingdir,
+                    existingpath,
+                    newdir,
+                    newpath,
+                    flags,
+                )
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, LINKAT_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(LINKAT_UTF16)?;
+
+                // decode args
+                let (existingdir, existingpath, newdir, newpath, flags) =
+                    decode_destack_fs_linkat_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_linkat_utf16_vm_replay(
                     runtime,
                     context,
                     existingdir,
@@ -8059,121 +13498,241 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, LSTAT, move |context, args| {
+        binding!(registry, isolate, LSTAT_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LSTAT)?;
+                runtime.check_policy(LSTAT_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_lstat_args(context, args)?;
+                let (path,) = decode_destack_fs_lstat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_lstat_vm_replay(runtime, context, path)
+                destack_fs_lstat_bytes_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, LUTIMES, move |context, args| {
+        binding!(registry, isolate, LSTAT_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(LUTIMES)?;
+                runtime.check_policy(LSTAT_UTF16)?;
 
                 // decode args
-                let (path, atimens, mtimens) = decode_destack_fs_lutimes_args(context, args)?;
+                let (path,) = decode_destack_fs_lstat_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_lutimes_vm_replay(runtime, context, path, atimens, mtimens)
+                destack_fs_lstat_utf16_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDIR, move |context, args| {
+        binding!(registry, isolate, LUTIMES_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDIR)?;
+                runtime.check_policy(LUTIMES_BYTES)?;
 
                 // decode args
-                let (path, mode) = decode_destack_fs_mkdir_args(context, args)?;
+                let (path, atimens, mtimens) = decode_destack_fs_lutimes_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdir_vm_replay(runtime, context, path, mode)
+                destack_fs_lutimes_bytes_vm_replay(runtime, context, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDIRAT, move |context, args| {
+        binding!(registry, isolate, LUTIMES_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDIRAT)?;
+                runtime.check_policy(LUTIMES_UTF16)?;
 
                 // decode args
-                let (dir, path, mode) = decode_destack_fs_mkdirat_args(context, args)?;
+                let (path, atimens, mtimens) = decode_destack_fs_lutimes_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdirat_vm_replay(runtime, context, dir, path, mode)
+                destack_fs_lutimes_utf16_vm_replay(runtime, context, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, MKDTEMP, move |context, args| {
+        binding!(registry, isolate, MKDIR_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(MKDTEMP)?;
+                runtime.check_policy(MKDIR_BYTES)?;
 
                 // decode args
-                let (template,) = decode_destack_fs_mkdtemp_args(context, args)?;
+                let (path, mode) = decode_destack_fs_mkdir_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_mkdtemp_vm_replay(runtime, context, template)
+                destack_fs_mkdir_bytes_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPEN, move |context, args| {
+        binding!(registry, isolate, MKDIR_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPEN)?;
+                runtime.check_policy(MKDIR_UTF16)?;
 
                 // decode args
-                let (path, flags, mode) = decode_destack_fs_open_args(context, args)?;
+                let (path, mode) = decode_destack_fs_mkdir_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_open_vm_replay(runtime, context, path, flags, mode)
+                destack_fs_mkdir_utf16_vm_replay(runtime, context, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPENAT, move |context, args| {
+        binding!(registry, isolate, MKDIRAT_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPENAT)?;
+                runtime.check_policy(MKDIRAT_BYTES)?;
 
                 // decode args
-                let (dir, path, flags, mode) = decode_destack_fs_openat_args(context, args)?;
+                let (dir, path, mode) = decode_destack_fs_mkdirat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_openat_vm_replay(runtime, context, dir, path, flags, mode)
+                destack_fs_mkdirat_bytes_vm_replay(runtime, context, dir, path, mode)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, OPENDIR, move |context, args| {
+        binding!(registry, isolate, MKDIRAT_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(OPENDIR)?;
+                runtime.check_policy(MKDIRAT_UTF16)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_opendir_args(context, args)?;
+                let (dir, path, mode) = decode_destack_fs_mkdirat_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_opendir_vm_replay(runtime, context, path)
+                destack_fs_mkdirat_utf16_vm_replay(runtime, context, dir, path, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, MKDTEMP_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(MKDTEMP_BYTES)?;
+
+                // decode args
+                let (template,) = decode_destack_fs_mkdtemp_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_mkdtemp_bytes_vm_replay(runtime, context, template)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, MKDTEMP_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(MKDTEMP_UTF16)?;
+
+                // decode args
+                let (template,) = decode_destack_fs_mkdtemp_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_mkdtemp_utf16_vm_replay(runtime, context, template)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPEN_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPEN_BYTES)?;
+
+                // decode args
+                let (path, flags, mode) = decode_destack_fs_open_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_open_bytes_vm_replay(runtime, context, path, flags, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPEN_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPEN_UTF16)?;
+
+                // decode args
+                let (path, flags, mode) = decode_destack_fs_open_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_open_utf16_vm_replay(runtime, context, path, flags, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPENAT_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPENAT_BYTES)?;
+
+                // decode args
+                let (dir, path, flags, mode) = decode_destack_fs_openat_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_openat_bytes_vm_replay(runtime, context, dir, path, flags, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPENAT_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPENAT_UTF16)?;
+
+                // decode args
+                let (dir, path, flags, mode) = decode_destack_fs_openat_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_openat_utf16_vm_replay(runtime, context, dir, path, flags, mode)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPENDIR_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPENDIR_BYTES)?;
+
+                // decode args
+                let (path,) = decode_destack_fs_opendir_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_opendir_bytes_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, OPENDIR_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(OPENDIR_UTF16)?;
+
+                // decode args
+                let (path,) = decode_destack_fs_opendir_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_opendir_utf16_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
@@ -8209,31 +13768,61 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, READLINK, move |context, args| {
+        binding!(registry, isolate, READLINK_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READLINK)?;
+                runtime.check_policy(READLINK_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_readlink_args(context, args)?;
+                let (path,) = decode_destack_fs_readlink_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_readlink_vm_replay(runtime, context, path)
+                destack_fs_readlink_bytes_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, READLINKAT, move |context, args| {
+        binding!(registry, isolate, READLINK_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(READLINKAT)?;
+                runtime.check_policy(READLINK_UTF16)?;
 
                 // decode args
-                let (dir, path) = decode_destack_fs_readlinkat_args(context, args)?;
+                let (path,) = decode_destack_fs_readlink_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_readlinkat_vm_replay(runtime, context, dir, path)
+                destack_fs_readlink_utf16_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, READLINKAT_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(READLINKAT_BYTES)?;
+
+                // decode args
+                let (dir, path) = decode_destack_fs_readlinkat_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_readlinkat_bytes_vm_replay(runtime, context, dir, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, READLINKAT_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(READLINKAT_UTF16)?;
+
+                // decode args
+                let (dir, path) = decode_destack_fs_readlinkat_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_readlinkat_utf16_vm_replay(runtime, context, dir, path)
             })
             .map_err(Into::into)
         });
@@ -8254,196 +13843,395 @@ pub fn register_fs_vm_bindings(registry: &mut BindingRegistry, isolate: &mut Iso
         });
     }
     {
-        binding!(registry, isolate, REALPATH, move |context, args| {
+        binding!(registry, isolate, REALPATH_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(REALPATH)?;
+                runtime.check_policy(REALPATH_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_realpath_args(context, args)?;
+                let (path,) = decode_destack_fs_realpath_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_realpath_vm_replay(runtime, context, path)
+                destack_fs_realpath_bytes_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RENAME, move |context, args| {
+        binding!(registry, isolate, REALPATH_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RENAME)?;
+                runtime.check_policy(REALPATH_UTF16)?;
 
                 // decode args
-                let (from, to) = decode_destack_fs_rename_args(context, args)?;
+                let (path,) = decode_destack_fs_realpath_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_rename_vm_replay(runtime, context, from, to)
+                destack_fs_realpath_utf16_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RENAMEAT, move |context, args| {
+        binding!(registry, isolate, RENAME_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RENAMEAT)?;
+                runtime.check_policy(RENAME_BYTES)?;
 
                 // decode args
-                let (fromdir, from, todir, to) = decode_destack_fs_renameat_args(context, args)?;
+                let (from, to) = decode_destack_fs_rename_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_renameat_vm_replay(runtime, context, fromdir, from, todir, to)
+                destack_fs_rename_bytes_vm_replay(runtime, context, from, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, RMDIR, move |context, args| {
+        binding!(registry, isolate, RENAME_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(RMDIR)?;
+                runtime.check_policy(RENAME_UTF16)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_rmdir_args(context, args)?;
+                let (from, to) = decode_destack_fs_rename_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_rmdir_vm_replay(runtime, context, path)
+                destack_fs_rename_utf16_vm_replay(runtime, context, from, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, STAT, move |context, args| {
+        binding!(registry, isolate, RENAMEAT_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(STAT)?;
+                runtime.check_policy(RENAMEAT_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_stat_args(context, args)?;
+                let (fromdir, from, todir, to) =
+                    decode_destack_fs_renameat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_stat_vm_replay(runtime, context, path)
+                destack_fs_renameat_bytes_vm_replay(runtime, context, fromdir, from, todir, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, STATAT, move |context, args| {
+        binding!(registry, isolate, RENAMEAT_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(STATAT)?;
+                runtime.check_policy(RENAMEAT_UTF16)?;
 
                 // decode args
-                let (dir, path, flags) = decode_destack_fs_statat_args(context, args)?;
+                let (fromdir, from, todir, to) =
+                    decode_destack_fs_renameat_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_statat_vm_replay(runtime, context, dir, path, flags)
+                destack_fs_renameat_utf16_vm_replay(runtime, context, fromdir, from, todir, to)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, STATFS, move |context, args| {
+        binding!(registry, isolate, RMDIR_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(STATFS)?;
+                runtime.check_policy(RMDIR_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_statfs_args(context, args)?;
+                let (path,) = decode_destack_fs_rmdir_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_statfs_vm_replay(runtime, context, path)
+                destack_fs_rmdir_bytes_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYMLINK, move |context, args| {
+        binding!(registry, isolate, RMDIR_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYMLINK)?;
+                runtime.check_policy(RMDIR_UTF16)?;
 
                 // decode args
-                let (target, path) = decode_destack_fs_symlink_args(context, args)?;
+                let (path,) = decode_destack_fs_rmdir_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_symlink_vm_replay(runtime, context, target, path)
+                destack_fs_rmdir_utf16_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, SYMLINKAT, move |context, args| {
+        binding!(registry, isolate, STAT_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(SYMLINKAT)?;
+                runtime.check_policy(STAT_BYTES)?;
 
                 // decode args
-                let (target, dir, path) = decode_destack_fs_symlinkat_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_symlinkat_vm_replay(runtime, context, target, dir, path)
+                destack_fs_stat_bytes_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, TRUNCATE, move |context, args| {
+        binding!(registry, isolate, STAT_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(TRUNCATE)?;
+                runtime.check_policy(STAT_UTF16)?;
 
                 // decode args
-                let (path, size) = decode_destack_fs_truncate_args(context, args)?;
+                let (path,) = decode_destack_fs_stat_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_truncate_vm_replay(runtime, context, path, size)
+                destack_fs_stat_utf16_vm_replay(runtime, context, path)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UNLINK, move |context, args| {
+        binding!(registry, isolate, STATAT_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UNLINK)?;
+                runtime.check_policy(STATAT_BYTES)?;
 
                 // decode args
-                let (path,) = decode_destack_fs_unlink_args(context, args)?;
+                let (dir, path, flags) = decode_destack_fs_statat_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_unlink_vm_replay(runtime, context, path)
+                destack_fs_statat_bytes_vm_replay(runtime, context, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UNLINKAT, move |context, args| {
+        binding!(registry, isolate, STATAT_UTF16, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UNLINKAT)?;
+                runtime.check_policy(STATAT_UTF16)?;
 
                 // decode args
-                let (dir, path, flags) = decode_destack_fs_unlinkat_args(context, args)?;
+                let (dir, path, flags) = decode_destack_fs_statat_utf16_args(context, args)?;
 
                 // execute binding
-                destack_fs_unlinkat_vm_replay(runtime, context, dir, path, flags)
+                destack_fs_statat_utf16_vm_replay(runtime, context, dir, path, flags)
             })
             .map_err(Into::into)
         });
     }
     {
-        binding!(registry, isolate, UTIMES, move |context, args| {
+        binding!(registry, isolate, STATFS_BYTES, move |context, args| {
             with_runtime_call_context(|runtime| {
                 // policy
-                runtime.check_policy(UTIMES)?;
+                runtime.check_policy(STATFS_BYTES)?;
 
                 // decode args
-                let (path, atimens, mtimens) = decode_destack_fs_utimes_args(context, args)?;
+                let (path,) = decode_destack_fs_statfs_bytes_args(context, args)?;
 
                 // execute binding
-                destack_fs_utimes_vm_replay(runtime, context, path, atimens, mtimens)
+                destack_fs_statfs_bytes_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, STATFS_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(STATFS_UTF16)?;
+
+                // decode args
+                let (path,) = decode_destack_fs_statfs_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_statfs_utf16_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SYMLINK_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(SYMLINK_BYTES)?;
+
+                // decode args
+                let (target, path, kind) = decode_destack_fs_symlink_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_symlink_bytes_vm_replay(runtime, context, target, path, kind)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SYMLINK_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(SYMLINK_UTF16)?;
+
+                // decode args
+                let (target, path, kind) = decode_destack_fs_symlink_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_symlink_utf16_vm_replay(runtime, context, target, path, kind)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SYMLINKAT_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(SYMLINKAT_BYTES)?;
+
+                // decode args
+                let (target, dir, path, kind) =
+                    decode_destack_fs_symlinkat_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_symlinkat_bytes_vm_replay(runtime, context, target, dir, path, kind)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, SYMLINKAT_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(SYMLINKAT_UTF16)?;
+
+                // decode args
+                let (target, dir, path, kind) =
+                    decode_destack_fs_symlinkat_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_symlinkat_utf16_vm_replay(runtime, context, target, dir, path, kind)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, TRUNCATE_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(TRUNCATE_BYTES)?;
+
+                // decode args
+                let (path, size) = decode_destack_fs_truncate_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_truncate_bytes_vm_replay(runtime, context, path, size)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, TRUNCATE_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(TRUNCATE_UTF16)?;
+
+                // decode args
+                let (path, size) = decode_destack_fs_truncate_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_truncate_utf16_vm_replay(runtime, context, path, size)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UNLINK_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UNLINK_BYTES)?;
+
+                // decode args
+                let (path,) = decode_destack_fs_unlink_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_unlink_bytes_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UNLINK_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UNLINK_UTF16)?;
+
+                // decode args
+                let (path,) = decode_destack_fs_unlink_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_unlink_utf16_vm_replay(runtime, context, path)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UNLINKAT_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UNLINKAT_BYTES)?;
+
+                // decode args
+                let (dir, path, flags) = decode_destack_fs_unlinkat_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_unlinkat_bytes_vm_replay(runtime, context, dir, path, flags)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UNLINKAT_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UNLINKAT_UTF16)?;
+
+                // decode args
+                let (dir, path, flags) = decode_destack_fs_unlinkat_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_unlinkat_utf16_vm_replay(runtime, context, dir, path, flags)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UTIMES_BYTES, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UTIMES_BYTES)?;
+
+                // decode args
+                let (path, atimens, mtimens) = decode_destack_fs_utimes_bytes_args(context, args)?;
+
+                // execute binding
+                destack_fs_utimes_bytes_vm_replay(runtime, context, path, atimens, mtimens)
+            })
+            .map_err(Into::into)
+        });
+    }
+    {
+        binding!(registry, isolate, UTIMES_UTF16, move |context, args| {
+            with_runtime_call_context(|runtime| {
+                // policy
+                runtime.check_policy(UTIMES_UTF16)?;
+
+                // decode args
+                let (path, atimens, mtimens) = decode_destack_fs_utimes_utf16_args(context, args)?;
+
+                // execute binding
+                destack_fs_utimes_utf16_vm_replay(runtime, context, path, atimens, mtimens)
             })
             .map_err(Into::into)
         });

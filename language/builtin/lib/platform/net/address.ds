@@ -3,6 +3,8 @@ import { SocketHandle } from "../resource/index.ds";
 
 /// Socket address family.
 export enum SocketFamily {
+    /// Unspecified address family.
+    Unspecified = 0,
     /// IPv4 address.
     IPv4 = 4,
     /// IPv6 address.

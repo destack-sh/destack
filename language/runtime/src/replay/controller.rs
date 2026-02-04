@@ -2,13 +2,80 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::bindings::{
     BindingDescriptor, BindingReplayKind, ExecutionMode, ReplayPayload,
 };
-use crate::replay::{BindingCallEvent, ReplayEvent, ReplayHeader, ReplayLog};
+use crate::replay::{
+    BindingCallEvent, RandomEventKind, ReplayEvent, ReplayHeader, ReplayLog, ReplayLogReader,
+    TimeEventKind,
+};
+use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
+/// Validation state for replay event ordering.
+#[derive(Debug, Default)]
+struct ReplayValidator {
+    /// Last observed scheduler sequence.
+    last_scheduler_sequence: Option<u64>,
+    /// Last observed monotonic time sample.
+    last_monotonic_nanos: Option<u64>,
+}
+
+impl ReplayValidator {
+    /// Validate a replay event against ordering invariants.
+    fn validate(&mut self, event: &ReplayEvent) -> RuntimeResult<()> {
+        match event {
+            ReplayEvent::SchedulerEvent(event) => {
+                if let Some(last) = self.last_scheduler_sequence
+                    && event.sequence < last
+                {
+                    return Err(RuntimeError::ReplayMismatch {
+                        name: "scheduler".to_string(),
+                    }
+                    .boxed());
+                }
+                self.last_scheduler_sequence = Some(event.sequence);
+            }
+            ReplayEvent::TimeEvent(event) => {
+                if event.kind == TimeEventKind::MonotonicSample {
+                    if let Some(last) = self.last_monotonic_nanos
+                        && event.time_nanos < last
+                    {
+                        return Err(RuntimeError::ReplayMismatch {
+                            name: "time".to_string(),
+                        }
+                        .boxed());
+                    }
+                    self.last_monotonic_nanos = Some(event.time_nanos);
+                }
+            }
+            ReplayEvent::RandomEvent(event) => match event.kind {
+                RandomEventKind::Stream => {
+                    if !event.bytes.is_empty() {
+                        return Err(RuntimeError::ReplayMismatch {
+                            name: "random".to_string(),
+                        }
+                        .boxed());
+                    }
+                }
+                RandomEventKind::NextU64 => {
+                    if event.bytes.len() != 8 {
+                        return Err(RuntimeError::ReplayMismatch {
+                            name: "random".to_string(),
+                        }
+                        .boxed());
+                    }
+                }
+                RandomEventKind::Bytes | RandomEventKind::Seed => {}
+            },
+            _ => {}
+        }
+
+        Ok(())
+    }
+}
+
 /// Replay controller for record/replay pipelines.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ReplayController {
     // NOTE #Incomplete: validate replay sequences and enforce log compatibility
     /// Active replay mode.
@@ -17,24 +84,47 @@ pub struct ReplayController {
     payload_policy: ReplayPayload,
     /// Replay log backing store.
     log: ReplayLog,
+    /// Replay reader for log playback.
+    reader: Option<ReplayLogReader>,
+    /// Replay ordering validator.
+    validator: Mutex<ReplayValidator>,
+    /// Scratch buffer for replay payload encoding.
+    scratch: Mutex<Vec<u8>>,
 }
 
 impl ReplayController {
     /// Create a replay controller with an explicit mode.
     pub fn new(mode: ExecutionMode, payload_policy: ReplayPayload, header: ReplayHeader) -> Self {
+        let log = ReplayLog::new(header);
+        let reader = match mode {
+            ExecutionMode::Replay => Some(log.reader()),
+            _ => None,
+        };
+
         Self {
             mode,
             payload_policy,
-            log: ReplayLog::new(header),
+            log,
+            reader,
+            validator: Mutex::new(ReplayValidator::default()),
+            scratch: Mutex::new(Vec::new()),
         }
     }
 
     /// Create a replay controller with an existing log.
     pub fn from_log(mode: ExecutionMode, payload_policy: ReplayPayload, log: ReplayLog) -> Self {
+        let reader = match mode {
+            ExecutionMode::Replay => Some(log.reader()),
+            _ => None,
+        };
+
         Self {
             mode,
             payload_policy,
             log,
+            reader,
+            validator: Mutex::new(ReplayValidator::default()),
+            scratch: Mutex::new(Vec::new()),
         }
     }
 
@@ -70,9 +160,7 @@ impl ReplayController {
         let requested = self.payload_policy;
         let supported = spec.replay_payload();
 
-        if requested == ReplayPayload::ArgumentsAndResults
-            && supported == ReplayPayload::Results
-        {
+        if requested == ReplayPayload::ArgumentsAndResults && supported == ReplayPayload::Results {
             return Err(RuntimeError::ReplayPayloadUnsupported {
                 name: spec.name.to_string(),
             }
@@ -110,15 +198,28 @@ impl ReplayController {
             return Ok(None);
         }
 
-        // fetch the next event from the log
-        self.log.next_event()
+        // fetch the next event from the reader
+        let reader = self.reader.as_ref().ok_or_else(|| {
+            RuntimeError::ReplayMismatch {
+                name: "replay".to_string(),
+            }
+            .boxed()
+        })?;
+        let Some(event) = reader.next_event()? else {
+            return Ok(None);
+        };
+
+        let mut validator = self.validator.lock();
+        validator.validate(&event)?;
+
+        Ok(Some(event))
     }
 
     /// Record a binding call payload for replay.
     pub fn record_binding_call(
         &self,
         spec: BindingDescriptor,
-        payload: Vec<u8>,
+        payload: &[u8],
     ) -> RuntimeResult<()> {
         if !cfg!(feature = "replay") {
             return Ok(());
@@ -133,7 +234,7 @@ impl ReplayController {
             .record_event(ReplayEvent::BindingCall(BindingCallEvent {
                 binding_id: spec.id,
                 codec: spec.codec,
-                payload,
+                payload: payload.to_vec(),
             }))?;
 
         Ok(())
@@ -189,7 +290,7 @@ impl ReplayController {
         payload: &T,
     ) -> RuntimeResult<()> {
         // skip recording when disabled
-        if self.mode != ExecutionMode::Record {
+        if self.mode() != ExecutionMode::Record {
             return Ok(());
         }
 
@@ -200,8 +301,9 @@ impl ReplayController {
             }
             .boxed()
         })?;
-        let mut payload_bytes = vec![0u8; payload_size];
-        postcard::to_slice(payload, &mut payload_bytes).map_err(|_| {
+        let mut scratch = self.scratch.lock();
+        scratch.resize(payload_size, 0);
+        let payload_bytes = postcard::to_slice(payload, &mut scratch).map_err(|_| {
             RuntimeError::ReplayEncodeFailed {
                 name: spec.name.to_string(),
             }
@@ -252,20 +354,23 @@ impl ReplayController {
             .boxed());
         }
 
+        let mode = self.mode();
+
         // fast path
-        if !cfg!(feature = "replay") || self.mode() == ExecutionMode::Fast {
+        if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
             return call();
         }
 
         // replay path
-        if self.mode() == ExecutionMode::Replay {
+        if mode == ExecutionMode::Replay {
             let payload = self.read_binding_payload(spec)?;
             return decode(payload);
         }
 
         // record path
+        let _ = self.payload_policy_for(spec)?;
         let result = call();
-        if self.mode() == ExecutionMode::Record {
+        if mode == ExecutionMode::Record {
             let payload = encode(&result)?;
             if let Some(payload) = payload {
                 self.record_binding_payload(spec, &payload)?;
@@ -298,20 +403,23 @@ impl ReplayController {
             .boxed());
         }
 
+        let mode = self.mode();
+
         // fast path
-        if !cfg!(feature = "replay") || self.mode() == ExecutionMode::Fast {
+        if !cfg!(feature = "replay") || mode == ExecutionMode::Fast {
             return call(context);
         }
 
         // replay path
-        if self.mode() == ExecutionMode::Replay {
+        if mode == ExecutionMode::Replay {
             let payload = self.read_binding_payload(spec)?;
             return decode(context, payload);
         }
 
         // record path
+        let _ = self.payload_policy_for(spec)?;
         let result = call(context);
-        if self.mode() == ExecutionMode::Record {
+        if mode == ExecutionMode::Record {
             let payload = encode(context, &result)?;
             if let Some(payload) = payload {
                 self.record_binding_payload(spec, &payload)?;
@@ -358,7 +466,7 @@ mod tests {
             ReplayHeader::default(),
         );
         record_state
-            .record_binding_call(descriptor, vec![1, 2, 3])
+            .record_binding_call(descriptor, &[1, 2, 3])
             .expect("record binding call");
 
         // replay the binding call from the same log

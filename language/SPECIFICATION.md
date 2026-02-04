@@ -6,6 +6,14 @@ This document describes the syntax and semantics of **`.ds` files**.
 `.js` and `.jsx` files parse as strict modules and reject TS-only syntax by default.
 See `INTEROPERABILITY.md` for the full file type matrix and exclusions.
 
+## Targets And Capabilities
+
+Destack targets native runtimes and existing JS hosts.
+Native runtime targets include macOS, Linux, Windows, iOS, Android, FreeBSD, OpenBSD, NetBSD, DragonFly, and WASI.
+JS host targets include Node, Bun, Deno, and browsers.
+Platform capabilities are explicit and checked at compile time.
+The `@require` decorator declares which capabilities a declaration depends on.
+
 ## Literals
 
 Destack supports all JavaScript/TypeScript literals with some additions.
@@ -3543,6 +3551,16 @@ match (event) {
     Error(e) => logError(e),
 }
 ```
+
+### @require
+
+The `@require` decorator declares platform capabilities required by a declaration.
+It is allowed on functions, methods, and binding declarations.
+The decorator takes one or more string capability names.
+Capabilities are hierarchical using `:` separators.
+Requiring `net:tcp` implies `net`.
+The compiler validates that the active target profile provides all required capabilities.
+If a requirement is not met, compilation fails with a hard error.
 
 #### Decorator Resolution
 

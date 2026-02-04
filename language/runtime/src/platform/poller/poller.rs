@@ -23,6 +23,19 @@ impl PlatformHandle {
     }
 }
 
+#[cfg(windows)]
+impl PlatformHandle {
+    /// Create a platform handle from a raw socket.
+    pub fn from_raw_socket(socket: std::os::windows::io::RawSocket) -> Self {
+        Self(socket as u64)
+    }
+
+    /// Return the raw socket for this handle.
+    pub fn as_raw_socket(self) -> std::os::windows::io::RawSocket {
+        self.0 as std::os::windows::io::RawSocket
+    }
+}
+
 /// Interest mask for poller registrations.
 ///
 /// Pollers typically register readability/writability.

@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use destack_compiler::{Compiler, LowerTask, OptimizeTask};
 use destack_heap::GcOptions as HeapGcOptions;
-use destack_runtime::engine::EntryPoint;
-use destack_runtime::platform::{BindingPolicy, ExecutionMode as RuntimeExecutionMode, PlatformContext};
+use destack_runtime::engine::VmEntry;
+use destack_runtime::platform::{
+    BindingPolicy, ExecutionMode as RuntimeExecutionMode, PlatformContext,
+};
 use destack_runtime::runtime::{Runtime, RuntimeContext};
 use destack_source::ModuleId;
 use destack_vm::{ExecutionMode, Isolate, IsolateOptions, TrustPolicy as VmTrustPolicy, Value};
@@ -233,7 +235,7 @@ fn run_entry_module(
         .set_policy(binding_policy_for_target(&target));
     runtime.bindings.install_vm_defaults(&mut isolate);
 
-    let entry = EntryPoint::vm(entry_name);
+    let entry = VmEntry::new(entry_name);
     let result = runtime
         .run_entry(&mut isolate, &entry, &[])
         .map_err(|error| format!("{error}"))?;

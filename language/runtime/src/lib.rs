@@ -23,3 +23,6 @@ pub mod scheduler;
 pub mod snapshot;
 #[cfg(not(feature = "generate_bindings"))]
 pub mod time;
+
+#[cfg(test)]
+mod tests;

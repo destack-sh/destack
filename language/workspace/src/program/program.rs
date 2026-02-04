@@ -816,7 +816,19 @@ impl Program {
         let flags = ProfileFlags::from(&compiler_options);
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
-        ProfileKey::new(output, runtime, platform, libs, debug, test, env, flags)
+        ProfileKey::new(
+            output,
+            runtime,
+            platform,
+            target.target_arch.clone(),
+            target.target_vendor.clone(),
+            target.target_env.clone(),
+            libs,
+            debug,
+            test,
+            env,
+            flags,
+        )
     }
 
     /// Build compiler options for a target, applying derived restrictions.

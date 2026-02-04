@@ -2129,7 +2129,7 @@
           ]
         },
         "platform": {
-          "description": "Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, BareMetal, Universal).",
+          "description": "Target platform / operating system.",
           "type": [
             "string",
             "null"
@@ -2137,6 +2137,27 @@
         },
         "targetTriple": {
           "description": "Target triple for native codegen (e.g., \"x86_64-unknown-linux-gnu\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "arch": {
+          "description": "Target architecture for native codegen (e.g., \"x86_64\", \"aarch64\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vendor": {
+          "description": "Target vendor for native codegen (e.g., \"apple\", \"pc\", \"unknown\").",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "env": {
+          "description": "Target environment / ABI for native codegen (e.g., \"gnu\", \"musl\", \"msvc\").",
           "type": [
             "string",
             "null"
@@ -3148,7 +3169,7 @@
           ]
         },
         "platform": {
-          "description": "Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).",
+          "description": "Target platform / operating system.",
           "type": [
             "string",
             "null"

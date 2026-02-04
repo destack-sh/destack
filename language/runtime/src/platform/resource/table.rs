@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use std::fmt;
 #[cfg(unix)]
 use std::os::unix::io::RawFd;
+#[cfg(windows)]
+use std::os::windows::io::{RawHandle, RawSocket};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::RwLock;
@@ -64,6 +66,19 @@ impl fmt::Debug for ResourceEntry {
     }
 }
 
+/// Send + Sync wrapper for raw handles on Windows.
+#[cfg(windows)]
+#[derive(Debug, Clone, Copy)]
+struct HandlePayload(
+    /// Raw handle payload.
+    RawHandle,
+);
+
+#[cfg(windows)]
+unsafe impl Send for HandlePayload {}
+#[cfg(windows)]
+unsafe impl Sync for HandlePayload {}
+
 impl ResourceEntry {
     /// Create a new resource entry for a kind.
     pub fn new(kind: ResourceKind) -> Self {
@@ -111,6 +126,13 @@ impl ResourceEntry {
         self
     }
 
+    /// Attach a raw handle payload.
+    #[cfg(windows)]
+    pub fn with_handle(mut self, handle: RawHandle) -> Self {
+        self.payload = Some(Box::new(HandlePayload(handle)));
+        self
+    }
+
     /// Attach a raw socket descriptor payload.
     #[cfg(unix)]
     pub fn with_socket(self, fd: RawFd) -> Self {
@@ -123,12 +145,43 @@ impl ResourceEntry {
         self.with_fd(fd)
     }
 
+    /// Attach a raw socket payload.
+    #[cfg(windows)]
+    pub fn with_socket(mut self, socket: RawSocket) -> Self {
+        self.payload = Some(Box::new(socket));
+        self
+    }
+
+    /// Attach a raw listener payload.
+    #[cfg(windows)]
+    pub fn with_listener(self, socket: RawSocket) -> Self {
+        self.with_socket(socket)
+    }
+
     /// Read a raw file descriptor payload when present.
     #[cfg(unix)]
     pub fn fd(&self) -> Option<RawFd> {
         self.payload
             .as_ref()
             .and_then(|payload| payload.downcast_ref::<RawFd>())
+            .copied()
+    }
+
+    /// Read a raw handle payload when present.
+    #[cfg(windows)]
+    pub fn handle(&self) -> Option<RawHandle> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<HandlePayload>())
+            .map(|payload| payload.0)
+    }
+
+    /// Read a raw socket payload when present.
+    #[cfg(windows)]
+    pub fn socket(&self) -> Option<RawSocket> {
+        self.payload
+            .as_ref()
+            .and_then(|payload| payload.downcast_ref::<RawSocket>())
             .copied()
     }
 

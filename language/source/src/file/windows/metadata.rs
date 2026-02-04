@@ -62,8 +62,12 @@ pub fn symlink_metadata(path: &Path) -> io::Result<SymlinkMetadata> {
         if ticks == 0 {
             None
         } else {
-            let nanos = ticks.checked_mul(WINDOWS_TICK_NANOS);
-            let nanos = nanos?;
+            let nanos = ticks.checked_mul(WINDOWS_TICK_NANOS).ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "filetime overflow while computing nanoseconds",
+                )
+            })?;
             let secs = nanos / 1_000_000_000;
             let sub_nanos = (nanos % 1_000_000_000) as u32;
             if secs < WINDOWS_EPOCH_TO_UNIX_SECS {

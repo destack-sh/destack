@@ -15,7 +15,7 @@ use destack_source::{
 };
 use destack_workspace::{
     DebugMode, LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, ProfileId,
-    ProgramStamp, Target, TargetDiscovery, TargetId,
+    ProgramStamp, Target, TargetArch, TargetDiscovery, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -612,11 +612,35 @@ impl Compiler {
     /// Resolve pointer width in bits for a target configuration.
     fn pointer_width_bits_for_target(&self, target: &Target) -> u16 {
         // prefer explicit triple for pointer width
-        if let Some(triple) = target.target_triple.as_ref()
-            && let Ok(triple) = Triple::from_str(triple)
+        if let Some(triple) = target.resolved_target_triple()
+            && let Ok(triple) = Triple::from_str(&triple)
             && let Ok(pointer_width) = triple.pointer_width()
         {
             let bits = pointer_width.bits() as u16;
+            if matches!(bits, 16 | 32 | 64) {
+                return bits;
+            }
+        }
+
+        if let Some(target_arch) = target.target_arch.as_ref() {
+            let bits = match target_arch {
+                TargetArch::X86_64
+                | TargetArch::Aarch64
+                | TargetArch::Riscv64
+                | TargetArch::PowerPc64
+                | TargetArch::PowerPc64le
+                | TargetArch::S390x
+                | TargetArch::Mips64
+                | TargetArch::Mips64el
+                | TargetArch::LoongArch64
+                | TargetArch::Wasm64 => 64,
+                TargetArch::X86
+                | TargetArch::Armv7
+                | TargetArch::Armv6
+                | TargetArch::Riscv32
+                | TargetArch::Wasm32 => 32,
+                TargetArch::Other(_) => (mem::size_of::<usize>() * 8) as u16,
+            };
             if matches!(bits, 16 | 32 | 64) {
                 return bits;
             }

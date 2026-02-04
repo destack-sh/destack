@@ -1,0 +1,69 @@
+import type { PlatformError } from "../error/index.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// Socket linger settings.
+export struct Linger {
+    /// Whether linger is enabled.
+    enabled: boolean,
+    /// Linger duration in seconds.
+    seconds: uint32,
+}
+
+/// Socket option bindings for the native runtime.
+declare namespace net {
+    /// Set socket linger settings.
+    @binding("destack.net.setLinger", { effect: "external", replay: "recordable" })
+    export function setLinger(
+        handle: SocketHandle,
+        linger: Linger,
+    ): Result<void, PlatformError>;
+
+    /// Set the receive buffer size.
+    @binding("destack.net.setRecvBuffer", { effect: "external", replay: "recordable" })
+    export function setRecvBuffer(
+        handle: SocketHandle,
+        size: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Set the send buffer size.
+    @binding("destack.net.setSendBuffer", { effect: "external", replay: "recordable" })
+    export function setSendBuffer(
+        handle: SocketHandle,
+        size: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable broadcast.
+    @binding("destack.net.setBroadcast", { effect: "external", replay: "recordable" })
+    export function setBroadcast(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
+    /// Set the IP time-to-live.
+    @binding("destack.net.setTtl", { effect: "external", replay: "recordable" })
+    export function setTtl(
+        handle: SocketHandle,
+        ttl: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Set the IP type-of-service field.
+    @binding("destack.net.setTos", { effect: "external", replay: "recordable" })
+    export function setTos(
+        handle: SocketHandle,
+        tos: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Set the read timeout in milliseconds.
+    @binding("destack.net.setReadTimeout", { effect: "external", replay: "recordable" })
+    export function setReadTimeout(
+        handle: SocketHandle,
+        timeoutMs: uint32,
+    ): Result<void, PlatformError>;
+
+    /// Set the write timeout in milliseconds.
+    @binding("destack.net.setWriteTimeout", { effect: "external", replay: "recordable" })
+    export function setWriteTimeout(
+        handle: SocketHandle,
+        timeoutMs: uint32,
+    ): Result<void, PlatformError>;
+}

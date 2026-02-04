@@ -13,6 +13,8 @@ mod kqueue;
 mod poller;
 #[cfg(unix)]
 mod unix;
+#[cfg(windows)]
+mod windows;
 
 #[cfg(target_os = "linux")]
 pub use epoll::EpollPoller;
@@ -29,3 +31,5 @@ pub use kqueue::KqueuePoller;
 pub use poller::*;
 #[cfg(unix)]
 pub use unix::UnixPoller;
+#[cfg(windows)]
+pub use windows::WindowsPoller;

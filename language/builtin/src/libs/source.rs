@@ -57,20 +57,74 @@ pub enum BuiltinPlatform {
     Web,
     /// Windows.
     Windows,
+    /// Unix family (Linux, macOS, BSDs, etc.).
+    Unix,
     /// macOS.
     MacOS,
     /// Linux.
     Linux,
+    /// FreeBSD.
+    FreeBsd,
+    /// OpenBSD.
+    OpenBsd,
+    /// NetBSD.
+    NetBsd,
+    /// DragonFly BSD.
+    DragonFly,
+    /// Solaris.
+    Solaris,
+    /// Illumos.
+    Illumos,
+    /// Haiku.
+    Haiku,
+    /// Fuchsia.
+    Fuchsia,
+    /// Redox.
+    Redox,
+    /// Hermit.
+    Hermit,
     /// iOS.
     IOS,
     /// Android.
     Android,
     /// WASI.
     Wasi,
+    /// Emscripten.
+    Emscripten,
     /// Bare metal.
     BareMetal,
     /// Unknown or portable (no platform-specific APIs).
     Universal,
+}
+
+impl BuiltinPlatform {
+    /// Whether this platform is part of the Unix family.
+    pub fn is_unix(&self) -> bool {
+        matches!(
+            self,
+            Self::Unix
+                | Self::MacOS
+                | Self::Linux
+                | Self::FreeBsd
+                | Self::OpenBsd
+                | Self::NetBsd
+                | Self::DragonFly
+                | Self::Solaris
+                | Self::Illumos
+                | Self::Haiku
+                | Self::IOS
+                | Self::Android
+        )
+    }
+
+    /// Whether this platform matches a target platform filter.
+    pub fn matches_target(self, target: BuiltinPlatform) -> bool {
+        if self == BuiltinPlatform::Unix {
+            return target.is_unix();
+        }
+
+        self == target
+    }
 }
 
 /// A builtin library source file.
@@ -167,7 +221,12 @@ impl BuiltinLibSource {
     ) -> bool {
         (self.runtimes.is_empty() || self.runtimes.contains(&runtime))
             && (self.outputs.is_empty() || self.outputs.contains(&output))
-            && (self.platforms.is_empty() || self.platforms.contains(&platform))
+            && (self.platforms.is_empty()
+                || self
+                    .platforms
+                    .iter()
+                    .copied()
+                    .any(|allowed| allowed.matches_target(platform)))
     }
 }
 

@@ -140,12 +140,13 @@ impl BindingRegistry {
         descriptor: BindingDescriptor,
         handler: impl vm::ExternalHandler + 'static,
     ) {
-        // hard error on duplicate registrations
+        // hard error on descriptor mismatches
+        let mut has_descriptor = false;
         if let Some(existing) = self.descriptor_by_id.get(&descriptor.id) {
             if *existing != descriptor {
                 panic!("binding id collision for {}", descriptor.name);
             }
-            return;
+            has_descriptor = true;
         }
 
         // snapshot policy for the installed handler
@@ -171,8 +172,10 @@ impl BindingRegistry {
         });
 
         // track the binding metadata for diagnostics
-        self.descriptor_by_id.insert(descriptor.id, descriptor);
-        self.descriptors.push(descriptor);
+        if !has_descriptor {
+            self.descriptor_by_id.insert(descriptor.id, descriptor);
+            self.descriptors.push(descriptor);
+        }
     }
 
     /// Return registered binding descriptors.

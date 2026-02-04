@@ -6,3 +6,5 @@ export * from "./file.ds";
 export * from "./flags.ds";
 export * from "./path.ds";
 export * from "./stat.ds";
+export * from "./mmap.ds";
+export * from "./xattr.ds";

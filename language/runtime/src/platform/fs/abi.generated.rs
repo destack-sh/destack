@@ -16,6 +16,8 @@ pub struct AccessMode(
     pub u32,
 );
 
+pub type AccessModeVm = AccessMode;
+
 impl VmValueCodec for AccessMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
@@ -33,6 +35,8 @@ pub struct AtFlags(
     /// Inner value.
     pub u32,
 );
+
+pub type AtFlagsVm = AtFlags;
 
 impl VmValueCodec for AtFlags {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -52,6 +56,8 @@ pub struct FileLockFlags(
     pub u32,
 );
 
+pub type FileLockFlagsVm = FileLockFlags;
+
 impl VmValueCodec for FileLockFlags {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
@@ -69,6 +75,8 @@ pub struct FileMode(
     /// Inner value.
     pub u32,
 );
+
+pub type FileModeVm = FileMode;
 
 impl VmValueCodec for FileMode {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -88,6 +96,8 @@ pub struct FileOffset(
     pub u64,
 );
 
+pub type FileOffsetVm = FileOffset;
+
 impl VmValueCodec for FileOffset {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))
@@ -105,6 +115,8 @@ pub struct FileSize(
     /// Inner value.
     pub u64,
 );
+
+pub type FileSizeVm = FileSize;
 
 impl VmValueCodec for FileSize {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -124,6 +136,8 @@ pub struct OpenFlags(
     pub u32,
 );
 
+pub type OpenFlagsVm = OpenFlags;
+
 impl VmValueCodec for OpenFlags {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
@@ -133,6 +147,28 @@ impl VmValueCodec for OpenFlags {
         <u32 as VmValueCodec>::encode(self.0)
     }
 }
+
+/// ABI newtype for PathBytes.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathBytesAbi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u8>,
+);
+
+pub type PathBytes = PathBytesAbi<NativeAbi>;
+pub type PathBytesVm = PathBytesAbi<VmAbi>;
+
+/// ABI newtype for PathUtf16.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct PathUtf16Abi<A: BindingAbi>(
+    /// Inner value.
+    pub A::Array<u16>,
+);
+
+pub type PathUtf16 = PathUtf16Abi<NativeAbi>;
+pub type PathUtf16Vm = PathUtf16Abi<VmAbi>;
 
 /// ABI enum for DirentKind.
 #[repr(u8)]
@@ -160,6 +196,29 @@ impl VmValueCodec for DirentKind {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         let raw = <u8 as VmValueCodec>::decode(value)?;
         Ok(unsafe { std::mem::transmute::<u8, DirentKind>(raw) })
+    }
+
+    fn encode(self) -> vm::Value {
+        <u8 as VmValueCodec>::encode(self as u8)
+    }
+}
+
+/// ABI enum for SymlinkType.
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SymlinkType {
+    /// Auto.
+    Auto = 0,
+    /// File.
+    File = 1,
+    /// Directory.
+    Directory = 2,
+}
+
+impl VmValueCodec for SymlinkType {
+    fn decode(value: vm::Value) -> RuntimeResult<Self> {
+        let raw = <u8 as VmValueCodec>::decode(value)?;
+        Ok(unsafe { std::mem::transmute::<u8, SymlinkType>(raw) })
     }
 
     fn encode(self) -> vm::Value {

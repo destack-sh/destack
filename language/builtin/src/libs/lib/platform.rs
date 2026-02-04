@@ -48,8 +48,10 @@ builtin_lib_sources_targeted!(
         (LIB_PLATFORM_FS_FILE_DS, "lib", "platform/fs", "file.ds"),
         (LIB_PLATFORM_FS_FLAGS_DS, "lib", "platform/fs", "flags.ds"),
         (LIB_PLATFORM_FS_INDEX_DS, "lib", "platform/fs", "index.ds"),
+        (LIB_PLATFORM_FS_MMAP_DS, "lib", "platform/fs", "mmap.ds"),
         (LIB_PLATFORM_FS_PATH_DS, "lib", "platform/fs", "path.ds"),
         (LIB_PLATFORM_FS_STAT_DS, "lib", "platform/fs", "stat.ds"),
+        (LIB_PLATFORM_FS_XATTR_DS, "lib", "platform/fs", "xattr.ds"),
         (LIB_PLATFORM_INDEX_DS, "lib", "platform", "index.ds"),
         (
             LIB_PLATFORM_NET_ADDRESS_DS,
@@ -64,6 +66,18 @@ builtin_lib_sources_targeted!(
             "platform/net",
             "listener.ds"
         ),
+        (
+            LIB_PLATFORM_NET_OPTIONS_DS,
+            "lib",
+            "platform/net",
+            "options.ds"
+        ),
+        (
+            LIB_PLATFORM_NET_RESOLVE_DS,
+            "lib",
+            "platform/net",
+            "resolve.ds"
+        ),
         (LIB_PLATFORM_NET_REUSE_DS, "lib", "platform/net", "reuse.ds"),
         (
             LIB_PLATFORM_NET_SOCKET_DS,
@@ -72,6 +86,8 @@ builtin_lib_sources_targeted!(
             "socket.ds"
         ),
         (LIB_PLATFORM_NET_TCP_DS, "lib", "platform/net", "tcp.ds"),
+        (LIB_PLATFORM_NET_UDP_DS, "lib", "platform/net", "udp.ds"),
+        (LIB_PLATFORM_NET_UNIX_DS, "lib", "platform/net", "unix.ds"),
         (
             LIB_PLATFORM_PROCESS_ARGS_DS,
             "lib",
@@ -207,15 +223,21 @@ pub const LIB_PLATFORM: BuiltinLib = BuiltinLib::explicit_lib(
         LIB_PLATFORM_FS_FILE_DS,
         LIB_PLATFORM_FS_FLAGS_DS,
         LIB_PLATFORM_FS_INDEX_DS,
+        LIB_PLATFORM_FS_MMAP_DS,
         LIB_PLATFORM_FS_PATH_DS,
         LIB_PLATFORM_FS_STAT_DS,
+        LIB_PLATFORM_FS_XATTR_DS,
         LIB_PLATFORM_INDEX_DS,
         LIB_PLATFORM_NET_ADDRESS_DS,
         LIB_PLATFORM_NET_INDEX_DS,
         LIB_PLATFORM_NET_LISTENER_DS,
+        LIB_PLATFORM_NET_OPTIONS_DS,
+        LIB_PLATFORM_NET_RESOLVE_DS,
         LIB_PLATFORM_NET_REUSE_DS,
         LIB_PLATFORM_NET_SOCKET_DS,
         LIB_PLATFORM_NET_TCP_DS,
+        LIB_PLATFORM_NET_UDP_DS,
+        LIB_PLATFORM_NET_UNIX_DS,
         LIB_PLATFORM_PROCESS_ARGS_DS,
         LIB_PLATFORM_PROCESS_CWD_DS,
         LIB_PLATFORM_PROCESS_ENV_DS,

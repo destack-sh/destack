@@ -1,16 +1,17 @@
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
+import { PathRef } from "./path.ds";
 import { AccessMode, FileMode } from "./flags.ds";
 
 /// File attribute bindings for the native runtime.
 declare namespace fs {
     /// Check file access permissions.
     @binding("destack.fs.access", { effect: "external", replay: "recordable" })
-    export function access(path: string, mode: AccessMode): Result<void, PlatformError>;
+    export function access(path: PathRef, mode: AccessMode): Result<void, PlatformError>;
 
     /// Change file permissions.
     @binding("destack.fs.chmod", { effect: "external", replay: "recordable" })
-    export function chmod(path: string, mode: FileMode): Result<void, PlatformError>;
+    export function chmod(path: PathRef, mode: FileMode): Result<void, PlatformError>;
 
     /// Change file permissions by handle.
     @binding("destack.fs.fchmod", { effect: "external", replay: "recordable" })
@@ -18,20 +19,16 @@ declare namespace fs {
 
     /// Change file owner and group.
     @binding("destack.fs.chown", { effect: "external", replay: "recordable" })
-    export function chown(path: string, uid: uint32, gid: uint32): Result<void, PlatformError>;
+    export function chown(path: PathRef, uid: uint32, gid: uint32): Result<void, PlatformError>;
 
     /// Change file owner and group by handle.
     @binding("destack.fs.fchown", { effect: "external", replay: "recordable" })
-    export function fchown(
-        handle: FileHandle,
-        uid: uint32,
-        gid: uint32,
-    ): Result<void, PlatformError>;
+    export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>;
 
     /// Update access and modification times.
     @binding("destack.fs.utimes", { effect: "external", replay: "recordable" })
     export function utimes(
-        path: string,
+        path: PathRef,
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError>;
@@ -47,7 +44,7 @@ declare namespace fs {
     /// Update access and modification times without following symlinks.
     @binding("destack.fs.lutimes", { effect: "external", replay: "recordable" })
     export function lutimes(
-        path: string,
+        path: PathRef,
         atimeNs: uint64,
         mtimeNs: uint64,
     ): Result<void, PlatformError>;

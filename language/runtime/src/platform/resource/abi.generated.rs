@@ -15,6 +15,8 @@ pub struct DirectoryHandle(
     pub ResourceId,
 );
 
+pub type DirectoryHandleVm = DirectoryHandle;
+
 impl VmValueCodec for DirectoryHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
@@ -32,6 +34,8 @@ pub struct FileHandle(
     /// Inner value.
     pub ResourceId,
 );
+
+pub type FileHandleVm = FileHandle;
 
 impl VmValueCodec for FileHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -51,6 +55,8 @@ pub struct ListenerHandle(
     pub ResourceId,
 );
 
+pub type ListenerHandleVm = ListenerHandle;
+
 impl VmValueCodec for ListenerHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
@@ -68,6 +74,8 @@ pub struct ResourceId(
     /// Inner value.
     pub u64,
 );
+
+pub type ResourceIdVm = ResourceId;
 
 impl VmValueCodec for ResourceId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -87,6 +95,8 @@ pub struct SocketHandle(
     pub ResourceId,
 );
 
+pub type SocketHandleVm = SocketHandle;
+
 impl VmValueCodec for SocketHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
@@ -104,6 +114,8 @@ pub struct TimerHandle(
     /// Inner value.
     pub ResourceId,
 );
+
+pub type TimerHandleVm = TimerHandle;
 
 impl VmValueCodec for TimerHandle {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {

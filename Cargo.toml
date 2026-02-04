@@ -172,6 +172,7 @@ thiserror = "2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
+windows = { version = "0.60.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 # dev
 arbtest = "0.3.2"

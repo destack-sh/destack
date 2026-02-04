@@ -1,8 +1,6 @@
 use crate::diagnostic::{RuntimeErrorId, RuntimeResult};
 use crate::platform::error::PlatformError;
-use crate::platform::error::core::{
-    NativeStringStore, platform_error_fields, take_platform_error,
-};
+use crate::platform::error::core::{NativeStringStore, platform_error_fields, take_platform_error};
 use crate::runtime::RuntimeCallContext;
 
 /// Take a runtime platform error by id.
@@ -11,7 +9,10 @@ pub unsafe fn destack_error_take_platform_error(
     out: *mut PlatformError,
     error_id: u64,
 ) -> RuntimeResult<()> {
-    let error = take_platform_error(&context.runtime().errors, RuntimeErrorId::from_raw(error_id));
+    let error = take_platform_error(
+        &context.runtime().errors,
+        RuntimeErrorId::from_raw(error_id),
+    );
     let mut store = NativeStringStore::new(context);
     let fields = platform_error_fields(&mut store, &error);
     let platform_error = PlatformError {

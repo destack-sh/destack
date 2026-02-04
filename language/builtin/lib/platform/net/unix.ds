@@ -1,0 +1,25 @@
+import type { PlatformError } from "../error/index.ds";
+import { ListenerHandle, SocketHandle } from "../resource/index.ds";
+import { PathRef } from "../fs/path.ds";
+
+/// Unix domain socket bindings for the native runtime.
+declare namespace net {
+    /// Connect to a unix domain socket.
+    @binding("destack.net.udsConnect", { effect: "external", replay: "recordable" })
+    export function udsConnect(path: PathRef): Result<SocketHandle, PlatformError>;
+
+    /// Listen on a unix domain socket path.
+    @binding("destack.net.udsListen", { effect: "external", replay: "recordable" })
+    export function udsListen(
+        path: PathRef,
+        backlog: uint32,
+    ): Result<ListenerHandle, PlatformError>;
+
+    /// Accept a connection from a unix domain socket listener.
+    @binding("destack.net.udsAccept", { effect: "external", replay: "recordable" })
+    export function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>;
+
+    /// Close a unix domain socket listener.
+    @binding("destack.net.udsCloseListener", { effect: "external", replay: "recordable" })
+    export function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>;
+}

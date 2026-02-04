@@ -7,6 +7,15 @@ export newtype FileSize = uint64;
 /// Open flags for file descriptors.
 export newtype OpenFlags = uint32;
 
+/// Copy flags for copyfile-style operations.
+export newtype CopyFlags = uint32;
+
+/// Allocation flags for fallocate-style operations.
+export newtype AllocFlags = uint32;
+
+/// Sync flags for sync_file_range-style operations.
+export newtype SyncFlags = uint32;
+
 /// File permission mode bits.
 export newtype FileMode = uint32;
 
@@ -18,3 +27,116 @@ export newtype AtFlags = uint32;
 
 /// Flags for file locking operations.
 export newtype FileLockFlags = uint32;
+
+/// Seek origin for seek operations.
+export enum SeekWhence {
+    /// Seek from the start of the file.
+    Set = 0,
+    /// Seek from the current offset.
+    Cur = 1,
+    /// Seek from the end of the file.
+    End = 2,
+}
+
+/// File access pattern advice.
+export enum FileAdvice {
+    /// No special behavior.
+    Normal = 0,
+    /// File will be accessed sequentially.
+    Sequential = 1,
+    /// File will be accessed randomly.
+    Random = 2,
+    /// File data will be needed soon.
+    WillNeed = 3,
+    /// File data will not be needed soon.
+    DontNeed = 4,
+    /// File data will be used once.
+    NoReuse = 5,
+}
+
+/// Open for read-only access.
+export const O_RDONLY: OpenFlags = OpenFlags(0x0000);
+/// Open for write-only access.
+export const O_WRONLY: OpenFlags = OpenFlags(0x0001);
+/// Open for read-write access.
+export const O_RDWR: OpenFlags = OpenFlags(0x0002);
+/// Append writes to the end of the file.
+export const O_APPEND: OpenFlags = OpenFlags(0x0008);
+/// Create the file if it does not exist.
+export const O_CREAT: OpenFlags = OpenFlags(0x0100);
+/// Fail if the file already exists.
+export const O_EXCL: OpenFlags = OpenFlags(0x0200);
+/// Truncate the file on open.
+export const O_TRUNC: OpenFlags = OpenFlags(0x0400);
+/// Close-on-exec.
+export const O_CLOEXEC: OpenFlags = OpenFlags(0x0800);
+/// Open must refer to a directory.
+export const O_DIRECTORY: OpenFlags = OpenFlags(0x1000);
+/// Do not follow symlinks.
+export const O_NOFOLLOW: OpenFlags = OpenFlags(0x2000);
+/// Open in nonblocking mode.
+export const O_NONBLOCK: OpenFlags = OpenFlags(0x4000);
+/// Synchronous writes.
+export const O_SYNC: OpenFlags = OpenFlags(0x8000);
+/// Data-only synchronous writes.
+export const O_DSYNC: OpenFlags = OpenFlags(0x1_0000);
+/// Read synchronization.
+export const O_RSYNC: OpenFlags = OpenFlags(0x2_0000);
+
+/// File exists check.
+export const F_OK: AccessMode = AccessMode(0x0);
+/// Read permission check.
+export const R_OK: AccessMode = AccessMode(0x1);
+/// Write permission check.
+export const W_OK: AccessMode = AccessMode(0x2);
+/// Execute permission check.
+export const X_OK: AccessMode = AccessMode(0x4);
+
+/// Do not follow symlinks for *at operations.
+export const AT_SYMLINK_NOFOLLOW: AtFlags = AtFlags(0x1);
+/// Remove a directory with unlinkat.
+export const AT_REMOVEDIR: AtFlags = AtFlags(0x2);
+/// Follow symlinks for *at operations.
+export const AT_SYMLINK_FOLLOW: AtFlags = AtFlags(0x4);
+/// Do not automount for *at operations.
+export const AT_NO_AUTOMOUNT: AtFlags = AtFlags(0x8);
+/// Allow empty path for *at operations.
+export const AT_EMPTY_PATH: AtFlags = AtFlags(0x10);
+
+/// Shared lock.
+export const LOCK_SH: FileLockFlags = FileLockFlags(0x1);
+/// Exclusive lock.
+export const LOCK_EX: FileLockFlags = FileLockFlags(0x2);
+/// Non-blocking lock.
+export const LOCK_NB: FileLockFlags = FileLockFlags(0x4);
+/// Unlock.
+export const LOCK_UN: FileLockFlags = FileLockFlags(0x8);
+
+/// Fail if destination exists.
+export const COPY_EXCL: CopyFlags = CopyFlags(0x1);
+/// Try to clone file data (reflink) if possible.
+export const COPY_FICLONE: CopyFlags = CopyFlags(0x2);
+/// Require clone semantics or fail.
+export const COPY_FICLONE_FORCE: CopyFlags = CopyFlags(0x4);
+
+/// Keep file size when punching holes.
+export const FALLOC_KEEP_SIZE: AllocFlags = AllocFlags(0x1);
+/// Punch a hole in the file.
+export const FALLOC_PUNCH_HOLE: AllocFlags = AllocFlags(0x2);
+/// Do not hide stale data.
+export const FALLOC_NO_HIDE_STALE: AllocFlags = AllocFlags(0x4);
+/// Collapse a range.
+export const FALLOC_COLLAPSE_RANGE: AllocFlags = AllocFlags(0x8);
+/// Zero a range.
+export const FALLOC_ZERO_RANGE: AllocFlags = AllocFlags(0x10);
+/// Insert a range.
+export const FALLOC_INSERT_RANGE: AllocFlags = AllocFlags(0x20);
+/// Unshare a range.
+export const FALLOC_UNSHARE_RANGE: AllocFlags = AllocFlags(0x40);
+
+/// Wait before writing.
+export const SYNC_FILE_RANGE_WAIT_BEFORE: SyncFlags = SyncFlags(0x1);
+/// Write the range.
+export const SYNC_FILE_RANGE_WRITE: SyncFlags = SyncFlags(0x2);
+/// Wait after writing.
+export const SYNC_FILE_RANGE_WAIT_AFTER: SyncFlags = SyncFlags(0x4);
