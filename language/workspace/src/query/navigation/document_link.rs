@@ -1,10 +1,13 @@
-use destack_dir as dir;
 use destack_dir::Expression;
 use destack_source::{FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use {destack_ast as ast, destack_dir as dir};
 
 use crate::Session;
-use crate::query::common::{main_or_enclosing_span_for_dir_node, with_query_context_for_file};
+use crate::query::common::{
+    get_module_by_file_id, main_or_enclosing_span_for_dir_node, with_query_context_for_file,
+};
 
 /// A clickable link in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -100,6 +103,17 @@ pub struct ResolveDocumentLinkResponse {
 /// Document links are clickable regions that navigate to files or URLs.
 /// Common uses: import paths, URLs in comments, file references.
 pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
+    // prefer dir based resolution when possible
+    if let Some(links) = document_links_with_dir(session, file) {
+        return links;
+    }
+
+    // fall back to ast only links
+    document_links_with_ast(session, file)
+}
+
+/// Build document links using DIR data when available.
+fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<DocumentLink>> {
     with_query_context_for_file(session, file, |ctx| {
         // find all import and re-export statements
         let dir_tree = ctx.tree();
@@ -144,7 +158,142 @@ pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
 
         links
     })
-    .unwrap_or_default()
+}
+
+/// Build document links using AST data when DIR is unavailable.
+fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink> {
+    // resolve the module ast
+    let Some(module) = get_module_by_file_id(session, file) else {
+        return Vec::new();
+    };
+    let module = module.read();
+    let Some(ast) = module.ast_maybe() else {
+        return Vec::new();
+    };
+
+    // resolve the source file path
+    let source_file = session.files.get(file);
+    let Some(path) = source_file.path.as_ref() else {
+        return Vec::new();
+    };
+    let Some(base_dir) = path.parent() else {
+        return Vec::new();
+    };
+
+    // collect document links from import/export expressions
+    let mut links = Vec::new();
+    for expression_id in ast.tree.iter_nodes::<ast::Expression>() {
+        let expression = ast.tree.get(expression_id);
+
+        // extract the module specifier from the expression
+        let specifier = match expression {
+            ast::Expression::Import { target, .. } => Some(*target),
+            ast::Expression::Export { target, .. } => *target,
+            _ => None,
+        };
+
+        // skip expressions without specifiers
+        let Some(specifier) = specifier else {
+            continue;
+        };
+
+        // resolve the span for the string literal
+        let range = ast
+            .tree
+            .get_main_span(expression_id)
+            .unwrap_or_else(|| ast.tree.source_map.get(expression_id.id));
+
+        // resolve the target for the specifier
+        let specifier_text = ast.strings.get(specifier).to_string();
+        let target = match document_link_target_for_specifier(base_dir, &specifier_text) {
+            Some(target) => target,
+            None => continue,
+        };
+
+        // emit the document link
+        links.push(DocumentLink {
+            range,
+            target,
+            tooltip: Some(format!("Go to {specifier_text}")),
+        });
+    }
+
+    links
+}
+
+/// Resolve the target for a module specifier.
+fn document_link_target_for_specifier(
+    base_dir: &Path,
+    specifier: &str,
+) -> Option<DocumentLinkTarget> {
+    // handle URLs directly
+    if specifier.starts_with("http://") || specifier.starts_with("https://") {
+        return Some(DocumentLinkTarget::Url {
+            url: specifier.to_string(),
+        });
+    }
+
+    // handle file urls
+    if let Some(path) = specifier.strip_prefix("file://") {
+        let path = PathBuf::from(path);
+        return resolve_file_target(path);
+    }
+
+    // handle relative or absolute paths
+    if specifier.starts_with('.') || specifier.starts_with('/') {
+        let mut path = PathBuf::from(specifier);
+
+        // resolve relative paths against the base directory
+        if path.is_relative() {
+            path = base_dir.join(path);
+        }
+        return resolve_file_target(path);
+    }
+
+    None
+}
+
+/// Resolve a file path to a document link target.
+fn resolve_file_target(path: PathBuf) -> Option<DocumentLinkTarget> {
+    // build candidate paths for the specifier
+    let candidates = document_link_candidates(&path);
+
+    // pick the first candidate that exists
+    let resolved = candidates
+        .into_iter()
+        .find(|candidate| candidate.exists())
+        .unwrap_or(path);
+
+    // return the resolved target
+    Some(DocumentLinkTarget::File {
+        path: resolved.to_string_lossy().to_string(),
+    })
+}
+
+/// Build candidate paths for a module specifier.
+fn document_link_candidates(path: &Path) -> Vec<PathBuf> {
+    // seed with the original path
+    let mut candidates = Vec::new();
+    candidates.push(path.to_path_buf());
+
+    // skip extension probing when an extension is already present
+    let has_extension = path.extension().is_some();
+    if has_extension {
+        return candidates;
+    }
+
+    // add extension variants
+    let extensions = ["ds", "d.ts", "ts", "tsx"];
+    for extension in extensions {
+        candidates.push(path.with_extension(extension));
+    }
+
+    // add index file variants
+    for extension in extensions {
+        candidates.push(path.join(format!("index.{extension}")));
+    }
+
+    candidates
 }
 
 /// Resolve a document link (compute its target if deferred).
