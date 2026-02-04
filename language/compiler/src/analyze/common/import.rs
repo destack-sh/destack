@@ -1,6 +1,6 @@
 use destack_dir::{
-    DependencySource, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Path, StaticArgument, StaticKey,
-    StringId, SymbolSpaceOrder, Type, TypeTable,
+    DependencyKind, DependencySource, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, Path,
+    StaticArgument, StaticKey, StringId, SymbolSpaceOrder, Type, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -31,6 +31,7 @@ impl Compiler {
                 node,
                 DependencySource::ImportStatement,
                 target,
+                DependencyKind::Type,
             )
             .ok()?;
 

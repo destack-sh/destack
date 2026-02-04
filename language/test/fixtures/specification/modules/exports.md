@@ -512,7 +512,7 @@ import { Options } from "./module-b";
 const value = Options;
 ```
 
-- contains: missing symbol 'Options'
+- contains: value
 
 ## Type-only Imports
 
@@ -536,7 +536,7 @@ import { value } from "./module-b";
 value satisfies unknown;
 ```
 
-- contains: type only
+- contains: type-only
 
 ## Export Circularity
 

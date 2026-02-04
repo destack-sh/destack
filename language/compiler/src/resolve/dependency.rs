@@ -23,6 +23,15 @@ use crate::{
     can_merge_declarations,
 };
 
+/// A resolved export symbol with its originating export space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ResolvedExportSymbol {
+    /// The resolved symbol id.
+    symbol: GlobalSymbolId,
+    /// The export space used to resolve the symbol.
+    export_space: SymbolSpace,
+}
+
 /// Track visited entries while walking reexport chains.
 #[derive(Debug, Default)]
 struct ReexportVisitStack {
@@ -84,7 +93,7 @@ impl Compiler {
             return SymbolSpaceOrder::TypeThenValue;
         }
 
-        // prefer value space for value lookups
+        // value lookups still need access to type-only exports for type positions
         SymbolSpaceOrder::ValueThenType
     }
 
@@ -150,7 +159,7 @@ impl Compiler {
         default_name: StringId,
         visited: &mut ReexportVisitStack,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<Option<GlobalSymbolId>> {
+    ) -> ResolveResult<Option<ResolvedExportSymbol>> {
         // check symbol spaces in priority order
         let order = self.export_spaces_for_kind(kind);
         for space in order.spaces() {
@@ -167,16 +176,10 @@ impl Compiler {
                 cache.as_deref_mut(),
             )?;
             if let Some(symbol) = symbol {
-                let symbol_space = self.symbol_space_for_global(profile, symbol);
-                // ignore value symbols for type lookups
-                if kind == DependencyKind::Type && symbol_space == SymbolSpace::Value {
-                    continue;
-                }
-                // ignore type symbols for value lookups
-                if kind == DependencyKind::Value && symbol_space == SymbolSpace::Type {
-                    continue;
-                }
-                return Ok(Some(symbol));
+                return Ok(Some(ResolvedExportSymbol {
+                    symbol,
+                    export_space: *space,
+                }));
             }
         }
 
@@ -209,8 +212,8 @@ impl Compiler {
                 &mut visited,
                 None,
             )?;
-            if symbol.is_some() {
-                return Ok(symbol);
+            if let Some(symbol) = symbol {
+                return Ok(Some(symbol));
             }
         }
 
@@ -713,7 +716,7 @@ impl Compiler {
                     target_module
                 } else {
                     let Some(target_module) = self.resolve_import_maybe(
-                        module, dir, profile, item_node, source, target, None,
+                        module, dir, profile, item_node, source, target, kind, None,
                     )?
                     else {
                         return Ok(None);
@@ -736,7 +739,7 @@ impl Compiler {
                 let Some(target_key) = self.reexport_import_key(mode, name, default_name) else {
                     return Ok(None);
                 };
-                self.resolve_reexport_chain_symbol(
+                let resolved = self.resolve_reexport_chain_symbol(
                     origin_module_id,
                     origin_symbol,
                     node,
@@ -747,7 +750,8 @@ impl Compiler {
                     default_name,
                     visited,
                     cache,
-                )
+                )?;
+                Ok(resolved.map(|resolved| resolved.symbol))
             }
             DependencyItem::Value { .. } => Ok(None),
         }
@@ -940,6 +944,7 @@ impl Compiler {
                 item_id.into_global_any(module.id),
                 source.unwrap_or(DependencySource::ExportStatement),
                 target,
+                kind,
                 None,
             )?
             else {
@@ -1097,6 +1102,7 @@ impl Compiler {
         node: GlobalNodeIdAny,
         source: DependencySource,
         target: StringId,
+        kind: DependencyKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> ResolveResult<Option<ModuleTarget>> {
         let resolved = if let Some(loader_override) = loader_override {
@@ -1107,10 +1113,11 @@ impl Compiler {
                 node,
                 source,
                 target,
+                kind,
                 Some(loader_override),
             )
         } else {
-            self.resolve_import(module, dir, profile, node, source, target)
+            self.resolve_import(module, dir, profile, node, source, target, kind)
         };
         match resolved {
             Ok(target) => Ok(Some(target)),
@@ -1131,8 +1138,9 @@ impl Compiler {
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
+        kind: DependencyKind,
     ) -> ResolveResult<ModuleTarget> {
-        self.resolve_import_with_loader(module, dir, profile, node, _source, target, None)
+        self.resolve_import_with_loader(module, dir, profile, node, _source, target, kind, None)
     }
 
     /// Try to resolve an import with an optional loader override.
@@ -1144,6 +1152,7 @@ impl Compiler {
         node: GlobalNodeIdAny,
         _source: DependencySource,
         target: StringId,
+        kind: DependencyKind,
         loader_override: Option<destack_workspace::Loader>,
     ) -> ResolveResult<ModuleTarget> {
         // derive the relative module context
@@ -1216,7 +1225,12 @@ impl Compiler {
             relative_module
         };
         let remote_module_id = self
-            .resolve_specifier_to_module_with_loader(target, source_module, loader_override)
+            .resolve_specifier_to_module_with_kind_and_loader(
+                target,
+                source_module,
+                kind,
+                loader_override,
+            )
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
@@ -1974,6 +1988,7 @@ impl Compiler {
                         item_id.into_global_any(module.id),
                         *source,
                         *target,
+                        *kind,
                         None,
                     )?
                     else {
@@ -2101,13 +2116,6 @@ impl Compiler {
                         }
                     }
                 };
-
-                // adjust value imports when the resolved symbol is type-only
-                let resolved_kind = self.effective_dependency_kind_for_symbol(
-                    profile,
-                    resolved_kind,
-                    target_symbol,
-                );
 
                 DependencyItem::Remote {
                     mode: *mode,
@@ -2240,7 +2248,7 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<GlobalSymbolId> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         // resolve the requested kind first
         let resolved = self.resolve_remote_item_symbol_for_kind(
             module,
@@ -2285,7 +2293,7 @@ impl Compiler {
         key: StaticKey,
         cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<(GlobalSymbolId, DependencyKind)> {
-        let symbol = self.resolve_remote_item_symbol(
+        let resolved = self.resolve_remote_item_symbol(
             module,
             node,
             remote_target,
@@ -2295,18 +2303,17 @@ impl Compiler {
             key,
             cache,
         )?;
-        let resolved_kind = self.effective_dependency_kind_for_symbol(profile, kind, symbol);
-        Ok((symbol, resolved_kind))
+        let resolved_kind = self.effective_dependency_kind_for_export_space(kind, resolved);
+        Ok((resolved.symbol, resolved_kind))
     }
 
-    /// Adjust a dependency kind based on whether the symbol is value-capable.
-    fn effective_dependency_kind_for_symbol(
+    /// Adjust a dependency kind based on the export space of the resolved symbol.
+    fn effective_dependency_kind_for_export_space(
         &self,
-        profile: ProfileId,
         kind: DependencyKind,
-        symbol: GlobalSymbolId,
+        resolved: ResolvedExportSymbol,
     ) -> DependencyKind {
-        if kind == DependencyKind::Value && !self.symbol_is_value_capable(profile, symbol) {
+        if kind == DependencyKind::Value && resolved.export_space == SymbolSpace::Type {
             DependencyKind::Type
         } else {
             kind
@@ -2324,7 +2331,7 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         key: StaticKey,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<GlobalSymbolId> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         let default_name = self.program.strings.intern("default");
 
         // resolve explicit exports and reexport chains first
@@ -2377,7 +2384,14 @@ impl Compiler {
                         key,
                         cache.as_deref_mut(),
                     )? {
-                        return Ok(symbol);
+                        let export_space = match kind {
+                            DependencyKind::Type => SymbolSpace::Type,
+                            DependencyKind::Value => SymbolSpace::Value,
+                        };
+                        return Ok(ResolvedExportSymbol {
+                            symbol,
+                            export_space,
+                        });
                     }
                 }
             }
@@ -2454,7 +2468,7 @@ impl Compiler {
         origin_symbol: Option<GlobalSymbolId>,
         default_name: StringId,
         mut cache: Option<&mut ResolveDependencyItemCache>,
-    ) -> ResolveResult<GlobalSymbolId> {
+    ) -> ResolveResult<ResolvedExportSymbol> {
         let cache_key = cache.as_ref().map(|_| NamespaceExportSymbolCacheKey {
             target: via_target,
             origin_module_id: self.cache_origin_module_id(module.id, via_target),
@@ -2462,9 +2476,12 @@ impl Compiler {
             key,
         });
         if let (Some(cache), Some(cache_key)) = (cache.as_deref(), cache_key)
-            && let Some(&cached) = cache.namespace_export_symbols.get(&cache_key)
+            && let Some(&(symbol, export_space)) = cache.namespace_export_symbols.get(&cache_key)
         {
-            return Ok(cached);
+            return Ok(ResolvedExportSymbol {
+                symbol,
+                export_space,
+            });
         }
 
         // resolve the scope for missing symbol errors
@@ -2488,7 +2505,7 @@ impl Compiler {
         }
 
         // seed the namespace export queue
-        let mut found: Option<(GlobalSymbolId, GlobalNodeIdAny)> = None;
+        let mut found: Option<(ResolvedExportSymbol, GlobalNodeIdAny)> = None;
         let mut visited = Vec::new();
         let mut queue = VecDeque::new();
 
@@ -2509,7 +2526,7 @@ impl Compiler {
 
             // resolve explicit exports within the namespace target
             let mut visited_exports = ReexportVisitStack::default();
-            if let Some(symbol_id) = self.resolve_reexport_chain_symbol(
+            if let Some(resolved) = self.resolve_reexport_chain_symbol(
                 module.id,
                 origin_symbol,
                 node,
@@ -2523,14 +2540,15 @@ impl Compiler {
             )? {
                 match found {
                     None => {
-                        found = Some((symbol_id, origin_item.into_global_any(source_module_id)));
+                        found =
+                            Some((resolved, origin_item.into_global_any(source_module_id)));
                     }
                     Some((existing, other_node)) => {
-                        if existing != symbol_id {
+                        if existing.symbol != resolved.symbol {
                             let node = origin_item.into_global_any(source_module_id);
                             self.check_can_merge_declarations(
-                                existing,
-                                symbol_id,
+                                existing.symbol,
+                                resolved.symbol,
                                 node,
                                 other_node,
                                 source_module_id,
@@ -2557,11 +2575,13 @@ impl Compiler {
         }
 
         // return the resolved symbol if any
-        if let Some((symbol_id, _)) = found {
+        if let Some((resolved, _)) = found {
             if let (Some(cache), Some(cache_key)) = (cache, cache_key) {
-                cache.namespace_export_symbols.insert(cache_key, symbol_id);
+                cache
+                    .namespace_export_symbols
+                    .insert(cache_key, (resolved.symbol, resolved.export_space));
             }
-            return Ok(symbol_id);
+            return Ok(resolved);
         }
 
         // report a missing symbol for namespace lookup failures
@@ -2583,7 +2603,7 @@ impl Compiler {
         if lookup_kind == DependencyKind::Type {
             return true;
         }
-        export_kind == DependencyKind::Value
+        matches!(export_kind, DependencyKind::Type | DependencyKind::Value)
     }
 
     /// Report a conflicting export error if two symbols cannot merge.

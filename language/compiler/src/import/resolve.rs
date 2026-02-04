@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
+use destack_dir::DependencyKind;
 use destack_builtin::builtin_lib;
 use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
@@ -34,6 +35,32 @@ impl Compiler {
         source_module: Option<ModuleId>,
         loader_override: Option<Loader>,
     ) -> ImportResult<ModuleId> {
+        self.resolve_specifier_to_module_with_kind_and_loader(
+            specifier,
+            source_module,
+            DependencyKind::Value,
+            loader_override,
+        )
+    }
+
+    /// Resolve a specifier to a ModuleId with an explicit dependency kind.
+    pub fn resolve_specifier_to_module_with_kind(
+        &self,
+        specifier: StringId,
+        source_module: Option<ModuleId>,
+        kind: DependencyKind,
+    ) -> ImportResult<ModuleId> {
+        self.resolve_specifier_to_module_with_kind_and_loader(specifier, source_module, kind, None)
+    }
+
+    /// Resolve a specifier to a ModuleId with an explicit dependency kind and loader override.
+    pub fn resolve_specifier_to_module_with_kind_and_loader(
+        &self,
+        specifier: StringId,
+        source_module: Option<ModuleId>,
+        kind: DependencyKind,
+        loader_override: Option<Loader>,
+    ) -> ImportResult<ModuleId> {
         let specifier_str = self.program.strings.get(specifier).to_string();
 
         // resolve builtin module imports (builtin:// URIs)
@@ -44,24 +71,48 @@ impl Compiler {
         }
 
         // resolve non-builtin imports
-        let resolver = self.create_resolver();
+        let resolver = self.create_resolver_for_kind(kind);
         let directory = self.get_resolve_directory(source_module);
 
         // resolve specifier to path
-        let resolution = resolver
-            .resolve(&directory, &specifier_str)
-            .map_err(|error| ImportError::ModuleNotFound {
-                target: specifier,
-                error: Some(error),
-            })?;
+        let resolution = match resolver.resolve(&directory, &specifier_str) {
+            Ok(resolution) => resolution,
+            Err(error) => {
+                // fallback to declaration resolution for value imports
+                if kind == DependencyKind::Value {
+                    let type_resolver = self.create_resolver_for_kind(DependencyKind::Type);
+                    if let Ok(resolution) = type_resolver.resolve(&directory, &specifier_str) {
+                        return self.resolve_specifier_registration(
+                            &resolution.path,
+                            loader_override,
+                            &type_resolver,
+                        );
+                    }
+                }
+                return Err(ImportError::ModuleNotFound {
+                    target: specifier,
+                    error: Some(error),
+                });
+            }
+        };
 
+        self.resolve_specifier_registration(&resolution.path, loader_override, &resolver)
+    }
+
+    /// Register or reuse a module for a resolved path.
+    fn resolve_specifier_registration(
+        &self,
+        path: &PathBuf,
+        loader_override: Option<Loader>,
+        resolver: &Resolver,
+    ) -> ImportResult<ModuleId> {
         // check if module already exists for this path
-        if let Some(module_id) = self.program.modules.get_id_by_path(&resolution.path) {
+        if let Some(module_id) = self.program.modules.get_id_by_path(path) {
             return Ok(module_id);
         }
 
         // register blank module with optional loader override
-        self.register_blank_module(&resolution.path, None, loader_override, &resolver)
+        self.register_blank_module(path, None, loader_override, resolver)
     }
 
     /// Resolve a specifier from a builtin module to a builtin module (see LanguageBuiltins).
@@ -300,23 +351,62 @@ impl Compiler {
 
     /// Create the resolver with standard options.
     pub(super) fn create_resolver(&self) -> Resolver {
-        let resolver_options = self
-            .options
-            .import_resolve
-            .clone()
-            .with_extensions(vec![
+        self.create_resolver_for_kind(DependencyKind::Value)
+    }
+
+    /// Create a resolver configured for a dependency kind.
+    pub(super) fn create_resolver_for_kind(&self, kind: DependencyKind) -> Resolver {
+        let mut resolver_options = self.options.import_resolve.clone();
+
+        // ensure declaration extensions are available in the resolution order
+        let mut extensions = resolver_options.extensions.clone();
+        Self::insert_extension_after(&mut extensions, ".ds", ".d.ds");
+        Self::insert_extension_after(&mut extensions, ".ts", ".d.ts");
+        if extensions.is_empty() {
+            extensions = vec![
                 ".ds".into(),
+                ".d.ds".into(),
                 ".tsx".into(),
                 ".ts".into(),
+                ".d.ts".into(),
                 ".jsx".into(),
                 ".js".into(),
                 ".mjs".into(),
                 ".cjs".into(),
                 ".json".into(),
                 ".node".into(),
-            ])
-            .with_conditions(vec!["types".to_string(), "import".to_string()]);
+            ];
+        }
+        resolver_options = resolver_options.with_extensions(extensions);
+
+        // normalize conditions to include the import/runtime conditions
+        let mut conditions = resolver_options.conditions.clone();
+        conditions.retain(|condition| condition != "types");
+        if kind == DependencyKind::Type {
+            conditions.push("types".to_string());
+        }
+        if !conditions.iter().any(|condition| condition == "import") {
+            conditions.push("import".to_string());
+        }
+        resolver_options = resolver_options.with_conditions(conditions);
+
         Resolver::from_program(&self.program, resolver_options)
+    }
+
+    /// Insert an extension after a preferred predecessor when missing.
+    fn insert_extension_after(
+        extensions: &mut Vec<String>,
+        after: &str,
+        extension: &str,
+    ) {
+        if extensions.iter().any(|entry| entry == extension) {
+            return;
+        }
+        if let Some(index) = extensions.iter().position(|entry| entry == after) {
+            extensions.insert(index + 1, extension.to_string());
+        } else {
+            extensions.push(extension.to_string());
+        }
     }
 
     /// Get the directory to resolve from for a source module.

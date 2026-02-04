@@ -75,7 +75,8 @@ pub(super) struct ResolveDependencyItemCache {
     /// Cached namespace export lists by target.
     pub(super) namespace_exports: FxHashMap<TargetCacheKey, Vec<(ModuleId, NamespaceExport)>>,
     /// Cached namespace export resolutions by target.
-    pub(super) namespace_export_symbols: FxHashMap<NamespaceExportSymbolCacheKey, GlobalSymbolId>,
+    pub(super) namespace_export_symbols:
+        FxHashMap<NamespaceExportSymbolCacheKey, (GlobalSymbolId, SymbolSpace)>,
     /// Cached export assignment targets by target.
     pub(super) export_assignment_targets: FxHashMap<TargetCacheKey, Option<ExportAssignmentTarget>>,
     /// Cached import redirect targets by scope and name.
