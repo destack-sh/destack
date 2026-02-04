@@ -208,6 +208,198 @@ let value: float64 = 1;
 { "compilerOptions": { "noImplicitConversions": false } }
 ```
 
+## exactOptionalPropertyTypes
+
+### exactOptionalPropertyTypes rejects undefined assignments
+
+> Exact optional property types disallow assigning undefined to present fields.
+
+```ts:main.ts
+type Box = { value?: string };
+
+const ok: Box = {};
+const bad: Box = { value: undefined };
+```
+
+```ts:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "exactOptionalPropertyTypes": true } }
+```
+
+- contains: not assignable
+
+### exactOptionalPropertyTypes allows explicit undefined when declared
+
+> Optional properties that include undefined accept explicit undefined values.
+
+```ts:main.ts
+type Box = { value?: string | undefined };
+
+const ok: Box = { value: undefined };
+ok.value satisfies string | undefined;
+```
+
+```ts:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "exactOptionalPropertyTypes": true } }
+```
+
+### exactOptionalPropertyTypes allows undefined when false
+
+> Non exact optional property types allow undefined assignments.
+
+```ts:main.ts
+type Box = { value?: string };
+
+const ok: Box = { value: undefined };
+ok.value satisfies string | undefined;
+```
+
+```ts:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "exactOptionalPropertyTypes": false } }
+```
+
+## noUncheckedIndexedAccess
+
+### noUncheckedIndexedAccess adds undefined to index access
+
+> Index signature access includes undefined when noUncheckedIndexedAccess is true.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 };
+const value: int32 = bag["missing"];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+```
+
+- contains: not assignable
+
+### noUncheckedIndexedAccess allows index access when false
+
+> Index signature access stays exact when noUncheckedIndexedAccess is false.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 };
+const value: int32 = bag["missing"];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
+```
+
+### noUncheckedIndexedAccess does not affect arrays
+
+> Array element access does not add undefined for noUncheckedIndexedAccess.
+
+```ds:main.ds
+const values: int32[] = [1, 2, 3];
+const value: int32 = values[0];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+```
+
+## noPropertyAccessFromIndexSignature
+
+### noPropertyAccessFromIndexSignature rejects property access
+
+> Property access is rejected when noPropertyAccessFromIndexSignature is true.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 };
+const value = bag.missing;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
+```
+
+- contains: index signature
+
+### noPropertyAccessFromIndexSignature allows property access
+
+> Property access is allowed when noPropertyAccessFromIndexSignature is false.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 };
+const value = bag.missing;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
+```
+
+### noPropertyAccessFromIndexSignature allows declared properties
+
+> Declared properties are still accessible when noPropertyAccessFromIndexSignature is true.
+
+```ds:main.ds
+interface Bag {
+    known: int32
+    [key: string]: int32
+}
+
+const bag: Bag = { known: 1 };
+const value: int32 = bag.known;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
+```
+
 ## implicitCollectionConversions
 
 ### implicitCollectionConversions allows record-like conversions when allow

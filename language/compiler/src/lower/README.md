@@ -584,8 +584,10 @@ Borrowing an array object does not imply a slice view.
 
 ### Structs and Classes
 
-Both structs and classes are **reference types by default** in Destack (like all TypeScript objects).
-Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference semantics on either.
+Structs are value types and do not have reference identity.
+Classes are reference types and carry identity.
+Ownership modifiers (`^T`, `&T`) change storage and lifetime and never change identity semantics.
+Lower may represent structs by reference when the observable semantics remain value based.
 
 | Aspect | struct | class |
 |--------|--------|-------|
@@ -609,7 +611,7 @@ The `final` keyword on methods or classes is an API contract ("you may not overr
 For whole-program compilation, the optimizer already knows what's overridden.
 `final` matters for libraries where downstream users could extend classes.
 
-Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
+Both lower to nominal instance layouts with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
 
 #### RTTI and Type Tags
 

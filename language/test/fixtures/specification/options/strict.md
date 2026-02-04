@@ -24,6 +24,46 @@ function handle(value) {
 
 - contains: implicit any type
 
+## noImplicitAny
+
+### noImplicitAny rejects implicit any when true
+
+> Explicit noImplicitAny rejects implicit any usages.
+
+```ds:main.ds
+function handle(value) {
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "noImplicitAny": true } }
+```
+
+- contains: implicit any type
+
+### noImplicitAny allows implicit any when false
+
+> Explicit noImplicitAny false permits implicit any usages.
+
+```ds:main.ds
+function handle(value) {
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": true, "noImplicitAny": false } }
+```
+
 ### strict false allows implicit any by default
 
 > Non-strict mode does not enable noImplicitAny by default.
@@ -76,6 +116,42 @@ let value: int32 = null;
 { "compilerOptions": { "strict": false } }
 ```
 
+## strictNullChecks
+
+### strictNullChecks rejects null assignments when true
+
+> Explicit strictNullChecks rejects null assignments.
+
+```ds:main.ds
+let value: int32 = null;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictNullChecks": true } }
+```
+
+- contains: not assignable
+
+### strictNullChecks allows null assignments when false
+
+> Explicit strictNullChecks false permits null assignments.
+
+```ds:main.ds
+let value: int32 = null;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": true, "strictNullChecks": false } }
+```
+
 ### strict enables noImplicitThis by default
 
 > Strict mode defaults reject implicit `this` without explicit noImplicitThis.
@@ -114,6 +190,46 @@ function counter() {
 { "compilerOptions": { "strict": false } }
 ```
 
+## noImplicitThis
+
+### noImplicitThis reports implicit this when true
+
+> Explicit noImplicitThis rejects implicit this usage.
+
+```ds:main.ds
+function counter() {
+    this;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "noImplicitThis": true } }
+```
+
+- contains: implicit this type
+
+### noImplicitThis allows implicit this when false
+
+> Explicit noImplicitThis false permits implicit this usage.
+
+```ds:main.ds
+function counter() {
+    this;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "noImplicitThis": false } }
+```
+
 ### strict enables strictFunctionTypes by default
 
 > Strict mode defaults reject narrow parameter types in function assignability.
@@ -137,6 +253,52 @@ let wide: FnWide = narrow;
 
 - contains: not assignable
 
+## strictFunctionTypes
+
+### strictFunctionTypes rejects narrow parameter types when true
+
+> Explicit strictFunctionTypes rejects narrow parameter assignments.
+
+```ds:main.ds
+interface FnWide {
+    (value: string | number): void
+}
+
+function narrow(value: string): void {}
+let wide: FnWide = narrow;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
+```
+
+- contains: not assignable
+
+### strictFunctionTypes allows narrow parameter types when false
+
+> Explicit strictFunctionTypes false permits narrow parameter assignments.
+
+```ds:main.ds
+interface FnWide {
+    (value: string | number): void
+}
+
+function narrow(value: string): void {}
+let wide: FnWide = narrow;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
+```
+
 ### strict enables strictBindCallApply by default
 
 > Strict mode defaults enforce `call` argument checks without explicit flags.
@@ -158,6 +320,50 @@ add.call({ base: "no" }, 1);
 ```
 
 - contains: not assignable
+
+## strictBindCallApply
+
+### strictBindCallApply rejects invalid call arguments when true
+
+> Explicit strictBindCallApply enforces call argument checks.
+
+```ds:main.ds
+function add(this: { base: number }, value: number): number {
+    return this.base + value;
+}
+
+add.call({ base: "no" }, 1);
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictBindCallApply": true } }
+```
+
+- contains: not assignable
+
+### strictBindCallApply allows invalid call arguments when false
+
+> Explicit strictBindCallApply false permits invalid call arguments.
+
+```ds:main.ds
+function add(this: { base: number }, value: number): number {
+    return this.base + value;
+}
+
+add.call({ base: "no" }, 1);
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictBindCallApply": false } }
+```
 
 ### strict enables strictBuiltinIteratorReturn by default
 
@@ -224,3 +430,53 @@ value satisfies int;
 ```
 
 - contains: expected string
+
+## useUnknownInCatchVariables
+
+### useUnknownInCatchVariables reports when true
+
+> Catch variables are unknown when useUnknownInCatchVariables is true.
+
+```ds:main.ds
+try {
+    throw 1;
+} catch (err) {
+    err satisfies string;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "useUnknownInCatchVariables": true } }
+```
+
+- contains: expected string
+
+### useUnknownInCatchVariables allows any when false
+
+> Catch variables are any when useUnknownInCatchVariables is false.
+
+```ds:main.ds
+try {
+    throw 1;
+} catch (err) {
+    err satisfies string;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{
+  "compilerOptions": {
+    "strict": false,
+    "noAny": false,
+    "useUnknownInCatchVariables": false
+  }
+}
+```

@@ -71,3 +71,45 @@ const bad: Merge<Shape> = { value: true };
 ```
 
 - contains: not assignable
+
+### key remapping supports template literal keys
+
+> Remapped keys can be produced by template literal expressions.
+
+```ts
+interface Shape {
+    a: number
+    b: string
+}
+
+type Prefixed<T> = {
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K]
+};
+
+const ok: Prefixed<Shape> = {
+    get_a: () => 1,
+    get_b: () => "ok",
+};
+```
+
+### key remapping template keys reject mismatched fields
+
+> Template literal remapped keys still enforce value types.
+
+```ts
+interface Shape {
+    a: number
+    b: string
+}
+
+type Prefixed<T> = {
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K]
+};
+
+const bad: Prefixed<Shape> = {
+    get_a: () => "no",
+    get_b: () => "ok",
+};
+```
+
+- contains: not assignable

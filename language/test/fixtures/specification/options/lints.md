@@ -199,6 +199,50 @@ function fallthrough(value: int32) {
 
 - contains: switch case falls through
 
+## noImplicitReturns
+
+### noImplicitReturns reports missing return when true
+
+> Functions must return on every control flow path when noImplicitReturns is true.
+
+```ds:main.ds
+function missingReturn(flag: boolean): int32 {
+    if flag {
+        return 1;
+    }
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitReturns": true } }
+```
+
+- contains: missing return
+
+### noImplicitReturns allows missing return when false
+
+> Missing returns are allowed when noImplicitReturns is false.
+
+```ds:main.ds
+function missingReturn(flag: boolean): int32 {
+    if flag {
+        return 1;
+    }
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noImplicitReturns": false } }
+```
+
 ### noFallthroughCasesInSwitch allows fallthrough when false
 
 > Switch fallthrough is allowed when noFallthroughCasesInSwitch is false.

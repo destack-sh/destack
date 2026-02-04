@@ -571,7 +571,11 @@ The rules for arrays and tuples center around correctness and performance:
 By default, a plain `T` follows the semantics of its type.
 Structs and primitives are values.
 Classes and structural object types are managed references.
+Anonymous object literals are structural object types and follow reference semantics.
 Type aliases inherit the semantics of their underlying type.
+Ownership is orthogonal to identity semantics, which are determined by the base type.
+Ownership modifiers change storage and lifetime but do not change whether a type has identity.
+This keeps `struct` value semantics and `class` identity semantics consistent across all ownership modes.
 Destack additionally supports explicit ownership control:
 
 ```
@@ -617,6 +621,8 @@ Raw pointers are separate from ownership modifiers:
 
 Managed reference types are collected by the GC.
 Value types only drop when owned or used with `using`.
+For value types, `T` is an inline value with copy or move semantics, while `^T` is an owned reference that allocates and transfers ownership.
+Use `^T` when you need explicit ownership transfer, deterministic drop, or to avoid copying large value types.
 
 **Implicit managed defaults:**
 `noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.

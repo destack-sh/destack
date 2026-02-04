@@ -125,3 +125,79 @@ const bad: IsDrawable = true;
 ```
 
 - contains: not assignable
+
+### unknown extends returns false
+
+> `unknown` does not extend concrete types.
+
+```ds
+type IsUnknown = unknown extends string;
+
+const ok: IsUnknown = false;
+```
+
+### unknown extends rejects true
+
+> `unknown` does not evaluate to `true` in extends checks.
+
+```ds
+type IsUnknown = unknown extends string;
+
+const bad: IsUnknown = true;
+```
+
+- contains: not assignable
+
+### unknown accepts all types
+
+> All types extend `unknown`.
+
+```ds
+type IsAssignable = string extends unknown;
+
+const ok: IsAssignable = true;
+```
+
+### never extends returns true
+
+> `never` extends all types.
+
+```ds
+type IsNever = never extends string;
+
+const ok: IsNever = true;
+```
+
+### never extends rejects false
+
+> `never` does not evaluate to `false` in extends checks.
+
+```ds
+type IsNever = never extends string;
+
+const bad: IsNever = false;
+```
+
+- contains: not assignable
+
+### extends never rejects non-never types
+
+> Concrete types do not extend `never`.
+
+```ds
+type IsNever = string extends never;
+
+const ok: IsNever = false;
+```
+
+### extends never rejects true for non-never types
+
+> Non-never types do not evaluate to `true` when extending `never`.
+
+```ds
+type IsNever = string extends never;
+
+const bad: IsNever = true;
+```
+
+- contains: not assignable

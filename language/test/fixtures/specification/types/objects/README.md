@@ -7,3 +7,4 @@ Structural object types, interfaces, and index signatures.
 - **Interfaces**: structural assignability rules
 - **Object literals**: excess property checks
 - **Index signatures**: string, number, symbol keys
+- **Excess property rules**: unions, intersections, and structural merges

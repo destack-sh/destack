@@ -568,9 +568,7 @@ fn merge_results(first: TestResult, second: TestResult) -> TestResult {
     match (first, second) {
         (TestResult::Passed, TestResult::Passed) => TestResult::Passed,
         (TestResult::Failed { message }, TestResult::Passed)
-        | (TestResult::Passed, TestResult::Failed { message }) => {
-            TestResult::Failed { message }
-        }
+        | (TestResult::Passed, TestResult::Failed { message }) => TestResult::Failed { message },
         (TestResult::Failed { message: left }, TestResult::Failed { message: right }) => {
             let message = format!("{left}\n\n{right}");
             TestResult::Failed { message }

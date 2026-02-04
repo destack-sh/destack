@@ -64,6 +64,24 @@ class Counter {
 }
 ```
 
+### definite assignment assertions allow uninitialized fields
+
+> Definite assignment assertions satisfy strict initialization requirements.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictPropertyInitialization": true } }
+```
+
+```ds
+class Counter {
+    value!: number;
+}
+```
+
 ### missing assignment on one path
 
 > Fields must be assigned on all control-flow paths.

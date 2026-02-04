@@ -389,7 +389,7 @@ struct Point {
 
 Structs are value types, so `==` compares fields and `===` is not defined.
 Classes are reference types, so `===` compares identity.
-Ownership modifiers (`^T`, `&T`) describe access and lifetime without changing identity semantics.
+Ownership modifiers (`^T`, `&T`) control lifetime and storage without changing identity semantics.
 Struct values may still be heap allocated by escape analysis, but the semantics remain value based.
 
 ```
@@ -713,7 +713,8 @@ Extension methods participate in member resolution, too.
 
 TypeScript does not encode ownership in its type system.
 Reference types are implicitly GC managed, and value types are copied by default.
-Destack adds opt in explicit ownership, enabling a spectrum from TypeScript simplicity to Rust level control.
+Destack adds opt in explicit "ownership" which determines who can use and drop a value (i.e., its "managedness").
+Note that ownership is orthogonal to identity semantics, which are determined by the base type (structs are value types, classes are reference types).
 
 ### Ownership Modifiers
 
