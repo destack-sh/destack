@@ -386,6 +386,9 @@ fn run_expected_files(test: &QueryTestCase, session: &QueryTestSession) -> TestR
     // dispatch expected file validation by query kind
     match expectation.kind.as_str() {
         "rename" => run_rename_expected_files(session, expectation, &test.expected_files),
+        "file_rename" | "rename_files" => {
+            run_file_rename_expected_files(session, expectation, &test.expected_files)
+        }
         other => TestResult::Failed {
             message: format!("expected file validation not implemented for {other}"),
         },
@@ -471,6 +474,86 @@ fn run_rename_expected_files(
 
             return TestResult::Failed {
                 message: format!("rename output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Run a file rename expectation and validate edited file contents.
+fn run_file_rename_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // parse rename entries from the expectation
+    let renames = match runner::refactor::file_rename::parse_rename_entries(session, expectation) {
+        Ok(renames) => renames,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // run file rename edits
+    let result = query::rename_files(&session.session, &renames);
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: "file_rename returned no edits".to_string(),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        // resolve actual content for the expected path
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        // compare actual content with expected output
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            // print debug output when explicitly requested
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("file_rename debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
+            return TestResult::Failed {
+                message: format!("file_rename output mismatch for '{}'", expected.path),
             };
         }
     }
@@ -654,6 +737,7 @@ fn dispatch_query(
         // refactor
         "rename" => runner::refactor::rename::run(session, expectation),
         "prepare_rename" => runner::refactor::prepare_rename::run(session, expectation),
+        "file_rename" | "rename_files" => runner::refactor::file_rename::run(session, expectation),
 
         // assist
         "completion" => runner::assist::completion::run(session, expectation),

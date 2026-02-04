@@ -29,6 +29,8 @@ pub struct TestFile {
 pub struct QueryTestSession {
     /// The session.
     pub session: Arc<Session>,
+    /// The workspace root for this test session.
+    pub root: PathBuf,
     /// The primary file id.
     pub file_id: FileId,
     /// The extracted markers (from primary file).
@@ -43,8 +45,9 @@ impl QueryTestSession {
     /// Create a test session from source with markers.
     pub fn from_source(source: &str) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
+        let root = PathBuf::from("/test");
         let session = Arc::new(
-            Session::new(PathBuf::from("/test"))
+            Session::new(root.clone())
                 .with_fs(fs.clone())
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
@@ -76,6 +79,7 @@ impl QueryTestSession {
 
         Self {
             session,
+            root,
             file_id,
             markers,
             source: clean_source,
@@ -86,12 +90,13 @@ impl QueryTestSession {
     /// Create a test session from multiple files.
     pub fn from_files(input_files: &[(&str, &str)]) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
+        let root = PathBuf::from("/test");
         let session = Arc::new(
-            Session::new(PathBuf::from("/test"))
+            Session::new(root.clone())
                 .with_fs(fs.clone())
                 .with_cache_store(Arc::new(MemoryCacheStore::new())),
         );
-        let program = session.add_root(PathBuf::from("/test"));
+        let program = session.add_root(root.clone());
 
         let mut primary_file_id = None;
         let mut primary_markers = TestMarkers::default();
@@ -130,6 +135,7 @@ impl QueryTestSession {
 
         Self {
             session,
+            root,
             file_id: primary_file_id.unwrap(),
             markers: primary_markers,
             source: primary_source,
@@ -292,6 +298,7 @@ impl QueryTestSession {
 
         Self {
             session,
+            root,
             file_id: primary_file_id,
             markers: all_markers,
             source: primary_source,
