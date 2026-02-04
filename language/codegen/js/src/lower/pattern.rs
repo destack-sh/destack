@@ -144,12 +144,16 @@ impl ModuleLowerer<'_> {
             }
             dir::PatternField::Spread {
                 mutability,
-                name,
-                symbol: _,
+                pattern,
             } => {
                 let mutability = mutability.map(|mutability| self.lower_mutability(mutability));
-                let name = name.map(|name| self.strings.intern_from(&self.ast.strings, name));
-                let pattern_field = PatternField::Spread { mutability, name };
+                let pattern = pattern
+                    .map(|pattern_id| self.lower_pattern(pattern_id))
+                    .transpose()?;
+                let pattern_field = PatternField::Spread {
+                    mutability,
+                    pattern,
+                };
                 self.tree
                     .insert_from_source(pattern_field, self.module.id, pattern_field_id)
             }

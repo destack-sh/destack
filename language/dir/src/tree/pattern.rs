@@ -105,11 +105,10 @@ pub enum PatternField {
     },
     /// Positional field with just a pattern (like `4` or `int32`).
     Positional { pattern: LocalNodeId<Pattern> },
-    /// Spread field (like `...x`).
+    /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,
-        name: Option<StringId>,
-        symbol: LocalSymbolId,
+        pattern: Option<LocalNodeId<Pattern>>,
     },
     /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
     Elision,
@@ -127,7 +126,7 @@ impl PatternField {
             PatternField::Computed { .. } => None,
             PatternField::Alias { symbol, .. } => Some(*symbol),
             PatternField::Positional { .. } => None,
-            PatternField::Spread { symbol, .. } => Some(*symbol),
+            PatternField::Spread { .. } => None,
             PatternField::Elision => None,
         }
     }

@@ -137,8 +137,9 @@ impl Compiler {
             PatternField::Positional { pattern } => {
                 self.pattern_has_definite_assignment(tree, *pattern)
             }
-            PatternField::Alias { .. } | PatternField::Spread { .. } | PatternField::Elision => {
-                false
+            PatternField::Alias { .. } | PatternField::Elision => false,
+            PatternField::Spread { pattern, .. } => {
+                pattern.is_some_and(|inner| self.pattern_has_definite_assignment(tree, inner))
             }
         }
     }

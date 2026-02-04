@@ -1691,10 +1691,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
             PatternField::Positional { pattern: _ } => {
                 self.node("PatternField::Positional", _id.id).end();
             }
-            PatternField::Spread { mutability, name } => {
+            PatternField::Spread {
+                mutability,
+                pattern: _,
+            } => {
                 self.node("PatternField::Spread", _id.id)
                     .field_optional("mutability", mutability)
-                    .field_optional("name", name)
                     .end();
             }
             PatternField::Elision => {

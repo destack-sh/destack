@@ -123,10 +123,10 @@ pub enum PatternField {
     },
     /// Positional field with just a pattern (like `4`).
     Positional { pattern: LocalNodeId<Pattern> },
-    /// Spread field (like `...x`).
+    /// Spread field (like `...x` or `...[a, b]`).
     Spread {
         mutability: Option<Mutability>,
-        name: Option<Name>,
+        pattern: Option<LocalNodeId<Pattern>>,
     },
     /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
     Elision,

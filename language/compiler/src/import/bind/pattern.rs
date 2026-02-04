@@ -575,37 +575,29 @@ impl Compiler {
                 );
                 PatternField::Positional { pattern }
             }
-            ast::PatternField::Spread { mutability, name } => {
+            ast::PatternField::Spread {
+                mutability,
+                pattern,
+            } => {
                 let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let name = name.map(|name| {
-                    self.program
-                        .strings
-                        .intern_from(&ast.strings, name.string())
-                });
-                let symbol = if let Some(name) = name {
-                    let (symbol, _) = self.bind_named_symbol_with_binding(
+                let pattern = pattern.map(|pattern_id| {
+                    self.bind_pattern(
                         module,
                         ast,
-                        SymbolSpace::Value,
-                        StaticKey::Name(name),
-                        binding,
                         scope,
                         export,
+                        binding,
+                        binding_mutability,
+                        pattern_id,
+                        Some(pattern_field_id),
+                        tree,
                         symbols,
-                    );
-                    symbol
-                } else {
-                    let (symbol, _) =
-                        self.bind_anonymous_local(module, ast, SymbolSpace::Value, scope, symbols);
-                    symbol
-                };
-                let symbol_mutability =
-                    self.resolve_binding_mutability(module, mutability, binding_mutability);
-                self.apply_binding_mutability(symbols, symbol, symbol_mutability);
+                        types,
+                    )
+                });
                 PatternField::Spread {
                     mutability,
-                    name,
-                    symbol,
+                    pattern,
                 }
             }
             ast::PatternField::Elision => PatternField::Elision,

@@ -352,14 +352,26 @@ impl Parser {
                     // spread
                     if self.peek_is(TokenType::Spread) {
                         self.bump(); // eat spread
-                        let name = if self.peek_name().is_ok() {
-                            let (name, span) = self.eat_name_with_span()?;
-                            name_span = Some(span);
-                            Some(name)
-                        } else {
+                        let pattern = if self.peek_is(TokenType::Newline)
+                            && (self
+                                .peek_token_after_newlines(self.pos(), seperator)
+                                .is_ok()
+                                || self
+                                    .peek_token_after_newlines(self.pos(), terminator)
+                                    .is_ok())
+                        {
+                            self.eat_newlines_maybe()?;
                             None
+                        } else if self.peek_token_type() == seperator || self.peek_is(terminator) {
+                            None
+                        } else {
+                            let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
+                            Some(pattern)
                         };
-                        PatternField::Spread { mutability, name }
+                        PatternField::Spread {
+                            mutability,
+                            pattern,
+                        }
                     }
                     // alias or pattern
                     else if self.peek_name().is_ok() && self.peek_next_is(TokenType::Colon) {
@@ -579,7 +591,7 @@ mod tests {
             });
 
             // ...
-            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, name: None } => {
+            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, pattern: None } => {
             });
         });
     }
@@ -602,7 +614,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, name: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: None } => {
             });
         });
     }
@@ -641,7 +653,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[2], PatternField::Spread { mutability: None, name: None } => {
+            assert_node!(parser.tree, fields[2], PatternField::Spread { mutability: None, pattern: None } => {
             });
         });
     }
@@ -711,7 +723,7 @@ mod tests {
             });
 
             // ..
-            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, name: None } => {
+            assert_node!(parser.tree, fields[4], PatternField::Spread { mutability: None, pattern: None } => {
             });
         });
     }
@@ -780,7 +792,30 @@ mod tests {
             });
 
             // ...
-            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, name: None } => {
+            assert_node!(parser.tree, fields[1], PatternField::Spread { mutability: None, pattern: None } => {
+            });
+        });
+    }
+
+    /// Parse a spread field with an array pattern.
+    #[test]
+    fn test_parse_pattern_spread_array_pattern() {
+        let mut test = TestParser::new("[...[x, y]]");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Array { fields } => {
+            assert_eq!(fields.len(), 1);
+            assert_node!(parser.tree, fields[0], PatternField::Spread { mutability: None, pattern: Some(pattern) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                    assert_eq!(fields.len(), 2);
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
+                        assert_name!(parser, *name, "x");
+                    });
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
+                        assert_name!(parser, *name, "y");
+                    });
+                });
             });
         });
     }

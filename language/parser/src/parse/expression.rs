@@ -244,12 +244,7 @@ impl Parser {
     /// Return true when a token index could be an infix or assign operator.
     #[inline]
     fn has_infix_or_assign_operator_at_index(&self, index: usize) -> bool {
-        let token_type = self
-            .tokens
-            .get(index)
-            .unwrap_or(&self.eof_token)
-            .token
-            .ty;
+        let token_type = self.tokens.get(index).unwrap_or(&self.eof_token).token.ty;
         if AssignOperator::from_token(token_type).is_some() {
             return true;
         }
@@ -349,12 +344,7 @@ impl Parser {
 
     /// Check whether a static argument list can be followed by a specific token.
     fn can_follow_type_arguments_at_index(&self, index: usize) -> bool {
-        let token_type = self
-            .tokens
-            .get(index)
-            .unwrap_or(&self.eof_token)
-            .token
-            .ty;
+        let token_type = self.tokens.get(index).unwrap_or(&self.eof_token).token.ty;
 
         // allow end and static closers
         if token_type == TokenType::End {
@@ -368,9 +358,7 @@ impl Parser {
         if self.options.in_ternary_condition && token_type == TokenType::Colon {
             return true;
         }
-        if self.options.in_type
-            && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide)
-        {
+        if self.options.in_type && matches!(token_type, TokenType::Arrow | TokenType::ArrowWide) {
             return true;
         }
 
@@ -404,7 +392,10 @@ impl Parser {
         if token_type == TokenType::Maybe {
             return true;
         }
-        if matches!(token_type, TokenType::TemplateString | TokenType::TemplateStringStart) {
+        if matches!(
+            token_type,
+            TokenType::TemplateString | TokenType::TemplateStringStart
+        ) {
             return true;
         }
 
@@ -822,11 +813,6 @@ impl Parser {
         descriptor: &DeclarationDescriptor,
         asynchrony: Asynchrony,
     ) -> bool {
-        // only allow using declarations in statement position
-        if !self.options.in_statement_position {
-            return false;
-        }
-
         // speculatively parse a using declaration
         let speculative_start = self.mark();
         let speculative_start_idx = self.tree.next_id();
@@ -2002,7 +1988,8 @@ impl Parser {
                         let mut lambda_expression_id = None;
 
                         // parse lambda when we see a likely arrow or colon
-                        if (has_arrow || is_colon_lambda_allowed) && !self.options.in_arrow_return_type
+                        if (has_arrow || is_colon_lambda_allowed)
+                            && !self.options.in_arrow_return_type
                         {
                             // avoid colon lambdas that are actually ternary type tuples
                             if self.options.in_ternary_condition && has_colon {
@@ -2783,9 +2770,7 @@ impl Parser {
                             }
                             // parse next expression
                             let expr_id = self.with_options(
-                                self.options
-                                    .not_in_position()
-                                    .not_in_sequence_expression(),
+                                self.options.not_in_position().not_in_sequence_expression(),
                                 |parser| parser.eat_expression(),
                             )?;
                             expressions.push(expr_id);
@@ -2965,8 +2950,9 @@ impl Parser {
             let mut expressions = vec![left_expression_id];
             loop {
                 if self.peek_is(TokenType::Newline) {
-                    let has_comma_after_newlines =
-                        self.peek_token_after_newlines(self.pos(), TokenType::Comma).is_ok();
+                    let has_comma_after_newlines = self
+                        .peek_token_after_newlines(self.pos(), TokenType::Comma)
+                        .is_ok();
                     if !has_comma_after_newlines {
                         break;
                     }

@@ -1028,9 +1028,12 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
         }
         PatternField::Spread {
             mutability: _,
-            name: _,
+            pattern,
         } => {
-            // nothing to do
+            if let Some(pattern_id) = pattern {
+                let pattern_node = tree.get(*pattern_id);
+                visitor.visit_pattern(tree, *pattern_id, pattern_node);
+            }
         }
         PatternField::Elision => {
             // nothing to do

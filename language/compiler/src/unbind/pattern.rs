@@ -333,13 +333,25 @@ impl Compiler {
                 ast::PatternField::Positional { pattern }
             }
             dir::PatternField::Spread {
-                mutability, name, ..
+                mutability,
+                pattern,
             } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                let name = name.map(|n| {
-                    ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, n))
+                let pattern = pattern.map(|pattern_id| {
+                    self.unbind_pattern(
+                        module,
+                        pattern_id,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
                 });
-                ast::PatternField::Spread { mutability, name }
+                ast::PatternField::Spread {
+                    mutability,
+                    pattern,
+                }
             }
             dir::PatternField::Elision => ast::PatternField::Elision,
         };

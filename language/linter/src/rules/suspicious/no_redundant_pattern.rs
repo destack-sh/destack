@@ -148,8 +148,10 @@ fn field_binds_anything(
         // positional field binds if its pattern binds
         ast::PatternField::Positional { pattern } => binds_anything(ctx, *pattern),
 
-        // spread with name binds
-        ast::PatternField::Spread { name, .. } => name.is_some(),
+        // spread binds if its nested pattern binds
+        ast::PatternField::Spread { pattern, .. } => {
+            pattern.map(|p| binds_anything(ctx, p)).unwrap_or(false)
+        }
 
         // elision doesn't bind
         ast::PatternField::Elision => false,

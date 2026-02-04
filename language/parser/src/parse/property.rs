@@ -143,13 +143,21 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok() && self.next_token_starts_member_name() {
+            if self.peek_keyword(Keyword::Get).is_ok()
+                && self.next_token_starts_member_name()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_err()
+            {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
                 && self.next_token_starts_member_name()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_err()
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)
@@ -698,13 +706,21 @@ impl Parser {
         // mode
         let mode = {
             // getter
-            if self.peek_keyword(Keyword::Get).is_ok() && self.next_token_starts_member_name() {
+            if self.peek_keyword(Keyword::Get).is_ok()
+                && self.next_token_starts_member_name()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_err()
+            {
                 self.bump(); // eat get keyword
                 Some(FunctionMode::Getter)
             }
             // setter
             else if self.peek_keyword(Keyword::Set).is_ok()
                 && self.next_token_starts_member_name()
+                && self
+                    .peek_token_after_newlines(self.pos(), TokenType::OpenParenthesis)
+                    .is_err()
             {
                 self.bump(); // eat set keyword
                 Some(FunctionMode::Setter)

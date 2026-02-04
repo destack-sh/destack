@@ -101,11 +101,11 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
             }
             PatternField::Spread {
                 mutability: _,
-                name,
+                pattern,
             } => {
                 write!(f, [token("...")])?;
-                if let Some(name) = name {
-                    write!(f, [name])?;
+                if let Some(pattern) = pattern {
+                    write!(f, [pattern])?;
                 }
             }
             PatternField::Elision => {
