@@ -839,7 +839,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{BorrowMode, OutputFormat, Platform, Runtime};
+    use crate::{BorrowMode, DiagnosticPolicy, OutputFormat, Platform, Runtime};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
@@ -882,8 +882,8 @@ mod tests {
         let compiler_options = DsConfigCompilerOptions {
             strict: false,
             always_strict: false,
-            no_implicit_any: false,
-            no_implicit_this: false,
+            no_implicit_any: DiagnosticPolicy::Allow,
+            no_implicit_this: DiagnosticPolicy::Allow,
             strict_null_checks: false,
             strict_function_types: false,
             strict_bind_call_apply: false,
@@ -903,38 +903,45 @@ mod tests {
         // verify strict options are set
         assert!(options.strict);
         assert!(options.always_strict);
-        assert!(options.no_implicit_any);
-        assert!(options.no_implicit_this);
+        assert!(options.no_implicit_any.is_deny());
+        assert!(options.no_implicit_this.is_deny());
         assert!(options.strict_null_checks);
         assert!(options.strict_function_types);
         assert!(options.strict_bind_call_apply);
         assert!(options.strict_builtin_iterator_return);
         assert!(options.strict_property_initialization);
         assert!(options.use_unknown_in_catch_variables);
-        assert!(options.no_implicit_returns);
-        assert!(options.no_implicit_override);
+        assert!(options.no_implicit_returns.is_deny());
+        assert!(options.no_implicit_override.is_deny());
         assert!(options.exact_optional_property_types);
-        assert!(options.no_unchecked_indexed_access);
-        assert!(options.no_property_access_from_index_signature);
-        assert!(options.no_unused_locals);
-        assert!(options.no_unused_parameters);
-        assert!(options.no_fallthrough_cases_in_switch);
-        assert!(!options.allow_unreachable_code);
-        assert!(!options.allow_unused_labels);
+        assert!(options.no_unchecked_indexed_access.is_deny());
+        assert!(options.no_property_access_from_index_signature.is_deny());
+        assert!(options.no_unused_locals.is_deny());
+        assert!(options.no_unused_parameters.is_deny());
+        assert!(options.no_fallthrough_cases_in_switch.is_deny());
+        assert!(options.allow_unreachable_code.is_deny());
+        assert!(options.allow_unused_labels.is_deny());
 
         // verify soundness defaults are set
-        assert!(options.no_any);
-        assert!(options.no_imprecise_primitives);
-        assert!(options.no_implicit_conversions);
-        assert!(options.no_unsafe_type_assertions);
-        assert!(options.no_implicit_managed);
-        assert!(options.no_managed);
-        assert!(options.no_dynamic_evaluation);
-        assert!(options.no_dynamic_import);
-        assert!(options.no_proxy);
-        assert!(options.no_dynamic_shapes);
-        assert!(options.no_exceptions);
-        assert!(options.no_global_this);
+        assert!(options.no_any.is_deny());
+        assert!(options.no_imprecise_primitives.is_deny());
+        assert!(options.no_implicit_conversions.is_deny());
+        assert!(options.no_unsafe_type_assertions.is_deny());
+        assert!(options.no_must_assertions.is_deny());
+        assert!(options.no_definite_assignment_assertions.is_deny());
+        assert!(options.no_custom_type_guards.is_deny());
+        assert!(options.no_unsound_variance.is_deny());
+        assert!(options.no_unsound_narrowing.is_deny());
+        assert!(options.deep_readonly.is_deny());
+        assert!(options.no_untrusted_declarations.is_deny());
+        assert!(options.no_implicit_managed.is_deny());
+        assert!(options.no_managed.is_deny());
+        assert!(options.no_dynamic_evaluation.is_deny());
+        assert!(options.no_dynamic_import.is_deny());
+        assert!(options.no_proxy.is_deny());
+        assert!(options.no_dynamic_shapes.is_deny());
+        assert!(options.no_exceptions.is_deny());
+        assert!(options.no_global_this.is_deny());
         assert_eq!(options.borrow_mode, BorrowMode::Strict);
     }
 }

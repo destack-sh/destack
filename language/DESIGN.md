@@ -466,7 +466,11 @@ const LOOKUP_TABLE: uint8[] = comptime {
 
 ```
 function factorial(n: int): int {
-    if (n <= 1) { 1 } else { n * factorial(n - 1) }
+    if (n <= 1) { 
+        1 
+    } else { 
+        n * factorial(n - 1);
+    }
 }
 
 const FACT_10 = comptime factorial(10);    // compile time

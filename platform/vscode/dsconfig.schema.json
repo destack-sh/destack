@@ -211,10 +211,14 @@
           ]
         },
         "noImplicitAny": {
-          "description": "Error on expressions and declarations with implied `any` type.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for expressions and declarations with implied `any` type.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "strictNullChecks": {
@@ -225,10 +229,14 @@
           ]
         },
         "noImplicitThis": {
-          "description": "Error on `this` expressions with implied `any` type.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for `this` expressions with implied `any` type.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "strictFunctionTypes": {
@@ -267,52 +275,80 @@
           ]
         },
         "noUnusedLocals": {
-          "description": "Report errors on unused local variables.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unused local variables.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noUnusedParameters": {
-          "description": "Report errors on unused function parameters.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unused function parameters.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImplicitReturns": {
-          "description": "Report errors when not all code paths return a value.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for missing return paths.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "allowUnreachableCode": {
-          "description": "Allow unreachable code.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unreachable code.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "allowUnusedLabels": {
-          "description": "Allow unused labels.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unused labels.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImplicitOverride": {
-          "description": "Require `override` on class members that override base members.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for missing `override` on class members.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noFallthroughCasesInSwitch": {
-          "description": "Report errors for fallthrough cases in switch statements.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for fallthrough cases in switch statements.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "exactOptionalPropertyTypes": {
@@ -323,45 +359,69 @@
           ]
         },
         "noUncheckedIndexedAccess": {
-          "description": "Add `undefined` to index signature access results.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unchecked index signature access results.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noPropertyAccessFromIndexSignature": {
-          "description": "Disallow property access from index signatures without explicit index access.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for property access from index signatures without explicit index access.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noAny": {
-          "description": "Forbid use of `any` type.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for forbidding `any` types.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noUnknown": {
-          "description": "Forbid use of `unknown` type.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for forbidding `unknown` types.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImprecisePrimitives": {
-          "description": "Require precise primitive types (int32 vs number, etc.).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for imprecise primitive types (int32 vs number, etc.).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImplicitConversions": {
-          "description": "Require explicit widening/narrowing conversions.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for implicit widening/narrowing conversions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "implicitCollectionConversions": {
@@ -376,101 +436,234 @@
           ]
         },
         "noUnsafeTypeAssertions": {
-          "description": "Forbid unsafe type assertions (`as T`).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for unsafe type assertions (`as T`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noMustAssertions": {
+          "description": "Policy for must assertions (`x!`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noDefiniteAssignmentAssertions": {
+          "description": "Policy for definite assignment assertions (`field!: T`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noCustomTypeGuards": {
+          "description": "Policy for custom type guards (`x is T`).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noUnsoundVariance": {
+          "description": "Policy for unsound variance (invariant mutable positions).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noUnsoundNarrowing": {
+          "description": "Policy for unsound narrowing (`instanceof`, `in`, and predicates).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deepReadonly": {
+          "description": "Policy for shallow readonly behavior.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "noUntrustedDeclarations": {
+          "description": "Policy for untrusted declaration files.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noRedeclaredLocals": {
-          "description": "Forbid re-declaration of local variables.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for re-declaration of local variables.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImplicitManaged": {
-          "description": "Require explicit ownership for managed types and values.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for implicit ownership of managed types and values.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noManaged": {
-          "description": "Forbid managed runtime features entirely (no &T at all, pure value types only).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for GC-managed defaults and allocations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noRuntime": {
-          "description": "Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noReferentialEquality": {
-          "description": "Forbid referential equality.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for referential equality.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noDynamicEvaluation": {
-          "description": "Forbid `eval()` and `Function` constructor.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for `eval()` and `Function` constructor.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noGlobalThis": {
-          "description": "Forbid `globalThis` access.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for `globalThis` access.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noDynamicImport": {
-          "description": "Forbid dynamic `import()` and `require()` expressions.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for dynamic `import()` and `require()` expressions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noDynamicShapes": {
-          "description": "Forbid defineProperty, prototype mutation, delete, and declaration expressions.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for defineProperty, prototype mutation, delete, and declaration expressions.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noComputedPropertyAccess": {
-          "description": "Forbid computed property access `obj[expr]` where expr isn't constant.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for computed property access `obj[expr]` where expr isn't constant.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noProxy": {
-          "description": "Forbid `Proxy`.",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for `Proxy`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noImplicitDynamicDispatch": {
-          "description": "Require overloads to be statically resolvable (no implicit runtime dispatch).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for overloads that are not statically resolvable.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "noExceptions": {
-          "description": "Forbid `throw` and `try`/`catch` (use Result types instead).",
-          "type": [
-            "boolean",
-            "null"
+          "description": "Policy for `throw` and `try`/`catch` (use Result types instead).",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DiagnosticPolicyJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "borrowMode": {
@@ -562,6 +755,26 @@
           ]
         }
       }
+    },
+    "DiagnosticPolicyJson": {
+      "description": "Diagnostic policy for JSON deserialization.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/DiagnosticPolicyValueJson"
+        }
+      ]
+    },
+    "DiagnosticPolicyValueJson": {
+      "description": "Diagnostic policy for allow/warn/deny enforcement.",
+      "type": "string",
+      "enum": [
+        "allow",
+        "warn",
+        "deny"
+      ]
     },
     "ImplicitCollectionConversionPolicyJson": {
       "description": "Implicit collection conversion policy for JSON deserialization.",
