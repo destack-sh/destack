@@ -396,6 +396,10 @@ pub enum AnalyzeError {
     )]
     InvalidInstantiationAccess { node: AnchoredGlobalNodeId },
 
+    /// Object pattern rest must be an identifier.
+    #[error(code = "EA235", message = "object pattern rest must be an identifier")]
+    ObjectPatternRestNotIdentifier { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
