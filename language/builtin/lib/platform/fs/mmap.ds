@@ -1,0 +1,98 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle } from "../resource/index.ds";
+import { FileOffset, FileSize } from "./flags.ds";
+
+/// Memory protection flags for mappings.
+export newtype MmapProt = uint32;
+
+/// Mapping flags.
+export newtype MmapFlags = uint32;
+
+/// Sync flags for msync.
+export newtype MmapSyncFlags = uint32;
+
+/// Advice for madvise.
+export enum MmapAdvice {
+    /// Default behavior.
+    Normal = 0,
+    /// Access will be sequential.
+    Sequential = 1,
+    /// Access will be random.
+    Random = 2,
+    /// Will need data soon.
+    WillNeed = 3,
+    /// Will not need data soon.
+    DontNeed = 4,
+}
+
+/// Memory mapping bindings for the native runtime.
+declare namespace fs {
+    /// Create a file-backed memory mapping.
+    @binding("destack.fs.mmapFile", { effect: "external", replay: "recordable" })
+    export function mmapFile(
+        handle: FileHandle,
+        offset: FileOffset,
+        length: FileSize,
+        prot: MmapProt,
+        flags: MmapFlags,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Create an anonymous memory mapping.
+    @binding("destack.fs.mmapAnonymous", { effect: "external", replay: "recordable" })
+    export function mmapAnonymous(
+        length: FileSize,
+        prot: MmapProt,
+        flags: MmapFlags,
+    ): Result<Slice<uint8>, PlatformError>;
+
+    /// Unmap a memory region.
+    @binding("destack.fs.munmap", { effect: "external", replay: "recordable" })
+    export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>;
+
+    /// Change memory protection for a mapping.
+    @binding("destack.fs.mprotect", { effect: "external", replay: "recordable" })
+    export function mprotect(
+        mapping: Slice<uint8>,
+        prot: MmapProt,
+    ): Result<void, PlatformError>;
+
+    /// Flush a mapping to storage.
+    @binding("destack.fs.msync", { effect: "external", replay: "recordable" })
+    export function msync(
+        mapping: Slice<uint8>,
+        flags: MmapSyncFlags,
+    ): Result<void, PlatformError>;
+
+    /// Advise the kernel about access patterns.
+    @binding("destack.fs.madvise", { effect: "external", replay: "recordable" })
+    export function madvise(
+        mapping: Slice<uint8>,
+        advice: MmapAdvice,
+    ): Result<void, PlatformError>;
+}
+
+/// Allow read access.
+export const PROT_READ: MmapProt = MmapProt(0x1);
+/// Allow write access.
+export const PROT_WRITE: MmapProt = MmapProt(0x2);
+/// Allow execute access.
+export const PROT_EXEC: MmapProt = MmapProt(0x4);
+/// No access.
+export const PROT_NONE: MmapProt = MmapProt(0x0);
+
+/// Shared mapping.
+export const MAP_SHARED: MmapFlags = MmapFlags(0x1);
+/// Private mapping.
+export const MAP_PRIVATE: MmapFlags = MmapFlags(0x2);
+/// Fixed address mapping.
+export const MAP_FIXED: MmapFlags = MmapFlags(0x10);
+/// Anonymous mapping.
+export const MAP_ANON: MmapFlags = MmapFlags(0x20);
+
+/// Sync writes to storage.
+export const MS_SYNC: MmapSyncFlags = MmapSyncFlags(0x1);
+/// Schedule writes and return immediately.
+export const MS_ASYNC: MmapSyncFlags = MmapSyncFlags(0x2);
+/// Invalidate cached pages.
+export const MS_INVALIDATE: MmapSyncFlags = MmapSyncFlags(0x4);

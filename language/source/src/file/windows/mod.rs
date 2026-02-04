@@ -4,14 +4,14 @@ mod metadata;
 
 pub use metadata::{SymlinkMetadata, symlink_metadata};
 
-use crate::ResolveError;
+use std::io;
 
 /// When applicable, converts a [DOS device path](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
 /// to a normal path (usually, "Traditional DOS paths" or "UNC path") that can be consumed by the `import`/`require` syntax of Node.js.
 ///
 /// # Errors
-/// Returns error of [`ResolveError::PathNotSupported`] kind if the path cannot be represented as a normal path.
-pub fn strip_windows_prefix(path: PathBuf) -> Result<PathBuf, ResolveError> {
+/// Returns an error if the path cannot be represented as a normal path.
+pub fn strip_windows_prefix(path: PathBuf) -> io::Result<PathBuf> {
     // See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file
     let path_bytes = path.as_os_str().as_encoded_bytes();
 
@@ -38,8 +38,11 @@ pub fn strip_windows_prefix(path: PathBuf) -> Result<PathBuf, ResolveError> {
             // It seems nodejs does not support DOS device paths with Volume GUIDs.
             // This can happen if the path points to a Mounted Volume without a drive letter.
             #[cold]
-            fn unsupported_path_error(path: PathBuf) -> ResolveError {
-                ResolveError::PathNotSupported(path)
+            fn unsupported_path_error(path: PathBuf) -> io::Error {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("unsupported windows path: {}", path.display()),
+                )
             }
             return Err(unsupported_path_error(path));
         }
@@ -88,9 +91,7 @@ fn test_strip_windows_prefix() {
     ];
 
     for path in fail {
-        assert_eq!(
-            strip_windows_prefix(PathBuf::from(path)),
-            Err(crate::ResolveError::PathNotSupported(PathBuf::from(path)))
-        );
+        let error = strip_windows_prefix(PathBuf::from(path)).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     }
 }

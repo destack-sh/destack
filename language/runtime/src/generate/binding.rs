@@ -799,7 +799,13 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
     if needs_abi {
         output.push_str("use crate::platform::abi::{BindingAbi, NativeAbi, VmAbi};\n");
     }
-    if !newtypes.is_empty() || !enums.is_empty() {
+    let needs_vm_codec = newtypes.values().any(|binding_type| {
+        let BindingType::Newtype { inner, .. } = binding_type else {
+            return false;
+        };
+        !binding_type_requires_abi(inner)
+    }) || !enums.is_empty();
+    if needs_vm_codec {
         output.push_str("use crate::diagnostic::RuntimeResult;\n");
         output.push_str("use crate::platform::VmValueCodec;\n");
         output.push_str("use destack_vm as vm;\n");
@@ -815,8 +821,23 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         let BindingType::Newtype { inner, .. } = binding_type else {
             panic!("expected newtype binding for {name}");
         };
-        let inner_type = abi_newtype_inner_type(domain, inner);
+        let requires_abi = binding_type_requires_abi(inner);
         output.push_str(&format!("/// ABI newtype for {name}.\n"));
+        if requires_abi {
+            output.push_str("#[repr(C)]\n");
+            output.push_str("#[derive(Debug, Clone, Copy)]\n");
+            output.push_str(&format!("pub struct {name}Abi<A: BindingAbi>(\n"));
+            output.push_str(&format!(
+                "    /// Inner value.\n    pub {},\n",
+                abi_struct_field_type(domain, inner)
+            ));
+            output.push_str(");\n\n");
+            output.push_str(&format!("pub type {name} = {name}Abi<NativeAbi>;\n"));
+            output.push_str(&format!("pub type {name}Vm = {name}Abi<VmAbi>;\n\n"));
+            continue;
+        }
+
+        let inner_type = abi_newtype_inner_type(domain, inner);
         output.push_str("#[repr(transparent)]\n");
         output.push_str(
             "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n",
@@ -824,6 +845,7 @@ pub(crate) fn render_abi_types(domain: &str, types: &DomainAbiTypes) -> String {
         output.push_str(&format!("pub struct {name}(\n"));
         output.push_str(&format!("    /// Inner value.\n    pub {inner_type},\n"));
         output.push_str(");\n\n");
+        output.push_str(&format!("pub type {name}Vm = {name};\n\n"));
 
         output.push_str(&format!("impl VmValueCodec for {name} {{\n"));
         output.push_str("    fn decode(value: vm::Value) -> RuntimeResult<Self> {\n");
@@ -1835,7 +1857,7 @@ impl<'a> DomainWriter<'a> {
                         ));
                         output.push_str("                    },\n");
                         output.push_str(&format!(
-                            "                    || unsafe {{ {buffer_name}.read_bytes(&mut *context_ptr) }},\n"
+                            "                    || unsafe {{ {buffer_name}.read_bytes(&*context_ptr) }},\n"
                         ));
                         output.push_str(&format!(
                             "                    |bytes| unsafe {{ {buffer_name}.write_bytes(&mut *context_ptr, &bytes) }},\n"
@@ -2079,8 +2101,32 @@ fn struct_abi_path(domain: &str, type_domain: &str, name: &str, abi: &str) -> St
     }
 }
 
+/// Build a qualified ABI newtype path for a named binding type.
+fn newtype_abi_path(domain: &str, type_domain: &str, name: &str, abi: &str) -> String {
+    if type_domain == domain {
+        format!("{name}Abi<{abi}>")
+    } else {
+        format!("crate::platform::{type_domain}::{name}Abi<{abi}>")
+    }
+}
+
+/// Build a qualified ABI newtype constructor path.
+fn newtype_abi_constructor_path(domain: &str, type_domain: &str, name: &str, abi: &str) -> String {
+    if type_domain == domain {
+        format!("crate::platform::{domain}::{name}Abi::<{abi}>")
+    } else {
+        format!("crate::platform::{type_domain}::{name}Abi::<{abi}>")
+    }
+}
+
 /// Build a qualified VM alias path for a struct type.
 fn struct_vm_path(domain: &str, type_domain: &str, name: &str) -> String {
+    let vm_name = format!("{name}Vm");
+    named_type_path(domain, type_domain, vm_name.as_str())
+}
+
+/// Build a qualified VM alias path for a newtype.
+fn newtype_vm_path(domain: &str, type_domain: &str, name: &str) -> String {
     let vm_name = format!("{name}Vm");
     named_type_path(domain, type_domain, vm_name.as_str())
 }
@@ -2240,7 +2286,11 @@ fn collect_binding_type_names(
             inner,
         } => {
             if type_domain == domain {
-                names.insert(name.clone());
+                if !struct_suffix.is_empty() && binding_type_requires_abi(inner) {
+                    names.insert(format!("{name}{struct_suffix}"));
+                } else {
+                    names.insert(name.clone());
+                }
             }
             collect_binding_type_names(domain, inner, names, struct_suffix);
         }
@@ -2340,10 +2390,15 @@ fn collect_signature_type_names(
         BindingType::Newtype {
             name,
             domain: type_domain,
+            inner,
             ..
         } => {
             if type_domain == domain {
-                names.insert(name.clone());
+                if !struct_suffix.is_empty() && binding_type_requires_abi(inner) {
+                    names.insert(format!("{name}{struct_suffix}"));
+                } else {
+                    names.insert(name.clone());
+                }
             }
         }
         BindingType::Struct {
@@ -2479,8 +2534,14 @@ fn abi_struct_field_type(domain: &str, binding_type: &BindingType) -> String {
         BindingType::Newtype {
             name,
             domain: type_domain,
-            ..
-        } => named_type_path(domain, type_domain, name),
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                newtype_abi_path(domain, type_domain, name, "A")
+            } else {
+                named_type_path(domain, type_domain, name)
+            }
+        }
         BindingType::Struct {
             name,
             domain: type_domain,
@@ -2517,8 +2578,14 @@ fn abi_newtype_inner_type(domain: &str, binding_type: &BindingType) -> String {
         BindingType::Newtype {
             name,
             domain: type_domain,
-            ..
-        } => named_type_path(domain, type_domain, name),
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                newtype_vm_path(domain, type_domain, name)
+            } else {
+                named_type_path(domain, type_domain, name)
+            }
+        }
         BindingType::Enum {
             name,
             domain: type_domain,
@@ -2667,8 +2734,19 @@ pub(super) fn render_replay_encode_lines(
         | BindingType::Int(_)
         | BindingType::UInt(_)
         | BindingType::Float(_)
-        | BindingType::Enum { .. }
-        | BindingType::Newtype { .. } => vec![format!("let {name} = {value_expr};")],
+        | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+        BindingType::Newtype { inner, .. } => {
+            if binding_type_requires_abi(inner) {
+                let inner_name = format!("{name}_inner");
+                let inner_expr = format!("{value_expr}.0");
+                let mut lines =
+                    render_replay_encode_lines(domain, inner, &inner_name, inner_expr.as_str());
+                lines.push(format!("let {name} = {inner_name};"));
+                lines
+            } else {
+                vec![format!("let {name} = {value_expr};")]
+            }
+        }
         BindingType::String => vec![
             format!("let {name} = {{"),
             format!(
@@ -2864,8 +2942,8 @@ fn binding_type_is_vm_value_codec(binding_type: &BindingType) -> bool {
         | BindingType::UInt(_)
         | BindingType::Float(_)
         | BindingType::String
-        | BindingType::Newtype { .. }
         | BindingType::Enum { .. } => true,
+        BindingType::Newtype { inner, .. } => !binding_type_requires_abi(inner),
     }
 }
 
@@ -2892,8 +2970,10 @@ pub(super) fn render_native_replay_encode_lines(
         BindingType::Slice(inner) | BindingType::Array(inner) => {
             render_native_replay_encode_collection_lines(domain, inner, name, value_expr)
         }
-        BindingType::Newtype { .. } => {
-            if binding_type_is_copy(binding_type) {
+        BindingType::Newtype { inner, .. } => {
+            if binding_type_requires_abi(inner) {
+                render_native_replay_encode_lines(domain, inner, name, &format!("{value_expr}.0"))
+            } else if binding_type_is_copy(binding_type) {
                 vec![format!("let {name} = {value_expr};")]
             } else {
                 vec![format!("let {name} = {value_expr}.clone();")]
@@ -2947,9 +3027,31 @@ fn render_native_replay_decode_lines(
         | BindingType::Int(_)
         | BindingType::UInt(_)
         | BindingType::Float(_)
-        | BindingType::Enum { .. }
-        | BindingType::Newtype { .. } => {
+        | BindingType::Enum { .. } => {
             if binding_type_is_copy(binding_type) {
+                vec![format!("let {name} = {value_expr};")]
+            } else {
+                vec![format!("let {name} = {value_expr}.clone();")]
+            }
+        }
+        BindingType::Newtype {
+            name: type_name,
+            domain: type_domain,
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                let inner_name = format!("{name}_inner");
+                let mut lines =
+                    render_native_replay_decode_lines(domain, inner, &inner_name, value_expr);
+                let type_path = newtype_abi_constructor_path(
+                    domain,
+                    type_domain,
+                    type_name,
+                    "crate::platform::abi::NativeAbi",
+                );
+                lines.push(format!("let {name} = {type_path}({inner_name});"));
+                lines
+            } else if binding_type_is_copy(binding_type) {
                 vec![format!("let {name} = {value_expr};")]
             } else {
                 vec![format!("let {name} = {value_expr}.clone();")]
@@ -3022,12 +3124,7 @@ fn render_native_replay_decode_collection_lines(
     lines.push(format!(
         "let mut {values_var} = Vec::with_capacity({value_expr}.len());"
     ));
-    lines.push(format!("for {item_var}_value in {value_expr}.iter() {{"));
-    if binding_type_is_copy(inner) {
-        lines.push(format!("    let {item_var} = *{item_var}_value;"));
-    } else {
-        lines.push(format!("    let {item_var} = {item_var}_value.clone();"));
-    }
+    lines.push(format!("for {item_var} in {value_expr} {{"));
     lines.extend(
         render_native_replay_decode_lines(domain, inner, &item_native_var, &item_var)
             .into_iter()
@@ -3082,7 +3179,11 @@ fn render_native_replay_encode_collection_lines(
         "let mut {name} = Vec::with_capacity({raw_var}.len());"
     ));
     lines.push(format!("for {item_var}_value in {raw_var} {{"));
-    lines.push(format!("    let {item_var} = {item_var}_value;"));
+    if binding_type_is_copy(inner) || binding_type_requires_abi(inner) {
+        lines.push(format!("    let {item_var} = *{item_var}_value;"));
+    } else {
+        lines.push(format!("    let {item_var} = {item_var}_value.clone();"));
+    }
     lines.extend(
         render_native_replay_encode_lines(domain, inner, &item_replay_var, &item_var)
             .into_iter()
@@ -3173,14 +3274,27 @@ pub(super) fn render_replay_compare_lines(
                 counter,
             )
         }
-        BindingType::Newtype { inner, .. } => render_replay_compare_lines(
-            domain,
-            inner,
-            &format!("&{left_expr}.0"),
-            &format!("&{right_expr}.0"),
-            mismatch_stmt,
-            counter,
-        ),
+        BindingType::Newtype { inner, .. } => {
+            if binding_type_requires_abi(inner) {
+                render_replay_compare_lines(
+                    domain,
+                    inner,
+                    left_expr,
+                    right_expr,
+                    mismatch_stmt,
+                    counter,
+                )
+            } else {
+                render_replay_compare_lines(
+                    domain,
+                    inner,
+                    &format!("&{left_expr}.0"),
+                    &format!("&{right_expr}.0"),
+                    mismatch_stmt,
+                    counter,
+                )
+            }
+        }
         BindingType::Struct { fields, .. } => {
             let mut lines = Vec::new();
             for field in fields {
@@ -3259,8 +3373,28 @@ pub(super) fn render_replay_to_vm_binding_lines(
         | BindingType::Int(_)
         | BindingType::UInt(_)
         | BindingType::Float(_)
-        | BindingType::Enum { .. }
-        | BindingType::Newtype { .. } => vec![format!("let {name} = {value_expr};")],
+        | BindingType::Enum { .. } => vec![format!("let {name} = {value_expr};")],
+        BindingType::Newtype {
+            name: type_name,
+            domain: type_domain,
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                let inner_name = format!("{name}_inner");
+                let mut lines =
+                    render_replay_to_vm_binding_lines(domain, inner, &inner_name, value_expr);
+                let type_path = newtype_abi_constructor_path(
+                    domain,
+                    type_domain,
+                    type_name,
+                    "crate::platform::abi::VmAbi",
+                );
+                lines.push(format!("let {name} = {type_path}({inner_name});"));
+                lines
+            } else {
+                vec![format!("let {name} = {value_expr};")]
+            }
+        }
         BindingType::String => vec![
             format!("let {name}_value = context.intern_string({value_expr}.as_str());"),
             format!("let {name} = vm::StringHandle::new({name}_value);"),
@@ -3423,8 +3557,14 @@ pub(super) fn vm_type_for_binding(domain: &str, binding_type: &BindingType) -> S
         BindingType::Newtype {
             name,
             domain: type_domain,
-            ..
-        } => named_type_path(domain, type_domain, name),
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                newtype_vm_path(domain, type_domain, name)
+            } else {
+                named_type_path(domain, type_domain, name)
+            }
+        }
         BindingType::Struct {
             name,
             domain: type_domain,
@@ -3464,9 +3604,15 @@ pub(super) fn replay_type_for_binding(domain: &str, binding_type: &BindingType) 
         BindingType::Newtype {
             name,
             domain: type_domain,
-            ..
+            inner,
+        } => {
+            if binding_type_requires_abi(inner) {
+                replay_type_for_binding(domain, inner)
+            } else {
+                named_type_path(domain, type_domain, name)
+            }
         }
-        | BindingType::Enum {
+        BindingType::Enum {
             name,
             domain: type_domain,
             ..
@@ -3555,7 +3701,16 @@ fn render_decode_value_lines(
             let inner_name = format!("{name}_inner");
             let mut lines =
                 render_decode_value_lines(domain, inner, &inner_name, value_expr, expected);
-            let type_path = named_type_path(domain, type_domain, type_name);
+            let type_path = if binding_type_requires_abi(inner) {
+                newtype_abi_constructor_path(
+                    domain,
+                    type_domain,
+                    type_name,
+                    "crate::platform::abi::VmAbi",
+                )
+            } else {
+                named_type_path(domain, type_domain, type_name)
+            };
             lines.push(format!("let {name} = {type_path}({inner_name});"));
             lines
         }

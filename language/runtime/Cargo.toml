@@ -46,6 +46,20 @@ libc = { workspace = true }
 postcard = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+windows-sys = { version = "0.52.0", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Kernel",
+    "Win32_Networking_WinSock",
+    "Win32_Storage_FileSystem",
+    "Win32_System_IO",
+    "Win32_System_Ioctl",
+    "Win32_System_SystemInformation",
+    "Win32_System_Time",
+    "Win32_System_WindowsProgramming",
+    "Wdk_Foundation",
+    "Wdk_Storage_FileSystem",
+] }
 
 [dev-dependencies]
 

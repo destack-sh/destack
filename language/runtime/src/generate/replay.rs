@@ -668,12 +668,17 @@ fn collect_replay_type_names(
         BindingType::Slice(inner) | BindingType::Array(inner) => {
             collect_replay_type_names(domain, inner, names);
         }
-        BindingType::Newtype {
-            name,
-            domain: type_domain,
-            ..
-        } => {
-            names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
+        BindingType::Newtype { inner, .. } => {
+            if binding_type_requires_abi(inner) {
+                collect_replay_type_names(domain, inner, names);
+            } else if let BindingType::Newtype {
+                name,
+                domain: type_domain,
+                ..
+            } = binding_type
+            {
+                names.insert(named_type_path(domain, type_domain.as_str(), name.as_str()));
+            }
         }
         BindingType::Struct {
             name,

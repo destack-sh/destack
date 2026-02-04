@@ -50,6 +50,10 @@ ecosystem-fetch:
 check:
     cargo clippy --release {{ packages }}
 
+# check runtime against windows via zig
+check-windows-runtime:
+    cargo zigbuild -p destack_runtime --target x86_64-pc-windows-gnu
+
 # build
 build:
     cargo build --release {{ packages }}

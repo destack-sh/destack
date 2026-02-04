@@ -10,6 +10,17 @@ Destack has a single runtime that can drive both VM and native execution (even s
 The runtime owns time, randomness, scheduling, external bindings, resource tracking, and GC coordination.
 VM and native are "engines" that run until they yield back to the runtime (microtask-style).
 
+## Targets And Capabilities
+
+The runtime is the reference execution environment for Destack.
+Tier 1 runtime targets are macOS, Linux, and Windows.
+Tier 2 runtime targets are iOS, Android, FreeBSD, OpenBSD, NetBSD, and DragonFly.
+Tier 3 runtime targets are WASI and other sandboxed environments with explicit capability gating.
+JS host targets (Node, Bun, Deno, browsers) run Destack via compatibility shims and lack native-only capabilities.
+
+Platform capabilities are explicit and enforced by the compiler and runtime policy.
+Use `@require("fs", "net:tcp")` to declare what a binding or API needs.
+
 ## Components
 
 The runtime is organized around subsystems that will sound familiar to V8 and JSC enjoyers, with some additional features for Destack:

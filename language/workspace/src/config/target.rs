@@ -880,6 +880,26 @@ pub enum Platform {
     MacOS,
     /// Linux
     Linux,
+    /// FreeBSD
+    FreeBsd,
+    /// OpenBSD
+    OpenBsd,
+    /// NetBSD
+    NetBsd,
+    /// DragonFly BSD
+    DragonFly,
+    /// Solaris
+    Solaris,
+    /// Illumos
+    Illumos,
+    /// Haiku
+    Haiku,
+    /// Fuchsia
+    Fuchsia,
+    /// Redox
+    Redox,
+    /// Hermit
+    Hermit,
 
     // Mobile
     /// iOS
@@ -890,6 +910,8 @@ pub enum Platform {
     // Other
     /// WASI (WebAssembly System Interface)
     Wasi,
+    /// Emscripten (WebAssembly with Emscripten ABI)
+    Emscripten,
     /// Bare metal (no operating system).
     BareMetal,
     /// Unknown or portable (no platform-specific APIs)
@@ -903,9 +925,20 @@ impl From<Platform> for BuiltinPlatform {
             Platform::Windows => BuiltinPlatform::Windows,
             Platform::MacOS => BuiltinPlatform::MacOS,
             Platform::Linux => BuiltinPlatform::Linux,
+            Platform::FreeBsd => BuiltinPlatform::FreeBsd,
+            Platform::OpenBsd => BuiltinPlatform::OpenBsd,
+            Platform::NetBsd => BuiltinPlatform::NetBsd,
+            Platform::DragonFly => BuiltinPlatform::DragonFly,
+            Platform::Solaris => BuiltinPlatform::Solaris,
+            Platform::Illumos => BuiltinPlatform::Illumos,
+            Platform::Haiku => BuiltinPlatform::Haiku,
+            Platform::Fuchsia => BuiltinPlatform::Fuchsia,
+            Platform::Redox => BuiltinPlatform::Redox,
+            Platform::Hermit => BuiltinPlatform::Hermit,
             Platform::IOS => BuiltinPlatform::IOS,
             Platform::Android => BuiltinPlatform::Android,
             Platform::Wasi => BuiltinPlatform::Wasi,
+            Platform::Emscripten => BuiltinPlatform::Emscripten,
             Platform::BareMetal => BuiltinPlatform::BareMetal,
             Platform::Universal => BuiltinPlatform::Universal,
         }
@@ -921,9 +954,20 @@ impl std::str::FromStr for Platform {
             "windows" | "win32" | "win" => Ok(Self::Windows),
             "macos" | "darwin" | "mac" => Ok(Self::MacOS),
             "linux" => Ok(Self::Linux),
+            "freebsd" => Ok(Self::FreeBsd),
+            "openbsd" => Ok(Self::OpenBsd),
+            "netbsd" => Ok(Self::NetBsd),
+            "dragonfly" | "dragonflybsd" => Ok(Self::DragonFly),
+            "solaris" => Ok(Self::Solaris),
+            "illumos" => Ok(Self::Illumos),
+            "haiku" => Ok(Self::Haiku),
+            "fuchsia" => Ok(Self::Fuchsia),
+            "redox" => Ok(Self::Redox),
+            "hermit" | "hermitos" => Ok(Self::Hermit),
             "ios" => Ok(Self::IOS),
             "android" => Ok(Self::Android),
             "wasi" => Ok(Self::Wasi),
+            "emscripten" | "emscripten-wasm" => Ok(Self::Emscripten),
             "bare_metal" | "bare-metal" | "baremetal" | "none" => Ok(Self::BareMetal),
             "universal" | "portable" | "any" => Ok(Self::Universal),
             _ => Err(()),
@@ -942,9 +986,29 @@ impl Platform {
         matches!(self, Self::Web)
     }
 
+    /// Whether this platform is a WASM target.
+    pub fn is_wasm(&self) -> bool {
+        matches!(self, Self::Wasi | Self::Emscripten)
+    }
+
     /// Whether this is a desktop platform.
     pub fn is_desktop(&self) -> bool {
-        matches!(self, Self::Windows | Self::MacOS | Self::Linux)
+        matches!(
+            self,
+            Self::Windows
+                | Self::MacOS
+                | Self::Linux
+                | Self::FreeBsd
+                | Self::OpenBsd
+                | Self::NetBsd
+                | Self::DragonFly
+                | Self::Solaris
+                | Self::Illumos
+                | Self::Haiku
+                | Self::Fuchsia
+                | Self::Redox
+                | Self::Hermit
+        )
     }
 
     /// Whether this is a mobile platform.
@@ -952,9 +1016,283 @@ impl Platform {
         matches!(self, Self::IOS | Self::Android)
     }
 
+    /// Whether this is a Unix-style platform.
+    pub fn is_unix(&self) -> bool {
+        matches!(
+            self,
+            Self::MacOS
+                | Self::Linux
+                | Self::FreeBsd
+                | Self::OpenBsd
+                | Self::NetBsd
+                | Self::DragonFly
+                | Self::Solaris
+                | Self::Illumos
+                | Self::Haiku
+                | Self::IOS
+                | Self::Android
+        )
+    }
+
     /// Whether this is a bare metal platform.
     pub fn is_bare_metal(&self) -> bool {
         matches!(self, Self::BareMetal)
+    }
+
+    /// Resolve the target triple OS component for this platform.
+    pub fn triple_os_component(&self) -> Option<&'static str> {
+        match self {
+            Self::Windows => Some("windows"),
+            Self::MacOS => Some("darwin"),
+            Self::Linux => Some("linux"),
+            Self::FreeBsd => Some("freebsd"),
+            Self::OpenBsd => Some("openbsd"),
+            Self::NetBsd => Some("netbsd"),
+            Self::DragonFly => Some("dragonfly"),
+            Self::Solaris => Some("solaris"),
+            Self::Illumos => Some("illumos"),
+            Self::Haiku => Some("haiku"),
+            Self::Fuchsia => Some("fuchsia"),
+            Self::Redox => Some("redox"),
+            Self::Hermit => Some("hermit"),
+            Self::IOS => Some("ios"),
+            Self::Android => Some("android"),
+            Self::Wasi => Some("wasi"),
+            Self::Emscripten => Some("emscripten"),
+            Self::BareMetal => Some("none"),
+            Self::Web | Self::Universal => None,
+        }
+    }
+}
+
+/// CPU architecture for native targets.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TargetArch {
+    /// x86_64 (amd64)
+    X86_64,
+    /// x86 (i686)
+    X86,
+    /// AArch64 (arm64)
+    Aarch64,
+    /// ARMv7 (32-bit)
+    Armv7,
+    /// ARMv6 (32-bit)
+    Armv6,
+    /// RISC-V 64-bit
+    Riscv64,
+    /// RISC-V 32-bit
+    Riscv32,
+    /// PowerPC 64-bit
+    PowerPc64,
+    /// PowerPC 64-bit (little-endian)
+    PowerPc64le,
+    /// s390x
+    S390x,
+    /// MIPS64
+    Mips64,
+    /// MIPS64 (little-endian)
+    Mips64el,
+    /// LoongArch 64-bit
+    LoongArch64,
+    /// WebAssembly 32-bit
+    Wasm32,
+    /// WebAssembly 64-bit
+    Wasm64,
+    /// Other architecture (verbatim string)
+    Other(String),
+}
+
+impl std::str::FromStr for TargetArch {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.to_lowercase().replace('-', "_");
+        Ok(match value.as_str() {
+            "x86_64" | "amd64" => Self::X86_64,
+            "x86" | "i686" | "i586" | "i386" => Self::X86,
+            "aarch64" | "arm64" => Self::Aarch64,
+            "armv7" | "armv7l" => Self::Armv7,
+            "armv6" | "armv6l" => Self::Armv6,
+            "riscv64" => Self::Riscv64,
+            "riscv32" => Self::Riscv32,
+            "powerpc64" | "ppc64" => Self::PowerPc64,
+            "powerpc64le" | "ppc64le" => Self::PowerPc64le,
+            "s390x" => Self::S390x,
+            "mips64" => Self::Mips64,
+            "mips64el" | "mips64le" => Self::Mips64el,
+            "loongarch64" | "loong64" => Self::LoongArch64,
+            "wasm32" => Self::Wasm32,
+            "wasm64" => Self::Wasm64,
+            other => Self::Other(other.to_string()),
+        })
+    }
+}
+
+impl TargetArch {
+    /// Parse a target architecture from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Format this architecture as a target triple component.
+    pub fn triple_component(&self) -> String {
+        match self {
+            Self::X86_64 => "x86_64".to_string(),
+            Self::X86 => "i686".to_string(),
+            Self::Aarch64 => "aarch64".to_string(),
+            Self::Armv7 => "armv7".to_string(),
+            Self::Armv6 => "armv6".to_string(),
+            Self::Riscv64 => "riscv64".to_string(),
+            Self::Riscv32 => "riscv32".to_string(),
+            Self::PowerPc64 => "powerpc64".to_string(),
+            Self::PowerPc64le => "powerpc64le".to_string(),
+            Self::S390x => "s390x".to_string(),
+            Self::Mips64 => "mips64".to_string(),
+            Self::Mips64el => "mips64el".to_string(),
+            Self::LoongArch64 => "loongarch64".to_string(),
+            Self::Wasm32 => "wasm32".to_string(),
+            Self::Wasm64 => "wasm64".to_string(),
+            Self::Other(value) => value.clone(),
+        }
+    }
+}
+
+/// Target vendor for native targets.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TargetVendor {
+    /// Unknown vendor.
+    Unknown,
+    /// Apple.
+    Apple,
+    /// PC.
+    Pc,
+    /// IBM.
+    Ibm,
+    /// Nintendo.
+    Nintendo,
+    /// Other vendor (verbatim string).
+    Other(String),
+}
+
+impl std::str::FromStr for TargetVendor {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.to_lowercase().replace('-', "_");
+        Ok(match value.as_str() {
+            "unknown" => Self::Unknown,
+            "apple" => Self::Apple,
+            "pc" => Self::Pc,
+            "ibm" => Self::Ibm,
+            "nintendo" => Self::Nintendo,
+            other => Self::Other(other.to_string()),
+        })
+    }
+}
+
+impl TargetVendor {
+    /// Parse a target vendor from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Resolve the default vendor for a platform when none is specified.
+    pub fn default_for_platform(platform: Platform) -> Self {
+        match platform {
+            Platform::Windows => Self::Pc,
+            Platform::MacOS | Platform::IOS => Self::Apple,
+            _ => Self::Unknown,
+        }
+    }
+
+    /// Format this vendor as a target triple component.
+    pub fn triple_component(&self) -> String {
+        match self {
+            Self::Unknown => "unknown".to_string(),
+            Self::Apple => "apple".to_string(),
+            Self::Pc => "pc".to_string(),
+            Self::Ibm => "ibm".to_string(),
+            Self::Nintendo => "nintendo".to_string(),
+            Self::Other(value) => value.clone(),
+        }
+    }
+}
+
+/// Target environment / ABI flavor.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TargetEnv {
+    /// GNU environment.
+    Gnu,
+    /// Musl environment.
+    Musl,
+    /// MSVC environment.
+    Msvc,
+    /// GNU + LLVM environment.
+    GnuLlvm,
+    /// EABI (bare-metal).
+    Eabi,
+    /// EABI with hard-float.
+    Eabihf,
+    /// Musl + EABI.
+    MuslEabi,
+    /// Musl + EABI hard-float.
+    MuslEabihf,
+    /// Android.
+    Android,
+    /// Other environment (verbatim string).
+    Other(String),
+}
+
+impl std::str::FromStr for TargetEnv {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let value = s.to_lowercase().replace('-', "_");
+        Ok(match value.as_str() {
+            "gnu" => Self::Gnu,
+            "musl" => Self::Musl,
+            "msvc" => Self::Msvc,
+            "gnullvm" | "gnu_llvm" => Self::GnuLlvm,
+            "eabi" => Self::Eabi,
+            "eabihf" => Self::Eabihf,
+            "musleabi" => Self::MuslEabi,
+            "musleabihf" => Self::MuslEabihf,
+            "android" => Self::Android,
+            other => Self::Other(other.to_string()),
+        })
+    }
+}
+
+impl TargetEnv {
+    /// Parse a target environment from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Resolve the default environment for a platform when none is specified.
+    pub fn default_for_platform(platform: Platform) -> Option<Self> {
+        match platform {
+            Platform::Linux => Some(Self::Gnu),
+            Platform::Windows => Some(Self::Msvc),
+            Platform::Android => Some(Self::Android),
+            _ => None,
+        }
+    }
+
+    /// Format this environment as a target triple component.
+    pub fn triple_component(&self) -> String {
+        match self {
+            Self::Gnu => "gnu".to_string(),
+            Self::Musl => "musl".to_string(),
+            Self::Msvc => "msvc".to_string(),
+            Self::GnuLlvm => "gnullvm".to_string(),
+            Self::Eabi => "eabi".to_string(),
+            Self::Eabihf => "eabihf".to_string(),
+            Self::MuslEabi => "musleabi".to_string(),
+            Self::MuslEabihf => "musleabihf".to_string(),
+            Self::Android => "android".to_string(),
+            Self::Other(value) => value.clone(),
+        }
     }
 }
 
@@ -999,10 +1337,16 @@ pub struct Target {
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
+    /// Target platform / operating system.
     pub platform: Platform,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
+    /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
+    pub target_arch: Option<TargetArch>,
+    /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
+    pub target_vendor: Option<TargetVendor>,
+    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    pub target_env: Option<TargetEnv>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
@@ -1250,6 +1594,36 @@ impl Target {
         self.output_mode() == OutputMode::Directory
     }
 
+    /// Resolve a target triple string from the target configuration.
+    pub fn resolved_target_triple(&self) -> Option<String> {
+        if let Some(triple) = self.target_triple.as_ref() {
+            return Some(triple.clone());
+        }
+
+        let target_arch = self.target_arch.as_ref()?;
+        let os = self.platform.triple_os_component()?;
+
+        let vendor = self
+            .target_vendor
+            .clone()
+            .unwrap_or_else(|| TargetVendor::default_for_platform(self.platform));
+        let env = self
+            .target_env
+            .clone()
+            .or_else(|| TargetEnv::default_for_platform(self.platform));
+
+        let mut components = vec![
+            target_arch.triple_component(),
+            vendor.triple_component(),
+            os.to_string(),
+        ];
+        if let Some(env) = env {
+            components.push(env.triple_component());
+        }
+
+        Some(components.join("-"))
+    }
+
     /// Set the output directory.
     pub fn with_out_dir(mut self, out_dir: impl Into<PathBuf>) -> Self {
         self.out_dir = out_dir.into();
@@ -1337,6 +1711,24 @@ impl Target {
     /// Set target triple for native codegen.
     pub fn with_target_triple(mut self, target_triple: impl Into<String>) -> Self {
         self.target_triple = Some(target_triple.into());
+        self
+    }
+
+    /// Set target architecture for native codegen.
+    pub fn with_target_arch(mut self, target_arch: TargetArch) -> Self {
+        self.target_arch = Some(target_arch);
+        self
+    }
+
+    /// Set target vendor for native codegen.
+    pub fn with_target_vendor(mut self, target_vendor: TargetVendor) -> Self {
+        self.target_vendor = Some(target_vendor);
+        self
+    }
+
+    /// Set target environment / ABI for native codegen.
+    pub fn with_target_env(mut self, target_env: TargetEnv) -> Self {
+        self.target_env = Some(target_env);
         self
     }
 
@@ -1669,12 +2061,18 @@ pub struct DsConfigTargetOptions {
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (web, windows, macos, linux, ios, android, bare-metal, etc.).
+    /// Target platform / operating system.
     pub platform: Platform,
     /// Target triple for native codegen.
     /// This selects the ABI and CPU architecture for native targets.
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
+    /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
+    pub target_arch: Option<TargetArch>,
+    /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
+    pub target_vendor: Option<TargetVendor>,
+    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    pub target_env: Option<TargetEnv>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
@@ -1789,6 +2187,9 @@ impl Default for DsConfigTargetOptions {
             runtime_version: None,
             platform: Platform::default(),
             target_triple: None,
+            target_arch: None,
+            target_vendor: None,
+            target_env: None,
             cpu: None,
             cpu_features: Vec::new(),
             relocation_model: RelocationModel::default(),
@@ -1874,6 +2275,9 @@ impl DsConfigTargetOptions {
             runtime_version: self.runtime_version.clone(),
             platform: self.platform,
             target_triple: self.target_triple.clone(),
+            target_arch: self.target_arch.clone(),
+            target_vendor: self.target_vendor.clone(),
+            target_env: self.target_env.clone(),
             cpu: self.cpu.clone(),
             cpu_features: self.cpu_features.clone(),
             relocation_model: self.relocation_model,
@@ -1978,6 +2382,9 @@ impl DsConfigTargetOptions {
                 .and_then(Platform::parse)
                 .unwrap_or_default(),
             target_triple: json.target_triple.clone(),
+            target_arch: json.arch.as_deref().and_then(TargetArch::parse),
+            target_vendor: json.vendor.as_deref().and_then(TargetVendor::parse),
+            target_env: json.env.as_deref().and_then(TargetEnv::parse),
             cpu: json.cpu.clone(),
             cpu_features: json.cpu_features.clone().unwrap_or_default(),
             relocation_model: json
@@ -2114,10 +2521,16 @@ pub struct DsConfigTargetJson {
     pub runtime: Option<String>,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
-    /// Target platform (e.g., Web, Windows, macOS, Linux, iOS, Android, WASI, BareMetal, Universal).
+    /// Target platform / operating system.
     pub platform: Option<String>,
     /// Target triple for native codegen (e.g., "x86_64-unknown-linux-gnu").
     pub target_triple: Option<String>,
+    /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
+    pub arch: Option<String>,
+    /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
+    pub vendor: Option<String>,
+    /// Target environment / ABI for native codegen (e.g., "gnu", "musl", "msvc").
+    pub env: Option<String>,
     /// CPU name for native codegen (e.g., "native", "x86-64", "znver3").
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").

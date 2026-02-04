@@ -93,16 +93,12 @@ impl ReplayController {
         // replay path
         if self.mode() == ExecutionMode::Replay {
             let event = self.next_random_event(RandomEventKind::Stream)?;
-            if event.bytes.len() == 8 {
-                let bytes: [u8; 8] = event.bytes.as_slice().try_into().map_err(|_| {
-                    RuntimeError::ReplayMismatch {
-                        name: "random".to_string(),
-                    }
-                    .boxed()
-                })?;
-                return Ok(u64::from_le_bytes(bytes));
+            if !event.bytes.is_empty() {
+                return Err(RuntimeError::ReplayMismatch {
+                    name: "random".to_string(),
+                }
+                .boxed());
             }
-
             return Ok(event.stream_id.get());
         }
 
@@ -112,7 +108,7 @@ impl ReplayController {
             self.record_event(ReplayEvent::RandomEvent(RandomEvent {
                 stream_id: RandomStreamId::new(value),
                 kind: RandomEventKind::Stream,
-                bytes: value.to_le_bytes().to_vec(),
+                bytes: Vec::new(),
             }))?;
         }
 

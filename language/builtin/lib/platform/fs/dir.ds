@@ -2,6 +2,7 @@ import { Array } from "native";
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle } from "../resource/index.ds";
 import { FileMode } from "./flags.ds";
+import { PathRef } from "./path.ds";
 
 /// File type for directory entries.
 export enum DirentKind {
@@ -26,7 +27,7 @@ export enum DirentKind {
 /// Directory entry metadata.
 export struct Dirent {
     /// Entry name.
-    name: string,
+    name: PathRef,
     /// Entry kind.
     kind: DirentKind,
 }
@@ -35,23 +36,23 @@ export struct Dirent {
 declare namespace fs {
     /// Create a directory.
     @binding("destack.fs.mkdir", { effect: "external", replay: "recordable" })
-    export function mkdir(path: string, mode: FileMode): Result<void, PlatformError>;
+    export function mkdir(path: PathRef, mode: FileMode): Result<void, PlatformError>;
 
     /// Create a directory relative to a directory handle.
     @binding("destack.fs.mkdirat", { effect: "external", replay: "recordable" })
     export function mkdirat(
         dir: DirectoryHandle,
-        path: string,
+        path: PathRef,
         mode: FileMode,
     ): Result<void, PlatformError>;
 
     /// Remove a directory.
     @binding("destack.fs.rmdir", { effect: "external", replay: "recordable" })
-    export function rmdir(path: string): Result<void, PlatformError>;
+    export function rmdir(path: PathRef): Result<void, PlatformError>;
 
     /// Open a directory and return a handle.
     @binding("destack.fs.opendir", { effect: "external", replay: "recordable" })
-    export function opendir(path: string): Result<DirectoryHandle, PlatformError>;
+    export function opendir(path: PathRef): Result<DirectoryHandle, PlatformError>;
 
     /// Read directory entries from an open directory handle.
     @binding("destack.fs.readdir", { effect: "external", replay: "recordable" })
@@ -63,5 +64,5 @@ declare namespace fs {
 
     /// Create a temporary directory.
     @binding("destack.fs.mkdtemp", { effect: "external", replay: "recordable" })
-    export function mkdtemp(template: string): Result<string, PlatformError>;
+    export function mkdtemp(template: PathRef): Result<PathRef, PlatformError>;
 }

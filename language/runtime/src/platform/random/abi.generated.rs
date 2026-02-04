@@ -15,6 +15,8 @@ pub struct RandomStream(
     pub u64,
 );
 
+pub type RandomStreamVm = RandomStream;
+
 impl VmValueCodec for RandomStream {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u64 as VmValueCodec>::decode(value)?))

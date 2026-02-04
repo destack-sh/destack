@@ -25,6 +25,13 @@ You are free to use plain TypeScript, pick any of the libraries, or plug into th
  - NOTE #Incomplete: getting started (`bun i destack`, `curl destack.sh/install`, ..)
  - Join the [Discord](https://discord.gg/xUFQ45TWYd)
 
+## Targets And Capabilities
+
+Destack ships a native runtime and also targets existing JS hosts.
+Native runtime targets: macOS, Linux, Windows, iOS, Android, FreeBSD, OpenBSD, NetBSD, DragonFly, and WASI.
+JS host targets: Node, Bun, Deno, and browsers.
+Platform capabilities are explicit and guarded via `@require` in `.ds` so portability stays honest.
+
 ## Higher-Order Software, Higher-Order Development
 
 We're very early in software as an industry.

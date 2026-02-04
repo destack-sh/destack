@@ -11,6 +11,8 @@ export type BindingOptions = {
     replay?: "recordable" | "nonrecordable",
     /// Replay payload policy for the binding.
     payload?: "results" | "argumentsAndResults",
+    /// Capability requirements for this binding.
+    requires?: string[],
 };
 
 /// Marks something as a runtime binding.
@@ -24,6 +26,19 @@ export type BindingOptions = {
 /// function open() { }
 /// ```
 export newtype binding = (string, BindingOptions);
+
+/// Require one or more platform capabilities.
+///
+/// ```
+/// @require("fs")
+/// declare function readFile(...): ...
+/// ```
+///
+/// ````
+/// @require(["fs", "net"])
+/// declare function startServer(...): ...
+/// ````
+export newtype require = (...string[]);
 
 /// Marks something as an external symbol.
 ///

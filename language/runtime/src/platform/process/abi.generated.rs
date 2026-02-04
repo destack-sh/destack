@@ -15,6 +15,8 @@ pub struct GroupId(
     pub u32,
 );
 
+pub type GroupIdVm = GroupId;
+
 impl VmValueCodec for GroupId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
@@ -32,6 +34,8 @@ pub struct ProcessId(
     /// Inner value.
     pub u32,
 );
+
+pub type ProcessIdVm = ProcessId;
 
 impl VmValueCodec for ProcessId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
@@ -51,6 +55,8 @@ pub struct Signal(
     pub u32,
 );
 
+pub type SignalVm = Signal;
+
 impl VmValueCodec for Signal {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {
         Ok(Self(<u32 as VmValueCodec>::decode(value)?))
@@ -68,6 +74,8 @@ pub struct UserId(
     /// Inner value.
     pub u32,
 );
+
+pub type UserIdVm = UserId;
 
 impl VmValueCodec for UserId {
     fn decode(value: vm::Value) -> RuntimeResult<Self> {

@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use dashmap::DashMap;
 
-use crate::{DsConfigCompilerOptions, OutputFormat, Platform, Runtime};
+use crate::{
+    DsConfigCompilerOptions, OutputFormat, Platform, Runtime, TargetArch, TargetEnv, TargetVendor,
+};
 
 // Re-export ProfileId and ProfileVersion from destack_source
 pub use destack_source::{ProfileId, ProfileVersion};
@@ -86,6 +88,12 @@ pub struct ProfileKey {
     pub runtime: Runtime,
     /// Target platform for the profile.
     pub platform: Platform,
+    /// Target architecture for the profile.
+    pub target_arch: Option<TargetArch>,
+    /// Target vendor for the profile.
+    pub target_vendor: Option<TargetVendor>,
+    /// Target environment / ABI for the profile.
+    pub target_env: Option<TargetEnv>,
     /// Normalized library set for the profile.
     pub lib: Vec<String>,
     /// Debug flag exposed to `import.meta`.
@@ -269,6 +277,9 @@ impl ProfileKey {
         output: OutputFormat,
         runtime: Runtime,
         platform: Platform,
+        target_arch: Option<TargetArch>,
+        target_vendor: Option<TargetVendor>,
+        target_env: Option<TargetEnv>,
         lib: Vec<String>,
         debug: bool,
         test: bool,
@@ -280,6 +291,9 @@ impl ProfileKey {
             output,
             runtime,
             platform,
+            target_arch,
+            target_vendor,
+            target_env,
             lib,
             debug,
             test,

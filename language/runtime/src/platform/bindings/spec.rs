@@ -203,13 +203,7 @@ impl BindingDescriptor {
         replay: ReplayPolicy,
         replay_kind: BindingReplayKind,
     ) -> Self {
-        Self::external_with_payload(
-            name,
-            signature,
-            replay,
-            replay_kind,
-            ReplayPayload::Results,
-        )
+        Self::external_with_payload(name, signature, replay, replay_kind, ReplayPayload::Results)
     }
 
     /// Create an external binding descriptor with a replay payload override.

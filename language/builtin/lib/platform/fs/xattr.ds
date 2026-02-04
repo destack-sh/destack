@@ -1,0 +1,87 @@
+import { Array, Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle } from "../resource/index.ds";
+import { PathRef } from "./path.ds";
+
+/// Extended attribute flags.
+export newtype XattrFlags = uint32;
+
+/// Create the attribute, fail if it exists.
+export const XATTR_CREATE: XattrFlags = XattrFlags(0x1);
+/// Replace the attribute, fail if it does not exist.
+export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
+
+/// Extended attribute bindings for the native runtime.
+declare namespace fs {
+    /// Read an extended attribute by path.
+    @binding("destack.fs.getxattr", { effect: "external", replay: "recordable" })
+    export function getxattr(
+        path: PathRef,
+        name: string,
+    ): Result<Array<uint8>, PlatformError>;
+
+    /// Read an extended attribute without following symlinks.
+    @binding("destack.fs.lgetxattr", { effect: "external", replay: "recordable" })
+    export function lgetxattr(
+        path: PathRef,
+        name: string,
+    ): Result<Array<uint8>, PlatformError>;
+
+    /// Read an extended attribute by handle.
+    @binding("destack.fs.fgetxattr", { effect: "external", replay: "recordable" })
+    export function fgetxattr(
+        handle: FileHandle,
+        name: string,
+    ): Result<Array<uint8>, PlatformError>;
+
+    /// Set an extended attribute by path.
+    @binding("destack.fs.setxattr", { effect: "external", replay: "recordable" })
+    export function setxattr(
+        path: PathRef,
+        name: string,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
+    /// Set an extended attribute without following symlinks.
+    @binding("destack.fs.lsetxattr", { effect: "external", replay: "recordable" })
+    export function lsetxattr(
+        path: PathRef,
+        name: string,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
+    /// Set an extended attribute by handle.
+    @binding("destack.fs.fsetxattr", { effect: "external", replay: "recordable" })
+    export function fsetxattr(
+        handle: FileHandle,
+        name: string,
+        value: Slice<uint8>,
+        flags: XattrFlags,
+    ): Result<void, PlatformError>;
+
+    /// List extended attribute names by path.
+    @binding("destack.fs.listxattr", { effect: "external", replay: "recordable" })
+    export function listxattr(path: PathRef): Result<Array<string>, PlatformError>;
+
+    /// List extended attribute names without following symlinks.
+    @binding("destack.fs.llistxattr", { effect: "external", replay: "recordable" })
+    export function llistxattr(path: PathRef): Result<Array<string>, PlatformError>;
+
+    /// List extended attribute names by handle.
+    @binding("destack.fs.flistxattr", { effect: "external", replay: "recordable" })
+    export function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>;
+
+    /// Remove an extended attribute by path.
+    @binding("destack.fs.removexattr", { effect: "external", replay: "recordable" })
+    export function removexattr(path: PathRef, name: string): Result<void, PlatformError>;
+
+    /// Remove an extended attribute without following symlinks.
+    @binding("destack.fs.lremovexattr", { effect: "external", replay: "recordable" })
+    export function lremovexattr(path: PathRef, name: string): Result<void, PlatformError>;
+
+    /// Remove an extended attribute by handle.
+    @binding("destack.fs.fremovexattr", { effect: "external", replay: "recordable" })
+    export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>;
+}

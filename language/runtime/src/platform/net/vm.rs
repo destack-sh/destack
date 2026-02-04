@@ -1,213 +1,223 @@
-use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::net::{SocketAddressVm, SocketShutdown};
-use crate::platform::resource::{ListenerHandle, SocketHandle};
-use crate::platform::{PlatformError, VmSlice};
-use crate::runtime::RuntimeCallContext;
 use destack_vm as vm;
 
-/// Stub for destack.net.accept.
-pub(super) fn destack_net_accept(
-    _runtime: &RuntimeCallContext,
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::net::{SocketAddress, SocketAddressVm, SocketShutdown, core as core_net};
+use crate::platform::resource::{ListenerHandle, SocketHandle};
+use crate::platform::{NativeSlice, NativeStringRef, VmSlice};
+use crate::runtime::RuntimeCallContext;
+
+/// Accept a new connection from a listener.
+pub fn destack_net_accept(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     listener: ListenerHandle,
 ) -> RuntimeResult<SocketHandle> {
-    let _ = listener;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.accept is not available in the VM yet",
-    ))
-    .boxed())
+    call_out(|out| unsafe { core_net::destack_net_accept(runtime, out, listener) })
 }
 
-/// Stub for destack.net.close.
-pub(super) fn destack_net_close(
-    _runtime: &RuntimeCallContext,
+/// Close a socket handle.
+pub fn destack_net_close(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.close is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_close(runtime, handle) }
 }
 
-/// Stub for destack.net.connect.
-pub(super) fn destack_net_connect(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Connect to a remote host and return a socket handle.
+pub fn destack_net_connect(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     host: vm::StringHandle,
     port: u16,
 ) -> RuntimeResult<SocketHandle> {
-    let _ = (host, port);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.connect is not available in the VM yet",
-    ))
-    .boxed())
+    let host = host_from_vm(runtime, context, host)?;
+
+    call_out(|out| unsafe { core_net::destack_net_connect(runtime, out, host, port) })
 }
 
-/// Stub for destack.net.listen.
-pub(super) fn destack_net_listen(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Start listening on the given address.
+pub fn destack_net_listen(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     host: vm::StringHandle,
     port: u16,
     backlog: u32,
 ) -> RuntimeResult<ListenerHandle> {
-    let _ = (host, port, backlog);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.listen is not available in the VM yet",
-    ))
-    .boxed())
+    let host = host_from_vm(runtime, context, host)?;
+
+    call_out(|out| unsafe { core_net::destack_net_listen(runtime, out, host, port, backlog) })
 }
 
-/// Stub for destack.net.read.
-pub(super) fn destack_net_read(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Read from a socket into the provided slice.
+pub fn destack_net_read(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.read is not available in the VM yet",
-    ))
-    .boxed())
+    let native_buffer = allocate_read_buffer(runtime, buffer);
+    let bytes_read =
+        call_out(|out| unsafe { core_net::destack_net_read(runtime, out, handle, native_buffer) })?;
+    write_read_buffer(context, buffer, native_buffer)?;
+
+    Ok(bytes_read)
 }
 
-/// Stub for destack.net.write.
-pub(super) fn destack_net_write(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Write to a socket from the provided slice.
+pub fn destack_net_write(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     buffer: VmSlice<u8>,
 ) -> RuntimeResult<u64> {
-    let _ = (handle, buffer);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.write is not available in the VM yet",
-    ))
-    .boxed())
+    let native_buffer = buffer_from_vm(runtime, context, buffer)?;
+
+    call_out(|out| unsafe { core_net::destack_net_write(runtime, out, handle, native_buffer) })
 }
 
-/// Stub for destack.net.shutdown.
-pub(super) fn destack_net_shutdown(
-    _runtime: &RuntimeCallContext,
+/// Shut down a socket for reads, writes, or both.
+pub fn destack_net_shutdown(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     how: SocketShutdown,
 ) -> RuntimeResult<()> {
-    let _ = (handle, how);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.shutdown is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_shutdown(runtime, handle, how) }
 }
 
-/// Stub for destack.net.setNonblocking.
-pub(super) fn destack_net_set_nonblocking(
-    _runtime: &RuntimeCallContext,
+/// Enable or disable nonblocking mode on a socket.
+pub fn destack_net_set_nonblocking(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.setNonblocking is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_set_nonblocking(runtime, handle, enabled) }
 }
 
-/// Stub for destack.net.localAddress.
-pub(super) fn destack_net_local_address(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Read the local socket address.
+pub fn destack_net_local_address(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.localAddress is not available in the VM yet",
-    ))
-    .boxed())
+    let address =
+        call_out(|out| unsafe { core_net::destack_net_local_address(runtime, out, handle) })?;
+    socket_address_to_vm(context, address)
 }
 
-/// Stub for destack.net.peerAddress.
-pub(super) fn destack_net_peer_address(
-    _runtime: &RuntimeCallContext,
-    _context: &mut vm::RuntimeContext<'_>,
+/// Read the remote socket address.
+pub fn destack_net_peer_address(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
 ) -> RuntimeResult<SocketAddressVm> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.peerAddress is not available in the VM yet",
-    ))
-    .boxed())
+    let address =
+        call_out(|out| unsafe { core_net::destack_net_peer_address(runtime, out, handle) })?;
+    socket_address_to_vm(context, address)
 }
 
-/// Stub for destack.net.setNoDelay.
-pub(super) fn destack_net_set_no_delay(
-    _runtime: &RuntimeCallContext,
+/// Enable or disable TCP_NODELAY.
+pub fn destack_net_set_no_delay(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.setNoDelay is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_set_no_delay(runtime, handle, enabled) }
 }
 
-/// Stub for destack.net.setKeepAlive.
-pub(super) fn destack_net_set_keep_alive(
-    _runtime: &RuntimeCallContext,
+/// Enable or disable TCP keepalive.
+pub fn destack_net_set_keep_alive(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     enabled: bool,
     delay_seconds: u32,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled, delay_seconds);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.setKeepAlive is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_set_keep_alive(runtime, handle, enabled, delay_seconds) }
 }
 
-/// Stub for destack.net.setReuseAddr.
-pub(super) fn destack_net_set_reuse_addr(
-    _runtime: &RuntimeCallContext,
+/// Enable or disable SO_REUSEADDR.
+pub fn destack_net_set_reuse_addr(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.setReuseAddr is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_set_reuse_addr(runtime, handle, enabled) }
 }
 
-/// Stub for destack.net.setReusePort.
-pub(super) fn destack_net_set_reuse_port(
-    _runtime: &RuntimeCallContext,
+/// Enable or disable SO_REUSEPORT.
+pub fn destack_net_set_reuse_port(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: SocketHandle,
     enabled: bool,
 ) -> RuntimeResult<()> {
-    let _ = (handle, enabled);
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.setReusePort is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_set_reuse_port(runtime, handle, enabled) }
 }
 
-/// Stub for destack.net.closeListener.
-pub(super) fn destack_net_close_listener(
-    _runtime: &RuntimeCallContext,
+/// Close a listener handle.
+pub fn destack_net_close_listener(
+    runtime: &RuntimeCallContext,
     _context: &mut vm::RuntimeContext<'_>,
     handle: ListenerHandle,
 ) -> RuntimeResult<()> {
-    let _ = handle;
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.net.closeListener is not available in the VM yet",
-    ))
-    .boxed())
+    unsafe { core_net::destack_net_close_listener(runtime, handle) }
+}
+
+fn call_out<T>(call: impl FnOnce(*mut T) -> RuntimeResult<()>) -> RuntimeResult<T> {
+    let mut value = std::mem::MaybeUninit::<T>::uninit();
+    call(value.as_mut_ptr())?;
+    Ok(unsafe { value.assume_init() })
+}
+
+fn host_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    host: vm::StringHandle,
+) -> RuntimeResult<NativeStringRef> {
+    let host_ref = context
+        .string_ref(host)
+        .map_err(|error| RuntimeError::from(error).boxed())?;
+    Ok(runtime.store_string(host_ref.as_str()))
+}
+
+fn buffer_from_vm(
+    runtime: &RuntimeCallContext,
+    context: &mut vm::RuntimeContext<'_>,
+    buffer: VmSlice<u8>,
+) -> RuntimeResult<NativeSlice<u8>> {
+    let bytes = buffer.read_bytes(context)?;
+    Ok(runtime.store_slice(bytes))
+}
+
+fn allocate_read_buffer(runtime: &RuntimeCallContext, buffer: VmSlice<u8>) -> NativeSlice<u8> {
+    let length = buffer.len as usize;
+    runtime.store_slice(vec![0u8; length])
+}
+
+fn write_read_buffer(
+    context: &mut vm::RuntimeContext<'_>,
+    buffer: VmSlice<u8>,
+    native: NativeSlice<u8>,
+) -> RuntimeResult<()> {
+    let bytes = unsafe { native.as_slice()? };
+    buffer.write_bytes(context, bytes)
+}
+
+fn socket_address_to_vm(
+    context: &mut vm::RuntimeContext<'_>,
+    address: SocketAddress,
+) -> RuntimeResult<SocketAddressVm> {
+    let host = unsafe { address.host.as_str()? };
+    let host_value = context.intern_string(host);
+    let host_handle = vm::StringHandle::new(host_value);
+    Ok(SocketAddressVm {
+        host: host_handle,
+        port: address.port,
+        family: address.family,
+    })
 }

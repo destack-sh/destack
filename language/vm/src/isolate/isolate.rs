@@ -6,7 +6,7 @@ use destack_mir as mir;
 use super::{ExternalHandler, IsolateState, StringRef};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::interpreter::{InterpreterContext, Interpreter};
+use crate::interpreter::{Interpreter, InterpreterContext};
 use crate::memory::{GcStats, HeapHandle, RawPointer, SharedHeap, Value};
 use crate::options::IsolateOptions;
 

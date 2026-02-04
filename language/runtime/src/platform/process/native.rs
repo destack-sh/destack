@@ -243,6 +243,7 @@ fn process_umask(mask: u32) -> RuntimeResult<u32> {
     }
     #[cfg(not(unix))]
     {
+        let _ = mask;
         Err(RuntimeError::from(PlatformError::not_supported("destack.process.umask")).boxed())
     }
 }
@@ -262,6 +263,7 @@ fn process_kill(pid: u32, signal: u32) -> RuntimeResult<()> {
     }
     #[cfg(not(unix))]
     {
+        let _ = (pid, signal);
         Err(RuntimeError::from(PlatformError::not_supported("destack.process.kill")).boxed())
     }
 }

@@ -10,8 +10,7 @@ pub(super) fn destack_error_take_platform_error(
     context: &mut vm::RuntimeContext<'_>,
     errorid: u64,
 ) -> RuntimeResult<PlatformErrorVm> {
-    let error =
-        take_platform_error(&runtime.runtime().errors, RuntimeErrorId::from_raw(errorid));
+    let error = take_platform_error(&runtime.runtime().errors, RuntimeErrorId::from_raw(errorid));
     let mut store = VmStringStore::new(context);
     let fields = platform_error_fields(&mut store, &error);
 

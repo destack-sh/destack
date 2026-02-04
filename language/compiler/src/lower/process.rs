@@ -8,7 +8,7 @@ use destack_compiler_macros::DefineTask;
 use destack_source::{
     CacheKind, ModuleId, ModuleStamp, ModuleVersion, ProfileStamp, ProfileVersion,
 };
-use destack_workspace::{ModuleMir, OutputFormat, ProfileId, Target, TargetId};
+use destack_workspace::{ModuleMir, OutputFormat, ProfileId, Target, TargetArch, TargetId};
 use target_lexicon::Triple;
 
 /// Task to lower a DIR into MIR.
@@ -269,8 +269,8 @@ impl Compiler {
         target: &Target,
     ) -> LowerResult<u8> {
         // prefer explicit triple for pointer width
-        if let Some(triple) = target.target_triple.as_ref() {
-            let triple = Triple::from_str(triple).map_err(|error| LowerError::Internal {
+        if let Some(triple) = target.resolved_target_triple() {
+            let triple = Triple::from_str(&triple).map_err(|error| LowerError::Internal {
                 module: module_id,
                 message: format!("invalid target triple '{triple}': {error}"),
             })?;
@@ -279,6 +279,30 @@ impl Compiler {
                 message: format!("unsupported pointer width for '{triple}'"),
             })?;
             let pointer_bytes = pointer_width.bits() / 8;
+            self.validate_pointer_bytes(module_id, pointer_bytes)?;
+            return Ok(pointer_bytes);
+        }
+
+        // derive from explicit architecture when present
+        if let Some(target_arch) = target.target_arch.as_ref() {
+            let pointer_bytes = match target_arch {
+                TargetArch::X86_64
+                | TargetArch::Aarch64
+                | TargetArch::Riscv64
+                | TargetArch::PowerPc64
+                | TargetArch::PowerPc64le
+                | TargetArch::S390x
+                | TargetArch::Mips64
+                | TargetArch::Mips64el
+                | TargetArch::LoongArch64
+                | TargetArch::Wasm64 => 8,
+                TargetArch::X86
+                | TargetArch::Armv7
+                | TargetArch::Armv6
+                | TargetArch::Riscv32
+                | TargetArch::Wasm32 => 4,
+                TargetArch::Other(_) => mem::size_of::<usize>() as u8,
+            };
             self.validate_pointer_bytes(module_id, pointer_bytes)?;
             return Ok(pointer_bytes);
         }

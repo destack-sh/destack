@@ -1,6 +1,7 @@
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle, FileHandle } from "../resource/index.ds";
 import { AtFlags, FileSize } from "./flags.ds";
+import { PathRef } from "./path.ds";
 
 /// File metadata returned by stat calls.
 export struct Stat {
@@ -60,29 +61,25 @@ export struct StatFs {
 
 /// Stat bindings for the native runtime.
 declare namespace fs {
-    /// Stat a file by path.
+    /// Stat a file.
     @binding("destack.fs.stat", { effect: "external", replay: "recordable" })
-    export function stat(path: string): Result<Stat, PlatformError>;
+    export function stat(path: PathRef): Result<Stat, PlatformError>;
 
     /// Stat a file relative to a directory handle.
     @binding("destack.fs.statat", { effect: "external", replay: "recordable" })
-    export function statat(
-        dir: DirectoryHandle,
-        path: string,
-        flags: AtFlags,
-    ): Result<Stat, PlatformError>;
+    export function statat(dir: DirectoryHandle, path: PathRef, flags: AtFlags): Result<Stat, PlatformError>;
 
     /// Stat a file by handle.
     @binding("destack.fs.fstat", { effect: "external", replay: "recordable" })
     export function fstat(handle: FileHandle): Result<Stat, PlatformError>;
 
-    /// Stat a file by path without following symlinks.
+    /// Stat a file without following symlinks.
     @binding("destack.fs.lstat", { effect: "external", replay: "recordable" })
-    export function lstat(path: string): Result<Stat, PlatformError>;
+    export function lstat(path: PathRef): Result<Stat, PlatformError>;
 
-    /// Stat a filesystem by path.
+    /// Stat a filesystem.
     @binding("destack.fs.statfs", { effect: "external", replay: "recordable" })
-    export function statfs(path: string): Result<StatFs, PlatformError>;
+    export function statfs(path: PathRef): Result<StatFs, PlatformError>;
 
     /// Stat a filesystem by handle.
     @binding("destack.fs.fstatfs", { effect: "external", replay: "recordable" })

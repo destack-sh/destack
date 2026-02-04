@@ -1,0 +1,37 @@
+import { Array } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { SocketAddress, SocketFamily } from "./address.ds";
+
+/// Address resolution flags.
+export newtype ResolveFlags = uint32;
+
+/// Passive address resolution (bindable).
+export const RESOLVE_PASSIVE: ResolveFlags = ResolveFlags(0x1);
+/// Return canonical names when possible.
+export const RESOLVE_CANONNAME: ResolveFlags = ResolveFlags(0x2);
+/// Numeric host only.
+export const RESOLVE_NUMERICHOST: ResolveFlags = ResolveFlags(0x4);
+/// Numeric service only.
+export const RESOLVE_NUMERICSERV: ResolveFlags = ResolveFlags(0x8);
+/// Return IPv4-mapped IPv6 addresses.
+export const RESOLVE_V4MAPPED: ResolveFlags = ResolveFlags(0x10);
+/// Return all matching addresses.
+export const RESOLVE_ALL: ResolveFlags = ResolveFlags(0x20);
+/// Filter by configured address families.
+export const RESOLVE_ADDRCONFIG: ResolveFlags = ResolveFlags(0x40);
+
+/// Name resolution bindings for the native runtime.
+declare namespace net {
+    /// Resolve a hostname and port into socket addresses.
+    @binding("destack.net.resolve", { effect: "external", replay: "recordable" })
+    export function resolve(
+        host: string,
+        port: uint16,
+        family: SocketFamily,
+        flags: ResolveFlags,
+    ): Result<Array<SocketAddress>, PlatformError>;
+
+    /// Reverse lookup a socket address into hostnames.
+    @binding("destack.net.reverseLookup", { effect: "external", replay: "recordable" })
+    export function reverseLookup(address: SocketAddress): Result<Array<string>, PlatformError>;
+}

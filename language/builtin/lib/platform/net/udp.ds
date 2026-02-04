@@ -1,0 +1,81 @@
+import { Slice } from "native";
+import type { PlatformError } from "../error/index.ds";
+import { SocketAddress, SocketFamily } from "./address.ds";
+import { SocketHandle } from "../resource/index.ds";
+
+/// UDP receive metadata.
+export struct UdpReceive {
+    /// Remote address.
+    address: SocketAddress,
+    /// Number of bytes read.
+    bytes: uint64,
+}
+
+/// UDP bindings for the native runtime.
+declare namespace net {
+    /// Create a UDP socket.
+    @binding("destack.net.udpSocket", { effect: "external", replay: "recordable" })
+    export function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>;
+
+    /// Bind a UDP socket to a local address.
+    @binding("destack.net.udpBind", { effect: "external", replay: "recordable" })
+    export function udpBind(
+        handle: SocketHandle,
+        host: string,
+        port: uint16,
+    ): Result<void, PlatformError>;
+
+    /// Connect a UDP socket to a remote address.
+    @binding("destack.net.udpConnect", { effect: "external", replay: "recordable" })
+    export function udpConnect(
+        handle: SocketHandle,
+        host: string,
+        port: uint16,
+    ): Result<void, PlatformError>;
+
+    /// Send a datagram to a remote address.
+    @binding("destack.net.udpSendTo", { effect: "external", replay: "recordable" })
+    export function udpSendTo(
+        handle: SocketHandle,
+        host: string,
+        port: uint16,
+        buffer: Slice<uint8>,
+    ): Result<uint64, PlatformError>;
+
+    /// Receive a datagram from a remote address.
+    @binding("destack.net.udpRecvFrom", { effect: "external", replay: "recordable" })
+    export function udpRecvFrom(
+        handle: SocketHandle,
+        buffer: Slice<uint8>,
+    ): Result<UdpReceive, PlatformError>;
+
+    /// Join an IPv4 multicast group.
+    @binding("destack.net.joinMulticast", { effect: "external", replay: "recordable" })
+    export function joinMulticast(
+        handle: SocketHandle,
+        group: string,
+        interfaceAddress: string,
+    ): Result<void, PlatformError>;
+
+    /// Leave an IPv4 multicast group.
+    @binding("destack.net.leaveMulticast", { effect: "external", replay: "recordable" })
+    export function leaveMulticast(
+        handle: SocketHandle,
+        group: string,
+        interfaceAddress: string,
+    ): Result<void, PlatformError>;
+
+    /// Enable or disable multicast loopback.
+    @binding("destack.net.setMulticastLoop", { effect: "external", replay: "recordable" })
+    export function setMulticastLoop(
+        handle: SocketHandle,
+        enabled: boolean,
+    ): Result<void, PlatformError>;
+
+    /// Set multicast TTL.
+    @binding("destack.net.setMulticastTtl", { effect: "external", replay: "recordable" })
+    export function setMulticastTtl(
+        handle: SocketHandle,
+        ttl: uint32,
+    ): Result<void, PlatformError>;
+}

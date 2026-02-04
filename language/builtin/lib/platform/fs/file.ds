@@ -1,17 +1,24 @@
 import { Slice } from "native";
 import type { PlatformError } from "../error/index.ds";
-import { DirectoryHandle, FileHandle } from "../resource/index.ds";
-import { FileLockFlags, FileMode, FileOffset, OpenFlags } from "./flags.ds";
+import { DirectoryHandle, FileHandle, SocketHandle } from "../resource/index.ds";
+import {
+    AllocFlags,
+    FileAdvice,
+    FileLockFlags,
+    FileMode,
+    FileOffset,
+    FileSize,
+    OpenFlags,
+    SeekWhence,
+    SyncFlags,
+} from "./flags.ds";
+import { PathRef } from "./path.ds";
 
 /// File bindings for the native runtime.
 declare namespace fs {
     /// Open a file and return a handle.
     @binding("destack.fs.open", { effect: "external", replay: "recordable" })
-    export function open(
-        path: string,
-        flags: OpenFlags,
-        mode: FileMode,
-    ): Result<FileHandle, PlatformError>;
+    export function open(path: PathRef, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>;
 
     /// Close an open file handle.
     @binding("destack.fs.close", { effect: "external", replay: "recordable" })
@@ -21,46 +28,46 @@ declare namespace fs {
     @binding("destack.fs.openat", { effect: "external", replay: "recordable" })
     export function openat(
         dir: DirectoryHandle,
-        path: string,
+        path: PathRef,
         flags: OpenFlags,
         mode: FileMode,
     ): Result<FileHandle, PlatformError>;
 
-    /// Read from a file into the provided slice at the given file offset.
+    /// Read from a file into the provided slice.
     @binding("destack.fs.read", { effect: "external", replay: "recordable" })
-    export function read(
-        handle: FileHandle,
-        buffer: Slice<uint8>,
-        offset: FileOffset,
-    ): Result<uint64, PlatformError>;
+    export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
-    /// Write to a file from the provided slice at the given file offset.
+    /// Write to a file from the provided slice.
     @binding("destack.fs.write", { effect: "external", replay: "recordable" })
-    export function write(
-        handle: FileHandle,
-        buffer: Slice<uint8>,
-        offset: FileOffset,
-    ): Result<uint64, PlatformError>;
+    export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+
+    /// Read from a file at the given file offset.
+    @binding("destack.fs.pread", { effect: "external", replay: "recordable" })
+    export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>;
+
+    /// Write to a file at the given file offset.
+    @binding("destack.fs.pwrite", { effect: "external", replay: "recordable" })
+    export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>;
+
+    /// Read into multiple buffers.
+    @binding("destack.fs.readv", { effect: "external", replay: "recordable" })
+    export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
+
+    /// Write from multiple buffers.
+    @binding("destack.fs.writev", { effect: "external", replay: "recordable" })
+    export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>;
 
     /// Read into multiple buffers at the given file offset.
-    @binding("destack.fs.readv", { effect: "external", replay: "recordable" })
-    export function readv(
-        handle: FileHandle,
-        buffers: Slice<Slice<uint8>>,
-        offset: FileOffset,
-    ): Result<uint64, PlatformError>;
+    @binding("destack.fs.preadv", { effect: "external", replay: "recordable" })
+    export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>;
 
     /// Write from multiple buffers at the given file offset.
-    @binding("destack.fs.writev", { effect: "external", replay: "recordable" })
-    export function writev(
-        handle: FileHandle,
-        buffers: Slice<Slice<uint8>>,
-        offset: FileOffset,
-    ): Result<uint64, PlatformError>;
+    @binding("destack.fs.pwritev", { effect: "external", replay: "recordable" })
+    export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>;
 
-    /// Truncate a file by path.
+    /// Truncate a file.
     @binding("destack.fs.truncate", { effect: "external", replay: "recordable" })
-    export function truncate(path: string, size: FileOffset): Result<void, PlatformError>;
+    export function truncate(path: PathRef, size: FileOffset): Result<void, PlatformError>;
 
     /// Truncate a file by handle.
     @binding("destack.fs.ftruncate", { effect: "external", replay: "recordable" })
@@ -73,6 +80,72 @@ declare namespace fs {
     /// Synchronize file data only.
     @binding("destack.fs.fdatasync", { effect: "external", replay: "recordable" })
     export function fdatasync(handle: FileHandle): Result<void, PlatformError>;
+
+    /// Synchronize a file range.
+    @binding("destack.fs.syncFileRange", { effect: "external", replay: "recordable" })
+    export function syncFileRange(
+        handle: FileHandle,
+        offset: FileOffset,
+        length: FileSize,
+        flags: SyncFlags,
+    ): Result<void, PlatformError>;
+
+    /// Allocate or punch file space.
+    @binding("destack.fs.fallocate", { effect: "external", replay: "recordable" })
+    export function fallocate(
+        handle: FileHandle,
+        offset: FileOffset,
+        length: FileSize,
+        flags: AllocFlags,
+    ): Result<void, PlatformError>;
+
+    /// Copy a range between file descriptors.
+    @binding("destack.fs.copyFileRange", { effect: "external", replay: "recordable" })
+    export function copyFileRange(
+        src: FileHandle,
+        srcOffset: FileOffset,
+        dst: FileHandle,
+        dstOffset: FileOffset,
+        length: FileSize,
+    ): Result<uint64, PlatformError>;
+
+    /// Send file data to a socket.
+    @binding("destack.fs.sendfile", { effect: "external", replay: "recordable" })
+    export function sendfile(
+        socket: SocketHandle,
+        file: FileHandle,
+        offset: FileOffset,
+        length: FileSize,
+    ): Result<uint64, PlatformError>;
+
+    /// Seek within a file and return the new offset.
+    @binding("destack.fs.seek", { effect: "external", replay: "recordable" })
+    export function seek(
+        handle: FileHandle,
+        offset: FileOffset,
+        whence: SeekWhence,
+    ): Result<FileOffset, PlatformError>;
+
+    /// Advise the kernel about access patterns.
+    @binding("destack.fs.fadvise", { effect: "external", replay: "recordable" })
+    export function fadvise(
+        handle: FileHandle,
+        offset: FileOffset,
+        length: FileSize,
+        advice: FileAdvice,
+    ): Result<void, PlatformError>;
+
+    /// Duplicate a file handle.
+    @binding("destack.fs.dup", { effect: "external", replay: "recordable" })
+    export function dup(handle: FileHandle): Result<FileHandle, PlatformError>;
+
+    /// Duplicate a file handle to a specific target.
+    @binding("destack.fs.dup2", { effect: "external", replay: "recordable" })
+    export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>;
+
+    /// Duplicate a file handle to a specific target with flags.
+    @binding("destack.fs.dup3", { effect: "external", replay: "recordable" })
+    export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>;
 
     /// Apply file locks to a file handle.
     @binding("destack.fs.lock", { effect: "external", replay: "recordable" })
