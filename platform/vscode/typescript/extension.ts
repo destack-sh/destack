@@ -1,4 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { PassThrough } from "node:stream";
 import * as vscode from "vscode";
 import {
@@ -15,6 +18,128 @@ let client: LanguageClient | undefined;
 let serverProc: ChildProcessWithoutNullStreams | undefined;
 
 const DEBUG = false;
+const FALLBACK_COMMANDS = ["destack", "ds", "dsc"];
+
+type ResolvedServerCommand = {
+    command: string;
+    args: string[];
+    cwd?: string;
+};
+
+function expandPath(value: string, workspaceFolder?: vscode.WorkspaceFolder): string {
+    if (!value) return value;
+
+    let expanded = value;
+    if (workspaceFolder) {
+        expanded = expanded.replace(/\$\{workspaceFolder\}/g, workspaceFolder.uri.fsPath);
+    }
+
+    if (expanded == "~") {
+        return os.homedir();
+    }
+
+    if (expanded.startsWith(`~${path.sep}`)) {
+        return path.join(os.homedir(), expanded.slice(2));
+    }
+
+    return expanded;
+}
+
+function resolveOnPath(command: string): string | undefined {
+    const pathEnv = process.env.PATH || "";
+    const pathExts =
+        process.platform == "win32"
+            ? (process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM").split(";")
+            : [""];
+
+    for (const base of pathEnv.split(path.delimiter)) {
+        if (!base) continue;
+        for (const ext of pathExts) {
+            const candidate = path.join(base, `${command}${ext}`);
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    return undefined;
+}
+
+function resolveCommandPath(command: string): string | undefined {
+    if (!command) return undefined;
+
+    if (path.isAbsolute(command) || command.includes(path.sep)) {
+        return command;
+    }
+
+    return resolveOnPath(command);
+}
+
+function shouldInjectLsp(command: string, args: string[]): boolean {
+    const base = path.basename(command).toLowerCase();
+    const normalized = base.endsWith(".exe") ? base.slice(0, -4) : base;
+    if (!FALLBACK_COMMANDS.includes(normalized)) {
+        return false;
+    }
+
+    return args.length == 0 || args[0] != "lsp";
+}
+
+function resolveServerCommand(
+    cfg: vscode.WorkspaceConfiguration,
+    workspaceFolder: vscode.WorkspaceFolder | undefined,
+): ResolvedServerCommand {
+    const rawCommand = cfg.get<string>("server.command") ?? "";
+    const rawArgs = cfg.get<string[]>("server.args") ?? [];
+    const rawCwd = cfg.get<string>("server.cwd") ?? "";
+    const cwd = rawCwd ? expandPath(rawCwd, workspaceFolder) : workspaceFolder?.uri.fsPath;
+
+    if (rawCommand) {
+        const expanded = expandPath(rawCommand, workspaceFolder);
+        const resolved = resolveCommandPath(expanded);
+        if (!resolved && (path.isAbsolute(expanded) || expanded.includes(path.sep))) {
+            throw new Error(`destack.server.command not found: ${expanded}`);
+        }
+
+        const command = resolved ?? expanded;
+        const args = shouldInjectLsp(command, rawArgs) ? ["lsp", ...rawArgs] : rawArgs;
+        return { command, args, cwd };
+    }
+
+    for (const fallback of FALLBACK_COMMANDS) {
+        const resolved = resolveOnPath(fallback);
+        if (resolved) {
+            return { command: resolved, args: ["lsp", ...rawArgs], cwd };
+        }
+    }
+
+    const cargo = resolveOnPath("cargo");
+    const cargoRoot = workspaceFolder?.uri.fsPath;
+    if (cargo && cargoRoot) {
+        const cargoToml = path.join(cargoRoot, "Cargo.toml");
+        if (fs.existsSync(cargoToml)) {
+            return {
+                command: cargo,
+                args: [
+                    "run",
+                    "-q",
+                    "-p",
+                    "destack_cli",
+                    "--bin",
+                    "destack",
+                    "--",
+                    "lsp",
+                    ...rawArgs,
+                ],
+                cwd: cargoRoot,
+            };
+        }
+    }
+
+    throw new Error(
+        "destack.server.command is unset and no Destack CLI found on PATH (destack, ds, dsc).",
+    );
+}
 
 /**
  * Try to stop the server process gracefully, then force-kill if needed.
@@ -55,7 +180,7 @@ async function stopServerProc(serverLog: vscode.OutputChannel) {
 }
 
 /**
- * Activate the Destack VSC ode extension.
+ * Activate the Destack VSCode extension.
  * Sets up the language server client and establishes communication.
  */
 export async function activate(ctx: vscode.ExtensionContext) {
@@ -65,15 +190,16 @@ export async function activate(ctx: vscode.ExtensionContext) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 
     const serverOptions: ServerOptions = async (): Promise<StreamInfo> => {
-        const serverCommand = cfg.get<string>("server.command") ?? "";
-        const args = cfg.get<string[]>("server.args") ?? [];
-        const cwd = cfg.get<string>("server.cwd") ?? "";
-
-        if (!serverCommand) {
-            serverLog.error("destack.server.command is required but not set");
-            throw new Error("destack.server.command is required");
+        let resolved: ResolvedServerCommand;
+        try {
+            resolved = resolveServerCommand(cfg, workspaceFolder);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            serverLog.error(message);
+            throw new Error(message);
         }
 
+        const { command: serverCommand, args, cwd } = resolved;
         serverLog.info(`using Destack: ${serverCommand} ${args.join(" ")}`);
 
         return await new Promise<StreamInfo>((resolve, reject) => {
@@ -88,7 +214,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
             // spawn and assign the module-level serverProc
             serverProc = spawn(serverCommand, args, {
                 stdio: ["pipe", "pipe", "pipe"],
-                cwd: cwd || workspaceFolder?.uri.fsPath,
+                cwd,
                 env,
                 shell: false,
             });
@@ -139,12 +265,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
             { language: "destack" },
             { language: "dst" },
             { language: "dsb" },
-            { language: "dsx" },
             { pattern: "**/*.ds" },
             { pattern: "**/*.d.ds" },
             { pattern: "**/*.dst" },
             { pattern: "**/*.dsb" },
-            { pattern: "**/*.dsx" },
         ],
         outputChannel: clientLog,
         traceOutputChannel: clientLog,
