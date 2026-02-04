@@ -4689,12 +4689,15 @@ impl Compiler {
     /// Resolve export name and module id for a remote dependency item.
     fn remote_dependency_export_target(
         &self,
+        module: &Module,
+        profile: ProfileId,
         dependency: &DependencyItem,
     ) -> (Option<StringId>, Option<ModuleId>) {
         match dependency {
             DependencyItem::Remote {
                 mode,
                 name,
+                target: _,
                 target_module,
                 ..
             } => {
@@ -4706,11 +4709,16 @@ impl Compiler {
                     }
                     DependencyMode::Namespace => None,
                 };
-                (export_name, target_module.module_id())
+                let target_module_id = target_module
+                    .ty
+                    .or(target_module.value)
+                    .and_then(|target| target.module_id());
+                (export_name, target_module_id)
             }
             DependencyItem::UnresolvedRemote {
                 mode,
                 name,
+                target,
                 target_module,
                 ..
             } => {
@@ -4722,10 +4730,15 @@ impl Compiler {
                     }
                     DependencyMode::Namespace => None,
                 };
-                (
-                    export_name,
-                    target_module.and_then(|target| target.module_id()),
-                )
+                let target_module_id = target_module
+                    .or_else(|| {
+                        self.imported_module_resolution_for_specifier(
+                            module, profile, *target, None,
+                        )
+                    })
+                    .and_then(|targets| targets.ty.or(targets.value))
+                    .and_then(|target| target.module_id());
+                (export_name, target_module_id)
             }
             _ => (None, None),
         }
@@ -4834,7 +4847,7 @@ impl Compiler {
                 // reject value imports that resolve to type-only exports
                 if dependency_kind == Some(DependencyKind::Value) {
                     let (export_name, target_module_id) =
-                        self.remote_dependency_export_target(dependency);
+                        self.remote_dependency_export_target(module, ctx.profile, dependency);
 
                     if let Some(export_name) = export_name
                         && let Some(target_module_id) = target_module_id

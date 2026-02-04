@@ -55,7 +55,7 @@ pub struct ModuleDir {
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
     /// The loader component distinguishes imports with non-default loaders.
     pub imported_modules:
-        RwLock<IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>>,
+        RwLock<IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
@@ -106,7 +106,8 @@ pub struct ModuleDirData {
     pub module_binding_exports: IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>,
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
     /// The loader component distinguishes imports with non-default loaders.
-    pub imported_modules: IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>,
+    pub imported_modules:
+        IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 }

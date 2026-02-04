@@ -514,7 +514,7 @@ impl Resolver {
                             }
 
                             // resolve types entry for type conditions
-                            if subpath == "."
+                            if (subpath.is_empty() || subpath == ".")
                                 && self
                                     .options
                                     .conditions
@@ -526,19 +526,19 @@ impl Resolver {
                                 if self.is_file(&types_path, ctx)
                                     && self.check_restrictions(&types_path)
                                 {
-                                    return Ok(Some(types_path));
+                                    return self.resolve_esm_match(specifier, &types_path, ctx);
                                 }
                             }
 
-                            // resolve main field
-                            if subpath == "."
+                            // resolve main entry field
+                            if (subpath.is_empty() || subpath == ".")
                                 && let Some(main_field) = config.content.main.as_deref()
                             {
                                 let main_path = package_path.normalize_with(main_field);
                                 if self.is_file(&main_path, ctx)
                                     && self.check_restrictions(&main_path)
                                 {
-                                    return Ok(Some(main_path));
+                                    return self.resolve_esm_match(specifier, &main_path, ctx);
                                 }
                             }
                         }

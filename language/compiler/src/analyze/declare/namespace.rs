@@ -317,11 +317,13 @@ impl Compiler {
             }
 
             // record the namespace export
-            exports.push(NamespaceExport {
-                module_id: *target_module,
-                kind: *kind,
-                item: item_id,
-            });
+            if let Some(target_module) = target_module.for_kind(*kind) {
+                exports.push(NamespaceExport {
+                    module_id: target_module,
+                    kind: *kind,
+                    item: item_id,
+                });
+            }
         }
 
         exports

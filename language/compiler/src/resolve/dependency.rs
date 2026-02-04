@@ -4,8 +4,8 @@ use destack_ast::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DependencySource, Export,
     ExportKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, ModuleTarget, Name, NodeTree, StaticKey, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable,
+    LocalScopeMark, LocalSymbolId, ModuleResolution, ModuleTarget, Name, NodeTree, StaticKey,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleDir, ProfileId};
@@ -713,6 +713,9 @@ impl Compiler {
             } => {
                 // resolve the target module
                 let target_module = if let Some(target_module) = target_module {
+                    let Some(target_module) = target_module.for_kind(kind) else {
+                        return Ok(None);
+                    };
                     target_module
                 } else {
                     let Some(target_module) = self.resolve_import_maybe(
@@ -935,6 +938,9 @@ impl Compiler {
 
         // resolve the target module
         let target_module = if let Some(target_module) = target_module {
+            let Some(target_module) = target_module.for_kind(kind) else {
+                return Ok(None);
+            };
             target_module
         } else if let Some(target) = target {
             let Some(target_module) = self.resolve_import_maybe(
@@ -1071,6 +1077,24 @@ impl Compiler {
         target_str.starts_with("./") || target_str.starts_with("../")
     }
 
+    /// Load resolved module targets for an import specifier from the module dir cache.
+    pub(crate) fn imported_module_resolution_for_specifier(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target: StringId,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> Option<ModuleResolution> {
+        let relative_module = if self.is_import_relative(target) {
+            Some(module.id)
+        } else {
+            None
+        };
+        let dir = module.dir(profile);
+        let cache_key = (relative_module, target, loader_override);
+        dir.imported_modules.read().get(&cache_key).copied()
+    }
+
     /// Emit diagnostics for unresolved modules based on resolve mode.
     pub(super) fn handle_unresolved_module(&self, error: ResolveError) {
         let (node, target) = match error {
@@ -1163,8 +1187,10 @@ impl Compiler {
         let cache_key = (relative_module, target, loader_override);
 
         // check if already resolved locally
-        if let Some(&remote_target) = dir.imported_modules.read().get(&cache_key) {
-            return Ok(remote_target);
+        if let Some(targets) = dir.imported_modules.read().get(&cache_key) {
+            if let Some(remote_target) = targets.for_kind(kind) {
+                return Ok(remote_target);
+            }
         }
 
         // check if already resolved "globally" (since it's not relative we can avoid re-doing the work)
@@ -1177,16 +1203,16 @@ impl Compiler {
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
             let global_key = (None, target, loader_override);
-            if let Some(&remote_target) = global_module
+            if let Some(targets) = global_module
                 .dir(profile)
                 .imported_modules
                 .read()
                 .get(&global_key)
             {
-                dir.imported_modules
-                    .write()
-                    .insert(cache_key, remote_target);
-                return Ok(remote_target);
+                dir.imported_modules.write().insert(cache_key, *targets);
+                if let Some(remote_target) = targets.for_kind(kind) {
+                    return Ok(remote_target);
+                }
             }
         }
 
@@ -1196,6 +1222,8 @@ impl Compiler {
             && let Some(binding_target) =
                 self.resolve_module_binding_target(module.id, profile, target)?
         {
+            let binding_targets = ModuleResolution::from_target(binding_target);
+
             // cache globally for non-relative imports (see above)
             if !is_relative && !module.is_builtin() {
                 self.require_resolve_module_prepare_if_needed(
@@ -1209,41 +1237,51 @@ impl Compiler {
                     .dir(profile)
                     .imported_modules
                     .write()
-                    .insert((None, target, None), binding_target);
+                    .insert((None, target, None), binding_targets);
             }
             dir.imported_modules
                 .write()
-                .insert(cache_key, binding_target);
-            return Ok(binding_target);
+                .insert(cache_key, binding_targets);
+            if let Some(remote_target) = binding_targets.for_kind(kind) {
+                return Ok(remote_target);
+            }
+            return Err(ResolveError::UnresolvedModule {
+                node: node.into_anchored(Some(profile)),
+                target,
+            });
         }
 
-        // resolve specifier to module id (synchronous!)
+        // resolve specifier to module ids (synchronous!)
         // (for builtin modules, always pass source module to support specifier aliases)
         let source_module = if module.is_builtin() {
             Some(module.id)
         } else {
             relative_module
         };
-        let remote_module_id = self
-            .resolve_specifier_to_module_with_kind_and_loader(
-                target,
-                source_module,
-                kind,
-                loader_override,
-            )
+        let resolved_targets = self
+            .resolve_specifier_to_module_resolution(target, source_module, loader_override)
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
             })?;
+        let Some(remote_target) = resolved_targets.for_kind(kind) else {
+            return Err(ResolveError::UnresolvedModule {
+                node: node.into_anchored(Some(profile)),
+                target,
+            });
+        };
 
-        // require module to be bound
-        self.require_import_module_validate(remote_module_id)?;
+        // require resolved modules to be bound
+        for target in [resolved_targets.value, resolved_targets.types] {
+            if let Some(ModuleTarget::Module(module_id)) = target {
+                self.require_import_module_validate(module_id)?;
+            }
+        }
 
         // record the resolved import
-        let remote_target = ModuleTarget::Module(remote_module_id);
         dir.imported_modules
             .write()
-            .insert(cache_key, remote_target);
+            .insert(cache_key, resolved_targets);
         Ok(remote_target)
     }
 
@@ -1579,13 +1617,15 @@ impl Compiler {
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // resolve the assignment target based on the dependency item
         match item {
-            DependencyItem::Remote { target_module, .. } => {
-                Ok(Some(ExportAssignmentTarget::Module(*target_module)))
-            }
+            DependencyItem::Remote { target_module, .. } => Ok(target_module
+                .for_kind(DependencyKind::Value)
+                .map(ExportAssignmentTarget::Module)),
             DependencyItem::UnresolvedRemote {
                 target_module: Some(target_module),
                 ..
-            } => Ok(Some(ExportAssignmentTarget::Module(*target_module))),
+            } => Ok(target_module
+                .for_kind(DependencyKind::Value)
+                .map(ExportAssignmentTarget::Module)),
             DependencyItem::Local { target_symbol, .. } => {
                 // export = localSymbol: the target could be a namespace
                 Ok(Some(ExportAssignmentTarget::Namespace(*target_symbol)))
@@ -1746,6 +1786,7 @@ impl Compiler {
                 DependencyItem::UnresolvedRemote {
                     source: DependencySource::ImportEquals | DependencySource::RequireCall,
                     mode: DependencyMode::Namespace,
+                    kind,
                     name,
                     alias,
                     target,
@@ -1768,17 +1809,20 @@ impl Compiler {
                     }
 
                     // resolve the specifier to a module target
-                    if let Ok(target_module) =
-                        self.resolve_specifier_to_module(*target, Some(module_id))
+                    if let Ok(targets) =
+                        self.resolve_specifier_to_module_resolution(*target, Some(module_id), None)
                     {
-                        redirects_by_scope
-                            .entry(item_scope_id)
-                            .or_default()
-                            .insert(name, ModuleTarget::Module(target_module));
+                        if let Some(target_module) = targets.for_kind(*kind) {
+                            redirects_by_scope
+                                .entry(item_scope_id)
+                                .or_default()
+                                .insert(name, target_module);
+                        }
                     }
                 }
                 DependencyItem::Remote {
                     mode: DependencyMode::Namespace,
+                    kind,
                     name,
                     alias,
                     target_module,
@@ -1788,10 +1832,12 @@ impl Compiler {
                     let Some(name) = alias.or(name) else {
                         continue;
                     };
-                    redirects_by_scope
-                        .entry(item_scope_id)
-                        .or_default()
-                        .insert(name, *target_module);
+                    if let Some(target_module) = target_module.for_kind(*kind) {
+                        redirects_by_scope
+                            .entry(item_scope_id)
+                            .or_default()
+                            .insert(name, target_module);
+                    }
                 }
                 _ => {}
             }
@@ -1823,6 +1869,7 @@ impl Compiler {
                 DependencyItem::UnresolvedRemote {
                     source,
                     mode: DependencyMode::Namespace,
+                    kind,
                     name: item_name,
                     alias,
                     target,
@@ -1841,20 +1888,23 @@ impl Compiler {
                     }
 
                     // resolve the specifier to a module target
-                    return Ok(self
-                        .resolve_specifier_to_module(*target, Some(module_id))
-                        .ok()
-                        .map(ModuleTarget::Module));
+                    if let Ok(targets) =
+                        self.resolve_specifier_to_module_resolution(*target, Some(module_id), None)
+                    {
+                        return Ok(targets.for_kind(*kind));
+                    }
+                    return Ok(None);
                 }
                 DependencyItem::Remote {
                     mode: DependencyMode::Namespace,
+                    kind,
                     name: item_name,
                     alias,
                     target_module,
                     ..
                 } if alias.or(item_name.map(|name| name.string())) == Some(name) => {
                     // already resolved import, use its target module
-                    return Ok(Some(*target_module));
+                    return Ok(target_module.for_kind(*kind));
                 }
                 _ => continue,
             }
@@ -1996,6 +2046,9 @@ impl Compiler {
                     };
                     remote_target
                 };
+                let target_module = self
+                    .imported_module_resolution_for_specifier(module, profile, *target, None)
+                    .unwrap_or_else(|| ModuleResolution::from_target(remote_target));
 
                 // resolve target symbol based on mode
                 let (target_symbol, resolved_kind) = match mode {
@@ -2123,7 +2176,7 @@ impl Compiler {
                     name: *name,
                     alias: *alias,
                     target: *target,
-                    target_module: remote_target,
+                    target_module,
                     symbol: *symbol,
                     target_symbol,
                 }
@@ -2540,8 +2593,7 @@ impl Compiler {
             )? {
                 match found {
                     None => {
-                        found =
-                            Some((resolved, origin_item.into_global_any(source_module_id)));
+                        found = Some((resolved, origin_item.into_global_any(source_module_id)));
                     }
                     Some((existing, other_node)) => {
                         if existing.symbol != resolved.symbol {

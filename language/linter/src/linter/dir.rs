@@ -63,7 +63,8 @@ pub struct LintModuleDirContext<'a> {
     /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
     pub namespace_exports: Vec<dir::ModuleTarget>,
     /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
-    pub imported_modules: IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>,
+    pub imported_modules:
+        IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleResolution>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 
@@ -105,7 +106,10 @@ impl<'a> LintModuleDirContext<'a> {
         namespace_scope: dir::LocalScopeId,
         default_symbol: dir::LocalSymbolId,
         namespace_exports: Vec<dir::ModuleTarget>,
-        imported_modules: IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>,
+        imported_modules: IndexMap<
+            (Option<ModuleId>, StringId, Option<Loader>),
+            dir::ModuleResolution,
+        >,
         exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
         options: &'a LinterOptions,
         include_fixes: bool,

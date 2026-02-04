@@ -1770,8 +1770,8 @@ impl Compiler {
                 ..
             } => {
                 // check if we're importing from a non-code module
-                if let ModuleTarget::Module(target_module_id) = target_module {
-                    let target = self.program.modules.get(*target_module_id);
+                if let Some(ModuleTarget::Module(target_module_id)) = target_module.value {
+                    let target = self.program.modules.get(target_module_id);
                     let target = target.read();
                     // only handle data module namespace and default imports
                     if !target.is_code()

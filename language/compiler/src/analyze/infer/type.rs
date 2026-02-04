@@ -2839,8 +2839,10 @@ impl Compiler {
                 continue;
             };
 
-            if let ModuleTarget::Module(target_id) = target_module {
-                dependencies.push(*target_id);
+            for target in [target_module.value, target_module.ty] {
+                if let Some(ModuleTarget::Module(target_id)) = target {
+                    dependencies.push(target_id);
+                }
             }
         }
 

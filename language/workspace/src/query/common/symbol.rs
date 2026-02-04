@@ -272,7 +272,9 @@ pub fn find_symbol_at_offset(
                         continue;
                     };
 
-                    let mut target_module_id = target_module.and_then(|target| target.module_id());
+                    let mut target_module_id = target_module
+                        .and_then(|targets| targets.ty.or(targets.value))
+                        .and_then(|target| target.module_id());
                     if target_module_id.is_none()
                         && let Some(target) = target
                     {

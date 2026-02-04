@@ -479,10 +479,14 @@ impl Compiler {
                 }
 
                 // resolve specifiers to modules for traversal
-                let remote_module_id = match self
-                    .resolve_specifier_to_module(dependency.target, Some(module_id))
-                {
-                    Ok(remote_module_id) => remote_module_id,
+                let remote_module_id = match self.resolve_specifier_to_module_resolution(
+                    dependency.target,
+                    Some(module_id),
+                    None,
+                ) {
+                    Ok(targets) => targets
+                        .for_kind(dependency.kind)
+                        .and_then(|target| target.module_id()),
                     Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
                         continue;
                     }
@@ -494,7 +498,9 @@ impl Compiler {
                         continue;
                     }
                 };
-                cache.pending.push_back(remote_module_id);
+                if let Some(remote_module_id) = remote_module_id {
+                    cache.pending.push_back(remote_module_id);
+                }
             }
         }
 

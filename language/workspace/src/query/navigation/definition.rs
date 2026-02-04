@@ -376,7 +376,10 @@ fn resolve_type_export_from_imports(
                 continue;
             }
 
-            let Some(target_module_id) = target_module.and_then(|target| target.module_id()) else {
+            let Some(target_module_id) = target_module
+                .and_then(|targets| targets.ty.or(targets.value))
+                .and_then(|target| target.module_id())
+            else {
                 continue;
             };
 

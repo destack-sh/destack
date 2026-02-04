@@ -1,6 +1,6 @@
 use crate::{
-    Declaration, DependencyItem, Export, Expression, LocalNodeId, LocalScopeId, LocalSymbolId,
-    StaticKey, StringId, SymbolSpace,
+    Declaration, DependencyItem, DependencyKind, Export, Expression, LocalNodeId, LocalScopeId,
+    LocalSymbolId, StaticKey, StringId, SymbolSpace,
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
@@ -39,6 +39,33 @@ impl ModuleTarget {
         match self {
             Self::Module(module_id) => Some(module_id),
             Self::Binding(_) => None,
+        }
+    }
+}
+
+/// Resolved module targets for value and type spaces.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub struct ModuleResolution {
+    /// Target for value space resolution.
+    pub value: Option<ModuleTarget>,
+    /// Target for type space resolution.
+    pub ty: Option<ModuleTarget>,
+}
+
+impl ModuleResolution {
+    /// Create targets that use the same module target for both spaces.
+    pub fn from_target(target: ModuleTarget) -> Self {
+        Self {
+            value: Some(target),
+            ty: Some(target),
+        }
+    }
+
+    /// Return the target for a dependency kind.
+    pub fn for_kind(&self, kind: DependencyKind) -> Option<ModuleTarget> {
+        match kind {
+            DependencyKind::Value => self.value.or(self.ty),
+            DependencyKind::Type => self.ty.or(self.value),
         }
     }
 }

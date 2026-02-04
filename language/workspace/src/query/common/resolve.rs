@@ -4,7 +4,7 @@ use std::path::Path;
 
 use destack_base::StringId;
 use destack_dir::{
-    Declaration, Declarator, DependencyItem, DependencyMode, EnumField, Expression,
+    Declaration, Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalScopeId, LocalSymbolId, Member, Name, NodeType,
     Resolution, SymbolSpace, SymbolType, Type,
 };
@@ -520,13 +520,9 @@ pub(crate) fn resolve_type_symbol_from_dependency_symbol(
     }
 
     // resolve type symbol from target module
-    let target_module_id = match item {
-        DependencyItem::Remote { target_module, .. } => target_module.module_id(),
-        DependencyItem::UnresolvedRemote { target_module, .. } => {
-            target_module.and_then(|target| target.module_id())
-        }
-        _ => None,
-    }?;
+    let target_module_id = item
+        .target_module_for_kind(DependencyKind::Type)
+        .and_then(|target| target.module_id())?;
     resolve_type_symbol_from_module(session, target_module_id, name_id, &mut HashSet::new())
 }
 
@@ -569,7 +565,9 @@ fn resolve_type_symbol_from_imports(
             return Some(target_symbol);
         }
 
-        let mut target_module_id = target_module.and_then(|target| target.module_id());
+        let mut target_module_id = target_module
+            .and_then(|targets| targets.ty.or(targets.value))
+            .and_then(|target| target.module_id());
         if target_module_id.is_none()
             && let Some(target) = target
         {
@@ -696,7 +694,9 @@ pub(crate) fn resolve_type_symbol_from_module(
                 return Some(target_symbol);
             }
 
-            let mut target_module_id = target_module.and_then(|target| target.module_id());
+            let mut target_module_id = target_module
+                .and_then(|targets| targets.ty.or(targets.value))
+                .and_then(|target| target.module_id());
             if target_module_id.is_none()
                 && let Some(target) = target
             {
@@ -769,7 +769,9 @@ pub(crate) fn resolve_type_symbol_from_module(
                 return Some(target_symbol);
             }
 
-            let mut target_module_id = target_module.and_then(|target| target.module_id());
+            let mut target_module_id = target_module
+                .and_then(|targets| targets.ty.or(targets.value))
+                .and_then(|target| target.module_id());
             if target_module_id.is_none()
                 && let Some(target) = target
             {
