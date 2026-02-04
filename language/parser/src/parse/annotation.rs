@@ -1144,6 +1144,7 @@ mod tests {
         Annotation, AnnotationPosition, Argument, BinaryOperator, Blank, Block, BlockFormat,
         Comment, CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc,
         DocStyle, Expression, FunctionKind, FunctionMode, Key, Member, Name, Parameter, TypeKind,
+        TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1379,7 +1380,6 @@ class Foo {}",
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-
         let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         let decorator_span = parser.tree.get_span(decorators[0]);
@@ -1401,7 +1401,8 @@ class Foo {}",
                         assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                             assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
                                 assert_eq!(signature.kind, FunctionKind::Lambda);
-                                assert!(body.is_some());
+                                assert!(body.is_none());
+                                assert_node!(parser.tree, signature.return_type.expect("expected return type"), Expression::TypeLiteral(TypeLiteral::Void));
                                 let generics = signature.generics.as_ref().expect("expected generics");
                                 let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
                                 assert_eq!(static_parameters.len(), 1);

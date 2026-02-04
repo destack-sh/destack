@@ -466,7 +466,7 @@ impl Parser {
                     None
                 }
             }
-            Err(_) => {
+            Err(_err) => {
                 self.restore(speculative_start, speculative_start_idx);
                 None
             }
@@ -1555,7 +1555,8 @@ impl Parser {
             return false;
         }
 
-        if self.language.supports_jsx()
+        if require_disambiguator
+            && self.language.supports_jsx()
             && !self.options.in_type
             && !self.options.in_static
             && self.is_tree_literal_start()
@@ -1704,6 +1705,7 @@ impl Parser {
             // identifier paths and keyword expressions
             match token_type {
                 TokenType::Identifier => {
+                    // identifier context setup
                     let next_token_type = self.peek_next_token_type();
                     let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
                     let module_identifier_matches = !self.options.in_decorator
@@ -1729,9 +1731,25 @@ impl Parser {
                         ));
                     }
 
+                    // keyword and split state
                     let has_active_split = self.has_active_split();
-                    let keyword = if self.options.in_decorator {
-                        None
+                    let keyword = if self.options.in_decorator && !self.options.in_type {
+                        let decorator_keyword = if has_active_split {
+                            self.peek_any_keyword().ok()
+                        } else {
+                            self.keyword_for_index(self.pos_index())
+                        };
+                        match decorator_keyword {
+                            Some(
+                                Keyword::Await
+                                | Keyword::This
+                                | Keyword::New
+                                | Keyword::Delete
+                                | Keyword::Typeof
+                                | Keyword::Void,
+                            ) => decorator_keyword,
+                            _ => None,
+                        }
                     } else if has_active_split {
                         self.peek_any_keyword().ok()
                     } else {
@@ -1747,6 +1765,7 @@ impl Parser {
                         && !has_active_split
                         && !self.options.in_decorator
                     {
+                        // prefer module declarations when the identifier matches the module root
                         if is_module_declaration_start {
                             let namespace_id = self.eat_namespace(start, descriptor.clone())?;
                             primary_expression_id = Some(self.tree.insert(
@@ -1754,6 +1773,7 @@ impl Parser {
                                 self.get_span_from(start),
                             ));
                         } else {
+                            // prefer contextual type literals when in type or static positions
                             let should_try_type_literal =
                                 if self.options.in_type || self.options.in_static {
                                     true
@@ -1780,6 +1800,7 @@ impl Parser {
                                     self.get_span_from(start),
                                 ));
                             } else {
+                                // fall back to an identifier path
                                 primary_expression_id =
                                     Some(self.eat_identifier_expression_path(start)?);
                             }
@@ -1856,15 +1877,18 @@ impl Parser {
                         && keyword.is_none()
                         && is_module_declaration_start
                     {
+                        // parse contextual module declarations after other identifier paths
                         let namespace_id = self.eat_namespace(start, descriptor.clone())?;
                         primary_expression_id = Some(self.tree.insert(
                             Expression::Declaration(namespace_id),
                             self.get_span_from(start),
                         ));
                     }
+
                     if primary_expression_id.is_none()
                         && let Some(keyword) = keyword
                     {
+                        // parse keyword expressions and declaration starters
                         let _keyword_timing =
                             self.timing_scope(tags::PARSE_EXPRESSION_PRIMARY_KEYWORD);
                         if let Some(keyword_expression_id) = self.eat_keyword_expression(
@@ -1880,6 +1904,7 @@ impl Parser {
 
                     // type literal
                     if primary_expression_id.is_none() {
+                        // late fallback for contextual type literals
                         let should_try_type_literal =
                             if self.options.in_type || self.options.in_static {
                                 true
@@ -1911,6 +1936,7 @@ impl Parser {
                     if let Some(primary_expression_id) = primary_expression_id {
                         primary_expression_id
                     } else {
+                        // final fallback for identifier paths
                         self.eat_identifier_expression_path(start)?
                     }
                 }
@@ -1991,7 +2017,7 @@ impl Parser {
                         if (has_arrow || is_colon_lambda_allowed)
                             && !self.options.in_arrow_return_type
                         {
-                            // avoid colon lambdas that are actually ternary type tuples
+                            // avoid colon lambdas that steal ternary delimiters
                             if self.options.in_ternary_condition && has_colon {
                                 let speculative_start = self.mark();
                                 let speculative_start_idx = self.tree.next_id();
@@ -2426,6 +2452,7 @@ impl Parser {
                     continue;
                 }
 
+                // call parsing flags
                 let has_direct_call = self.peek_is(TokenType::OpenParenthesis);
                 let has_direct_call_after_newlines = self.peek_is(TokenType::Newline)
                     && self
@@ -2439,6 +2466,7 @@ impl Parser {
                     && !self.options.in_new_receiver;
                 let should_parse_call =
                     (can_direct_call || has_indirect_call) && !self.options.in_type;
+
                 // unary postfix operations
                 if let Ok(operator) = self.peek_unary_postfix_operator() {
                     let operator_start = self.mark();
@@ -2627,14 +2655,18 @@ impl Parser {
                         && self.peek_next_is(TokenType::Dot)
                         && self.peek_next_next_token(TokenType::Maybe).is_ok()
                 {
+                    // capture type conditional operands when in type contexts
                     let type_conditional_operands = if self.options.in_type {
                         self.split_type_conditional_operands(left_expression_id)
                     } else {
                         None
                     };
                     let is_type_conditional = type_conditional_operands.is_some();
+
+                    // normalize newlines before checking postfix markers
                     self.eat_newlines_maybe()?; // eat newlines
-                    // maybe or maybe dot (followed by a delimiter/stop, but not preceded by a newline)
+
+                    // classify optional chain and postfix maybe
                     let is_optional_chain_after_maybe = self.is_optional_chain_after_maybe();
                     let is_direct_postfix_maybe = self.language.is_destack()
                         && (self.peek_next_any_stop().is_ok()
@@ -2644,6 +2676,8 @@ impl Parser {
                     let is_postfix_maybe = !self.options.in_type
                         && self.peek_is(TokenType::Maybe)
                         && (is_optional_chain_after_maybe || is_direct_postfix_maybe);
+
+                    // postfix maybe
                     if is_postfix_maybe {
                         self.bump(); // eat ?
                         // (don't consume delimiter/stop)
@@ -2797,11 +2831,13 @@ impl Parser {
         //
 
         // eat infix expressions while left precedence is weaker than right precedence
+        // track statement newline boundaries before entering the loop
         let left_is_statement = self.options.in_statement_position
             && self
                 .tree
                 .get(left_expression_id)
                 .ends_statement_on_newline();
+
         {
             let _timing = self.timing_scope(tags::PARSE_EXPRESSION_INFIX);
             while self.has_more_tokens() {
@@ -2968,7 +3004,6 @@ impl Parser {
                     |parser| parser.eat_expression(),
                 )?;
                 expressions.push(expression_id);
-                self.eat_newlines_maybe()?;
             }
 
             let expression = Expression::SequenceExpression { expressions };
@@ -4416,6 +4451,35 @@ f<x> !== g<y>;
                     });
                     assert!(arguments.as_ref().is_none_or(|items| items.is_empty()));
                     assert!(elements.as_ref().is_none_or(|items| items.is_empty()));
+                });
+            });
+        });
+    }
+
+    /// TSX generic arrows without disambiguators should parse as functions.
+    #[test]
+    fn test_parse_tsx_generic_arrow_without_disambiguator() {
+        let mut test = TestParser::new_with_options("<R>(x: R) => x", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+                let generics = signature.generics.as_ref().expect("expected generics");
+                let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                    assert_string!(parser, *name, "R");
+                });
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "x");
+                    assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                        assert_path!(parser, *path, "R");
+                    });
+                });
+                assert_node!(parser.tree, body.unwrap(), Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "x");
                 });
             });
         });
