@@ -632,6 +632,7 @@ RTTI is only emitted when runtime type checks are possible:
 - Stored in `unknown`
 - Used in runtime reflection
 - Used in untagged unions that require runtime discrimination
+(Analyze already records a `RuntimeCheckKind` per guard expression for us to select between constant folding, union tags, or type descriptors).
 
 #### Struct Layout
 

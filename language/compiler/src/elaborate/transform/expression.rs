@@ -54,7 +54,7 @@ impl Compiler {
         self.transform_if_let(&mut tree, &mut symbols, &mut types)?;
 
         // 3. match → decision trees (creates proper blocks)
-        self.transform_match(&mut tree, &symbols, &mut types)?;
+        self.transform_match(&module, profile, &mut tree, &symbols, &mut types)?;
 
         // 4. ternary optimization (only for source if/else that were unwrapped)
         if self.options.elaborate_with_ternary {
