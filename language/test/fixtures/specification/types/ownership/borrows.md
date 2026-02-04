@@ -213,3 +213,69 @@ function run(): void {
     mutableRef.value;
 }
 ```
+
+## borrow modes
+
+### hint mode emits warnings for conflicts
+
+> Hint mode reports borrow conflicts as warnings.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "borrowMode": "hint" } }
+```
+
+```ds
+struct Data {
+    value: int32,
+}
+
+struct Container {
+    data: Data,
+}
+
+function run(): void {
+    let container = ^Container { data: Data { value: 1 } };
+    let sharedRef = &container.data;
+    let mutableRef = &mut container.data;
+    sharedRef.value;
+    mutableRef.value;
+}
+```
+
+- warning: contains: cannot borrow as mutable
+
+### strict mode reports conflicts as errors
+
+> Strict mode reports borrow conflicts as errors.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "borrowMode": "strict" } }
+```
+
+```ds
+struct Data {
+    value: int32,
+}
+
+struct Container {
+    data: Data,
+}
+
+function run(): void {
+    let container = ^Container { data: Data { value: 1 } };
+    let sharedRef = &container.data;
+    let mutableRef = &mut container.data;
+    sharedRef.value;
+    mutableRef.value;
+}
+```
+
+- contains: cannot borrow as mutable

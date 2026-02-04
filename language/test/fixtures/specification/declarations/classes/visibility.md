@@ -97,6 +97,36 @@ const out = counter.#next();
 
 - contains: is private
 
+### static private fields are accessible within the class
+
+> Static private fields are accessible inside the declaring class.
+
+```ds
+class Counter {
+    static #value: int32 = 1;
+
+    static get(): int32 {
+        Counter.#value
+    }
+}
+
+Counter.get() satisfies int32;
+```
+
+### static private fields are inaccessible outside the class
+
+> Static private fields are not accessible from the outside.
+
+```ds
+class Counter {
+    static #value: int32 = 1;
+}
+
+Counter.#value;
+```
+
+- contains: is private
+
 ## protected fields
 
 ### protected fields are accessible in subclasses

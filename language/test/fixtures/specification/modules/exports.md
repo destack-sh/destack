@@ -184,6 +184,29 @@ import { value } from "./c";
 value.ok satisfies boolean;
 ```
 
+### export star preserves type-only exports
+
+> Export star reexports types for type positions without runtime values.
+
+```ts:types.ts
+export type User = { name: string };
+export const value = 1;
+```
+
+```ts:mod.ts
+export * from "./types";
+```
+
+```ts:main.ts
+import { value, User } from "./mod";
+
+value satisfies number;
+type Alias = User;
+User;
+```
+
+- contains: value
+
 ### export inference preserves renamed reexports
 
 > Renamed reexports preserve export inference.
@@ -219,6 +242,69 @@ import { value } from "./b";
 
 value.ok satisfies boolean;
 ```
+
+### export type reexports remain type-only
+
+> Export type reexports do not create runtime values.
+
+```ts:types.ts
+export type User = { name: string };
+```
+
+```ts:mod.ts
+export type { User } from "./types";
+```
+
+```ts:main.ts
+import { User } from "./mod";
+
+type Alias = User;
+User;
+```
+
+- contains: value
+
+### export type specifiers remain type-only
+
+> Named export type specifiers do not produce runtime values.
+
+```ts:types.ts
+export type User = { name: string };
+```
+
+```ts:mod.ts
+export { type User } from "./types";
+```
+
+```ts:main.ts
+import { User } from "./mod";
+
+type Alias = User;
+User;
+```
+
+- contains: value
+
+### export type star reexports types only
+
+> Export type star reexports types without runtime values.
+
+```ts:types.ts
+export type User = { name: string };
+```
+
+```ts:mod.ts
+export type * from "./types";
+```
+
+```ts:main.ts
+import { User } from "./mod";
+
+type Alias = User;
+User;
+```
+
+- contains: value
 
 ### export inference preserves namespace reexports
 

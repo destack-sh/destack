@@ -128,6 +128,69 @@ const value = counter.make();
 
 - contains: does not exist
 
+### static blocks can access static members
+
+> Static blocks can reference class statics.
+
+```ds
+class Counter {
+    static value: int32 = 1;
+
+    static {
+        Counter.value = 2;
+    }
+}
+
+Counter.value satisfies int32;
+```
+
+## accessors
+
+### accessors expose property types
+
+> Accessors define a property type for reads and writes.
+
+```ds
+class Counter {
+    private value: int32 = 0;
+
+    get count(): int32 {
+        this.value
+    }
+
+    set count(next: int32) {
+        this.value = next;
+    }
+}
+
+const counter = new Counter();
+counter.count satisfies int32;
+counter.count = 1;
+```
+
+### accessors reject incompatible assignments
+
+> Accessor setters enforce the declared parameter type.
+
+```ds
+class Counter {
+    private value: int32 = 0;
+
+    get count(): int32 {
+        this.value
+    }
+
+    set count(next: int32) {
+        this.value = next;
+    }
+}
+
+const counter = new Counter();
+counter.count = "bad";
+```
+
+- contains: not assignable
+
 ## invalid members
 
 ### abstract fields cannot have initializers
@@ -155,6 +218,22 @@ class Counter {
 ```
 
 - contains: invalid member modifier
+
+### readonly fields reject assignment
+
+> Readonly fields cannot be assigned after initialization.
+
+```ds
+class Counter {
+    readonly value: int32 = 0;
+
+    update() {
+        this.value = 1;
+    }
+}
+```
+
+- contains: readonly
 
 ### declare fields cannot include initializers
 

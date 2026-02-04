@@ -151,3 +151,21 @@ const value: unknown = User { name: "Ada" };
 const ok = User.is(value);
 ok satisfies boolean;
 ```
+
+## Assertion Guards
+
+### asserts guards narrow after call
+
+> Assertion functions narrow the asserted value.
+
+```ts
+function assertString(value: unknown): asserts value is string {
+    if (typeof value != "string") {
+        throw 1;
+    }
+}
+
+let value: string | number = 1;
+assertString(value);
+value satisfies string;
+```

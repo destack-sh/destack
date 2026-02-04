@@ -392,6 +392,70 @@ function* generator(): int32 {
 { "compilerOptions": { "noRuntime": false } }
 ```
 
+## noExceptions
+
+### noExceptions reports throw when true
+
+> Throw statements are rejected when noExceptions is true.
+
+```ds:main.ds
+function boom(): void {
+    throw new Error("no");
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noExceptions": true } }
+```
+
+- contains: exceptions are disabled
+
+### noExceptions reports try catch when true
+
+> Try and catch are rejected when noExceptions is true.
+
+```ds:main.ds
+try {
+    1;
+} catch err {
+    err;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noExceptions": true } }
+```
+
+- contains: exceptions are disabled
+
+### noExceptions allows try catch when false
+
+> Try and catch are allowed when noExceptions is false.
+
+```ds:main.ds
+try {
+    1;
+} catch err {
+    err;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noExceptions": false } }
+```
+
 ## noComputedPropertyAccess
 
 ### noComputedPropertyAccess reports computed access when true
@@ -650,4 +714,48 @@ let value = globalThis;
 
 ```json:dsconfig.json
 { "compilerOptions": { "noGlobalThis": false } }
+```
+
+## useDefineForClassFields
+
+### useDefineForClassFields accepts class field initializers
+
+> Class field initializers are supported under useDefineForClassFields.
+
+```ts:main.ts
+class Counter {
+    value = 1;
+}
+
+const counter = new Counter();
+counter.value satisfies number;
+```
+
+```ts:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "useDefineForClassFields": true } }
+```
+
+### useDefineForClassFields allows class field initializers when false
+
+> Class field initializers are still accepted when useDefineForClassFields is false.
+
+```ts:main.ts
+class Counter {
+    value = 1;
+}
+
+const counter = new Counter();
+counter.value satisfies number;
+```
+
+```ts:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "useDefineForClassFields": false } }
 ```

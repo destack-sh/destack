@@ -53,6 +53,33 @@ interface Config {
 }
 ```
 
+### interface call signatures are allowed
+
+> Interfaces can declare callable signatures.
+
+```ts
+interface Fn {
+    (value: string): number;
+}
+
+declare const fn: Fn;
+fn("ok") satisfies number;
+```
+
+### interface construct signatures are allowed
+
+> Interfaces can declare constructor signatures.
+
+```ts
+interface Factory {
+    new (value: string): object;
+}
+
+declare const Factory: Factory;
+const obj = new Factory("ok");
+obj satisfies object;
+```
+
 ### interface accessors are allowed
 
 > Interface accessors declare getter and setter signatures.

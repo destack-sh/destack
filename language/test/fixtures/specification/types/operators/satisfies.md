@@ -48,3 +48,26 @@ const config = { mode: "dev" } satisfies { mode: Mode };
 
 config.mode satisfies "dev";
 ```
+
+### satisfies enforces excess property checks
+
+> Object literals still undergo excess property checks under satisfies.
+
+```ts
+type Shape = { a: number };
+
+const value = { a: 1, b: 2 } satisfies Shape;
+```
+
+- contains: excess property
+
+### satisfies does not widen without const context
+
+> Satisfies provides contextual typing without forcing const contexts.
+
+```ts
+type Shape = { mode: "dev" | "prod" };
+
+let config = { mode: "dev" } satisfies Shape;
+config.mode satisfies "dev" | "prod";
+```

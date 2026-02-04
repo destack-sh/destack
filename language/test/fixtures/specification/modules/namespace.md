@@ -86,6 +86,30 @@ foo.value satisfies number;
 foo.make(1) satisfies string;
 ```
 
+### declare module blocks merge exports
+
+> Multiple declare module blocks merge exported members.
+
+```ts:bindings.d.ts
+declare module "shape" {
+    export interface Box {
+        value: string;
+    }
+}
+
+declare module "shape" {
+    export function make(value: string): Box;
+}
+```
+
+```ts:main.ts
+import "./bindings.d.ts";
+import { make } from "shape";
+
+const box = make("ok");
+box.value satisfies string;
+```
+
 ## declare namespace restrictions
 
 ### declare namespaces reject initializers and bodies

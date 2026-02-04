@@ -100,3 +100,17 @@ function collect(...items?: string[]) {
 ```
 
 - contains: optional rest parameters are not allowed
+
+## this parameters
+
+### this parameters shape call contexts
+
+> Explicit this parameters enforce call context types.
+
+```ds
+function log(this: { prefix: string }, value: string): string {
+    return this.prefix + value;
+}
+
+log.call({ prefix: ">" }, "ok") satisfies string;
+```

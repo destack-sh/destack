@@ -7,3 +7,6 @@ Tests for type-level operators that are not specific to generic inference.
 - `conditional.md`
 - `relations.md`
 - `typeof.md`
+- `intrinsic.md`
+- `import.md`
+- `indexed-access.md`

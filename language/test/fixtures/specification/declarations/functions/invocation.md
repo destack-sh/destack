@@ -69,3 +69,23 @@ const bound = add.bind({ base: 1 });
 const result = bound(2);
 result satisfies number;
 ```
+
+### non-strict call allows mismatched this
+
+> `call` skips strict checking when strictBindCallApply is false.
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strictBindCallApply": false } }
+```
+
+```ds
+function add(this: { base: number }, value: number): number {
+    return this.base + value;
+}
+
+add.call({ base: "no" }, 1);
+```
