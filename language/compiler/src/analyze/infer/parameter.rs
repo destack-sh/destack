@@ -26,16 +26,16 @@ impl Compiler {
         }
 
         // resolve from the owning module when needed
-        // TODO #Architecture: centralize local vs remote symbol metadata lookups for static parameter kinds
-        let kind = if symbol.module_id == module.id {
-            self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
-        } else {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir(profile).tree.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            self.static_parameter_kind_for_symbol_in_module(symbol, &remote_tree, &remote_symbols)
-        };
+        let kind = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            |_, tree, symbols| {
+                self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
+            },
+        );
 
         // cache resolved kinds
         types.set_static_parameter_kind(symbol, kind);
@@ -142,21 +142,31 @@ impl Compiler {
                 continue;
             }
 
-            let remote_module = self.program.modules.get(current.module_id);
-            let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir(profile).tree.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
-                remote_module.id,
-                current,
-                &remote_tree,
-                &remote_symbols,
-            ) {
+            let (parameters, next) = self.with_module_tree_symbols(
+                module,
+                profile,
+                current.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    if let Some(parameters) = self.collect_static_parameter_symbols_in_module(
+                        owner_module.id,
+                        current,
+                        owner_tree,
+                        owner_symbols,
+                    ) {
+                        return (Some(parameters), None);
+                    }
+
+                    let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                    (
+                        None,
+                        symbol_entry.target_symbol.or(symbol_entry.canonical_symbol),
+                    )
+                },
+            );
+            if let Some(parameters) = parameters {
                 break Some(parameters);
             }
 
-            let symbol_entry = remote_symbols.get_symbol(current.local_id);
-            let next = symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
             let next = match next {
                 Some(next) => next,
                 None => break None,
@@ -227,32 +237,24 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> StaticParameter {
         // prefer parameter metadata from the owning module
-        let parameter = if symbol_id.module_id == module.id {
-            self.collect_static_parameter_in_module(
-                module,
-                profile,
-                symbol_id,
-                fallback_source_id,
-                tree,
-                symbols,
-                types,
-            )
-        } else {
-            let remote_module = self.program.modules.get(symbol_id.module_id);
-            let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir(profile).tree.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-
-            self.collect_static_parameter_in_module(
-                &remote_module,
-                profile,
-                symbol_id,
-                fallback_source_id,
-                &remote_tree,
-                &remote_symbols,
-                types,
-            )
-        };
+        let parameter = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol_id.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                self.collect_static_parameter_in_module(
+                    owner_module,
+                    profile,
+                    symbol_id,
+                    fallback_source_id,
+                    owner_tree,
+                    owner_symbols,
+                    types,
+                )
+            },
+        );
 
         // fall back when parameter metadata is unavailable
         parameter.unwrap_or_else(|| {
@@ -421,58 +423,62 @@ impl Compiler {
             }
         } else {
             // resolve remote static parameter constraints by importing the declared type
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let remote_tree = remote_dir.tree.read();
-            let remote_symbols = remote_dir.symbols.read();
-
-            // read the remote symbol
-            let remote_symbol = remote_symbols.get_symbol(symbol.local_id);
-            if !remote_symbol.is_static_parameter() {
-                self.error(AnalyzeError::InvalidStaticConstraint {
-                    node: source_id.into_anchored(module.id, Some(profile)),
-                });
-                None
-            } else if let Some(primary_declaration) = remote_symbol.primary_declaration {
-                // read and import the declared constraint type
-                let mut remote_types = remote_dir.types.write();
-                if let Some(remote_declared_type_id) =
-                    remote_types.get_declared_type_id(primary_declaration)
-                {
-                    let needs_evaluation = matches!(
-                        remote_types.get_type(remote_declared_type_id),
-                        Type::Unevaluated(_)
-                    );
-                    if needs_evaluation {
-                        let _ = self.evaluate_static_parameter_constraint_type(
-                            &remote_module,
-                            profile,
-                            remote_declared_type_id,
-                            &remote_tree,
-                            &remote_symbols,
-                            &mut remote_types,
-                        );
+            self.with_module_tree_symbols(
+                module,
+                profile,
+                symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    // read the remote symbol
+                    let owner_symbol = owner_symbols.get_symbol(symbol.local_id);
+                    if !owner_symbol.is_static_parameter() {
+                        self.error(AnalyzeError::InvalidStaticConstraint {
+                            node: source_id.into_anchored(module.id, Some(profile)),
+                        });
+                        return None;
                     }
 
-                    let remote_declared_type = remote_types.get_type(remote_declared_type_id);
-                    if matches!(remote_declared_type, Type::Unevaluated(_)) {
-                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                    if let Some(primary_declaration) = owner_symbol.primary_declaration {
+                        // read and import the declared constraint type
+                        let mut owner_types = owner_module.dir(profile).types.write();
+                        if let Some(remote_declared_type_id) =
+                            owner_types.get_declared_type_id(primary_declaration)
+                        {
+                            let needs_evaluation = matches!(
+                                owner_types.get_type(remote_declared_type_id),
+                                Type::Unevaluated(_)
+                            );
+                            if needs_evaluation {
+                                let _ = self.evaluate_static_parameter_constraint_type(
+                                    owner_module,
+                                    profile,
+                                    remote_declared_type_id,
+                                    owner_tree,
+                                    owner_symbols,
+                                    &mut owner_types,
+                                );
+                            }
+
+                            let remote_declared_type =
+                                owner_types.get_type(remote_declared_type_id);
+                            if matches!(remote_declared_type, Type::Unevaluated(_)) {
+                                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                            } else {
+                                Some(self.import_type_from_remote_for_node(
+                                    source_id,
+                                    remote_declared_type,
+                                    &owner_types,
+                                    symbol,
+                                    types,
+                                ))
+                            }
+                        } else {
+                            Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                        }
                     } else {
-                        Some(self.import_type_from_remote_for_node(
-                            source_id,
-                            remote_declared_type,
-                            &remote_types,
-                            symbol,
-                            types,
-                        ))
+                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
                     }
-                } else {
-                    Some(types.insert_type_from_any(unknown_type.clone(), source_id))
-                }
-            } else {
-                Some(types.insert_type_from_any(unknown_type.clone(), source_id))
-            }
+                },
+            )
         };
 
         // clear the in progress marker

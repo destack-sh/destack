@@ -828,25 +828,17 @@ impl Compiler {
         }
 
         // rely on the declared parameter metadata
-        if symbol.module_id == module.id {
-            let symbol = symbols.get_symbol(symbol.local_id);
-            if symbol.is_static_parameter() {
-                return true;
-            }
-            return symbol
-                .primary_declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter);
-        }
-
-        // FUGU #Cleanup: audit all logic splits between local and remote modules
-        // (and see if we can't introduce a more general helper somehow..?)
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        let symbol = remote_symbols.get_symbol(symbol.local_id);
+        let symbol = self.with_module_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            symbols,
+            |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).clone(),
+        );
         if symbol.is_static_parameter() {
             return true;
         }
+
         symbol
             .primary_declaration
             .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
@@ -1077,71 +1069,83 @@ impl Compiler {
             if current.module_id != module.id {
                 let _ = self.require_analyze_module_declare(current.module_id, profile);
             }
-            let remote_module = self.program.modules.get(current.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let remote_tree = remote_dir.tree.read();
-            let remote_symbols = remote_dir.symbols.read();
-            let symbol_entry = remote_symbols.get_symbol(current.local_id);
-            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                // follow remote import targets when present
-                let target_symbol = symbol_entry
-                    .target_symbol
-                    .or(symbol_entry.canonical_symbol)?;
-                current = target_symbol;
-                continue;
-            }
-
-            let typed_symbol = GlobalSymbolId::new(
+            let (resolved, next) = self.with_module_tree_symbols(
+                module,
+                profile,
                 current.module_id,
-                current.local_id.with_type(symbol_entry.ty),
+                |owner_module, owner_tree, owner_symbols| {
+                    let symbol_entry = owner_symbols.get_symbol(current.local_id);
+                    if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                        let target_symbol =
+                            symbol_entry.target_symbol.or(symbol_entry.canonical_symbol);
+                        return (None, target_symbol);
+                    }
+
+                    let typed_symbol = GlobalSymbolId::new(
+                        current.module_id,
+                        current.local_id.with_type(symbol_entry.ty),
+                    );
+                    types.record_normalization_symbol_dependency(typed_symbol);
+
+                    // import remote alias targets from the export summary
+                    let mut owner_types = owner_module.dir(profile).types.write();
+                    let remote_target_id = match owner_types.get_alias_target_type_id(typed_symbol)
+                    {
+                        Some(id) => id,
+                        None => return (None, None),
+                    };
+
+                    // evaluate remote alias targets before importing
+                    if matches!(owner_types.get_type(remote_target_id), Type::Unevaluated(_))
+                        && let Err(error) = self.evaluate_type(
+                            owner_module,
+                            profile,
+                            remote_target_id,
+                            owner_tree,
+                            owner_symbols,
+                            &mut owner_types,
+                        )
+                    {
+                        self.error(error);
+                        return (None, None);
+                    }
+
+                    // skip alias targets that still need value materialization
+                    let needs_materialization = self
+                        .type_contains_unevaluated_value_static_arguments(
+                            owner_module,
+                            profile,
+                            remote_target_id,
+                            owner_tree,
+                            owner_symbols,
+                            &owner_types,
+                            &mut HashSet::new(),
+                        );
+                    if needs_materialization {
+                        return (None, None);
+                    }
+
+                    let remote_target_ty = owner_types.get_type(remote_target_id);
+                    let local_alias_target_id = self.import_type_from_remote_for_node(
+                        source_id,
+                        remote_target_ty,
+                        &owner_types,
+                        typed_symbol,
+                        types,
+                    );
+                    types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
+                    (Some(local_alias_target_id), None)
+                },
             );
-            types.record_normalization_symbol_dependency(typed_symbol);
-
-            // import remote alias targets from the export summary
-            let mut remote_types = remote_dir.types.write();
-            let remote_target_id = remote_types.get_alias_target_type_id(typed_symbol)?;
-
-            // evaluate remote alias targets before importing
-            if matches!(
-                remote_types.get_type(remote_target_id),
-                Type::Unevaluated(_)
-            ) && let Err(error) = self.evaluate_type(
-                &remote_module,
-                profile,
-                remote_target_id,
-                &remote_tree,
-                &remote_symbols,
-                &mut remote_types,
-            ) {
-                self.error(error);
-                return None;
+            if let Some(resolved) = resolved {
+                return Some(resolved);
             }
-
-            // skip alias targets that still need value materialization
-            let needs_materialization = self.type_contains_unevaluated_value_static_arguments(
-                &remote_module,
-                profile,
-                remote_target_id,
-                &remote_tree,
-                &remote_symbols,
-                &remote_types,
-                &mut HashSet::new(),
-            );
-            if needs_materialization {
-                return None;
-            }
-
-            let remote_target_ty = remote_types.get_type(remote_target_id);
-            let local_alias_target_id = self.import_type_from_remote_for_node(
-                source_id,
-                remote_target_ty,
-                &remote_types,
-                typed_symbol,
-                types,
-            );
-            types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
-            return Some(local_alias_target_id);
+            let next = match next {
+                Some(next) => next,
+                None => return None,
+            };
+            current = next;
+            continue;
         }
     }
 
@@ -1621,23 +1625,20 @@ impl Compiler {
             let kind = parameter_symbols
                 .get(index)
                 .map(|parameter_symbol| {
-                    if parameter_symbol.module_id == module.id {
-                        self.static_parameter_kind_for_symbol_in_module(
-                            *parameter_symbol,
-                            tree,
-                            symbols,
-                        )
-                    } else {
-                        let remote_module = self.program.modules.get(parameter_symbol.module_id);
-                        let remote_module = remote_module.read();
-                        let remote_tree = remote_module.dir(profile).tree.read();
-                        let remote_symbols = remote_module.dir(profile).symbols.read();
-                        self.static_parameter_kind_for_symbol_in_module(
-                            *parameter_symbol,
-                            &remote_tree,
-                            &remote_symbols,
-                        )
-                    }
+                    self.with_module_tree_symbols_or_local(
+                        module,
+                        profile,
+                        parameter_symbol.module_id,
+                        tree,
+                        symbols,
+                        |_, owner_tree, owner_symbols| {
+                            self.static_parameter_kind_for_symbol_in_module(
+                                *parameter_symbol,
+                                owner_tree,
+                                owner_symbols,
+                            )
+                        },
+                    )
                 })
                 .unwrap_or(StaticParameterKind::Type);
 

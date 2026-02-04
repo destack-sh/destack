@@ -605,30 +605,22 @@ impl Compiler {
             return None;
         };
 
-        // prefer local symbol tables for local references
-        if target_symbol.module_id == module.id {
-            return self.static_parameter_reference_kind_in_symbols(
-                module,
-                profile,
-                *target_symbol,
-                tree,
-                symbols,
-                types,
-            );
-        }
-
-        // use the owning module to avoid indexing the wrong symbol table
-        let remote_module = self.program.modules.get(target_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_tree = remote_module.dir(profile).tree.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        self.static_parameter_reference_kind_in_symbols(
-            &remote_module,
+        self.with_module_tree_symbols_or_local(
+            module,
             profile,
-            *target_symbol,
-            &remote_tree,
-            &remote_symbols,
-            types,
+            target_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                self.static_parameter_reference_kind_in_symbols(
+                    owner_module,
+                    profile,
+                    *target_symbol,
+                    owner_tree,
+                    owner_symbols,
+                    types,
+                )
+            },
         )
     }
 
@@ -1760,20 +1752,22 @@ impl Compiler {
             self.require_analyze_module_infer(symbol.module_id, profile)
                 .map_err(AnalyzeError::from)?;
 
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let remote_tree = remote_dir.tree.read();
-            let remote_symbols = remote_dir.symbols.read();
-            let mut remote_types = remote_dir.types.write();
-            return self.static_expression_from_constant_reference(
-                &remote_module,
+            return self.with_module_tree_symbols(
+                module,
                 profile,
-                symbol,
-                &remote_tree,
-                &remote_symbols,
-                &mut remote_types,
-                visited,
+                symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    let mut owner_types = owner_module.dir(profile).types.write();
+                    self.static_expression_from_constant_reference(
+                        owner_module,
+                        profile,
+                        symbol,
+                        owner_tree,
+                        owner_symbols,
+                        &mut owner_types,
+                        visited,
+                    )
+                },
             );
         }
 

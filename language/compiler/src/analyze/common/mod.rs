@@ -11,6 +11,7 @@ mod literal;
 mod managed;
 mod mapped;
 mod materialize;
+mod module;
 mod normalize;
 mod relation;
 mod scalar;

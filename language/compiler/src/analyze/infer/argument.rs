@@ -262,27 +262,20 @@ impl Compiler {
             return None;
         };
 
-        // prefer local symbol tables for local references
-        if target_symbol.module_id == module.id {
-            return self.static_parameter_symbol_for_reference_in_symbols(
-                module,
-                profile,
-                *target_symbol,
-                symbols,
-                types,
-            );
-        }
-
-        // use the owning module to avoid indexing the wrong symbol table
-        let remote_module = self.program.modules.get(target_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        self.static_parameter_symbol_for_reference_in_symbols(
-            &remote_module,
+        self.with_module_symbols_or_local(
+            module,
             profile,
-            *target_symbol,
-            &remote_symbols,
-            types,
+            target_symbol.module_id,
+            symbols,
+            |owner_module, owner_symbols| {
+                self.static_parameter_symbol_for_reference_in_symbols(
+                    owner_module,
+                    profile,
+                    *target_symbol,
+                    owner_symbols,
+                    types,
+                )
+            },
         )
     }
 
@@ -1449,24 +1442,26 @@ impl Compiler {
             let _ = self.enum_backing_type_for_symbol(module, profile, enum_symbol, types);
             self.enum_literal_matches_symbol(enum_symbol, literal, tree, symbols, types)
         } else {
-            let remote_module = self.program.modules.get(enum_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let remote_tree = remote_dir.tree.read();
-            let remote_symbols = remote_dir.symbols.read();
-            let mut remote_types = remote_dir.types.write();
-            let _ = self.enum_backing_type_for_symbol(
-                &remote_module,
+            self.with_module_tree_symbols(
+                module,
                 profile,
-                enum_symbol,
-                &mut remote_types,
-            );
-            self.enum_literal_matches_symbol(
-                enum_symbol,
-                literal,
-                &remote_tree,
-                &remote_symbols,
-                &remote_types,
+                enum_symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    let mut owner_types = owner_module.dir(profile).types.write();
+                    let _ = self.enum_backing_type_for_symbol(
+                        owner_module,
+                        profile,
+                        enum_symbol,
+                        &mut owner_types,
+                    );
+                    self.enum_literal_matches_symbol(
+                        enum_symbol,
+                        literal,
+                        owner_tree,
+                        owner_symbols,
+                        &owner_types,
+                    )
+                },
             )
         };
 
@@ -2776,16 +2771,16 @@ impl Compiler {
             substitutions.insert(static_parameter.symbol, ty_id);
         }
 
-        let (symbol_key, symbol_space) = if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            (symbol_entry.key, symbol_entry.space)
-        } else {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-            (symbol_entry.key, symbol_entry.space)
-        };
+        let (symbol_key, symbol_space) = self.with_module_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            symbols,
+            |_, owner_symbols| {
+                let symbol_entry = owner_symbols.get_symbol(symbol.local_id);
+                (symbol_entry.key, symbol_entry.space)
+            },
+        );
         if let Some(symbol_key) = symbol_key
             && let Some(ambient_symbols) =
                 self.get_ambient_lib_symbol_sources_for_merge(profile, symbol_key, symbol_space)

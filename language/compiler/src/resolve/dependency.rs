@@ -1272,7 +1272,7 @@ impl Compiler {
         };
 
         // require resolved modules to be bound
-        for target in [resolved_targets.value, resolved_targets.types] {
+        for target in [resolved_targets.value, resolved_targets.ty] {
             if let Some(ModuleTarget::Module(module_id)) = target {
                 self.require_import_module_validate(module_id)?;
             }

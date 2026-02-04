@@ -273,20 +273,17 @@ impl Compiler {
         types: &TypeTable,
         handle: impl FnOnce(&Module, &TypeTable, LocalTypeId, &Type) -> R,
     ) -> Option<R> {
-        // use the current module when the alias is local
-        if symbol.module_id == module.id {
-            let target_id = types.get_alias_target_type_id(symbol)?;
-            let target_ty = types.get_type(target_id);
-            return Some(handle(module, types, target_id, target_ty));
-        }
-
-        // load the alias target from the remote module
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(profile).types.read();
-        let target_id = remote_types.get_alias_target_type_id(symbol)?;
-        let target_ty = remote_types.get_type(target_id);
-        Some(handle(&remote_module, &remote_types, target_id, target_ty))
+        self.with_module_types_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            types,
+            |owner_module, owner_types| {
+                let target_id = owner_types.get_alias_target_type_id(symbol)?;
+                let target_ty = owner_types.get_type(target_id);
+                Some(handle(owner_module, owner_types, target_id, target_ty))
+            },
+        )
     }
 
     /// Decide whether a type literal implies managed defaults.
