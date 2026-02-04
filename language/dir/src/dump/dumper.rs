@@ -2072,13 +2072,10 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             PatternField::Spread {
                 mutability,
-                name,
-                symbol,
+                pattern: _,
             } => {
                 self.node("PatternField::Spread", id.id)
                     .field_optional("mutability", mutability)
-                    .field_optional("name", name)
-                    .field("symbol", symbol)
                     .end();
             }
             PatternField::Elision => {

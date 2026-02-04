@@ -103,7 +103,6 @@ error/unary_delete.js
 error/unary_delete_parenthesized.js
 error/unterminated_unicode_codepoint.js
 error/using_declaration_not_allowed_in_for_in_statement.js
-ok/array_binding_rest.js
 ok/decorator.ts
 ok/decorator_class_member.ts
 ok/decorator_export_default_top_level_3.ts

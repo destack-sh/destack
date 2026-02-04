@@ -2012,7 +2012,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 Some(current_block_id)
             }
             PatternField::Positional { pattern } => self.build_pattern(*pattern, current_block_id),
-            PatternField::Spread { .. } | PatternField::Elision => Some(current_block_id),
+            PatternField::Spread { pattern, .. } => {
+                if let Some(pattern_id) = pattern {
+                    self.build_pattern(*pattern_id, current_block_id)
+                } else {
+                    Some(current_block_id)
+                }
+            }
+            PatternField::Elision => Some(current_block_id),
         }
     }
 

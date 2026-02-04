@@ -4314,11 +4314,19 @@ impl Compiler {
             }
             PatternField::Spread {
                 mutability: _,
-                name: _,
-                symbol,
+                pattern,
             } => {
-                if let Some(ty_id) = binding_ty_id {
-                    types.set_value_type(symbol.into_global(module.id), ty_id);
+                if let Some(pattern_id) = pattern {
+                    self.infer_pattern(
+                        module,
+                        *pattern_id,
+                        binding_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
                 }
             }
             PatternField::Elision => {

@@ -168,15 +168,18 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 }
             }
             PatternField::Positional { pattern } => write!(f, [pattern])?,
-            PatternField::Spread { mutability, name } => {
+            PatternField::Spread {
+                mutability,
+                pattern,
+            } => {
                 if let Some(mutability) = mutability
                     && *mutability == Mutability::Mutable
                 {
                     write!(f, [mutability, space()])?;
                 }
                 write!(f, [token("...")])?;
-                if let Some(name) = name {
-                    write!(f, [name])?;
+                if let Some(pattern) = pattern {
+                    write!(f, [pattern])?;
                 }
             }
             PatternField::Elision => {
