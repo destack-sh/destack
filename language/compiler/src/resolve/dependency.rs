@@ -1187,10 +1187,10 @@ impl Compiler {
         let cache_key = (relative_module, target, loader_override);
 
         // check if already resolved locally
-        if let Some(targets) = dir.imported_modules.read().get(&cache_key) {
-            if let Some(remote_target) = targets.for_kind(kind) {
-                return Ok(remote_target);
-            }
+        if let Some(targets) = dir.imported_modules.read().get(&cache_key)
+            && let Some(remote_target) = targets.for_kind(kind)
+        {
+            return Ok(remote_target);
         }
 
         // check if already resolved "globally" (since it's not relative we can avoid re-doing the work)
@@ -1811,13 +1811,12 @@ impl Compiler {
                     // resolve the specifier to a module target
                     if let Ok(targets) =
                         self.resolve_specifier_to_module_resolution(*target, Some(module_id), None)
+                        && let Some(target_module) = targets.for_kind(*kind)
                     {
-                        if let Some(target_module) = targets.for_kind(*kind) {
-                            redirects_by_scope
-                                .entry(item_scope_id)
-                                .or_default()
-                                .insert(name, target_module);
-                        }
+                        redirects_by_scope
+                            .entry(item_scope_id)
+                            .or_default()
+                            .insert(name, target_module);
                     }
                 }
                 DependencyItem::Remote {
