@@ -11,7 +11,7 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, InferTable,
+    AssignOperator, BinaryOperator, Constraint, DynamicKey, Expression, GlobalSymbolId, InferTable,
     LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree,
     NormalizationMode, PrimitiveType, ResolvedSignature, ScalarLiteral, StaticKey, SymbolTable,
     SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
@@ -349,6 +349,17 @@ impl Compiler {
             );
         }
 
+        // handle logical operators with operand unions
+        if matches!(operator, BinaryOperator::And | BinaryOperator::Or) {
+            let result_ty_id = self.union_type(left_ty_id, right_ty_id, types);
+            self.record_builtin_resolution(
+                expression_id.into_global_any(module.id),
+                Some(left_ty_id),
+                types,
+            );
+            return Ok(result_ty_id);
+        }
+
         // NOTE #Incomplete: full union equality depends on Equal overload dispatch
         // allow literal comparisons when values are assignable
         let is_literal_equality = self.should_use_literal_equality(
@@ -559,8 +570,9 @@ impl Compiler {
 
         // reject assignments to immutable bindings
         let target_id = self.unwrap_parenthesized_expression(left_id, tree);
-        if let Some(target_symbol) =
-            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
+        let target_symbol =
+            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
+        if let Some(target_symbol) = target_symbol
             && matches!(
                 self.binding_mutability_for_symbol(module, target_symbol, symbols),
                 Some(Mutability::Immutable)
@@ -688,6 +700,31 @@ impl Compiler {
             });
         }
 
+        // narrow desugared nullish assignments to non nullish targets
+        if let Expression::Binary {
+            left: coalesce_left,
+            operator: BinaryOperator::Coalesce,
+            right: _,
+        } = tree.get(right_id)
+            && let Some(target_symbol) = target_symbol
+        {
+            let coalesce_left = self.unwrap_parenthesized_expression(*coalesce_left, tree);
+            if coalesce_left == target_id {
+                let canonical_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    ctx.profile,
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let (non_nullish, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
+                if has_nullish {
+                    let narrowed_ty_id = non_nullish.unwrap_or(right_ty_id);
+                    ctx.narrow(canonical_symbol, narrowed_ty_id);
+                }
+            }
+        }
+
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
@@ -699,6 +736,7 @@ impl Compiler {
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
+        operator: &AssignOperator,
         left_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         tree: &NodeTree,
@@ -707,10 +745,26 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // route index assignment to index set resolution
+        if let Expression::Index { left: _, right: _ } = tree.get(left_id) {
+            return self.infer_index_assignment_expression(
+                module,
+                expression_id,
+                left_id,
+                right_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            );
+        }
+
         // reject assignments to immutable bindings
         let target_id = self.unwrap_parenthesized_expression(left_id, tree);
-        if let Some(target_symbol) =
-            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols)
+        let target_symbol =
+            self.reference_symbol_for_expression(module, target_id, ctx.profile, tree, symbols);
+        if let Some(target_symbol) = target_symbol
             && matches!(
                 self.binding_mutability_for_symbol(module, target_symbol, symbols),
                 Some(Mutability::Immutable)
@@ -723,10 +777,147 @@ impl Compiler {
             });
         }
 
-        let _left_ty_id =
+        // reject assignments through immutable references
+        if let Expression::Member {
+            left: receiver_id,
+            name,
+            static_arguments,
+        } = tree.get(left_id)
+        {
+            let receiver_ty_id =
+                self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
+            if self.type_is_immutable_reference(receiver_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: receiver_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+
+            // reject writes to readonly members when the key is known
+            if static_arguments.is_none() {
+                let member_key = self.static_key_from_dynamic_key(
+                    ctx.profile,
+                    DynamicKey::Name(*name),
+                    tree,
+                    symbols,
+                    types,
+                );
+                if let Some(member_key) = member_key
+                    && let Some((_, is_readonly)) = self.field_modifiers_for_key(
+                        module,
+                        ctx.profile,
+                        receiver_ty_id,
+                        &member_key,
+                        symbols,
+                        types,
+                    )
+                    && is_readonly
+                {
+                    self.error(AnalyzeError::ReadonlyProperty {
+                        node: left_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        member_key,
+                    });
+                }
+            }
+        } else if let Expression::Unary { operator, right } = tree.get(left_id)
+            && matches!(operator, UnaryOperator::Dereference)
+        {
+            let right_ty_id =
+                self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+            if self.type_is_immutable_reference(right_ty_id, types) {
+                self.error(AnalyzeError::ImmutableReferenceAssignment {
+                    node: right
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
+
+        // infer left and right types
+        let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
-        let _right_ty_id =
-            self.infer_expression(module, right_id, tree, symbols, types, infer, ctx)?;
+
+        let mut right_ctx = ctx.fork().with_expected_type(Some(left_ty_id));
+        let right_ty_id = self.infer_expression(
+            module,
+            right_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            &mut right_ctx,
+        )?;
+
+        // enforce logical assignment semantics
+        let is_logical_assignment = matches!(
+            operator,
+            AssignOperator::AndAssign | AssignOperator::OrAssign | AssignOperator::CoalesceAssign
+        );
+        if is_logical_assignment {
+            let options = ctx.options;
+
+            // enforce explicit ownership when implicit managed values are disabled
+            self.check_no_implicit_managed_value(
+                module,
+                ctx.profile,
+                right_id,
+                left_ty_id,
+                right_ty_id,
+                tree,
+                types,
+                &options,
+            );
+
+            // add the subtype constraint
+            infer.push_constraint(Constraint::Subtype {
+                sub_type: right_ty_id,
+                super_type: left_ty_id,
+                variance: None,
+            });
+
+            // check assignability when types are resolved
+            if !self.is_infer_var_type(left_ty_id, types)
+                && !self.is_infer_var_type(right_ty_id, types)
+                && self.is_type_assignable(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    left_ty_id,
+                    right_ty_id,
+                    types,
+                    &options,
+                ) == Assignability::NotAssignable
+            {
+                return Err(AnalyzeError::UnassignableType {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    expected_ty: left_ty_id.into_global(module.id),
+                    actual_ty: right_ty_id.into_global(module.id),
+                });
+            }
+
+            // narrow nullish assignments to non nullish targets
+            if matches!(operator, AssignOperator::CoalesceAssign)
+                && let Some(target_symbol) = target_symbol
+            {
+                let canonical_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    ctx.profile,
+                    target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
+                let (non_nullish, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
+                if has_nullish {
+                    let narrowed_ty_id = non_nullish.unwrap_or(right_ty_id);
+                    ctx.narrow(canonical_symbol, narrowed_ty_id);
+                }
+            }
+        }
 
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,

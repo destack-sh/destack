@@ -1140,12 +1140,7 @@ impl Compiler {
             if let Some(resolved) = resolved {
                 return Some(resolved);
             }
-            let next = match next {
-                Some(next) => next,
-                None => return None,
-            };
-            current = next;
-            continue;
+            current = next?;
         }
     }
 

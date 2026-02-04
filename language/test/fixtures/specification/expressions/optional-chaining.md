@@ -79,7 +79,7 @@ declare const value: { name: string } | undefined;
 value?.();
 ```
 
-- contains: not callable
+- contains: calling non-callable
 
 ## optional chain composition
 
@@ -88,7 +88,7 @@ value?.();
 > Chained optional access preserves undefined in the result.
 
 ```ts
-type User = { name?: string };
+type User = { name?: { length: number } };
 
 declare const user: User | null;
 

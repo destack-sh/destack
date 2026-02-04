@@ -32,10 +32,13 @@ value ||= 1;
 > Logical and assignment uses the same assignment rules.
 
 ```ts
-let value: string | undefined = "ok";
+type Value = { ok: true };
 
-value &&= value.toUpperCase();
-value satisfies string | undefined;
+declare const fallback: Value;
+let value: Value | undefined = fallback;
+
+value &&= fallback;
+value satisfies Value | undefined;
 ```
 
 ### logical and assignment rejects incompatible values

@@ -1,13 +1,15 @@
 use super::SignatureResolutionMode;
 use super::argument::InheritedStaticArguments;
+use crate::analyze::common::RelationMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
-    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, Visibility,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, NormalizationMode,
+    StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Visibility,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -113,6 +115,17 @@ impl Compiler {
             infer,
             types,
             &ctx.options,
+        );
+
+        // normalize apparent types before member lookup
+        let left_ty_id = self.normalize_apparent_type(
+            module,
+            ctx.profile,
+            left_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
         );
         let left_ty = types.get_type(left_ty_id).clone();
         let mut member_instance_id = None;
@@ -1341,6 +1354,26 @@ impl Compiler {
         let resolution = match receiver_ty {
             Type::Reference { .. } => {
                 // resolve nominal members first
+                let mut visited = Vec::new();
+                let member_symbol = self.resolve_member_symbol_for_type(
+                    module,
+                    receiver_ty,
+                    member_key,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    &mut visited,
+                    true,
+                )?;
+                if let Some(symbol) = member_symbol {
+                    MemberResolution::Static { symbol }
+                } else {
+                    MemberResolution::Unresolved
+                }
+            }
+            Type::TypeLiteral { .. } => {
+                // resolve implicit members for primitive and literal receivers
                 let mut visited = Vec::new();
                 let member_symbol = self.resolve_member_symbol_for_type(
                     module,

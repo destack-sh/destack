@@ -1233,9 +1233,14 @@ impl Compiler {
                 infer,
                 ctx,
             )?,
-            Expression::AssignBinary { left, right, .. } => self.infer_assign_binary_expression(
+            Expression::AssignBinary {
+                left,
+                operator,
+                right,
+            } => self.infer_assign_binary_expression(
                 module,
                 expression_id,
+                operator,
                 *left,
                 *right,
                 tree,

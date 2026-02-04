@@ -895,13 +895,8 @@ impl Compiler {
                 profile,
                 global_symbol.module_id,
                 |_, remote_types| {
-                    // skip symbols without instance types
-                    let Some(remote_instance_id) = remote_types.get_instance_type_id(global_symbol)
-                    else {
-                        return None;
-                    };
-
                     // import the remote instance type into this module
+                    let remote_instance_id = remote_types.get_instance_type_id(global_symbol)?;
                     let remote_ty = remote_types.get_type(remote_instance_id);
                     let local_ty_id = self.import_type_from_remote_for_node(
                         declaration_id.into_any(),
@@ -1016,12 +1011,8 @@ impl Compiler {
                 profile,
                 global_symbol.module_id,
                 |_, remote_types| {
-                    let Some(remote_value_id) = remote_types.get_value_type_id(global_symbol)
-                    else {
-                        return None;
-                    };
-
                     // import the remote value type into this module
+                    let remote_value_id = remote_types.get_value_type_id(global_symbol)?;
                     let remote_value_ty = remote_types.get_type(remote_value_id);
                     let local_value_id = self.import_type_from_remote_for_node(
                         declaration_id.into_any(),

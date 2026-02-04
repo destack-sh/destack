@@ -18,16 +18,6 @@ destack_test::specification::declarations/reflection/descriptors/descriptor.md/t
 destack_test::specification::declarations/reflection/values.md/type-descriptors/type-name-yields-a-descriptor-value
 destack_test::specification::declarations/reflection/values.md/type-guards/t-is-narrows-a-union
 destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
-destack_test::specification::expressions/logical-assignment.md/logical-and-assignment/logical-and-assignment-preserves-assignable-values
-destack_test::specification::expressions/logical-assignment.md/logical-or-assignment/logical-or-assignment-accepts-assignable-values
-destack_test::specification::expressions/nullish.md/nullish-assignment/nullish-assignment-preserves-the-non-nullish-type
-destack_test::specification::expressions/optional-chaining.md/optional-call/optional-call-rejects-non-callable-values
-destack_test::specification::expressions/optional-chaining.md/optional-call/optional-call-returns-undefined-for-nullish-functions
-destack_test::specification::expressions/optional-chaining.md/optional-call/optional-call-validates-argument-types
-destack_test::specification::expressions/optional-chaining.md/optional-chain-composition/optional-chains-propagate-undefined
-destack_test::specification::expressions/optional-chaining.md/optional-element-access/optional-element-access-returns-undefined-for-nullish-bases
-destack_test::specification::expressions/optional-chaining.md/optional-property-access/optional-property-access-requires-known-properties
-destack_test::specification::expressions/optional-chaining.md/optional-property-access/optional-property-access-returns-undefined-for-nullish-bases
 destack_test::specification::flow/match/exhaustiveness.md/enums/match-reports-non-exhaustive-enums
 destack_test::specification::flow/narrowing/guards.md/assertion-guards/asserts-guards-narrow-after-call
 destack_test::specification::flow/narrowing/guards.md/is-guards/type-is-guard-narrows-to-target-type
