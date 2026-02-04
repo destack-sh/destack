@@ -9,7 +9,10 @@ use destack_dir::{
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
-use super::{CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector, TypeWalkContext, TypeWalkKey};
+use super::{
+    CanonicalSymbolMode, NormalizationMode, RelationMode, TypeCollector, TypeWalkContext,
+    TypeWalkKey,
+};
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler, ElaborateError, ElaborateResult};
 
 fn base_visitor_options() -> TypeVisitorOptions {
@@ -1455,13 +1458,7 @@ impl Compiler {
         }
 
         // require a runtime checkable target type
-        if !self.type_is_runtime_checkable_target(
-            module,
-            profile,
-            symbols,
-            target_type_id,
-            types,
-        ) {
+        if !self.type_is_runtime_checkable_target(module, profile, symbols, target_type_id, types) {
             return None;
         }
 
@@ -1496,13 +1493,9 @@ impl Compiler {
         };
         if let Some(elements) = union_elements {
             for element_id in elements {
-                if !self.type_is_runtime_checkable_target(
-                    module,
-                    profile,
-                    symbols,
-                    element_id,
-                    types,
-                ) {
+                if !self
+                    .type_is_runtime_checkable_target(module, profile, symbols, element_id, types)
+                {
                     return false;
                 }
             }
@@ -1542,22 +1535,17 @@ impl Compiler {
         match types.get_type(type_id) {
             Type::Union { .. } => Some(RuntimeCheckKind::UnionTag),
             Type::Reference { symbol, .. } => match symbol.local_id.ty {
-                SymbolType::Class
-                | SymbolType::Struct
-                | SymbolType::Enum
-                | SymbolType::Newtype => Some(RuntimeCheckKind::TypeDescriptor),
+                SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype => {
+                    Some(RuntimeCheckKind::TypeDescriptor)
+                }
                 _ => None,
             },
             Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             } => Some(RuntimeCheckKind::TypeDescriptor),
-            Type::Value { value } => self.runtime_check_kind_for_value_type(
-                module,
-                profile,
-                symbols,
-                *value,
-                types,
-            ),
+            Type::Value { value } => {
+                self.runtime_check_kind_for_value_type(module, profile, symbols, *value, types)
+            }
             _ => None,
         }
     }

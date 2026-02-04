@@ -318,7 +318,10 @@ impl Compiler {
         if !options.no_unsound_narrowing {
             return;
         }
-        if !matches!(operator, TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf) {
+        if !matches!(
+            operator,
+            TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf
+        ) {
             return;
         }
 

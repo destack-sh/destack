@@ -102,6 +102,22 @@ impl Compiler {
         }
     }
 
+    /// Report unsound variance usage when configured.
+    fn report_unsound_variance(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        anchor: LocalNodeIdAny,
+        options: &AnalyzeOptions,
+    ) {
+        if !options.no_unsound_variance {
+            return;
+        }
+
+        let node = anchor.into_global(module.id).into_anchored(Some(profile));
+        self.error(AnalyzeError::UnsoundVarianceDisabled { node });
+    }
+
     /// Check if `source` type is assignable to `target` type.
     /// Returns true if a value of type `source` can be assigned to a location of type `target`.
     pub fn is_type_assignable(
@@ -649,7 +665,7 @@ impl Compiler {
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
-                self.is_type_assignable(
+                let assignability = self.is_type_assignable(
                     module,
                     profile,
                     symbols,
@@ -657,7 +673,25 @@ impl Compiler {
                     source_elem,
                     types,
                     options,
-                )
+                );
+
+                if assignability.is_assignable() {
+                    let anchor = types.get_type_source(target_id);
+                    self.check_unsound_array_variance(
+                        module,
+                        profile,
+                        symbols,
+                        anchor,
+                        target_readonly,
+                        source_readonly,
+                        target_elem,
+                        source_elem,
+                        types,
+                        options,
+                    );
+                }
+
+                assignability
             }
 
             // sized arrays: assignable to arrays by element type
@@ -679,7 +713,7 @@ impl Compiler {
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
-                self.is_type_assignable(
+                let assignability = self.is_type_assignable(
                     module,
                     profile,
                     symbols,
@@ -687,7 +721,24 @@ impl Compiler {
                     source_elem,
                     types,
                     options,
-                )
+                );
+
+                if assignability.is_assignable() {
+                    self.check_unsound_array_variance(
+                        module,
+                        profile,
+                        symbols,
+                        anchor,
+                        target_readonly,
+                        source_readonly,
+                        target_elem,
+                        source_elem,
+                        types,
+                        options,
+                    );
+                }
+
+                assignability
             }
 
             // sized arrays: assignable to unknown element arrays
@@ -787,20 +838,32 @@ impl Compiler {
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
-                if !self
-                    .is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
-                        target_elem,
-                        source_elem,
-                        types,
-                        options,
-                    )
-                    .is_assignable()
-                {
+                let assignability = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_elem,
+                    source_elem,
+                    types,
+                    options,
+                );
+                if !assignability.is_assignable() {
                     return Assignability::NotAssignable;
                 }
+
+                let anchor = types.get_type_source(target_id);
+                self.check_unsound_array_variance(
+                    module,
+                    profile,
+                    symbols,
+                    anchor,
+                    target_readonly,
+                    source_readonly,
+                    target_elem,
+                    source_elem,
+                    types,
+                    options,
+                );
 
                 if self.array_sized_counts_match(target_count, source_count, types) {
                     Assignability::Assignable
@@ -943,6 +1006,7 @@ impl Compiler {
                 module,
                 profile,
                 symbols,
+                types.get_type_source(target_id),
                 &target_params,
                 &target_this,
                 &target_return,
@@ -1006,6 +1070,7 @@ impl Compiler {
                 module,
                 profile,
                 symbols,
+                types.get_type_source(target_id),
                 &target_params,
                 &target_this,
                 &target_return,
@@ -1390,6 +1455,7 @@ impl Compiler {
                             module,
                             profile,
                             symbols,
+                            types.get_type_source(target_id),
                             &target_params,
                             &target_this,
                             &target_return,
@@ -1619,6 +1685,56 @@ impl Compiler {
             return false;
         }
         true
+    }
+
+    /// Report unsound array variance for mutable arrays when configured.
+    fn check_unsound_array_variance(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        anchor: LocalNodeIdAny,
+        target_readonly: bool,
+        source_readonly: bool,
+        target_element: LocalTypeId,
+        source_element: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) {
+        if !options.no_unsound_variance {
+            return;
+        }
+
+        if target_readonly || source_readonly {
+            return;
+        }
+
+        let target_assignable = self
+            .is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_element,
+                source_element,
+                types,
+                options,
+            )
+            .is_assignable();
+        let source_assignable = self
+            .is_type_assignable(
+                module,
+                profile,
+                symbols,
+                source_element,
+                target_element,
+                types,
+                options,
+            )
+            .is_assignable();
+
+        if target_assignable && !source_assignable {
+            self.report_unsound_variance(module, profile, anchor, options);
+        }
     }
 
     /// Check readonly assignability for tuple elements.
@@ -2090,6 +2206,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         symbols: &SymbolTable,
+        assignment_anchor: LocalNodeIdAny,
         target_params: &[LocalTypeId],
         target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
@@ -2118,6 +2235,7 @@ impl Compiler {
                     module,
                     profile,
                     symbols,
+                    assignment_anchor,
                     target_params,
                     target_this,
                     target_return,
@@ -2795,6 +2913,7 @@ impl Compiler {
                     module,
                     profile,
                     symbols,
+                    types.get_type_source(*target_signature),
                     &target_params,
                     &target_this,
                     &target_return,
@@ -2986,6 +3105,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         symbols: &SymbolTable,
+        assignment_anchor: LocalNodeIdAny,
         target_params: &[LocalTypeId],
         target_this: &Option<LocalTypeId>,
         target_return: &Option<LocalTypeId>,
@@ -2995,6 +3115,9 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
+        // track unsound variance diagnostics
+        let mut reported_unsound_variance = false;
+
         // this parameter: contravariant when strict, bivariant otherwise
         if let (Some(target_this), Some(source_this)) = (target_this, source_this) {
             let strict_assignable = self
@@ -3025,6 +3148,13 @@ impl Compiler {
                 }
             } else if !strict_assignable && !loose_assignable {
                 return Assignability::NotAssignable;
+            } else if options.no_unsound_variance
+                && !strict_assignable
+                && loose_assignable
+                && !reported_unsound_variance
+            {
+                self.report_unsound_variance(module, profile, assignment_anchor, options);
+                reported_unsound_variance = true;
             }
         }
 
@@ -3059,6 +3189,13 @@ impl Compiler {
                     }
                 } else if !strict_assignable && !loose_assignable {
                     return Assignability::NotAssignable;
+                } else if options.no_unsound_variance
+                    && !strict_assignable
+                    && loose_assignable
+                    && !reported_unsound_variance
+                {
+                    self.report_unsound_variance(module, profile, assignment_anchor, options);
+                    reported_unsound_variance = true;
                 }
             }
         } else {
@@ -3097,6 +3234,13 @@ impl Compiler {
                     }
                 } else if !strict_assignable && !loose_assignable {
                     return Assignability::NotAssignable;
+                } else if options.no_unsound_variance
+                    && !strict_assignable
+                    && loose_assignable
+                    && !reported_unsound_variance
+                {
+                    self.report_unsound_variance(module, profile, assignment_anchor, options);
+                    reported_unsound_variance = true;
                 }
             }
         }

@@ -441,6 +441,33 @@ pub enum AnalyzeError {
     #[error(code = "EA807", message = "unsafe type assertions are disabled")]
     UnsafeTypeAssertionDisabled { node: AnchoredGlobalNodeId },
 
+    /// Must assertions are disabled.
+    #[error(code = "EA850", message = "must assertions are disabled")]
+    MustAssertionDisabled { node: AnchoredGlobalNodeId },
+
+    /// Definite assignment assertions are disabled.
+    #[error(
+        code = "EA851",
+        message = "definite assignment assertions are disabled"
+    )]
+    DefiniteAssignmentAssertionDisabled { node: AnchoredGlobalNodeId },
+
+    /// Custom type guards are disabled.
+    #[error(code = "EA852", message = "custom type guards are disabled")]
+    CustomTypeGuardDisabled { node: AnchoredGlobalNodeId },
+
+    /// Untrusted declaration files are disabled.
+    #[error(code = "EA853", message = "untrusted declaration files are disabled")]
+    UntrustedDeclarationDisabled { node: AnchoredGlobalNodeId },
+
+    /// Unsound variance rules are disabled.
+    #[error(code = "EA854", message = "unsound variance is disabled")]
+    UnsoundVarianceDisabled { node: AnchoredGlobalNodeId },
+
+    /// Unsound narrowing rules are disabled.
+    #[error(code = "EA855", message = "unsound narrowing is disabled")]
+    UnsoundNarrowingDisabled { node: AnchoredGlobalNodeId },
+
     /// Dynamic imports are disabled.
     #[error(code = "EA808", message = "dynamic imports are disabled")]
     DynamicImportDisabled { node: AnchoredGlobalNodeId },

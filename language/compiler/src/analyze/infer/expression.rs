@@ -2841,7 +2841,7 @@ impl Compiler {
                 ctx,
             )?,
 
-            // must unwrap: non null assertion
+            // must unwrap: must assertion
             Expression::Must { left } => {
                 let left_ty_id =
                     self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;

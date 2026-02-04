@@ -242,6 +242,35 @@ impl Compiler {
             }
         }
 
+        // cache runtime check kind for instanceof guards
+        if matches!(operator, BinaryOperator::InstanceOf) {
+            let target_type_id = self.try_evaluate_expression_to_type(
+                module,
+                ctx.profile,
+                right_id,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            );
+            if let Ok(target_type_id) = target_type_id {
+                let target_type_id = self.unwrap_type_value(target_type_id, types);
+                let runtime_check_kind = self.runtime_check_kind_for_relation(
+                    module,
+                    ctx.profile,
+                    symbols,
+                    left_ty_id,
+                    target_type_id,
+                    types,
+                    &ctx.options,
+                );
+                if let Some(kind) = runtime_check_kind {
+                    types.set_runtime_check_kind(expression_id.into_global_any(module.id), kind);
+                }
+            }
+        }
+
         // track referential equality violations to avoid follow-up overload errors
         let mut referential_equality_violation = false;
 
@@ -931,6 +960,15 @@ impl Compiler {
 
         // resolve receiver type
         let options = ctx.options;
+        let receiver_ty_id = self.normalize_apparent_type(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
         // short circuit index access on any
@@ -1196,6 +1234,15 @@ impl Compiler {
         let options = ctx.options;
         let receiver_ty_id =
             self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
+        let receiver_ty_id = self.normalize_apparent_type(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            RelationMode::ASSIGN,
+        );
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
         // reject assignments through immutable references
@@ -1228,6 +1275,28 @@ impl Compiler {
         } else {
             (None, None, None)
         };
+
+        // reject writes to readonly index targets
+        if self.index_access_is_readonly(
+            module,
+            ctx.profile,
+            receiver_ty_id,
+            index_ty_id,
+            literal_string.as_deref(),
+            symbols,
+            types,
+        ) {
+            let member_key = static_key.unwrap_or_else(|| {
+                let name_id = self.program.strings.intern("<index>");
+                StaticKey::Name(name_id)
+            });
+            self.error(AnalyzeError::ReadonlyProperty {
+                node: index_expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+                member_key,
+            });
+        }
 
         // reject computed property access when configured
         if options.no_computed_property_access
@@ -2890,6 +2959,123 @@ impl Compiler {
                 Some(self.union_type_from_list(value_types, source_type_id, types))
             }
         }
+    }
+
+    /// Check whether an index access target is readonly for assignment.
+    fn index_access_is_readonly(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_ty_id: LocalTypeId,
+        index_ty_id: Option<LocalTypeId>,
+        literal_string: Option<&str>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let mut found = false;
+        let mut is_readonly = false;
+        let mut pending = vec![receiver_ty_id];
+        let mut visited = Vec::new();
+
+        // walk union/alias shapes to resolve readonly indexability
+        while let Some(current_id) = pending.pop() {
+            if visited.contains(&current_id) {
+                continue;
+            }
+            visited.push(current_id);
+
+            let current_ty = types.get_type(current_id).clone();
+            match current_ty {
+                Type::Value { value } => {
+                    pending.push(value);
+                }
+                Type::ReferenceOf { right, .. } => {
+                    pending.push(right);
+                }
+                Type::Union { elements } | Type::Intersection { elements } => {
+                    for element_id in elements {
+                        pending.push(element_id);
+                    }
+                }
+                Type::Array {
+                    is_readonly: array_readonly,
+                    ..
+                }
+                | Type::ArraySized {
+                    is_readonly: array_readonly,
+                    ..
+                } => {
+                    found = true;
+                    if array_readonly {
+                        is_readonly = true;
+                    }
+                }
+                Type::Tuple {
+                    elements,
+                    is_readonly: tuple_readonly,
+                } => {
+                    found = true;
+                    if tuple_readonly {
+                        is_readonly = true;
+                        continue;
+                    }
+                    if let Some(index_ty_id) = index_ty_id
+                        && let Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(index)),
+                        } = types.get_type(index_ty_id)
+                        && *index >= 0
+                    {
+                        let index = *index as usize;
+                        if let Some(element) = elements.get(index)
+                            && element.is_readonly
+                        {
+                            is_readonly = true;
+                        }
+                    } else if elements.iter().any(|element| element.is_readonly) {
+                        is_readonly = true;
+                    }
+                }
+                Type::Object {
+                    index_signatures, ..
+                } => {
+                    let Some(index_ty_id) = index_ty_id else {
+                        continue;
+                    };
+                    let Some(key_kind) = index_key_kind_for_index(
+                        index_ty_id,
+                        literal_string,
+                        types,
+                        &self.program.strings,
+                    ) else {
+                        continue;
+                    };
+                    for signature in index_signatures {
+                        let signature_kind = index_key_kind_for_type(signature.key_type, types);
+                        if index_key_kinds_compatible_for_access(signature_kind, key_kind) {
+                            found = true;
+                            if signature.is_readonly {
+                                is_readonly = true;
+                            }
+                        }
+                    }
+                }
+                Type::Reference { symbol, .. } => {
+                    if let Some(instance_id) = types.get_instance_type_id(symbol) {
+                        pending.push(instance_id);
+                        continue;
+                    }
+                    let source_id = types.get_type_source(current_id);
+                    if let Some(apparent_id) = self
+                        .apparent_instance_type(module, profile, source_id, symbol, symbols, types)
+                    {
+                        pending.push(apparent_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        found && is_readonly
     }
 
     /// Build the member key for Try.branch.
