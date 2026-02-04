@@ -22,6 +22,18 @@ value + -other
 value + -%other
 //      ^^ keyword.operator.addition.ds
 
+0..10
+// ^^ keyword.operator.range.ds
+
+0..=10
+// ^^^ keyword.operator.range.ds
+
+value => value
+//    ^^ keyword.operator.arrow.ds
+
+() -> int32
+// ^^ keyword.operator.arrow.ds
+
 // binary operators
 value * other
 //    ^ keyword.operator.multiplication.ds
@@ -31,6 +43,15 @@ value *% other
 
 value *| other
 //    ^^ keyword.operator.multiplication.ds
+
+value ** other
+//    ^^ keyword.operator.multiplication.ds
+
+value **% other
+//    ^^^ keyword.operator.multiplication.ds
+
+value **| other
+//    ^^^ keyword.operator.multiplication.ds
 
 value/other
 //   ^ keyword.operator.multiplication.ds
@@ -64,6 +85,9 @@ value <<| other
 
 value >> other
 //    ^^ keyword.operator.shift.ds
+
+value >>> other
+//    ^^^ keyword.operator.shift.ds
 
 value & other
 //    ^ keyword.operator.elementwise.ds
@@ -120,6 +144,15 @@ value *%= other
 value *|= other
 //    ^^^ keyword.operator.assignment.multiplication.ds
 
+value **= other
+//    ^^^ keyword.operator.assignment.multiplication.ds
+
+value **%= other
+//    ^^^^ keyword.operator.assignment.multiplication.ds
+
+value **|= other
+//    ^^^^ keyword.operator.assignment.multiplication.ds
+
 value/= other
 //   ^ keyword.operator.assignment.multiplication.ds
 
@@ -152,6 +185,9 @@ value <<|= other
 
 value >>= other
 //    ^^^ keyword.operator.assignment.shift.ds
+
+value >>>= other
+//    ^^^^ keyword.operator.assignment.shift.ds
 
 value &= other
 //    ^^ keyword.operator.assignment.elementwise.ds

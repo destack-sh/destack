@@ -1,7 +1,7 @@
 {
     "name": "destack",
     "displayName": "Destack",
-    "description": "Destack for VSCode (.ds, .d.ds, .dst)",
+    "description": "Destack for VSCode (.ds, .d.ds, .dst, .mir)",
     "version": "0.53.0",
     "license": "MIT",
     "engines": {
@@ -24,7 +24,11 @@
         "url": "https://destack.sh"
     },
     "activationEvents": [
-        "onStartupFinished"
+        "onLanguage:destack",
+        "onLanguage:dst",
+        "onLanguage:dsb",
+        "onLanguage:destack-mir",
+        "workspaceContains:dsconfig.json"
     ],
     "main": "./out/extension.js",
     "files": [
@@ -32,6 +36,8 @@
         "destack.json",
         "destack.tmLanguage.json",
         "destack.tmTheme.json",
+        "destack-mir.tmLanguage.json",
+        "destack-mir.json",
         "dsconfig.schema.json",
         "package.json",
         "LICENSE.txt"
@@ -43,7 +49,7 @@
                 "destack.server.command": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Absolute path to Destack LSP. If empty, the extension tries PATH, then Cargo. Supports `~` and `${workspaceFolder}`."
+                    "markdownDescription": "Command for the Destack LSP. If empty, tries `destack`, `ds`, or `dsc` on PATH, then Cargo in the workspace. Supports `~` and `${workspaceFolder}`."
                 },
                 "destack.server.args": {
                     "type": "array",
@@ -97,6 +103,16 @@
                 "extensions": [
                     ".dsb"
                 ]
+            },
+            {
+                "id": "destack-mir",
+                "aliases": [
+                    "Destack MIR"
+                ],
+                "extensions": [
+                    ".mir"
+                ],
+                "configuration": "./destack-mir.json"
             }
         ],
         "grammars": [
@@ -109,6 +125,11 @@
                 "language": "dst",
                 "scopeName": "source.ds",
                 "path": "./destack.tmLanguage.json"
+            },
+            {
+                "language": "destack-mir",
+                "scopeName": "source.dsmir",
+                "path": "./destack-mir.tmLanguage.json"
             }
         ],
         "jsonValidation": [
@@ -123,7 +144,8 @@
         "vscode:prepublish": "bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
         "publish:live": "bunx --bun @vscode/vsce@latest publish",
-        "test:grammar": "bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests/*.txt\""
+        "check:grammar": "node scripts/check-grammar.mjs",
+        "test:grammar": "node scripts/check-grammar.mjs && bunx vscode-tmgrammar-test --grammar destack.tmLanguage.json \"typescript/tests/*.txt\" && bunx vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"typescript/tests-mir/*.txt\""
     },
     "dependencies": {},
     "devDependencies": {
