@@ -26,31 +26,18 @@ impl Compiler {
             return cached;
         }
 
-        let normalized = if symbol.module_id == module.id {
-            let symbols = module.dir_base().symbols.read();
-            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-            self.normalize_reference_symbol_id_with_symbols(
-                module,
-                profile,
-                module,
-                symbol,
-                &symbols,
-                symbol_entry,
-            )
-        } else {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let symbols = remote_module.dir_base().symbols.read();
-            let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
-            self.normalize_reference_symbol_id_with_symbols(
-                module,
-                profile,
-                &remote_module,
-                symbol,
-                &symbols,
-                symbol_entry,
-            )
-        };
+        let normalized =
+            self.with_module_symbols_base(module, symbol.module_id, |owner_module, symbols| {
+                let symbol_entry = symbols.get_symbol(symbol.local_id).clone();
+                self.normalize_reference_symbol_id_with_symbols(
+                    module,
+                    profile,
+                    owner_module,
+                    symbol,
+                    symbols,
+                    symbol_entry,
+                )
+            });
 
         self.set_cached_normalized_reference_symbol(profile, module.id, symbol, normalized);
         normalized
@@ -1557,32 +1544,34 @@ impl Compiler {
                 &mut materialize_cache,
             )
         } else {
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let tree = remote_module.dir(profile).tree.read();
-            let symbols = remote_module.dir(profile).symbols.read();
-
-            // skip materialization when the alias instance is already stable
-            if !self.alias_instance_needs_materialization(
-                &remote_module,
+            self.with_module_tree_symbols(
+                module,
                 profile,
-                symbol,
-                instance_type_id,
-                types,
-            ) {
-                return instance_type_id;
-            }
+                symbol.module_id,
+                |owner_module, tree, symbols| {
+                    // skip materialization when the alias instance is already stable
+                    if !self.alias_instance_needs_materialization(
+                        owner_module,
+                        profile,
+                        symbol,
+                        instance_type_id,
+                        types,
+                    ) {
+                        return instance_type_id;
+                    }
 
-            // materialize static arguments using the alias module context
-            let mut materialize_cache = HashMap::new();
-            self.materialize_static_arguments_in_type(
-                &remote_module,
-                profile,
-                instance_type_id,
-                &tree,
-                &symbols,
-                types,
-                &mut materialize_cache,
+                    // materialize static arguments using the alias module context
+                    let mut materialize_cache = HashMap::new();
+                    self.materialize_static_arguments_in_type(
+                        owner_module,
+                        profile,
+                        instance_type_id,
+                        tree,
+                        symbols,
+                        types,
+                        &mut materialize_cache,
+                    )
+                },
             )
         }
     }

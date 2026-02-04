@@ -1973,23 +1973,21 @@ impl Compiler {
         // ensure remote module declare is ready
         self.require_analyze_module_declare(symbol.module_id, profile)?;
 
-        // import the remote value type into this module
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(profile).types.read();
-        let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
-            return Ok(None);
-        };
-        let remote_value_ty = remote_types.get_type(remote_value_id);
-        let local_value_id = self.import_type_from_remote_for_node(
-            declaration_id.into_any(),
-            remote_value_ty,
-            &remote_types,
-            symbol,
-            types,
-        );
+        self.with_module_types(module, profile, symbol.module_id, |_, remote_types| {
+            let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
+                return Ok(None);
+            };
+            let remote_value_ty = remote_types.get_type(remote_value_id);
+            let local_value_id = self.import_type_from_remote_for_node(
+                declaration_id.into_any(),
+                remote_value_ty,
+                remote_types,
+                symbol,
+                types,
+            );
 
-        Ok(Some(local_value_id))
+            Ok(Some(local_value_id))
+        })
     }
 
     /// Collect constructor signatures from a symbol value type.

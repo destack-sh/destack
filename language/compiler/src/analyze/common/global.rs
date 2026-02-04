@@ -93,19 +93,18 @@ impl Compiler {
                     continue;
                 };
 
-                // TODO #Architecture: centralize local vs remote symbol metadata access for global bindings
                 // compute readonly status from the binding mutability
-                let binding_mutability = if symbol_id.module_id == module.id {
-                    symbols.get_symbol(symbol_id.local_id).binding_mutability
-                } else {
-                    let remote_module = self.program.modules.get(symbol_id.module_id);
-                    let remote_module = remote_module.read();
-                    let remote_dir = remote_module.dir(ctx.profile);
-                    let remote_symbols = remote_dir.symbols.read();
-                    remote_symbols
-                        .get_symbol(symbol_id.local_id)
-                        .binding_mutability
-                };
+                let binding_mutability = self.with_module_symbols_or_local(
+                    module,
+                    ctx.profile,
+                    symbol_id.module_id,
+                    symbols,
+                    |_, owner_symbols| {
+                        owner_symbols
+                            .get_symbol(symbol_id.local_id)
+                            .binding_mutability
+                    },
+                );
                 let is_readonly = matches!(binding_mutability, Some(Mutability::Immutable));
 
                 shape.fields.push(TypeField {

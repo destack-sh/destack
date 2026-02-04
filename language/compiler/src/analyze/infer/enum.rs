@@ -234,19 +234,21 @@ impl Compiler {
         self.require_analyze_module_declare(target_symbol.module_id, profile)
             .map_err(AnalyzeError::from)
             .ok()?;
-        let remote_module = self.program.modules.get(target_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_symbols = remote_dir.symbols.read();
-        let mut remote_types = remote_dir.types.write();
-
-        self.enum_field_value_for_symbol_reference_in_tables(
-            &remote_module,
+        self.with_module_symbols(
+            module,
             profile,
-            enum_symbol,
-            target_symbol,
-            &remote_symbols,
-            &mut remote_types,
+            target_symbol.module_id,
+            |owner_module, owner_symbols| {
+                let mut owner_types = owner_module.dir(profile).types.write();
+                self.enum_field_value_for_symbol_reference_in_tables(
+                    owner_module,
+                    profile,
+                    enum_symbol,
+                    target_symbol,
+                    owner_symbols,
+                    &mut owner_types,
+                )
+            },
         )
     }
 
@@ -313,16 +315,18 @@ impl Compiler {
         self.require_analyze_module_declare(enum_symbol.module_id, profile)
             .map_err(AnalyzeError::from)
             .ok()?;
-        let remote_module = self.program.modules.get(enum_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let mut remote_types = remote_dir.types.write();
-
-        self.enum_backing_type_for_symbol_in_tables(
-            &remote_module,
+        self.with_module_types_mut(
+            module,
             profile,
-            enum_symbol,
-            &mut remote_types,
+            enum_symbol.module_id,
+            |owner_module, owner_types| {
+                self.enum_backing_type_for_symbol_in_tables(
+                    owner_module,
+                    profile,
+                    enum_symbol,
+                    owner_types,
+                )
+            },
         )
     }
 
@@ -387,20 +391,22 @@ impl Compiler {
         if enum_symbol.module_id != module.id {
             self.require_analyze_module_declare(enum_symbol.module_id, profile)
                 .map_err(AnalyzeError::from)?;
-            let remote_module = self.program.modules.get(enum_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let mut remote_types = remote_dir.types.write();
-
-            if let Some(backing) = remote_types.get_enum_backing_type(enum_symbol) {
-                return Ok(Some(backing));
-            }
-
-            return self.ensure_enum_backing_type_for_symbol(
-                &remote_module,
+            return self.with_module_types_mut(
+                module,
                 profile,
-                enum_symbol,
-                &mut remote_types,
+                enum_symbol.module_id,
+                |owner_module, owner_types| {
+                    if let Some(backing) = owner_types.get_enum_backing_type(enum_symbol) {
+                        return Ok(Some(backing));
+                    }
+
+                    self.ensure_enum_backing_type_for_symbol(
+                        owner_module,
+                        profile,
+                        enum_symbol,
+                        owner_types,
+                    )
+                },
             );
         }
 
@@ -546,18 +552,19 @@ impl Compiler {
             self.require_analyze_module_declare(enum_symbol.module_id, profile)
                 .map_err(AnalyzeError::from)
                 .ok()?;
-            let remote_module = self.program.modules.get(enum_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_dir = remote_module.dir(profile);
-            let remote_tree = remote_dir.tree.read();
-            let remote_symbols = remote_dir.symbols.read();
-
-            return self.enum_field_symbol_for_name_in_tree(
-                enum_symbol,
-                field_name,
-                &remote_tree,
-                &remote_symbols,
-                remote_module.id,
+            return self.with_module_tree_symbols(
+                module,
+                profile,
+                enum_symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    self.enum_field_symbol_for_name_in_tree(
+                        enum_symbol,
+                        field_name,
+                        owner_tree,
+                        owner_symbols,
+                        owner_module.id,
+                    )
+                },
             );
         }
 

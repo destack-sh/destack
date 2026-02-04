@@ -781,24 +781,19 @@ impl Compiler {
         member_symbol: GlobalSymbolId,
     ) -> Option<GlobalSymbolId> {
         // resolve the enum field symbol entry
-        let (is_enum_field, scope_owner) = if member_symbol.module_id == module.id {
-            let member_entry = symbols.get_symbol(member_symbol.local_id);
-            let scope = symbols.get_scope_by_symbol(member_symbol.local_id);
-            let is_enum_field = member_entry
-                .primary_declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
-            (is_enum_field, scope.owner_id?)
-        } else {
-            let remote_module = self.program.modules.get(member_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_symbols = remote_module.dir_base().symbols.read();
-            let member_entry = remote_symbols.get_symbol(member_symbol.local_id);
-            let scope = remote_symbols.get_scope_by_symbol(member_symbol.local_id);
-            let is_enum_field = member_entry
-                .primary_declaration
-                .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
-            (is_enum_field, scope.owner_id?)
-        };
+        let (is_enum_field, scope_owner) = self.with_module_symbols_base_or_local(
+            module,
+            member_symbol.module_id,
+            symbols,
+            |_, owner_symbols| {
+                let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
+                let scope = owner_symbols.get_scope_by_symbol(member_symbol.local_id);
+                let is_enum_field = member_entry
+                    .primary_declaration
+                    .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
+                scope.owner_id.map(|owner_id| (is_enum_field, owner_id))
+            },
+        )?;
 
         // ensure the symbol is an enum field
         if !is_enum_field {
@@ -910,18 +905,18 @@ impl Compiler {
         self.require_analyze_module_declare(enum_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
 
-        // load remote module data for enum field scanning
-        let remote_module = self.program.modules.get(enum_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-
-        Ok(self.enum_field_symbol_for_member_key_in_tree(
-            enum_symbol,
-            member_key,
-            &remote_tree,
-            &remote_symbols,
+        Ok(self.with_module_tree_symbols(
+            module,
+            profile,
+            enum_symbol.module_id,
+            |_, owner_tree, owner_symbols| {
+                self.enum_field_symbol_for_member_key_in_tree(
+                    enum_symbol,
+                    member_key,
+                    owner_tree,
+                    owner_symbols,
+                )
+            },
         ))
     }
 
@@ -1126,34 +1121,24 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
         // locate the scope owner for the member symbol
-        if member_symbol.module_id == module.id {
-            let member_entry = symbols.get_symbol(member_symbol.local_id);
-            let scope = symbols.get_scope_by_id(member_entry.scope.0);
-            let owner_id = scope.owner_id?;
-            let owner_entry = symbols.get_symbol(owner_id);
-            if owner_entry.ty != SymbolType::Extension {
-                return None;
-            }
+        self.with_module_symbols_or_local(
+            module,
+            profile,
+            member_symbol.module_id,
+            symbols,
+            |owner_module, owner_symbols| {
+                let member_entry = owner_symbols.get_symbol(member_symbol.local_id);
+                let scope = owner_symbols.get_scope_by_id(member_entry.scope.0);
+                let owner_id = scope.owner_id?;
+                let owner_entry = owner_symbols.get_symbol(owner_id);
+                if owner_entry.ty != SymbolType::Extension {
+                    return None;
+                }
 
-            let extension_id = owner_id.with_type(owner_entry.ty);
-            return Some(extension_id.into_global(module.id));
-        }
-
-        // load the remote symbol table when the member is foreign
-        let remote_module = self.program.modules.get(member_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-
-        let member_entry = remote_symbols.get_symbol(member_symbol.local_id);
-        let scope = remote_symbols.get_scope_by_id(member_entry.scope.0);
-        let owner_id = scope.owner_id?;
-        let owner_entry = remote_symbols.get_symbol(owner_id);
-        if owner_entry.ty != SymbolType::Extension {
-            return None;
-        }
-
-        let extension_id = owner_id.with_type(owner_entry.ty);
-        Some(extension_id.into_global(remote_module.id))
+                let extension_id = owner_id.with_type(owner_entry.ty);
+                Some(extension_id.into_global(owner_module.id))
+            },
+        )
     }
 
     /// Resolve the visibility context for a member symbol.
@@ -1165,28 +1150,20 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<MemberVisibilityContext> {
-        // fast path for local symbols
-        if member_symbol.module_id == module.id {
-            return self.member_visibility_context_for_symbol_in_tree(
-                module.id,
-                member_symbol,
-                tree,
-                symbols,
-            );
-        }
-
-        // load remote trees for foreign symbols
-        let remote_module = self.program.modules.get(member_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-
-        self.member_visibility_context_for_symbol_in_tree(
-            remote_module.id,
-            member_symbol,
-            &remote_tree,
-            &remote_symbols,
+        self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            member_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                self.member_visibility_context_for_symbol_in_tree(
+                    owner_module.id,
+                    member_symbol,
+                    owner_tree,
+                    owner_symbols,
+                )
+            },
         )
     }
 
@@ -1569,15 +1546,13 @@ impl Compiler {
         symbol: GlobalSymbolId,
         symbols: &SymbolTable,
     ) -> SymbolSpace {
-        // TODO #Architecture: centralize local vs remote symbol metadata access for member lookup
-        if symbol.module_id == module.id {
-            return symbols.get_symbol(symbol.local_id).space;
-        }
-
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        remote_symbols.get_symbol(symbol.local_id).space
+        self.with_module_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            symbols,
+            |_, owner_symbols| owner_symbols.get_symbol(symbol.local_id).space,
+        )
     }
 
     /// Return true when the expression is rooted at import.meta.
@@ -1756,26 +1731,26 @@ impl Compiler {
         self.require_analyze_module_declare(symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
 
-        // load remote module data for symbol lookup
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-        let remote_types = remote_dir.types.read();
-        let allow_merge = remote_module.language_type.supports_declaration_merging();
-
-        let resolved = self.resolve_member_symbol_in_module(
+        let resolved = self.with_module_tree_symbols(
             module,
-            symbol,
-            member_key,
-            lookup_mode,
             profile,
-            &remote_tree,
-            &remote_symbols,
-            &remote_types,
-            allow_merge,
-            visited,
+            symbol.module_id,
+            |owner_module, owner_tree, owner_symbols| {
+                let owner_types = owner_module.dir(profile).types.read();
+                let allow_merge = owner_module.language_type.supports_declaration_merging();
+                self.resolve_member_symbol_in_module(
+                    module,
+                    symbol,
+                    member_key,
+                    lookup_mode,
+                    profile,
+                    owner_tree,
+                    owner_symbols,
+                    &owner_types,
+                    allow_merge,
+                    visited,
+                )
+            },
         )?;
         if resolved.is_some() {
             return Ok(resolved);
@@ -2018,23 +1993,23 @@ impl Compiler {
         self.require_analyze_module_declare(extension_symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
 
-        // load remote module data for member lookup
-        let remote_module = self.program.modules.get(extension_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-        let remote_types = remote_dir.types.read();
-
-        Ok(self.find_member_symbol_in_declaration(
-            extension_symbol.module_id,
+        Ok(self.with_module_tree_symbols(
+            module,
             profile,
-            extension_symbol,
-            member_key,
-            lookup_mode,
-            &remote_tree,
-            &remote_symbols,
-            &remote_types,
+            extension_symbol.module_id,
+            |owner_module, owner_tree, owner_symbols| {
+                let owner_types = owner_module.dir(profile).types.read();
+                self.find_member_symbol_in_declaration(
+                    owner_module.id,
+                    profile,
+                    extension_symbol,
+                    member_key,
+                    lookup_mode,
+                    owner_tree,
+                    owner_symbols,
+                    &owner_types,
+                )
+            },
         ))
     }
 

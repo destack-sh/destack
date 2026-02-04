@@ -352,36 +352,26 @@ impl Compiler {
         decorator_map: &HashMap<GlobalSymbolId, WellKnownDecorator>,
         target_symbol: GlobalSymbolId,
     ) -> Option<WellKnownDecorator> {
-        if target_symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-            let group_id = symbol_entry.merge_group?;
+        self.with_module_symbols_or_local(
+            module,
+            profile,
+            target_symbol.module_id,
+            symbols,
+            |owner_module, owner_symbols| {
+                let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
+                let group_id = symbol_entry.merge_group?;
 
-            // scan merge group for a well known decorator
-            for symbol_id in symbols.merge_group_symbols(group_id) {
-                let symbol_id = symbol_id.into_global(module.id);
-                if let Some(marker) = decorator_map.get(&symbol_id) {
-                    return Some(*marker);
+                // scan merge group for a well known decorator
+                for symbol_id in owner_symbols.merge_group_symbols(group_id) {
+                    let symbol_id = symbol_id.into_global(owner_module.id);
+                    if let Some(marker) = decorator_map.get(&symbol_id) {
+                        return Some(*marker);
+                    }
                 }
-            }
 
-            return None;
-        }
-
-        let remote_module = self.program.modules.get(target_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        let symbol_entry = remote_symbols.get_symbol(target_symbol.local_id);
-        let group_id = symbol_entry.merge_group?;
-
-        // scan merge group for a well known decorator
-        for symbol_id in remote_symbols.merge_group_symbols(group_id) {
-            let symbol_id = symbol_id.into_global(target_symbol.module_id);
-            if let Some(marker) = decorator_map.get(&symbol_id) {
-                return Some(*marker);
-            }
-        }
-
-        None
+                None
+            },
+        )
     }
 
     /// Check whether a symbol lives in the builtin decorator module.

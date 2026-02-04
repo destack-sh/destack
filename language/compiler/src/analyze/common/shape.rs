@@ -890,32 +890,41 @@ impl Compiler {
                 self.require_analyze_module_declare(global_symbol.module_id, profile)?;
             }
 
-            // load remote instance type data
-            let remote_module = self.program.modules.get(global_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_types = remote_module.dir(profile).types.read();
+            let shape = self.with_module_types(
+                module,
+                profile,
+                global_symbol.module_id,
+                |_, remote_types| {
+                    // skip symbols without instance types
+                    let Some(remote_instance_id) = remote_types.get_instance_type_id(global_symbol)
+                    else {
+                        return None;
+                    };
 
-            // skip symbols without instance types
-            let Some(remote_instance_id) = remote_types.get_instance_type_id(global_symbol) else {
+                    // import the remote instance type into this module
+                    let remote_ty = remote_types.get_type(remote_instance_id);
+                    let local_ty_id = self.import_type_from_remote_for_node(
+                        declaration_id.into_any(),
+                        remote_ty,
+                        remote_types,
+                        global_symbol,
+                        types,
+                    );
+                    let local_ty = types.get_type(local_ty_id);
+
+                    // skip non object instance types
+                    let mut shape = ObjectShape::default();
+                    if !shape.extend_from_object(local_ty) {
+                        return None;
+                    }
+
+                    Some(shape)
+                },
+            );
+
+            let Some(shape) = shape else {
                 continue;
             };
-
-            // import the remote instance type into this module
-            let remote_ty = remote_types.get_type(remote_instance_id);
-            let local_ty_id = self.import_type_from_remote_for_node(
-                declaration_id.into_any(),
-                remote_ty,
-                &remote_types,
-                global_symbol,
-                types,
-            );
-            let local_ty = types.get_type(local_ty_id);
-
-            // skip non object instance types
-            let mut shape = ObjectShape::default();
-            if !shape.extend_from_object(local_ty) {
-                continue;
-            }
 
             // merge the imported shape into this symbol
             self.merge_instance_shape_into_symbol(
@@ -1002,38 +1011,47 @@ impl Compiler {
                 self.require_analyze_module_declare(global_symbol.module_id, profile)?;
             }
 
-            // load remote value type data
-            let remote_module = self.program.modules.get(global_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_types = remote_module.dir(profile).types.read();
-            let Some(remote_value_id) = remote_types.get_value_type_id(global_symbol) else {
+            let remote_shape = self.with_module_types(
+                module,
+                profile,
+                global_symbol.module_id,
+                |_, remote_types| {
+                    let Some(remote_value_id) = remote_types.get_value_type_id(global_symbol)
+                    else {
+                        return None;
+                    };
+
+                    // import the remote value type into this module
+                    let remote_value_ty = remote_types.get_type(remote_value_id);
+                    let local_value_id = self.import_type_from_remote_for_node(
+                        declaration_id.into_any(),
+                        remote_value_ty,
+                        remote_types,
+                        global_symbol,
+                        types,
+                    );
+
+                    // collect the remote value shape
+                    let mut remote_shape = ObjectShape::default();
+                    let mut extras = Vec::new();
+                    let mut visited = Vec::new();
+                    self.collect_value_shape_from_type(
+                        local_value_id,
+                        types,
+                        &mut remote_shape,
+                        &mut extras,
+                        &mut visited,
+                    );
+                    if remote_shape.is_empty() {
+                        return None;
+                    }
+
+                    Some(remote_shape)
+                },
+            );
+            let Some(remote_shape) = remote_shape else {
                 continue;
             };
-
-            // import the remote value type into this module
-            let remote_value_ty = remote_types.get_type(remote_value_id);
-            let local_value_id = self.import_type_from_remote_for_node(
-                declaration_id.into_any(),
-                remote_value_ty,
-                &remote_types,
-                global_symbol,
-                types,
-            );
-
-            // collect the remote value shape
-            let mut remote_shape = ObjectShape::default();
-            let mut extras = Vec::new();
-            let mut visited = Vec::new();
-            self.collect_value_shape_from_type(
-                local_value_id,
-                types,
-                &mut remote_shape,
-                &mut extras,
-                &mut visited,
-            );
-            if remote_shape.is_empty() {
-                continue;
-            }
 
             // merge the imported shape into this symbol
             self.merge_value_shape_into_symbol(

@@ -769,34 +769,36 @@ impl Compiler {
             })?;
 
         // load remote tables for the instance type
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-        let mut remote_types = remote_dir.types.write();
-        let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
-            return Ok(None);
-        };
-
-        // materialize and import the remote type
-        self.materialize_imported_type(
-            &remote_module,
+        self.with_module_tree_symbols_by_id(
             profile,
-            remote_instance_id,
-            &remote_tree,
-            &remote_symbols,
-            &mut remote_types,
-        )?;
-        let remote_instance_ty = remote_types.get_type(remote_instance_id);
-        let local_instance_id = self.import_type_from_remote_for_node(
-            node_id,
-            remote_instance_ty,
-            &remote_types,
-            symbol,
-            types,
-        );
-        Ok(Some(local_instance_id))
+            symbol.module_id,
+            |remote_module, remote_tree, remote_symbols| {
+                let remote_dir = remote_module.dir(profile);
+                let mut remote_types = remote_dir.types.write();
+                let Some(remote_instance_id) = remote_types.get_instance_type_id(symbol) else {
+                    return Ok(None);
+                };
+
+                // materialize and import the remote type
+                self.materialize_imported_type(
+                    remote_module,
+                    profile,
+                    remote_instance_id,
+                    remote_tree,
+                    remote_symbols,
+                    &mut remote_types,
+                )?;
+                let remote_instance_ty = remote_types.get_type(remote_instance_id);
+                let local_instance_id = self.import_type_from_remote_for_node(
+                    node_id,
+                    remote_instance_ty,
+                    &remote_types,
+                    symbol,
+                    types,
+                );
+                Ok(Some(local_instance_id))
+            },
+        )
     }
 
     /// Infer the result type of a scalar literal.
@@ -2655,62 +2657,65 @@ impl Compiler {
         }
 
         // load remote tables for the value type
-        let remote_module = self.program.modules.get(remote_module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_tree = remote_dir.tree.read();
-        let remote_symbols = remote_dir.symbols.read();
-        let mut remote_types = remote_dir.types.write();
-        if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
-            // materialize and import the remote type
-            self.materialize_imported_type(
-                &remote_module,
-                profile,
-                remote_ty_id,
-                &remote_tree,
-                &remote_symbols,
-                &mut remote_types,
-            )?;
-            let remote_ty = remote_types.get_type(remote_ty_id);
-            let local_ty = self.import_type_from_remote_for_node(
-                node_id,
-                remote_ty,
-                &remote_types,
-                target_symbol,
-                types,
-            );
-            Ok(local_ty)
-        } else if let Some(primary_declaration) = remote_symbols
-            .get_symbol(target_symbol.local_id)
-            .primary_declaration
-            && primary_declaration.module_id == remote_module_id
-            && let Some(signature_ty_id) =
-                remote_types.get_signature_type_for_node(primary_declaration)
-        {
-            // materialize and import declared member signatures
-            self.materialize_imported_type(
-                &remote_module,
-                profile,
-                signature_ty_id,
-                &remote_tree,
-                &remote_symbols,
-                &mut remote_types,
-            )?;
-            let remote_ty = remote_types.get_type(signature_ty_id);
-            let local_ty = self.import_type_from_remote_for_node(
-                node_id,
-                remote_ty,
-                &remote_types,
-                target_symbol,
-                types,
-            );
-            Ok(local_ty)
-        } else {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
-            Ok(types.insert_type_from_any(ty, node_id))
-        }
+        self.with_module_tree_symbols(
+            module,
+            profile,
+            remote_module_id,
+            |remote_module, remote_tree, remote_symbols| {
+                let remote_dir = remote_module.dir(profile);
+                let mut remote_types = remote_dir.types.write();
+                if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
+                    // materialize and import the remote type
+                    self.materialize_imported_type(
+                        remote_module,
+                        profile,
+                        remote_ty_id,
+                        remote_tree,
+                        remote_symbols,
+                        &mut remote_types,
+                    )?;
+                    let remote_ty = remote_types.get_type(remote_ty_id);
+                    let local_ty = self.import_type_from_remote_for_node(
+                        node_id,
+                        remote_ty,
+                        &remote_types,
+                        target_symbol,
+                        types,
+                    );
+                    Ok(local_ty)
+                } else if let Some(primary_declaration) = remote_symbols
+                    .get_symbol(target_symbol.local_id)
+                    .primary_declaration
+                    && primary_declaration.module_id == remote_module.id
+                    && let Some(signature_ty_id) =
+                        remote_types.get_signature_type_for_node(primary_declaration)
+                {
+                    // materialize and import declared member signatures
+                    self.materialize_imported_type(
+                        remote_module,
+                        profile,
+                        signature_ty_id,
+                        remote_tree,
+                        remote_symbols,
+                        &mut remote_types,
+                    )?;
+                    let remote_ty = remote_types.get_type(signature_ty_id);
+                    let local_ty = self.import_type_from_remote_for_node(
+                        node_id,
+                        remote_ty,
+                        &remote_types,
+                        target_symbol,
+                        types,
+                    );
+                    Ok(local_ty)
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    Ok(types.insert_type_from_any(ty, node_id))
+                }
+            },
+        )
     }
 
     /// Check whether a remote symbol has an explicit value type annotation.
@@ -2719,42 +2724,42 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
     ) -> bool {
-        // load the remote module tables
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let dir = remote_module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
+        self.with_module_tree_symbols_by_id(
+            profile,
+            symbol.module_id,
+            |remote_module, tree, symbols| {
+                let types = remote_module.dir(profile).types.read();
 
-        // check for explicit declarator annotations
-        if let Some(declarator_id) =
-            self.direct_binding_declarator_for_symbol(&remote_module, symbol, &tree, &symbols)
-        {
-            let node_id = declarator_id.into_global_any(remote_module.id);
-            if types.get_declared_type_id(node_id).is_some() {
-                return true;
-            }
-        }
+                // check for explicit declarator annotations
+                if let Some(declarator_id) =
+                    self.direct_binding_declarator_for_symbol(remote_module, symbol, tree, symbols)
+                {
+                    let node_id = declarator_id.into_global_any(remote_module.id);
+                    if types.get_declared_type_id(node_id).is_some() {
+                        return true;
+                    }
+                }
 
-        // check for annotated function declarations
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let Some(primary_declaration) = symbol_entry.primary_declaration else {
-            return false;
-        };
-        if primary_declaration.module_id != remote_module.id {
-            return false;
-        }
-        let Some(declaration_id) =
-            self.declaration_id_from_primary(&tree, primary_declaration.local_id)
-        else {
-            return false;
-        };
-        let Declaration::Function { signature, .. } = tree.get(declaration_id) else {
-            return false;
-        };
+                // check for annotated function declarations
+                let symbol_entry = symbols.get_symbol(symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return false;
+                };
+                if primary_declaration.module_id != remote_module.id {
+                    return false;
+                }
+                let Some(declaration_id) =
+                    self.declaration_id_from_primary(tree, primary_declaration.local_id)
+                else {
+                    return false;
+                };
+                let Declaration::Function { signature, .. } = tree.get(declaration_id) else {
+                    return false;
+                };
 
-        signature.return_type.is_some()
+                signature.return_type.is_some()
+            },
+        )
     }
 
     /// Resolve a declaration id from a primary declaration node.

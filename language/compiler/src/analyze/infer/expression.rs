@@ -4609,16 +4609,10 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         symbol: GlobalSymbolId,
-        symbols: &SymbolTable,
     ) -> Option<StringId> {
-        if symbol.module_id == module.id {
-            return symbols.get_symbol(symbol.local_id).name();
-        }
-
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        remote_symbols.get_symbol(symbol.local_id).name()
+        self.with_module_symbols(module, profile, symbol.module_id, |_, owner_symbols| {
+            owner_symbols.get_symbol(symbol.local_id).name()
+        })
     }
 
     /// Resolve the dependency item that introduced a symbol when possible.
@@ -4661,13 +4655,12 @@ impl Compiler {
         profile: ProfileId,
         export_name: StringId,
     ) -> bool {
-        let remote_module = self.program.modules.get(module_id);
-        let remote_module = remote_module.read();
-        let remote_exports = remote_module.dir(profile).exported_symbols.read();
-        let key = StaticKey::Name(export_name);
-        let has_value = remote_exports.contains_key(&(SymbolSpace::Value, key));
-        let has_type = remote_exports.contains_key(&(SymbolSpace::Type, key));
-        has_type && !has_value
+        self.with_module_exports(profile, module_id, |_, exports| {
+            let key = StaticKey::Name(export_name);
+            let has_value = exports.contains_key(&(SymbolSpace::Value, key));
+            let has_type = exports.contains_key(&(SymbolSpace::Type, key));
+            has_type && !has_value
+        })
     }
 
     /// Emit a type-only value error and return an error type id.
@@ -4927,7 +4920,7 @@ impl Compiler {
         // reject globalThis references when configured
         if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {
             let global_this_name = self.program.strings.intern("globalThis");
-            if self.symbol_name_for_global(module, ctx.profile, canonical_symbol, symbols)
+            if self.symbol_name_for_global(module, ctx.profile, canonical_symbol)
                 == Some(global_this_name)
             {
                 self.error(AnalyzeError::GlobalThisDisabled {
@@ -4940,9 +4933,8 @@ impl Compiler {
 
         // synthesize a globalThis object type on demand
         let global_this_name = self.program.strings.intern("globalThis");
-        let is_global_this =
-            self.symbol_name_for_global(module, ctx.profile, canonical_symbol, symbols)
-                == Some(global_this_name);
+        let is_global_this = self.symbol_name_for_global(module, ctx.profile, canonical_symbol)
+            == Some(global_this_name);
 
         // pick the base type for the symbol by applying narrowing and inference
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {

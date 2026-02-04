@@ -2721,32 +2721,21 @@ impl Compiler {
 
         // ensure the alias target is evaluated before substitution
         if matches!(types.get_type(alias_target_id), Type::Unevaluated(_)) {
-            // evaluate the alias target in the owning module
-            if symbol.module_id == module.id {
-                let tree = module.dir(profile).tree.read();
-                let local_symbols = module.dir(profile).symbols.read();
-                let _ = self.evaluate_type(
-                    module,
-                    profile,
-                    alias_target_id,
-                    &tree,
-                    &local_symbols,
-                    types,
-                );
-            } else {
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let tree = remote_module.dir(profile).tree.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                let _ = self.evaluate_type(
-                    &remote_module,
-                    profile,
-                    alias_target_id,
-                    &tree,
-                    &remote_symbols,
-                    types,
-                );
-            }
+            self.with_module_tree_symbols(
+                module,
+                profile,
+                symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    let _ = self.evaluate_type(
+                        owner_module,
+                        profile,
+                        alias_target_id,
+                        owner_tree,
+                        owner_symbols,
+                        types,
+                    );
+                },
+            );
         }
 
         // resolve static arguments for substitution
@@ -3480,11 +3469,9 @@ impl Compiler {
             return None;
         }
 
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_dir = remote_module.dir(profile);
-        let remote_types = remote_dir.types.read();
-        remote_types.get_lineage_for_symbol(symbol).cloned()
+        self.with_module_types(module, profile, symbol.module_id, |_, remote_types| {
+            remote_types.get_lineage_for_symbol(symbol).cloned()
+        })
     }
 
     /// Normalize a conditional type for assignability when it resolves in flow mode.

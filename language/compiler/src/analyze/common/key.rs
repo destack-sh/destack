@@ -137,16 +137,10 @@ impl Compiler {
         }
 
         // helpers for well-known symbol resolution across ambient libs
-        // TODO #Architecture: centralize local vs remote symbol metadata lookups for key resolution
         let symbol_key_for_global = |symbol: GlobalSymbolId| {
-            if symbol.module_id == symbols.module_id {
-                return symbols.get_symbol(symbol.local_id).key;
-            }
-
-            let remote_module = self.program.modules.get(symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            remote_symbols.get_symbol(symbol.local_id).key
+            self.with_module_symbols_by_id(profile, symbol.module_id, symbols, |owner_symbols| {
+                owner_symbols.get_symbol(symbol.local_id).key
+            })
         };
         let normalize_well_known_symbol =
             |symbol: GlobalSymbolId, well_known: &WellKnownSymbols| -> Option<GlobalSymbolId> {
@@ -298,27 +292,25 @@ impl Compiler {
             };
 
             // check declared types in the owning module
-            if symbol.module_id == symbols.module_id {
-                if is_unique_symbol(symbols, types, tree) {
-                    return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
-                }
-            } else {
-                // require remote declare before reading declared types
-                if self
+            if symbol.module_id != symbols.module_id
+                && self
                     .require_analyze_module_declare(symbol.module_id, profile)
                     .is_err()
-                {
-                    return None;
-                }
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_dir = remote_module.dir(profile);
-                let remote_symbols = remote_dir.symbols.read();
-                let remote_types = remote_dir.types.read();
-                let remote_tree = remote_dir.tree.read();
-                if is_unique_symbol(&remote_symbols, &remote_types, &remote_tree) {
-                    return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
-                }
+            {
+                return None;
+            }
+            let is_unique = self.with_module_tree_symbols_types_by_id(
+                profile,
+                symbol.module_id,
+                tree,
+                symbols,
+                types,
+                |owner_tree, owner_symbols, owner_types| {
+                    is_unique_symbol(owner_symbols, owner_types, owner_tree)
+                },
+            );
+            if is_unique {
+                return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
             }
         }
 

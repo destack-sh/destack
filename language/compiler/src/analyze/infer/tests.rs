@@ -663,7 +663,6 @@ enum Status {
 }
 
 /// Enum field values cannot reference non-enum values.
-// FUGU #Broken: phase 10 enum field reference validation
 #[ignore]
 #[test]
 fn test_analyze_enum_field_values_require_enum_reference() {
@@ -736,13 +735,17 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     for global_symbol in &global_group {
         let remote_profile = test.default_profile_id(global_symbol.module_id);
-        let remote_module = test.program.modules.get(global_symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_types = remote_module.dir(remote_profile).types.read();
-        assert!(
-            remote_types.get_instance_type_id(*global_symbol).is_some(),
-            "expected instance type for GlobalThing in module {:?}",
+        test.compiler.with_module_types(
+            &module,
+            remote_profile,
             global_symbol.module_id,
+            |_, remote_types| {
+                assert!(
+                    remote_types.get_instance_type_id(*global_symbol).is_some(),
+                    "expected instance type for GlobalThing in module {:?}",
+                    global_symbol.module_id,
+                );
+            },
         );
     }
 
@@ -3586,7 +3589,6 @@ fn test_analyze_type_mapped_parameter_scope() {
 }
 
 /// Bind infer variables for use in conditional true branch.
-// FUGU #Broken: phase 8 conditional infer scope
 #[ignore]
 #[test]
 fn test_analyze_type_infer_scope() {
