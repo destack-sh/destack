@@ -280,6 +280,17 @@ impl LspDaemonClient {
         let _ = self.connection.lock().take();
     }
 
+    /// Request a rescan for every workspace handle.
+    pub fn rescan_all(&self, reason: RescanReason) -> Result<LspDaemonResult, String> {
+        let mut result = LspDaemonResult::default();
+        for handle in self.handles.iter() {
+            let rescan = self.rescan_handle(*handle.value(), reason)?;
+            result.updates.extend(rescan.updates);
+            result.messages.extend(rescan.messages);
+        }
+        Ok(result)
+    }
+
     /// Look up the workspace handle for a root.
     fn handle_for_root(&self, root: &Path) -> Option<WorkspaceHandleId> {
         self.handles.get(root).map(|entry| *entry.value())
