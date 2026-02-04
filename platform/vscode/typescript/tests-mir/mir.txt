@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.dsmir"
+
+function @fib(v0: i64) -> i64 {
+// <- keyword.declaration.function.dsmir
+//        ^^^^ entity.name.function.dsmir
+//                 ^^ variable.other.ssa.dsmir
+//                     ^^^ support.type.dsmir
+//                           ^^^ support.type.dsmir
+
+block0(v0: i64):
+// <- entity.name.label.dsmir
+//      ^^ variable.other.ssa.dsmir
+//          ^^^ support.type.dsmir
+
+    v1: i64 = iconst 2i64
+//  ^^ variable.other.ssa.dsmir
+//     ^^^ support.type.dsmir
+//            ^^^^^^ keyword.operator.instruction.dsmir
+//                    ^^^^ constant.numeric.dsmir
+
+    v2: bool = icmp_slt v0, v1
+//  ^^ variable.other.ssa.dsmir
+//     ^^^^ support.type.dsmir
+//            ^^^^^^^ keyword.operator.instruction.dsmir
+
+    branch v2, block1, block2
+//  ^^^^^^ keyword.control.flow.dsmir
+//              ^^^^^^ entity.name.label.dsmir
+//                      ^^^^^^ entity.name.label.dsmir
+
+// comment
+// <- comment.line.double-slash.dsmir
+}

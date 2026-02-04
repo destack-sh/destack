@@ -1,0 +1,144 @@
+{
+  "name": "Destack MIR",
+  "scopeName": "source.dsmir",
+  "fileTypes": [
+    "mir"
+  ],
+  "patterns": [
+    {
+      "include": "#mir"
+    }
+  ],
+  "repository": {
+    "mir": {
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#function-definition"
+        },
+        {
+          "include": "#block-label"
+        },
+        {
+          "include": "#instruction"
+        },
+        {
+          "include": "#keyword"
+        },
+        {
+          "include": "#symbol"
+        },
+        {
+          "include": "#variable"
+        },
+        {
+          "include": "#type"
+        },
+        {
+          "include": "#number"
+        }
+      ]
+    },
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.dsmir",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.dsmir",
+          "begin": "/\\*",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.begin.dsmir"
+            }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.end.dsmir"
+            }
+          }
+        }
+      ]
+    },
+    "function-definition": {
+      "patterns": [
+        {
+          "name": "meta.function.definition.dsmir",
+          "match": "(?x)\\b(function)\\s+(@[A-Za-z_][\\w.]*)(?=\\s*\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.function.dsmir"
+            },
+            "2": {
+              "name": "entity.name.function.dsmir"
+            }
+          }
+        }
+      ]
+    },
+    "block-label": {
+      "patterns": [
+        {
+          "name": "entity.name.label.dsmir",
+          "match": "\\bblock\\d+\\b"
+        }
+      ]
+    },
+    "instruction": {
+      "patterns": [
+        {
+          "name": "keyword.operator.instruction.dsmir",
+          "match": "(?x)(?<=\\=\\s)[A-Za-z_][\\w.]*"
+        }
+      ]
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.control.flow.dsmir",
+          "match": "\\b(?:return|jump|branch|switch|yield|check|unreachable)\\b"
+        },
+        {
+          "name": "keyword.declaration.function.dsmir",
+          "match": "\\bfunction\\b"
+        }
+      ]
+    },
+    "symbol": {
+      "patterns": [
+        {
+          "name": "entity.name.symbol.dsmir",
+          "match": "@[A-Za-z_][\\w.]*"
+        }
+      ]
+    },
+    "variable": {
+      "patterns": [
+        {
+          "name": "variable.other.ssa.dsmir",
+          "match": "\\bv\\d+\\b"
+        }
+      ]
+    },
+    "type": {
+      "patterns": [
+        {
+          "name": "support.type.dsmir",
+          "match": "\\b(?:i\\d+|u\\d+|f\\d+|bool|void|ptr|ref|addr|any)\\b"
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.dsmir",
+          "match": "(?x)\\b\\d+(?:_\\d+)*(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?(?:[iu]\\d+)?\\b"
+        }
+      ]
+    }
+  }
+}
