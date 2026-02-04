@@ -571,9 +571,9 @@ impl Parser {
             return false;
         }
 
-        // require JSX disambiguators for JS, but allow lenient parsing in TS/DS
+        // require JSX disambiguators for TSX or when ambiguity is disallowed
         let require_tree_disambiguator =
-            self.language.is_javascript() || self.options.disallow_ambiguous_tree_literal;
+            self.language.supports_jsx() || self.options.disallow_ambiguous_tree_literal;
 
         self.peek_generic_arrow_after_type_parameters(require_tree_disambiguator)
     }
@@ -640,6 +640,15 @@ impl Parser {
                 TokenType::OpenBrace => brace_depth += 1,
                 TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
                 TokenType::Comma => {
+                    if angle_depth == 1
+                        && paren_depth == 0
+                        && bracket_depth == 0
+                        && brace_depth == 0
+                    {
+                        has_tree_disambiguator = true;
+                    }
+                }
+                TokenType::Assign => {
                     if angle_depth == 1
                         && paren_depth == 0
                         && bracket_depth == 0
@@ -884,41 +893,55 @@ impl Parser {
                     self.skip_tree_whitespace()?;
 
                     // stop at closing fragment (</)
-                    if self.peek_is(TokenType::LessThan) && self.peek_next_is(TokenType::Divide) {
-                        // close fragment for fragment literals
-                        if path.is_none()
-                            && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
-                        {
-                            self.bump(); // eat <
-                            self.bump(); // eat /
-                            self.bump(); // eat >
-                            found_closing = true;
-                            break;
-                        }
-
-                        // fragment close is invalid for non fragment tags
-                        if path.is_some()
-                            && self.peek_next_next_token(TokenType::GreaterThan).is_ok()
-                        {
-                            return Err(ParseError::unexpected(self.peek()?.span));
-                        }
-
-                        // named closing tag is invalid for fragment literals
-                        if path.is_none() {
-                            return Err(ParseError::unexpected(self.peek()?.span));
-                        }
-
-                        // check if closing fragment has same path
-                        if let Some(path) = &path {
-                            self.bump(); // eat <
-                            self.bump(); // eat /
-                            let closing_path = self.eat_tree_literal_path()?;
-                            if closing_path == *path {
-                                self.eat_token(TokenType::GreaterThan)?;
+                    if self.peek_is(TokenType::LessThan) {
+                        let slash_index = self.next_non_newline_index_from(self.pos_index() + 1);
+                        let has_slash_after = self
+                            .tokens
+                            .get(slash_index)
+                            .is_some_and(|token| token.token.ty == TokenType::Divide);
+                        if !has_slash_after {
+                            // not a closing tag
+                        } else {
+                            let after_slash = self.next_non_newline_index_from(slash_index + 1);
+                            let closes_fragment = self
+                                .tokens
+                                .get(after_slash)
+                                .is_some_and(|token| token.token.ty == TokenType::GreaterThan);
+                            // close fragment for fragment literals
+                            if path.is_none() && closes_fragment {
+                                self.bump(); // eat <
+                                self.eat_newlines_maybe()?;
+                                self.bump(); // eat /
+                                self.eat_newlines_maybe()?;
+                                self.bump(); // eat >
                                 found_closing = true;
                                 break;
                             }
-                            return Err(ParseError::unexpected(self.peek()?.span));
+
+                            // fragment close is invalid for non fragment tags
+                            if path.is_some() && closes_fragment {
+                                return Err(ParseError::unexpected(self.peek()?.span));
+                            }
+
+                            // named closing tag is invalid for fragment literals
+                            if path.is_none() {
+                                return Err(ParseError::unexpected(self.peek()?.span));
+                            }
+
+                            // check if closing fragment has same path
+                            if let Some(path) = &path {
+                                self.bump(); // eat <
+                                self.eat_newlines_maybe()?;
+                                self.bump(); // eat /
+                                self.eat_newlines_maybe()?;
+                                let closing_path = self.eat_tree_literal_path()?;
+                                if closing_path == *path {
+                                    self.eat_token(TokenType::GreaterThan)?;
+                                    found_closing = true;
+                                    break;
+                                }
+                                return Err(ParseError::unexpected(self.peek()?.span));
+                            }
                         }
                     }
 
