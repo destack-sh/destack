@@ -183,6 +183,40 @@ impl Compiler {
         Ok(None)
     }
 
+    /// Resolve an export entry for a target with an explicit symbol space order.
+    pub(crate) fn resolve_export_symbol_for_target(
+        &self,
+        origin_module_id: ModuleId,
+        node: GlobalNodeIdAny,
+        target: ModuleTarget,
+        profile: ProfileId,
+        order: SymbolSpaceOrder,
+        key: StaticKey,
+    ) -> ResolveResult<Option<GlobalSymbolId>> {
+        // resolve in the requested symbol space order
+        let default_name = self.program.strings.intern("default");
+        let mut visited = ReexportVisitStack::default();
+        for space in order.spaces() {
+            let symbol = self.resolve_reexport_chain_symbol_for_space(
+                origin_module_id,
+                None,
+                node,
+                target,
+                profile,
+                *space,
+                key,
+                default_name,
+                &mut visited,
+                None,
+            )?;
+            if symbol.is_some() {
+                return Ok(symbol);
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Resolve an export entry for a specific symbol space.
     fn resolve_reexport_chain_symbol_for_space(
         &self,
@@ -1089,7 +1123,7 @@ impl Compiler {
     }
 
     /// Try to resolve an import of some target specifier synchronously.
-    pub(super) fn resolve_import(
+    pub(crate) fn resolve_import(
         &self,
         module: &Module,
         dir: &ModuleDir,
@@ -1102,7 +1136,7 @@ impl Compiler {
     }
 
     /// Try to resolve an import with an optional loader override.
-    pub(super) fn resolve_import_with_loader(
+    pub(crate) fn resolve_import_with_loader(
         &self,
         module: &Module,
         dir: &ModuleDir,

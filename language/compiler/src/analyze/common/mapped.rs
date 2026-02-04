@@ -38,6 +38,15 @@ pub(super) enum MappedIndexKind {
     Symbol,
 }
 
+/// The resolved value types and missing keys for an index access.
+#[derive(Debug, Clone)]
+pub(crate) struct IndexAccessResolution {
+    /// The resolved value types for the access.
+    pub(crate) value_types: Vec<LocalTypeId>,
+    /// The missing literal keys encountered during lookup.
+    pub(crate) missing_keys: Vec<StaticKey>,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Normalize a `keyof` type expression.
@@ -846,6 +855,62 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        let resolution = self.resolve_index_access_types(
+            module,
+            profile,
+            source_id,
+            left,
+            index,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        );
+        let value_types = resolution.value_types;
+
+        // collapse the collected value types
+        let combined = match value_types.len() {
+            0 => types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                source_id,
+            ),
+            1 => value_types[0],
+            _ => types.insert_type_from_any(
+                Type::Union {
+                    elements: value_types,
+                },
+                source_id,
+            ),
+        };
+        self.normalize_type_inner(
+            module,
+            profile,
+            combined,
+            symbols,
+            types,
+            mode,
+            relation_mode,
+            visited,
+        )
+    }
+
+    /// Resolve indexed access value types and missing keys.
+    pub(crate) fn resolve_index_access_types(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        left: LocalTypeId,
+        index: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+        relation_mode: RelationMode,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> IndexAccessResolution {
         // resolve apparent operand types before index evaluation
         let left = self.apparent_type(module, profile, left, symbols, types, relation_mode);
         let index = self.apparent_type(module, profile, index, symbols, types, relation_mode);
@@ -878,6 +943,7 @@ impl Compiler {
             _ => vec![index],
         };
         let mut value_types = Vec::new();
+        let mut missing_keys = Vec::new();
 
         // compute the accessed type for each key
         for key_type_id in index_types {
@@ -895,6 +961,9 @@ impl Compiler {
             if let Some(value_type) = value_type {
                 value_types.push(value_type);
             } else {
+                if let Some(missing_key) = self.static_key_from_type(key_type_id, types) {
+                    missing_keys.push(missing_key);
+                }
                 value_types.push(types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Unknown,
@@ -904,32 +973,10 @@ impl Compiler {
             }
         }
 
-        // collapse the collected value types
-        let combined = match value_types.len() {
-            0 => types.insert_type_from_any(
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                },
-                source_id,
-            ),
-            1 => value_types[0],
-            _ => types.insert_type_from_any(
-                Type::Union {
-                    elements: value_types,
-                },
-                source_id,
-            ),
-        };
-        self.normalize_type_inner(
-            module,
-            profile,
-            combined,
-            symbols,
-            types,
-            mode,
-            relation_mode,
-            visited,
-        )
+        IndexAccessResolution {
+            value_types,
+            missing_keys,
+        }
     }
 
     /// Resolve an index access for a single key type.

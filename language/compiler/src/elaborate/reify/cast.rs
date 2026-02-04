@@ -1725,14 +1725,8 @@ impl Compiler {
                     .into_global_any(module.id)
                     .into_anchored(Some(profile)),
             })?;
-        let from_sized_symbol = self.array_from_sized_symbol(
-            module,
-            profile,
-            origin_id,
-            array_symbol,
-            tree,
-            symbols,
-        )?;
+        let from_sized_symbol =
+            self.array_from_sized_symbol(module, profile, origin_id, array_symbol, tree, symbols)?;
 
         // register a concrete instance for Array.fromSized<T>
         let array_static_arguments = vec![StaticArgument::value(StaticExpression::Type {
@@ -2137,13 +2131,7 @@ impl Compiler {
         let member_key = StaticKey::Name(name);
 
         self.resolve_static_member_symbol(
-            module,
-            profile,
-            origin_id,
-            map_symbol,
-            member_key,
-            tree,
-            symbols,
+            module, profile, origin_id, map_symbol, member_key, tree, symbols,
         )
         .map_err(|_| ElaborateError::UnsupportedConstruct {
             node: origin_id

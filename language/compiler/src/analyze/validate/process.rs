@@ -103,69 +103,73 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        let types = dir.types.read();
+        {
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
+            let mut types = dir.types.write();
 
-        // TODO #Performance: consolidate validation passes into a single tree walk
-        // validate binding identifiers
-        self.validate_binding_names(&module, profile, &tree, &symbols);
+            // TODO #Performance: consolidate validation passes into a single tree walk
+            // validate binding identifiers
+            self.validate_binding_names(&module, profile, &tree, &symbols);
 
-        // validate declarations
-        for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
-            let symbol = symbols.get_symbol(declaration.symbol());
-            if !symbol.is_active() {
-                continue;
+            // validate declarations
+            for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+                let symbol = symbols.get_symbol(declaration.symbol());
+                if !symbol.is_active() {
+                    continue;
+                }
+                self.validate_declaration(&module, profile, &tree, &types, id, declaration);
             }
-            self.validate_declaration(&module, profile, &tree, &types, id, declaration);
-        }
 
-        // validate parameters
-        for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
-            if !self.is_node_active(&tree, &symbols, id.into_any()) {
-                continue;
+            // validate parameters
+            for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+                if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                    continue;
+                }
+                self.validate_parameter(&module, profile, &tree, id, parameter);
             }
-            self.validate_parameter(&module, profile, &tree, id, parameter);
-        }
 
-        // validate members
-        for (id, member) in tree.iter_nodes_of_type::<Member>() {
-            let symbol = symbols.get_symbol(member.symbol());
-            if !symbol.is_active() {
-                continue;
+            // validate members
+            for (id, member) in tree.iter_nodes_of_type::<Member>() {
+                let symbol = symbols.get_symbol(member.symbol());
+                if !symbol.is_active() {
+                    continue;
+                }
+                self.validate_member(&module, profile, &tree, id, member);
             }
-            self.validate_member(&module, profile, &tree, id, member);
-        }
 
-        // validate expressions
-        for (id, expression) in tree.iter_nodes_of_type::<Expression>() {
-            if !self.is_node_active(&tree, &symbols, id.into_any()) {
-                continue;
+            // validate expressions
+            for (id, expression) in tree.iter_nodes_of_type::<Expression>() {
+                if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                    continue;
+                }
+                self.validate_expression(
+                    &module, profile, &tree, &symbols, &mut types, id, expression,
+                );
             }
-            self.validate_expression(&module, profile, &tree, &symbols, id, expression);
-        }
 
-        // validate annotations
-        for (id, annotation) in tree.iter_nodes_of_type::<Annotation>() {
-            if let Some(parent) = tree.get_parent(id.id)
-                && !self.is_node_active(&tree, &symbols, parent)
-            {
-                continue;
+            // validate annotations
+            for (id, annotation) in tree.iter_nodes_of_type::<Annotation>() {
+                if let Some(parent) = tree.get_parent(id.id)
+                    && !self.is_node_active(&tree, &symbols, parent)
+                {
+                    continue;
+                }
+                self.validate_annotation(&module, profile, &tree, id, annotation);
             }
-            self.validate_annotation(&module, profile, &tree, id, annotation);
-        }
 
-        // validate patterns
-        for (id, pattern) in tree.iter_nodes_of_type::<Pattern>() {
-            if !self.is_node_active(&tree, &symbols, id.into_any()) {
-                continue;
+            // validate patterns
+            for (id, pattern) in tree.iter_nodes_of_type::<Pattern>() {
+                if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                    continue;
+                }
+                self.validate_pattern(&module, profile, &tree, pattern);
             }
-            self.validate_pattern(&module, profile, &tree, pattern);
-        }
 
-        // validate option dependent checks
-        self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
-        self.validate_restriction_checks(&module, profile, &types);
+            // validate option dependent checks
+            self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
+            self.validate_restriction_checks(&module, profile, &types);
+        }
 
         // update module signature after validation
         self.update_module_signature(module_id, profile, module_version, profile_version)?;

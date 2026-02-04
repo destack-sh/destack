@@ -1318,8 +1318,35 @@ impl Compiler {
             false,
         );
 
-        let callee_ty_id =
-            self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let is_optional_chain = self.is_optional_chain_call_target(tree, left_id);
+        let mut optional_chain_has_nullish = false;
+        let callee_ty_id = match tree.get(left_id) {
+            Expression::Maybe { left } => {
+                self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?
+            }
+            _ => self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?,
+        };
+        let callee_ty_id = if is_optional_chain {
+            let (non_nullish, has_nullish) = self.strip_nullish_from_union(callee_ty_id, types);
+            optional_chain_has_nullish = has_nullish;
+            let Some(non_nullish) = non_nullish else {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Undefined,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            };
+            non_nullish
+        } else {
+            callee_ty_id
+        };
+        let finish_result = |type_id: LocalTypeId, types: &mut TypeTable| {
+            self.optional_chain_result_type(
+                expression_id,
+                type_id,
+                optional_chain_has_nullish,
+                types,
+            )
+        };
         let options = ctx.options;
 
         // ensure instance types for callable references
@@ -1351,18 +1378,24 @@ impl Compiler {
                 static_arguments: member_static_arguments,
                 ..
             } => {
-                let receiver_ty_id = if let Some(receiver_ty_id) =
+                let receiver_id = *receiver_id;
+                let receiver_ty_id = if let Expression::Maybe { left } = tree.get(receiver_id) {
+                    let receiver_ty_id =
+                        self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?;
+                    let (non_nullish, _) = self.strip_nullish_from_union(receiver_ty_id, types);
+                    non_nullish.unwrap_or(receiver_ty_id)
+                } else if let Some(receiver_ty_id) =
                     types.get_inferred_type_id(receiver_id.into_global_any(module.id))
                 {
                     receiver_ty_id
                 } else {
-                    self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?
+                    self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?
                 };
                 let receiver_ty = types.get_type(receiver_ty_id).clone();
                 call_receiver_ty_id = Some(receiver_ty_id);
 
                 member_call_context = Some(MemberCallContext {
-                    receiver_id: *receiver_id,
+                    receiver_id,
                     receiver_ty_id,
                     member_key: StaticKey::Name(*name),
                     member_static_arguments: member_static_arguments.clone(),
@@ -1386,7 +1419,7 @@ impl Compiler {
                 let member_key = StaticKey::Name(*name);
                 let member_resolution = self.resolve_member_symbol_for_receiver(
                     module,
-                    *receiver_id,
+                    receiver_id,
                     &receiver_ty,
                     &member_key,
                     ctx.profile,
@@ -1697,7 +1730,7 @@ impl Compiler {
             );
 
             // short circuit because the union call is handled
-            return Ok(return_type_id);
+            return Ok(finish_result(return_type_id, types));
         }
 
         let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
@@ -1952,7 +1985,22 @@ impl Compiler {
             types.insert_type_from(ty, expression_id)
         };
 
-        Ok(ty_id)
+        Ok(finish_result(ty_id, types))
+    }
+
+    /// Check whether a call expression is an optional chain call target.
+    fn is_optional_chain_call_target(
+        &self,
+        tree: &NodeTree,
+        left_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(left_id) {
+            Expression::Maybe { .. } => true,
+            Expression::Member { left, .. } | Expression::Index { left, .. } => {
+                matches!(tree.get(*left), Expression::Maybe { .. })
+            }
+            _ => false,
+        }
     }
 
     /// Infer a constructor call expression.

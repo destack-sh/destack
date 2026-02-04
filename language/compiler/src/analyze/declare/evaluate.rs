@@ -469,7 +469,7 @@ impl Compiler {
     }
 
     /// Check whether a type supports indexed access in a type expression.
-    fn type_supports_index_access(
+    pub(crate) fn type_supports_index_access(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -551,7 +551,11 @@ impl Compiler {
     }
 
     /// Check whether a type resolves to a primitive literal.
-    fn type_is_primitive_literal(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
+    pub(crate) fn type_is_primitive_literal(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
         match types.get_type(type_id) {
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(_),

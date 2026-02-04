@@ -1,9 +1,11 @@
+use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Argument, BindingKind, DeclarationKind, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
-    MatchSelector, Mutability, NodeTree, Pattern, Property, ScalarLiteral, SymbolTable, SymbolType,
-    TemplateLiteral, TypeLiteral, TypeUnaryOperator, UnaryOperator,
+    MatchSelector, Mutability, NodeTree, Path, Pattern, Property, ScalarLiteral, StaticKey,
+    StringId, SymbolTable, SymbolType, TemplateLiteral, Type, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -16,6 +18,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &mut TypeTable,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
@@ -114,6 +117,26 @@ impl Compiler {
             }
             Expression::TypeIndex { left, .. } => {
                 self.validate_intrinsic_type_index(module, profile, tree, expression_id, *left);
+                self.validate_type_index_access(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    expression_id,
+                );
+            }
+            Expression::TypeImport {
+                target, qualifier, ..
+            } => {
+                self.validate_type_import_expression(
+                    module,
+                    profile,
+                    types,
+                    expression_id,
+                    *target,
+                    qualifier.as_ref(),
+                );
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 self.validate_tuple_optional_order(module, profile, tree, expression_id, elements);
@@ -743,6 +766,157 @@ impl Compiler {
         }
 
         false
+    }
+
+    /// Validate type index access for missing members.
+    fn validate_type_index_access(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        let Expression::TypeIndex { left, index } = tree.get(expression_id) else {
+            return;
+        };
+
+        // resolve operand types
+        let left_ty_id = match self.try_evaluate_expression_to_type(
+            module, profile, *left, tree, symbols, types, true, true,
+        ) {
+            Ok(type_id) => type_id,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+        let index_ty_id = match self.try_evaluate_expression_to_type(
+            module, profile, *index, tree, symbols, types, true, true,
+        ) {
+            Ok(type_id) => type_id,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+
+        // skip missing checks for unresolved type parameters
+        if let Some(symbol) = types.get_type(left_ty_id).symbol()
+            && self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+        {
+            return;
+        }
+
+        // skip index validation when the type index is an array size
+        let supports_index_access = match self
+            .type_supports_index_access(module, profile, left_ty_id, tree, symbols, types)
+        {
+            Ok(value) => value,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+        let is_primitive_literal = self.type_is_primitive_literal(left_ty_id, types);
+        let is_index_access = if module.language_type.is_declaration() {
+            true
+        } else {
+            supports_index_access && !is_primitive_literal
+        };
+        if !is_index_access {
+            return;
+        }
+
+        // skip missing checks for any or unknown receivers
+        if matches!(
+            types.get_type(left_ty_id),
+            Type::TypeLiteral {
+                value: TypeLiteral::Any | TypeLiteral::Unknown,
+            }
+        ) {
+            return;
+        }
+
+        // resolve index access types to detect missing keys
+        let mut visited = Vec::new();
+        let resolution = self.resolve_index_access_types(
+            module,
+            profile,
+            expression_id.into_any(),
+            left_ty_id,
+            index_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Flow,
+            RelationMode::TYPE_OPS,
+            &mut visited,
+        );
+        let Some(missing_key) = resolution.missing_keys.first() else {
+            return;
+        };
+
+        // report missing key access
+        self.error(AnalyzeError::MissingMember {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            receiver_ty: left_ty_id.into_global(module.id),
+            member_key: *missing_key,
+        });
+    }
+
+    /// Validate import type accesses for missing exports.
+    fn validate_type_import_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        types: &mut TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        target: StringId,
+        qualifier: Option<&Path>,
+    ) {
+        let Some(qualifier) = qualifier else {
+            return;
+        };
+
+        // only validate single-segment qualifiers
+        let member_key = if qualifier.segments.len() == 1 {
+            qualifier.last_segment().map(StaticKey::Name)
+        } else {
+            None
+        };
+        let Some(member_key) = member_key else {
+            return;
+        };
+
+        // resolve the import type symbol
+        let resolved = self.resolve_import_type_symbol(
+            module,
+            profile,
+            expression_id.into_any(),
+            target,
+            Some(qualifier),
+        );
+        if resolved.is_some() {
+            return;
+        }
+
+        // emit missing member when the export is absent
+        let receiver_ty_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            expression_id.into_any(),
+        );
+        self.error(AnalyzeError::MissingMember {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            receiver_ty: receiver_ty_id.into_global(module.id),
+            member_key,
+        });
     }
 
     /// Check whether an expression is an enum reference for ambient const initializers.

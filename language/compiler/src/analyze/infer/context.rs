@@ -327,7 +327,9 @@ impl InferContext {
 
     /// Build a nested literal context for child expressions.
     pub fn nested_literal_context(&self) -> Self {
-        if matches!(self.const_context, ConstContext::Const) {
+        if matches!(self.contextual_typing, ContextualTypingMode::Satisfies) {
+            self.fork().with_preserve_literals().with_fresh_literals()
+        } else if matches!(self.const_context, ConstContext::Const) {
             self.fork()
                 .with_const_context(ConstContext::None)
                 .with_widening()
