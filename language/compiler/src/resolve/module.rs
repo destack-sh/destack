@@ -2138,8 +2138,13 @@ impl Compiler {
 
         // collect module dependency targets from imports and namespace exports
         let mut targets = Vec::new();
-        for target in dir.imported_modules.read().values() {
-            targets.push(*target);
+        for targets_for_kind in dir.imported_modules.read().values() {
+            if let Some(target) = targets_for_kind.value {
+                targets.push(target);
+            }
+            if let Some(target) = targets_for_kind.ty {
+                targets.push(target);
+            }
         }
         for export in dir.namespace_exports.read().iter() {
             targets.push(export.module_id);

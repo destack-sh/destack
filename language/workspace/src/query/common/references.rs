@@ -373,7 +373,9 @@ fn namespace_import_aliases_for_module(
             }
 
             let local_symbol = symbol.as_ref()?;
-            let target_module_id = target_module.module_id()?;
+            let target_module_id = target_module
+                .for_kind(*kind)
+                .and_then(|target| target.module_id())?;
             if target_module_id != module_id {
                 return None;
             }

@@ -1765,7 +1765,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 name,
                 alias,
                 target,
-                target_module: module,
+                target_module,
                 symbol,
             } => {
                 self.node("DependencyItem::UnresolvedRemote", id.id)
@@ -1775,7 +1775,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .field_optional("name", name)
                     .field_optional("alias", alias)
                     .field("target", target)
-                    .field_optional("module", module)
+                    .field_optional("modules", target_module)
                     .field("symbol", symbol)
                     .end();
             }
@@ -2132,6 +2132,12 @@ impl_dump_display! {
     SymbolSpace,
     SymbolKind,
     NodeType,
+}
+
+impl Dump for ModuleResolution {
+    fn dump<'a>(&self, dumper: &mut Dumper<'a>) {
+        dumper.write_str(format!("{self:?}"), Some(Color::Green));
+    }
 }
 
 impl Dump for LocalScopeId {

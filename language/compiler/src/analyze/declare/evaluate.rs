@@ -1993,6 +1993,9 @@ impl Compiler {
                 let Some(target_module) = target_module else {
                     return Ok(None);
                 };
+                let Some(target_module) = target_module.ty.or(target_module.value) else {
+                    return Ok(None);
+                };
 
                 // resolve the member symbol from the target module export surface
                 let key = StaticKey::Name(*name);
@@ -3399,19 +3402,14 @@ impl Compiler {
 
         // resolve static arguments against declared bounds
         let options = self.analyze_context_options_for_module(module.id);
-        let has_explicit_arguments =
-            static_arguments.as_ref().is_some_and(|arguments| !arguments.is_empty());
-        let parameter_symbols = self.collect_static_parameter_symbols(
-            module,
-            target_symbol,
-            profile,
-            tree,
-            symbols,
-        );
+        let has_explicit_arguments = static_arguments
+            .as_ref()
+            .is_some_and(|arguments| !arguments.is_empty());
+        let parameter_symbols =
+            self.collect_static_parameter_symbols(module, target_symbol, profile, tree, symbols);
         let parameters_known = parameter_symbols.is_some();
         let has_parameters = parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
-        let resolved_arguments = if !has_explicit_arguments && parameters_known && !has_parameters
-        {
+        let resolved_arguments = if !has_explicit_arguments && parameters_known && !has_parameters {
             None
         } else {
             let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
@@ -3445,22 +3443,22 @@ impl Compiler {
         }
 
         // normalize well known references into canonical structural types
-        let normalized = if let Some(well_known) = self.well_known_array_kind(profile, target_symbol)
-        {
-            let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
-            self.normalize_well_known_type_reference(
-                module,
-                symbols,
-                profile,
-                expression_id.into_any(),
-                target_symbol,
-                well_known,
-                static_arguments.as_deref(),
-                types,
-            )
-        } else {
-            None
-        };
+        let normalized =
+            if let Some(well_known) = self.well_known_array_kind(profile, target_symbol) {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
+                self.normalize_well_known_type_reference(
+                    module,
+                    symbols,
+                    profile,
+                    expression_id.into_any(),
+                    target_symbol,
+                    well_known,
+                    static_arguments.as_deref(),
+                    types,
+                )
+            } else {
+                None
+            };
         if let Some(normalized) = normalized {
             self.cache_type_reference_maybe(reference_cache_key, &normalized, types);
             return Ok(normalized);

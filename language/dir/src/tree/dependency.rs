@@ -2,7 +2,8 @@ use destack_base::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleTarget, Name, Node, NodeType,
+    Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleResolution, ModuleTarget, Name,
+    Node, NodeType,
 };
 
 /// The source of a dependency.
@@ -53,7 +54,7 @@ pub enum DependencyItem {
         name: Option<Name>,
         alias: Option<StringId>,
         target: StringId,
-        target_module: Option<ModuleTarget>, // item may remain unresolved even if we can resolve the target module
+        target_module: Option<ModuleResolution>, // item may remain unresolved even if we can resolve the target module
         symbol: Option<LocalSymbolId>,
     },
     /// Unresolved local item from the module.
@@ -85,7 +86,7 @@ pub enum DependencyItem {
         name: Option<Name>,
         alias: Option<StringId>,
         target: StringId,
-        target_module: ModuleTarget,
+        target_module: ModuleResolution,
         symbol: Option<LocalSymbolId>,
         target_symbol: GlobalSymbolId,
     },
@@ -135,6 +136,17 @@ impl DependencyItem {
             DependencyItem::Value { .. } => None,
             DependencyItem::Local { target_symbol, .. } => Some(*target_symbol),
             DependencyItem::Remote { target_symbol, .. } => Some(*target_symbol),
+        }
+    }
+
+    /// Get the resolved target module for a dependency kind.
+    pub fn target_module_for_kind(&self, kind: DependencyKind) -> Option<ModuleTarget> {
+        match self {
+            DependencyItem::Remote { target_module, .. } => target_module.for_kind(kind),
+            DependencyItem::UnresolvedRemote { target_module, .. } => {
+                target_module.and_then(|targets| targets.for_kind(kind))
+            }
+            _ => None,
         }
     }
 }

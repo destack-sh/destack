@@ -429,8 +429,12 @@ fn collect_target_symbols(session: &Session, symbol_id: GlobalSymbolId) -> HashS
                     }
 
                     let target_module = match item {
-                        DependencyItem::Remote { target_module, .. } => Some(*target_module),
-                        DependencyItem::UnresolvedRemote { target_module, .. } => *target_module,
+                        DependencyItem::Remote { target_module, .. } => {
+                            target_module.ty.or(target_module.value)
+                        }
+                        DependencyItem::UnresolvedRemote { target_module, .. } => {
+                            target_module.and_then(|targets| targets.ty.or(targets.value))
+                        }
                         _ => None,
                     };
 

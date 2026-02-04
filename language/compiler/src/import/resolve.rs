@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
-use destack_dir::DependencyKind;
 use destack_builtin::builtin_lib;
+use destack_dir::{DependencyKind, ModuleResolution, ModuleTarget};
 use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
@@ -16,45 +16,11 @@ const BUILTIN_EXTENSIONS: &[&str] = &[
 
 impl Compiler {
     /// Resolve a specifier to a ModuleId, registering a blank module if needed.
-    pub fn resolve_specifier_to_module(
-        &self,
-        specifier: StringId,
-        source_module: Option<ModuleId>,
-    ) -> ImportResult<ModuleId> {
-        self.resolve_specifier_to_module_with_loader(specifier, source_module, None)
-    }
-
-    /// Resolve a specifier to a ModuleId with an optional loader override.
     ///
     /// If `loader_override` is provided and the module doesn't exist yet, the module
     /// will be registered with the specified loader instead of the default for its file type.
-    /// If the module already exists, the override is ignored (Option B from plan).
-    pub fn resolve_specifier_to_module_with_loader(
-        &self,
-        specifier: StringId,
-        source_module: Option<ModuleId>,
-        loader_override: Option<Loader>,
-    ) -> ImportResult<ModuleId> {
-        self.resolve_specifier_to_module_with_kind_and_loader(
-            specifier,
-            source_module,
-            DependencyKind::Value,
-            loader_override,
-        )
-    }
-
-    /// Resolve a specifier to a ModuleId with an explicit dependency kind.
-    pub fn resolve_specifier_to_module_with_kind(
-        &self,
-        specifier: StringId,
-        source_module: Option<ModuleId>,
-        kind: DependencyKind,
-    ) -> ImportResult<ModuleId> {
-        self.resolve_specifier_to_module_with_kind_and_loader(specifier, source_module, kind, None)
-    }
-
-    /// Resolve a specifier to a ModuleId with an explicit dependency kind and loader override.
-    pub fn resolve_specifier_to_module_with_kind_and_loader(
+    /// If the module already exists, the override is ignored.
+    pub fn resolve_specifier_to_module(
         &self,
         specifier: StringId,
         source_module: Option<ModuleId>,
@@ -71,32 +37,71 @@ impl Compiler {
         }
 
         // resolve non-builtin imports
-        let resolver = self.create_resolver_for_kind(kind);
         let directory = self.get_resolve_directory(source_module);
+        let (path, resolver) =
+            self.resolve_specifier_to_path(&directory, specifier, &specifier_str, kind)?;
 
-        // resolve specifier to path
-        let resolution = match resolver.resolve(&directory, &specifier_str) {
-            Ok(resolution) => resolution,
-            Err(error) => {
-                // fallback to declaration resolution for value imports
-                if kind == DependencyKind::Value {
-                    let type_resolver = self.create_resolver_for_kind(DependencyKind::Type);
-                    if let Ok(resolution) = type_resolver.resolve(&directory, &specifier_str) {
-                        return self.resolve_specifier_registration(
-                            &resolution.path,
-                            loader_override,
-                            &type_resolver,
-                        );
-                    }
-                }
-                return Err(ImportError::ModuleNotFound {
-                    target: specifier,
-                    error: Some(error),
-                });
-            }
-        };
+        self.resolve_specifier_registration(&path, loader_override, &resolver)
+    }
 
-        self.resolve_specifier_registration(&resolution.path, loader_override, &resolver)
+    /// Resolve a specifier to a path using dependency-aware rules.
+    fn resolve_specifier_to_path(
+        &self,
+        directory: &Path,
+        specifier_id: StringId,
+        specifier_str: &str,
+        kind: DependencyKind,
+    ) -> ImportResult<(PathBuf, Resolver)> {
+        let resolver = self.resolver_for_kind(kind);
+        let resolution = resolver.resolve(directory, specifier_str);
+        if let Ok(resolution) = resolution {
+            return Ok((resolution.path, resolver));
+        }
+        let error = resolution.err();
+
+        Err(ImportError::ModuleNotFound {
+            target: specifier_id,
+            error,
+        })
+    }
+
+    /// Resolve a specifier to value and type module targets.
+    pub(crate) fn resolve_specifier_to_module_resolution(
+        &self,
+        specifier: StringId,
+        source_module: Option<ModuleId>,
+        loader_override: Option<Loader>,
+    ) -> ImportResult<ModuleResolution> {
+        let value_target = self
+            .resolve_specifier_to_module(
+                specifier,
+                source_module,
+                DependencyKind::Value,
+                loader_override,
+            )
+            .ok()
+            .map(ModuleTarget::Module);
+        let type_target = self
+            .resolve_specifier_to_module(
+                specifier,
+                source_module,
+                DependencyKind::Type,
+                loader_override,
+            )
+            .ok()
+            .map(ModuleTarget::Module);
+
+        if value_target.is_none() && type_target.is_none() {
+            return Err(ImportError::ModuleNotFound {
+                target: specifier,
+                error: None,
+            });
+        }
+
+        Ok(ModuleResolution {
+            value: value_target,
+            ty: type_target,
+        })
     }
 
     /// Register or reuse a module for a resolved path.
@@ -218,7 +223,7 @@ impl Compiler {
 
     /// Resolve a path to a ModuleId, registering a blank module if needed.
     pub fn resolve_path_to_module(&self, path: &PathBuf) -> ImportResult<ModuleId> {
-        let resolver = self.create_resolver();
+        let resolver = self.resolver_for_kind(DependencyKind::Value);
 
         // check if module already exists for this path
         if let Some(module_id) = self.program.modules.get_id_by_path(path) {
@@ -349,13 +354,8 @@ impl Compiler {
         Ok(module_id)
     }
 
-    /// Create the resolver with standard options.
-    pub(super) fn create_resolver(&self) -> Resolver {
-        self.create_resolver_for_kind(DependencyKind::Value)
-    }
-
-    /// Create a resolver configured for a dependency kind.
-    pub(super) fn create_resolver_for_kind(&self, kind: DependencyKind) -> Resolver {
+    /// Build resolve options for a dependency kind.
+    fn resolver_options_for_kind(&self, kind: DependencyKind) -> destack_resolver::ResolveOptions {
         let mut resolver_options = self.options.import_resolve.clone();
 
         // ensure declaration extensions are available in the resolution order
@@ -383,22 +383,22 @@ impl Compiler {
         let mut conditions = resolver_options.conditions.clone();
         conditions.retain(|condition| condition != "types");
         if kind == DependencyKind::Type {
-            conditions.push("types".to_string());
+            conditions.insert(0, "types".to_string());
         }
         if !conditions.iter().any(|condition| condition == "import") {
             conditions.push("import".to_string());
         }
-        resolver_options = resolver_options.with_conditions(conditions);
+        resolver_options.with_conditions(conditions)
+    }
 
+    /// Create a resolver configured for a dependency kind.
+    fn resolver_for_kind(&self, kind: DependencyKind) -> Resolver {
+        let resolver_options = self.resolver_options_for_kind(kind);
         Resolver::from_program(&self.program, resolver_options)
     }
 
     /// Insert an extension after a preferred predecessor when missing.
-    fn insert_extension_after(
-        extensions: &mut Vec<String>,
-        after: &str,
-        extension: &str,
-    ) {
+    fn insert_extension_after(extensions: &mut Vec<String>, after: &str, extension: &str) {
         if extensions.iter().any(|entry| entry == extension) {
             return;
         }
