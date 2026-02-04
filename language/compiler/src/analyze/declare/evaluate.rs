@@ -2,12 +2,12 @@ use crate::analyze::common::CanonicalSymbolMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
-    Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DependencyMode, DynamicKey,
+    EnumFieldValue, Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor,
+    NodeVisitorOptions, Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -1945,6 +1945,97 @@ impl Compiler {
 
         let expression = tree.get(expression_id);
         let ty = match expression {
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
+
+                // only resolve namespace member access from local imports
+                let left_expression = tree.get(*left);
+                let (Expression::LocalReference { target_symbol, .. }
+                | Expression::ModuleReference { target_symbol, .. }
+                | Expression::GlobalReference { target_symbol, .. }) = left_expression
+                else {
+                    return Ok(None);
+                };
+                if target_symbol.module_id != module.id {
+                    return Ok(None);
+                }
+
+                // ensure the reference was introduced by a namespace import
+                let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return Ok(None);
+                };
+                if primary_declaration.local_id.ty != NodeType::DependencyItem {
+                    return Ok(None);
+                }
+                let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+                let dependency = tree.get(dependency_id);
+                let (mode, target_module) = match dependency {
+                    DependencyItem::Remote {
+                        mode,
+                        target_module,
+                        ..
+                    } => (*mode, Some(*target_module)),
+                    DependencyItem::UnresolvedRemote {
+                        mode,
+                        target_module,
+                        ..
+                    } => (*mode, *target_module),
+                    _ => return Ok(None),
+                };
+                if mode != DependencyMode::Namespace {
+                    return Ok(None);
+                }
+                let Some(target_module) = target_module else {
+                    return Ok(None);
+                };
+
+                // resolve the member symbol from the target module export surface
+                let key = StaticKey::Name(*name);
+                let resolved_symbol = self
+                    .resolve_export_symbol_for_target(
+                        module.id,
+                        expression_id.into_global_any(module.id),
+                        target_module,
+                        profile,
+                        SymbolSpaceOrder::TypeThenValue,
+                        key,
+                    )
+                    .ok()
+                    .flatten();
+                let Some(target_symbol) = resolved_symbol else {
+                    return Ok(None);
+                };
+
+                // resolve static arguments for the referenced symbol
+                let static_arguments = self.evaluate_static_arguments(
+                    module,
+                    profile,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let resolve_static_arguments =
+                    resolve_static_arguments && !defer_reference_resolution;
+                self.evaluate_type_reference_for_symbol(
+                    module,
+                    profile,
+                    expression_id,
+                    target_symbol,
+                    static_arguments,
+                    resolve_static_arguments,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                    tree,
+                    symbols,
+                    types,
+                )?
+            }
             Expression::LocalReference {
                 target_symbol,
                 static_arguments,
@@ -2039,105 +2130,19 @@ impl Compiler {
                 };
                 let resolve_static_arguments =
                     resolve_static_arguments && !defer_reference_resolution;
-                let reference_cache_key = self.type_reference_cache_key(
+                self.evaluate_type_reference_for_symbol(
+                    module,
+                    profile,
+                    expression_id,
                     target_symbol,
-                    static_arguments.as_deref(),
+                    static_arguments,
+                    resolve_static_arguments,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
-                    resolve_static_arguments,
-                );
-                let cached_reference = reference_cache_key
-                    .and_then(|cache_key| types.get_type_reference_cache(cache_key).cloned());
-
-                if let Some(cached) = cached_reference {
-                    cached
-                } else if !resolve_static_arguments {
-                    let ty = Type::Reference {
-                        symbol: target_symbol,
-                        static_arguments,
-                    };
-                    self.cache_type_reference_maybe(reference_cache_key, &ty, types);
-                    ty
-                } else {
-                    let options = self.analyze_context_options_for_module(module.id);
-                    // skip resolution when we know the reference is non-generic
-                    let has_explicit_arguments = static_arguments
-                        .as_ref()
-                        .is_some_and(|arguments| !arguments.is_empty());
-                    let parameter_symbols = self.collect_static_parameter_symbols(
-                        module,
-                        target_symbol,
-                        profile,
-                        tree,
-                        symbols,
-                    );
-                    let parameters_known = parameter_symbols.is_some();
-                    let has_parameters =
-                        parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
-                    let resolved_arguments =
-                        if !has_explicit_arguments && parameters_known && !has_parameters {
-                            None
-                        } else {
-                            let _timing =
-                                self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-                            self.resolve_type_reference_static_arguments_for_symbol(
-                                module,
-                                profile,
-                                expression_id.into_any(),
-                                target_symbol,
-                                static_arguments.as_deref(),
-                                validate_static_argument_bounds,
-                                &options,
-                                tree,
-                                symbols,
-                                types,
-                            )?
-                        };
-                    let static_arguments = resolved_arguments.or(static_arguments);
-                    let has_error_argument = static_arguments.as_deref().is_some_and(|arguments| {
-                        arguments.iter().any(|argument| match argument {
-                            StaticArgument::Evaluated {
-                                value: StaticExpression::Type { ty },
-                                ..
-                            } => types.get_type(*ty).is_error(),
-                            _ => false,
-                        })
-                    });
-                    if has_error_argument {
-                        return Ok(Some(Type::Error));
-                    }
-
-                    // normalize well known references into canonical structural types
-                    let normalized = if let Some(well_known) =
-                        self.well_known_array_kind(profile, target_symbol)
-                    {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
-                        self.normalize_well_known_type_reference(
-                            module,
-                            symbols,
-                            profile,
-                            expression_id.into_any(),
-                            target_symbol,
-                            well_known,
-                            static_arguments.as_deref(),
-                            types,
-                        )
-                    } else {
-                        None
-                    };
-                    if let Some(normalized) = normalized {
-                        self.cache_type_reference_maybe(reference_cache_key, &normalized, types);
-                        normalized
-                    } else {
-                        let ty = Type::Reference {
-                            symbol: target_symbol,
-                            static_arguments,
-                        };
-                        self.cache_type_reference_maybe(reference_cache_key, &ty, types);
-                        ty
-                    }
-                }
+                    tree,
+                    symbols,
+                    types,
+                )?
             }
             _ => {
                 // clone to avoid holding a tree borrow across recursive evaluation
@@ -3351,6 +3356,123 @@ impl Compiler {
         }
 
         Ok(Some(ty))
+    }
+
+    /// Evaluate a reference to a nominal symbol into a Type.
+    fn evaluate_type_reference_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+        static_arguments: Option<Vec<StaticArgument>>,
+        resolve_static_arguments: bool,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Type> {
+        // check cached reference types first
+        let reference_cache_key = self.type_reference_cache_key(
+            target_symbol,
+            static_arguments.as_deref(),
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+            resolve_static_arguments,
+        );
+        let cached_reference = reference_cache_key
+            .and_then(|cache_key| types.get_type_reference_cache(cache_key).cloned());
+        if let Some(cached) = cached_reference {
+            return Ok(cached);
+        }
+
+        // defer static argument resolution when requested
+        if !resolve_static_arguments {
+            let ty = Type::Reference {
+                symbol: target_symbol,
+                static_arguments,
+            };
+            self.cache_type_reference_maybe(reference_cache_key, &ty, types);
+            return Ok(ty);
+        }
+
+        // resolve static arguments against declared bounds
+        let options = self.analyze_context_options_for_module(module.id);
+        let has_explicit_arguments =
+            static_arguments.as_ref().is_some_and(|arguments| !arguments.is_empty());
+        let parameter_symbols = self.collect_static_parameter_symbols(
+            module,
+            target_symbol,
+            profile,
+            tree,
+            symbols,
+        );
+        let parameters_known = parameter_symbols.is_some();
+        let has_parameters = parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
+        let resolved_arguments = if !has_explicit_arguments && parameters_known && !has_parameters
+        {
+            None
+        } else {
+            let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
+            self.resolve_type_reference_static_arguments_for_symbol(
+                module,
+                profile,
+                expression_id.into_any(),
+                target_symbol,
+                static_arguments.as_deref(),
+                validate_static_argument_bounds,
+                &options,
+                tree,
+                symbols,
+                types,
+            )?
+        };
+        let static_arguments = resolved_arguments.or(static_arguments);
+
+        // return errors directly when static arguments failed to resolve
+        let has_error_argument = static_arguments.as_deref().is_some_and(|arguments| {
+            arguments.iter().any(|argument| match argument {
+                StaticArgument::Evaluated {
+                    value: StaticExpression::Type { ty },
+                    ..
+                } => types.get_type(*ty).is_error(),
+                _ => false,
+            })
+        });
+        if has_error_argument {
+            return Ok(Type::Error);
+        }
+
+        // normalize well known references into canonical structural types
+        let normalized = if let Some(well_known) = self.well_known_array_kind(profile, target_symbol)
+        {
+            let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
+            self.normalize_well_known_type_reference(
+                module,
+                symbols,
+                profile,
+                expression_id.into_any(),
+                target_symbol,
+                well_known,
+                static_arguments.as_deref(),
+                types,
+            )
+        } else {
+            None
+        };
+        if let Some(normalized) = normalized {
+            self.cache_type_reference_maybe(reference_cache_key, &normalized, types);
+            return Ok(normalized);
+        }
+
+        // fall back to a nominal reference
+        let ty = Type::Reference {
+            symbol: target_symbol,
+            static_arguments,
+        };
+        self.cache_type_reference_maybe(reference_cache_key, &ty, types);
+        Ok(ty)
     }
 
     /// Evaluate a typeof type expression into a Type.

@@ -42,6 +42,7 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     *source,
                     *target,
+                    *kind,
                     loader_override,
                 )?
                 else {
@@ -69,6 +70,7 @@ impl Compiler {
                     expression_id.into_global_any(module.id),
                     DependencySource::ExportStatement,
                     *target,
+                    *kind,
                     None,
                 )?
                 else {

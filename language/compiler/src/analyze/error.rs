@@ -143,7 +143,7 @@ pub enum AnalyzeError {
     ExportInferenceRequiresAnnotation { node: AnchoredGlobalNodeId },
 
     /// Type only symbols cannot be used as values.
-    #[error(code = "EA117", message = "type only symbol cannot be used as a value")]
+    #[error(code = "EA117", message = "type-only symbol cannot be used as a value")]
     TypeOnlyValue { node: AnchoredGlobalNodeId },
 
     /// Cannot assign to a readonly property.

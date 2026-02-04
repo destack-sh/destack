@@ -429,6 +429,21 @@ impl Resolver {
             {
                 return self.resolve_esm_match(specifier, &resolved, ctx);
             }
+
+            // resolve types entry for type conditions
+            if (subpath.is_empty() || subpath == ".")
+                && self
+                    .options
+                    .conditions
+                    .iter()
+                    .any(|condition| condition == "types")
+                && let Some(types_field) = config.content.types.as_deref()
+            {
+                let types_path = package_url.normalize_with(types_field);
+                if self.is_file(&types_path, ctx) && self.check_restrictions(&types_path) {
+                    return self.resolve_esm_match(specifier, &types_path, ctx);
+                }
+            }
         }
 
         // fallback to browser field
@@ -496,6 +511,23 @@ impl Resolver {
                                 )?
                             {
                                 return Ok(Some(resolved));
+                            }
+
+                            // resolve types entry for type conditions
+                            if subpath == "."
+                                && self
+                                    .options
+                                    .conditions
+                                    .iter()
+                                    .any(|condition| condition == "types")
+                                && let Some(types_field) = config.content.types.as_deref()
+                            {
+                                let types_path = package_path.normalize_with(types_field);
+                                if self.is_file(&types_path, ctx)
+                                    && self.check_restrictions(&types_path)
+                                {
+                                    return Ok(Some(types_path));
+                                }
                             }
 
                             // resolve main field
