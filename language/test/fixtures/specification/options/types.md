@@ -576,6 +576,124 @@ let cast = value as int32;
 { "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": false } }
 ```
 
+## noMustAssertions
+
+### noMustAssertions reports must assertions when true
+
+> Must assertions are rejected when noMustAssertions is true.
+
+```ds:main.ds
+declare const value: string | undefined;
+
+let out = value!;
+out;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noMustAssertions": true } }
+```
+
+- contains: must assertions are disabled
+
+### noMustAssertions allows must assertions when false
+
+> Must assertions are allowed when noMustAssertions is false.
+
+```ds:main.ds
+declare const value: string | undefined;
+
+let out = value!;
+out satisfies string;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noMustAssertions": false } }
+```
+
+## noDefiniteAssignmentAssertions
+
+### noDefiniteAssignmentAssertions reports definite assignment when true
+
+> Definite assignment assertions are rejected when noDefiniteAssignmentAssertions is true.
+
+```ds:main.ds
+class User {
+    name!: string = "";
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noDefiniteAssignmentAssertions": true } }
+```
+
+- contains: definite assignment assertions are disabled
+
+### noDefiniteAssignmentAssertions allows definite assignment when false
+
+> Definite assignment assertions are allowed when noDefiniteAssignmentAssertions is false.
+
+```ds:main.ds
+class User {
+    name!: string = "";
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noDefiniteAssignmentAssertions": false } }
+```
+
+## noCustomTypeGuards
+
+### noCustomTypeGuards reports custom type guards when true
+
+> Custom type guards are rejected when noCustomTypeGuards is true.
+
+```ds:main.ds
+declare function isString(value: unknown): value is string;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noCustomTypeGuards": true } }
+```
+
+- contains: custom type guards are disabled
+
+### noCustomTypeGuards allows custom type guards when false
+
+> Custom type guards are allowed when noCustomTypeGuards is false.
+
+```ds:main.ds
+declare function isString(value: unknown): value is string;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noCustomTypeGuards": false } }
+```
+
 ## noImplicitManaged
 
 ### noImplicitManaged reports implicit managed types in annotations
@@ -599,6 +717,134 @@ let value: Box = new Box();
 ```
 
 - contains: implicit managed types are disabled
+
+## noUnsoundVariance
+
+### noUnsoundVariance reports mutable array covariance
+
+> Mutable array covariance is rejected when noUnsoundVariance is true.
+
+```ds:main.ds
+class Animal {}
+class Dog extends Animal {}
+
+let dogs: Dog[] = [];
+let animals: Animal[] = dogs;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUnsoundVariance": true } }
+```
+
+- contains: unsound variance is disabled
+
+### noUnsoundVariance allows mutable array covariance when false
+
+> Mutable array covariance is allowed when noUnsoundVariance is false.
+
+```ds:main.ds
+class Animal {}
+class Dog extends Animal {}
+
+let dogs: Dog[] = [];
+let animals: Animal[] = dogs;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUnsoundVariance": false } }
+```
+
+## noUnsoundNarrowing
+
+### noUnsoundNarrowing reports instanceof guards
+
+> Instanceof narrowing is rejected when noUnsoundNarrowing is true.
+
+```ds:main.ds
+class Animal {}
+
+let value: unknown = new Animal();
+if (value instanceof Animal) {
+    value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUnsoundNarrowing": true } }
+```
+
+- contains: unsound narrowing is disabled
+
+### noUnsoundNarrowing allows guards when false
+
+> Instanceof narrowing is allowed when noUnsoundNarrowing is false.
+
+```ds:main.ds
+class Animal {}
+
+let value: unknown = new Animal();
+if (value instanceof Animal) {
+    value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noUnsoundNarrowing": false } }
+```
+
+## deepReadonly
+
+### deepReadonly rewrites nested readonly fields when true
+
+> Nested fields become readonly when deepReadonly is true.
+
+```ds:main.ds
+let wrapped: readonly int32[][] = [[1]];
+wrapped[0][0] = 2;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "deepReadonly": true } }
+```
+
+- contains: cannot assign to readonly property
+
+### deepReadonly allows shallow readonly when false
+
+> Nested fields remain mutable when deepReadonly is false.
+
+```ds:main.ds
+let wrapped: readonly int32[][] = [[1]];
+wrapped[0][0] = 2;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "deepReadonly": false } }
+```
 
 ### noImplicitManaged reports implicit managed array types
 

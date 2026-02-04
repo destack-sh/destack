@@ -91,7 +91,7 @@ function unused_param(value: int32): int32 {
 > Unused labels are reported when allowUnusedLabels is false.
 
 ```ds:main.ds
-function unused_label(): int32 {
+function unusedLabel(): int32 {
     outer: loop {
         break;
     }
@@ -114,7 +114,7 @@ function unused_label(): int32 {
 > Unused labels are allowed when allowUnusedLabels is true.
 
 ```ds:main.ds
-function unused_label(): int32 {
+function unusedLabel(): int32 {
     outer: loop {
         break;
     }
@@ -129,6 +129,29 @@ function unused_label(): int32 {
 ```json:dsconfig.json
 { "compilerOptions": { "allowUnusedLabels": true } }
 ```
+
+### allowUnusedLabels warns on unused labels when warn
+
+> Unused labels emit warnings when allowUnusedLabels is warn.
+
+```ds:main.ds
+function unusedLabel_warn(): int32 {
+    outer: loop {
+        break;
+    }
+    return 0;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowUnusedLabels": "warn" } }
+```
+
+- warning: unused label 'outer'
 
 ## allowUnreachableCode
 
@@ -171,6 +194,27 @@ function unreachable(): int32 {
 ```json:dsconfig.json
 { "compilerOptions": { "allowUnreachableCode": true } }
 ```
+
+### allowUnreachableCode warns on unreachable code when warn
+
+> Unreachable statements emit warnings when allowUnreachableCode is warn.
+
+```ds:main.ds
+function unreachableWarn(): int32 {
+    return 1;
+    return 2;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "allowUnreachableCode": "warn" } }
+```
+
+- warning: unreachable code
 
 ## noFallthroughCasesInSwitch
 
