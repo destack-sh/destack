@@ -1851,6 +1851,24 @@ impl Compiler {
             }
         }
 
+        // validate rest targets
+        if !module.language_type.is_destack() {
+            for field_id in fields {
+                let PatternField::Spread { pattern, .. } = tree.get(*field_id) else {
+                    continue;
+                };
+                let is_identifier = pattern.is_some_and(|pattern_id| {
+                    matches!(tree.get(pattern_id), Pattern::Binding { pattern: None, .. })
+                });
+                if !is_identifier {
+                    let node = field_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::ObjectPatternRestNotIdentifier { node });
+                }
+            }
+        }
+
         // spread must be the last field
         if let Some(index) = spread_index
             && index + 1 < fields.len()
