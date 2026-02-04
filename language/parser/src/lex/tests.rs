@@ -182,6 +182,34 @@ fn test_lex_comments() {
 }
 
 #[test]
+fn test_lex_tsx_tree_after_type_alias() {
+    let src = "type X = typeof Array\n<div>a</div>";
+    let file_id = FileId::new(0);
+    let (semantic_tokens, _, _) = Lexer::lex(file_id, src, LanguageType::TypeScriptXml);
+    let tokens: Vec<_> = semantic_tokens
+        .iter()
+        .map(|token| (token.token.ty, token.token.literal))
+        .collect();
+    let expected = [
+        (TokenType::LessThan, None),
+        (TokenType::Identifier, None),
+        (TokenType::GreaterThan, None),
+        (TokenType::Literal, Some(LiteralType::TreeString)),
+        (TokenType::LessThan, None),
+        (TokenType::Divide, None),
+        (TokenType::Identifier, None),
+        (TokenType::GreaterThan, None),
+    ];
+    let has_tree_span = tokens
+        .windows(expected.len())
+        .any(|window| window == expected);
+    assert!(
+        has_tree_span,
+        "expected tree literal tokens after type alias"
+    );
+}
+
+#[test]
 fn test_lex_characters() {
     assert_tokenize_eq_roundtrip!(
         "'a' ' ' '\\n'",

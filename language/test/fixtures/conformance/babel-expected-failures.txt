@@ -38,3 +38,5 @@ typescript/exponentiation/unary-non-null-before-exponential
 # allow namespace declarations without `declare` prefix (we're a bit more permissive)
 typescript/module-namespace/module-declare-new-line
 typescript/module-namespace/namespace-declare-new-line
+
+# flow style type parameters in jsx js files are unsupported

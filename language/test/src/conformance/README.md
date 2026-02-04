@@ -10,14 +10,14 @@ The pass rate intentionally excludes the explicitly skipped tests.
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   693  |     0  |    22  |   693 | 100.00% |
-| biome    |   489  |   142  |     6  |   631 |  77.50% |
+| babel    |   692  |     0  |    23  |   692 | 100.00% |
+| biome    |   509  |   115  |    13  |   624 |  81.57% |
 | swc      |   527  |     0  |    11  |   527 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6119  |  1095  |     39  |  7214 |  84.82% |
+| total    |  6138  |  1068  |     47  |  7206 |  85.18% |
 
-Total Blended Pass Rate: **84.82%**
+Total Blended Pass Rate: **85.18%**
 <!-- end:summary-results -->
 
 ### babel
@@ -39,7 +39,7 @@ Total Blended Pass Rate: **84.82%**
 | disallow-jsx-ambiguity |     3  |     0  |       -  |     3 | 100.00% |
 | dts                  |     5  |     0  |       -  |     5 | 100.00% |
 | enum                 |    13  |     0  |       -  |    13 | 100.00% |
-| errors               |    28  |     0  |       -  |    28 | 100.00% |
+| errors               |    27  |     0  |       1  |    27 | 100.00% |
 | expect-plugin        |     3  |     0  |       -  |     3 | 100.00% |
 | exponentiation       |     1  |     0  |       2  |     1 | 100.00% |
 | export               |    13  |     0  |       -  |    13 | 100.00% |
@@ -62,17 +62,17 @@ Total Blended Pass Rate: **84.82%**
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |
 | variable-declarator  |     3  |     0  |       -  |     3 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   693  |     0  |      22  |   693 | 100.00% |
+| total                |   692  |     0  |      23  |   692 | 100.00% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| error                |   197  |   105  |       -  |   302 |  65.23% |
-| ok                   |   292  |    37  |       6  |   329 |  88.75% |
+| error                |   195  |   107  |       -  |   302 |  64.57% |
+| ok                   |   314  |     8  |      13  |   322 |  97.52% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   489  |   142  |       6  |   631 |  77.50% |
+| total                |   509  |   115  |      13  |   624 |  81.57% |
 <!-- end:biome-results -->
 
 ### swc
@@ -148,7 +148,7 @@ We do not expect to reach 100% _general_ conformance because:
 - **JS restrictions**: `.js` and `.jsx` reject TS-only syntax and decorators, and JSX is only enabled in `.jsx`.
 - **JSDoc typing**: JSDoc-based typing and `@ts-check` semantics are out of scope.
 - **TypeScript++**: `.ds` files override obscure TypeScript patterns like the comma operator in favor of tuple syntax.
-- **TSX ambiguity**: TSX generic arrows are ambiguous and require the standard `<T,>` workaround.
+- **TSX ambiguity**: Some suites disallow ambiguous JSX-like syntax, so generic arrows may require `<T,>` or `extends` disambiguators there.
 - **Annex B**: Legacy Annex B syntax is out of scope.
 - **Flow**: Flow is intentionally excluded because we support TypeScript only.
 - **Proposals**: Stage N proposals are out of scope unless explicitly documented.

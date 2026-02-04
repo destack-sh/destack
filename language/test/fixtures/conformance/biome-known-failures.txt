@@ -25,6 +25,7 @@ error/eval_arguments_assignment.js
 error/exponent_unary_unparenthesized.js
 error/export_as_identifier_err.js
 error/export_decl_not_top_level.js
+error/export_default_expression_clause_err.js
 error/for_of_async_identifier.js
 error/function_in_single_statement_context_strict.js
 error/getter_class_no_body.js
@@ -42,6 +43,7 @@ error/jsx_namespace_member_element_name.jsx
 error/labelled_function_decl_in_single_statement_context.js
 error/labelled_function_declaration_strict_mode.js
 error/lexical_declaration_in_single_statement_context.js
+error/literals.js
 error/multiple_default_exports_err.js
 error/new_exprs.js
 error/object_expr_non_ident_literal_prop.js
@@ -104,17 +106,10 @@ error/unary_delete_parenthesized.js
 error/unterminated_unicode_codepoint.js
 error/using_declaration_not_allowed_in_for_in_statement.js
 ok/decorator.ts
-ok/decorator_class_member.ts
+ok/decorator_export_class_clause.js
 ok/decorator_export_default_top_level_3.ts
 ok/decorator_export_default_top_level_5.ts
+ok/decorator_export_top_level.js
 ok/jsx_children_expression.jsx
-ok/jsx_closing_token_trivia.jsx
-ok/jsx_element_attribute_element.jsx
-ok/jsx_element_attributes.jsx
-ok/jsx_fragments.jsx
-ok/literals.js
 ok/ts_arrow_exrp_in_alternate.ts
-ok/ts_instantiation_expressions_new_line.ts
 ok/ts_satisfies_assignment.ts
-ok/ts_typeof_type2.tsx
-ok/tsx_type_arguments.tsx
