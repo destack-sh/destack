@@ -182,6 +182,11 @@ impl Parser {
             }
         };
 
+        // (allow newlines after get/set)
+        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) {
+            self.eat_newlines_maybe()?;
+        }
+
         // generator
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
 
@@ -244,7 +249,8 @@ impl Parser {
         let is_method = is_async
             || is_generator
             || self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis);
+            || self.peek_is(TokenType::OpenParenthesis)
+            || matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter));
 
         // modifiers without a key or call signature are invalid
         if key.is_none() && modifiers.is_some() && !is_method {
@@ -744,6 +750,10 @@ impl Parser {
                 None
             }
         };
+        // (allow newlines after get/set)
+        if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) {
+            self.eat_newlines_maybe()?;
+        }
 
         // generator
         let is_generator = self.eat_token_maybe(TokenType::Multiply)?;
@@ -810,7 +820,8 @@ impl Parser {
         let is_method = is_async
             || is_generator
             || self.peek_is(TokenType::LessThan)
-            || self.peek_is(TokenType::OpenParenthesis);
+            || self.peek_is(TokenType::OpenParenthesis)
+            || matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter));
 
         // getters and setters require method syntax
         if matches!(mode, Some(FunctionMode::Getter | FunctionMode::Setter)) && !is_method {
@@ -1129,6 +1140,62 @@ mod tests {
             assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
             assert_eq!(signature.asynchrony, Asynchrony::Async);
         });
+    }
+
+    #[test]
+    fn test_parse_interface_get_set_with_newlines() {
+        let mut test = TestParser::new_with_options(
+            r#"interface Foo {
+  get
+  foo(): string;
+  set
+  bar(v);
+}"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert!(
+            parser.errors.is_empty(),
+            "unexpected parse errors: {:#?}",
+            parser.errors
+        );
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {
+                let mut getter: Option<Key> = None;
+                let mut setter: Option<Key> = None;
+                for member_id in members {
+                    if let Member::Method { signature, key, .. } = parser.tree.get(*member_id) {
+                        match signature.mode {
+                            Some(FunctionMode::Getter) => getter = *key,
+                            Some(FunctionMode::Setter) => setter = *key,
+                            _ => {}
+                        }
+                    }
+                }
+                let getter = getter.expect("expected getter member");
+                let setter = setter.expect("expected setter member");
+                assert!(matches!(getter, Key::Name(Name::Identifier(_))));
+                assert!(matches!(setter, Key::Name(Name::Identifier(_))));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_member_get_set_newline_only() {
+        let mut test = TestParser::new_with_options(
+            r#"get
+foo(): string;"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let member = parser.with_options(parser.options.in_variant(), |parser| parser.eat_member());
+        assert!(
+            member.is_ok(),
+            "unexpected member parse error: {:#?}",
+            member.err()
+        );
     }
 
     #[test]
