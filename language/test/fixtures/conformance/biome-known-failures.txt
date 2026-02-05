@@ -104,9 +104,3 @@ error/unary_delete.js
 error/unary_delete_parenthesized.js
 error/unterminated_unicode_codepoint.js
 error/using_declaration_not_allowed_in_for_in_statement.js
-ok/decorator.ts
-ok/decorator_export_class_clause.js
-ok/decorator_export_top_level.js
-ok/jsx_children_expression.jsx
-ok/ts_arrow_exrp_in_alternate.ts
-ok/ts_satisfies_assignment.ts

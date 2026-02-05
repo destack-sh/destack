@@ -20,3 +20,7 @@ typescript/custom/issue-401-const-assertion-literal-ts/input.ts
 typescript/custom/issue-401-const-assertion-object-ts/input.ts
 typescript/deno/dso/reflect/input.ts
 typescript/issue-11142/input.ts
+
+# variance modifiers are validated like Babel/TSC, SWC suite does not expect errors here
+typescript/variance-annotations/1/input.ts
+typescript/variance-annotations/with_jsx/input.tsx

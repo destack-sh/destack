@@ -1,12 +1,31 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     BindingKind, BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability,
-    NodeTree, NodeType, Parameter, Property,
+    NodeTree, NodeType, Parameter, Property, SymbolSpace, SymbolTable,
 };
 use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::collapsible_match)]
 impl Compiler {
+    /// Return true when variance is allowed for this parameter.
+    fn is_parameter_variable(
+        &self,
+        tree: &NodeTree,
+        parameter_id: LocalNodeId<Parameter>,
+    ) -> bool {
+        let Some(parent) = tree.get_parent(parameter_id.id) else {
+            return false;
+        };
+        if parent.ty != NodeType::Declaration {
+            return false;
+        }
+        let declaration = tree.get(parent.into_typed::<Declaration>());
+        matches!(
+            declaration,
+            Declaration::Class { .. } | Declaration::Interface { .. } | Declaration::Type { .. }
+        )
+    }
+
     /// Check whether a binding modifier indicates a parameter property.
     fn is_parameter_property(&self, modifiers: &BindingModifier) -> bool {
         modifiers.visibility.is_some() || modifiers.mutability == Some(Mutability::Immutable)
@@ -55,6 +74,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         id: LocalNodeId<Parameter>,
         parameter: &Parameter,
     ) {
@@ -93,6 +113,27 @@ impl Compiler {
                         self.error(AnalyzeError::InvalidOptionalRestParameter { node });
                     }
                     Parameter::Named { .. } => {}
+                }
+            }
+        }
+
+        // variance modifiers are restricted
+        if let Some(modifiers) = modifiers
+            && (modifiers.variance.is_some() || modifiers.visibility.is_some())
+        {
+            let symbol = symbols.get_symbol(parameter.symbol());
+            let is_type_parameter = symbol.space == SymbolSpace::Type;
+
+            if modifiers.visibility.is_some() && is_type_parameter {
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                self.error(AnalyzeError::InvalidTypeParameterModifier { node });
+            }
+
+            if modifiers.variance.is_some() {
+                let is_allowed = is_type_parameter && self.is_parameter_variable(tree, id);
+                if !is_allowed {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidTypeParameterModifier { node });
                 }
             }
         }

@@ -148,7 +148,7 @@ impl Compiler {
                     if !self.is_node_active(&tree, &symbols, id.into_any()) {
                         continue;
                     }
-                    self.validate_parameter(&module, profile, &tree, id, parameter);
+                    self.validate_parameter(&module, profile, &tree, &symbols, id, parameter);
                 }
 
                 // validate members
