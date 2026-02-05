@@ -348,3 +348,58 @@ const message = greeting + "!";
 ```query inline target
 <none>
 ```
+
+## Call Arguments
+
+### Inlines references in call arguments
+
+Inline should replace references used in positional call arguments.
+
+```ds:main.ds
+const width = 10;
+//    ^^^^^ target
+
+render(width);
+```
+
+```query inline target
+```
+
+```expected:main.ds
+render(10);
+```
+
+## Destructuring Aliases
+
+### Inlines aliased object destructuring bindings
+
+Inline should resolve aliased object destructuring bindings to property access.
+
+```ds:main.ds
+const { value: amount } = entry;
+//             ^^^^^^ target
+const total = amount + 1;
+```
+
+```query inline target
+```
+
+```expected:main.ds
+const total = entry.value + 1;
+```
+
+## Multi Binding Destructuring
+
+### Skips inline for multi-binding destructuring patterns
+
+Inline should return no edits for destructuring declarations with multiple bindings.
+
+```ds:main.ds
+const { left, right } = point;
+//      ^^^^ target
+const total = left + right;
+```
+
+```query inline target
+<none>
+```
