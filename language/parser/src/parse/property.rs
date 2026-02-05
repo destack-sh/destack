@@ -341,6 +341,11 @@ impl Parser {
                 None
             };
 
+            // methods without bodies must end at a member boundary
+            if body.is_none() && !self.is_any_stop() && !self.peek_is(TokenType::CloseBrace) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             // split out explicit this parameter
             let (this_parameter, dynamic_parameters) =
                 self.split_this_parameter_maybe(dynamic_parameters);
@@ -912,6 +917,11 @@ impl Parser {
                 None
             };
 
+            // methods without bodies must end at a member boundary
+            if body.is_none() && !self.is_any_stop() && !self.peek_is(TokenType::CloseBrace) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             // split out explicit this parameter
             let (this_parameter, dynamic_parameters) =
                 self.split_this_parameter_maybe(dynamic_parameters);
@@ -1150,6 +1160,15 @@ mod tests {
             assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
             assert_eq!(signature.asynchrony, Asynchrony::Async);
         });
+    }
+
+    #[test]
+    fn test_reject_member_method_signature_without_separator() {
+        let mut test = TestParser::new_with_options("method() method2()", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        let result = parser.eat_member();
+        assert!(result.is_err());
     }
 
     #[test]

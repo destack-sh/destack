@@ -74,10 +74,10 @@ impl Parser {
             self.options
         };
 
-        let expressions = if self
+        let has_body = self
             .peek_token_after_newlines(self.pos().saturating_sub(1), TokenType::OpenBrace)
-            .is_ok()
-        {
+            .is_ok();
+        let expressions = if has_body {
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions = self
@@ -92,7 +92,22 @@ impl Parser {
             vec![]
         };
 
-        // build nested namespaces from dot-separated names
+        // reject missing bodies for identifier modules
+        if is_module
+            && !has_body
+            && names
+                .first()
+                .is_some_and(|(name, _)| !matches!(name, Name::String(_)))
+        {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // require a statement boundary after external module declarations
+        if !has_body && !self.is_statement_stop() && !self.peek_is(TokenType::CloseBrace) {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        }
+
+        // build nested namespaces from dot separated names
         let mut nested_expressions = expressions;
         let mut namespace_id = None;
         let base_descriptor = descriptor;
@@ -401,6 +416,14 @@ module "foo" {
                 });
             });
         });
+    }
+
+    #[test]
+    fn test_reject_identifier_module_without_body_in_destack() {
+        let mut test = TestParser::new_with_options("module Foo;", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let result = parser.eat_expression();
+        assert!(result.is_err());
     }
 
     #[test]

@@ -1,9 +1,9 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration,
-    DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionMode,
-    FunctionSignature, LocalNodeId, LocalNodeIdAny, Member, Mutability, NodeTree, NodeType,
-    Parameter,
+    DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionCardinality,
+    FunctionMode, FunctionSignature, LocalNodeId, LocalNodeIdAny, Member, Mutability, NodeTree,
+    NodeType, Parameter,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -71,6 +71,8 @@ impl Compiler {
                     Some(FunctionMode::Getter | FunctionMode::Setter)
                 );
                 let is_private_key = matches!(key, Some(DynamicKey::Private(_)));
+                let is_generator_signature_without_body =
+                    signature.cardinality == FunctionCardinality::Generator && body.is_none();
 
                 // reject typescript-only method syntax in javascript modules
                 if is_javascript {
@@ -183,8 +185,28 @@ impl Compiler {
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
+                    // ambient method signatures cannot use async
+                    if (is_declare_class || is_declare_member)
+                        && signature.asynchrony == Asynchrony::Async
+                    {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // declare members cannot use private keys
+                    if is_declare_member && is_private_key {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
                     // declare members cannot have bodies
                     if (is_declare_class || is_declare_member) && body.is_some() {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // method signatures cannot be generators
+                    if is_generator_signature_without_body {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
@@ -217,6 +239,12 @@ impl Compiler {
                 if is_interface {
                     // interface methods cannot have bodies
                     if body.is_some() {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // interface method signatures cannot be generators
+                    if is_generator_signature_without_body {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
@@ -329,6 +357,12 @@ impl Compiler {
 
                     // auto accessor constraints
                     if has_accessor && (has_kind || is_readonly || has_abstraction) {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // declare members cannot use private keys
+                    if is_declare_member && is_private_key {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }

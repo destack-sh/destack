@@ -2,9 +2,9 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
-    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, Expression,
-    FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
-    Generics, Keyword, LocalNodeId, NodeType, Parameter, TokenType,
+    Asynchrony, Declaration, DeclarationAbstraction, DeclarationDescriptor, DependencyMode,
+    Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
+    FunctionSignature, Generics, Keyword, LocalNodeId, NodeType, Parameter, TokenType,
 };
 use destack_source::NodeSpanType;
 
@@ -155,6 +155,18 @@ impl Parser {
         };
         descriptor = descriptor.with_name_maybe(name);
 
+        // declarations in statement position require a name unless default-exported
+        if kind == FunctionKind::Function
+            && self.options.in_statement_position
+            && descriptor.name.is_none()
+            && descriptor.export != Some(DependencyMode::Default)
+        {
+            return Err(ParseError::expected(
+                self.peek()?.span,
+                TokenType::Identifier,
+            ));
+        }
+
         // dynamic parameters
         let dynamic_parameters = {
             // regular `(...) => ...` function/lambda
@@ -299,26 +311,29 @@ impl Parser {
             {
                 self.eat_arrow()?;
                 self.eat_newlines_maybe()?;
-                let mut options = self
-                    .options
-                    .in_statement_position()
-                    .in_before_block()
-                    .with_generator(is_generator);
-                // avoid swallowing commas from surrounding contexts
-                options.allow_sequence_expression = false;
                 let body_start = self.mark();
-                let body = self.with_options(options, |parser| {
-                    if parser.peek_block().is_ok() {
+                let body = if self.peek_block().is_ok() {
+                    let mut options = self
+                        .options
+                        .in_statement_position()
+                        .in_before_block()
+                        .with_generator(is_generator);
+                    // avoid swallowing commas from surrounding contexts
+                    options.allow_sequence_expression = false;
+                    self.with_options(options, |parser| {
                         let block_id = parser.eat_block()?;
                         let body = parser.tree.insert(
                             Expression::Block(block_id),
                             parser.get_span_from(&body_start),
                         );
                         Ok(body)
-                    } else {
-                        parser.eat_expression()
-                    }
-                })?;
+                    })?
+                } else {
+                    let mut options = self.options.in_before_block().with_generator(is_generator);
+                    // avoid swallowing commas from surrounding contexts
+                    options.allow_sequence_expression = false;
+                    self.with_options(options, |parser| parser.eat_expression())?
+                };
                 Some(body)
             }
             // no body
@@ -473,6 +488,26 @@ mod tests {
                     });
                 });
             });
+        });
+    }
+
+    /// Parse an arrow function with an explicit this parameter.
+    #[test]
+    fn test_parse_arrow_function_with_this_parameter() {
+        let mut test =
+            TestParser::new_with_options("(this: string) => {}", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let start = parser.mark();
+        let function_id = parser
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
+            .unwrap();
+
+        // (this: string) => {}
+        assert_node!(parser.tree, function_id, Declaration::Function { signature, body, .. } => {
+            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert!(signature.this_parameter.is_some());
+            assert!(signature.dynamic_parameters.is_empty());
+            assert!(body.is_some());
         });
     }
 
