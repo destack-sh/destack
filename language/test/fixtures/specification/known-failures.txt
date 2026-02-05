@@ -11,15 +11,7 @@ destack_test::specification::declarations/classes/members.md/accessors/accessors
 destack_test::specification::declarations/functions/invocation.md/strictbindcallapply/non-strict-call-allows-mismatched-this
 destack_test::specification::declarations/functions/parameters.md/dynamic-parameters/tuple-rest-parameters-infer-element-types
 destack_test::specification::declarations/interfaces/nominal.md/assignment/nominal-interface-requires-explicit-implements
-destack_test::specification::declarations/reflection/descriptors/descriptor.md/type-as-value/descriptor-descriptions-are-optional
-destack_test::specification::declarations/reflection/descriptors/descriptor.md/type-as-value/type-as-value-yields-descriptor
-destack_test::specification::declarations/reflection/descriptors/descriptor.md/type-as-value/type-descriptor-exposes-base-members
-destack_test::specification::declarations/reflection/descriptors/descriptor.md/type-as-value/type-descriptor-narrows-by-kind
-destack_test::specification::declarations/reflection/values.md/type-descriptors/type-name-yields-a-descriptor-value
-destack_test::specification::declarations/reflection/values.md/type-guards/t-is-narrows-a-union
 destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
-destack_test::specification::options/lints.md/noimplicitreturns/noimplicitreturns-allows-missing-return-when-false
-destack_test::specification::options/lints.md/noimplicitreturns/noimplicitreturns-reports-missing-return-when-true
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-throw-when-true
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-try-catch-when-true
 destack_test::specification::options/strict.md/strictbindcallapply/strictbindcallapply-allows-invalid-call-arguments-when-false
@@ -33,4 +25,3 @@ destack_test::specification::types/operators/import.md/import-type-queries/impor
 destack_test::specification::types/operators/import.md/import-type-queries/import-type-rejects-missing-members
 destack_test::specification::types/ownership/borrows.md/borrow-modes/hint-mode-emits-warnings-for-conflicts
 destack_test::specification::types/ownership/borrows.md/borrow-modes/strict-mode-reports-conflicts-as-errors
-destack_test::specification::types/structs/identity.md/loose-equality/struct-allows-value-equality

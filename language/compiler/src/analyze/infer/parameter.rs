@@ -100,9 +100,7 @@ impl Compiler {
         symbols: &SymbolTable,
     ) -> Option<VarianceModifier> {
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let Some(primary) = symbol_entry.primary_declaration else {
-            return None;
-        };
+        let primary = symbol_entry.primary_declaration?;
         let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
             return None;
         };

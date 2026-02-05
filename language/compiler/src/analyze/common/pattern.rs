@@ -174,9 +174,7 @@ impl Compiler {
                 // emit literal union elements
                 let mut elements = Vec::with_capacity(count as usize);
                 for value in start_value..=end_value {
-                    let Some(character) = char::from_u32(value) else {
-                        return None;
-                    };
+                    let character = char::from_u32(value)?;
                     let literal = ScalarLiteral::Character(character);
                     elements.push(types.insert_type_from_any(
                         Type::TypeLiteral {

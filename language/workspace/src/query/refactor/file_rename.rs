@@ -241,10 +241,10 @@ fn resolve_rename_target_module_id(
     kind: ast::DependencyKind,
 ) -> Option<ModuleId> {
     // prefer resolved dir targets when available
-    if let Some(target_module) = dir_targets.get(&ast_node_id) {
-        if let dir::ModuleTarget::Module(module_id) = target_module {
-            return Some(*module_id);
-        }
+    if let Some(target_module) = dir_targets.get(&ast_node_id)
+        && let dir::ModuleTarget::Module(module_id) = target_module
+    {
+        return Some(*module_id);
     }
 
     // check the dir import cache for resolved modules

@@ -80,6 +80,7 @@ struct PatternAnalysisContext<'a> {
     types: &'a mut TypeTable,
 }
 
+#[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
 impl<'a> PatternAnalysis<'a> {
     /// Create a new pattern analysis helper.
     fn new(compiler: &'a Compiler) -> Self {
@@ -95,6 +96,7 @@ impl<'a> Deref for PatternAnalysis<'a> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> PatternAnalysisContext<'a> {
     /// Create a new pattern analysis context.
     fn new(
@@ -413,6 +415,7 @@ impl<'a> PatternAnalysisContext<'a> {
     }
 }
 
+#[allow(clippy::too_many_arguments, clippy::only_used_in_recursion)]
 impl<'a> PatternAnalysis<'a> {
     /// Validate a single pattern node.
     pub(super) fn validate_pattern(
@@ -982,8 +985,8 @@ impl<'a> PatternAnalysis<'a> {
                     if field_ty.is_optional {
                         return false;
                     }
-                    if let Some(inner) = pattern {
-                        if !self.is_irrefutable_pattern_for_type_inner(
+                    if let Some(inner) = pattern
+                        && !self.is_irrefutable_pattern_for_type_inner(
                             module,
                             profile,
                             *inner,
@@ -992,9 +995,9 @@ impl<'a> PatternAnalysis<'a> {
                             symbols,
                             types,
                             visited,
-                        ) {
-                            return false;
-                        }
+                        )
+                    {
+                        return false;
                     }
                 }
                 PatternField::Alias { name, .. } => {
@@ -1022,8 +1025,8 @@ impl<'a> PatternAnalysis<'a> {
                     if field_ty.is_optional {
                         return false;
                     }
-                    if let Some(inner) = pattern {
-                        if !self.is_irrefutable_pattern_for_type_inner(
+                    if let Some(inner) = pattern
+                        && !self.is_irrefutable_pattern_for_type_inner(
                             module,
                             profile,
                             *inner,
@@ -1032,9 +1035,9 @@ impl<'a> PatternAnalysis<'a> {
                             symbols,
                             types,
                             visited,
-                        ) {
-                            return false;
-                        }
+                        )
+                    {
+                        return false;
                     }
                 }
                 PatternField::Positional { .. } | PatternField::Elision => {
@@ -1108,13 +1111,11 @@ impl<'a> PatternAnalysis<'a> {
         // prefer static evaluation for fixed array sizes
         if let Ok(Some(static_value)) = self
             .evaluate_static_expression_value(module, profile, count, tree, symbols, types, None)
-        {
-            if let StaticExpression::ScalarLiteral {
+            && let StaticExpression::ScalarLiteral {
                 value: ScalarLiteral::Integer(value),
             } = static_value
-            {
-                return usize::try_from(value).ok();
-            }
+        {
+            return usize::try_from(value).ok();
         }
 
         // fall back to inferred literal types when static evaluation is missing
@@ -1372,14 +1373,10 @@ impl<'a> PatternAnalysis<'a> {
                     }
                     return self.discriminant_union_values_for_type(instance_id, types);
                 }
-                return None;
+                None
             }
-            Type::Value { value } => {
-                return self.discriminant_union_values_for_type(*value, types);
-            }
+            Type::Value { value } => self.discriminant_union_values_for_type(*value, types),
             Type::Union { elements } => {
-                // continue below
-                let elements = elements;
                 // collect discriminant maps for each union element
                 let mut maps = Vec::with_capacity(elements.len());
                 for element_id in elements {
@@ -1387,16 +1384,12 @@ impl<'a> PatternAnalysis<'a> {
                     maps.push(map);
                 }
 
-                let Some((first, rest)) = maps.split_first() else {
-                    return None;
-                };
+                let (first, rest) = maps.split_first()?;
 
                 // pick the first key shared by every element
                 let mut candidate_keys: Vec<StaticKey> = first.keys().copied().collect();
                 candidate_keys.retain(|key| rest.iter().all(|map| map.contains_key(key)));
-                let Some(discriminant_key) = candidate_keys.into_iter().next() else {
-                    return None;
-                };
+                let discriminant_key = candidate_keys.into_iter().next()?;
 
                 let mut values = HashSet::new();
                 for map in maps {
@@ -1411,9 +1404,9 @@ impl<'a> PatternAnalysis<'a> {
                     return None;
                 }
 
-                return Some((discriminant_key, values));
+                Some((discriminant_key, values))
             }
-            _ => return None,
+            _ => None,
         }
     }
 
@@ -1542,9 +1535,7 @@ impl<'a> PatternAnalysis<'a> {
                         tree,
                         symbols,
                     );
-                    let Some(coverage) = coverage else {
-                        return None;
-                    };
+                    let coverage = coverage?;
                     match coverage {
                         MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
                         MatchPatternCoverage::Values(fields) => {
@@ -1625,12 +1616,8 @@ impl<'a> PatternAnalysis<'a> {
                 is_inclusive,
             } => {
                 // filter literal values that fall within the range
-                let Some(start_id) = *start else {
-                    return None;
-                };
-                let Some(end_id) = *end else {
-                    return None;
-                };
+                let start_id = (*start)?;
+                let end_id = (*end)?;
                 let start_literal = self.match_literal_from_pattern(start_id, tree)?;
                 let end_literal = self.match_literal_from_pattern(end_id, tree)?;
                 let literals = self.match_literals_in_range(
@@ -1777,9 +1764,7 @@ impl<'a> PatternAnalysis<'a> {
             }
         }
 
-        let Some(field_id) = matching_field else {
-            return None;
-        };
+        let field_id = matching_field?;
 
         // resolve the literal from the field pattern
         match tree.get(field_id) {
@@ -2144,6 +2129,7 @@ impl<'a> PatternAnalysis<'a> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Validate a single pattern node.
     pub(super) fn validate_pattern(

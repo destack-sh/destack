@@ -282,6 +282,21 @@ impl Compiler {
             return;
         }
 
+        // report fallthrough type mismatch
+        if let Some(body_ty_id) =
+            types.get_declared_or_inferred_type_id(body_id.into_global_any(module.id))
+            && !matches!(types.get_type(body_ty_id), Type::Error)
+        {
+            self.error(AnalyzeError::UnassignableType {
+                node: body_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                expected_ty: return_ty_id.into_global(module.id),
+                actual_ty: body_ty_id.into_global(module.id),
+            });
+        }
+
+        // report missing return
         self.error(AnalyzeError::MissingReturn {
             node: body_id
                 .into_global_any(module.id)

@@ -1186,8 +1186,7 @@ impl Compiler {
             end,
             is_inclusive,
         } = tree.get(pattern_id)
-        {
-            if let Some((true_environment, false_environment)) = self
+            && let Some((true_environment, false_environment)) = self
                 .narrow_environment_for_range_pattern(
                     module,
                     context.profile,
@@ -1203,9 +1202,8 @@ impl Compiler {
                     environment,
                     &context.options,
                 )
-            {
-                return Ok((true_environment, false_environment));
-            }
+        {
+            return Ok((true_environment, false_environment));
         }
 
         let Some(target_type_id) = self.pattern_guard_target_type(
