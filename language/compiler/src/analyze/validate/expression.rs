@@ -36,55 +36,19 @@ impl Compiler {
             }
             Expression::Match {
                 kind, value, cases, ..
-            } => match kind {
-                MatchKind::Switch => {
-                    for case_id in cases {
-                        let (selector, case_span_id) = match tree.get(*case_id) {
-                            MatchCase::Expression { selector, .. }
-                            | MatchCase::Block { selector, .. } => (selector, *case_id),
-                        };
-                        if let MatchSelector::Pattern { pattern, guard } = selector {
-                            if guard.is_some() {
-                                self.error(AnalyzeError::InvalidSwitchCaseGuard {
-                                    node: case_span_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
-                            match tree.get(*pattern) {
-                                Pattern::Expression { value } => {
-                                    if self.is_invalid_switch_case_expression(tree, *value) {
-                                        self.error(AnalyzeError::InvalidSwitchCasePattern {
-                                            node: pattern
-                                                .into_global_any(module.id)
-                                                .into_anchored(Some(profile)),
-                                        });
-                                    }
-                                }
-                                _ => {
-                                    self.error(AnalyzeError::InvalidSwitchCasePattern {
-                                        node: pattern
-                                            .into_global_any(module.id)
-                                            .into_anchored(Some(profile)),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                MatchKind::Match => {
-                    self.validate_match_exhaustiveness(
-                        module,
-                        profile,
-                        tree,
-                        symbols,
-                        types,
-                        expression_id,
-                        *value,
-                        cases,
-                    );
-                }
-            },
+            } => {
+                self.validate_match_expression(
+                    module,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    expression_id,
+                    *kind,
+                    *value,
+                    cases,
+                );
+            }
             Expression::Must { .. } => {
                 self.validate_must_assertion(module, profile, tree, expression_id);
             }
@@ -243,6 +207,76 @@ impl Compiler {
             }
             _ => {}
         }
+    }
+
+    /// Validate a match or switch expression.
+    fn validate_match_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        kind: MatchKind,
+        value: LocalNodeId<Expression>,
+        cases: &[LocalNodeId<MatchCase>],
+    ) {
+        // switch cases require expressions without guards
+        if kind == MatchKind::Switch {
+            for case_id in cases {
+                let (selector, case_span_id) = match tree.get(*case_id) {
+                    MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
+                        (selector, *case_id)
+                    }
+                };
+
+                if let MatchSelector::Pattern { pattern, guard } = selector {
+                    // reject guarded switch cases
+                    if guard.is_some() {
+                        self.error(AnalyzeError::InvalidSwitchCaseGuard {
+                            node: case_span_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+
+                    // reject non expression switch cases
+                    match tree.get(*pattern) {
+                        Pattern::Expression { value } => {
+                            if self.is_invalid_switch_case_expression(tree, *value) {
+                                self.error(AnalyzeError::InvalidSwitchCasePattern {
+                                    node: pattern
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
+                                });
+                            }
+                        }
+                        _ => {
+                            self.error(AnalyzeError::InvalidSwitchCasePattern {
+                                node: pattern
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                            });
+                        }
+                    }
+                }
+            }
+
+            return;
+        }
+
+        // match expressions require exhaustiveness checks
+        self.validate_match_exhaustiveness(
+            module,
+            profile,
+            tree,
+            symbols,
+            types,
+            expression_id,
+            value,
+            cases,
+        );
     }
 
     /// Validate must assertion usage.
