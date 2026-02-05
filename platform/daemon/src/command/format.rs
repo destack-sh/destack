@@ -271,6 +271,7 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: &Arc<Progr
     program.diagnostics.merge_from(&parser.diagnostics);
 
     let side_span = parser.compute_side_span();
+    let (tokens, side_tokens) = parser.take_tokens();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
@@ -283,8 +284,8 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: &Arc<Progr
         tree: &parser.tree,
         source_map: &parser.tree.source_map,
         parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
+        tokens: &tokens,
+        side_tokens: &side_tokens,
         side_span: &side_span,
         strings: &strings,
         current_argument_group_id: None,

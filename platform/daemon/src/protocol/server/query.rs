@@ -617,6 +617,74 @@ impl ProtocolServer {
 
                     query::QueryResponse::RenameFiles(query::RenameFilesResponse { result })
                 }
+                query::QueryRequest::ExtractFunction(params) => {
+                    // resolve the file id
+                    let file_id = self.resolve_file_id(program, &params.uri);
+
+                    // compute extract function when available
+                    let result = match file_id {
+                        Some(file_id) => {
+                            let file_id = self.ensure_query_context(
+                                program,
+                                file_id,
+                                &params.uri,
+                                allow_stale,
+                            )?;
+                            let selection =
+                                self.span_for_offsets(file_id, params.start, params.end);
+                            query::extract_function(session, file_id, selection, &params.new_name)
+                        }
+                        None => None,
+                    };
+
+                    query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { result })
+                }
+                query::QueryRequest::Inline(params) => {
+                    // resolve the file id
+                    let file_id = self.resolve_file_id(program, &params.uri);
+
+                    // compute inline when available
+                    let result = match file_id {
+                        Some(file_id) => {
+                            let file_id = self.ensure_query_context(
+                                program,
+                                file_id,
+                                &params.uri,
+                                allow_stale,
+                            )?;
+                            query::inline_symbol(session, file_id, params.offset)
+                        }
+                        None => None,
+                    };
+
+                    query::QueryResponse::Inline(query::InlineResponse { result })
+                }
+                query::QueryRequest::ChangeSignature(params) => {
+                    // resolve the file id
+                    let file_id = self.resolve_file_id(program, &params.uri);
+
+                    // compute change signature when available
+                    let result = match file_id {
+                        Some(file_id) => {
+                            let file_id = self.ensure_query_context(
+                                program,
+                                file_id,
+                                &params.uri,
+                                allow_stale,
+                            )?;
+                            query::change_signature(
+                                session,
+                                file_id,
+                                params.offset,
+                                &params.new_parameters,
+                                &params.new_arguments,
+                            )
+                        }
+                        None => None,
+                    };
+
+                    query::QueryResponse::ChangeSignature(query::ChangeSignatureResponse { result })
+                }
                 query::QueryRequest::CodeActions(params) => {
                     // resolve the file id
                     let file_id = self.resolve_file_id(program, &params.uri);
