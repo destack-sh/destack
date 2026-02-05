@@ -1,6 +1,7 @@
 use destack_lsp_types as lsp;
 use destack_source::{Diagnostic, DiagnosticSeverity, File};
 use destack_workspace::{Session, query};
+use serde_json::Value;
 
 use super::common::byte_span_to_range;
 use super::refactor::batch_edit_to_workspace_edit;
@@ -48,12 +49,9 @@ pub fn diagnostic_to_lsp_diagnostic(diagnostic: &Diagnostic, source: &File) -> l
     }
 }
 
-/// Convert a code action to an LSP code action.
-pub fn code_action_to_lsp(
-    session: &Session,
-    action: &query::CodeAction,
-) -> Option<lsp::CodeActionOrCommand> {
-    let kind = match action.kind {
+/// Convert a workspace code action kind to an LSP code action kind.
+pub fn code_action_kind_to_lsp(kind: query::CodeActionKind) -> lsp::CodeActionKind {
+    match kind {
         query::CodeActionKind::QuickFix => lsp::CodeActionKind::QUICKFIX,
         query::CodeActionKind::Refactor => lsp::CodeActionKind::REFACTOR,
         query::CodeActionKind::RefactorExtract => lsp::CodeActionKind::REFACTOR_EXTRACT,
@@ -64,12 +62,20 @@ pub fn code_action_to_lsp(
             lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS
         }
         query::CodeActionKind::SourceFixAll => lsp::CodeActionKind::SOURCE_FIX_ALL,
-    };
+    }
+}
 
-    let edit = if action.edits.is_empty() {
-        None
-    } else {
+/// Convert a code action to an LSP code action.
+pub fn code_action_to_lsp(
+    session: &Session,
+    action: &query::CodeAction,
+    include_edit: bool,
+    data: Option<Value>,
+) -> Option<lsp::CodeActionOrCommand> {
+    let edit = if include_edit && !action.edits.is_empty() {
         Some(batch_edit_to_workspace_edit(session, &action.edits))
+    } else {
+        None
     };
 
     let disabled = action
@@ -81,12 +87,12 @@ pub fn code_action_to_lsp(
 
     Some(lsp::CodeActionOrCommand::CodeAction(lsp::CodeAction {
         title: action.title.clone(),
-        kind: Some(kind),
+        kind: Some(code_action_kind_to_lsp(action.kind)),
         diagnostics: None,
         edit,
         command: None,
         is_preferred: Some(action.is_preferred),
         disabled,
-        data: None,
+        data,
     }))
 }

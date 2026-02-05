@@ -112,6 +112,40 @@ async fn test_lsp_did_change_updates_diagnostics() {
     assert!(!updated.diagnostics.is_empty());
 }
 
+/// LSP didChange applies incremental range edits.
+#[tokio::test]
+async fn test_lsp_did_change_incremental_updates_diagnostics() {
+    // set up a clean document and open it
+    let fs = test_fs("did_change_incremental");
+    let mut harness = harness_for_fs(&fs).await;
+
+    let path = fs.path_for("main.ds");
+    let uri = uri_for_path(&path);
+    harness
+        .did_open(uri.clone(), "export const x: number = 1;\n")
+        .await;
+    let initial = harness.next_diagnostics_for(&uri).await;
+
+    // apply an incremental edit that removes the initializer value
+    let change = lsp::TextDocumentContentChangeEvent {
+        range: Some(lsp::Range::new(
+            lsp::Position::new(0, 25),
+            lsp::Position::new(0, 26),
+        )),
+        range_length: None,
+        text: String::new(),
+    };
+    harness
+        .did_change_incremental(uri.clone(), vec![change], 2)
+        .await;
+    let updated = harness.next_diagnostics_for(&uri).await;
+
+    // verify diagnostics are produced for the edited document
+    assert_eq!(initial.uri, uri);
+    assert_eq!(updated.uri, uri);
+    assert!(!updated.diagnostics.is_empty());
+}
+
 /// LSP watched file changes publish diagnostics.
 #[tokio::test]
 async fn test_lsp_watched_file_change_publishes_diagnostics() {
@@ -530,6 +564,225 @@ async fn test_lsp_workspace_diagnostic_cancels() {
     );
 }
 
+/// Code action resolve hydrates workspace edits from lazy data payloads.
+#[tokio::test]
+async fn test_lsp_code_action_resolve_hydrates_edit() {
+    // set up and initialize a workspace
+    let fs = test_fs("code_action_resolve");
+    let mut harness = LspHarness::new(fs.root().to_path_buf());
+    #[allow(deprecated)]
+    let params = lsp::InitializeParams {
+        root_uri: Some(uri_for_path(fs.root())),
+        capabilities: lsp::ClientCapabilities {
+            text_document: Some(lsp::TextDocumentClientCapabilities {
+                code_action: Some(lsp::CodeActionClientCapabilities {
+                    data_support: Some(true),
+                    resolve_support: Some(lsp::CodeActionCapabilityResolveSupport {
+                        properties: vec!["edit".to_string()],
+                    }),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    harness.initialize_with_params(params).await;
+
+    // request resolution for a lazy action payload
+    let unresolved_action = lsp::CodeAction {
+        title: "organize imports".to_string(),
+        kind: Some(lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS),
+        diagnostics: None,
+        edit: None,
+        command: None,
+        is_preferred: Some(false),
+        disabled: None,
+        data: Some(serde_json::json!({
+            "edits": {
+                "files": []
+            }
+        })),
+    };
+    let resolve_request = request_with_params("codeAction/resolve", 21, unresolved_action);
+    let resolve_response = harness
+        .call(resolve_request)
+        .await
+        .expect("code action resolve response");
+    assert!(resolve_response.is_ok());
+    let resolved: lsp::CodeAction = decode_response_result(&resolve_response);
+    assert!(resolved.edit.is_some());
+}
+
+/// Code action resolve preserves existing edits.
+#[tokio::test]
+async fn test_lsp_code_action_resolve_keeps_existing_edit() {
+    // initialize a harness for code action resolve requests
+    let fs = test_fs("code_action_resolve_existing");
+    let mut harness = harness_for_fs(&fs).await;
+
+    // resolve an action that already carries workspace edits
+    let existing_edit = lsp::WorkspaceEdit::default();
+    let unresolved_action = lsp::CodeAction {
+        title: "organize imports".to_string(),
+        kind: Some(lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS),
+        diagnostics: None,
+        edit: Some(existing_edit.clone()),
+        command: None,
+        is_preferred: Some(false),
+        disabled: None,
+        data: Some(serde_json::json!({
+            "edits": {
+                "files": []
+            }
+        })),
+    };
+    let request = request_with_params("codeAction/resolve", 42, unresolved_action);
+    let response = harness.call(request).await.expect("code action resolve");
+    assert!(response.is_ok());
+    let resolved: lsp::CodeAction = decode_response_result(&response);
+
+    // verify the resolve path leaves eager edits unchanged
+    assert_eq!(resolved.edit, Some(existing_edit));
+    assert!(resolved.data.is_some());
+}
+
+/// Code action resolve preserves unrecognized resolve payloads.
+#[tokio::test]
+async fn test_lsp_code_action_resolve_keeps_unrecognized_data() {
+    // initialize a harness for code action resolve requests
+    let fs = test_fs("code_action_resolve_unrecognized");
+    let mut harness = harness_for_fs(&fs).await;
+
+    // resolve an action whose data does not match the resolve payload schema
+    let unresolved_action = lsp::CodeAction {
+        title: "organize imports".to_string(),
+        kind: Some(lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS),
+        diagnostics: None,
+        edit: None,
+        command: None,
+        is_preferred: Some(false),
+        disabled: None,
+        data: Some(serde_json::json!({
+            "unexpected": true
+        })),
+    };
+    let request = request_with_params("codeAction/resolve", 43, unresolved_action);
+    let response = harness.call(request).await.expect("code action resolve");
+    assert!(response.is_ok());
+    let resolved: lsp::CodeAction = decode_response_result(&response);
+
+    // verify unmatched payload data is retained with no synthetic edit
+    assert!(resolved.edit.is_none());
+    assert_eq!(
+        resolved.data,
+        Some(serde_json::json!({ "unexpected": true }))
+    );
+}
+
+/// Semantic token full delta returns a delta payload for unchanged and changed requests.
+#[tokio::test]
+async fn test_lsp_semantic_tokens_full_delta_tracks_changes() {
+    // set up a module with semantic token output
+    let fs = test_fs("semantic_delta");
+    let path = fs
+        .write_text("main.ds", "export const value = 1;\n")
+        .expect("write module");
+    let uri = uri_for_path(&path);
+    let mut harness = harness_for_fs(&fs).await;
+
+    // open the module and drain diagnostics
+    harness
+        .did_open(uri.clone(), "export const value = 1;\n")
+        .await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    // request the baseline semantic tokens
+    let full_request = request_with_params(
+        "textDocument/semanticTokens/full",
+        30,
+        lsp::SemanticTokensParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri.clone()),
+            work_done_progress_params: lsp::WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: lsp::PartialResultParams {
+                partial_result_token: None,
+            },
+        },
+    );
+    let full_response = harness
+        .call(full_request)
+        .await
+        .expect("semantic full response");
+    assert!(full_response.is_ok());
+    let full_result: lsp::SemanticTokensResult = decode_response_result(&full_response);
+    let lsp::SemanticTokensResult::Tokens(tokens) = full_result else {
+        panic!("expected semantic token full payload");
+    };
+    let baseline_result_id = tokens.result_id.expect("missing baseline result id");
+
+    // request delta for unchanged content
+    let delta_request = request_with_params(
+        "textDocument/semanticTokens/full/delta",
+        31,
+        lsp::SemanticTokensDeltaParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri.clone()),
+            previous_result_id: baseline_result_id.clone(),
+            work_done_progress_params: lsp::WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: lsp::PartialResultParams {
+                partial_result_token: None,
+            },
+        },
+    );
+    let delta_response = harness
+        .call(delta_request)
+        .await
+        .expect("semantic delta response");
+    assert!(delta_response.is_ok());
+    let unchanged_delta: lsp::SemanticTokensFullDeltaResult =
+        decode_response_result(&delta_response);
+    let lsp::SemanticTokensFullDeltaResult::TokensDelta(delta) = unchanged_delta else {
+        panic!("expected semantic token delta payload");
+    };
+    assert!(delta.edits.is_empty());
+
+    // apply a text change and request delta from the baseline result id
+    harness
+        .did_change(uri.clone(), "// moved tokens\nexport const value = 1;\n", 2)
+        .await;
+    let _ = harness.next_diagnostics_for(&uri).await;
+
+    let changed_delta_request = request_with_params(
+        "textDocument/semanticTokens/full/delta",
+        32,
+        lsp::SemanticTokensDeltaParams {
+            text_document: lsp::TextDocumentIdentifier::new(uri),
+            previous_result_id: baseline_result_id,
+            work_done_progress_params: lsp::WorkDoneProgressParams {
+                work_done_token: None,
+            },
+            partial_result_params: lsp::PartialResultParams {
+                partial_result_token: None,
+            },
+        },
+    );
+    let changed_delta_response = harness
+        .call(changed_delta_request)
+        .await
+        .expect("changed semantic delta response");
+    assert!(changed_delta_response.is_ok());
+    let changed_delta: lsp::SemanticTokensFullDeltaResult =
+        decode_response_result(&changed_delta_response);
+    let lsp::SemanticTokensFullDeltaResult::TokensDelta(delta) = changed_delta else {
+        panic!("expected semantic token delta payload");
+    };
+    assert!(delta.result_id.is_some());
+}
+
 async fn next_partial_progress(harness: &mut LspHarness) -> serde_json::Value {
     let timeout = Duration::from_secs(5);
     for _ in 0..64 {
@@ -548,4 +801,12 @@ async fn next_partial_progress(harness: &mut LspHarness) -> serde_json::Value {
     }
 
     panic!("missing partial progress result");
+}
+
+fn decode_response_result<T>(response: &Response) -> T
+where
+    T: serde::de::DeserializeOwned,
+{
+    let value = response.result().cloned().expect("response result missing");
+    serde_json::from_value(value).expect("decode response result")
 }

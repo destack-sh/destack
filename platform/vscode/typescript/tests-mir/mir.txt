@@ -34,9 +34,22 @@ block0(v0: i64):
     local.set v0, v1
 //  ^^^^^^^^^ keyword.operator.instruction.dsmir
 
+    v6: ref<managed fn(i64, i64) -> i64> = managed.alloc_array fn(i64, i64) -> i64, v5
+//      ^^^ support.type.dsmir
+//          ^^^^^^^ keyword.other.memory.dsmir
+//                  ^^ support.type.dsmir
+//                               ^^ keyword.operator.arrow.dsmir
+//                                         ^^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+//                                                             ^^ support.type.dsmir
+//                                                                          ^^ keyword.operator.arrow.dsmir
+
+    v7: i64 = iconst -1i64
+//                   ^^^^^ constant.numeric.dsmir
+
     call @print(v0) -> void
 //  ^^^^ keyword.operator.instruction.dsmir
 //       ^^^^^^ entity.name.symbol.dsmir
+//                  ^^ keyword.operator.arrow.dsmir
 
     intrinsic.memset(v0, v1)
 //  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
