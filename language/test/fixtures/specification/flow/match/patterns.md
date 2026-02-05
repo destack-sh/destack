@@ -19,6 +19,22 @@ match (pair) {
 }
 ```
 
+### match nested tuple patterns bind nested tuple elements
+
+> Nested tuple patterns destructure recursively by position.
+
+```ds
+declare const pair: ((int32, int32), int32);
+
+match (pair) {
+    ((left, right), tail) => {
+        left satisfies int32;
+        right satisfies int32;
+        tail satisfies int32;
+    }
+}
+```
+
 ## Fixed arrays
 
 ### match array patterns bind fixed array elements
@@ -32,6 +48,60 @@ match (pair) {
     [left, right] => {
         left satisfies int32;
         right satisfies int32;
+    }
+}
+```
+
+## Object patterns
+
+### match object patterns bind named fields
+
+> Object patterns bind named fields from structural objects.
+
+```ds
+type Config = { enabled: boolean, retries: int32 };
+
+declare const config: Config;
+
+match (config) {
+    { enabled, retries } => {
+        enabled satisfies boolean;
+        retries satisfies int32;
+    }
+}
+```
+
+### match nested object patterns bind nested fields
+
+> Nested object patterns bind nested object fields.
+
+```ds
+type Config = { runtime: { retries: int32 }, enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    { runtime: { retries }, enabled } => {
+        retries satisfies int32;
+        enabled satisfies boolean;
+    }
+}
+```
+
+### match object wildcard filters bind requested fields
+
+> Object wildcard filters should compose with named field bindings.
+
+```ds
+type Config =
+    | { kind: "a", retries: int32, enabled: boolean }
+    | { kind: "b", retries: int32, enabled: boolean };
+
+declare const config: Config;
+
+match (config) {
+    { kind: _, retries } => {
+        retries satisfies int32;
     }
 }
 ```

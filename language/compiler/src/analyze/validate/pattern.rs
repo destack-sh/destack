@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase,
-    MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, ScalarLiteral,
-    StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeLiteral, TypeTable,
+    MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType,
+    ScalarLiteral, StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -55,6 +55,11 @@ enum MatchExhaustiveTarget {
     /// Discriminated unions must cover every discriminant value.
     DiscriminantUnion {
         key: StaticKey,
+        values: HashSet<MatchLiteral>,
+    },
+    /// Tuple unions can be exhaustive when a fixed element index is a literal discriminant.
+    TupleDiscriminantUnion {
+        index: usize,
         values: HashSet<MatchLiteral>,
     },
 }
@@ -262,6 +267,20 @@ impl Compiler {
                         }
                     }
                 }
+                MatchExhaustiveTarget::TupleDiscriminantUnion { index, values } => {
+                    let coverage =
+                        self.tuple_discriminant_pattern_coverage(*pattern, *index, values, tree);
+                    let Some(coverage) = coverage else {
+                        is_provable = false;
+                        break;
+                    };
+                    match coverage {
+                        MatchPatternCoverage::All => return,
+                        MatchPatternCoverage::Values(literals) => {
+                            covered_literals.extend(literals);
+                        }
+                    }
+                }
             }
         }
 
@@ -279,6 +298,9 @@ impl Compiler {
             MatchExhaustiveTarget::Enum { fields, .. } => covered_fields.len() == fields.len(),
             MatchExhaustiveTarget::LiteralUnion { values } => covered_literals == values,
             MatchExhaustiveTarget::DiscriminantUnion { values, .. } => covered_literals == values,
+            MatchExhaustiveTarget::TupleDiscriminantUnion { values, .. } => {
+                covered_literals == values
+            }
         };
         if is_exhaustive {
             return;
@@ -1155,7 +1177,126 @@ impl Compiler {
             return Some(MatchExhaustiveTarget::DiscriminantUnion { key, values });
         }
 
+        // tuple discriminated unions
+        if let Some((index, values)) =
+            self.tuple_discriminant_union_values_for_type(value_type_id, types)
+        {
+            return Some(MatchExhaustiveTarget::TupleDiscriminantUnion { index, values });
+        }
+
         None
+    }
+
+    /// Resolve tuple discriminant values for a union when possible.
+    fn tuple_discriminant_union_values_for_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<(usize, HashSet<MatchLiteral>)> {
+        match types.get_type(type_id) {
+            Type::Reference { symbol, .. } => {
+                if symbol.ty() == SymbolType::TypeAlias
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.tuple_discriminant_union_values_for_type(target, types);
+                }
+                if symbol.ty() == SymbolType::Newtype
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.tuple_discriminant_union_values_for_type(target, types);
+                }
+                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    if instance_id == type_id {
+                        None
+                    } else {
+                        self.tuple_discriminant_union_values_for_type(instance_id, types)
+                    }
+                } else {
+                    None
+                }
+            }
+            Type::Value { value } => self.tuple_discriminant_union_values_for_type(*value, types),
+            Type::Union { elements } => {
+                // collect tuple element lists for each union member
+                let mut tuple_elements = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let element_types =
+                        self.fixed_tuple_element_types_for_discriminant(*element_id, types)?;
+                    tuple_elements.push(element_types);
+                }
+
+                // require at least one tuple member
+                let first = tuple_elements.first()?;
+                let tuple_length = first.len();
+                if tuple_length == 0 {
+                    return None;
+                }
+
+                // all members must have the same tuple arity
+                if tuple_elements
+                    .iter()
+                    .any(|elements| elements.len() != tuple_length)
+                {
+                    return None;
+                }
+
+                // pick the first index where every member has a literal
+                for index in 0..tuple_length {
+                    let mut values = HashSet::new();
+                    let mut is_candidate = true;
+                    for element_types in &tuple_elements {
+                        let Some(literal) =
+                            self.match_literal_from_type(types, element_types[index])
+                        else {
+                            is_candidate = false;
+                            break;
+                        };
+                        values.insert(literal);
+                    }
+                    if is_candidate && !values.is_empty() {
+                        return Some((index, values));
+                    }
+                }
+
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve fixed tuple element types for tuple union discriminants.
+    fn fixed_tuple_element_types_for_discriminant(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<Vec<LocalTypeId>> {
+        match types.get_type(type_id) {
+            Type::Tuple { elements, .. } => {
+                if elements
+                    .iter()
+                    .any(|element| element.is_optional || element.is_rest)
+                {
+                    return None;
+                }
+
+                Some(elements.iter().map(|element| element.ty).collect())
+            }
+            Type::Reference { symbol, .. } => {
+                if symbol.ty() == SymbolType::TypeAlias
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.fixed_tuple_element_types_for_discriminant(target, types);
+                }
+                if symbol.ty() == SymbolType::Newtype
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.fixed_tuple_element_types_for_discriminant(target, types);
+                }
+                None
+            }
+            Type::Value { value } => self.fixed_tuple_element_types_for_discriminant(*value, types),
+            _ => None,
+        }
     }
 
     /// Extract literal union values when possible.
@@ -1166,6 +1307,15 @@ impl Compiler {
     ) -> Option<HashSet<MatchLiteral>> {
         let ty = types.get_type(type_id);
         match ty {
+            // treat boolean as finite literal union
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            } => {
+                let mut set = HashSet::new();
+                set.insert(MatchLiteral::Boolean(true));
+                set.insert(MatchLiteral::Boolean(false));
+                Some(set)
+            }
             Type::TypeLiteral { value } => {
                 let literal = self.match_literal_from_type_literal(value)?;
                 let mut set = HashSet::new();
@@ -1176,13 +1326,19 @@ impl Compiler {
                 let mut set = HashSet::new();
                 for element_id in elements {
                     let element = types.get_type(*element_id);
-                    let literal = match element {
+                    match element {
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                        } => {
+                            set.insert(MatchLiteral::Boolean(true));
+                            set.insert(MatchLiteral::Boolean(false));
+                        }
                         Type::TypeLiteral { value } => {
-                            self.match_literal_from_type_literal(value)?
+                            let literal = self.match_literal_from_type_literal(value)?;
+                            set.insert(literal);
                         }
                         _ => return None,
                     };
-                    set.insert(literal);
                 }
                 if set.is_empty() { None } else { Some(set) }
             }
@@ -1497,25 +1653,21 @@ impl Compiler {
                 Some(MatchPatternCoverage::Values(covered.into_iter().collect()))
             }
             Pattern::Object { fields } => {
-                let field_literal = self.discriminant_value_for_pattern_fields(
-                    profile, key, fields, tree, symbols, types,
-                )?;
-                let coverage = match field_literal {
-                    Some(literal) => MatchPatternCoverage::Values(vec![literal]),
-                    None => MatchPatternCoverage::All,
+                let coverage = if let Some(field_id) =
+                    self.discriminant_pattern_field(profile, key, fields, tree, symbols, types)
+                {
+                    self.discriminant_pattern_field_coverage(field_id, tree)?
+                } else {
+                    MatchPatternCoverage::All
                 };
                 self.filter_literal_coverage(values, coverage)
             }
             Pattern::TaggedObject { ty, fields } => {
                 // prefer explicit discriminant fields in the pattern
-                let field_literal = self.discriminant_value_for_pattern_fields(
-                    profile, key, fields, tree, symbols, types,
-                );
-                if let Some(field_literal) = field_literal {
-                    let coverage = match field_literal {
-                        Some(literal) => MatchPatternCoverage::Values(vec![literal]),
-                        None => MatchPatternCoverage::All,
-                    };
+                if let Some(field_id) =
+                    self.discriminant_pattern_field(profile, key, fields, tree, symbols, types)
+                {
+                    let coverage = self.discriminant_pattern_field_coverage(field_id, tree)?;
                     return self.filter_literal_coverage(values, coverage);
                 }
 
@@ -1529,6 +1681,63 @@ impl Compiler {
                 self.filter_literal_coverage(values, coverage)
             }
             _ => None,
+        }
+    }
+
+    /// Summarize coverage for tuple discriminant patterns.
+    fn tuple_discriminant_pattern_coverage(
+        &self,
+        pattern_id: LocalNodeId<Pattern>,
+        index: usize,
+        values: &HashSet<MatchLiteral>,
+        tree: &NodeTree,
+    ) -> Option<MatchPatternCoverage<MatchLiteral>> {
+        match tree.get(pattern_id) {
+            Pattern::Wildcard => Some(MatchPatternCoverage::All),
+            Pattern::Binding { pattern, .. } => match pattern {
+                Some(pattern) => {
+                    self.tuple_discriminant_pattern_coverage(*pattern, index, values, tree)
+                }
+                None => Some(MatchPatternCoverage::All),
+            },
+            Pattern::Union { patterns } => {
+                let mut covered: HashSet<MatchLiteral> = HashSet::new();
+                for pattern in patterns {
+                    let coverage =
+                        self.tuple_discriminant_pattern_coverage(*pattern, index, values, tree)?;
+                    match coverage {
+                        MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
+                        MatchPatternCoverage::Values(values) => covered.extend(values),
+                    }
+                }
+                Some(MatchPatternCoverage::Values(covered.into_iter().collect()))
+            }
+            Pattern::Tuple { fields } | Pattern::Array { fields } => {
+                let field_id = fields.get(index)?;
+                let coverage = self.tuple_discriminant_field_coverage(*field_id, tree)?;
+                self.filter_literal_coverage(values, coverage)
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve discriminant literal coverage for a tuple field.
+    fn tuple_discriminant_field_coverage(
+        &self,
+        field_id: LocalNodeId<PatternField>,
+        tree: &NodeTree,
+    ) -> Option<MatchPatternCoverage<MatchLiteral>> {
+        match tree.get(field_id) {
+            PatternField::Positional { pattern } => self.literal_pattern_coverage(*pattern, tree),
+            PatternField::Named { pattern, .. } => {
+                if let Some(pattern_id) = pattern {
+                    self.literal_pattern_coverage(*pattern_id, tree)
+                } else {
+                    Some(MatchPatternCoverage::All)
+                }
+            }
+            PatternField::Alias { .. } | PatternField::Elision => Some(MatchPatternCoverage::All),
+            PatternField::Computed { .. } | PatternField::Spread { .. } => None,
         }
     }
 
@@ -1556,8 +1765,8 @@ impl Compiler {
         }
     }
 
-    /// Extract a literal discriminant for object patterns.
-    fn discriminant_value_for_pattern_fields(
+    /// Resolve the discriminant field for an object pattern.
+    fn discriminant_pattern_field(
         &self,
         profile: ProfileId,
         key: StaticKey,
@@ -1565,9 +1774,8 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
-    ) -> Option<Option<MatchLiteral>> {
+    ) -> Option<LocalNodeId<PatternField>> {
         // locate the matching field by key
-        let mut matching_field = None;
         for field_id in fields {
             let field_key = match tree.get(*field_id) {
                 PatternField::Named { name, .. } | PatternField::Alias { name, .. } => {
@@ -1586,22 +1794,26 @@ impl Compiler {
             if let Some(field_key) = field_key
                 && field_key.matches(&key)
             {
-                matching_field = Some(*field_id);
-                break;
+                return Some(*field_id);
             }
         }
 
-        let field_id = matching_field?;
+        None
+    }
 
-        // resolve the literal from the field pattern
+    /// Resolve literal coverage for a discriminant pattern field.
+    fn discriminant_pattern_field_coverage(
+        &self,
+        field_id: LocalNodeId<PatternField>,
+        tree: &NodeTree,
+    ) -> Option<MatchPatternCoverage<MatchLiteral>> {
         match tree.get(field_id) {
-            PatternField::Alias { .. } => Some(None),
+            PatternField::Alias { .. } => Some(MatchPatternCoverage::All),
             PatternField::Named { pattern, .. } | PatternField::Computed { pattern, .. } => {
                 let Some(pattern_id) = *pattern else {
-                    return Some(None);
+                    return Some(MatchPatternCoverage::All);
                 };
-                let literal = self.match_literal_from_pattern(pattern_id, tree)?;
-                Some(Some(literal))
+                self.literal_pattern_coverage(pattern_id, tree)
             }
             _ => None,
         }

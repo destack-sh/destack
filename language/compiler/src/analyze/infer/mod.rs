@@ -15,6 +15,7 @@ mod member;
 mod merge;
 mod operator;
 mod parameter;
+mod pattern;
 mod process;
 mod resolution;
 mod solve;
