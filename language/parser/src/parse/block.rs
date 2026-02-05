@@ -35,6 +35,11 @@ impl Parser {
             parser.eat_expression()
         })?;
 
+        // reject declaration statements in single statement contexts
+        if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
+            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+        }
+
         // consume trailing semicolon if present (e.g., `do x; while (true)`)
         if self.peek_is(TokenType::Semicolon) {
             self.bump();
@@ -49,6 +54,35 @@ impl Parser {
             self.get_span_from(&start),
         );
         Ok(block_id)
+    }
+
+    /// Check whether a statement expression is a declaration in a single statement context.
+    fn is_single_statement_declaration(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        // unwrap statement and label layers
+        let mut current = expression_id;
+        loop {
+            let expression = self.tree.get(current);
+            match expression {
+                Expression::Statement(inner) => {
+                    current = *inner;
+                }
+                Expression::Labelled { body, .. } => {
+                    current = *body;
+                }
+                _ => break,
+            }
+        }
+
+        // detect declaration expressions that are invalid in single statement contexts
+        matches!(
+            self.tree.get(current),
+            Expression::Declaration(_)
+                | Expression::Let { .. }
+                | Expression::Using { .. }
+                | Expression::Import { .. }
+                | Expression::Export { .. }
+                | Expression::ExportNamespace { .. }
+        )
     }
 
     /// Peek a block. Optional `do` prefix for disambiguation.

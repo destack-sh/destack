@@ -395,7 +395,10 @@ impl Parser {
         // export =
         else if self.peek_is(TokenType::Assign) {
             self.bump(); // eat assign
-            let value = self.eat_expression()?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Namespace,

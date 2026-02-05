@@ -1147,7 +1147,10 @@ impl Parser {
             // struct or class declaration
             Keyword::Struct | Keyword::Class if is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
-                let struct_id = self.eat_struct_or_class(start, descriptor)?;
+                let allow_anonymous_class = !self.options.in_statement_position
+                    || descriptor.export == Some(DependencyMode::Default);
+                let struct_id =
+                    self.eat_struct_or_class(start, descriptor, allow_anonymous_class)?;
                 Ok(Some(self.tree.insert(
                     Expression::Declaration(struct_id),
                     self.get_span_from(start),
