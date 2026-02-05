@@ -2,7 +2,8 @@
   "name": "Destack MIR",
   "scopeName": "source.dsmir",
   "fileTypes": [
-    "mir"
+    "mir",
+    "dsmir"
   ],
   "patterns": [
     {
@@ -92,7 +93,11 @@
       "patterns": [
         {
           "name": "keyword.operator.instruction.dsmir",
-          "match": "(?x)(?<=\\=\\s)[A-Za-z_][\\w.]*"
+          "match": "\\b(local\\.set|store|raw\\.drop|stack\\.drop|assume|tensor\\.store|tensor\\.fill|tensor\\.copy|call(?:\\.(?:virtual|interface|indirect))?|raw\\.free|intrinsic\\.[A-Za-z_][A-Za-z0-9_.]*)\\b"
+        },
+        {
+          "name": "keyword.operator.instruction.dsmir",
+          "match": "(?x)(?<=\\=\\s)[A-Za-z_][A-Za-z0-9_.]*"
         }
       ]
     },

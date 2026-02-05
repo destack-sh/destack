@@ -28,6 +28,19 @@ block0(v0: i64):
 //             ^^^^^^ entity.name.label.dsmir
 //                     ^^^^^^ entity.name.label.dsmir
 
+    store v0, v1
+//  ^^^^^ keyword.operator.instruction.dsmir
+
+    local.set v0, v1
+//  ^^^^^^^^^ keyword.operator.instruction.dsmir
+
+    call @print(v0) -> void
+//  ^^^^ keyword.operator.instruction.dsmir
+//       ^^^^^^ entity.name.symbol.dsmir
+
+    intrinsic.memset(v0, v1)
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+
 // comment
 // <- comment.line.double-slash.dsmir
 }
