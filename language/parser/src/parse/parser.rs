@@ -136,6 +136,8 @@ pub(crate) struct ParserOptions {
     /// Whether `yield` expressions are forbidden in this context.
     /// Used to tag contexts where `yield` should be rejected during analysis.
     pub forbid_yield: bool = false,
+    /// Whether `await` expressions are forbidden in this context.
+    pub forbid_await: bool = false,
     /// Whether sequence expressions (comma operator) are allowed.
     pub allow_sequence_expression: bool = true,
     /// Whether private hash keys (`#name`) are allowed in key position.
@@ -208,6 +210,15 @@ impl ParserOptions {
     pub(crate) fn with_forbid_yield(self, forbid_yield: bool) -> Self {
         Self {
             forbid_yield,
+            ..self
+        }
+    }
+
+    /// Set `forbid_await=true`.
+    #[inline]
+    pub(crate) fn forbid_await(self) -> Self {
+        Self {
+            forbid_await: true,
             ..self
         }
     }
@@ -445,6 +456,7 @@ impl ParserOptions {
             in_generator: self.in_generator,
             in_comptime: self.in_comptime,
             forbid_yield: self.forbid_yield,
+            forbid_await: self.forbid_await,
             allow_sequence_expression: self.allow_sequence_expression,
             in_decorator: self.in_decorator,
             disallow_ambiguous_tree_literal: self.disallow_ambiguous_tree_literal,

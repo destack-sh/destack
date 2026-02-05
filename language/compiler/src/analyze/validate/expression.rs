@@ -1,11 +1,11 @@
 use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, MatchCase, MatchKind, MatchSelector, Mutability, NodeTree, NodeType, Path,
-    Pattern, Property, RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable,
-    SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
+    Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId,
+    LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
+    NodeType, Path, Pattern, Property, RuntimeCheckKind, ScalarLiteral, StaticKey, StringId,
+    SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
     TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
@@ -200,6 +200,7 @@ impl Compiler {
                 }
             }
             Expression::Using {
+                asynchrony,
                 descriptor,
                 declarators,
                 ..
@@ -213,6 +214,14 @@ impl Compiler {
                         tree,
                         *declarator_id,
                     );
+                }
+                if *asynchrony == Asynchrony::Async
+                    && !self.can_await_in(tree, expression_id.into_any())
+                {
+                    let node = expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidAwait { node });
                 }
                 if is_declare_context {
                     let node = expression_id
@@ -794,6 +803,44 @@ impl Compiler {
                 );
             }
         }
+    }
+
+    /// Check whether await is valid in the current node context.
+    fn can_await_in(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        // walk up to find the nearest enclosing function or method
+        let mut current = Some(node_id);
+        while let Some(current_id) = current {
+            let Some(parent) = tree.get_parent(current_id.id) else {
+                break;
+            };
+
+            match parent.ty {
+                NodeType::Declaration => {
+                    let declaration = tree.get(parent.into_typed::<Declaration>());
+                    if let Declaration::Function { signature, .. } = declaration {
+                        return signature.asynchrony == Asynchrony::Async;
+                    }
+                }
+                NodeType::Member => {
+                    let member = tree.get(parent.into_typed::<Member>());
+                    if let Member::Method { signature, .. } = member {
+                        return signature.asynchrony == Asynchrony::Async;
+                    }
+                }
+                NodeType::Property => {
+                    let property = tree.get(parent.into_typed::<Property>());
+                    if let Property::Method { signature, .. } = property {
+                        return signature.asynchrony == Asynchrony::Async;
+                    }
+                }
+                _ => {}
+            }
+
+            current = Some(parent);
+        }
+
+        // allow top level await outside declare namespaces
+        !self.is_in_declare_namespace(tree, node_id)
     }
 
     /// Validate type-only import bindings.

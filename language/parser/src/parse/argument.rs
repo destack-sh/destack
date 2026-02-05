@@ -476,8 +476,12 @@ impl Parser {
                         .not_in_position()
                         .not_in_sequence_expression()
                         .in_type()
+                        .forbid_await()
                 } else {
-                    self.options.not_in_position().not_in_sequence_expression()
+                    self.options
+                        .not_in_position()
+                        .not_in_sequence_expression()
+                        .forbid_await()
                 };
                 let value = self
                     .with_options(value_options, |parser| parser.eat_expression())

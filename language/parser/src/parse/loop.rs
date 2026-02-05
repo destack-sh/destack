@@ -5,7 +5,7 @@ use destack_ast::{
     WhileKind,
 };
 
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
     /// Eat a loop (e.g., `loop { ... }`).
@@ -146,6 +146,15 @@ impl Parser {
                 Keyword::Of => ForEachKind::Of,
                 _ => unreachable!(),
             };
+
+            // reject using bindings in for-in loops for js and ts
+            // destack allows this, see SPECIFICATION.md
+            if !self.language.is_destack()
+                && kind == ForEachKind::In
+                && matches!(binding, ForEachBinding::Using { .. })
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
 
             // iterator
             let iterator_id = self
