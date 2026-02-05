@@ -58,7 +58,7 @@ impl Compiler {
         if module.language_type.is_javascript()
             && matches!(
                 declaration,
-                Declaration::Interface { .. } | Declaration::Type { .. }
+                Declaration::Interface { .. } | Declaration::Type { .. } | Declaration::Enum { .. }
             )
         {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));

@@ -11,13 +11,13 @@ The pass rate intentionally excludes the explicitly ignored tests.
 | Suite    | Passed | Failed | Ignored | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   690  |     0  |    25  |   690 | 100.00% |
-| biome    |   580  |    25  |    32  |   605 |  95.87% |
+| biome    |   588  |    17  |    32  |   605 |  97.19% |
 | swc      |   525  |     0  |    13  |   525 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6205  |   978  |     70  |  7183 |  86.38% |
+| total    |  6213  |   970  |     70  |  7183 |  86.50% |
 
-Total Blended Pass Rate: **86.38%**
+Total Blended Pass Rate: **86.50%**
 <!-- end:summary-results -->
 
 ### babel
@@ -69,10 +69,10 @@ Total Blended Pass Rate: **86.38%**
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| error                |   257  |    25  |      20  |   282 |  91.13% |
+| error                |   265  |    17  |      20  |   282 |  93.97% |
 | ok                   |   323  |     0  |      12  |   323 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   580  |    25  |      32  |   605 |  95.87% |
+| total                |   588  |    17  |      32  |   605 |  97.19% |
 <!-- end:biome-results -->
 
 ### swc

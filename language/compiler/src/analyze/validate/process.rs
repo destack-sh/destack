@@ -66,11 +66,10 @@ impl Compiler {
         } else {
             false
         };
+        let analyze_options = self.analyze_context_options_for_module(module_id);
         let should_check_untrusted_declarations = module.language_type.is_declaration()
             && !matches!(module.source, ModuleSource::Builtin(_))
-            && self
-                .analyze_context_options_for_module(module_id)
-                .no_untrusted_declarations;
+            && analyze_options.no_untrusted_declarations;
 
         if should_skip_declaration_validation && !should_check_untrusted_declarations {
             self.update_module_signature(module_id, profile, module_version, profile_version)?;
@@ -148,7 +147,9 @@ impl Compiler {
                     if !self.is_node_active(&tree, &symbols, id.into_any()) {
                         continue;
                     }
-                    self.validate_parameter(&module, profile, &tree, &symbols, id, parameter);
+                    self.validate_parameter(
+                        &module, profile, &tree, &symbols, &types, id, parameter,
+                    );
                 }
 
                 // validate members
@@ -157,7 +158,7 @@ impl Compiler {
                     if !symbol.is_active() {
                         continue;
                     }
-                    self.validate_member(&module, profile, &tree, id, member);
+                    self.validate_member(&module, profile, &tree, analyze_options, id, member);
                 }
 
                 // validate expressions
@@ -166,7 +167,14 @@ impl Compiler {
                         continue;
                     }
                     self.validate_expression(
-                        &module, profile, &tree, &symbols, &mut types, id, expression,
+                        &module,
+                        profile,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                        analyze_options,
+                        id,
+                        expression,
                     );
                 }
 
@@ -192,8 +200,15 @@ impl Compiler {
                 }
 
                 // validate option dependent checks
-                self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
-                self.validate_restriction_checks(&module, profile, &types);
+                self.validate_strict_checks(
+                    &module,
+                    profile,
+                    &tree,
+                    &symbols,
+                    &types,
+                    analyze_options,
+                );
+                self.validate_restriction_checks(&module, profile, &types, analyze_options);
             }
         }
 

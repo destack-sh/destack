@@ -1,10 +1,6 @@
 error/double_label.js
 error/empty_parenthesized_expression.js
-error/enum_in_js.js
-error/eval_arguments_assignment.js
-error/exponent_unary_unparenthesized.js
 error/for_of_async_identifier.js
-error/js_formal_parameter_error.js
 error/js_right_shift_comments.js
 error/jsx_children_expressions_not_accepted.jsx
 error/jsx_namespace_member_element_name.jsx
@@ -13,13 +9,9 @@ error/new_exprs.js
 error/object_expr_non_ident_literal_prop.js
 error/regex.js
 error/super_expression_err.js
-error/template_after_optional_chain.js
 error/ts_catch_declaration_non_any_unknown_type_annotation.ts
 error/ts_extends_trailing_comma.ts
 error/ts_new_operator.ts
-error/ts_satisfies_expression.js
 error/ts_tuple_type_cannot_be_optional_and_rest.ts
 error/ts_type_parameters_incomplete.ts
-error/unary_delete.js
-error/unary_delete_parenthesized.js
 error/unterminated_unicode_codepoint.js

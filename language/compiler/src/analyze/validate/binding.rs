@@ -61,14 +61,23 @@ impl Compiler {
 
     /// Check if a name is reserved as a binding identifier.
     fn is_reserved_binding_name(&self, name: StringId) -> bool {
-        let name_str = self.program.strings.get(name);
-        if matches!(name_str.as_ref(), "eval" | "arguments") {
+        if self.is_reserved_strict_assignment_name(name) {
             return true;
         }
+
+        let name_str = self.program.strings.get(name);
         let Ok(keyword) = Keyword::from_str(name_str.as_ref()) else {
             return false;
         };
         Self::is_reserved_binding_keyword(keyword)
+    }
+
+    /// Check if a name is reserved for strict mode assignment targets.
+    pub(super) fn is_reserved_strict_assignment_name(&self, name: StringId) -> bool {
+        let eval_name = self.program.strings.intern("eval");
+        let arguments_name = self.program.strings.intern("arguments");
+
+        name == eval_name || name == arguments_name
     }
 
     /// Validate binding identifiers.

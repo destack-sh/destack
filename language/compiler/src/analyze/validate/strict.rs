@@ -11,7 +11,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
 /// Required instance field for strict property initialization.
 #[derive(Clone)]
@@ -32,8 +32,8 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
+        options: AnalyzeOptions,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
         let check_returns = options.no_implicit_returns;
         let check_missing_override = options.no_implicit_override;
         let check_property_init = options.strict_property_initialization;
@@ -147,7 +147,14 @@ impl Compiler {
         }
 
         // check implicit any in declaration modules
-        self.validate_declaration_implicit_any(module, profile, tree, symbols, types);
+        self.validate_declaration_implicit_any(
+            module,
+            profile,
+            tree,
+            symbols,
+            types,
+            options.no_implicit_any,
+        );
     }
 
     /// Validate restriction options on inferred types.
@@ -156,9 +163,9 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         types: &TypeTable,
+        options: AnalyzeOptions,
     ) {
         // read restriction options
-        let options = self.analyze_context_options_for_module(module.id);
         let check_any = options.no_any;
         let check_unknown = options.no_unknown;
         let check_imprecise = options.no_imprecise_primitives;
@@ -1410,9 +1417,9 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
+        no_implicit_any: bool,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-        if !options.no_implicit_any {
+        if !no_implicit_any {
             return;
         }
         if !module.language_type.is_declaration() {
@@ -1425,7 +1432,7 @@ impl Compiler {
                 continue;
             }
             let declared_ty_id = types.get_declared_type_id(id.into_global(module.id).into());
-            self.report_implicit_any_for_declarator(
+            self.report_implicit_any_for_declarator_unchecked(
                 module,
                 profile,
                 id,
@@ -1447,7 +1454,7 @@ impl Compiler {
                 Parameter::Variadic { .. } => false,
             };
             let symbol = parameter.symbol().into_global(module.id);
-            self.report_implicit_any_for_parameter(
+            self.report_implicit_any_for_parameter_unchecked(
                 module,
                 profile,
                 id,
@@ -1461,8 +1468,8 @@ impl Compiler {
         }
     }
 
-    /// Report an implicit any diagnostic for a parameter when required.
-    pub(crate) fn report_implicit_any_for_parameter(
+    /// Report an implicit any diagnostic for a parameter after option checks.
+    fn report_implicit_any_for_parameter_unchecked(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1474,10 +1481,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &TypeTable,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-        if !options.no_implicit_any {
-            return;
-        }
         if declared_type.is_some() || expected_type.is_some() || has_default {
             return;
         }
@@ -1500,6 +1503,60 @@ impl Compiler {
         });
     }
 
+    /// Report an implicit any diagnostic for a declarator after option checks.
+    fn report_implicit_any_for_declarator_unchecked(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declarator_id: LocalNodeId<Declarator>,
+        declared_type: Option<LocalTypeId>,
+        has_initializer: bool,
+    ) {
+        if declared_type.is_some() || has_initializer {
+            return;
+        }
+        if matches!(module.source, ModuleSource::Builtin(_)) {
+            return;
+        }
+
+        self.error(AnalyzeError::ImplicitAny {
+            node: declarator_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+        });
+    }
+
+    /// Report an implicit any diagnostic for a parameter when required.
+    pub(crate) fn report_implicit_any_for_parameter(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        parameter_id: LocalNodeId<Parameter>,
+        symbol: GlobalSymbolId,
+        declared_type: Option<LocalTypeId>,
+        expected_type: Option<LocalTypeId>,
+        has_default: bool,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) {
+        let options = self.analyze_context_options_for_module(module.id);
+        if !options.no_implicit_any {
+            return;
+        }
+
+        self.report_implicit_any_for_parameter_unchecked(
+            module,
+            profile,
+            parameter_id,
+            symbol,
+            declared_type,
+            expected_type,
+            has_default,
+            symbols,
+            types,
+        );
+    }
+
     /// Report an implicit any diagnostic for a declarator when required.
     pub(crate) fn report_implicit_any_for_declarator(
         &self,
@@ -1513,17 +1570,13 @@ impl Compiler {
         if !options.no_implicit_any {
             return;
         }
-        if declared_type.is_some() || has_initializer {
-            return;
-        }
-        if matches!(module.source, ModuleSource::Builtin(_)) {
-            return;
-        }
 
-        self.error(AnalyzeError::ImplicitAny {
-            node: declarator_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-        });
+        self.report_implicit_any_for_declarator_unchecked(
+            module,
+            profile,
+            declarator_id,
+            declared_type,
+            has_initializer,
+        );
     }
 }
