@@ -703,8 +703,8 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// ^x
-    /// ^mut x
-    /// ^mut super T
+    /// ^readonly x
+    /// ^readonly super T
     /// ```
     ValueOf {
         mutability: Option<Mutability>,
@@ -717,8 +717,8 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// &x
-    /// &mut x
-    /// &const extends T
+    /// &readonly x
+    /// &readonly extends T
     /// ```
     ReferenceOf {
         mutability: Option<Mutability>,
@@ -731,7 +731,7 @@ pub enum Expression {
     /// Examples:
     /// ```
     /// *T
-    /// *mut T
+    /// *readonly T
     /// ```
     PointerOf {
         mutability: Option<Mutability>,

@@ -152,8 +152,8 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                             }
 
                             // mutability
-                            if local.mutability == Mutability::Mutable {
-                                write!(f, [token(","), space(), token("mut")])?;
+                            if local.mutability == Mutability::Immutable {
+                                write!(f, [token(","), space(), token("readonly")])?;
                             }
 
                             write!(f, [hard_line_break()])?;

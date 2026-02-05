@@ -267,7 +267,7 @@ mod tests {
     fn test_reaching_definitions_single_block() {
         let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = local.get local0
@@ -312,7 +312,7 @@ block0(v0: i32):
     fn test_reaching_definitions_before_first_instruction() {
         let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = local.get local0
@@ -344,7 +344,7 @@ block0(v0: i32):
     fn test_reaching_definitions_overwrite_in_block() {
         let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32, v1: i32):
     local.set local0, v0
     local.set local0, v1
@@ -392,7 +392,7 @@ block0(v0: i32, v1: i32):
     fn test_reaching_definitions_branch_with_entry() {
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: bool):
     branch v0, block1, block2
 block1:
@@ -433,8 +433,8 @@ block3:
     fn test_reaching_definitions_multiple_locals() {
         let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
-    local0: i32 ; owned, mut
-    local1: i32 ; owned, mut
+    local0: i32 ; owned
+    local1: i32 ; owned
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
 block1:
@@ -487,7 +487,7 @@ block3:
     fn test_reaching_definitions_branch_merge() {
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: bool):
     branch v0, block1, block2
 block1:
@@ -531,7 +531,7 @@ block3:
     fn test_reaching_definitions_loop_backedge() {
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: bool):
     jump block1
 block1:
@@ -572,7 +572,7 @@ block2:
     fn test_reaching_definitions_unreachable_block() {
         let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     jump block1

@@ -6765,8 +6765,10 @@ pub(crate) fn format_expression<'ast>(
             right,
         } => {
             write!(f, [token("^")])?;
-            if let Some(mutability) = mutability {
-                write!(f, [*mutability])?;
+            if let Some(mutability) = mutability
+                && *mutability == Mutability::Immutable
+            {
+                write!(f, [token("readonly"), space()])?;
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
@@ -6782,9 +6784,9 @@ pub(crate) fn format_expression<'ast>(
         } => {
             write!(f, [token("&")])?;
             if let Some(mutability) = mutability
-                && *mutability == Mutability::Mutable
+                && *mutability == Mutability::Immutable
             {
-                write!(f, [*mutability, space()])?;
+                write!(f, [token("readonly"), space()])?;
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
@@ -6796,9 +6798,9 @@ pub(crate) fn format_expression<'ast>(
         Expression::PointerOf { mutability, right } => {
             write!(f, [token("*")])?;
             if let Some(mutability) = mutability
-                && *mutability == Mutability::Mutable
+                && *mutability == Mutability::Immutable
             {
-                write!(f, [*mutability, space()])?;
+                write!(f, [token("readonly"), space()])?;
             }
             right.format(f)?;
         }

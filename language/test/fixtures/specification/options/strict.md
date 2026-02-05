@@ -278,6 +278,32 @@ let wide: FnWide = narrow;
 
 - contains: not assignable
 
+### strictFunctionTypes rejects narrow method parameters when true
+
+> Method parameters are checked strictly when strictFunctionTypes is enabled.
+
+```ds:main.ds
+type Wide = {
+    handle(value: string | number): void
+};
+
+class Narrow {
+    handle(value: string): void {}
+}
+
+let value: Wide = new Narrow();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictFunctionTypes": true } }
+```
+
+- contains: not assignable
+
 ### strictFunctionTypes allows narrow parameter types when false
 
 > Explicit strictFunctionTypes false permits narrow parameter assignments.
@@ -289,6 +315,30 @@ interface FnWide {
 
 function narrow(value: string): void {}
 let wide: FnWide = narrow;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "strict": false, "strictFunctionTypes": false } }
+```
+
+### strictFunctionTypes allows narrow method parameters when false
+
+> Method parameters are bivariant when strictFunctionTypes is disabled.
+
+```ds:main.ds
+type Wide = {
+    handle(value: string | number): void
+};
+
+class Narrow {
+    handle(value: string): void {}
+}
+
+let value: Wide = new Narrow();
 ```
 
 ```ds:package.json

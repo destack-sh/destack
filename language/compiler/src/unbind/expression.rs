@@ -103,8 +103,13 @@ impl Compiler {
                     ast::Expression::ExportNamespace { name }
                 }
 
-                dir::Expression::Let { descriptor, mutability, declarators } => {
-                    let descriptor = self.unbind_declaration_descriptor(descriptor, ast_strings, context);
+                dir::Expression::Let {
+                    descriptor,
+                    mutability,
+                    declarators,
+                } => {
+                    let descriptor =
+                        self.unbind_declaration_descriptor(descriptor, ast_strings, context);
                     let ast_mutability = self.unbind_mutability(context, *mutability);
                     // Derive LetKind from mutability (DIR doesn't preserve original keyword)
                     let kind = match mutability {
@@ -114,7 +119,12 @@ impl Compiler {
                     let declarators = declarators.iter().map(|decl| {
                         self.unbind_declarator(module, *decl, tree, symbols, ast_tree, ast_strings, context)
                     }).collect();
-                    ast::Expression::Let { kind, descriptor, mutability: ast_mutability, declarators }
+                    ast::Expression::Let {
+                        kind,
+                        descriptor,
+                        mutability: ast_mutability,
+                        declarators,
+                    }
                 }
                 dir::Expression::Using {
                     asynchrony,

@@ -199,8 +199,7 @@ impl Compiler {
         scope: (LocalScopeId, &Scope, LocalScopeMark),
         key: StaticKey,
         space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        symbols: &SymbolTable, mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<LocalSymbolId> {
         // track the nearest fallback symbol
         let mut scope = scope;
@@ -267,8 +266,7 @@ impl Compiler {
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
-        tree: &mut NodeTree,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        tree: &mut NodeTree, mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
         if !self.module_is_ambient_lib(module) {
             return Ok(None);
@@ -499,8 +497,7 @@ impl Compiler {
         path: &Path,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
         space_order: SymbolSpaceOrder,
-        tree: &mut NodeTree,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        tree: &mut NodeTree, mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<Option<Expression>> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return Ok(None);
@@ -714,8 +711,7 @@ impl Compiler {
         symbol_id: LocalSymbolId,
         path: &Path,
         space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        symbols: &SymbolTable, mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
         // try resolving within the current module first
         let resolved = self.resolve_relative_symbol(
@@ -822,8 +818,7 @@ impl Compiler {
         symbol_id: LocalSymbolId,
         path: &Path,
         space_order: SymbolSpaceOrder,
-        symbols: &SymbolTable,
-        mut scope_cache: Option<&mut ResolveScopeIndexCache>,
+        symbols: &SymbolTable, mut scope_cache: Option<&mut ResolveScopeIndexCache>,
     ) -> ResolveResult<(LocalSymbolId, Option<Path>)> {
         // track the current symbol as we walk segments
         let mut current_symbol_id = symbol_id;

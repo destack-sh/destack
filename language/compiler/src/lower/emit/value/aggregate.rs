@@ -403,8 +403,8 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed @User> = managed.alloc @User
-    /// v2: void = call @User.constructor(v1, v0) -> fn(ref<managed @User>, i32) -> void
+    /// v1: ref<managed readonly @User> = managed.alloc @User
+    /// v2: void = call @User.constructor(v1, v0) -> fn(ref<managed readonly @User>, i32) -> void
     /// ```
     pub(crate) fn lower_new_expression(
         &mut self,

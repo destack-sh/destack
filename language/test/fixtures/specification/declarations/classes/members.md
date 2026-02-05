@@ -191,6 +191,46 @@ counter.count = "bad";
 
 - contains: not assignable
 
+## parameter properties
+
+### parameter properties declare and initialize members
+
+> Parameter properties create fields and initialize them from constructor arguments.
+
+```ds
+class Counter {
+    constructor(public value: int32, readonly label: string) {}
+}
+
+const counter = new Counter(1, "label");
+counter.value = 2;
+counter.label satisfies string;
+```
+
+### parameter properties require identifiers
+
+> Parameter properties cannot use binding patterns.
+
+```ds
+class Counter {
+    constructor(public {}: {}) {}
+}
+```
+
+- contains: parameter property
+
+### parameter properties cannot be rest parameters
+
+> Parameter properties cannot be variadic.
+
+```ds
+class Counter {
+    constructor(public ...values: int32[]) {}
+}
+```
+
+- contains: parameter property
+
 ## invalid members
 
 ### abstract fields cannot have initializers
@@ -443,27 +483,3 @@ class Counter {
 ```
 
 - contains: static class blocks cannot have any modifier
-
-### parameter properties require identifiers
-
-> Parameter properties cannot use binding patterns.
-
-```ds
-class Counter {
-    constructor(public {}: {}) {}
-}
-```
-
-- contains: parameter property
-
-### parameter properties cannot be rest parameters
-
-> Parameter properties cannot be variadic.
-
-```ds
-class Counter {
-    constructor(public ...values: int32[]) {}
-}
-```
-
-- contains: parameter property

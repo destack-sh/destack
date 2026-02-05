@@ -1,7 +1,7 @@
 
 function @string_builder_scan(v0: i64, v1: i64, v2: i64, v3: i64) -> i64 {
-    local0: ref<managed i64> ; owned, mut
-    local1: ref<managed i64> ; owned, mut
+    local0: ref<managed i64> ; owned
+    local1: ref<managed i64> ; owned
 
 // entry, init state
 block0(v0: i64, v1: i64, v2: i64, v3: i64):

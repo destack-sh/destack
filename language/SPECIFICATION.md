@@ -580,20 +580,20 @@ Destack additionally supports explicit ownership control:
 
 ```
 T            // type default (value or managed reference)
-&T           // borrow (read only reference)
-&mut T       // borrow (mutable reference)
-^T           // owned reference (move-only)
-^mut T       // owned reference (explicitly mutable)
+&T           // borrow (mutable, exclusive reference)
+&readonly T  // borrow (read only reference)
+^T           // owning handle (move-only)
+^readonly T  // owning handle (move-only, readonly)
 ```
 Raw pointers are separate from ownership modifiers:
 ```
-*T           // raw pointer (unsafe)
-*mut T       // raw pointer (mutable, unsafe)
+*T           // raw pointer (mutable, unsafe)
+*readonly T  // raw pointer (readonly, unsafe)
 ```
 
 **Borrow semantics:**
-- `&T` and `&mut T` are safe borrows verified by the borrow check pass.
-- Assigning through `&T` is invalid, mutation requires `&mut T`.
+- `&T` and `&readonly T` are safe borrows verified by the borrow check pass.
+- Assigning through `&readonly T` is invalid, mutation requires `&T`.
 - Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 - `&expr` takes the address of an addressable place.
 - When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
@@ -605,24 +605,26 @@ Raw pointers are separate from ownership modifiers:
 - In lenient mode, the same situations produce warnings.
 
 **Raw pointers:**
-- `*T` and `*mut T` are unsafe pointers with no borrow tracking.
+- `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
 - Raw pointers may be null or dangling and allow pointer arithmetic.
 - Converting between borrowed references and raw pointers is always explicit.
 - Raw pointers do not imply ownership or drop behavior.
 - Raw pointers only support equality and inequality comparisons.
-- `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
+- `&const T` and `*const T` are accepted but redundant and format as `&readonly T` and `*readonly T`.
 
 | Modifier | Meaning | After `foo(x)` | Who cleans up? |
 |----------|---------|----------------|----------------|
 | `T` | Type default (value or managed reference) | `x` still valid | Type default |
-| `&T` | Borrow (read) | `x` still valid | Original owner |
-| `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
-| `^T` | Owned reference (move-only) | `x` **invalid** | New owner (raw allocation) |
+| `&readonly T` | Borrow (read) | `x` still valid | Original owner |
+| `&T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
+| `^T` | Owning handle (move-only) | `x` **invalid** | New owner (raw allocation) |
+| `^readonly T` | Owned reference (read only) | `x` **invalid** | New owner (raw allocation) |
 
 Managed reference types are collected by the GC.
 Value types only drop when owned or used with `using`.
-For value types, `T` is an inline value with copy or move semantics, while `^T` is an owned reference that allocates and transfers ownership.
+For value types, `T` is an inline value with copy or move semantics, while `^T` is an owning handle that allocates and transfers ownership.
 Use `^T` when you need explicit ownership transfer, deterministic drop, or to avoid copying large value types.
+Use `^readonly T` when ownership transfer is required but mutation must be forbidden.
 
 **Implicit managed defaults:**
 `noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
@@ -648,9 +650,9 @@ consume(^node);    // ownership transferred
 print(node.value); // error: use after ownership transfer
 ```
 
-`^T` is the owned reference type.
+`^T` is the owning handle type.
 Passing a `^T` by value transfers ownership to the callee.
-Use `^expr` to convert a value `T` into an owned reference `^T`.
+Use `^expr` to convert a value `T` into an owning handle `^T`.
 If you already have `^T`, pass it directly instead of writing `^expr`.
 
 Using a value after ownership transfer is an error (suppressible to warning).
@@ -664,7 +666,7 @@ even if the lexical scope continues.
 ```
 function process() {
     const data = ^LargeData { ... };  // we own this
-    doWork(&data);                     // borrow it
+    doWork(&readonly data);            // borrow it
     log("done");                       // data can be dropped before this line
 }
 ```
@@ -676,6 +678,7 @@ function process() {
 - Owned values are dropped at their last proven use unless `using` is specified.
 - `using` bindings drop at scope end and cannot be moved.
 - `^T` controls ownership transfer and move semantics.
+- `^readonly T` controls ownership transfer and forbids mutation through the owned handle.
 - `using` controls drop timing and does not imply ownership.
 - Combine `using` with `^T` for deterministic cleanup of owned values.
 - `using` can wrap managed values to enforce scope based cleanup when they implement `Symbol.dispose`.
@@ -688,6 +691,7 @@ Ownership modifiers determine allocation strategy:
 |----------|------------|------------------|-----------|
 | `T` | type default | none | value or managed reference |
 | `^T` | owned storage | `raw.drop` | dispose + deallocate |
+| `^readonly T` | owned storage | `raw.drop` | dispose + deallocate |
 | `&T` | none | none | borrows existing memory |
 
 Owned allocations use `raw.alloc` by default.
@@ -760,9 +764,9 @@ Implicit ownership conversions only create borrows and never transfer ownership.
 Struct boxing at reference boundaries is a value to reference conversion, not an ownership conversion.
 
 Implicit conversions:
-- `T` → `&T` or `&mut T` when a reference is required and the value is addressable
-- `^T` → `&T` to borrow from an owned value
-- `&mut T` → `&T` to reborrow as shared
+- `T` → `&T` or `&readonly T` when a reference is required and the value is addressable
+- `^T` → `&T` or `&readonly T` when a reference is required
+- `&T` → `&readonly T` to reborrow as shared
 
 Explicit conversions:
 - `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
@@ -773,7 +777,7 @@ Explicit conversions:
 Example (implicit borrow):
 
 ```
-function read(item: &Item): int { item.size() }
+function read(item: &readonly Item): int { item.size() }
 
 const value = Item { size: 10 };
 read(value);
@@ -799,38 +803,38 @@ file.write("hello");
 
 **Returning references:**
 
-Functions can return `&T`.
+Functions can return `&readonly T`.
 Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
 In strict mode, returning a borrow that may outlive its origin is an error.
 (In lenient mode, the same situation produces a warning).
 
 ```
-function get(c: &Container): &Item { &c.item }  // ok
+function get(c: &readonly Container): &readonly Item { &readonly c.item }  // ok
 
-function bad(): &Point {
+function bad(): &readonly Point {
     const p = Point { x: 1, y: 2 }
-    &p  // WARNING: returning reference to local
+    &readonly p  // WARNING: returning reference to local
 }
 ```
 
 ### Borrow Modes
 
-By default, `&T` and `&mut T` are hints and violations produce warnings.
-Strict mode enforces exclusive `&mut` borrows and no escape rules.
-Strict mode enables stronger optimizations like `noalias` on `&mut`.
+By default, `&T` and `&readonly T` are hints and violations produce warnings.
+Strict mode enforces exclusive `&T` borrows and no escape rules.
+Strict mode enables stronger optimizations like `noalias` on `&T`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
 Borrow modes do not apply to raw pointers.
 
 ### Lifetime Annotations
 
-When a function returns `&T` or a type containing borrowed references, the compiler tracks which input parameters the return value borrows from.
+When a function returns `&readonly T` or a type containing borrowed references, the compiler tracks which input parameters the return value borrows from.
 This is usually inferred automatically:
 
 | Input Parameters | Inference |
 |------------------|-----------|
-| Single `&T` parameter | Return borrows from it |
-| `&self` or `&this` receiver | Return borrows from receiver |
-| Multiple `&T` parameters | Return borrows from all (conservative) |
+| Single `&readonly T` parameter | Return borrows from it |
+| `&readonly self` or `&readonly this` receiver | Return borrows from receiver |
+| Multiple `&readonly T` parameters | Return borrows from all (conservative) |
 
 When conservative inference is too restrictive, use `@lifetime` to specify exactly
 which parameters the return borrows from:
@@ -993,6 +997,9 @@ Type parameters may be annotated with `in` or `out` to declare variance.
 Variance annotations are validated against usage, and invalid positions are compile errors.
 Annotations are allowed on type parameters for type aliases, interfaces, classes, and functions.
 Unannotated parameters use inferred variance based on their usage.
+Function and method parameter variance follows `strictFunctionTypes` when enabled.
+Methods and constructors use the same strict variance rules as functions in strict mode.
+Native targets always enforce strict variance for methods to keep vtable and itab calls sound.
 
 ```
 interface Producer<out T> {
@@ -1623,6 +1630,9 @@ The default constructor takes positional arguments in field declaration order an
 Constructors cannot return a value.
 A bare `return` is allowed for early exit.
 Constructors must initialize all instance fields before returning.
+Constructor parameters can declare parameter properties with visibility or `readonly` modifiers.
+Parameter properties create instance fields and assign their values from the constructor arguments.
+Parameter properties require identifiers and cannot be rest parameters.
 The `new` expression always invokes the constructor (explicit or default).
 For class types, `new` allocates a managed instance and runs the constructor.
 For struct types, `new` constructs a value and does not imply managed allocation.
@@ -1734,7 +1744,7 @@ You can explicitly reference or copy either structs or classes.
 
 #### Associated Types
 
-Class-shaped types like structs and interfaces can declare associated type aliases ("static type members") using the `type` keyword:
+Class shaped types like structs, classes, and interfaces can declare associated type aliases ("static type members") using the `type` keyword:
 
 ```ds
 struct Container<T> {
@@ -1751,6 +1761,7 @@ struct Container<T> {
 
 Associated types are inherently static because they belong to the type itself, not to instances.
 Associated types are resolved at compile time based on the type's static parameters.
+Associated types are type only and never exist as runtime values.
 
 Associated types can be accessed via the containing type:
 
@@ -1758,7 +1769,18 @@ Associated types can be accessed via the containing type:
 const item: Container<int>.Item = 42;  // Item resolves to int
 ```
 
-In interfaces, associated types can be declared without a default (abstract) or with a default:
+Associated type declarations can include constraints and defaults:
+
+```ds
+struct SizedBox {
+    type Item: number = int32;
+    value: Item;
+}
+```
+
+Structs and classes must provide a concrete associated type definition.
+Interfaces may declare abstract associated types by omitting the default.
+Interface defaults are used when an implementor does not provide a definition.
 
 ```ds
 interface Iterable<T> {
@@ -1774,6 +1796,49 @@ extension<T> for Container<T> implements Iterable<T> {
 
     iter(): Iter { ... }
 }
+```
+
+Associated type definitions must satisfy any declared constraint.
+Implementors must provide compatible definitions for every abstract associated type.
+Implementors may override default associated types as long as the new definition satisfies the constraint.
+
+##### Generic Associated Types (GATs)
+
+Associated types can declare their own static parameters.
+These are generic associated types (GATs).
+
+```ds
+interface Slice<T> {
+    type View<U>;
+}
+
+struct Buffer<T> {
+    type View<U> = BufferView<T, U>;
+}
+```
+
+```ds
+struct Matrix<comptime rows: uint, comptime cols: uint> {
+    type Row = float64[cols];
+    type View<comptime r: uint> = float64[r][cols];
+}
+```
+
+Associated type parameters can include constraints and defaults just like other static parameters.
+When a type provides an associated type with parameters, projections must supply those parameters unless defaults are available.
+Implementor associated type parameters must accept all arguments that satisfy the interface constraints.
+Associated type parameters can include comptime static value parameters.
+Implementors must match parameter arity and parameter kinds for associated types.
+Associated type projections must supply required static value arguments.
+
+##### Associated Type Projections
+
+Associated types are accessed through the containing type using a projection.
+Projection forms are `TypeName.Associated` or `TypeName.Associated<Args>` for generic associated types.
+
+```
+type Item = Container<string>.Item;
+type View = Buffer<int>.View<float64>;
 ```
 
 ### Enum
@@ -2196,7 +2261,7 @@ Vector2.zero();       // static call
 
 Methods can declare an explicit `this` parameter to constrain the receiver type.
 The explicit `this` parameter must be first and does not count toward call arity.
-Explicit `this` parameters can use reference types (like `&mut`) to require mutable receivers.
+Explicit `this` parameters can use reference types (like `&`) to require mutable receivers.
 Member methods have an implicit `this` binding derived from the receiver type.
 Non-member functions must declare an explicit `this` parameter to use `this`.
 Lambdas may use contextual `this` from an expected function type.
@@ -2576,7 +2641,7 @@ Captures a value into a variable:
 
 ```
 x                    // bind to x
-^mut x                // bind to mutable x
+var x                // bind to mutable x
 ```
 
 #### Must

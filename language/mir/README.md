@@ -271,14 +271,14 @@ Use `tensor.view` to create a strided view into tensor reference storage.
 Use `tensor.view` with `offsets`, `sizes`, and `strides` lists to describe the view bounds.
 
 Tensor view types represent reference-like views into tensor-shaped memory.
-Use `tensor_ref<kind addrspace(space) mut T, [d0, d1, ...], layout=...>` in MIR text.
+Use `tensor_ref<kind addrspace(space) readonly T, [d0, d1, ...], layout=...>` in MIR text.
 The `kind` is one of `managed`, `owned`, `borrowed`, or `raw`.
-The `mut` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
+The `readonly` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
 
 References carry a kind _and_ mutability:
 - `managed` for auto-managed references
 - `owned` for explicit ownership (`^T`)
-- `borrowed` for `&T` and `&mut T`
+- `borrowed` for `&T` and `&readonly T`
 - `raw` for "unsafe" pointers
 
 Reference syntax spells out the kind and mutability.
@@ -288,10 +288,10 @@ Address spaces are optional and appear after the kind.
 | --- | --- | --- | --- |
 | managed | none | `ref<managed @T>` | GC-managed reference |
 | owned | none | `ref<owned @T>` | owned reference for `^T` |
-| borrowed | shared | `ref<borrowed @T>` | shared borrow (`&T`) |
-| borrowed | mutable | `ref<borrowed mut @T>` | mutable borrow (`&mut T`) |
-| raw | shared | `ref<raw @T>` | raw pointer (immutable) |
-| raw | mutable | `ref<raw mut @T>` | raw pointer (mutable) |
+| borrowed | mutable | `ref<borrowed @T>` | mutable borrow (`&T`) |
+| borrowed | readonly | `ref<borrowed readonly @T>` | readonly borrow (`&readonly T`) |
+| raw | mutable | `ref<raw @T>` | raw pointer (mutable) |
+| raw | readonly | `ref<raw readonly @T>` | raw pointer (readonly) |
 
 Borrowed references are safe aliases verified by the borrow check pass.
 Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
@@ -314,7 +314,7 @@ Use `addrspace(name)` or `addrspace(7)` in the reference syntax:
 
 ```mir
 ref<raw addrspace(shared) i32>
-ref<raw addrspace(7) mut i32>
+ref<raw addrspace(7) readonly i32>
 ```
 
 Non generic address spaces are only valid for borrowed and raw references, including tensor references.

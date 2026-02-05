@@ -13,17 +13,17 @@ declare_pass! {
     /// written, then rewrites direct loads to `global.const` for faster access.
     ///
     /// ```mir
-    /// global @value: i32 = 42i32 ; mut
+    /// global @value: i32 = 42i32 ;
     /// function @root() -> i32 {
     /// block0:
-    ///     v0 = global.addr @value -> ref<raw mut i32>
+    ///     v0 = global.addr @value -> ref<raw i32>
     ///     v1 = load v0 -> i32
     ///     return v1
     /// }
     /// ```
     /// becomes:
     /// ```mir
-    /// global @value: i32 = 42i32 ; const
+    /// global @value: i32 = 42i32 ; readonly
     /// function @root() -> i32 {
     /// block0:
     ///     v1 = global.const @value
@@ -640,15 +640,15 @@ mod tests {
     /// Loads from immutable globals are rewritten to global.const.
     #[test]
     fn test_global_opt_rewrites_loads() {
-        let input = r#"global @value: i32 = 42i32 ; mut
+        let input = r#"global @value: i32 = 42i32 ;
 function @root() -> i32 {
 block0:
-    v0: ref<raw mut i32> = global.addr @value
+    v0: ref<raw i32> = global.addr @value
     v1: i32 = load v0
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 42i32 ; const
+        let expected = r#"global @value: i32 = 42i32 ; readonly
 function @root() -> i32 {
 block0:
     v0: i32 = global.const @value
@@ -663,10 +663,10 @@ block0:
     /// Globals that are stored to remain mutable.
     #[test]
     fn test_global_opt_skips_written_global() {
-        let input = r#"global @value: i32 = 0i32 ; mut
+        let input = r#"global @value: i32 = 0i32 ;
 function @root() -> void {
 block0:
-    v0: ref<raw mut i32> = global.addr @value
+    v0: ref<raw i32> = global.addr @value
     v1: i32 = iconst 1i32
     store v0, v1
     return
@@ -680,11 +680,11 @@ block0:
     /// Address space casts that feed stores keep globals mutable.
     #[test]
     fn test_global_opt_skips_addrspace_cast_store() {
-        let input = r#"global @value: i32 = 0i32 ; mut
+        let input = r#"global @value: i32 = 0i32 ;
 function @root() -> void {
 block0:
-    v0: ref<raw mut i32> = global.addr @value
-    v1: ref<raw mut i32> = intrinsic.addrspace.cast(v0)
+    v0: ref<raw i32> = global.addr @value
+    v1: ref<raw i32> = intrinsic.addrspace.cast(v0)
     v2: i32 = iconst 1i32
     store v1, v2
     return
@@ -698,10 +698,10 @@ block0:
     /// Terminator uses prevent const rewriting.
     #[test]
     fn test_global_opt_skips_terminator_use() {
-        let input = r#"global @value: i32 = 42i32 ; mut
-function @root() -> ref<raw mut i32> {
+        let input = r#"global @value: i32 = 42i32 ;
+function @root() -> ref<raw i32> {
 block0:
-    v0: ref<raw mut i32> = global.addr @value
+    v0: ref<raw i32> = global.addr @value
     return v0
 }"#;
 
@@ -713,15 +713,15 @@ block0:
     /// Debug locations are updated when global.addr is removed.
     #[test]
     fn test_global_opt_updates_debug_locations() {
-        let input = r#"global @value: i32 = 42i32 ; mut
+        let input = r#"global @value: i32 = 42i32 ;
 function @root() -> i32 {
 block0:
-    v0: ref<raw mut i32> = global.addr @value
+    v0: ref<raw i32> = global.addr @value
     v1: i32 = load v0
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 42i32 ; const
+        let expected = r#"global @value: i32 = 42i32 ; readonly
 function @root() -> i32 {
 block0:
     v0: i32 = global.const @value

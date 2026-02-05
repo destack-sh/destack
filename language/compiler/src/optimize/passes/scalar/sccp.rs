@@ -1393,7 +1393,7 @@ block1:
     /// Global const values fold branch conditions and remove dead blocks.
     #[test]
     fn test_global_const_branch_folding() {
-        let input = r#"global @flag: bool = true ; const
+        let input = r#"global @flag: bool = true ; readonly
 function @test() -> i32 {
 block0:
     v0: bool = global.const @flag
@@ -1405,7 +1405,7 @@ block2:
     v2: i32 = iconst 2i32
     return v2
 }"#;
-        let expected = r#"global @flag: bool = true ; const
+        let expected = r#"global @flag: bool = true ; readonly
 function @test() -> i32 {
 block0:
     v0: bool = iconst true
@@ -1423,7 +1423,7 @@ block1:
     /// Mutable globals are not treated as constants.
     #[test]
     fn test_mutable_global_not_constant() {
-        let input = r#"global @flag: bool = true ; mut
+        let input = r#"global @flag: bool = true ;
 function @test() -> i32 {
 block0:
     v0: bool = global.const @flag
@@ -1674,14 +1674,14 @@ block0:
     /// Global aggregate constants are used for field access folding.
     #[test]
     fn test_global_struct_field_get_constant() {
-        let input = r#"global @pair: { i32, i32 } = { 1i32, 2i32 } ; const
+        let input = r#"global @pair: { i32, i32 } = { 1i32, 2i32 } ; readonly
 function @test() -> i32 {
 block0:
     v0: { i32, i32 } = global.const @pair
     v1: i32 = field.get v0, 1
     return v1
 }"#;
-        let expected = r#"global @pair: { i32, i32 } = {1i32, 2i32} ; const
+        let expected = r#"global @pair: { i32, i32 } = {1i32, 2i32} ; readonly
 function @test() -> i32 {
 block0:
     v0: { i32, i32 } = global.const @pair
@@ -1697,14 +1697,14 @@ block0:
     /// Zero initializers produce aggregate constants for field access.
     #[test]
     fn test_global_zero_initializer_field_get() {
-        let input = r#"global @pair: (i32, i32) = zeroinit ; const
+        let input = r#"global @pair: (i32, i32) = zeroinit ; readonly
 function @test() -> i32 {
 block0:
     v0: (i32, i32) = global.const @pair
     v1: i32 = field.get v0, 0
     return v1
 }"#;
-        let expected = r#"global @pair: (i32, i32) = zeroinit ; const
+        let expected = r#"global @pair: (i32, i32) = zeroinit ; readonly
 function @test() -> i32 {
 block0:
     v0: (i32, i32) = global.const @pair
@@ -1720,7 +1720,7 @@ block0:
     /// Byte initializers on u8 arrays fold element access with constant indices.
     #[test]
     fn test_global_bytes_element_get() {
-        let input = r#"global @data: [u8; 4] = b"test" ; const
+        let input = r#"global @data: [u8; 4] = b"test" ; readonly
 function @test() -> u8 {
 block0:
     v0: [u8; 4] = global.const @data
@@ -1728,7 +1728,7 @@ block0:
     v2: u8 = element.get v0, v1
     return v2
 }"#;
-        let expected = r#"global @data: [u8; 4] = b"test" ; const
+        let expected = r#"global @data: [u8; 4] = b"test" ; readonly
 function @test() -> u8 {
 block0:
     v0: [u8; 4] = global.const @data

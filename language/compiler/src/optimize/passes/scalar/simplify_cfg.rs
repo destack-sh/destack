@@ -3108,7 +3108,7 @@ block0(v0: bool):
     /// Branch on a global const folds to the selected target.
     #[test]
     fn test_fold_global_const_branch() {
-        let input = r#"global @flag: bool = true ; const
+        let input = r#"global @flag: bool = true ; readonly
 function @test() -> i32 {
 block0:
     v0: bool = global.const @flag
@@ -3120,7 +3120,7 @@ block1:
 block2:
     return v2
 }"#;
-        let expected = r#"global @flag: bool = true ; const
+        let expected = r#"global @flag: bool = true ; readonly
 function @test() -> i32 {
 block0:
     v0: bool = global.const @flag

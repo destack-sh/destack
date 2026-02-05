@@ -292,9 +292,9 @@ Reify normalizes explicit ownership operators and inserts implicit borrows at re
 Implicit ownership conversions only create borrows and never transfer ownership.
 
 Implicit conversions:
-- `T` → `&T` or `&mut T` when a reference is required and the value is addressable
-- `^T` → `&T` to borrow from an owned value
-- `&mut T` → `&T` to reborrow as shared
+- `T` → `&T` or `&readonly T` when a reference is required and the value is addressable
+- `^T` → `&T` or `&readonly T` when a reference is required
+- `&T` → `&readonly T` to reborrow as shared
 
 Ownership insertion happens before implicit cast insertion.
 

@@ -73,7 +73,7 @@ pub enum CastSource {
 /// The operator used to perform an ownership cast.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OwnershipCastOperator {
-    /// Convert a value into a shared borrow.
+    /// Convert a value into a readonly borrow.
     BorrowShared,
     /// Convert a value into a mutable borrow.
     BorrowMut,

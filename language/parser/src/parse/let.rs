@@ -11,11 +11,7 @@ impl Parser {
     /// Peek a mutability modifier.
     pub fn peek_mutability(&mut self) -> ParseResult<()> {
         let keyword = self.peek_any_keyword()?;
-        if keyword == Keyword::Var
-            || keyword == Keyword::Mut
-            || keyword == Keyword::Const
-            || keyword == Keyword::Readonly
-        {
+        if keyword == Keyword::Var || keyword == Keyword::Const || keyword == Keyword::Readonly {
             Ok(())
         } else {
             Err(ParseError::expected(
@@ -33,7 +29,7 @@ impl Parser {
                 self.bump();
                 Ok((LetKind::Let, Mutability::Mutable))
             }
-            Keyword::Var | Keyword::Mut => {
+            Keyword::Var => {
                 self.bump();
                 Ok((LetKind::Var, Mutability::Mutable))
             }
@@ -60,7 +56,7 @@ impl Parser {
             return Ok(None);
         };
         // mutable
-        if keyword == Keyword::Var || keyword == Keyword::Mut {
+        if keyword == Keyword::Var {
             self.bump(); // eat mutability
             Ok(Some(Mutability::Mutable))
         }
@@ -75,6 +71,23 @@ impl Parser {
         // nothing
         else {
             Ok(None)
+        }
+    }
+
+    /// Eat a reference mutability modifier, defaulting to mutable.
+    pub fn eat_reference_mutability_maybe(&mut self) -> ParseResult<Option<Mutability>> {
+        let Ok(keyword) = self.peek_any_keyword() else {
+            return Ok(Some(Mutability::Mutable));
+        };
+
+        // readonly
+        if keyword == Keyword::Readonly || keyword == Keyword::Const {
+            self.bump(); // eat readonly
+            Ok(Some(Mutability::Immutable))
+        }
+        // mutable by default
+        else {
+            Ok(Some(Mutability::Mutable))
         }
     }
 
@@ -220,13 +233,7 @@ impl Parser {
                 };
                 let is_mutability_keyword = matches!(
                     keyword,
-                    Some(
-                        Keyword::Var
-                            | Keyword::Mut
-                            | Keyword::Const
-                            | Keyword::Readonly
-                            | Keyword::Let
-                    )
+                    Some(Keyword::Var | Keyword::Const | Keyword::Readonly | Keyword::Let)
                 );
                 if !is_mutability_keyword
                     && !has_active_split

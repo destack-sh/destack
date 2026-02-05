@@ -151,7 +151,7 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed @Animal> = bitcast v0 -> ref<managed @Animal>
+    /// v1: ref<managed readonly @Animal> = bitcast v0 -> ref<managed readonly @Animal>
     /// ```
     pub(crate) fn lower_instance_upcast(
         &mut self,
@@ -208,7 +208,7 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed @Dog> = bitcast v0 -> ref<managed @Dog>
+    /// v1: ref<managed readonly @Dog> = bitcast v0 -> ref<managed readonly @Dog>
     /// ```
     pub(crate) fn lower_instance_downcast(
         &mut self,
@@ -477,7 +477,7 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref?<managed @Node> = bitcast v0 -> ref?<managed @Node>
+    /// v1: ref?<managed readonly @Node> = bitcast v0 -> ref?<managed readonly @Node>
     /// ```
     pub(crate) fn lower_nullable_upcast(
         &mut self,
@@ -546,7 +546,7 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<managed @Node> = bitcast v0 -> ref<managed @Node>
+    /// v1: ref<managed readonly @Node> = bitcast v0 -> ref<managed readonly @Node>
     /// ```
     pub(crate) fn lower_nullable_downcast(
         &mut self,

@@ -394,6 +394,7 @@ struct Point {
 Structs are value types, so `==` compares fields and `===` is not defined.
 Classes are reference types, so `===` compares identity.
 Ownership modifiers (`^T`, `&T`) control lifetime and storage without changing identity semantics.
+Class constructors may declare parameter properties, which create and initialize fields from parameters.
 Struct values may still be heap allocated by escape analysis, but the semantics remain value based.
 
 ```
@@ -435,7 +436,12 @@ struct Cache<K, V> {
 ```
 
 Associated types are resolved at compile time and can reference static parameters.
-See [Associated Types](SPECIFICATION.md#associated-types) for full details.
+Associated types can declare their own static parameters (generic associated types, like GATs in Rust land).
+`type View<U> = SliceView<T, U>`.
+Associated types can also use comptime static value parameters.
+`type View<comptime n: uint> = Window<T, n>`.
+Interfaces may leave associated types abstract or supply defaults, and implementors provide concrete definitions.
+Associated types are type-only and are accessed through the containing type like `Cache<int, string>.Entry`.
 
 ### Constraints
 
@@ -719,7 +725,6 @@ Extension methods participate in member resolution, too.
 
 ## Ownership
 
-<!-- FUGU: Ownership surface syntax is a bit ugly and doesn't fit TS well -->
 TypeScript does not encode ownership in its type system.
 Reference types are implicitly GC managed, and value types are copied by default, and that's it.
 In effect, the runtime implicitly owns and manages the lifetime of all values.
@@ -730,21 +735,21 @@ Destack adds an opt-in explicit "ownership" mechanism which determines who can u
 In addition to the default `T`, there are four other ownership options:
 ```
 T            // type default (value or managed reference)
-&T           // borrow (read only reference)
-&mut T       // borrow (mutable reference)
-^T           // owned reference (move-only)
-^mut T       // owned reference (explicitly mutable)
+&T           // borrow (mutable, exclusive reference)
+&readonly T  // borrow (read only reference)
+^T           // owning handle (move-only, mutable)
+^readonly T  // owning handle (move-only, readonly)
 ```
 
 Raw pointers "opt out" of ownership modifiers:
 ```
-*T           // raw pointer (unsafe)
-*mut T       // raw pointer (mutable, unsafe)
+*T           // raw pointer (mutable, unsafe)
+*readonly T  // raw pointer (readonly, unsafe)
 ```
 
 **Borrow semantics:**
-- `&T` and `&mut T` are safe borrows verified by the borrow check pass.
-- Assigning through `&T` is invalid, mutation requires `&mut T`.
+- `&T` and `&readonly T` are safe borrows verified by the borrow check pass.
+- Assigning through `&readonly T` is invalid, mutation requires `&T`.
 - `&expr` takes the address of an addressable place.
 - A borrow ends when the reference value is no longer live.
 - Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
@@ -753,11 +758,11 @@ Raw pointers "opt out" of ownership modifiers:
 - Conflicting borrows and invalidating stores are errors (or warnings in lenient mode).
 
 **Raw pointers:**
-- `*T` and `*mut T` are unsafe pointers with no borrow tracking.
+- `*T` and `*readonly T` are unsafe pointers with no borrow tracking.
 - Raw pointers may be null or dangling and allow pointer arithmetic.
 - Converting between borrowed references and raw pointers is always explicit.
 - Raw pointers do not imply ownership or drop behavior.
-- `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
+- `^readonly T` behaves like `^T` but forbids mutation through the owned handle.
 
 ### Address Spaces
 
@@ -770,7 +775,7 @@ Address spaces are spelled with `addrspace(name)` or `addrspace(7)` on a referen
 
 ```
 ref<raw addrspace(shared) i32>
-ref<raw addrspace(7) mut i32>
+ref<raw addrspace(7) i32>
 ```
 
 Address space changes are explicit (and lower to the `addrspace.cast` intrinsic).
@@ -786,9 +791,9 @@ consume(^node)    // ownership transferred
 print(node.value) // ERROR: use after ownership transfer
 ```
 
-`^T` is the owned reference type.
+`^T` is the owning handle type.
 Passing a `^T` by value transfers ownership to the callee.
-Use `^expr` to convert a value `T` into an owned reference `^T`.
+Use `^expr` to convert a value `T` into an owning handle `^T`.
 (If you already have `^T`, pass it directly, no `^expr` needed.)
 
 `^T` values are dropped at their last proven use (non lexical), not just at end of scope:
@@ -796,7 +801,7 @@ Use `^expr` to convert a value `T` into an owned reference `^T`.
 ```
 function process() {
     const data = ^LargeData { ... }  // we own this
-    doWork(&data)                     // borrow it
+    doWork(&readonly data)            // borrow it
     log("done")                       // data can be dropped before this line
 }
 ```
@@ -821,6 +826,7 @@ Ownership modifiers determine how values are allocated and cleaned up:
 |--------|------------|---------|-----------|
 | `T` (plain) | `managed.alloc` | GC | GC handles everything |
 | `^T` (owned) | `raw.alloc` | `raw.drop` | dispose + deallocate |
+| `^readonly T` (owned, readonly) | `raw.alloc` | `raw.drop` | dispose + deallocate |
 | `&T` (borrow) | none | none | points to someone else's memory |
 
 The `raw.drop` operation performs **drop glue**: drop owned fields (reverse declaration order), call `Symbol.dispose` if the type implements `Drop`, then deallocate.
@@ -856,9 +862,9 @@ Ownership conversions are explicit, except for borrows inserted at reference bou
 Implicit ownership conversions only create borrows and never transfer ownership.
 
 Implicit conversions:
-- `T` → `&T` or `&mut T` when a reference type is required and the value is addressable
-- `^T` → `&T` to borrow from an owned value
-- `&mut T` → `&T` to reborrow as shared
+- `T` → `&T` or `&readonly T` when a reference type is required and the value is addressable
+- `^T` → `&T` or `&readonly T` when a reference type is required
+- `&T` → `&readonly T` to reborrow as shared
 
 Explicit conversions:
 - `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
@@ -888,30 +894,29 @@ function bad(): &Point {
 
 ### Borrow Modes
 
-By default, `&T` and `&mut T` are hints and violations produce warnings.
-Strict mode enforces exclusive `&mut` borrows and no escape rules.
-Strict mode enables stronger optimizations like `noalias` on `&mut`.
+By default, `&T` and `&readonly T` are hints and violations produce warnings.
+Strict mode enforces exclusive `&T` borrows and no escape rules.
+Strict mode enables stronger optimizations like `noalias` on `&T`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
 Borrow modes do not apply to raw pointers.
 
 ### Lifetime Annotations
 
 When returning references or aggregates containing references, the compiler needs to know which input parameters the return value borrows from. This is usually inferred:
-
-- Single `&T` parameter → return borrows from it
-- `&self`/`&this` method → return borrows from receiver
-- Multiple `&T` parameters → conservative (borrows from all)
+- Single `&readonly T` parameter → return borrows from it
+- `&readonly self` or `&readonly this` receiver → return borrows from receiver
+- Multiple `&readonly T` parameters → conservative (borrows from all)
 
 When inference is too conservative, use `@lifetime` to be explicit:
 
 ```
 // explicit: only borrows from 'a', not 'b'
-function first(a: &string, b: &string): @lifetime("a") &string {
+function first(a: &readonly string, b: &readonly string): @lifetime("a") &readonly string {
     return a;
 }
 
 // may borrow from either
-function pick(a: &string, b: &string): @lifetime("a", "b") &string {
+function pick(a: &readonly string, b: &readonly string): @lifetime("a", "b") &readonly string {
     if (cond) { return a; }
     return b;
 }
@@ -938,11 +943,14 @@ Configure strictness in `dsconfig.json`:
   "compilerOptions": {
     "noImplicitManaged": true,       // require ^T or &T on types and values
     "noManaged": true,               // forbid GC-managed defaults and allocations
-    "borrowMode": "strict",          // enforce &mut exclusivity rules
+    "borrowMode": "strict",          // enforce & exclusivity rules
     "noRuntime": true                // forbid runtime features
   }
 }
 ```
+
+Strict function type checking applies to methods and constructors in soundness profiles.
+Native targets force strict method variance even when TypeScript compatibility would allow bivariance.
 
 ### Function-Level Control
 

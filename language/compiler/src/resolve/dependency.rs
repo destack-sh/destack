@@ -157,8 +157,7 @@ impl Compiler {
         kind: DependencyKind,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut ReexportVisitStack,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        visited: &mut ReexportVisitStack, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ResolvedExportSymbol>> {
         // check symbol spaces in priority order
         let order = self.export_spaces_for_kind(kind);
@@ -231,8 +230,7 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut ReexportVisitStack,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        visited: &mut ReexportVisitStack, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let cache_key = cache.as_ref().map(|_| ReexportChainCacheKey {
             target,
@@ -394,8 +392,7 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         default_name: StringId,
-        visited: &mut ReexportVisitStack,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        visited: &mut ReexportVisitStack, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match target {
             ModuleTarget::Module(module_id) => {
@@ -656,8 +653,7 @@ impl Compiler {
         default_name: StringId,
         item_node: GlobalNodeIdAny,
         item: DependencyItem,
-        visited: &mut ReexportVisitStack,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        visited: &mut ReexportVisitStack, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         // resolve local or remote target symbols
         match item {
@@ -978,8 +974,7 @@ impl Compiler {
         &self,
         origin_module_id: ModuleId,
         target: ModuleTarget,
-        profile: ProfileId,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        profile: ProfileId, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Vec<(ModuleId, destack_dir::NamespaceExport)>> {
         let cache_key = cache
             .as_ref()
@@ -1464,8 +1459,7 @@ impl Compiler {
         &self,
         origin_module_id: ModuleId,
         target: ModuleTarget,
-        profile: ProfileId,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        profile: ProfileId, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         let cache_key = cache
             .as_ref()
@@ -1645,8 +1639,7 @@ impl Compiler {
         dir: &ModuleDir,
         tree: &NodeTree,
         scope_id: LocalScopeId,
-        value: LocalNodeId<Expression>,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        value: LocalNodeId<Expression>, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<ExportAssignmentTarget>> {
         // handle resolved references
         let expr = tree.get(value);
@@ -1920,8 +1913,7 @@ impl Compiler {
         namespace_symbol: GlobalSymbolId,
         profile: ProfileId,
         kind: DependencyKind,
-        key: StaticKey,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        key: StaticKey, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         let cache_key = cache.as_ref().map(|_| NamespaceSymbolCacheKey {
             symbol: namespace_symbol,
@@ -2008,8 +2000,7 @@ impl Compiler {
         profile: ProfileId,
         item_id: LocalNodeId<DependencyItem>,
         tree: &NodeTree,
-        symbols: &SymbolTable,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        symbols: &SymbolTable, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<Option<DependencyItem>> {
         // resolve the dependency item based on its mode
         let item = tree.get(item_id);
@@ -2298,8 +2289,7 @@ impl Compiler {
         profile: ProfileId,
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
-        key: StaticKey,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        key: StaticKey, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<ResolvedExportSymbol> {
         // resolve the requested kind first
         let resolved = self.resolve_remote_item_symbol_for_kind(
@@ -2381,8 +2371,7 @@ impl Compiler {
         profile: ProfileId,
         kind: DependencyKind,
         origin_symbol: Option<GlobalSymbolId>,
-        key: StaticKey,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        key: StaticKey, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<ResolvedExportSymbol> {
         let default_name = self.program.strings.intern("default");
 
@@ -2518,8 +2507,7 @@ impl Compiler {
         kind: DependencyKind,
         key: StaticKey,
         origin_symbol: Option<GlobalSymbolId>,
-        default_name: StringId,
-        mut cache: Option<&mut ResolveDependencyItemCache>,
+        default_name: StringId, mut cache: Option<&mut ResolveDependencyItemCache>,
     ) -> ResolveResult<ResolvedExportSymbol> {
         let cache_key = cache.as_ref().map(|_| NamespaceExportSymbolCacheKey {
             target: via_target,

@@ -69,7 +69,7 @@ type @Box = { value: i32 }
 function @sumBox(v0: i32) -> i32 {
 block0(v0: i32):
     v1: @Box = struct @Box (v0)
-    v2: ref<managed @Box> = managed.alloc @Box
+    v2: ref<managed readonly @Box> = managed.alloc @Box
     store v2, v1
     v3: @Box = load v2
     v4: i32 = field.get v3, 0
@@ -123,23 +123,23 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-global @PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
-global @MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @PacketHeader#vtable: [ref?<raw readonly void>; 2] = zeroinit ; readonly
+global @MessageHeader#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
-    v1: ref<raw [ref?<raw void>; 2]> = global.addr @PacketHeader#vtable
-    v2: ref<raw void> = bitcast v1 -> ref<raw void>
-    v3: { @vtable: ref<raw void>, packetSize: i32 } = struct { @vtable: ref<raw void>, packetSize: i32 } (v2, v0)
-    v4: ref<managed { @vtable: ref<raw void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw void>, packetSize: i32 }
+    v1: ref<raw readonly [ref?<raw readonly void>; 2]> = global.addr @PacketHeader#vtable
+    v2: ref<raw readonly void> = bitcast v1 -> ref<raw readonly void>
+    v3: { @vtable: ref<raw readonly void>, packetSize: i32 } = struct { @vtable: ref<raw readonly void>, packetSize: i32 } (v2, v0)
+    v4: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw readonly void>, packetSize: i32 }
     store v4, v3
-    v5: { @vtable: ref<raw void>, packetSize: i32 } = load v4
+    v5: { @vtable: ref<raw readonly void>, packetSize: i32 } = load v4
     v6: i32 = field.get v5, 1
     return v6
 }
 
-function @MessageHeader.ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
-block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
+function @MessageHeader.ping(v0: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }>) -> i32 {
+block0(v0: ref<managed readonly { @vtable: ref<raw readonly void>, packetSize: i32 }>):
     v1: i32 = iconst 1i32
     return v1
 }
@@ -287,26 +287,26 @@ function useDog(d: Dog): int32 {
         module_id,
         "native",
         r#"
-type @Animal = { @vtable: ref<raw void>, name: i32 }
-type @Dog = { @vtable: ref<raw void>, name: i32, breed: i32 }
+type @Animal = { @vtable: ref<raw readonly void>, name: i32 }
+type @Dog = { @vtable: ref<raw readonly void>, name: i32, breed: i32 }
 
-global @Animal#vtable: [ref?<raw void>; 3] = zeroinit ; const
-global @Dog#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @Animal#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @Dog#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
-function @useDog(v0: ref<managed @Dog>) -> i32 {
-block0(v0: ref<managed @Dog>):
-    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed @Dog>) -> i32
+function @useDog(v0: ref<managed readonly @Dog>) -> i32 {
+block0(v0: ref<managed readonly @Dog>):
+    v1: i32 = call.virtual v0, @Dog, 2, @Dog.speak(v0) -> fn(ref<managed readonly @Dog>) -> i32
     return v1
 }
 
-function @Animal.speak(v0: ref<managed @Animal>) -> i32 {
-block0(v0: ref<managed @Animal>):
+function @Animal.speak(v0: ref<managed readonly @Animal>) -> i32 {
+block0(v0: ref<managed readonly @Animal>):
     v1: i32 = iconst 1i32
     return v1
 }
 
-function @Dog.speak(v0: ref<managed @Dog>) -> i32 {
-block0(v0: ref<managed @Dog>):
+function @Dog.speak(v0: ref<managed readonly @Dog>) -> i32 {
+block0(v0: ref<managed readonly @Dog>):
     v1: i32 = iconst 2i32
     return v1
 }
@@ -367,31 +367,31 @@ class Car extends Vehicle {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw void> }
+type @Struct0 = { @vtable: ref<raw readonly void> }
 
-global @Vehicle#vtable: [ref?<raw void>; 4] = zeroinit ; const
-global @Car#vtable: [ref?<raw void>; 5] = zeroinit ; const
+global @Vehicle#vtable: [ref?<raw readonly void>; 4] = zeroinit ; readonly
+global @Car#vtable: [ref?<raw readonly void>; 5] = zeroinit ; readonly
 
-function @Vehicle.start(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @Vehicle.start(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 1i32
     return v1
 }
 
-function @Vehicle.stop(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @Vehicle.stop(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 2i32
     return v1
 }
 
-function @Car.start(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @Car.start(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 3i32
     return v1
 }
 
-function @Car.honk(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @Car.honk(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 4i32
     return v1
 }
@@ -458,26 +458,26 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Logger = { @vtable: ref<raw void>, logLevel: i32 }
-type @FileLogger = { @vtable: ref<raw void>, logLevel: i32, fileMode: i32 }
+type @Logger = { @vtable: ref<raw readonly void>, logLevel: i32 }
+type @FileLogger = { @vtable: ref<raw readonly void>, logLevel: i32, fileMode: i32 }
 
-global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
-global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @Logger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
-function @callLogger(v0: ref<managed @Logger>) -> i32 {
-block0(v0: ref<managed @Logger>):
-    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed @Logger>) -> i32
+function @callLogger(v0: ref<managed readonly @Logger>) -> i32 {
+block0(v0: ref<managed readonly @Logger>):
+    v1: i32 = call.virtual v0, @Logger, 2, @Logger.log(v0) -> fn(ref<managed readonly @Logger>) -> i32
     return v1
 }
 
-function @Logger.log(v0: ref<managed @Logger>) -> i32 {
-block0(v0: ref<managed @Logger>):
+function @Logger.log(v0: ref<managed readonly @Logger>) -> i32 {
+block0(v0: ref<managed readonly @Logger>):
     v1: i32 = iconst 1i32
     return v1
 }
 
-function @FileLogger.log(v0: ref<managed @FileLogger>) -> i32 {
-block0(v0: ref<managed @FileLogger>):
+function @FileLogger.log(v0: ref<managed readonly @FileLogger>) -> i32 {
+block0(v0: ref<managed readonly @FileLogger>):
     v1: i32 = iconst 2i32
     return v1
 }
@@ -527,25 +527,25 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-type @Struct0 = { @vtable: ref<raw void> }
+type @Struct0 = { @vtable: ref<raw readonly void> }
 
-global @Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
-global @FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @Logger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
+global @FileLogger#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
-function @callLogger(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
-    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed @Struct0>) -> i32
+function @callLogger(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
+    v1: i32 = call.virtual v0, @Struct0, 2, @Logger.log(v0) -> fn(ref<managed readonly @Struct0>) -> i32
     return v1
 }
 
-function @Logger.log(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @Logger.log(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 1i32
     return v1
 }
 
-function @FileLogger.log(v0: ref<managed @Struct0>) -> i32 {
-block0(v0: ref<managed @Struct0>):
+function @FileLogger.log(v0: ref<managed readonly @Struct0>) -> i32 {
+block0(v0: ref<managed readonly @Struct0>):
     v1: i32 = iconst 2i32
     return v1
 }

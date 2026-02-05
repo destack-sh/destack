@@ -1,6 +1,6 @@
-# Variable Declarations
+# Variable Definite Assignment
 
-Tests for variable declaration validation.
+Tests for definite assignment assertions on variable declarators.
 
 ## definite assignment assertions
 

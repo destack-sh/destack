@@ -37,7 +37,7 @@ struct Circle implements Drawable {
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -96,7 +96,7 @@ struct Circle implements Drawable {
         r#"
 type @Circle = { color: i32, radius: i32 }
 
-extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
+extern function @Drawable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
 
 function @Circle.draw(v0: @Circle) -> i32 {
 block0(v0: @Circle):
@@ -286,9 +286,9 @@ struct Widget implements Shape, Paint {
         r#"
 type @Widget = { width: i32, color: i32 }
 
-extern function @Shape.area({ area: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, width: i32 }) -> i32
+extern function @Shape.area({ area: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, width: i32 }) -> i32
 
-extern function @Paint.paint({ paint: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }, color: i32 }) -> i32
+extern function @Paint.paint({ paint: { @function_ptr: fn() -> i32, @env: ref?<managed void> }, color: i32 }) -> i32
 function @Widget.area(v0: @Widget) -> i32 {
 block0(v0: @Widget):
     v1: i32 = field.get v0, 0
@@ -389,8 +389,8 @@ function useDrawable(d: Drawable): int32 {
         module_id,
         "native",
         r#"
-type @Drawable#method:draw#function = { @function_ptr: fn() -> i32, @env: ref?<managed mut void> }
-type @Drawable = { @object: ref<managed void>, @itab: usize }
+type @Drawable#method:draw#function = { @function_ptr: fn() -> i32, @env: ref?<managed void> }
+type @Drawable = { @object: ref<managed readonly void>, @itab: usize }
 type @Circle = { color: i32, radius: i32 }
 type @Drawable#object = { draw: @Drawable#method:draw#function, color: i32 }
 
@@ -398,7 +398,7 @@ extern function @Drawable.draw(@Drawable#object) -> i32
 
 function @useDrawable(v0: @Drawable) -> i32 {
 block0(v0: @Drawable):
-    v1: ref<managed void> = field.get v0, 0
+    v1: ref<managed readonly void> = field.get v0, 0
     v2: i32 = call.interface v0, @Drawable#object, 2, @Drawable.draw(v1) -> fn(@Drawable#object) -> i32
     return v2
 }
@@ -454,17 +454,17 @@ function castRenderable(value: int32): Renderable {
         module_id,
         "native",
         r#"
-type @Renderable = { @object: ref<managed void>, @itab: usize }
+type @Renderable = { @object: ref<managed readonly void>, @itab: usize }
 type @Sprite = { value: i32 }
 
-extern function @Renderable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> } }) -> i32
+extern function @Renderable.draw({ draw: { @function_ptr: fn() -> i32, @env: ref?<managed void> } }) -> i32
 
 function @castRenderable(v0: i32) -> @Renderable {
 block0(v0: i32):
     v1: @Sprite = struct @Sprite (v0)
-    v2: ref<managed @Sprite> = managed.alloc @Sprite
+    v2: ref<managed readonly @Sprite> = managed.alloc @Sprite
     store v2, v1
-    v3: ref<managed void> = bitcast v2 -> ref<managed void>
+    v3: ref<managed readonly void> = bitcast v2 -> ref<managed readonly void>
     v4: u64 = iconst 0u64
     v5: usize = bitcast v4 -> usize
     v6: @Renderable = struct @Renderable (v3, v5)

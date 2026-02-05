@@ -173,8 +173,8 @@ impl<'a> Dumper<'a> {
                     .map(|label| format!(" addrspace({label})"))
                     .unwrap_or_default();
                 let mutability_label = match mutability {
-                    Mutability::Mutable => " mut",
-                    Mutability::Immutable => "",
+                    Mutability::Mutable => "",
+                    Mutability::Immutable => " readonly",
                 };
                 format!("{ref_prefix}<{kind_label}{address_space_label}{mutability_label}>")
             }
@@ -1995,8 +1995,8 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.write(": ");
                 self.write_colored(&self.format_type_id(local.ty), Color::Magenta);
                 match local.mutability {
-                    Mutability::Mutable => self.write(" (mut)"),
-                    Mutability::Immutable => self.write(" (const)"),
+                    Mutability::Mutable => {}
+                    Mutability::Immutable => self.write(" (readonly)"),
                 }
                 match local.ownership {
                     Ownership::Owned => self.write(" [owned]"),
@@ -2084,9 +2084,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             self.write(" = ");
             self.dump_data_init(init);
         }
-        match global.mutability {
-            Mutability::Mutable => self.write(" ; mut"),
-            Mutability::Immutable => self.write(" ; const"),
+        self.write(" ;");
+        if global.mutability == Mutability::Immutable {
+            self.write(" readonly");
         }
         self.write("\n");
     }

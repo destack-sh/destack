@@ -499,7 +499,6 @@ fn is_modifier_keyword(token: &str) -> bool {
             | Keyword::Protected
             | Keyword::Private
             | Keyword::Readonly
-            | Keyword::Mut
             | Keyword::Final
             | Keyword::Accessor
             | Keyword::Default

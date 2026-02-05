@@ -682,14 +682,14 @@ block2:
     /// Global constants fold through unary operations.
     #[test]
     fn test_fold_global_const_boolean() {
-        let input = r#"global @flag: bool = true ; const
+        let input = r#"global @flag: bool = true ; readonly
 function @test() -> bool {
 block0:
     v0: bool = global.const @flag
     v1: bool = bnot v0
     return v1
 }"#;
-        let expected = r#"global @flag: bool = true ; const
+        let expected = r#"global @flag: bool = true ; readonly
 function @test() -> bool {
 block0:
     v0: bool = iconst true
@@ -705,7 +705,7 @@ block0:
     /// Mutable globals do not fold through constant operations.
     #[test]
     fn test_preserve_mutable_global_const() {
-        let input = r#"global @flag: bool = true ; mut
+        let input = r#"global @flag: bool = true ;
 function @test() -> bool {
 block0:
     v0: bool = global.const @flag

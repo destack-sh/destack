@@ -10,8 +10,8 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_load_from_pointer() {
     let mir = r#"
-function @read_ptr(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
+function @read_ptr(v0: ref<raw readonly i32>) -> i32 {
+block0(v0: ref<raw readonly i32>):
     v1: i32 = load v0
     return v1
 }"#;
@@ -32,9 +32,9 @@ block0(v0: i64):
 #[test]
 fn test_load_double_indirection() {
     let mir = r#"
-function @read_ptr_ptr(v0: ref<raw ref<raw i32>>) -> i32 {
-block0(v0: ref<raw ref<raw i32>>):
-    v1: ref<raw i32> = load v0
+function @read_ptr_ptr(v0: ref<raw readonly ref<raw i32>>) -> i32 {
+block0(v0: ref<raw readonly ref<raw i32>>):
+    v1: ref<raw readonly i32> = load v0
     v2: i32 = load v1
     return v2
 }"#;
@@ -56,8 +56,8 @@ block0(v0: i64):
 #[test]
 fn test_load_i64() {
     let mir = r#"
-function @read_ptr64(v0: ref<raw i64>) -> i64 {
-block0(v0: ref<raw i64>):
+function @read_ptr64(v0: ref<raw readonly i64>) -> i64 {
+block0(v0: ref<raw readonly i64>):
     v1: i64 = load v0
     return v1
 }"#;
@@ -78,8 +78,8 @@ block0(v0: i64):
 #[test]
 fn test_load_bool() {
     let mir = r#"
-function @read_bool(v0: ref<raw bool>) -> bool {
-block0(v0: ref<raw bool>):
+function @read_bool(v0: ref<raw readonly bool>) -> bool {
+block0(v0: ref<raw readonly bool>):
     v1: bool = load v0
     return v1
 }"#;
@@ -162,8 +162,8 @@ block0(v0: i32):
 #[test]
 fn test_load_float() {
     let mir = r#"
-function @read_float(v0: ref<raw f32>) -> f32 {
-block0(v0: ref<raw f32>):
+function @read_float(v0: ref<raw readonly f32>) -> f32 {
+block0(v0: ref<raw readonly f32>):
     v1: f32 = load v0
     return v1
 }"#;

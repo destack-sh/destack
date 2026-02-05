@@ -112,17 +112,34 @@ container.data satisfies ^Data;
 
 ## owned mutability
 
-### mutable value expression yields mutable owned type
+### owned values are mutable by default
 
-> Mutable value expressions yield `^var T` types.
+> Owned values are mutable unless wrapped in `readonly`.
 
 ```ds
 struct Point {
     x: int32,
 }
 
-let owned: ^var Point = ^var Point { x: 1 };
+let owned: ^Point = ^Point { x: 1 };
+owned.x = 2;
+owned satisfies ^Point;
 ```
+
+### readonly owned values forbid mutation
+
+> `^readonly T` allows ownership transfer but forbids mutation through the handle.
+
+```ds
+struct Point {
+    x: int32,
+}
+
+let owned: ^readonly Point = ^readonly Point { x: 1 };
+owned.x = 2;
+```
+
+- contains: cannot assign
 
 ## managed directives
 

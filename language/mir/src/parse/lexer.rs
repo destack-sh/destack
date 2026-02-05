@@ -189,7 +189,7 @@ impl<'a> Lexer<'a> {
             "newtype" => TokenType::Newtype,
             "true" | "false" => TokenType::BoolLiteral,
             "owned" | "borrowed" | "copy" => TokenType::Ownership,
-            "mut" => TokenType::Mut,
+            "readonly" => TokenType::Readonly,
             "const" => TokenType::Const,
             _ => {
                 // value

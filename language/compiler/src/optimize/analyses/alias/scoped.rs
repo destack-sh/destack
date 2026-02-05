@@ -187,8 +187,8 @@ mod tests {
     #[test]
     fn test_non_strict_mode_may_alias() {
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
-block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+            r#"function @test(v0: ref<borrowed readonly i32>, v1: ref<borrowed readonly i32>) -> void {
+block0(v0: ref<borrowed readonly i32>, v1: ref<borrowed readonly i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
@@ -211,8 +211,8 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
     #[test]
     fn test_strict_mode_mut_borrows_no_alias() {
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
-block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+            r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed readonly i32>) -> void {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed readonly i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
@@ -235,8 +235,8 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
     #[test]
     fn test_mut_borrow_vs_local_no_alias() {
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed mut i32>) -> void {
-block0(v0: ref<borrowed mut i32>):
+            r#"function @test(v0: ref<borrowed i32>) -> void {
+block0(v0: ref<borrowed i32>):
     v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     v2: i32 = iconst 1i32
     store v0, v2
@@ -261,8 +261,8 @@ block0(v0: ref<borrowed mut i32>):
     fn test_immutable_borrow_may_alias() {
         // even in strict mode, immutable borrows may alias each other
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> void {
-block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
+            r#"function @test(v0: ref<borrowed readonly i32>, v1: ref<borrowed readonly i32>) -> void {
+block0(v0: ref<borrowed readonly i32>, v1: ref<borrowed readonly i32>):
     v2: i32 = load v0
     v3: i32 = load v1
     return
@@ -284,10 +284,10 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
     #[test]
     fn test_mut_borrow_vs_immutable_borrow_no_alias() {
-        // in strict mode, mut borrow doesn't alias immutable borrow
+        // in strict mode borrow doesn't alias immutable borrow
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>) -> void {
-block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
+            r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed readonly i32>) -> void {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed readonly i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = load v1
@@ -313,8 +313,8 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
         // field.addr from noalias param should still not alias other params
         let program = TestProgram::new(
             r#"type @Point = { i32, i32 }
-function @test(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>) -> void {
-block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
+function @test(v0: ref<borrowed @Point>, v1: ref<borrowed i32>) -> void {
+block0(v0: ref<borrowed @Point>, v1: ref<borrowed i32>):
     v2: ref<borrowed i32> = field.addr v0, 0
     v3: i32 = iconst 1i32
     store v2, v3
@@ -340,8 +340,8 @@ block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
     fn test_same_mut_borrow_may_alias_self() {
         // same noalias param accessed twice should may-alias (itself)
         let program = TestProgram::new(
-            r#"function @test(v0: ref<borrowed mut i32>) -> void {
-block0(v0: ref<borrowed mut i32>):
+            r#"function @test(v0: ref<borrowed i32>) -> void {
+block0(v0: ref<borrowed i32>):
     v1: i32 = iconst 1i32
     store v0, v1
     return

@@ -126,8 +126,8 @@ pub enum TokenType {
     // annotations
     /// `owned`, `borrowed`, `copy`
     Ownership,
-    /// `mut`
-    Mut,
+    /// `readonly`
+    Readonly,
     /// `const`
     Const,
 

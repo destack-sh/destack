@@ -391,10 +391,12 @@ impl<'a> Parser<'a> {
         };
 
         // mutability
-        let mutability = if self.eat_token_maybe(TokenType::Mut) {
-            Mutability::Mutable
-        } else {
+        let mutability = if self.eat_token_maybe(TokenType::Readonly)
+            || self.eat_token_maybe(TokenType::Const)
+        {
             Mutability::Immutable
+        } else {
+            Mutability::Mutable
         };
 
         let pointee = self.parse_type()?;

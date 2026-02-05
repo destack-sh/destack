@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a global definition or declaration.
-    /// Expect `[export|extern] global @name: type [= init] ; mut|const`.
+    /// Expect `[export|extern] global @name: type [= init] ; readonly|const`.
     pub(super) fn parse_global(
         &mut self,
         linkage: Linkage,
@@ -100,11 +100,9 @@ impl<'a> Parser<'a> {
         };
 
         // mutability annotation
-        let mut mutability = Mutability::Immutable;
+        let mut mutability = Mutability::Mutable;
         if self.eat_token_maybe(TokenType::Semicolon) {
-            if self.eat_token_maybe(TokenType::Mut) {
-                mutability = Mutability::Mutable;
-            } else if self.eat_token_maybe(TokenType::Const) {
+            if self.eat_token_maybe(TokenType::Readonly) || self.eat_token_maybe(TokenType::Const) {
                 mutability = Mutability::Immutable;
             }
         }

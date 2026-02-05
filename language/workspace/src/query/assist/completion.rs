@@ -1681,7 +1681,6 @@ fn keyword_completions() -> Vec<Completion> {
         Keyword::Protected,
         Keyword::Private,
         Keyword::Readonly,
-        Keyword::Mut,
         Keyword::Static,
         Keyword::Final,
         Keyword::Accessor,

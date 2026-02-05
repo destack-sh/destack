@@ -351,11 +351,11 @@ impl TypeLowerer {
             dir::Type::ValueOf {
                 mutability, right, ..
             } => {
-                // lower the owned reference pointee type
+                // lower the owning handle pointee type
                 let pointee = self.lower_type(types, *right, module_id, node, builder)?;
                 let mutability = mutability
                     .map(lower_mutability)
-                    .unwrap_or(mir::Mutability::Immutable);
+                    .unwrap_or(mir::Mutability::Mutable);
                 builder.type_owned_reference(pointee, mutability)
             }
             dir::Type::ReferenceOf {
@@ -365,7 +365,7 @@ impl TypeLowerer {
                 let pointee = self.lower_type(types, *right, module_id, node, builder)?;
                 let mutability = mutability
                     .map(lower_mutability)
-                    .unwrap_or(mir::Mutability::Immutable);
+                    .unwrap_or(mir::Mutability::Mutable);
                 builder.type_borrowed_reference(pointee, mutability)
             }
             dir::Type::PointerOf { right, .. } => {

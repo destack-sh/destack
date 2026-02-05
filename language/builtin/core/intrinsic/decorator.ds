@@ -337,7 +337,7 @@ export newtype lifetime = string;
 ///
 /// ```
 /// let p: @addrspace("shared") &Point = ...;
-/// let q: @addrspace(7) &mut i32 = ...;
+/// let q: @addrspace(7) &i32 = ...;
 /// let r: @addrspace("constant") &Color = ...;
 /// ```
 export newtype addrspace = (string,) | (int,);

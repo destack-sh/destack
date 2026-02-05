@@ -1,7 +1,5 @@
 # Classes
 
-> NOTE #Incomplete: mdtest class declarations
-
 Class declarations and members.
 
 ## Coverage

@@ -164,7 +164,7 @@ impl ModuleBuilder {
         )
     }
 
-    /// Create an owned reference type.
+    /// Create an owning handle type.
     pub fn type_owned_reference(
         &mut self,
         pointee: LocalNodeId<Type>,

@@ -2425,7 +2425,7 @@ impl Parser {
                     // pointer types
                     else if self.options.in_type && self.peek_is(TokenType::Multiply) {
                         self.bump(); // eat *
-                        let mutability = self.eat_mutability_maybe()?;
+                        let mutability = self.eat_reference_mutability_maybe()?;
                         let right = self
                             .with_options(self.options.not_in_position(), |parser| {
                                 parser.eat_expression()
@@ -2474,11 +2474,11 @@ impl Parser {
                         self.tree.set_main_span(expression_id, operator_span);
                         expression_id
                     }
-                    // value (`^` or `^var` or `^T`)
+                    // value (`^` or `^readonly` or `^T`)
                     else if self.peek_is(TokenType::ElementwiseXor) && self.language.is_destack()
                     {
                         self.bump(); // eat ^
-                        let mutability = self.eat_mutability_maybe()?;
+                        let mutability = self.eat_reference_mutability_maybe()?;
                         let variance = self.eat_variance_bound_maybe()?;
                         let right = self
                             .with_options(self.options.not_in_position(), |parser| {
@@ -2495,7 +2495,7 @@ impl Parser {
                     else if self.peek_is(TokenType::ElementwiseAnd) && self.language.is_destack()
                     {
                         self.bump(); // eat &
-                        let mutability = self.eat_mutability_maybe()?;
+                        let mutability = self.eat_reference_mutability_maybe()?;
                         let variance = self.eat_variance_bound_maybe()?;
                         let right = self
                             .with_options(self.options.not_in_position(), |parser| {
@@ -5190,7 +5190,8 @@ geom.Mesh<2, 4> {
         assert_node!(
             parser.tree,
             expr_id,
-            Expression::ReferenceOf { mutability: None, right, .. } => {
+            Expression::ReferenceOf { mutability: Some(mutability), right, .. } => {
+                assert_eq!(*mutability, Mutability::Mutable);
                 // x
                 assert_expression_path!(parser, parser.tree.get(*right), "x");
             }
@@ -5200,10 +5201,10 @@ geom.Mesh<2, 4> {
     /// Parse a reference to a member call.
     #[test]
     fn test_parse_reference_member_call() {
-        let mut test = TestParser::new("&mut self.foo()");
+        let mut test = TestParser::new("&self.foo()");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        // &mut self.foo()
+        // &self.foo()
         assert_node!(
             parser.tree,
             expr_id,
@@ -5230,7 +5231,7 @@ geom.Mesh<2, 4> {
     /// Parse a bound reference expression.
     #[test]
     fn test_parse_bound_reference_expression() {
-        let mut test = TestParser::new("&const super T");
+        let mut test = TestParser::new("&readonly super T");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::ReferenceOf { mutability: Some(mutability), variance, right, .. } => {
@@ -5243,7 +5244,7 @@ geom.Mesh<2, 4> {
     /// Parse a value expression.
     #[test]
     fn test_parse_value_expression() {
-        let mut test = TestParser::new("^mut super T");
+        let mut test = TestParser::new("^super T");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::ValueOf { mutability, variance, right, .. } => {

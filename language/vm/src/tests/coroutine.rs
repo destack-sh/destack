@@ -181,7 +181,7 @@ fn test_yield_preserves_locals() {
     // define mir program
     let mir = r#"
 function @yield_with_local(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 
 block0(v0: i32):
     v1: i32 = iconst 4i32

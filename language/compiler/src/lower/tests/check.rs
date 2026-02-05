@@ -30,7 +30,7 @@ function sum(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
+global @${integer_overflow}: ref<managed readonly @String> = "integer overflow" ; readonly
 
 function @sum(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -40,7 +40,7 @@ block0(v0: i32, v1: i32):
     v5: bool = bnot v4
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
-    v6: ref<managed @String> = global.const @${integer_overflow}
+    v6: ref<managed readonly @String> = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
@@ -117,7 +117,7 @@ function sum(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
+global @${integer_overflow}: ref<managed readonly @String> = "integer overflow" ; readonly
 
 function @sum(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
@@ -127,7 +127,7 @@ block0(v0: u32, v1: u32):
     v5: bool = bnot v4
     check v5, overflow.unsigned.iadd v0, v1, block2, block1
 block1:
-    v6: ref<managed @String> = global.const @${integer_overflow}
+    v6: ref<managed readonly @String> = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
@@ -197,8 +197,8 @@ function quotient(a: int32, b: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${division_by_zero}: ref<managed @String> = "division by zero" ; const
-global @${division_overflow}: ref<managed @String> = "division overflow" ; const
+global @${division_by_zero}: ref<managed readonly @String> = "division by zero" ; readonly
+global @${division_overflow}: ref<managed readonly @String> = "division overflow" ; readonly
 
 function @quotient(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -206,7 +206,7 @@ block0(v0: i32, v1: i32):
     v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4: ref<managed @String> = global.const @${division_by_zero}
+    v4: ref<managed readonly @String> = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
@@ -218,7 +218,7 @@ block2:
     v10: bool = bnot v9
     check v10, overflow.signed.sdiv v0, v1, block4, block3
 block3:
-    v11: ref<managed @String> = global.const @${division_overflow}
+    v11: ref<managed readonly @String> = global.const @${division_overflow}
     intrinsic.panic(v11)
     unreachable
 block4:
@@ -307,8 +307,8 @@ function quotient(a: uint32, b: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${division_by_zero}: ref<managed @String> = "division by zero" ; const
-global @${division_overflow}: ref<managed @String> = "division overflow" ; const
+global @${division_by_zero}: ref<managed readonly @String> = "division by zero" ; readonly
+global @${division_overflow}: ref<managed readonly @String> = "division overflow" ; readonly
 
 function @quotient(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
@@ -316,7 +316,7 @@ block0(v0: u32, v1: u32):
     v3: bool = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4: ref<managed @String> = global.const @${division_by_zero}
+    v4: ref<managed readonly @String> = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
@@ -355,7 +355,7 @@ function shift(value: int32, amount: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; const
+global @${shift_out_of_range}: ref<managed readonly @String> = "shift out of range" ; readonly
 
 function @shift(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -366,7 +366,7 @@ block0(v0: i32, v1: i32):
     v6: bool = band v4, v5
     check v6, shift.signed v1, 32, block2, block1
 block1:
-    v7: ref<managed @String> = global.const @${shift_out_of_range}
+    v7: ref<managed readonly @String> = global.const @${shift_out_of_range}
     intrinsic.panic(v7)
     unreachable
 block2:
@@ -446,7 +446,7 @@ function shift(value: uint32, amount: uint32): uint32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; const
+global @${shift_out_of_range}: ref<managed readonly @String> = "shift out of range" ; readonly
 
 function @shift(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
@@ -454,7 +454,7 @@ block0(v0: u32, v1: u32):
     v3: bool = icmp_ult v1, v2
     check v3, shift.unsigned v1, 32, block2, block1
 block1:
-    v4: ref<managed @String> = global.const @${shift_out_of_range}
+    v4: ref<managed readonly @String> = global.const @${shift_out_of_range}
     intrinsic.panic(v4)
     unreachable
 block2:
@@ -491,7 +491,7 @@ function element(values: int32[4], index: int32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
 
 function @element(v0: [i32; 4], v1: i32) -> i32 {
 block0(v0: [i32; 4], v1: i32):
@@ -502,7 +502,7 @@ block0(v0: [i32; 4], v1: i32):
     v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7: ref<managed @String> = global.const @${bounds_check_failed}
+    v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
@@ -581,7 +581,7 @@ function element(values: int32[4], index: uint32): int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
 
 function @element(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
@@ -589,7 +589,7 @@ block0(v0: [i32; 4], v1: u32):
     v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block2, block1
 block1:
-    v4: ref<managed @String> = global.const @${bounds_check_failed}
+    v4: ref<managed readonly @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v4)
     unreachable
 block2:

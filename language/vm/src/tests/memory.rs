@@ -6,9 +6,9 @@ use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mi
 #[test]
 fn test_managed_allocate() {
     let mir = r#"
-function @alloc() -> ref<managed i32> {
+function @alloc() -> ref<managed readonly i32> {
 block0:
-    v0: ref<managed i32> = managed.alloc i32
+    v0: ref<managed readonly i32> = managed.alloc i32
     return v0
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
@@ -22,7 +22,7 @@ fn test_load_store() {
     let mir = r#"
 function @load_store() -> i32 {
 block0:
-    v0: ref<managed i32> = managed.alloc i32
+    v0: ref<managed readonly i32> = managed.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
     v2: i32 = load v0
@@ -36,8 +36,8 @@ block0:
 fn test_store_unsupported_address_space() {
     // define a shared address space store
     let mir = r#"
-function @store_shared(v0: ref<raw addrspace(shared) mut i32>) -> void {
-block0(v0: ref<raw addrspace(shared) mut i32>):
+function @store_shared(v0: ref<raw addrspace(shared) i32>) -> void {
+block0(v0: ref<raw addrspace(shared) i32>):
     v1: i32 = iconst 1i32
     store v0, v1
     return
@@ -56,8 +56,8 @@ block0(v0: ref<raw addrspace(shared) mut i32>):
 fn test_store_invalid_address_space() {
     // define a stack address space store
     let mir = r#"
-function @store_stack(v0: ref<raw addrspace(stack) mut i32>) -> void {
-block0(v0: ref<raw addrspace(stack) mut i32>):
+function @store_stack(v0: ref<raw addrspace(stack) i32>) -> void {
+block0(v0: ref<raw addrspace(stack) i32>):
     v1: i32 = iconst 1i32
     store v0, v1
     return
@@ -75,10 +75,10 @@ block0(v0: ref<raw addrspace(stack) mut i32>):
 #[test]
 fn test_managed_allocate_array() {
     let mir = r#"
-function @alloc_array() -> ref<managed i32> {
+function @alloc_array() -> ref<managed readonly i32> {
 block0:
     v0: i64 = iconst 10i64
-    v1: ref<managed i32> = managed.alloc_array i32, v0
+    v1: ref<managed readonly i32> = managed.alloc_array i32, v0
     return v1
 }"#;
     let output = run_mir_ok(mir, "alloc_array", &[]);
@@ -187,10 +187,10 @@ fn test_heap_field_access() {
     let mir = r#"
 function @heap_field() -> i32 {
 block0:
-    v0: ref<managed (i32, i32)> = managed.alloc (i32, i32)
+    v0: ref<managed readonly (i32, i32)> = managed.alloc (i32, i32)
     v1: i32 = iconst 42i32
     store v0, v1
-    v2: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed readonly i32> = field.addr v0, 0
     v3: i32 = load v2
     return v3
 }"#;
@@ -245,7 +245,7 @@ block0:
     v0: i32 = iconst 0i32
     jump block1(v0)
 block1(v1: i32):
-    v2: ref<managed i32> = managed.alloc i32
+    v2: ref<managed readonly i32> = managed.alloc i32
     v3: i32 = iconst 1i32
     v4: i32 = iadd v1, v3
     v5: i32 = iconst 2000i32
@@ -264,9 +264,9 @@ block2:
 #[test]
 fn test_raw_allocate() {
     let mir = r#"
-function @raw_alloc() -> ref<raw i32> {
+function @raw_alloc() -> ref<raw readonly i32> {
 block0:
-    v0: ref<raw i32> = raw.alloc i32
+    v0: ref<raw readonly i32> = raw.alloc i32
     return v0
 }"#;
     let output = run_mir_ok(mir, "raw_alloc", &[]);
@@ -280,7 +280,7 @@ fn test_raw_free() {
     let mir = r#"
 function @raw_alloc_free() -> i32 {
 block0:
-    v0: ref<raw i32> = raw.alloc i32
+    v0: ref<raw readonly i32> = raw.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
     v2: i32 = load v0
@@ -299,7 +299,7 @@ fn test_raw_free_invalid() {
     let mir = r#"
 function @double_free() -> void {
 block0:
-    v0: ref<raw i32> = raw.alloc i32
+    v0: ref<raw readonly i32> = raw.alloc i32
     raw.free v0
     raw.free v0
     return
@@ -315,18 +315,18 @@ block0:
 fn test_string_header_lengths() {
     let mir = [
         STRING_TYPE_ALIAS,
-        r#"global @literal:string:unicode_he: ref<managed @String> = "h\u{00E9}" ; const
+        r#"global @literal:string:unicode_he: ref<managed readonly @String> = "h\u{00E9}" ; readonly
 
 function @len_utf16() -> u32 {
 block0:
-    v0: ref<managed @String> = global.const @literal:string:unicode_he
+    v0: ref<managed readonly @String> = global.const @literal:string:unicode_he
     v1: u32 = field.get v0, 0
     return v1
 }
 
 function @len_bytes() -> u32 {
 block0:
-    v0: ref<managed @String> = global.const @literal:string:unicode_he
+    v0: ref<managed readonly @String> = global.const @literal:string:unicode_he
     v1: u32 = field.get v0, 1
     return v1
 }"#,
@@ -341,21 +341,21 @@ block0:
 fn test_string_payload_bytes() {
     let mir = [
         STRING_TYPE_ALIAS,
-        r#"global @literal:string:Hi: ref<managed @String> = "Hi" ; const
-global @literal:string:abc: ref<managed @String> = "abc" ; const
+        r#"global @literal:string:Hi: ref<managed readonly @String> = "Hi" ; readonly
+global @literal:string:abc: ref<managed readonly @String> = "abc" ; readonly
 
 function @first_byte() -> u8 {
 block0:
-    v0: ref<managed @String> = global.const @literal:string:Hi
-    v1: ref<raw u8> = field.get v0, 5
+    v0: ref<managed readonly @String> = global.const @literal:string:Hi
+    v1: ref<raw readonly u8> = field.get v0, 5
     v2: u8 = load v1
     return v2
 }
 
 function @memcmp_self() -> i32 {
 block0:
-    v0: ref<managed @String> = global.const @literal:string:abc
-    v1: ref<raw u8> = field.get v0, 5
+    v0: ref<managed readonly @String> = global.const @literal:string:abc
+    v1: ref<raw readonly u8> = field.get v0, 5
     v2: u64 = iconst 3u64
     v3: i32 = intrinsic.memcmp(v1, v1, v2)
     return v3
@@ -372,7 +372,7 @@ fn test_stack_allocate() {
     let mir = r#"
 function @stack_alloc() -> i32 {
 block0:
-    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v0: ref<raw addrspace(stack) readonly i32> = stack.alloc i32
     v1: i32 = iconst 99i32
     store v0, v1
     v2: i32 = load v0
@@ -387,11 +387,11 @@ fn test_stack_allocate_struct() {
     let mir = r#"
 function @stack_struct() -> i32 {
 block0:
-    v0: ref<raw addrspace(stack) (i32, i32)> = stack.alloc (i32, i32)
+    v0: ref<raw addrspace(stack) readonly (i32, i32)> = stack.alloc (i32, i32)
     v1: i32 = iconst 10i32
     v2: i32 = iconst 20i32
     store v0, v1
-    v3: ref<borrowed i32> = field.addr v0, 0
+    v3: ref<borrowed readonly i32> = field.addr v0, 0
     v4: i32 = load v3
     return v4
 }"#;
@@ -402,8 +402,8 @@ block0:
 #[test]
 fn test_null_pointer_load() {
     let mir = r#"
-function @null_load(v0: ref<raw i32>) -> i32 {
-block0(v0: ref<raw i32>):
+function @null_load(v0: ref<raw readonly i32>) -> i32 {
+block0(v0: ref<raw readonly i32>):
     v1: i32 = load v0
     return v1
 }"#;
@@ -417,8 +417,8 @@ block0(v0: ref<raw i32>):
 #[test]
 fn test_null_pointer_store() {
     let mir = r#"
-function @null_store(v0: ref<raw mut i32>, v1: i32) -> void {
-block0(v0: ref<raw mut i32>, v1: i32):
+function @null_store(v0: ref<raw i32>, v1: i32) -> void {
+block0(v0: ref<raw i32>, v1: i32):
     store v0, v1
     return
 }"#;
@@ -438,7 +438,7 @@ fn test_use_after_free() {
     let mir = r#"
 function @use_after_free() -> i32 {
 block0:
-    v0: ref<raw i32> = raw.alloc i32
+    v0: ref<raw readonly i32> = raw.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
     raw.free v0

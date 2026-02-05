@@ -100,7 +100,7 @@ function borrowLocal(x: int32): &int32 {
         "native",
         r#"
 function @borrowLocal(v0: i32) -> ref<borrowed i32> {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: ref<borrowed i32> = local.addr local0
@@ -205,7 +205,7 @@ function borrowElement(values: int32[4]): &int32 {
         "native",
         r#"
 function @borrowElement(v0: [i32; 4]) -> ref<borrowed i32> {
-    local0: [i32; 4] ; owned
+    local0: [i32; 4] ; owned, readonly
 block0(v0: [i32; 4]):
     local.set local0, v0
     v1: [i32; 4] = local.get local0
@@ -241,10 +241,10 @@ function borrowElementChecked(values: int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
 
 function @borrowElementChecked(v0: [i32; 4]) -> ref<borrowed i32> {
-    local0: [i32; 4] ; owned
+    local0: [i32; 4] ; owned, readonly
 block0(v0: [i32; 4]):
     local.set local0, v0
     v1: [i32; 4] = local.get local0
@@ -256,7 +256,7 @@ block0(v0: [i32; 4]):
     v7: bool = band v5, v6
     check v7, bounds.signed v2, v3, v1, block2, block1
 block1:
-    v8: ref<managed @String> = global.const @${bounds_check_failed}
+    v8: ref<managed readonly @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v8)
     unreachable
 block2:
@@ -326,7 +326,7 @@ function borrowElementRefChecked(values: &int32[4]): &int32 {
     let string_alias = test.string_type_alias_definition();
     let expected = r#"
 ${string_alias}
-global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+global @${bounds_check_failed}: ref<managed readonly @String> = "bounds check failed" ; readonly
 
 function @borrowElementRefChecked(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed [i32; 4]>):
@@ -338,7 +338,7 @@ block0(v0: ref<borrowed [i32; 4]>):
     v6: bool = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7: ref<managed @String> = global.const @${bounds_check_failed}
+    v7: ref<managed readonly @String> = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
@@ -376,12 +376,12 @@ function borrowGreeter(greeter: Greeter): &Greeter {
         module_id,
         "native",
         r#"
-type @Greeter = { @object: ref<managed void>, @itab: usize }
+type @Greeter = { @object: ref<managed readonly void>, @itab: usize }
 
-extern function @Greeter.greet({ greet: { @function_ptr: fn() -> i32, @env: ref?<managed mut void> } }) -> i32
+extern function @Greeter.greet({ greet: { @function_ptr: fn() -> i32, @env: ref?<managed void> } }) -> i32
 
 function @borrowGreeter(v0: @Greeter) -> ref<borrowed @Greeter> {
-    local0: @Greeter ; owned
+    local0: @Greeter ; owned, readonly
 block0(v0: @Greeter):
     local.set local0, v0
     v1: ref<borrowed @Greeter> = local.addr local0
@@ -416,12 +416,12 @@ class Counter {
         module_id,
         "native",
         r#"
-type @Counter = { @vtable: ref<raw void>, value: i32 }
+type @Counter = { @vtable: ref<raw readonly void>, value: i32 }
 
-global @Counter#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @Counter#vtable: [ref?<raw readonly void>; 3] = zeroinit ; readonly
 
-function @Counter.borrowValue(v0: ref<managed @Counter>) -> ref<borrowed i32> {
-block0(v0: ref<managed @Counter>):
+function @Counter.borrowValue(v0: ref<managed readonly @Counter>) -> ref<borrowed i32> {
+block0(v0: ref<managed readonly @Counter>):
     v1: ref<borrowed i32> = field.addr v0, 1
     return v1
 }

@@ -393,7 +393,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Globals constants can be propagated across calls.
     #[test]
     fn test_ip_constant_prop_propagates_global_const() {
-        let input = r#"global @value: i32 = 7i32 ; const
+        let input = r#"global @value: i32 = 7i32 ; readonly
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -405,7 +405,7 @@ block0:
     return v1
 }"#;
 
-        let expected = r#"global @value: i32 = 7i32 ; const
+        let expected = r#"global @value: i32 = 7i32 ; readonly
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     v1: i32 = iconst 7i32

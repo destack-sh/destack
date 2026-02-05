@@ -73,7 +73,7 @@ extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iter
     }
 
     /// Set the element at the index with bounds checks.
-    indexSet(this: &mut Slice<T>, i: number, value: T): void {
+    indexSet(this: &Slice<T>, i: number, value: T): void {
         if i < 0 || i >= this.length as number {
             undefined!
         }
@@ -81,22 +81,22 @@ extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iter
     }
 
     /// Fill the slice with a value.
-    fill(this: &mut Slice<T>, value: T): void {
+    fill(this: &Slice<T>, value: T): void {
         // #Incomplete
     }
 
     /// Copy from another slice.
-    copyFrom(this: &mut Slice<T>, src: Slice<T>): void {
+    copyFrom(this: &Slice<T>, src: Slice<T>): void {
         // #Incomplete
     }
 
     /// Swap two elements.
-    swap(this: &mut Slice<T>, i: number, j: number): void {
+    swap(this: &Slice<T>, i: number, j: number): void {
         // #Incomplete
     }
 
     /// Reverse in place.
-    reverse(this: &mut Slice<T>): void {
+    reverse(this: &Slice<T>): void {
         // #Incomplete
     }
 

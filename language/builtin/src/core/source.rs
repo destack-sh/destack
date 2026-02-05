@@ -87,7 +87,7 @@ builtin_source!(INTRINSIC_MATH, "intrinsic", "math.ds");
 builtin_source!(INTRINSIC_MEMORY, "intrinsic", "memory.ds");
 builtin_source!(INTRINSIC_ATOMIC, "intrinsic", "atomic.ds");
 builtin_source!(INTRINSIC_CONTROL, "intrinsic", "control.ds");
-builtin_source!(INTRINSIC_SIMD, "intrinsic", "vector.ds");
+builtin_source!(INTRINSIC_VECTOR, "intrinsic", "vector.ds");
 
 /// All core source files in load order.
 ///
@@ -121,7 +121,7 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     INTRINSIC_MEMORY,
     INTRINSIC_ATOMIC,
     INTRINSIC_CONTROL,
-    INTRINSIC_SIMD,
+    INTRINSIC_VECTOR,
     INTRINSIC_INDEX,
     // reflect
     REFLECT_PROPERTY,

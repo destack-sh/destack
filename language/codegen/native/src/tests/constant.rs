@@ -4,11 +4,11 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_string_global() {
     let mir = r#"
-global @hello: [u8; 5] = b"hello" ; const
+global @hello: [u8; 5] = b"hello" ; readonly
 
-function @get_hello() -> ref<raw addrspace(global) [u8; 5]> {
+function @get_hello() -> ref<raw addrspace(global) readonly [u8; 5]> {
 block0:
-    v0: ref<raw addrspace(global) [u8; 5]> = global.addr @hello
+    v0: ref<raw addrspace(global) readonly [u8; 5]> = global.addr @hello
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -24,11 +24,11 @@ block0:
 #[test]
 fn test_empty_string_global() {
     let mir = r#"
-global @empty: [u8; 0] = b"" ; const
+global @empty: [u8; 0] = b"" ; readonly
 
-function @get_empty() -> ref<raw addrspace(global) [u8; 0]> {
+function @get_empty() -> ref<raw addrspace(global) readonly [u8; 0]> {
 block0:
-    v0: ref<raw addrspace(global) [u8; 0]> = global.addr @empty
+    v0: ref<raw addrspace(global) readonly [u8; 0]> = global.addr @empty
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -42,7 +42,7 @@ block0:
 #[test]
 fn test_integer_global_const() {
     let mir = r#"
-global @magic: i32 = 42i32 ; const
+global @magic: i32 = 42i32 ; readonly
 
 function @get_magic() -> i32 {
 block0:
@@ -63,11 +63,11 @@ block0:
 #[test]
 fn test_mutable_global() {
     let mir = r#"
-global @counter: i32 = 0i32 ; mut
+global @counter: i32 = 0i32 ;
 
 function @increment() -> i32 {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v0: ref<raw addrspace(global) i32> = global.addr @counter
     v1: i32 = load v0
     v2: i32 = iconst 1i32
     v3: i32 = iadd v1, v2
@@ -90,11 +90,11 @@ block0:
 #[test]
 fn test_zeroinit_global() {
     let mir = r#"
-global @data: i64 = zeroinit ; mut
+global @data: i64 = zeroinit ;
 
 function @get_data() -> i64 {
 block0:
-    v0: ref<raw addrspace(global) mut i64> = global.addr @data
+    v0: ref<raw addrspace(global) i64> = global.addr @data
     v1: i64 = load v0
     return v1
 }"#;

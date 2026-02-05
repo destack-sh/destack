@@ -5,38 +5,38 @@ function @alias_escape(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1: ref<raw addrspace(stack) mut @Pair> = stack.alloc @Pair
-    v2: ref<raw addrspace(heap) mut @Pair> = raw.alloc @Pair
+    v1: ref<raw addrspace(stack) @Pair> = stack.alloc @Pair
+    v2: ref<raw addrspace(heap) @Pair> = raw.alloc @Pair
     v3: i64 = iconst 1i64
     v4: i64 = iconst 2i64
-    v5: ref<raw addrspace(stack) mut i64> = field.addr v1, 0
+    v5: ref<raw addrspace(stack) i64> = field.addr v1, 0
     store v5, v3
-    v6: ref<raw addrspace(stack) mut i64> = field.addr v1, 1
+    v6: ref<raw addrspace(stack) i64> = field.addr v1, 1
     store v6, v4
-    v7: ref<raw addrspace(heap) mut i64> = field.addr v2, 0
+    v7: ref<raw addrspace(heap) i64> = field.addr v2, 0
     store v7, v4
-    v8: ref<raw addrspace(heap) mut i64> = field.addr v2, 1
+    v8: ref<raw addrspace(heap) i64> = field.addr v2, 1
     store v8, v3
     v9: i64 = iconst 0i64
     v10: i64 = iconst 0i64
     jump block1(v9, v10, v1, v2)
 
 // loop condition, check limit
-block1(v11: i64, v12: i64, v13: ref<raw addrspace(stack) mut @Pair>, v14: ref<raw addrspace(heap) mut @Pair>):
+block1(v11: i64, v12: i64, v13: ref<raw addrspace(stack) @Pair>, v14: ref<raw addrspace(heap) @Pair>):
     v15: bool = icmp_sge v11, v0
     branch v15, block3(v12, v13, v14), block2
 
 // loop body, update aggregates
 block2:
-    v16: ref<raw addrspace(stack) mut i64> = field.addr v13, 0
+    v16: ref<raw addrspace(stack) i64> = field.addr v13, 0
     v17: i64 = load v16
-    v18: ref<raw addrspace(heap) mut i64> = field.addr v14, 1
+    v18: ref<raw addrspace(heap) i64> = field.addr v14, 1
     v19: i64 = load v18
     v20: i64 = iadd v17, v19
     v21: i64 = iadd v20, v11
-    v22: ref<raw addrspace(stack) mut i64> = field.addr v13, 1
+    v22: ref<raw addrspace(stack) i64> = field.addr v13, 1
     store v22, v21
-    v23: ref<raw addrspace(heap) mut i64> = field.addr v14, 0
+    v23: ref<raw addrspace(heap) i64> = field.addr v14, 0
     store v23, v20
     v24: i64 = iadd v12, v20
     v25: i64 = iconst 1i64
@@ -44,12 +44,12 @@ block2:
     jump block1(v26, v24, v13, v14)
 
 // return result
-block3(v27: i64, v28: ref<raw addrspace(stack) mut @Pair>, v29: ref<raw addrspace(heap) mut @Pair>):
-    v30: ref<raw addrspace(stack) mut i64> = field.addr v28, 0
+block3(v27: i64, v28: ref<raw addrspace(stack) @Pair>, v29: ref<raw addrspace(heap) @Pair>):
+    v30: ref<raw addrspace(stack) i64> = field.addr v28, 0
     v31: i64 = load v30
-    v32: ref<raw addrspace(stack) mut i64> = field.addr v28, 1
+    v32: ref<raw addrspace(stack) i64> = field.addr v28, 1
     v33: i64 = load v32
-    v34: ref<raw addrspace(heap) mut i64> = field.addr v29, 0
+    v34: ref<raw addrspace(heap) i64> = field.addr v29, 0
     v35: i64 = load v34
     v36: i64 = iadd v31, v33
     v37: i64 = iadd v36, v35
