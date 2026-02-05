@@ -227,7 +227,7 @@ impl ConformanceResult {
         !self.regressions.is_empty()
     }
 
-    /// Pass rate excludes skipped tests (they weren't run).
+    /// Pass rate excludes ignored tests (they weren't run).
     pub fn pass_rate(&self) -> f64 {
         let run = self.passed + self.failed;
         if run == 0 {
@@ -237,12 +237,12 @@ impl ConformanceResult {
         }
     }
 
-    /// Total tests run (excludes skipped).
+    /// Total tests run (excludes ignored).
     pub fn total_run(&self) -> usize {
         self.passed + self.failed + self.timedout
     }
 
-    /// Total tests including skipped.
+    /// Total tests including ignored.
     pub fn total(&self) -> usize {
         self.passed + self.failed + self.skipped + self.timedout
     }
@@ -313,7 +313,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let ignored_failures_path = suite.ignored_failures_path();
     let ignored_failures = load_expected_failures(&ignored_failures_path);
 
-    // count how many tests are in skipped list (for display)
+    // count how many tests are in ignored list (for display)
     let skipped_count = tests
         .iter()
         .filter(|t| ignored_failures.contains(&t.name))
@@ -425,10 +425,8 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         match outcome {
             TestResult::Passed => {
                 if is_skipped {
-                    // Skipped test now passes - report so we can remove from skipped list
-                    if ignored_failures_are_strict {
-                        unskipped.push(name);
-                    }
+                    // ignored test now passes: report so we can remove from ignored list
+                    unskipped.push(name);
                     skipped += 1;
                     cat_stats.skipped += 1;
                 } else {
@@ -441,7 +439,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             }
             TestResult::Failed => {
                 if is_skipped {
-                    // Expected - skipped tests should fail
+                    // Expected - ignored tests should fail
                     skipped += 1;
                     cat_stats.skipped += 1;
                 } else {
@@ -455,7 +453,7 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
             }
             TestResult::TimedOut => {
                 if is_skipped {
-                    // Skipped test timed out - still counts as skipped
+                    // Ignored test timed out - still counts as ignored
                     skipped += 1;
                     cat_stats.skipped += 1;
                 } else {
@@ -564,7 +562,7 @@ pub fn print_summary(results: &[SuiteResult], baseline: Option<&ReadmeResults>) 
     // header
     println!(
         "  {:10}  {:>8}  {:>8}  {:>8}  {:>8}  {:>8}  {:>10}",
-        "Suite", "Passed", "Failed", "Skipped", "Total", "Rate", "Δ Rate"
+        "Suite", "Passed", "Failed", "Ignored", "Total", "Rate", "Δ Rate"
     );
     println!("  {}", "─".repeat(72));
 
@@ -744,7 +742,7 @@ fn print_conformance_result(
         failed_pct
     );
     if result.skipped > 0 {
-        println!("  {} {:>5}", color::yellow("skipped:"), result.skipped);
+        println!("  {} {:>5}", color::yellow("ignored:"), result.skipped);
     }
     if result.timedout > 0 {
         let timedout_pct = if total == 0 {
@@ -974,7 +972,7 @@ pub struct ReadmeResults {
 
 impl ReadmeResults {
     /// Parse a row from the table (returns None for separator/header rows).
-    /// Handles both old format (5 columns) and new format (6 columns with skipped).
+    /// Handles both old format (5 columns) and new format (6 columns with ignored).
     fn parse_row(line: &str) -> Option<ReadmeRow> {
         let line = line.trim();
         if !line.starts_with('|') || !line.ends_with('|') {
@@ -985,10 +983,10 @@ impl ReadmeResults {
 
         // Handle both formats:
         // Old: ["", "name", "passed", "failed", "total", "rate", ""] - 7 parts
-        // New: ["", "name", "passed", "failed", "skipped", "total", "rate", ""] - 8 parts
+        // New: ["", "name", "passed", "failed", "ignored", "total", "rate", ""] - 8 parts
         let (name, passed, failed, skipped, total, rate) = match parts.len() {
             7 => {
-                // Old format without skipped column
+                // Old format without ignored column
                 let name = parts[1].to_lowercase();
                 let passed: usize = parts[2].parse().ok()?;
                 let failed: usize = parts[3].parse().ok()?;
@@ -997,7 +995,7 @@ impl ReadmeResults {
                 (name, passed, failed, 0, total, rate)
             }
             8 => {
-                // New format with skipped column
+                // New format with ignored column
                 let name = parts[1].to_lowercase();
                 let passed: usize = parts[2].parse().ok()?;
                 let failed: usize = parts[3].parse().ok()?;
@@ -1127,7 +1125,7 @@ fn format_category_section(categories: &BTreeMap<String, CategoryStats>) -> Stri
 
     let mut lines = Vec::new();
     lines
-        .push("| Category             | Passed | Failed | Skipped | Total |  Rate   |".to_string());
+        .push("| Category             | Passed | Failed | Ignored | Total |  Rate   |".to_string());
     lines
         .push("|:---------------------|-------:|-------:|--------:|------:|--------:|".to_string());
 
@@ -1177,7 +1175,7 @@ fn format_results_section(rows: &[ReadmeRow]) -> String {
     };
 
     let mut lines = Vec::new();
-    lines.push("| Suite    | Passed | Failed | Skipped | Total |  Rate   |".to_string());
+    lines.push("| Suite    | Passed | Failed | Ignored | Total |  Rate   |".to_string());
     lines.push("|:---------|-------:|-------:|--------:|------:|--------:|".to_string());
 
     for row in rows {
