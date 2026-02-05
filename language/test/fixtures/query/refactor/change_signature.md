@@ -389,3 +389,74 @@ const add = (a: int32, b: int32, scale: int32): int32 => a + b;
 
 const total = add(1, 2, 1);
 ```
+
+## No Call Sites
+
+### Updates declaration even without call sites
+
+Change signature should still rewrite the declaration when there are no local call sites.
+
+```ds:main.ds
+function configure(width: int32, height: int32): int32 {
+//       ^^^^^^^^^ target
+    return width + height;
+}
+```
+
+```query change_signature target height:int32,width:int32 -
+```
+
+```expected:main.ds
+function configure(height: int32, width: int32): int32 {
+    return width + height;
+}
+```
+
+## Default Exports
+
+### Updates default imported call sites
+
+Change signature should update call sites that use default imports.
+
+```ds:lib.ds
+export default function format(value: int32): int32 {
+//                      ^^^^^^ target
+    return value;
+}
+```
+
+```ds:main.ds
+import format from "./lib.ds";
+
+const value = format(1);
+```
+
+```query change_signature target value:int32,scale:int32 -
+```
+
+```expected:lib
+export default function format(value: int32, scale: int32): int32 {
+    return value;
+}
+```
+
+```expected:main
+import format from "./lib.ds";
+
+const value = format(1, undefined);
+```
+
+## Non Function Symbols
+
+### Skips change signature on non-callable bindings
+
+Change signature should return no edits when the selected symbol is not callable.
+
+```ds:main.ds
+const value = 1;
+//    ^^^^^ target
+```
+
+```query change_signature target value:int32,scale:int32 -
+<none>
+```

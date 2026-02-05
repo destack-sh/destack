@@ -23,7 +23,11 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
 /// Run with markdown expectation.
 fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> TestResult {
-    let content = exp.content.trim();
+    let parsed_expectation = match parse_code_action_expectation(exp.content.trim()) {
+        Ok(parsed_expectation) => parsed_expectation,
+        Err(message) => return TestResult::Failed { message },
+    };
+    let content = parsed_expectation.expected.trim();
 
     // empty expectation is an error
     if content.is_empty() {
@@ -39,7 +43,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
     };
 
     // run the query for the resolved span
-    let context = query::CodeActionContext::default();
+    let context = parsed_expectation.context;
     let actions = query::code_actions(&session.session, session.file_id, range, &context);
 
     // validate invariants before comparing against expectations
@@ -116,6 +120,101 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> T
             "no code action at '{}' contains '{content}'\navailable: {titles:?}",
             exp.target,
         ),
+    }
+}
+
+/// Parsed expectation for code action tests.
+#[derive(Debug)]
+struct ParsedCodeActionExpectation {
+    /// The query context passed to the code action query.
+    context: query::CodeActionContext,
+    /// The expectation content after directives are removed.
+    expected: String,
+}
+
+/// Parse query directives from a code action expectation.
+fn parse_code_action_expectation(content: &str) -> Result<ParsedCodeActionExpectation, String> {
+    // start with default query context
+    let mut context = query::CodeActionContext::default();
+    let mut expected_lines = Vec::new();
+
+    // parse each line as either a directive or snapshot content
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if let Some(raw_only) = trimmed.strip_prefix("only:") {
+            context.only = parse_only_kinds(raw_only)?;
+            continue;
+        }
+
+        if let Some(raw_include_disabled) = trimmed.strip_prefix("include_disabled:") {
+            context.include_disabled = parse_bool(raw_include_disabled, "include_disabled")?;
+            continue;
+        }
+
+        expected_lines.push(line);
+    }
+
+    Ok(ParsedCodeActionExpectation {
+        context,
+        expected: expected_lines.join("\n"),
+    })
+}
+
+/// Parse a boolean directive value.
+fn parse_bool(raw: &str, directive: &str) -> Result<bool, String> {
+    // normalize and parse the directive value
+    let value = raw.trim().to_ascii_lowercase();
+    match value.as_str() {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" => Ok(false),
+        _ => Err(format!(
+            "invalid code_actions directive '{directive}': expected boolean, got '{raw}'"
+        )),
+    }
+}
+
+/// Parse kind filters from an `only:` directive.
+fn parse_only_kinds(raw: &str) -> Result<Vec<CodeActionKind>, String> {
+    // split the directive into normalized kind names
+    let mut kinds = Vec::new();
+    for part in raw.split(',') {
+        let kind_name = part.trim();
+        if kind_name.is_empty() {
+            continue;
+        }
+
+        let kind = parse_code_action_kind(kind_name)?;
+        if !kinds.contains(&kind) {
+            kinds.push(kind);
+        }
+    }
+
+    Ok(kinds)
+}
+
+/// Parse a single code action kind alias.
+fn parse_code_action_kind(kind_name: &str) -> Result<CodeActionKind, String> {
+    // normalize casing and separators for kind matching
+    let normalized = kind_name
+        .trim()
+        .to_ascii_lowercase()
+        .replace(['.', '-'], "_");
+
+    match normalized.as_str() {
+        "quick_fix" | "quickfix" => Ok(CodeActionKind::QuickFix),
+        "refactor" => Ok(CodeActionKind::Refactor),
+        "refactor_extract" => Ok(CodeActionKind::RefactorExtract),
+        "refactor_inline" => Ok(CodeActionKind::RefactorInline),
+        "refactor_rewrite" => Ok(CodeActionKind::RefactorRewrite),
+        "source" => Ok(CodeActionKind::Source),
+        "source_organize_imports" | "source_organizeimports" => {
+            Ok(CodeActionKind::SourceOrganizeImports)
+        }
+        "source_fix_all" | "source_fixall" => Ok(CodeActionKind::SourceFixAll),
+        _ => Err(format!(
+            "unknown code action kind in 'only:' directive: '{kind_name}'"
+        )),
     }
 }
 
