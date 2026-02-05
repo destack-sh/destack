@@ -77,17 +77,21 @@ pub trait ConformanceSuite: Send + Sync + Clone {
     /// Path to known-failures file (tests that fail but we want to fix).
     fn known_failures_path(&self) -> PathBuf;
 
-    /// Path to expected-failures file (tests we consciously skip).
-    /// These are tests we don't expect to pass due to intentional language differences.
-    fn expected_failures_path(&self) -> PathBuf {
-        // Default: same directory as known-failures, with -expected-failures.txt suffix
+    /// Path to ignored tests file (intentional language differences).
+    fn ignored_failures_path(&self) -> PathBuf {
+        // Default: same directory as known-failures, with -ignored.txt suffix
         let known = self.known_failures_path();
         let stem = known
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("unknown");
         let name = stem.strip_suffix("-known-failures").unwrap_or(stem);
-        known.with_file_name(format!("{name}-expected-failures.txt"))
+        known.with_file_name(format!("{name}-ignored.txt"))
+    }
+
+    /// Return true when ignored tests should still be considered failures if they pass.
+    fn ignored_failures_are_strict(&self) -> bool {
+        false
     }
 
     /// Discover all tests in this suite.
@@ -202,11 +206,11 @@ pub struct ConformanceResult {
     pub failed: usize,
     pub skipped: usize,
     pub timedout: usize,
-    /// tests that failed unexpectedly (not in known-failures or skipped-failures)
+    /// tests that failed unexpectedly (not in known-failures or ignored list)
     pub regressions: Vec<String>,
     /// tests that passed but were in known-failures (progress!)
     pub fixed: Vec<String>,
-    /// tests in skipped-failures that now pass (remove from skipped!)
+    /// tests in ignored list that now pass (remove from ignored list!)
     pub unskipped: Vec<String>,
     /// tests that timed out (likely infinite loops)
     pub timeouts: Vec<String>,
@@ -302,17 +306,17 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
         return None; // list mode doesn't return results
     }
 
-    // load known failures and skipped failures
+    // load known failures and ignored tests
     let known_failures_path = suite.known_failures_path();
     let known_failures = load_expected_failures(&known_failures_path);
 
-    let expected_failures_path = suite.expected_failures_path();
-    let skipped_failures = load_expected_failures(&expected_failures_path);
+    let ignored_failures_path = suite.ignored_failures_path();
+    let ignored_failures = load_expected_failures(&ignored_failures_path);
 
     // count how many tests are in skipped list (for display)
     let skipped_count = tests
         .iter()
-        .filter(|t| skipped_failures.contains(&t.name))
+        .filter(|t| ignored_failures.contains(&t.name))
         .count();
 
     println!();
@@ -330,9 +334,9 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     }
     if skipped_count > 0 {
         println!(
-            "  {} expected failures loaded from {}",
+            "  {} ignored tests loaded from {}",
             color::dim(&skipped_count.to_string()),
-            expected_failures_path.display()
+            ignored_failures_path.display()
         );
     }
     println!();
@@ -402,19 +406,29 @@ pub fn run_conformance_suite<S: ConformanceSuite + 'static>(
     let mut current_failures = HashSet::new();
     let mut categories: BTreeMap<String, CategoryStats> = BTreeMap::new();
 
+    let ignored_failures_are_strict = suite.ignored_failures_are_strict();
+
     for (name, outcome) in results {
-        let is_skipped = skipped_failures.contains(&name);
+        let is_skipped = ignored_failures.contains(&name);
         let is_known_failure = known_failures.contains(&name);
 
         // extract category from test name (suite-specific)
         let category = suite.category_for_test(&name);
         let cat_stats = categories.entry(category).or_default();
 
+        if is_skipped && !ignored_failures_are_strict {
+            skipped += 1;
+            cat_stats.skipped += 1;
+            continue;
+        }
+
         match outcome {
             TestResult::Passed => {
                 if is_skipped {
                     // Skipped test now passes - report so we can remove from skipped list
-                    unskipped.push(name);
+                    if ignored_failures_are_strict {
+                        unskipped.push(name);
+                    }
                     skipped += 1;
                     cat_stats.skipped += 1;
                 } else {
@@ -863,10 +877,10 @@ fn print_conformance_result(
         println!();
     }
 
-    // unskipped tests (were in skipped-failures, now pass)
+    // unskipped tests (were in ignored list, now pass)
     if !result.unskipped.is_empty() {
         println!(
-            "{} ({} skipped tests now passing, remove from skipped-failures.txt):",
+            "{} ({} ignored tests now passing, remove from ignored list):",
             color::green("UNSKIPPED"),
             result.unskipped.len()
         );

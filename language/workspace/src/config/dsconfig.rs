@@ -932,7 +932,7 @@ impl DsConfigCompilerOptions {
 
     /// Enable native-only restrictions for native and wasm targets.
     pub fn apply_native_restrictions(&mut self) {
-        // strict TypeScript checks are required for native targets
+        // require strict checks for native targets
         self.apply_strict_defaults();
 
         // enforce soundness defaults for native targets
