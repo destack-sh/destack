@@ -8,8 +8,9 @@ use destack_dir::{
     FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
     GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
     NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral,
-    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeField,
+    TypeLiteral, TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator,
+    walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -17,8 +18,6 @@ use super::super::common::NormalizationMode;
 use super::r#type::TypeGuardTarget;
 
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
-
-const MAX_RANGE_LITERAL_COUNT: i64 = 256;
 
 /// Track whether a tree walk encounters flow sensitive constructs.
 #[derive(Debug, Default)]
@@ -1181,6 +1180,34 @@ impl Compiler {
             return Ok((true_environment, false_environment));
         }
 
+        // narrow range patterns using the literal union when possible
+        if let Pattern::Range {
+            start,
+            end,
+            is_inclusive,
+        } = tree.get(pattern_id)
+        {
+            if let Some((true_environment, false_environment)) = self
+                .narrow_environment_for_range_pattern(
+                    module,
+                    context.profile,
+                    pattern_id,
+                    base_type_id,
+                    symbol,
+                    *start,
+                    *end,
+                    *is_inclusive,
+                    tree,
+                    symbols,
+                    types,
+                    environment,
+                    &context.options,
+                )
+            {
+                return Ok((true_environment, false_environment));
+            }
+        }
+
         let Some(target_type_id) = self.pattern_guard_target_type(
             module,
             context.profile,
@@ -1275,7 +1302,7 @@ impl Compiler {
 
                 // build a literal union when the range is small enough
                 Ok(self.pattern_range_target_type(
-                    pattern_id,
+                    pattern_id.into_any(),
                     &start_literal,
                     &end_literal,
                     *is_inclusive,
@@ -2690,117 +2717,116 @@ impl Compiler {
         }
     }
 
-    /// Build a union type for a scalar literal range.
-    fn pattern_range_target_type(
+    /// Narrow a guard using literal union values for range patterns.
+    fn narrow_environment_for_range_pattern(
         &self,
+        module: &Module,
+        profile: ProfileId,
         pattern_id: LocalNodeId<Pattern>,
-        start_literal: &ScalarLiteral,
-        end_literal: &ScalarLiteral,
+        base_type_id: LocalTypeId,
+        symbol: GlobalSymbolId,
+        start: Option<LocalNodeId<Pattern>>,
+        end: Option<LocalNodeId<Pattern>>,
         is_inclusive: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
-        match (start_literal, end_literal) {
-            (ScalarLiteral::Integer(start), ScalarLiteral::Integer(end)) => {
-                // normalize bounds
-                let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
+        environment: &FlowEnvironment,
+        options: &AnalyzeOptions,
+    ) -> Option<(FlowEnvironment, FlowEnvironment)> {
+        // require literal range endpoints
+        let start_id = start?;
+        let end_id = end?;
+        let start_literal = self.scalar_literal_for_pattern(tree, start_id)?;
+        let end_literal = self.scalar_literal_for_pattern(tree, end_id)?;
 
-                // guard against large literal unions
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit literal union elements
-                let mut elements = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    let literal = ScalarLiteral::Integer(value);
-                    elements.push(types.insert_type_from(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::ScalarLiteral(literal),
-                        },
-                        pattern_id,
-                    ));
-                }
-                if elements.len() == 1 {
-                    return Some(elements[0]);
-                }
-                // use a union for multi literal ranges
-                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
+        // filter literal unions when possible
+        let base_literals = self.scalar_literal_union_values_for_type(base_type_id, types)?;
+        let mut filtered_literals = Vec::new();
+        for literal in base_literals {
+            if self.scalar_literal_in_range(&literal, &start_literal, &end_literal, is_inclusive) {
+                filtered_literals.push(literal);
             }
-            (ScalarLiteral::Bigint(start), ScalarLiteral::Bigint(end)) => {
-                // normalize bounds
-                let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
+        }
 
-                // guard against large literal unions
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_LITERAL_COUNT {
-                    return None;
-                }
+        // an empty overlap makes the guard unreachable
+        if filtered_literals.is_empty() {
+            return Some((FlowEnvironment::new(false), environment.clone()));
+        }
 
-                // emit literal union elements
-                let mut elements = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    let literal = ScalarLiteral::Bigint(value);
-                    elements.push(types.insert_type_from(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::ScalarLiteral(literal),
-                        },
-                        pattern_id,
-                    ));
+        // build the target union and narrow using type guard rules
+        let target_type_id =
+            self.type_id_for_scalar_literals(pattern_id.into_any(), filtered_literals, types);
+        let (true_type_id, false_type_id) = self.type_guard_types(
+            module,
+            profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            options,
+        );
+
+        // apply narrowed bindings to the true branch
+        let mut true_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+
+        // apply narrowed bindings to the false branch
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        Some((true_environment, false_environment))
+    }
+
+    /// Collect scalar literal union values for range narrowing.
+    fn scalar_literal_union_values_for_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<Vec<ScalarLiteral>> {
+        match types.get_type(type_id) {
+            // unions collect literal members from each element
+            Type::Union { elements } => {
+                let mut literals = Vec::new();
+                for element_id in elements {
+                    let literal = self.scalar_literal_for_type(*element_id, types)?;
+                    literals.push(literal);
                 }
-                if elements.len() == 1 {
-                    return Some(elements[0]);
-                }
-                // use a union for multi literal ranges
-                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
-            }
-            (ScalarLiteral::Character(start), ScalarLiteral::Character(end)) => {
-                // normalize bounds
-                let start_value = *start as u32;
-                let end_value = *end as u32;
-                let end_value = if is_inclusive {
-                    end_value
-                } else if end_value == 0 {
-                    return None;
+                if literals.is_empty() {
+                    None
                 } else {
-                    end_value - 1
-                };
-                if end_value < start_value {
-                    return None;
+                    Some(literals)
                 }
-
-                // guard against large literal unions
-                let count = (end_value - start_value) as i64 + 1;
-                if count > MAX_RANGE_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit literal union elements
-                let mut elements = Vec::with_capacity(count as usize);
-                for value in start_value..=end_value {
-                    let Some(character) = char::from_u32(value) else {
-                        return None;
-                    };
-                    let literal = ScalarLiteral::Character(character);
-                    elements.push(types.insert_type_from(
-                        Type::TypeLiteral {
-                            value: TypeLiteral::ScalarLiteral(literal),
-                        },
-                        pattern_id,
-                    ));
-                }
-                if elements.len() == 1 {
-                    return Some(elements[0]);
-                }
-                // use a union for multi literal ranges
-                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
             }
+            _ => self
+                .scalar_literal_for_type(type_id, types)
+                .map(|literal| vec![literal]),
+        }
+    }
+
+    /// Resolve a scalar literal from a type id when possible.
+    fn scalar_literal_for_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<ScalarLiteral> {
+        match types.get_type(type_id) {
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(literal),
+            } => Some(literal.clone()),
+            Type::Reference { symbol, .. } => {
+                if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.scalar_literal_for_type(target, types);
+                }
+                None
+            }
+            Type::Value { value } => self.scalar_literal_for_type(*value, types),
             _ => None,
         }
     }

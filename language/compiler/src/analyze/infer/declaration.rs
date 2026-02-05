@@ -554,22 +554,12 @@ impl Compiler {
             if let Some(return_ty_id) = context_return_type {
                 match types.get_type(return_ty_id) {
                     Type::Predicate { asserts: true, .. } => {
-                        let void_ty_id = types.insert_type_from(
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Void,
-                            },
-                            body,
-                        );
+                        let void_ty_id = self.void_type_id(types, body.into_any());
                         expected_return_type = Some(void_ty_id);
                         constraint_return_type = Some(void_ty_id);
                     }
                     Type::Predicate { asserts: false, .. } => {
-                        let boolean_ty_id = types.insert_type_from(
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-                            },
-                            body,
-                        );
+                        let boolean_ty_id = self.boolean_type_id(types, body.into_any());
                         expected_return_type = Some(boolean_ty_id);
                         constraint_return_type = Some(boolean_ty_id);
                     }

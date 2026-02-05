@@ -736,6 +736,18 @@ impl Compiler {
         types.insert_type_from_any(ty, node_id)
     }
 
+    /// Allocate a boolean type id for a synthesized node.
+    pub(crate) fn boolean_type_id(
+        &self,
+        types: &mut TypeTable,
+        node_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+        };
+        types.insert_type_from_any(ty, node_id)
+    }
+
     /// Allocate a never type id for a synthesized node.
     pub(crate) fn never_type_id(
         &self,

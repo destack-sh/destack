@@ -1,15 +1,14 @@
 use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
 
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     DynamicKey, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase,
-    MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, ScalarLiteral,
-    StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeLiteral, TypeTable,
+    MatchSelector, NodeTree, NormalizationMode, Pattern, PatternField, PrimitiveType,
+    ScalarLiteral, StaticExpression, StaticKey, StringId, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
-
-const MAX_RANGE_MATCH_LITERAL_COUNT: i64 = 256;
 
 /// Coverage summary for a match pattern.
 #[derive(Debug)]
@@ -59,36 +58,172 @@ enum MatchExhaustiveTarget {
     },
 }
 
-impl Compiler {
-    /// Validate a single pattern node.
-    pub(super) fn validate_pattern(
-        &self,
-        module: &Module,
+/// Pattern analysis helper for match and destructuring validation.
+struct PatternAnalysis<'a> {
+    /// The compiler providing shared helpers.
+    compiler: &'a Compiler,
+}
+
+/// Pattern analysis with typed context.
+struct PatternAnalysisContext<'a> {
+    /// The shared analysis helpers.
+    analysis: PatternAnalysis<'a>,
+    /// The current module.
+    module: &'a Module,
+    /// The active profile.
+    profile: ProfileId,
+    /// The AST for this module.
+    tree: &'a NodeTree,
+    /// The symbol table for this module.
+    symbols: &'a SymbolTable,
+    /// The type table for this module.
+    types: &'a mut TypeTable,
+}
+
+impl<'a> PatternAnalysis<'a> {
+    /// Create a new pattern analysis helper.
+    fn new(compiler: &'a Compiler) -> Self {
+        Self { compiler }
+    }
+}
+
+impl<'a> Deref for PatternAnalysis<'a> {
+    type Target = Compiler;
+
+    fn deref(&self) -> &Compiler {
+        self.compiler
+    }
+}
+
+impl<'a> PatternAnalysisContext<'a> {
+    /// Create a new pattern analysis context.
+    fn new(
+        analysis: PatternAnalysis<'a>,
+        module: &'a Module,
         profile: ProfileId,
-        tree: &NodeTree,
-        pattern: &Pattern,
-    ) {
-        match pattern {
-            Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
-                self.validate_object_pattern_spreads(module, profile, tree, fields);
-            }
-            Pattern::Array { fields }
-            | Pattern::Tuple { fields }
-            | Pattern::TaggedTuple { fields, .. } => {
-                self.validate_sequence_pattern_fields(module, profile, tree, fields);
-            }
-            _ => {}
+        tree: &'a NodeTree,
+        symbols: &'a SymbolTable,
+        types: &'a mut TypeTable,
+    ) -> Self {
+        Self {
+            analysis,
+            module,
+            profile,
+            tree,
+            symbols,
+            types,
         }
     }
 
-    /// Validate match exhaustiveness for supported value shapes.
-    pub(super) fn validate_match_exhaustiveness(
+    /// Validate match exhaustiveness with the current context.
+    fn validate_match_exhaustiveness(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        cases: &[LocalNodeId<MatchCase>],
+    ) {
+        self.validate_match_exhaustiveness_inner(expression_id, value_id, cases);
+    }
+
+    /// Check whether a pattern is irrefutable for a given value type.
+    fn is_irrefutable_pattern_for_type(
+        &mut self,
+        pattern_id: LocalNodeId<Pattern>,
+        value_type: LocalTypeId,
+    ) -> bool {
+        self.analysis.is_irrefutable_pattern_for_type(
+            self.module,
+            self.profile,
+            pattern_id,
+            value_type,
+            self.tree,
+            self.symbols,
+            self.types,
+        )
+    }
+
+    /// Check if a match contains an irrefutable pattern for the given type.
+    fn match_has_irrefutable_pattern(
+        &mut self,
+        value_type_id: LocalTypeId,
+        cases: &[LocalNodeId<MatchCase>],
+    ) -> bool {
+        self.analysis.match_has_irrefutable_pattern(
+            self.module,
+            self.profile,
+            value_type_id,
+            cases,
+            self.tree,
+            self.symbols,
+            self.types,
+        )
+    }
+
+    /// Resolve the exhaustiveness target for a match value.
+    fn match_exhaustiveness_target(
+        &mut self,
+        value_type_id: LocalTypeId,
+    ) -> Option<MatchExhaustiveTarget> {
+        self.analysis.match_exhaustiveness_target(
+            self.module,
+            self.profile,
+            value_type_id,
+            self.tree,
+            self.symbols,
+            self.types,
+        )
+    }
+
+    /// Summarize coverage for a single enum pattern.
+    fn enum_pattern_coverage(
+        &mut self,
+        enum_symbol: GlobalSymbolId,
+        pattern_id: LocalNodeId<Pattern>,
+        enum_fields: &HashSet<GlobalSymbolId>,
+    ) -> Option<MatchPatternCoverage<GlobalSymbolId>> {
+        self.analysis.enum_pattern_coverage(
+            self.module,
+            self.profile,
+            enum_symbol,
+            pattern_id,
+            enum_fields,
+            self.tree,
+            self.symbols,
+        )
+    }
+
+    /// Summarize coverage for a literal pattern.
+    fn literal_pattern_coverage_for_values(
         &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
+        values: &HashSet<MatchLiteral>,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> Option<MatchPatternCoverage<MatchLiteral>> {
+        self.analysis
+            .literal_pattern_coverage_for_values(values, pattern_id, self.tree)
+    }
+
+    /// Summarize coverage for a discriminant pattern.
+    fn discriminant_pattern_coverage(
+        &mut self,
+        pattern_id: LocalNodeId<Pattern>,
+        key: StaticKey,
+        values: &HashSet<MatchLiteral>,
+    ) -> Option<MatchPatternCoverage<MatchLiteral>> {
+        self.analysis.discriminant_pattern_coverage(
+            self.module,
+            self.profile,
+            pattern_id,
+            key,
+            values,
+            self.tree,
+            self.symbols,
+            self.types,
+        )
+    }
+
+    /// Validate match exhaustiveness for supported value shapes.
+    fn validate_match_exhaustiveness_inner(
+        &mut self,
         expression_id: LocalNodeId<Expression>,
         value_id: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
@@ -97,7 +232,7 @@ impl Compiler {
         let mut has_fallback = false;
         let mut has_guard = false;
         for case_id in cases {
-            let selector = match tree.get(*case_id) {
+            let selector = match self.tree.get(*case_id) {
                 MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                     selector
                 }
@@ -121,74 +256,66 @@ impl Compiler {
         }
 
         // resolve the match value type
-        let value_type_id = types
-            .get_inferred_type_id(value_id.into_global_any(module.id))
+        let value_type_id = self
+            .types
+            .get_inferred_type_id(value_id.into_global_any(self.module.id))
             .or_else(|| {
-                let symbol =
-                    self.reference_symbol_for_expression(module, value_id, profile, tree, symbols)?;
-                types.get_value_type_id(symbol)
+                let symbol = self.analysis.reference_symbol_for_expression(
+                    self.module,
+                    value_id,
+                    self.profile,
+                    self.tree,
+                    self.symbols,
+                )?;
+                self.types.get_value_type_id(symbol)
             });
         let Some(value_type_id) = value_type_id else {
             return;
         };
-        let value_type_id = self.unwrap_type_value(value_type_id, types);
-        let value_type_id = match types.get_type(value_type_id) {
-            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Void => {
-                types.get_value_type_id(*symbol).unwrap_or(value_type_id)
-            }
+        let value_type_id = self.analysis.unwrap_type_value(value_type_id, self.types);
+        let value_type_id = match self.types.get_type(value_type_id) {
+            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Void => self
+                .types
+                .get_value_type_id(*symbol)
+                .unwrap_or(value_type_id),
             _ => value_type_id,
         };
         // preserve nominal types for irrefutable checks
         let irrefutable_type_id = value_type_id;
-        let normalized_type_id = self.normalize_type(
-            module,
-            profile,
+        let normalized_type_id = self.analysis.normalize_type(
+            self.module,
+            self.profile,
             value_type_id,
-            symbols,
-            types,
+            self.symbols,
+            self.types,
             NormalizationMode::Flow,
         );
 
         // allow irrefutable patterns to satisfy exhaustiveness
-        if self.match_has_irrefutable_pattern(
-            module,
-            profile,
-            irrefutable_type_id,
-            cases,
-            tree,
-            symbols,
-            types,
-        ) {
+        if self.match_has_irrefutable_pattern(irrefutable_type_id, cases) {
             return;
         }
 
         // guards require a fallback because exhaustiveness cannot be proven
         if has_guard {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
-            self.error(AnalyzeError::NonExhaustiveMatch { node });
+                .into_global_any(self.module.id)
+                .into_anchored(Some(self.profile));
+            self.analysis
+                .error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         }
 
         // resolve the exhaustiveness target
         let target = self
-            .match_exhaustiveness_target(module, profile, irrefutable_type_id, tree, symbols, types)
-            .or_else(|| {
-                self.match_exhaustiveness_target(
-                    module,
-                    profile,
-                    normalized_type_id,
-                    tree,
-                    symbols,
-                    types,
-                )
-            });
+            .match_exhaustiveness_target(irrefutable_type_id)
+            .or_else(|| self.match_exhaustiveness_target(normalized_type_id));
         let Some(target) = target else {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
-            self.error(AnalyzeError::NonExhaustiveMatch { node });
+                .into_global_any(self.module.id)
+                .into_anchored(Some(self.profile));
+            self.analysis
+                .error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         };
 
@@ -197,7 +324,7 @@ impl Compiler {
         let mut covered_fields: HashSet<GlobalSymbolId> = HashSet::new();
         let mut is_provable = true;
         for case_id in cases {
-            let selector = match tree.get(*case_id) {
+            let selector = match self.tree.get(*case_id) {
                 MatchCase::Expression { selector, .. } | MatchCase::Block { selector, .. } => {
                     selector
                 }
@@ -217,9 +344,7 @@ impl Compiler {
                 MatchExhaustiveTarget::Enum {
                     symbol, field_set, ..
                 } => {
-                    let coverage = self.enum_pattern_coverage(
-                        module, profile, *symbol, *pattern, field_set, tree, symbols,
-                    );
+                    let coverage = self.enum_pattern_coverage(*symbol, *pattern, field_set);
                     let Some(coverage) = coverage else {
                         is_provable = false;
                         break;
@@ -232,9 +357,7 @@ impl Compiler {
                     }
                 }
                 MatchExhaustiveTarget::LiteralUnion { values } => {
-                    let coverage = self
-                        .literal_pattern_coverage(*pattern, tree)
-                        .and_then(|coverage| self.filter_literal_coverage(values, coverage));
+                    let coverage = self.literal_pattern_coverage_for_values(values, *pattern);
                     let Some(coverage) = coverage else {
                         is_provable = false;
                         break;
@@ -247,9 +370,7 @@ impl Compiler {
                     }
                 }
                 MatchExhaustiveTarget::DiscriminantUnion { key, values } => {
-                    let coverage = self.discriminant_pattern_coverage(
-                        module, profile, *pattern, *key, values, tree, symbols, types,
-                    );
+                    let coverage = self.discriminant_pattern_coverage(*pattern, *key, values);
                     let Some(coverage) = coverage else {
                         is_provable = false;
                         break;
@@ -267,9 +388,10 @@ impl Compiler {
         // require fallback when coverage cannot be proven
         if !is_provable {
             let node = expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile));
-            self.error(AnalyzeError::NonExhaustiveMatch { node });
+                .into_global_any(self.module.id)
+                .into_anchored(Some(self.profile));
+            self.analysis
+                .error(AnalyzeError::NonExhaustiveMatch { node });
             return;
         }
 
@@ -284,9 +406,33 @@ impl Compiler {
         }
 
         let node = expression_id
-            .into_global_any(module.id)
-            .into_anchored(Some(profile));
-        self.error(AnalyzeError::NonExhaustiveMatch { node });
+            .into_global_any(self.module.id)
+            .into_anchored(Some(self.profile));
+        self.analysis
+            .error(AnalyzeError::NonExhaustiveMatch { node });
+    }
+}
+
+impl<'a> PatternAnalysis<'a> {
+    /// Validate a single pattern node.
+    pub(super) fn validate_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        pattern: &Pattern,
+    ) {
+        match pattern {
+            Pattern::Object { fields } | Pattern::TaggedObject { fields, .. } => {
+                self.validate_object_pattern_spreads(module, profile, tree, fields);
+            }
+            Pattern::Array { fields }
+            | Pattern::Tuple { fields }
+            | Pattern::TaggedTuple { fields, .. } => {
+                self.validate_sequence_pattern_fields(module, profile, tree, fields);
+            }
+            _ => {}
+        }
     }
 
     /// Check if a match contains an irrefutable pattern for the given type.
@@ -1170,6 +1316,14 @@ impl Compiler {
     ) -> Option<HashSet<MatchLiteral>> {
         let ty = types.get_type(type_id);
         match ty {
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            } => {
+                let mut set = HashSet::new();
+                set.insert(MatchLiteral::Boolean(true));
+                set.insert(MatchLiteral::Boolean(false));
+                Some(set)
+            }
             Type::TypeLiteral { value } => {
                 let literal = self.match_literal_from_type_literal(value)?;
                 let mut set = HashSet::new();
@@ -1430,22 +1584,25 @@ impl Compiler {
         }
     }
 
-    /// Summarize coverage for a literal union pattern.
-    fn literal_pattern_coverage(
+    /// Summarize coverage for a literal union pattern using known literals.
+    fn literal_pattern_coverage_for_values(
         &self,
+        values: &HashSet<MatchLiteral>,
         pattern_id: LocalNodeId<Pattern>,
         tree: &NodeTree,
     ) -> Option<MatchPatternCoverage<MatchLiteral>> {
         match tree.get(pattern_id) {
             Pattern::Wildcard => Some(MatchPatternCoverage::All),
             Pattern::Binding { pattern, .. } => match pattern {
-                Some(pattern) => self.literal_pattern_coverage(*pattern, tree),
+                Some(pattern) => self.literal_pattern_coverage_for_values(values, *pattern, tree),
                 None => Some(MatchPatternCoverage::All),
             },
             Pattern::Union { patterns } => {
+                // merge coverage across union patterns
                 let mut covered: HashSet<MatchLiteral> = HashSet::new();
                 for pattern in patterns {
-                    let coverage = self.literal_pattern_coverage(*pattern, tree)?;
+                    let coverage =
+                        self.literal_pattern_coverage_for_values(values, *pattern, tree)?;
                     match coverage {
                         MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
                         MatchPatternCoverage::Values(values) => covered.extend(values),
@@ -1454,15 +1611,20 @@ impl Compiler {
                 Some(MatchPatternCoverage::Values(covered.into_iter().collect()))
             }
             Pattern::Expression { value } => {
+                // literal expressions cover a single known value
                 let literal = self.match_literal_from_expression(*value, tree)?;
-                Some(MatchPatternCoverage::Values(vec![literal]))
+                if values.contains(&literal) {
+                    Some(MatchPatternCoverage::Values(vec![literal]))
+                } else {
+                    None
+                }
             }
             Pattern::Range {
                 start,
                 end,
                 is_inclusive,
             } => {
-                // expand range patterns into literal coverage
+                // filter literal values that fall within the range
                 let Some(start_id) = *start else {
                     return None;
                 };
@@ -1471,9 +1633,17 @@ impl Compiler {
                 };
                 let start_literal = self.match_literal_from_pattern(start_id, tree)?;
                 let end_literal = self.match_literal_from_pattern(end_id, tree)?;
-                let literals =
-                    self.match_literal_range(&start_literal, &end_literal, *is_inclusive)?;
-                Some(MatchPatternCoverage::Values(literals))
+                let literals = self.match_literals_in_range(
+                    values,
+                    &start_literal,
+                    &end_literal,
+                    *is_inclusive,
+                );
+                if literals.is_empty() {
+                    None
+                } else {
+                    Some(MatchPatternCoverage::Values(literals))
+                }
             }
             _ => None,
         }
@@ -1698,87 +1868,71 @@ impl Compiler {
         }
     }
 
-    /// Expand a scalar literal range into match literals.
-    fn match_literal_range(
+    /// Check whether a match literal falls within a scalar range.
+    fn match_literal_in_range(
         &self,
+        value: &MatchLiteral,
         start: &MatchLiteral,
         end: &MatchLiteral,
         is_inclusive: bool,
-    ) -> Option<Vec<MatchLiteral>> {
-        match (start, end) {
-            (MatchLiteral::Integer(start), MatchLiteral::Integer(end)) => {
-                // normalize bounds
+    ) -> bool {
+        match (value, start, end) {
+            (
+                MatchLiteral::Integer(value),
+                MatchLiteral::Integer(start),
+                MatchLiteral::Integer(end),
+            ) => {
+                // compare integer ranges
                 let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    literals.push(MatchLiteral::Integer(value));
-                }
-                Some(literals)
+                *value >= *start && *value <= end_value
             }
-            (MatchLiteral::Bigint(start), MatchLiteral::Bigint(end)) => {
-                // normalize bounds
+            (
+                MatchLiteral::Bigint(value),
+                MatchLiteral::Bigint(start),
+                MatchLiteral::Bigint(end),
+            ) => {
+                // compare bigint ranges
                 let end_value = if is_inclusive { *end } else { end - 1 };
-                if end_value < *start {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = end_value - *start + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in *start..=end_value {
-                    literals.push(MatchLiteral::Bigint(value));
-                }
-                Some(literals)
+                *value >= *start && *value <= end_value
             }
-            (MatchLiteral::Character(start), MatchLiteral::Character(end)) => {
-                // normalize bounds
-                let start_value = *start as u32;
-                let end_value = *end as u32;
+            (
+                MatchLiteral::Character(value),
+                MatchLiteral::Character(start),
+                MatchLiteral::Character(end),
+            ) => {
+                // compare character ranges
+                let value = *value as u32;
+                let start = *start as u32;
+                let end = *end as u32;
                 let end_value = if is_inclusive {
-                    end_value
-                } else if end_value == 0 {
-                    return None;
+                    end
+                } else if end == 0 {
+                    return false;
                 } else {
-                    end_value - 1
+                    end - 1
                 };
-                if end_value < start_value {
-                    return None;
-                }
-
-                // guard against large literal ranges
-                let count = (end_value - start_value) as i64 + 1;
-                if count > MAX_RANGE_MATCH_LITERAL_COUNT {
-                    return None;
-                }
-
-                // emit the literal range
-                let mut literals = Vec::with_capacity(count as usize);
-                for value in start_value..=end_value {
-                    let Some(character) = char::from_u32(value) else {
-                        return None;
-                    };
-                    literals.push(MatchLiteral::Character(character));
-                }
-                Some(literals)
+                value >= start && value <= end_value
             }
-            _ => None,
+            _ => false,
         }
+    }
+
+    /// Filter known literals by a scalar range.
+    fn match_literals_in_range(
+        &self,
+        values: &HashSet<MatchLiteral>,
+        start: &MatchLiteral,
+        end: &MatchLiteral,
+        is_inclusive: bool,
+    ) -> Vec<MatchLiteral> {
+        // collect literal values covered by the range
+        let mut filtered = Vec::new();
+        for literal in values {
+            if self.match_literal_in_range(literal, start, end, is_inclusive) {
+                filtered.push(*literal);
+            }
+        }
+        filtered
     }
 
     /// Resolve enum field symbols from pattern expressions.
@@ -1987,5 +2141,74 @@ impl Compiler {
             | Pattern::ValueOf { right: inner, .. } => self.is_destructuring_pattern(tree, *inner),
             _ => false,
         }
+    }
+}
+
+impl Compiler {
+    /// Validate a single pattern node.
+    pub(super) fn validate_pattern(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        pattern: &Pattern,
+    ) {
+        let analysis = PatternAnalysis::new(self);
+        analysis.validate_pattern(module, profile, tree, pattern);
+    }
+
+    /// Validate match exhaustiveness for supported value shapes.
+    pub(super) fn validate_match_exhaustiveness(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+        cases: &[LocalNodeId<MatchCase>],
+    ) {
+        let analysis = PatternAnalysis::new(self);
+        let mut context =
+            PatternAnalysisContext::new(analysis, module, profile, tree, symbols, types);
+        context.validate_match_exhaustiveness(expression_id, value_id, cases);
+    }
+
+    /// Check whether a pattern contains a definite assignment assertion.
+    pub(super) fn pattern_has_definite_assignment(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> bool {
+        let analysis = PatternAnalysis::new(self);
+        analysis.pattern_has_definite_assignment(tree, pattern_id)
+    }
+
+    /// Check whether a pattern is irrefutable for a given value type.
+    pub(crate) fn is_irrefutable_pattern_for_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        pattern_id: LocalNodeId<Pattern>,
+        value_type: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let analysis = PatternAnalysis::new(self);
+        let mut context =
+            PatternAnalysisContext::new(analysis, module, profile, tree, symbols, types);
+        context.is_irrefutable_pattern_for_type(pattern_id, value_type)
+    }
+
+    /// Check whether a pattern is a destructuring pattern.
+    pub(super) fn is_destructuring_pattern(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> bool {
+        let analysis = PatternAnalysis::new(self);
+        analysis.is_destructuring_pattern(tree, pattern_id)
     }
 }
