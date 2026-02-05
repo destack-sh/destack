@@ -1125,6 +1125,7 @@ impl Parser {
         is_declaration_start: bool,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         match keyword {
+            // namespace declaration
             Keyword::Namespace if is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let namespace_id = self.eat_namespace(start, descriptor)?;
@@ -1133,6 +1134,7 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // struct or class declaration
             Keyword::Struct | Keyword::Class if is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let struct_id = self.eat_struct_or_class(start, descriptor)?;
@@ -1141,6 +1143,7 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // enum declaration
             Keyword::Enum if is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let enum_id = self.eat_enum(start, EnumKind::Enum, descriptor)?;
@@ -1149,12 +1152,16 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // const enum or binding declaration
             Keyword::Const => {
+                // look ahead for const enum
                 let next_keyword = if next_token_type == TokenType::Identifier {
                     self.keyword_for_index(self.index_for_next())
                 } else {
                     None
                 };
+
+                // parse const enum declaration
                 if next_keyword == Some(Keyword::Enum) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Const)?;
@@ -1163,17 +1170,22 @@ impl Parser {
                         Expression::Declaration(enum_id),
                         self.get_span_from(start),
                     )))
+                // otherwise parse binding declaration
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_let(start, descriptor)?))
                 }
             }
+            // newtype interface or alias declaration
             Keyword::Newtype => {
+                // look ahead for newtype interface
                 let next_keyword = if next_token_type == TokenType::Identifier {
                     self.keyword_for_index(self.index_for_next())
                 } else {
                     None
                 };
+
+                // parse newtype interface declaration
                 if next_keyword == Some(Keyword::Interface) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     self.eat_keyword(Keyword::Newtype)?;
@@ -1182,7 +1194,9 @@ impl Parser {
                         Expression::Declaration(interface_id),
                         self.get_span_from(start),
                     )))
+                // otherwise parse newtype alias declaration
                 } else {
+                    // require a valid type alias start
                     let can_start_type_alias = matches!(
                         next_token_type,
                         TokenType::Identifier
@@ -1191,14 +1205,18 @@ impl Parser {
                             | TokenType::OpenBracket
                             | TokenType::Literal
                     );
+
+                    // parse the alias when it can start
                     if can_start_type_alias {
                         let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                         Ok(Some(self.eat_type(start, descriptor)?))
+                    // otherwise bail
                     } else {
                         Ok(None)
                     }
                 }
             }
+            // interface declaration
             Keyword::Interface if is_declaration_start || next_token_type == TokenType::Newline => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let interface_id = self.eat_interface(start, descriptor, TypeKind::Structural)?;
@@ -1207,6 +1225,7 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // extension declaration
             Keyword::Extension if is_declaration_start => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let extension_id = self.eat_extension(start, descriptor)?;
@@ -1215,7 +1234,9 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // async declaration or async path
             Keyword::Async => {
+                // avoid async generic parses when tree literal disambiguation is active
                 if self.language.is_typescript()
                     && self.options.left_precedence.is_some()
                     && (self.peek_next_is(TokenType::LessThan)
@@ -1223,6 +1244,8 @@ impl Parser {
                 {
                     return Ok(None);
                 }
+
+                // require a valid function signature start
                 let can_start_signature = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1234,10 +1257,13 @@ impl Parser {
                 if !can_start_signature {
                     return Ok(None);
                 }
+
+                // parse async function with speculative rollback
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let speculative_start = self.mark();
                 let speculative_start_idx = self.tree.next_id();
                 if let Ok(function_id) = self.eat_function(start, descriptor, false, false) {
+                    // accept only when not a rejected lambda signature
                     let should_accept = match self.tree.get(function_id) {
                         Declaration::Function {
                             signature, body, ..
@@ -1248,17 +1274,22 @@ impl Parser {
                         }
                         _ => true,
                     };
+
+                    // accept the parsed function
                     if should_accept {
                         Ok(Some(self.tree.insert(
                             Expression::Declaration(function_id),
                             self.get_span_from(start),
                         )))
+                    // otherwise fall back to async path
                     } else {
                         self.restore(speculative_start, speculative_start_idx);
                         let (path, last_span) = self
                             .eat_path_with_last_span()
                             .for_node_type(NodeType::Expression)?;
                         let static_arguments = self.eat_static_arguments_in_expression(false);
+
+                        // parse call when static arguments apply
                         if static_arguments.is_some()
                             && self.peek_is(TokenType::OpenParenthesis)
                             && !self.options.in_new_receiver
@@ -1274,6 +1305,7 @@ impl Parser {
                                 static_arguments,
                                 PostfixPosition::Direct,
                             )?))
+                        // otherwise build a path expression
                         } else {
                             let expression = Expression::Path {
                                 path,
@@ -1285,12 +1317,15 @@ impl Parser {
                             Ok(Some(expression_id))
                         }
                     }
+                // fall back to async path when signature parsing failed
                 } else {
                     self.restore(speculative_start, speculative_start_idx);
                     let (path, last_span) = self
                         .eat_path_with_last_span()
                         .for_node_type(NodeType::Expression)?;
                     let static_arguments = self.eat_static_arguments_in_expression(false);
+
+                    // parse call when static arguments apply
                     if static_arguments.is_some()
                         && self.peek_is(TokenType::OpenParenthesis)
                         && !self.options.in_new_receiver
@@ -1306,7 +1341,9 @@ impl Parser {
                             static_arguments,
                             PostfixPosition::Direct,
                         )?))
-                    } else {
+                    }
+                    // otherwise build a path expression
+                    else {
                         let expression = Expression::Path {
                             path,
                             static_arguments,
@@ -1317,7 +1354,9 @@ impl Parser {
                     }
                 }
             }
+            // function or method declaration
             Keyword::Function | Keyword::Abstract | Keyword::Override => {
+                // require a valid function signature start
                 let can_start_signature = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1329,6 +1368,8 @@ impl Parser {
                 if !can_start_signature {
                     return Ok(None);
                 }
+
+                // parse function declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let function_id = self.eat_function(start, descriptor, false, false)?;
                 Ok(Some(self.tree.insert(
@@ -1336,7 +1377,9 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // new signature declaration in type positions
             Keyword::New if self.options.in_type => {
+                // require a valid function signature start
                 let can_start_signature = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1346,17 +1389,21 @@ impl Parser {
                         | TokenType::Multiply
                 );
                 if can_start_signature {
+                    // parse constructor signature
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     let function_id = self.eat_function(start, descriptor, false, false)?;
                     Ok(Some(self.tree.insert(
                         Expression::Declaration(function_id),
                         self.get_span_from(start),
                     )))
+                // otherwise bail
                 } else {
                     Ok(None)
                 }
             }
+            // variant method declaration
             Keyword::Get | Keyword::Set | Keyword::Constructor if self.options.in_variant => {
+                // require a valid function signature start
                 let can_start_signature = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1368,6 +1415,8 @@ impl Parser {
                 if !can_start_signature {
                     return Ok(None);
                 }
+
+                // parse variant method declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                 let function_id = self.eat_function(start, descriptor, false, false)?;
                 Ok(Some(self.tree.insert(
@@ -1375,6 +1424,7 @@ impl Parser {
                     self.get_span_from(start),
                 )))
             }
+            // this expression
             Keyword::This => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 self.bump(); // eat this
@@ -1383,7 +1433,9 @@ impl Parser {
                         .insert(Expression::This, self.get_span_from(start)),
                 ))
             }
+            // new expression
             Keyword::New if !self.options.in_type => {
+                // require a valid new expression start
                 let can_start_new_expression = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1392,34 +1444,55 @@ impl Parser {
                         | TokenType::LessThan
                 );
                 if can_start_new_expression {
+                    // parse new expression
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                     Ok(Some(self.eat_new()?))
+                // otherwise bail
                 } else {
                     Ok(None)
                 }
             }
+            // delete expression
             Keyword::Delete if next_token_type != TokenType::Colon => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 Ok(Some(self.eat_delete()?))
             }
+            // type only import expression
             Keyword::Import
                 if self.options.in_type && next_token_type == TokenType::OpenParenthesis =>
             {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_type_import_expression()?))
             }
+            // import call expression
             Keyword::Import if next_token_type == TokenType::OpenParenthesis => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 Ok(Some(self.eat_import_call_expression(start)?))
             }
+            // import declaration or import meta
             Keyword::Import => {
-                // treat `import.<ident>` as a path, not an import statement
+                // validate import meta access
+                // treat `import.meta` as a path, reject other member access
                 if self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
                 {
-                    return Ok(None);
+                    let dot_index = self.next_non_newline_index_from(self.pos_index() + 1);
+                    let ident_index = self.next_non_newline_index_from(dot_index + 1);
+                    let Some(ident_token) = self.tokens().get(ident_index) else {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    };
+                    if ident_token.token.ty != TokenType::Identifier {
+                        return Err(ParseError::unexpected(ident_token.span));
+                    }
+                    let ident_str = self.get_span_str(ident_token.span);
+                    if ident_str == "meta" {
+                        return Ok(None);
+                    }
+                    return Err(ParseError::unexpected(ident_token.span));
                 }
+
+                // require a valid import start
                 let can_start_import = matches!(
                     next_token_type,
                     TokenType::Multiply
@@ -1428,8 +1501,10 @@ impl Parser {
                         | TokenType::Literal
                 ) || self.can_start_import_statement();
                 if !can_start_import {
-                    return Ok(None);
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
+
+                // parse import or export import equals declaration
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_DEPENDENCY);
                 if descriptor.export.is_some() && self.peek_import_equals_after_import() {
                     Ok(Some(self.eat_export_import_equals(start, descriptor)?))
@@ -1437,27 +1512,36 @@ impl Parser {
                     Ok(Some(self.eat_import()?))
                 }
             }
+            // infer type expression
             Keyword::Infer if self.options.in_type => Ok(Some(self.eat_type_infer_expression()?)),
+            // asserts type predicate
             Keyword::Asserts if self.options.in_type => {
+                // allow asserts predicate only when grammar supports it
                 if self.can_start_type_predicate_asserts() {
                     Ok(Some(self.eat_type_predicate_asserts()?))
+                // otherwise bail
                 } else {
                     Ok(None)
                 }
             }
+            // let or var binding declaration
             Keyword::Let | Keyword::Var => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                 Ok(Some(self.eat_let(start, descriptor)?))
             }
+            // using declaration
             Keyword::Using => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                 if self.can_parse_using_declaration(&descriptor, Asynchrony::Sync) {
                     Ok(Some(self.eat_using(start, descriptor, Asynchrony::Sync)?))
+                // otherwise bail
                 } else {
                     Ok(None)
                 }
             }
+            // type or readonly type alias declaration
             Keyword::Type | Keyword::Readonly => {
+                // require a valid type alias start
                 let can_start_type_alias = matches!(
                     next_token_type,
                     TokenType::Identifier
@@ -1466,54 +1550,69 @@ impl Parser {
                         | TokenType::OpenBracket
                         | TokenType::Literal
                 );
+
+                // parse type alias when it can start
                 if can_start_type_alias {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_DECLARATION);
                     Ok(Some(self.eat_type(start, descriptor)?))
+                // otherwise bail
                 } else {
                     Ok(None)
                 }
             }
+            // if
             Keyword::If => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_if()?))
             }
+            // while
             Keyword::While => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_while()?))
             }
+            // do while
             Keyword::Do if self.is_do_while_statement(next_token_type) => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_while()?))
             }
+            // for
             Keyword::For => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_for()?))
             }
+            // loop
             Keyword::Loop if self.language.is_destack() && self.peek_next_block().is_ok() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_loop()?))
             }
+            // try
             Keyword::Try => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_try()?))
             }
+            // switch
             Keyword::Switch => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_match()?))
             }
+            // match
             Keyword::Match if self.language.is_destack() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_match()?))
             }
+            // break
             Keyword::Break => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_break()?))
             }
+            // continue
             Keyword::Continue => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_continue()?))
             }
+            // await expression or await using
             Keyword::Await => {
+                // parse await using when allowed
                 if self.can_parse_using_declaration(&descriptor, Asynchrony::Async) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
                     Ok(Some(self.eat_using(
@@ -1521,27 +1620,33 @@ impl Parser {
                         descriptor,
                         Asynchrony::Async,
                     )?))
+                // otherwise parse await expression
                 } else {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                     Ok(Some(self.eat_await()?))
                 }
             }
+            // comptime expression
             Keyword::Comptime if self.language.is_destack() => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                 Ok(Some(self.eat_comptime()?))
             }
+            // yield statement
             Keyword::Yield if self.options.in_generator => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_yield()?))
             }
+            // throw statement
             Keyword::Throw => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_throw()?))
             }
+            // return statement
             Keyword::Return => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 Ok(Some(self.eat_return()?))
             }
+            // debugger statement
             Keyword::Debugger => {
                 let _timing = self.timing_scope(tags::PARSE_KEYWORD_CONTROL);
                 self.bump(); // eat `debugger`
@@ -1550,6 +1655,7 @@ impl Parser {
                         .insert(Expression::Debugger, self.get_span_from(start)),
                 ))
             }
+            // fall through when not a keyword expression
             _ => Ok(None),
         }
     }
@@ -3254,17 +3360,13 @@ mod tests {
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
     };
 
-    /// Disambiguate using import as a path.
+    /// Disambiguate using import meta as a path.
     #[test]
     fn test_parse_import_as_path() {
-        let mut test = TestParser::new("import.descriptor.env");
+        let mut test = TestParser::new("import.meta.env");
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
-        assert_expression_path!(
-            parser,
-            parser.tree.get(expression_id),
-            "import.descriptor.env"
-        );
+        assert_expression_path!(parser, parser.tree.get(expression_id), "import.meta.env");
     }
 
     /// Parse a bare this expression.
