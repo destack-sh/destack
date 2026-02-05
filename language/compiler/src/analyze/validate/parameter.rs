@@ -93,6 +93,12 @@ impl Compiler {
         let is_parameter_property =
             modifiers.is_some_and(|modifiers| self.is_parameter_property(modifiers));
 
+        // reject parameter properties in javascript modules
+        if is_parameter_property && module.language_type.is_javascript() {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+        }
+
         // parameter properties only allowed in constructors
         if is_parameter_property && !self.is_in_constructor(tree, id) {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));
