@@ -1,4 +1,4 @@
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration,
     DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionCardinality,
@@ -14,6 +14,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
+        options: AnalyzeOptions,
         id: LocalNodeId<Member>,
         member: &Member,
     ) {
@@ -305,12 +306,9 @@ impl Compiler {
                 }
 
                 // enforce definite assignment assertion policy
-                if has_definite_assignment {
-                    let options = self.analyze_context_options_for_module(module.id);
-                    if options.no_definite_assignment_assertions {
-                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                        self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
-                    }
+                if has_definite_assignment && options.no_definite_assignment_assertions {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
                 }
 
                 // class field constraints

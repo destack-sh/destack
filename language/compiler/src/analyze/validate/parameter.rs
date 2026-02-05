@@ -1,11 +1,11 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     BindingKind, BindingModifier, Declaration, FunctionMode, LocalNodeId, Member, Mutability,
-    NodeTree, NodeType, Parameter, Property, SymbolSpace, SymbolTable,
+    NodeTree, NodeType, Parameter, Property, SymbolSpace, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
-#[allow(clippy::collapsible_match)]
+#[allow(clippy::collapsible_match, clippy::too_many_arguments)]
 impl Compiler {
     /// Return true when variance is allowed for this parameter.
     fn is_parameter_variable(&self, tree: &NodeTree, parameter_id: LocalNodeId<Parameter>) -> bool {
@@ -89,6 +89,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
+        types: &TypeTable,
         id: LocalNodeId<Parameter>,
         parameter: &Parameter,
     ) {
@@ -97,8 +98,27 @@ impl Compiler {
         let is_parameter_property =
             modifiers.is_some_and(|modifiers| self.is_parameter_property(modifiers));
 
+        // classify explicit type annotations on parameters
+        let has_declared_type = types
+            .get_declared_type_id(id.into_global_any(module.id))
+            .is_some();
+
         // reject parameter properties in javascript modules
         if is_parameter_property && module.language_type.is_javascript() {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+        }
+
+        // reject parameter type annotations in javascript modules
+        if module.language_type.is_javascript() && has_declared_type {
+            let node = id.into_global_any(module.id).into_anchored(Some(profile));
+            self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+        }
+
+        // reject optional parameters in javascript modules
+        if module.language_type.is_javascript()
+            && modifiers.is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe))
+        {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
         }

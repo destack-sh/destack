@@ -47,6 +47,9 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA237", // ExportNotTopLevel
     "EA238", // DuplicateDefaultExport
     "EA239", // InvalidPrivateIdentifier
+    "EA240", // InvalidExponentLeftUnary
+    "EA241", // EmptyParenthesizedExpression
+    "EA242", // InvalidOptionalChainTemplate
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType
@@ -79,6 +82,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA512", // InvalidOptionalPatternParameter
     "EA513", // InvalidOptionalRestParameter
     "EA701", // InvalidDecoratorStaticArguments
+    "EA821", // InvalidStrictDelete
 ];
 
 /// Early resolve error codes relevant for conformance testing.

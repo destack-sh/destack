@@ -422,6 +422,24 @@ pub enum AnalyzeError {
     )]
     InvalidPrivateIdentifier { node: AnchoredGlobalNodeId },
 
+    /// Exponentiation cannot take an unparenthesized unary expression on the left.
+    #[error(
+        code = "EA240",
+        message = "unparenthesized unary expression cannot be the left operand of '**'"
+    )]
+    InvalidExponentLeftUnary { node: AnchoredGlobalNodeId },
+
+    /// Parenthesized expressions cannot be empty in JS and TS.
+    #[error(code = "EA241", message = "empty parenthesized expression")]
+    EmptyParenthesizedExpression { node: AnchoredGlobalNodeId },
+
+    /// Tagged templates cannot be applied to optional chains.
+    #[error(
+        code = "EA242",
+        message = "tagged templates cannot follow optional chains"
+    )]
+    InvalidOptionalChainTemplate { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------

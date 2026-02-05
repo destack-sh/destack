@@ -1,5 +1,5 @@
 use crate::analyze::common::{NormalizationMode, RelationMode};
-use crate::{AnalyzeError, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
     DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId,
@@ -20,15 +20,19 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        options: AnalyzeOptions,
         expression_id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
+        // cache strict mode once per expression validation
+        let is_strict = module.source_type.is_module() || options.always_strict;
+
         match expression {
             Expression::Assign { left, .. } => {
-                self.validate_assignment_target(module, profile, tree, *left);
+                self.validate_assignment_target(module, profile, tree, *left, is_strict);
             }
             Expression::AssignBinary { left, .. } => {
-                self.validate_assignment_target(module, profile, tree, *left);
+                self.validate_assignment_target(module, profile, tree, *left, is_strict);
             }
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
@@ -54,17 +58,37 @@ impl Compiler {
                 );
             }
             Expression::Must { .. } => {
-                self.validate_must_assertion(module, profile, tree, expression_id);
+                self.validate_must_assertion(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    options.no_must_assertions,
+                );
             }
             Expression::TypePredicate { .. } => {
-                self.validate_custom_type_guard(module, profile, expression_id);
+                self.validate_custom_type_guard(
+                    module,
+                    profile,
+                    expression_id,
+                    options.no_custom_type_guards,
+                );
             }
-            Expression::Binary { operator, .. } => {
+            Expression::Binary { left, operator, .. } => {
                 self.validate_unsound_narrowing_operator(
                     module,
                     profile,
                     types,
                     expression_id,
+                    *operator,
+                    options.no_unsound_narrowing,
+                );
+                self.validate_exponent_left_operand(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *left,
                     *operator,
                 );
             }
@@ -75,7 +99,18 @@ impl Compiler {
                     types,
                     expression_id,
                     *operator,
+                    options.no_unsound_narrowing,
                 );
+
+                // reject satisfies expressions in javascript modules
+                if module.language_type.is_javascript()
+                    && *operator == TypeBinaryOperator::Satisfies
+                {
+                    let node = expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+                }
             }
             Expression::ExportNamespace { .. } => {
                 if !module.language_type.is_declaration() {
@@ -156,6 +191,33 @@ impl Compiler {
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 self.validate_tuple_optional_order(module, profile, tree, expression_id, elements);
+                if matches!(expression, Expression::TupleExpression { .. }) {
+                    self.validate_empty_parenthesized_expression(
+                        module,
+                        profile,
+                        expression_id,
+                        elements,
+                    );
+                }
+            }
+            Expression::Delete { value } => {
+                self.validate_delete_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *value,
+                    is_strict,
+                );
+            }
+            Expression::TaggedTemplateExpression { tag, .. } => {
+                self.validate_tagged_template_expression(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *tag,
+                );
             }
             Expression::Let {
                 descriptor,
@@ -176,6 +238,7 @@ impl Compiler {
                         profile,
                         tree,
                         *declarator_id,
+                        options.no_definite_assignment_assertions,
                     );
                     self.validate_declare_binding_initializer(
                         module,
@@ -213,6 +276,7 @@ impl Compiler {
                         profile,
                         tree,
                         *declarator_id,
+                        options.no_definite_assignment_assertions,
                     );
                 }
                 if *asynchrony == Asynchrony::Async
@@ -231,6 +295,208 @@ impl Compiler {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Validate left operands for exponentiation operators.
+    fn validate_exponent_left_operand(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+    ) {
+        // only enforce the js and ts exponentiation grammar
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return;
+        }
+
+        // skip non exponent operators
+        if operator != BinaryOperator::Exponent {
+            return;
+        }
+
+        // reject unparenthesized unary and delete operands
+        let left_expression = tree.get(left);
+        if matches!(
+            left_expression,
+            Expression::Unary { .. } | Expression::Delete { .. }
+        ) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidExponentLeftUnary { node });
+        }
+    }
+
+    /// Validate empty parenthesized expressions in js and ts.
+    fn validate_empty_parenthesized_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        elements: &[LocalNodeId<Argument>],
+    ) {
+        // only enforce for js and ts modules
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return;
+        }
+
+        // tuple expressions in value position represent parenthesized expressions
+        if elements.is_empty() {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::EmptyParenthesizedExpression { node });
+        }
+    }
+
+    /// Validate delete expression restrictions.
+    fn validate_delete_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        value: LocalNodeId<Expression>,
+        is_strict: bool,
+    ) {
+        // skip non-user modules
+        if !module.is_user() {
+            return;
+        }
+
+        // classify the effective delete target
+        let target_id = self.effective_delete_target(tree, value);
+
+        // reject private member deletes
+        if self.delete_target_contains_private_member(tree, target_id) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidStrictDelete { node });
+            return;
+        }
+
+        // enforce strict mode delete restrictions for identifier targets
+        if is_strict && self.delete_target_is_binding_reference(tree, target_id) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidStrictDelete { node });
+        }
+    }
+
+    /// Resolve the effective target of a delete expression.
+    fn effective_delete_target(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        // unwrap parenthesized wrappers
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+
+        // delete uses the last operand in sequence expressions
+        if let Expression::SequenceExpression { expressions } = tree.get(expression_id)
+            && let Some(last) = expressions.last()
+        {
+            return self.effective_delete_target(tree, *last);
+        }
+
+        expression_id
+    }
+
+    /// Return true when the delete target is a binding reference.
+    fn delete_target_is_binding_reference(
+        &self,
+        tree: &NodeTree,
+        target_id: LocalNodeId<Expression>,
+    ) -> bool {
+        matches!(
+            tree.get(target_id),
+            Expression::UnresolvedPath {
+                static_arguments: None,
+                ..
+            } | Expression::LocalReference {
+                static_arguments: None,
+                ..
+            } | Expression::ModuleReference {
+                static_arguments: None,
+                ..
+            } | Expression::GlobalReference {
+                static_arguments: None,
+                ..
+            }
+        )
+    }
+
+    /// Return true when the delete target chain contains a private member access.
+    fn delete_target_contains_private_member(
+        &self,
+        tree: &NodeTree,
+        target_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(target_id) {
+            Expression::PrivateMember { .. } => true,
+            Expression::Member { left, .. } | Expression::Index { left, .. } => {
+                self.delete_target_contains_private_member(tree, *left)
+            }
+            Expression::Maybe { left } => self.delete_target_contains_private_member(tree, *left),
+            Expression::Parenthesized { expression } => {
+                self.delete_target_contains_private_member(tree, *expression)
+            }
+            _ => false,
+        }
+    }
+
+    /// Validate tagged templates after optional chains.
+    fn validate_tagged_template_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        tag: LocalNodeId<Expression>,
+    ) {
+        // optional chain tagged templates are invalid in js, ts, and destack
+        if !module.language_type.is_javascript()
+            && !module.language_type.is_typescript()
+            && !module.language_type.is_destack()
+        {
+            return;
+        }
+
+        // check the tag chain for optional segments
+        if self.expression_contains_optional_chain(tree, tag) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidOptionalChainTemplate { node });
+        }
+    }
+
+    /// Return true when an expression chain contains optional access.
+    fn expression_contains_optional_chain(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::Maybe { .. } => true,
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::New { left, .. }
+            | Expression::TaggedTemplateExpression { tag: left, .. }
+            | Expression::Instantiation { left, .. } => {
+                self.expression_contains_optional_chain(tree, *left)
+            }
+            Expression::Parenthesized { expression } => {
+                self.expression_contains_optional_chain(tree, *expression)
+            }
+            _ => false,
         }
     }
 
@@ -311,10 +577,9 @@ impl Compiler {
         profile: ProfileId,
         _tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
+        no_must_assertions: bool,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-
-        if !options.no_must_assertions {
+        if !no_must_assertions {
             return;
         }
 
@@ -330,10 +595,9 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
+        no_custom_type_guards: bool,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-
-        if !options.no_custom_type_guards {
+        if !no_custom_type_guards {
             return;
         }
 
@@ -351,10 +615,9 @@ impl Compiler {
         types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
         operator: BinaryOperator,
+        no_unsound_narrowing: bool,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-
-        if !options.no_unsound_narrowing {
+        if !no_unsound_narrowing {
             return;
         }
 
@@ -384,9 +647,9 @@ impl Compiler {
         types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
         operator: TypeBinaryOperator,
+        no_unsound_narrowing: bool,
     ) {
-        let options = self.analyze_context_options_for_module(module.id);
-        if !options.no_unsound_narrowing {
+        if !no_unsound_narrowing {
             return;
         }
         if !matches!(
@@ -478,6 +741,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         target: LocalNodeId<Expression>,
+        is_strict: bool,
     ) {
         // reject non-assignable targets
         if !self.is_valid_assignment_target(tree, target) {
@@ -485,6 +749,71 @@ impl Compiler {
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidAssignmentTarget { node });
+            return;
+        }
+
+        // reject strict mode assignments to reserved binding names
+        if module.is_user()
+            && is_strict
+            && let Some((reserved_target, name)) =
+                self.strict_reserved_assignment_target_binding(tree, target)
+        {
+            let node = reserved_target
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::ReservedIdentifier { node, name });
+        }
+    }
+
+    /// Return reserved strict-mode assignment targets with their binding name.
+    fn strict_reserved_assignment_target_binding(
+        &self,
+        tree: &NodeTree,
+        target: LocalNodeId<Expression>,
+    ) -> Option<(LocalNodeId<Expression>, StringId)> {
+        let target = self.unwrap_parenthesized_expression(target, tree);
+        let name = self.assignment_target_binding_name(tree, target)?;
+        if !self.is_reserved_strict_assignment_name(name) {
+            return None;
+        }
+
+        Some((target, name))
+    }
+
+    /// Return the binding name for assignment targets when available.
+    fn assignment_target_binding_name(
+        &self,
+        tree: &NodeTree,
+        target: LocalNodeId<Expression>,
+    ) -> Option<StringId> {
+        match tree.get(target) {
+            Expression::UnresolvedPath {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::LocalReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::ModuleReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::GlobalReference {
+                path,
+                static_arguments: None,
+                ..
+            } => {
+                if path.segments.len() != 1 {
+                    return None;
+                }
+
+                path.last_segment()
+            }
+            _ => None,
         }
     }
 
@@ -1158,6 +1487,7 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         declarator_id: LocalNodeId<Declarator>,
+        no_definite_assignment_assertions: bool,
     ) {
         // report definite assignment assertions in variable declarators
         let declarator = tree.get(declarator_id);
@@ -1168,8 +1498,7 @@ impl Compiler {
             .into_global_any(module.id)
             .into_anchored(Some(profile));
 
-        let options = self.analyze_context_options_for_module(module.id);
-        if options.no_definite_assignment_assertions {
+        if no_definite_assignment_assertions {
             self.error(AnalyzeError::DefiniteAssignmentAssertionDisabled { node });
             return;
         }
