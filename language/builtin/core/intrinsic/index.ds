@@ -14,7 +14,7 @@
 /// - **atomic.ds** - Atomic operations with memory ordering
 /// - **math.ds** - Floating-point math functions
 /// - **control.ds** - Control flow (unreachable, breakpoint, abort, panic)
-/// - **simd.ds** - SIMD vector operations
+/// - **vector.ds** - SIMD vector operations
 
 export * from "./import-meta.ds";
 export * from "./decorator.ds";
@@ -25,4 +25,4 @@ export * from "./math.ds";
 export * from "./memory.ds";
 export * from "./atomic.ds";
 export * from "./control.ds";
-export * from "./simd.ds";
+export * from "./vector.ds";
