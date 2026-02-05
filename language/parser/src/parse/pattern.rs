@@ -249,11 +249,17 @@ impl Parser {
         // range
         else if self.peek_is(TokenType::Range) {
             self.bump(); // eat range
+            let is_inclusive = if self.peek_is(TokenType::Assign) {
+                self.bump(); // eat =
+                true
+            } else {
+                false
+            };
             let end_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
             let pattern = Pattern::Range {
                 start: Some(pattern_id),
                 end: Some(end_id),
-                is_inclusive: false,
+                is_inclusive,
             };
             let pattern_id = self.tree.insert(pattern, self.get_span_from(&start));
             Ok(pattern_id)
@@ -844,6 +850,29 @@ mod tests {
             let start = start.expect("expected range start");
             let end = end.expect("expected range end");
             assert!(!is_inclusive);
+
+            // 1
+            assert_node!(parser.tree, start, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+
+            // 4
+            assert_node!(parser.tree, end, Pattern::Expression { value } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_pattern_range_inclusive() {
+        let mut test = TestParser::new("1..=4");
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Range { start, end, is_inclusive } => {
+            let start = start.expect("expected range start");
+            let end = end.expect("expected range end");
+            assert!(*is_inclusive);
 
             // 1
             assert_node!(parser.tree, start, Pattern::Expression { value } => {

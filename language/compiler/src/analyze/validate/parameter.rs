@@ -12,14 +12,28 @@ impl Compiler {
         let Some(parent) = tree.get_parent(parameter_id.id) else {
             return false;
         };
-        if parent.ty != NodeType::Declaration {
-            return false;
+
+        match parent.ty {
+            NodeType::Declaration => {
+                let declaration = tree.get(parent.into_typed::<Declaration>());
+                matches!(
+                    declaration,
+                    Declaration::Class { .. }
+                        | Declaration::Interface { .. }
+                        | Declaration::Type { .. }
+                        | Declaration::Function { .. }
+                )
+            }
+            NodeType::Member => {
+                let member = tree.get(parent.into_typed::<Member>());
+                matches!(member, Member::Method { .. })
+            }
+            NodeType::Property => {
+                let property = tree.get(parent.into_typed::<Property>());
+                matches!(property, Property::Method { .. })
+            }
+            _ => false,
         }
-        let declaration = tree.get(parent.into_typed::<Declaration>());
-        matches!(
-            declaration,
-            Declaration::Class { .. } | Declaration::Interface { .. } | Declaration::Type { .. }
-        )
     }
 
     /// Check whether a binding modifier indicates a parameter property.
