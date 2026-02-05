@@ -1,4 +1,4 @@
-use crate::{ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser};
 use destack_ast::{
     Block, BlockFormat, Expression, IfCondition, IfKind, Keyword, LocalNodeId, TokenType,
 };
@@ -27,6 +27,11 @@ impl Parser {
         let expression_id = self.with_options(self.options.in_before_block(), |parser| {
             parser.eat_expression()
         })?;
+
+        // reject declaration statements in single statement contexts
+        if !self.language.is_destack() && self.is_single_statement_declaration(expression_id) {
+            return Err(ParseError::unexpected(self.tree.get_span(expression_id)));
+        }
         if !matches!(self.tree.get(expression_id), Expression::Block { .. })
             && !matches!(self.tree.get(expression_id), Expression::If { .. })
         {

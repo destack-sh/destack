@@ -176,6 +176,27 @@ fn to_infix_operator(
 }
 
 impl Parser {
+    /// Unwrap statement and label wrappers to get the underlying expression.
+    pub(crate) fn unwrap_statement_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let mut current = expression_id;
+        loop {
+            let expression = self.tree.get(current);
+            match expression {
+                Expression::Statement(inner) => {
+                    current = *inner;
+                }
+                Expression::Labelled { body, .. } => {
+                    current = *body;
+                }
+                _ => break,
+            }
+        }
+        current
+    }
+
     /// Peek a unary prefix operator.
     #[inline]
     pub fn peek_unary_prefix_operator(&mut self) -> ParseResult<UnaryOperator> {
@@ -1625,6 +1646,11 @@ impl Parser {
             }
             // await expression or await using
             Keyword::Await => {
+                // reject await in contexts that forbid it
+                if self.options.forbid_await {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
+
                 // parse await using when allowed
                 if self.can_parse_using_declaration(&descriptor, Asynchrony::Async) {
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_BINDING);
@@ -1920,6 +1946,10 @@ impl Parser {
                 let (label, label_span) = self.eat_identifier_with_span()?;
                 self.eat_colon()?;
                 let body = self.eat_expression()?;
+                // reject labelled function declarations (:c)
+                if self.is_function_declaration_expression(body) {
+                    return Err(ParseError::unexpected(self.tree.get_span(body)));
+                }
                 let labelled_id = self.tree.insert(
                     Expression::Labelled { label, body },
                     self.get_span_from(&start),

@@ -1,5 +1,6 @@
 use destack_ast::{
-    Block, BlockFormat, Expression, Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
+    Block, BlockFormat, Declaration, Expression, Keyword, LetKind, LocalNodeId, NodeType,
+    TokenType, YieldCardinality,
 };
 
 use crate::parse::prelude::*;
@@ -57,31 +58,37 @@ impl Parser {
     }
 
     /// Check whether a statement expression is a declaration in a single statement context.
-    fn is_single_statement_declaration(&self, expression_id: LocalNodeId<Expression>) -> bool {
+    pub(crate) fn is_single_statement_declaration(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
         // unwrap statement and label layers
-        let mut current = expression_id;
-        loop {
-            let expression = self.tree.get(current);
-            match expression {
-                Expression::Statement(inner) => {
-                    current = *inner;
-                }
-                Expression::Labelled { body, .. } => {
-                    current = *body;
-                }
-                _ => break,
-            }
-        }
+        let current = self.unwrap_statement_expression(expression_id);
 
         // detect declaration expressions that are invalid in single statement contexts
+        match self.tree.get(current) {
+            Expression::Declaration(_)
+            | Expression::Using { .. }
+            | Expression::Import { .. }
+            | Expression::Export { .. }
+            | Expression::ExportNamespace { .. } => true,
+            Expression::Let { kind, .. } => *kind != LetKind::Var,
+            _ => false,
+        }
+    }
+
+    /// Check whether an expression resolves to a function declaration.
+    pub(crate) fn is_function_declaration_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // unwrap statement and label layers
+        let current = self.unwrap_statement_expression(expression_id);
+
         matches!(
             self.tree.get(current),
-            Expression::Declaration(_)
-                | Expression::Let { .. }
-                | Expression::Using { .. }
-                | Expression::Import { .. }
-                | Expression::Export { .. }
-                | Expression::ExportNamespace { .. }
+            Expression::Declaration(declaration_id)
+                if matches!(self.tree.get(*declaration_id), Declaration::Function { .. })
         )
     }
 
