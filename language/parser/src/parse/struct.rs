@@ -43,6 +43,7 @@ impl Parser {
         &mut self,
         start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
+        allow_anonymous_class: bool,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_STRUCT);
         // keyword
@@ -54,25 +55,20 @@ impl Parser {
         // optional name / key
         let has_heritage_keyword = self.peek_keyword(Keyword::Extends).is_ok()
             || self.peek_keyword(Keyword::Implements).is_ok();
-        let name_span = if has_heritage_keyword {
-            if is_class {
-                None
-            } else {
-                return Err(ParseError::expected(
-                    self.peek()?.span,
-                    TokenType::Identifier,
-                ));
-            }
+
+        // require a name for class and struct declarations
+        let allow_anonymous = is_class && allow_anonymous_class;
+        let name_span = if !allow_anonymous {
+            let (name, span) = self.eat_name_with_span()?;
+            descriptor = descriptor.with_name(name);
+            Some(span)
+        } else if has_heritage_keyword {
+            None
         } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
             descriptor = descriptor.with_name(name);
             Some(span)
-        } else if is_class {
-            None
         } else {
-            return Err(ParseError::expected(
-                self.peek()?.span,
-                TokenType::Identifier,
-            ));
+            None
         };
 
         // optional static parameters: < ... >
@@ -158,7 +154,22 @@ struct { public x: int32, readonly y: boolean }
         parser.eat_newline().unwrap();
 
         let start = parser.mark();
-        let result = parser.eat_struct_or_class(&start, DeclarationDescriptor::default());
+        let result = parser.eat_struct_or_class(&start, DeclarationDescriptor::default(), false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_class_requires_name_in_statement_position() {
+        let mut test = TestParser::new(
+            r###"
+class {}
+"###,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let result = parser.eat_struct_or_class(&start, DeclarationDescriptor::default(), false);
         assert!(result.is_err());
     }
 
@@ -174,7 +185,7 @@ struct Foo extends Bar {}
 
         let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(&start, DeclarationDescriptor::default())
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -211,7 +222,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
 
         let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(&start, DeclarationDescriptor::default())
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, heritage, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -304,7 +315,7 @@ struct Foo where Guard: Limit {
 
         let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(&start, DeclarationDescriptor::default())
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -337,7 +348,7 @@ struct Foo {
 
         let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(&start, DeclarationDescriptor::default())
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
             .unwrap();
         assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -352,7 +363,7 @@ struct Foo {
 
         let start = parser.mark();
         let struct_id = parser
-            .eat_struct_or_class(&start, DeclarationDescriptor::default())
+            .eat_struct_or_class(&start, DeclarationDescriptor::default(), false)
             .unwrap();
 
         // spans on extends and implements types
