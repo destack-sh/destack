@@ -4,11 +4,11 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 
 ## Status
 
-The pass rate intentionally excludes the explicitly skipped tests.
+The pass rate intentionally excludes the explicitly ignored tests.
 
 <!-- (results are automatically updated by the conformance test runner) -->
 <!-- begin:summary-results -->
-| Suite    | Passed | Failed | Skipped | Total |  Rate   |
+| Suite    | Passed | Failed | Ignored | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   690  |     0  |    25  |   690 | 100.00% |
 | biome    |   539  |    66  |    32  |   605 |  89.09% |
@@ -22,7 +22,7 @@ Total Blended Pass Rate: **85.81%**
 
 ### babel
 <!-- begin:babel-results -->
-| Category             | Passed | Failed | Skipped | Total |  Rate   |
+| Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | arrow-function       |    21  |     0  |       1  |    21 | 100.00% |
 | assert-predicate     |    10  |     0  |       -  |    10 | 100.00% |
@@ -67,7 +67,7 @@ Total Blended Pass Rate: **85.81%**
 
 ### biome
 <!-- begin:biome-results -->
-| Category             | Passed | Failed | Skipped | Total |  Rate   |
+| Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | error                |   216  |    66  |      20  |   282 |  76.60% |
 | ok                   |   323  |     0  |      12  |   323 | 100.00% |
@@ -77,7 +77,7 @@ Total Blended Pass Rate: **85.81%**
 
 ### swc
 <!-- begin:swc-results -->
-| Category             | Passed | Failed | Skipped | Total |  Rate   |
+| Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | amaro-194            |     1  |     0  |       -  |     1 | 100.00% |
 | arrow-function       |    15  |     0  |       -  |    15 | 100.00% |
@@ -130,7 +130,7 @@ Total Blended Pass Rate: **85.81%**
 
 ### test262
 <!-- begin:test262-results -->
-| Category             | Passed | Failed | Skipped | Total |  Rate   |
+| Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
 | early                |   338  |   330  |       -  |   668 |  50.60% |
 | fail                 |   380  |   349  |       -  |   729 |  52.13% |
