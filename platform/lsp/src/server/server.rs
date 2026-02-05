@@ -580,7 +580,16 @@ impl LanguageServer for DestackLanguageServer {
             })),
             code_action_provider: Some(lsp::CodeActionProviderCapability::Options(
                 lsp::CodeActionOptions {
-                    code_action_kinds: None,
+                    code_action_kinds: Some(vec![
+                        lsp::CodeActionKind::QUICKFIX,
+                        lsp::CodeActionKind::REFACTOR,
+                        lsp::CodeActionKind::REFACTOR_EXTRACT,
+                        lsp::CodeActionKind::REFACTOR_INLINE,
+                        lsp::CodeActionKind::REFACTOR_REWRITE,
+                        lsp::CodeActionKind::SOURCE,
+                        lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
+                        lsp::CodeActionKind::SOURCE_FIX_ALL,
+                    ]),
                     resolve_provider: Some(true),
                     work_done_progress_options: Default::default(),
                 },
