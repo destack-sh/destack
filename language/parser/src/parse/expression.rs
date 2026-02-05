@@ -701,6 +701,11 @@ impl Parser {
             && self.peek_next_is(TokenType::Hash)
             && self.peek_next_next_token(TokenType::Identifier).is_ok()
         {
+            // require the hash and identifier to be adjacent
+            let hash_index = self.pos_index() + 1;
+            let ident_index = self.pos_index() + 2;
+            self.check_tokens_are_adjacent(hash_index, ident_index)?;
+
             Ok(3)
         }
         // private member access across newline
@@ -734,6 +739,11 @@ impl Parser {
                     Some(token) if token.token.ty == TokenType::Identifier
                 );
             if is_member {
+                // require the hash and identifier to be adjacent
+                let hash_index = base + offset + 1;
+                let ident_index = base + offset + 2;
+                self.check_tokens_are_adjacent(hash_index, ident_index)?;
+
                 let distance = newline_count + 3;
                 let distance = u8::try_from(distance).unwrap_or(u8::MAX);
                 return Ok(distance);
@@ -2621,6 +2631,11 @@ impl Parser {
                     else if token_type == TokenType::Hash
                         && self.peek_next_is(TokenType::Identifier)
                     {
+                        // require the hash and identifier to be adjacent
+                        let hash_index = self.pos_index();
+                        let ident_index = hash_index + 1;
+                        self.check_tokens_are_adjacent(hash_index, ident_index)?;
+
                         self.bump(); // eat #
                         let (name, name_span) = self.eat_identifier_with_span()?;
                         let expression_id = self.tree.insert(

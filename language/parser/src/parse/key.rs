@@ -422,6 +422,10 @@ impl Parser {
             && self.peek_is(TokenType::Hash)
             && self.peek_next_is(TokenType::Identifier)
         {
+            // require the hash and identifier to be adjacent
+            let hash_index = self.pos_index();
+            let ident_index = hash_index + 1;
+            self.check_tokens_are_adjacent(hash_index, ident_index)?;
             Ok(())
         } else {
             Err(ParseError::unexpected(self.peek()?.span))

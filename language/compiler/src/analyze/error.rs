@@ -415,6 +415,13 @@ pub enum AnalyzeError {
         other_node: AnchoredGlobalNodeId,
     },
 
+    /// Private identifiers must be used in `#name in object` expressions.
+    #[error(
+        code = "EA239",
+        message = "private identifiers must appear in 'in' expressions"
+    )]
+    InvalidPrivateIdentifier { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
