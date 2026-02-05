@@ -328,8 +328,21 @@ impl Compiler {
             match parent_id.ty {
                 destack_dir::NodeType::Declaration
                 | destack_dir::NodeType::Member
-                | destack_dir::NodeType::EnumField
-                | destack_dir::NodeType::Expression => {}
+                | destack_dir::NodeType::EnumField => {}
+                destack_dir::NodeType::Expression => {
+                    let expression_id = LocalNodeId::<Expression>::new(parent_id.id);
+                    if !matches!(
+                        tree.get(expression_id),
+                        Expression::Statement { .. } | Expression::Declaration { .. }
+                    ) {
+                        return Err(self.invalid_static_if(
+                            module_id,
+                            profile_id,
+                            annotation_id.into_any(),
+                            "static if is only allowed on declarations, members, enum fields, or statements",
+                        ));
+                    }
+                }
                 _ => {
                     return Err(self.invalid_static_if(
                         module_id,

@@ -9,7 +9,7 @@ mod tests {
             "interface {}",
             "interface { }",
             |p| p.eat_interface(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 TypeKind::Structural
             ),
@@ -23,7 +23,7 @@ mod tests {
             "interface Foo extends Bar, Baz {}",
             "interface Foo extends Bar, Baz { }",
             |p| p.eat_interface(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 TypeKind::Structural
             ),
@@ -37,7 +37,7 @@ mod tests {
             "interface Foo { static X = 1 }",
             "interface Foo {\n\tstatic X = 1,\n}",
             |p| p.eat_interface(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 TypeKind::Structural
             ),
@@ -51,7 +51,7 @@ mod tests {
             "interface {}",
             "newtype interface { }",
             |p| p.eat_interface(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 TypeKind::Nominal
             ),
@@ -65,7 +65,7 @@ mod tests {
             "interface Add<T> { add(other: T): Self }",
             "newtype interface Add<T> {\n\tadd(other: T): Self\n}",
             |p| p.eat_interface(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 TypeKind::Nominal
             ),

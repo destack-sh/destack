@@ -16,11 +16,11 @@ impl Parser {
                     format: BlockFormat::Implicit,
                     expressions: vec![],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             let expression_id = self
                 .tree
-                .insert(Expression::Block(block_id), self.get_span_from(start));
+                .insert(Expression::Block(block_id), self.get_span_from(&start));
             return Ok(expression_id);
         }
 
@@ -35,11 +35,11 @@ impl Parser {
                     format: BlockFormat::Explicit,
                     expressions: vec![expression_id],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             let expression_id = self
                 .tree
-                .insert(Expression::Block(block_id), self.get_span_from(start));
+                .insert(Expression::Block(block_id), self.get_span_from(&start));
             Ok(expression_id)
         } else {
             Ok(expression_id)
@@ -77,7 +77,7 @@ impl Parser {
     pub fn eat_if(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
-        // NOTE: ternary if is parsed in expression parser, not in eat_if
+        // NOTE #Architecture: ternary if is parsed in expression parser, not in eat_if
 
         // keyword
         self.eat_keyword(Keyword::If)?;
@@ -134,7 +134,7 @@ impl Parser {
             else_expression: else_expression_id,
         };
 
-        let if_id = self.tree.insert(if_node, self.get_span_from(start));
+        let if_id = self.tree.insert(if_node, self.get_span_from(&start));
         Ok(if_id)
     }
 }

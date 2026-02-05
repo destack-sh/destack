@@ -6,13 +6,13 @@ mod tests {
     #[test]
     fn test_format_let_with_value() {
         assert_format!("let x = 1", "let x = 1", |p| p
-            .eat_let(p.mark(), DeclarationDescriptor::default()));
+            .eat_let(&p.mark(), DeclarationDescriptor::default()));
     }
 
     #[test]
     fn test_format_using_with_value() {
         assert_format!("using x = open()", "using x = open()", |p| p.eat_using(
-            p.mark(),
+            &p.mark(),
             DeclarationDescriptor::default(),
             Asynchrony::Sync
         ));
@@ -24,7 +24,7 @@ mod tests {
             "await using conn = open()",
             "await using conn = open()",
             |p| p.eat_using(
-                p.mark(),
+                &p.mark(),
                 DeclarationDescriptor::default(),
                 Asynchrony::Async
             )
@@ -36,7 +36,7 @@ mod tests {
         assert_format!(
             "const veryLongIdentifierName = veryLongIdentifierNameWithManyWords\n",
             "const veryLongIdentifierName =\n\tveryLongIdentifierNameWithManyWords\n",
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab().with_line_width(40)
         );
     }
@@ -52,7 +52,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -67,7 +67,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 )",
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -83,7 +83,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -98,7 +98,7 @@ mod tests {
     TetrisPieceShape.L,
     TetrisPieceShape.O,
 ]",
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -116,7 +116,7 @@ mod tests {
         assert_format!(
             source,
             source,
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(40)
         );
     }
@@ -130,7 +130,7 @@ mod tests {
     count: total = 0,
     items: [...rest],
 } = config"#,
-            |p| p.eat_let(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_let(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_with_line_width(60)
         );
     }

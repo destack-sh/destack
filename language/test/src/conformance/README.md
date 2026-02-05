@@ -10,14 +10,14 @@ The pass rate intentionally excludes the explicitly skipped tests.
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   692  |     0  |    23  |   692 | 100.00% |
-| biome    |   509  |   115  |    13  |   624 |  81.57% |
+| babel    |   693  |     0  |    22  |   693 | 100.00% |
+| biome    |   513  |   112  |    12  |   625 |  82.08% |
 | swc      |   527  |     0  |    11  |   527 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6138  |  1068  |     47  |  7206 |  85.18% |
+| total    |  6143  |  1065  |     45  |  7208 |  85.22% |
 
-Total Blended Pass Rate: **85.18%**
+Total Blended Pass Rate: **85.22%**
 <!-- end:summary-results -->
 
 ### babel
@@ -39,7 +39,7 @@ Total Blended Pass Rate: **85.18%**
 | disallow-jsx-ambiguity |     3  |     0  |       -  |     3 | 100.00% |
 | dts                  |     5  |     0  |       -  |     5 | 100.00% |
 | enum                 |    13  |     0  |       -  |    13 | 100.00% |
-| errors               |    27  |     0  |       1  |    27 | 100.00% |
+| errors               |    28  |     0  |       -  |    28 | 100.00% |
 | expect-plugin        |     3  |     0  |       -  |     3 | 100.00% |
 | exponentiation       |     1  |     0  |       2  |     1 | 100.00% |
 | export               |    13  |     0  |       -  |    13 | 100.00% |
@@ -62,17 +62,17 @@ Total Blended Pass Rate: **85.18%**
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |
 | variable-declarator  |     3  |     0  |       -  |     3 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   692  |     0  |      23  |   692 | 100.00% |
+| total                |   693  |     0  |      22  |   693 | 100.00% |
 <!-- end:babel-results -->
 
 ### biome
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| error                |   195  |   107  |       -  |   302 |  64.57% |
-| ok                   |   314  |     8  |      13  |   322 |  97.52% |
+| error                |   196  |   106  |       -  |   302 |  64.90% |
+| ok                   |   317  |     6  |      12  |   323 |  98.14% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   509  |   115  |      13  |   624 |  81.57% |
+| total                |   513  |   112  |      12  |   625 |  82.08% |
 <!-- end:biome-results -->
 
 ### swc

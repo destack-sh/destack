@@ -31,7 +31,7 @@ impl Parser {
         // bare index
         if self.peek_is(TokenType::CloseBracket) {
             self.bump(); // eat close bracket
-            let index_span = self.get_span_from(start);
+            let index_span = self.get_span_from(&start);
             let span = Span::new(index_span.file, receiver_span.start, index_span.end);
             let index_id = self.tree.insert(
                 Expression::Index {
@@ -69,7 +69,7 @@ impl Parser {
                 index: Some(index),
             }
         };
-        let index_span = self.get_span_from(start);
+        let index_span = self.get_span_from(&start);
         let span = Span::new(index_span.file, receiver_span.start, index_span.end);
         let index_id = self.tree.insert(index_expression, span);
         Ok(index_id)
@@ -120,7 +120,7 @@ impl Parser {
                 static_arguments,
                 dynamic_arguments,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(call_id)
     }
@@ -148,7 +148,7 @@ impl Parser {
         // delete
         let delete_id = self
             .tree
-            .insert(Expression::Delete { value }, self.get_span_from(start));
+            .insert(Expression::Delete { value }, self.get_span_from(&start));
         Ok(delete_id)
     }
 
@@ -189,7 +189,7 @@ impl Parser {
                 dynamic_arguments,
             },
             {
-                let call_span = self.get_span_from(start);
+                let call_span = self.get_span_from(&start);
                 Span::new(call_span.file, receiver_span.start, call_span.end)
             },
         );
@@ -209,12 +209,13 @@ mod tests {
         let receiver_path = Path {
             segments: smallvec![receiver_str],
         };
+        let span = parser.peek().unwrap().span;
         parser.tree.insert(
             Expression::Path {
                 path: receiver_path,
                 static_arguments: None,
             },
-            parser.peek().unwrap().span,
+            span,
         )
     }
 

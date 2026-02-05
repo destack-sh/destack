@@ -5,7 +5,7 @@ use destack_base::StringId;
 impl Parser {
     /// Peek an identifier.
     #[inline]
-    pub fn peek_identifier(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_identifier(&mut self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Identifier)
     }
 
@@ -21,21 +21,27 @@ impl Parser {
     pub fn eat_identifier_with_span(&mut self) -> ParseResult<(StringId, destack_source::Span)> {
         let index = self.pos_index();
         let token = *self.eat_token(TokenType::Identifier)?;
-        let raw = self.file.span_str(token.span);
 
         // reject escaped keywords in js or ts
-        if (self.language.is_javascript() || self.language.is_typescript())
-            && raw.contains('\\')
-            && self.identifier_is_escaped_keyword(raw)
         {
-            return Err(ParseError::unexpected(token.span));
+            let raw = self.file.span_str(token.span);
+            if (self.language.is_javascript() || self.language.is_typescript())
+                && raw.contains('\\')
+                && self.identifier_is_escaped_keyword(raw)
+            {
+                return Err(ParseError::unexpected(token.span));
+            }
         }
 
         let string_id = if self.has_active_split() {
+            let raw = self.file.span_str(token.span);
             self.strings.intern(raw)
         } else {
-            self.identifier_for_index(index)
-                .unwrap_or_else(|| self.strings.intern(raw))
+            let cached = self.identifier_for_index(index);
+            cached.unwrap_or_else(|| {
+                let raw = self.file.span_str(token.span);
+                self.strings.intern(raw)
+            })
         };
         Ok((string_id, token.span))
     }
@@ -69,26 +75,33 @@ impl Parser {
 
     /// Peek an identifier that matches a given string.
     #[inline]
-    pub fn peek_identifier_str(&self, string: &str) -> ParseResult<&TokenSpan> {
-        let span = self.peek_token(TokenType::Identifier)?;
-        if !self.has_active_split() {
-            let expected = match string {
-                "global" => self.global_identifier,
-                "module" => self.module_identifier,
-                "_" => Some(self.underscore_identifier),
-                _ => None,
-            };
-            if let Some(expected) = expected {
-                if self.identifier_for_index(self.pos_index()) == Some(expected) {
-                    return Ok(span);
-                }
-                return Err(ParseError::expected(span.span, TokenType::Identifier));
-            }
-        }
-        if self.get_token_str(*span) == string {
-            Ok(span)
+    pub fn peek_identifier_str(&mut self, string: &str) -> ParseResult<&TokenSpan> {
+        let index = self.pos_index();
+        let has_active_split = self.has_active_split();
+        let expected = match string {
+            "global" => self.global_identifier,
+            "module" => self.module_identifier,
+            "_" => Some(self.underscore_identifier),
+            _ => None,
+        };
+        let cached_identifier = if has_active_split {
+            None
         } else {
-            Err(ParseError::expected(span.span, TokenType::Identifier))
+            self.identifier_for_index(index)
+        };
+
+        let token = *self.peek_token(TokenType::Identifier)?;
+        if !has_active_split && let Some(expected) = expected {
+            if cached_identifier == Some(expected) {
+                return self.peek_token(TokenType::Identifier);
+            }
+            return Err(ParseError::expected(token.span, TokenType::Identifier));
+        }
+
+        if self.get_token_str(token) == string {
+            self.peek_token(TokenType::Identifier)
+        } else {
+            Err(ParseError::expected(token.span, TokenType::Identifier))
         }
     }
 
@@ -267,24 +280,20 @@ impl Parser {
 
     /// Peek a string literal.
     #[inline]
-    pub fn peek_string_literal(&self) -> ParseResult<&TokenSpan> {
-        let token = self.peek()?;
-        if token.token.ty == TokenType::Literal {
-            match token.token.literal {
-                Some(LiteralType::String {
-                    is_terminated: true,
-                    has_invalid_escape: false,
-                }) => Ok(token),
-                Some(LiteralType::Character { is_terminated, .. })
-                    if is_terminated
-                        && (self.language.is_typescript() || self.language.is_javascript()) =>
-                {
-                    Ok(token)
-                }
-                _ => Err(ParseError::expected(token.span, TokenType::Literal)),
+    pub fn peek_string_literal(&mut self) -> ParseResult<&TokenSpan> {
+        let token = *self.peek_token(TokenType::Literal)?;
+        match token.token.literal {
+            Some(LiteralType::String {
+                is_terminated: true,
+                has_invalid_escape: false,
+            }) => self.peek_token(TokenType::Literal),
+            Some(LiteralType::Character { is_terminated, .. })
+                if is_terminated
+                    && (self.language.is_typescript() || self.language.is_javascript()) =>
+            {
+                self.peek_token(TokenType::Literal)
             }
-        } else {
-            Err(ParseError::expected(token.span, TokenType::Literal))
+            _ => Err(ParseError::expected(token.span, TokenType::Literal)),
         }
     }
 
@@ -305,19 +314,19 @@ impl Parser {
 
     /// Peek a next string literal.
     #[inline]
-    pub fn peek_next_string_literal(&self) -> ParseResult<&TokenSpan> {
-        let token = self.peek_next_token(TokenType::Literal)?;
+    pub fn peek_next_string_literal(&mut self) -> ParseResult<&TokenSpan> {
+        let token = *self.peek_next_token(TokenType::Literal)?;
         if token.token.ty == TokenType::Literal {
             match token.token.literal {
                 Some(LiteralType::String {
                     is_terminated: true,
                     has_invalid_escape: false,
-                }) => Ok(token),
+                }) => self.peek_next_token(TokenType::Literal),
                 Some(LiteralType::Character { is_terminated, .. })
                     if is_terminated
                         && (self.language.is_typescript() || self.language.is_javascript()) =>
                 {
-                    Ok(token)
+                    self.peek_next_token(TokenType::Literal)
                 }
                 _ => Err(ParseError::expected(token.span, TokenType::Literal)),
             }
@@ -328,7 +337,7 @@ impl Parser {
 
     /// Peek a numeric literal (int or float, for object keys).
     #[inline]
-    pub fn peek_numeric_literal(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_numeric_literal(&mut self) -> ParseResult<&TokenSpan> {
         let token = self.peek()?;
         if token.token.ty == TokenType::Literal {
             match token.token.literal {
@@ -342,7 +351,7 @@ impl Parser {
 
     /// Peek a name (like `x` or `"Content-Type"`).
     #[inline]
-    pub fn peek_name(&self) -> ParseResult<()> {
+    pub fn peek_name(&mut self) -> ParseResult<()> {
         if self.peek_is(TokenType::Identifier) || self.peek_string_literal().is_ok() {
             Ok(())
         } else {
@@ -352,7 +361,7 @@ impl Parser {
 
     /// Peek a next name (like `x` or `"Content-Type"`).
     #[inline]
-    pub fn peek_next_name(&self) -> ParseResult<()> {
+    pub fn peek_next_name(&mut self) -> ParseResult<()> {
         if self.peek_next_is(TokenType::Identifier) || self.peek_next_string_literal().is_ok() {
             Ok(())
         } else {
@@ -391,7 +400,7 @@ impl Parser {
 
     /// Peek a name or a dynamic key.
     #[inline]
-    pub fn peek_key(&self) -> ParseResult<()> {
+    pub fn peek_key(&mut self) -> ParseResult<()> {
         if self.peek_private_hash_key().is_ok()
             || self.peek_name().is_ok()
             || self.peek_is(TokenType::OpenBracket)
@@ -405,7 +414,7 @@ impl Parser {
 
     /// Peek a private hash key like `#x` in JS/TS.
     #[inline]
-    fn peek_private_hash_key(&self) -> ParseResult<()> {
+    fn peek_private_hash_key(&mut self) -> ParseResult<()> {
         if self.options.allow_private_hash_key
             && (self.language.is_javascript()
                 || self.language.is_typescript()
@@ -475,7 +484,7 @@ impl Parser {
         if self.peek_private_hash_key().is_ok() {
             self.bump(); // eat #
             let name = self.eat_identifier()?;
-            let span = self.get_span_from(start);
+            let span = self.get_span_from(&start);
             Ok((Key::Private(name), span))
         } else if self.peek_name().is_ok() {
             let (name, span) = self.eat_name_with_span()?;
@@ -501,14 +510,14 @@ impl Parser {
                         name,
                         key: key_type,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 ))
             }
             // expression
             else {
                 let key = self.eat_expression()?;
                 self.eat_token(TokenType::CloseBracket)?;
-                Ok((Key::Expression(key), self.get_span_from(start)))
+                Ok((Key::Expression(key), self.get_span_from(&start)))
             }
         } else {
             Err(ParseError::unexpected(self.peek()?.span))

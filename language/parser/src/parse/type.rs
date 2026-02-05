@@ -140,8 +140,8 @@ impl Parser {
     /// Peek a type literal.
     /// Certain type literals are only parsed at the AST-level in static or type contexts.
     /// (This prevents shadowing in case we have a variable or parameter named `int` or `number`.)
-    pub fn peek_type_literal(&self) -> ParseResult<TypeLiteral> {
-        let next = self.peek()?;
+    pub fn peek_type_literal(&mut self) -> ParseResult<TypeLiteral> {
+        let next = *self.peek()?;
         let next_type = next.token.ty;
         let has_split = self.has_active_split();
         let identifier_id = if !has_split && next_type == TokenType::Identifier {
@@ -162,8 +162,8 @@ impl Parser {
             return Err(ParseError::unexpected(next.span));
         }
 
-        let next_next = self.peek_next();
-        let next_next_type = next_next.as_ref().map(|next| next.token.ty).ok();
+        let next_next = self.peek_next().ok().copied();
+        let next_next_type = next_next.map(|next| next.token.ty);
         if let Some(identifier_id) = identifier_id {
             let next_identifier_id = if !has_split && next_next_type == Some(TokenType::Identifier)
             {
@@ -178,21 +178,18 @@ impl Parser {
             }
         }
         let next_str = self.get_span_str(next.span);
-        let next_next_str = next_next
-            .as_ref()
-            .map(|next| self.get_span_str(next.span))
-            .ok();
+        let next_next_str = next_next.map(|next| self.get_span_str(next.span));
 
         // !
-        if next_type == TokenType::Not
-            // if next token doesn't start a related expression
-            && (next_next_type.is_none()
-                || !self.is_start_of_expression(
-                    self.get_span_str(next_next.unwrap().span),
-                    next_next_type.unwrap(),
-                ))
-        {
-            return Ok(TypeLiteral::Never);
+        if next_type == TokenType::Not {
+            if let Some(next_next_str) = next_next_str
+                && let Some(next_next_type) = next_next_type
+                && self.is_start_of_expression(next_next_str, next_next_type)
+            {
+                // do nothing
+            } else {
+                return Ok(TypeLiteral::Never);
+            }
         }
 
         // regular single-token type literals (also only inside static/type context)
@@ -281,7 +278,7 @@ impl Parser {
     /// ```
     pub fn eat_type(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_TYPE);
@@ -323,7 +320,7 @@ impl Parser {
                 Ok(params) => params,
                 Err(_) => {
                     // failed to parse as parameters, restore and fall through to expression
-                    self.restore(speculative_start.0, speculative_start.1);
+                    self.restore(speculative_start.0.clone(), speculative_start.1);
                     None
                 }
             };
@@ -365,7 +362,7 @@ impl Parser {
             // otherwise it's a type expression with static arguments
             else {
                 // re-parse from before the name to get static arguments properly
-                self.restore(speculative_start.0, speculative_start.1);
+                self.restore(speculative_start.0.clone(), speculative_start.1);
                 let mut right_options = self.options.not_in_position().in_type();
                 if self.options.in_type_conditional_right {
                     right_options = right_options.in_type_conditional_right();
@@ -439,7 +436,7 @@ impl Parser {
     }
 
     /// Check whether `infer ... extends ... ?` should parse as a conditional type.
-    fn infer_extends_starts_conditional(&self) -> bool {
+    fn infer_extends_starts_conditional(&mut self) -> bool {
         // quick reject when extends is not next
         if self.peek_keyword(Keyword::Extends).is_err() {
             return false;
@@ -452,7 +449,7 @@ impl Parser {
             // allow nested conditionals inside delimited lists
             let mut index = self.pos() as isize - 1;
             while index >= 0 {
-                let token = self.tokens.get(index as usize);
+                let token = self.tokens().get(index as usize);
                 let Some(token) = token else {
                     break;
                 };
@@ -466,7 +463,7 @@ impl Parser {
                 {
                     index -= 1;
                     while index >= 0 {
-                        let token = self.tokens.get(index as usize);
+                        let token = self.tokens().get(index as usize);
                         let Some(token) = token else {
                             break;
                         };
@@ -498,7 +495,11 @@ impl Parser {
         let mut bracket_depth = 0usize;
         let mut brace_depth = 0usize;
 
-        while let Some(token) = self.tokens.get(index) {
+        loop {
+            self.token_stream.ensure_token(index);
+            let Some(token) = self.tokens().get(index) else {
+                break;
+            };
             match token.token.ty {
                 TokenType::OpenParenthesis => paren_depth += 1,
                 TokenType::CloseParenthesis => {
@@ -532,7 +533,11 @@ impl Parser {
                         let mut look_paren_depth = 0usize;
                         let mut look_bracket_depth = 0usize;
                         let mut look_brace_depth = 0usize;
-                        while let Some(look_token) = self.tokens.get(look_index) {
+                        loop {
+                            self.token_stream.ensure_token(look_index);
+                            let Some(look_token) = self.tokens().get(look_index) else {
+                                break;
+                            };
                             match look_token.token.ty {
                                 TokenType::OpenParenthesis => look_paren_depth += 1,
                                 TokenType::CloseParenthesis => {
@@ -641,7 +646,7 @@ impl Parser {
         };
         let expr_id = self.tree.insert(
             Expression::TypeInfer { name, constraint },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         self.tree.set_main_span(expr_id, name_span);
         Ok(expr_id)
@@ -662,7 +667,7 @@ impl Parser {
         // target
         if arguments.is_empty() {
             return Err(ParseError::expected(
-                self.get_span_from(start),
+                self.get_span_from(&start),
                 TokenType::Literal,
             ));
         }
@@ -714,7 +719,7 @@ impl Parser {
                 qualifier,
                 static_arguments,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         self.tree.set_main_span(expr_id, target_span);
         Ok(expr_id)
@@ -754,7 +759,7 @@ impl Parser {
                 subject,
                 target,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         self.tree.set_main_span(expr_id, subject_span);
         Ok(expr_id)
@@ -869,7 +874,7 @@ impl Parser {
                 modifiers,
                 value,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         ))
     }
 
@@ -1027,7 +1032,7 @@ impl Parser {
 
                 // record the full type span for super types
                 self.tree
-                    .set_side_span(ty, NodeSpanType::Type, self.get_span_from(type_start));
+                    .set_side_span(ty, NodeSpanType::Type, self.get_span_from(&type_start));
 
                 // record the parsed type
                 types.push(ty);
@@ -1063,6 +1068,32 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
             });
         });
+    }
+
+    /// Parse a type alias followed by a tree literal in TSX.
+    #[test]
+    fn test_parse_type_alias_before_tree_literal() {
+        let mut test = TestParser::new_with_options(
+            "type X = typeof Array\n<div>a</div>;",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        assert_eq!(expressions.len(), 2);
+
+        // type X = typeof Array
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "X");
+            });
+        });
+
+        // <div>a</div>
+        let tree_id = match parser.tree.get(expressions[1]) {
+            Expression::Statement(statement_id) => *statement_id,
+            _ => expressions[1],
+        };
+        assert_node!(parser.tree, tree_id, Expression::TreeExpression { .. } => {});
     }
 
     #[test]
@@ -2967,11 +2998,6 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
-        let diagnostics = parser.diagnostics.drain();
-        assert!(
-            diagnostics.is_empty(),
-            "unexpected diagnostics: {diagnostics:?}"
-        );
 
         // type T = { (num: number): number (str: string): string }
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

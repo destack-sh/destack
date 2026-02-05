@@ -12,33 +12,27 @@ use destack_ast::{
 impl Parser {
     /// Return true when the current token starts a template literal.
     #[inline]
-    pub fn is_template_literal_start(&self) -> bool {
+    pub fn is_template_literal_start(&mut self) -> bool {
         self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart)
     }
 
     /// Return true when the current token starts a scalar literal.
     #[inline]
-    pub fn is_scalar_literal_start(&self) -> bool {
+    pub fn is_scalar_literal_start(&mut self) -> bool {
         self.peek_is(TokenType::Literal)
     }
 
     /// Return true when the current token starts a tree literal.
     #[inline]
-    pub fn is_tree_literal_start(&self) -> bool {
+    pub fn is_tree_literal_start(&mut self) -> bool {
         if !self.peek_is(TokenType::LessThan) {
             return false;
         }
 
         let pos = self.pos_index();
-        let len = self.tokens.len();
-        let next = self
-            .next_non_newline
-            .get(pos)
-            .copied()
-            .unwrap_or(len as u32) as usize;
-        let next_token = match self.tokens.get(next) {
-            Some(token) => token,
-            None => return false,
+        let next = self.token_stream.next_non_newline_index_from(pos + 1);
+        let Some(next_token) = self.token_ref_at(next).copied() else {
+            return false;
         };
         if next_token.token.ty == TokenType::Divide && !self.options.in_tree_literal {
             return false;
@@ -51,14 +45,9 @@ impl Parser {
         }
 
         if next_token.token.ty == TokenType::Identifier {
-            let after_identifier = self
-                .next_non_newline
-                .get(next)
-                .copied()
-                .unwrap_or(len as u32) as usize;
+            let after_identifier = self.token_stream.next_non_newline_index_from(next + 1);
             if self
-                .tokens
-                .get(after_identifier)
+                .token_ref_at(after_identifier)
                 .is_some_and(|token| token.token.ty == TokenType::Comma)
             {
                 return false;
@@ -70,7 +59,7 @@ impl Parser {
 
     /// Peek a scalar literal token.
     #[inline]
-    pub fn peek_scalar_literal(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_scalar_literal(&mut self) -> ParseResult<&TokenSpan> {
         if self.peek_is(TokenType::Literal) {
             Ok(self.peek()?)
         } else {
@@ -322,7 +311,7 @@ impl Parser {
 
     /// Peek a template literal.
     #[inline]
-    pub fn peek_template_literal(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_template_literal(&mut self) -> ParseResult<&TokenSpan> {
         if self.peek_is(TokenType::TemplateString) || self.peek_is(TokenType::TemplateStringStart) {
             Ok(self.peek()?)
         } else {
@@ -369,7 +358,7 @@ impl Parser {
         })?;
 
         let expression = Expression::TypeTemplateLiteral { strings, spans };
-        Ok(self.tree.insert(expression, self.get_span_from(start)))
+        Ok(self.tree.insert(expression, self.get_span_from(&start)))
     }
 
     /// Eat the parts of a template literal.
@@ -462,7 +451,7 @@ impl Parser {
                 modifiers: None,
                 value,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
 
         Ok(argument_id)
@@ -519,13 +508,13 @@ impl Parser {
                 if expect_element {
                     let stub = self
                         .tree
-                        .insert(Expression::Stub, self.get_span_from(start));
+                        .insert(Expression::Stub, self.get_span_from(&start));
                     let hole = self.tree.insert(
                         Argument::Positional {
                             modifiers: None,
                             value: stub,
                         },
-                        self.get_span_from(start),
+                        self.get_span_from(&start),
                     );
                     elements.push(hole);
                 }
@@ -560,7 +549,8 @@ impl Parser {
     }
 
     /// Peek whether `<...>` starts a generic arrow in tree literal positions.
-    pub(super) fn peek_tree_generic_arrow(&self) -> bool {
+    #[cfg(test)]
+    pub(super) fn peek_tree_generic_arrow(&mut self) -> bool {
         // only disambiguate when tree literals are enabled
         if !self.language.supports_jsx() {
             return false;
@@ -571,16 +561,14 @@ impl Parser {
             return false;
         }
 
-        // require JSX disambiguators for TSX or when ambiguity is disallowed
-        let require_tree_disambiguator =
-            self.language.supports_jsx() || self.options.disallow_ambiguous_tree_literal;
-
+        // require disambiguators only when ambiguity must be rejected
+        let require_tree_disambiguator = self.options.disallow_ambiguous_tree_literal;
         self.peek_generic_arrow_after_type_parameters(require_tree_disambiguator)
     }
 
     /// Peek whether `<...>(...)` forms a generic arrow function signature.
     pub(super) fn peek_generic_arrow_after_type_parameters(
-        &self,
+        &mut self,
         require_tree_disambiguator: bool,
     ) -> bool {
         // require `<` at the current position
@@ -595,12 +583,17 @@ impl Parser {
         let has_multiline_identifier =
             if self.options.in_type && self.peek_next_token(TokenType::Newline).is_ok() {
                 let mut pos = self.pos() as usize;
-                while let Some(token) = self.tokens.get(pos + 1)
-                    && token.token.ty == TokenType::Newline
-                {
+                loop {
+                    self.token_stream.ensure_token(pos + 1);
+                    let Some(token) = self.tokens().get(pos + 1) else {
+                        break;
+                    };
+                    if token.token.ty != TokenType::Newline {
+                        break;
+                    }
                     pos += 1;
                 }
-                self.tokens
+                self.tokens()
                     .get(pos + 1)
                     .is_some_and(|token| token.token.ty == TokenType::Identifier)
             } else {
@@ -622,7 +615,11 @@ impl Parser {
         let mut has_tree_disambiguator = false;
         let mut pos = self.pos() as usize;
         let mut close_pos = None;
-        while let Some(token) = self.tokens.get(pos) {
+        loop {
+            self.token_stream.ensure_token(pos);
+            let Some(token) = self.tokens().get(pos) else {
+                break;
+            };
             match token.token.ty {
                 TokenType::LessThan => angle_depth += 1,
                 TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
@@ -679,9 +676,14 @@ impl Parser {
         // skip newlines after the type parameters
         let after_close_pos = if self.options.in_type {
             let mut pos = close_pos as usize;
-            while let Some(token) = self.tokens.get(pos + 1)
-                && token.token.ty == TokenType::Newline
-            {
+            loop {
+                self.token_stream.ensure_token(pos + 1);
+                let Some(token) = self.tokens().get(pos + 1) else {
+                    break;
+                };
+                if token.token.ty != TokenType::Newline {
+                    break;
+                }
                 pos += 1;
             }
             pos as u32
@@ -690,7 +692,8 @@ impl Parser {
         };
 
         // require `(` after the type parameters
-        let Some(after_close) = self.tokens.get(after_close_pos as usize + 1) else {
+        self.token_stream.ensure_token(after_close_pos as usize + 1);
+        let Some(after_close) = self.tokens().get(after_close_pos as usize + 1) else {
             return false;
         };
         if after_close.token.ty != TokenType::OpenParenthesis {
@@ -709,9 +712,14 @@ impl Parser {
         // skip newlines after the parameter list
         let after_parenthesis_pos = if self.options.in_type {
             let mut pos = parenthesis_close as usize;
-            while let Some(token) = self.tokens.get(pos + 1)
-                && token.token.ty == TokenType::Newline
-            {
+            loop {
+                self.token_stream.ensure_token(pos + 1);
+                let Some(token) = self.tokens().get(pos + 1) else {
+                    break;
+                };
+                if token.token.ty != TokenType::Newline {
+                    break;
+                }
                 pos += 1;
             }
             pos as u32
@@ -720,7 +728,9 @@ impl Parser {
         };
 
         // require `:` or `=>` after the parameters
-        let Some(after_parenthesis) = self.tokens.get(after_parenthesis_pos as usize + 1) else {
+        self.token_stream
+            .ensure_token(after_parenthesis_pos as usize + 1);
+        let Some(after_parenthesis) = self.tokens().get(after_parenthesis_pos as usize + 1) else {
             return false;
         };
         matches!(
@@ -731,51 +741,73 @@ impl Parser {
 
     /// Peek a tree literal (including the `<` and `>` tokens).
     #[inline]
-    pub fn peek_tree_literal(&self) -> ParseResult<()> {
-        if !self.peek_is(TokenType::LessThan) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        // skip newlines after `<`
-        let mut pos = self.pos() as usize;
-        while let Some(token) = self.tokens.get(pos + 1)
-            && token.token.ty == TokenType::Newline
-        {
-            pos += 1;
-        }
-
-        // next token after `<` (and newlines)
-        let next = self
-            .tokens
-            .get(pos + 1)
-            .ok_or(ParseError::unexpected(self.peek()?.span))?;
-        // closing tags should only appear inside tree content
-        if next.token.ty == TokenType::Divide && !self.options.in_tree_literal {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-        if !matches!(
-            next.token.ty,
-            TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
-        ) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
-        // exclude generic arrow function disambiguation: <T,>(...)
-        if next.token.ty == TokenType::Identifier {
-            let mut comma_pos = pos + 1;
-            while let Some(token) = self.tokens.get(comma_pos + 1)
-                && token.token.ty == TokenType::Newline
-            {
-                comma_pos += 1;
-            }
-            if let Some(token) = self.tokens.get(comma_pos + 1)
-                && token.token.ty == TokenType::Comma
-            {
+    pub fn peek_tree_literal(&mut self) -> ParseResult<()> {
+        let mark = self.mark();
+        let result = (|| {
+            if !self.peek_is(TokenType::LessThan) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
-        }
+            let unexpected_span = self.peek()?.span;
 
-        Ok(())
+            // prime opening tag mode for tree literal lookahead when lexer won't do it
+            if !self.options.in_tree_literal {
+                self.token_stream.enter_tree_opening_tag();
+            }
+
+            // skip newlines after `<`
+            let mut pos = self.pos_index();
+            loop {
+                self.token_stream.ensure_token(pos + 1);
+                let Some(token) = self.tokens().get(pos + 1) else {
+                    break;
+                };
+                if token.token.ty != TokenType::Newline {
+                    break;
+                }
+                pos += 1;
+            }
+
+            // next token after `<` (and newlines)
+            let next = *self
+                .token_ref_at(pos + 1)
+                .ok_or(ParseError::unexpected(unexpected_span))?;
+            // closing tags should only appear inside tree content
+            if next.token.ty == TokenType::Divide && !self.options.in_tree_literal {
+                return Err(ParseError::unexpected(unexpected_span));
+            }
+            if !matches!(
+                next.token.ty,
+                TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
+            ) {
+                return Err(ParseError::unexpected(unexpected_span));
+            }
+
+            // exclude generic arrow function disambiguation: <T,>(...)
+            if next.token.ty == TokenType::Identifier {
+                let mut comma_pos = pos + 1;
+                loop {
+                    self.token_stream.ensure_token(comma_pos + 1);
+                    let Some(token) = self.tokens().get(comma_pos + 1) else {
+                        break;
+                    };
+                    if token.token.ty != TokenType::Newline {
+                        break;
+                    }
+                    comma_pos += 1;
+                }
+                if let Some(token) = self.token_ref_at(comma_pos + 1)
+                    && token.token.ty == TokenType::Comma
+                {
+                    return Err(ParseError::unexpected(unexpected_span));
+                }
+            }
+
+            Ok(())
+        })();
+
+        self.rewind(mark);
+
+        result
     }
 
     /// Skip whitespace-only tree string tokens (TSX content whitespace).
@@ -784,7 +816,7 @@ impl Parser {
     fn skip_tree_whitespace(&mut self) -> ParseResult<bool> {
         let mut skipped = false;
         loop {
-            let token = self.peek()?;
+            let token = *self.peek()?;
             // skip newlines
             if token.token.ty == TokenType::Newline {
                 self.bump();
@@ -824,6 +856,9 @@ impl Parser {
         let _timing = self.timing_scope(tags::PARSE_LITERAL);
         let start = self.mark();
         self.eat_token(TokenType::LessThan)?;
+        if !self.options.in_tree_literal {
+            self.token_stream.enter_tree_opening_tag();
+        }
         self.eat_newlines_maybe()?;
 
         // left
@@ -850,6 +885,7 @@ impl Parser {
         } else {
             None
         };
+
         // header (arguments separated by `=`)
         let arguments: Option<Vec<LocalNodeId<Argument>>> = {
             // fragment without arguments
@@ -896,17 +932,19 @@ impl Parser {
                     if self.peek_is(TokenType::LessThan) {
                         let slash_index = self.next_non_newline_index_from(self.pos_index() + 1);
                         let has_slash_after = self
-                            .tokens
-                            .get(slash_index)
+                            .token_ref_at(slash_index)
                             .is_some_and(|token| token.token.ty == TokenType::Divide);
+                        let closes_fragment = if has_slash_after {
+                            let after_slash = self.next_non_newline_index_from(slash_index + 1);
+                            self.token_ref_at(after_slash)
+                                .is_some_and(|token| token.token.ty == TokenType::GreaterThan)
+                        } else {
+                            false
+                        };
+
                         if !has_slash_after {
                             // not a closing tag
                         } else {
-                            let after_slash = self.next_non_newline_index_from(slash_index + 1);
-                            let closes_fragment = self
-                                .tokens
-                                .get(after_slash)
-                                .is_some_and(|token| token.token.ty == TokenType::GreaterThan);
                             // close fragment for fragment literals
                             if path.is_none() && closes_fragment {
                                 self.bump(); // eat <
@@ -946,7 +984,7 @@ impl Parser {
                     }
 
                     // keep eating child elements
-                    // NOTE: uses statement position so {expr} parses as block (expression container)
+                    // NOTE #Robustness: uses statement position so {expr} parses as block (expression container)
                     let element = self.with_options(
                         self.options
                             .not_in_position()
@@ -973,7 +1011,7 @@ impl Parser {
                     path: path.clone(),
                     static_arguments: static_arguments.clone(),
                 },
-                self.get_span_between(start, header_start),
+                self.get_span_between(&start, &header_start),
             );
             if let Some(name_span) = path_name_span {
                 self.tree.set_main_span(expression_id, name_span);
@@ -985,15 +1023,16 @@ impl Parser {
             arguments,
             elements,
         };
-        Ok(self.tree.insert(expression, self.get_span_from(start)))
+        Ok(self.tree.insert(expression, self.get_span_from(&start)))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Expression, FloatType, IfCondition, IfKind, IntType, Name, ScalarLiteral,
-        TemplateLiteral, TokenType, TypeBinaryOperator, TypeLiteral,
+        Argument, BinaryOperator, Declaration, Expression, FloatType, FunctionKind, IfCondition,
+        IfKind, IntType, Name, Parameter, ScalarLiteral, TemplateLiteral, TypeBinaryOperator,
+        TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1630,70 +1669,113 @@ mod tests {
         });
     }
 
-    /// Parse tree literal with bit-shift-like static arguments on the tag.
+    /// Parse static arguments containing a shift-left-like generic arrow.
     #[test]
-    fn test_parse_tree_with_shift_left_static_arguments() {
-        let mut static_test =
+    fn test_parse_static_arguments_with_shift_left_generic_arrow() {
+        let mut test =
             TestParser::new_with_options(r#"<<T>(v: T) => void>"#, LanguageType::TypeScriptXml);
-        let mut static_parser = static_test.prepare();
-        let static_arguments = static_parser.eat_static_arguments().unwrap();
-        let static_diagnostics = static_parser.diagnostics.drain();
-        assert!(
-            static_diagnostics.is_empty(),
-            "unexpected static diagnostics: {static_diagnostics:?}"
-        );
+        let mut parser = test.prepare();
+
+        // parse the static arguments
+        let static_arguments = parser.eat_static_arguments().unwrap();
         assert_eq!(static_arguments.len(), 1);
 
+        // verify the generic arrow argument shape
+        assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert!(body.is_none());
+                    let generics = signature.generics.as_ref().expect("expected generics");
+                    let static_parameters = generics.static_parameters.as_ref().expect("expected static parameters");
+                    assert_eq!(static_parameters.len(), 1);
+                    assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, default: None, .. } => {
+                        assert_string!(parser, *name, "T");
+                    });
+                    assert_eq!(signature.dynamic_parameters.len(), 1);
+                    assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                        assert_string!(parser, *name, "v");
+                        assert_node!(parser.tree, ty.unwrap(), Expression::Path { path, .. } => {
+                            assert_path!(parser, *path, "T");
+                        });
+                    });
+                    assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
+                });
+            });
+        });
+    }
+
+    /// Parse tree literal with shift-left-like static arguments on the tag.
+    #[test]
+    fn test_parse_tree_with_shift_left_static_arguments() {
         let mut test = TestParser::new_with_options(
             r#"<Component<<T>(v: T) => void> />"#,
             LanguageType::TypeScriptXml,
         );
         let mut parser = test.prepare();
-        let mut direct_test = TestParser::new_with_options(
-            r#"<Component<<T>(v: T) => void> />"#,
-            LanguageType::TypeScriptXml,
-        );
-        let mut direct_parser = direct_test.prepare();
-        assert!(direct_parser.peek_tree_literal().is_ok());
-        let direct_expression = direct_parser.eat_tree_literal().unwrap();
-        let direct_diagnostics = direct_parser.diagnostics.drain();
-        assert!(
-            direct_diagnostics.is_empty(),
-            "unexpected direct diagnostics: {direct_diagnostics:?}"
-        );
-        assert_node!(
-            direct_parser.tree,
-            direct_expression,
-            Expression::TreeExpression { .. }
-        );
-        assert!(parser.peek_tree_literal().is_ok());
-        let shift_token = parser
-            .tokens
-            .iter()
-            .find(|token| token.span.start == 10)
-            .expect("expected shift-left token");
-        assert_eq!(shift_token.token.ty, TokenType::ShiftLeft);
 
-        let expressions = parser.parse();
-        let diagnostics = parser.diagnostics.drain();
-        assert!(
-            diagnostics.is_empty(),
-            "unexpected diagnostics: {diagnostics:?}"
-        );
-        assert!(!expressions.is_empty());
-        let expression = match parser.tree.get(expressions[0]) {
-            Expression::Statement(expression) => *expression,
-            _ => expressions[0],
-        };
+        // parse the tree literal
+        let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: Some(left), arguments, elements } => {
             assert_node!(parser.tree, *left, Expression::Path { path, static_arguments } => {
                 assert_path!(parser, *path, "Component");
                 let static_arguments = static_arguments.as_ref().expect("expected static arguments");
                 assert_eq!(static_arguments.len(), 1);
+                assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            assert!(body.is_none());
+                        });
+                    });
+                });
             });
             assert!(arguments.is_none());
             assert!(elements.is_none());
         });
+    }
+
+    /// Reject ambiguous TSX generic arrows without disambiguators.
+    #[test]
+    fn test_peek_tree_literal_ambiguous_tsx_generic_arrow() {
+        let mut test = TestParser::new_with_options("<T>(x: T) => x", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+
+        // ambiguous TSX generics are rejected without disambiguators
+        assert!(!parser.peek_tree_generic_arrow());
+    }
+
+    /// Reject tree literal parsing for disambiguated TSX generic arrows.
+    #[test]
+    fn test_peek_tree_literal_disambiguated_tsx_generic_arrow() {
+        let mut test = TestParser::new_with_options("<T,>(x: T) => x", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+
+        // disambiguators should allow generic arrow parsing
+        assert!(parser.peek_tree_generic_arrow());
+        assert!(parser.peek_tree_literal().is_err());
+    }
+
+    /// Recognize TSX generic arrows with extends disambiguators.
+    #[test]
+    fn test_peek_tree_generic_arrow_tsx_with_extends() {
+        let mut test =
+            TestParser::new_with_options("<T extends Foo>(x: T) => x", LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+
+        // extends should disambiguate in tsx
+        assert!(parser.peek_tree_generic_arrow());
+    }
+
+    /// Check generic arrow disambiguation in JSX without TypeScript.
+    #[test]
+    fn test_peek_tree_generic_arrow_jsx_without_typescript() {
+        let mut test = TestParser::new_with_options("<div>() => {}", LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+
+        // ambiguous JSX can still be seen as a generic arrow by lookahead
+        assert!(parser.peek_tree_generic_arrow());
+        assert!(parser.peek_tree_literal().is_ok());
     }
 
     #[test]
@@ -1784,6 +1866,20 @@ mod tests {
             "<\n// comment\n/* comment */\n>\n</>",
             LanguageType::JavaScriptXml,
         );
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert!(elements.as_ref().unwrap().is_empty());
+        });
+    }
+
+    /// Parse tree fragment with a closing tag that has trivia before the slash.
+    #[test]
+    fn test_parse_tree_fragment_closing_with_trivia() {
+        let mut test =
+            TestParser::new_with_options("<>\n< /* comment */ / >", LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
         assert_node!(parser.tree, expression, Expression::TreeExpression { left: None, arguments, elements } => {
@@ -1996,6 +2092,58 @@ mod tests {
         });
     }
 
+    /// Parse relational operators inside tree expression containers.
+    #[test]
+    fn test_parse_tree_expression_container_relational() {
+        let mut test = TestParser::new(r#"<div>{a < b}</div>"#);
+        let mut parser = test.prepare();
+        let expr = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 1);
+            // {a < b}
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Binary { operator, left: bin_left, right: bin_right, .. } => {
+                    assert_eq!(*operator, BinaryOperator::LessThan);
+                    assert_node!(parser.tree, *bin_left, Expression::Path { .. });
+                    assert_node!(parser.tree, *bin_right, Expression::Path { .. });
+                });
+            });
+        });
+    }
+
+    /// Parse generic calls inside tree expression containers in TSX.
+    #[test]
+    fn test_parse_tree_expression_container_generic_call() {
+        let mut test =
+            TestParser::new_with_options(r#"<div>{foo<T>(x)}</div>"#, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expr = parser.eat_tree_literal().unwrap();
+        assert_node!(parser.tree, expr, Expression::TreeExpression { left: Some(left), arguments, elements } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "div");
+            assert!(arguments.is_none());
+            assert!(elements.is_some());
+            assert_eq!(elements.as_ref().unwrap().len(), 1);
+            // {foo<T>(x)}
+            assert_node!(parser.tree, elements.as_ref().unwrap()[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::Call { left, static_arguments, dynamic_arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "foo");
+                    let static_arguments = static_arguments.as_ref().expect("expected static arguments");
+                    assert_eq!(static_arguments.len(), 1);
+                    assert_node!(parser.tree, static_arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "T");
+                    });
+                    assert_eq!(dynamic_arguments.len(), 1);
+                    assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "x");
+                    });
+                });
+            });
+        });
+    }
+
     /// Tree literal should parse after a closing class block on a new line.
     #[test]
     fn test_parse_tree_after_class_block_newline() {
@@ -2083,88 +2231,200 @@ mod tests {
     /// Parse JSX text that includes `=` and `>=` after opening tags.
     #[test]
     fn test_parse_jsx_text_with_equals() {
-        let input = r#"
-<div className={styles.foo}>=</div>;
-<div className={styles.foo} >=</div>;
-<div>=</div>;
-<div >=</div>;
-"#;
-        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-        let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        let cases = [
+            (r#"<div className={styles.foo}>=</div>"#, "="),
+            (r#"<div className={styles.foo} >=</div>"#, "="),
+            (r#"<div>=</div>"#, "="),
+            (r#"<div >=</div>"#, "="),
+        ];
+
+        // parse each case and verify the text node
+        for (input, expected_text) in cases {
+            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+            let mut parser = test.prepare();
+            let expression = parser.eat_tree_literal().unwrap();
+            assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+                let elements = elements.as_ref().expect("expected elements");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, expected_text);
+                    });
+                });
+            });
+        }
     }
 
     /// Parse JSX fragments containing text and comparisons after closing tags.
     #[test]
     fn test_parse_jsx_fragment_with_equals() {
-        let input = r#"
-<>=x</>;
-<>x</>>=1;
-<span>=x</span>;
-<span>x</span>>=1;
-"#;
-        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
-        let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        let text_cases = [(r#"<>=x</>"#, "=x"), (r#"<span>=x</span>"#, "=x")];
+
+        // parse text cases inside fragments and elements
+        for (input, expected_text) in text_cases {
+            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+            let mut parser = test.prepare();
+            let expression = parser.eat_tree_literal().unwrap();
+            assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+                let elements = elements.as_ref().expect("expected elements");
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, expected_text);
+                    });
+                });
+            });
+        }
+
+        let operator_cases = [
+            (r#"<>x</>>=1"#, BinaryOperator::GreaterThanOrEqual),
+            (r#"<span>x</span>>=1"#, BinaryOperator::GreaterThanOrEqual),
+        ];
+
+        // parse operator cases where >= follows a closing tag
+        for (input, expected_operator) in operator_cases {
+            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+            let mut parser = test.prepare();
+            let expression = parser.eat_expression().unwrap();
+            assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, expected_operator);
+                assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            });
+        }
     }
 
     /// Parse JSX fragments with text between child elements in arrays.
     #[test]
     fn test_parse_jsx_fragment_equals_in_array() {
-        let input = r#"
-function Test() {
-    return (
-        <Y
-            elements={[
-                <>
-                    <span>x</span>=
-                    <br />
-                </>,
-                true
-            ]}
-        />
-    );
-}
+        let input = r#"<Y
+    elements={[
+        <>
+            <span>x</span>=
+            <br />
+        </>,
+        true
+    ]}
+/>
 "#;
         let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        let expression = parser.eat_tree_literal().unwrap();
+
+        // ensure the array includes a fragment and a boolean
+        assert_node!(parser.tree, expression, Expression::TreeExpression { arguments, .. } => {
+            let arguments = arguments.as_ref().expect("expected arguments");
+            assert_eq!(arguments.len(), 1);
+            assert_node!(parser.tree, arguments[0], Argument::Named { modifiers: _, name: Name::Identifier(name), value } => {
+                assert_string!(parser, *name, "elements");
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TreeExpression { left: None, .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse ternary expressions that return JSX elements inside expression containers.
+    #[test]
+    fn test_parse_jsx_ternary_expression_container() {
+        let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        // verify the ternary expression container
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
+                    assert_eq!(*kind, IfKind::Ternary);
+                });
+            });
+        });
+    }
+
+    /// Parse ternary expressions that return TSX elements inside expression containers.
+    #[test]
+    fn test_parse_tsx_ternary_expression_container() {
+        let input = r#"<div>{isLoading ? <div>loading</div> : <div>done</div>}</div>"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptXml);
+        let mut parser = test.prepare();
+        let expression = parser.eat_tree_literal().unwrap();
+
+        // verify the ternary expression container
+        assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+            assert_node!(parser.tree, elements[0], Argument::Positional { modifiers: _, value } => {
+                assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
+                    assert_eq!(*kind, IfKind::Ternary);
+                });
+            });
+        });
     }
 
     /// Parse JSX elements after newline-terminated let and var declarations.
     #[test]
     fn test_parse_jsx_after_let_newline() {
+        let cases = [
+            "let x\n<Comp></Comp>",
+            "let x\n\n<Comp></Comp>",
+            "let x;\n<Comp></Comp>",
+            "var x\n<Comp></Comp>",
+            "var x;\n<Comp></Comp>",
+            "{ foo: 'test' }\n<Comp></Comp>",
+            "function test1() {}\n<Comp></Comp>",
+        ];
+
+        // ensure top-level newline allows tree literals after declarations
+        for input in cases {
+            let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+            let mut parser = test.prepare();
+            let expressions = parser.parse();
+            assert_eq!(expressions.len(), 2);
+            let tree_expression = match parser.tree.get(expressions[1]) {
+                Expression::Statement(expression_id) => *expression_id,
+                _ => expressions[1],
+            };
+            assert_node!(
+                parser.tree,
+                tree_expression,
+                Expression::TreeExpression { .. }
+            );
+        }
+
         let input = r#"
-let x
-<Comp></Comp>
-
-let x
-
-<Comp></Comp>
-
-let x;
-<Comp></Comp>
-
-var x
-<Comp></Comp>
-
-var x;
-<Comp></Comp>
-
 function x() {
     let x
     <div />
 }
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
 
-{ foo: 'test' }
-<Comp></Comp>
+        // ensure tree literals follow let statements inside blocks
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+                let body = body.expect("expected body");
+                assert_node!(parser.tree, body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 2);
+                    let tree_expression = match parser.tree.get(block.expressions[1]) {
+                        Expression::Statement(expression_id) => *expression_id,
+                        _ => block.expressions[1],
+                    };
+                    assert_node!(parser.tree, tree_expression, Expression::TreeExpression { .. });
+                });
+            });
+        });
 
-function test1() {}
-<Comp></Comp>
-
+        let input = r#"
 class Foo {}
 <>
 <Comp></Comp>
@@ -2173,8 +2433,19 @@ class Foo {}
 "#;
         let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        let expressions = parser.parse();
+
+        // ensure fragments after classes parse with multiple children
+        assert_eq!(expressions.len(), 2);
+        let tree_expression = match parser.tree.get(expressions[1]) {
+            Expression::Statement(expression_id) => *expression_id,
+            _ => expressions[1],
+        };
+        assert_node!(parser.tree, tree_expression, Expression::TreeExpression { left, elements, .. } => {
+            assert!(left.is_none());
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 2);
+        });
     }
 
     /// Parse JSX elements after return with newline termination.
@@ -2188,20 +2459,42 @@ function test() {
 "#;
         let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
+        let expressions = parser.parse();
+
+        // ensure return is terminated and tree literal follows
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { body, .. } => {
+                let body = body.expect("expected body");
+                assert_node!(parser.tree, body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 2);
+                    let return_expression = match parser.tree.get(block.expressions[0]) {
+                        Expression::Statement(expression_id) => *expression_id,
+                        _ => block.expressions[0],
+                    };
+                    assert_node!(parser.tree, return_expression, Expression::Return { value } => {
+                        assert!(value.is_none());
+                    });
+                    let tree_expression = match parser.tree.get(block.expressions[1]) {
+                        Expression::Statement(expression_id) => *expression_id,
+                        _ => block.expressions[1],
+                    };
+                    assert_node!(parser.tree, tree_expression, Expression::TreeExpression { .. });
+                });
+            });
+        });
     }
 
     /// Reject JSX-looking input when it continues an expression across a newline.
     #[test]
     fn test_parse_jsx_after_expression_newline_is_error() {
-        let input = r#"
-x
-<Comp />
-"#;
+        let input = "x\n<Comp />";
         let mut test = TestParser::new_with_options(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
-        let _ = parser.parse();
-        assert!(!parser.errors.is_empty(), "expected parse errors");
+
+        // reject JSX after expression newline
+        let result = parser.eat_expression();
+        assert!(result.is_err());
     }
 }

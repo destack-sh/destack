@@ -4093,6 +4093,7 @@ pub(crate) fn format_expression_chain<'ast>(
             | Expression::PrivateMember { left, .. }
             | Expression::Call { left, .. }
             | Expression::Index { left, .. }
+            | Expression::Instantiation { left, .. }
             | Expression::Maybe { left, .. }
             | Expression::Must { left, .. } => Some(*left),
             _ => None,
@@ -7680,7 +7681,7 @@ mod tests {
         assert_format!(
             "type T = *const Foo",
             "*Foo",
-            |p| p.eat_type(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_type(&p.mark(), DeclarationDescriptor::default()),
             |tree: &NodeTree, expr_id| {
                 let expression = tree.get(expr_id);
                 let Expression::Declaration(declaration_id) = expression else {

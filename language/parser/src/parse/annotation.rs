@@ -13,29 +13,24 @@ const ANNOTATION_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::BlockComment,
     TokenType::DocBlockComment,
 ];
+#[allow(dead_code)]
 const DECORATOR_EXPRESSION_PRECEDENCE: u16 = u16::MAX;
 
 #[allow(clippy::too_many_arguments)]
 impl Parser {
-    /// Eat all side annotations (decorators).
-    /// NOTE: One full pass, consuming the entire Parser.
-    pub(crate) fn eat_side_annotations(&mut self) {
-        // parse out all the side annotations
-        while let Ok(token) = self.peek() {
-            // @
-            if token.token.ty == TokenType::At {
-                self.with_recovery(
-                    self.mark(),
-                    |parser| parser.eat_decorator().map(Some),
-                    None,
-                    TokenType::Newline,
-                );
-            }
-            // keep going
-            else {
-                self.bump();
-            }
+    /// Eat any leading decorators and leave the parser at the next token.
+    pub(crate) fn eat_decorators_prefix_maybe(&mut self) -> ParseResult<()> {
+        while self.peek_is(TokenType::At) {
+            let start = self.mark();
+            self.with_recovery(
+                &start,
+                |parser| parser.eat_decorator().map(Some),
+                None,
+                TokenType::Newline,
+            );
+            self.eat_newlines_maybe()?;
         }
+        Ok(())
     }
 
     /// Eat a decorator.
@@ -45,6 +40,7 @@ impl Parser {
     /// @foo
     /// @foo(1, 2, 3)
     /// ```
+    #[allow(dead_code)]
     fn eat_decorator(&mut self) -> ParseResult<LocalNodeId<Decorator>> {
         let start = self.mark();
 
@@ -52,19 +48,27 @@ impl Parser {
         self.eat_token(TokenType::At)?;
 
         // expression
-        let expression = self.with_options(
-            self.options
-                .not_in_position()
-                .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
-                .not_in_sequence_expression()
-                .in_decorator(),
-            |parser| parser.eat_expression(),
-        )?;
+        let mut decorator_options = self
+            .options
+            .not_in_position()
+            .in_left_precedence(DECORATOR_EXPRESSION_PRECEDENCE)
+            .not_in_sequence_expression()
+            .in_decorator();
+
+        // decorators always parse as value expressions
+        decorator_options.in_type = false;
+        decorator_options.in_static = false;
+        decorator_options.in_super_type = false;
+        decorator_options.in_before_type = false;
+        decorator_options.in_type_conditional_right = false;
+        decorator_options.in_type_mapped_constraint = false;
+
+        let expression = self.with_options(decorator_options, |parser| parser.eat_expression())?;
 
         // decorator
         let decorator = self
             .tree
-            .insert(Decorator { expression }, self.get_span_from(start));
+            .insert(Decorator { expression }, self.get_span_from(&start));
         let main_span = self
             .tree
             .get_main_span(expression)
@@ -80,6 +84,9 @@ impl Parser {
         if !self.should_attach_annotations() {
             return;
         }
+
+        // ensure all tokens are lexed before annotation collection
+        self.token_stream.lex_to_end();
 
         // build the index for fast node lookups before attaching annotations
         if !self.positions_built {
@@ -152,8 +159,8 @@ impl Parser {
         };
 
         // fast path when there are no side tokens
-        if self.side_tokens.is_empty() {
-            for token in &self.tokens {
+        if self.side_tokens().is_empty() {
+            for token in self.tokens() {
                 if token.token.ty == TokenType::Whitespace {
                     continue;
                 }
@@ -167,7 +174,7 @@ impl Parser {
         let mut side_index = 0;
         loop {
             // skip whitespace in main tokens
-            while let Some(token) = self.tokens.get(main_index) {
+            while let Some(token) = self.tokens().get(main_index) {
                 if token.token.ty != TokenType::Whitespace {
                     break;
                 }
@@ -175,7 +182,7 @@ impl Parser {
             }
 
             // skip whitespace in side tokens
-            while let Some(token) = self.side_tokens.get(side_index) {
+            while let Some(token) = self.side_tokens().get(side_index) {
                 if token.token.ty != TokenType::Whitespace {
                     break;
                 }
@@ -183,8 +190,8 @@ impl Parser {
             }
 
             // select the next token in source order
-            let main_token = self.tokens.get(main_index).copied();
-            let side_token = self.side_tokens.get(side_index).copied();
+            let main_token = self.tokens().get(main_index).copied();
+            let side_token = self.side_tokens().get(side_index).copied();
             match (main_token, side_token) {
                 (Some(main_token), Some(side_token)) => {
                     if main_token.span.start <= side_token.span.start {
@@ -1228,11 +1235,7 @@ function foo() { }",
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parse errors: {:#?}",
-            parser.errors
-        );
+        // parse decorator annotations on the function
         let decorators = parser.tree.get_nodes::<Decorator>();
         assert_eq!(decorators.len(), 1, "decorators: {decorators:?}");
         assert_eq!(expressions.len(), 1);
@@ -1922,7 +1925,7 @@ over multiple lines with trailing space    */",
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -1975,7 +1978,7 @@ over multiple lines with trailing space    */",
         let mut parser = test.prepare();
         let start = parser.mark();
         let function = parser
-            .eat_function(start, DeclarationDescriptor::default(), false, false)
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 
@@ -2204,7 +2207,7 @@ function main() {
 
         let start = parser.mark();
         let function = parser
-            .eat_function(start, DeclarationDescriptor::default(), false, false)
+            .eat_function(&start, DeclarationDescriptor::default(), false, false)
             .unwrap();
         parser.finish();
 

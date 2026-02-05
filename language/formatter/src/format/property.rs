@@ -685,7 +685,7 @@ mod tests {
         assert_format!(
             "struct Foo { }",
             "struct Foo { }",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }
@@ -695,7 +695,7 @@ mod tests {
         assert_format!(
             "struct Foo { a: int32, b: boolean }",
             "struct Foo {\n\ta: int32,\n\tb: boolean,\n}",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -705,7 +705,7 @@ mod tests {
         assert_format!(
             "struct Foo { readonly a: int32, private b: boolean }",
             "struct Foo {\n\treadonly a: int32,\n\tprivate b: boolean,\n}",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -715,7 +715,7 @@ mod tests {
         assert_format!(
             "struct Foo { a: int32 }",
             "struct Foo {\n\ta: int32,\n}",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -725,7 +725,7 @@ mod tests {
         assert_format!(
             "struct Foo { a?: int32 = 42, b: boolean }",
             "struct Foo {\n\ta?: int32 = 42,\n\tb: boolean,\n}",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default_tab()
         );
     }
@@ -735,7 +735,7 @@ mod tests {
         assert_format!(
             "class Foo { abstract override bar: int32 }",
             "class Foo {\n\tabstract override bar: int32;\n}",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions {
                 language_type: LanguageType::TypeScript,
                 ..DestackFormatOptions::default_tab()
@@ -748,7 +748,7 @@ mod tests {
         assert_format!(
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
             "struct Foo<T: Numeric> extends Bar implements Baz { }",
-            |p| p.eat_struct_or_class(p.mark(), DeclarationDescriptor::default()),
+            |p| p.eat_struct_or_class(&p.mark(), DeclarationDescriptor::default()),
             DestackFormatOptions::default()
         );
     }

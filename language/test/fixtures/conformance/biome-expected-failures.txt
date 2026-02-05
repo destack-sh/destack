@@ -39,4 +39,3 @@ ok/export_named_from_clause.js
 ok/ts_import_type_arguments.ts
 
 # TypeScript syntax is rejected in .jsx files
-ok/jsx_type_arguments.jsx

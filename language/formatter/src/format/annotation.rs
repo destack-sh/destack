@@ -673,7 +673,7 @@ mod tests {
         assert_format!(
             "function foo() { /* empty */ }",
             "function foo() {\n    /* empty */\n}",
-            |p| p.eat_function(p.mark(), DeclarationDescriptor::default(), false, false),
+            |p| p.eat_function(&p.mark(), DeclarationDescriptor::default(), false, false),
             DestackFormatOptions::default()
         );
     }

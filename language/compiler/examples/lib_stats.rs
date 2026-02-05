@@ -281,7 +281,7 @@ fn collect_stats_for_lib(lib_name: &str, include_modules: bool) -> LibStats {
             parser.parse();
 
             // collect module level stats
-            let (tokens, tokens_no_ws) = count_tokens(&parser);
+            let (tokens, tokens_no_ws) = count_tokens(&mut parser);
             let counts = collect_counts(&parser);
             let module_stats = ModuleStats {
                 name: source.module_path().to_string(),
@@ -453,19 +453,20 @@ fn file_from_source(file_id: FileId, source: destack_builtin::BuiltinLibSource) 
 }
 
 /// Count total and non whitespace tokens for a parsed file.
-fn count_tokens(parser: &DestackParser) -> (usize, usize) {
+fn count_tokens(parser: &mut DestackParser) -> (usize, usize) {
+    let (tokens, side_tokens) = parser.take_tokens();
+
     // aggregate tokens from both streams
-    let tokens = parser.tokens.len() + parser.side_tokens.len();
+    let token_count = tokens.len() + side_tokens.len();
 
     // filter out whitespace tokens
-    let tokens_no_ws = parser
-        .tokens
+    let tokens_no_ws = tokens
         .iter()
-        .chain(parser.side_tokens.iter())
+        .chain(side_tokens.iter())
         .filter(|token| token.token.ty != destack_ast::TokenType::Whitespace)
         .count();
 
-    (tokens, tokens_no_ws)
+    (token_count, tokens_no_ws)
 }
 
 /// Collect node counts for a parsed module.

@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use super::html_entities::HTML_NAMED_ENTITIES;
 use super::lexer::{Lexer, TreeExpressionEntry, TreeState};
@@ -7,8 +8,7 @@ use destack_ast::{
     is_identifier_continue, is_identifier_start, is_whitespace,
 };
 
-use super::lexer::LinePrefixState;
-use destack_source::{FileId, LanguageType, Span};
+use destack_source::{File, LanguageType, Span};
 use destack_unicode::UnicodeEmoji;
 
 /// Result of lexing with additional flags.
@@ -44,7 +44,7 @@ pub const TRIVIA_TOKEN_TYPES: [TokenType; 5] = [
     TokenType::DocBlockComment,
 ];
 
-pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 16] = [
+pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 18] = [
     TokenType::Assign,
     TokenType::Comma,
     TokenType::Colon,
@@ -58,26 +58,11 @@ pub const EXPRESSION_START_TOKEN_TYPES: [TokenType; 16] = [
     TokenType::LogicalOr,
     TokenType::LogicalAndAssign,
     TokenType::LogicalOrAssign,
+    TokenType::Maybe,
+    TokenType::Coalesce,
     TokenType::OpenParenthesis,
     TokenType::OpenBracket,
     TokenType::OpenBrace,
-];
-
-/// Token types after which `<` can start a tree literal (TSX-compatible).
-/// More restrictive than EXPRESSION_START_TOKEN_TYPES:
-/// - No Newline (after newline in interface body, `<T>` is a generic)
-/// - No Semicolon (same reason)
-/// - Only clear expression-start positions
-pub const TREE_OPENING_TOKEN_TYPES: [TokenType; 9] = [
-    TokenType::Assign,          // x = <div/>
-    TokenType::OpenParenthesis, // (<div/>)
-    TokenType::OpenBracket,     // [<div/>]
-    TokenType::Comma,           // f(a, <div/>)
-    TokenType::ArrowWide,       // () => <div/>
-    TokenType::Colon,           // {foo: <div/>} or ternary ? <a/> : <b/>
-    TokenType::LogicalAnd,      // {condition && <div/>}
-    TokenType::LogicalOr,       // {condition || <div/>}
-    TokenType::Maybe,           // {condition ? <div/> : null}
 ];
 
 /// Check if a token is semantic (not whitespace or comment).
@@ -94,89 +79,21 @@ pub fn is_semantic(token_type: TokenType) -> bool {
     )
 }
 
-impl Lexer<'_> {
-    /// Skip whitespace and comments in a byte buffer, returning the next index.
-    #[inline]
-    fn skip_trivia_bytes(bytes: &[u8], mut i: usize) -> usize {
-        while i < bytes.len() {
-            let c = bytes[i] as char;
-            if is_whitespace(c) || bytes[i] == b'\n' {
-                i += 1;
-                continue;
-            }
-            if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'/') {
-                i += 2;
-                while i < bytes.len() && bytes[i] != b'\n' {
-                    i += 1;
-                }
-                continue;
-            }
-            if bytes[i] == b'/' && bytes.get(i + 1) == Some(&b'*') {
-                i += 2;
-                while i + 1 < bytes.len() {
-                    if bytes[i] == b'*' && bytes[i + 1] == b'/' {
-                        i += 2;
-                        break;
-                    }
-                    i += 1;
-                }
-                continue;
-            }
-            break;
-        }
-        i
-    }
-
-    /// Skip a string literal starting at `i` (including the quote).
-    #[inline]
-    fn skip_string_literal_bytes(bytes: &[u8], mut i: usize, quote: u8) -> usize {
-        i += 1;
-        while i < bytes.len() {
-            if bytes[i] == b'\\' {
-                i += 2;
-                continue;
-            }
-            if bytes[i] == quote {
-                i += 1;
-                break;
-            }
-            i += 1;
-        }
-        i
-    }
-
-    /// Skip a template literal starting at `i` (including the backtick).
-    #[inline]
-    fn skip_template_literal_bytes(bytes: &[u8], mut i: usize) -> usize {
-        i += 1;
-        while i < bytes.len() {
-            if bytes[i] == b'\\' {
-                i += 2;
-                continue;
-            }
-            if bytes[i] == b'`' {
-                i += 1;
-                break;
-            }
-            i += 1;
-        }
-        i
-    }
+impl Lexer {
     /// Lex the input string into semantic tokens, side tokens, and the end-of-sequence Token.
     /// Semantic tokens are identifiers, keywords, literals, operators.
     /// Side tokens are whitespace and comments.
     pub fn lex(
-        file_id: FileId,
-        input: &str,
+        file: Arc<File>,
         language: LanguageType,
     ) -> (Vec<TokenSpan>, Vec<TokenSpan>, TokenSpan) {
-        let result = Self::lex_with_flags(file_id, input, language);
+        let result = Self::lex_with_flags(file, language);
         (result.tokens, result.side_tokens, result.eof_token)
     }
 
     /// Lex the input string and return extra flags.
-    pub fn lex_with_flags(file_id: FileId, input: &str, language: LanguageType) -> LexResult {
-        let mut lexer = Lexer::new(file_id, input, language);
+    pub fn lex_with_flags(file: Arc<File>, language: LanguageType) -> LexResult {
+        let mut lexer = Lexer::new(file, language);
         let eof_token = lexer.run();
         LexResult {
             tokens: lexer.tokens,
@@ -214,13 +131,7 @@ impl Lexer<'_> {
 
             // track last tokens for O(1) context lookups
             if is_semantic(token.ty) {
-                self.options.last_non_whitespace_token = Some(token_span);
-                if token.ty != TokenType::Newline {
-                    self.options.prev_prev_semantic_token = self.options.prev_semantic_token;
-                    self.options.prev_semantic_token = self.options.last_semantic_token;
-                    self.options.last_semantic_token = Some(token_span);
-                }
-                self.update_line_prefix_state(token_span);
+                self.track_semantic_token(token_span);
             }
             if token.ty == TokenType::End {
                 break;
@@ -238,8 +149,21 @@ impl Lexer<'_> {
         })
     }
 
+    /// Track semantic token context for regex and tree disambiguation.
+    pub(super) fn track_semantic_token(&mut self, token_span: TokenSpan) {
+        // update the last non-whitespace token (includes newlines)
+        self.options.last_non_whitespace_token = Some(token_span);
+
+        // update semantic token history (excludes newlines)
+        if token_span.token.ty != TokenType::Newline {
+            self.options.prev_prev_semantic_token = self.options.prev_semantic_token;
+            self.options.prev_semantic_token = self.options.last_semantic_token;
+            self.options.last_semantic_token = Some(token_span);
+        }
+    }
+
     /// Parses a token from the input string.
-    fn advance(&mut self) -> Token {
+    pub(super) fn advance(&mut self) -> Token {
         // if we're in tree content mode, try to eat tree text
         if self.in_tree_content()
             && let Some(token) = self.try_eat_tree_text()
@@ -751,12 +675,11 @@ impl Lexer<'_> {
                     (TokenType::LessThanOrEqual, None)
                 }
                 // </ - tree closing tag (when tree state is Content)
-                // NOTE: we check tree_state() directly, not in_tree_content()
+                // NOTE #Robustness: we check tree_state() directly, not in_tree_content()
                 // (because in_tree_content() returns false inside expression containers
-                //  but we still need to recognize </tag> for nested tree literals)
-                else if self.language.supports_jsx()
-                    && self.tree_state() == TreeState::Content
-                    && self.peek() == '/'
+                // but we still need to recognize </tag> for nested tree literals)
+                else if self.tree_state() == TreeState::Content
+                    && self.peek_tree_closing_after_trivia()
                 {
                     // pop from content mode (closing tag will finish with >)
                     self.pop_tree_state();
@@ -764,11 +687,8 @@ impl Lexer<'_> {
                     self.push_tree_state(TreeState::ClosingTag);
                     (TokenType::LessThan, None)
                 }
-                // <Ident - tree opening tag (only in expression-start position)
-                else if self.language.supports_jsx()
-                    && self.is_tree_opening_position()
-                    && self.peek_tree_tag_start()
-                {
+                // < - tree opening tag inside tree content
+                else if self.tree_state() == TreeState::Content {
                     self.push_tree_state(TreeState::OpeningTag);
                     (TokenType::LessThan, None)
                 }
@@ -788,8 +708,8 @@ impl Lexer<'_> {
                     } else {
                         // check if previous token was / (self-closing tag)
                         let prev_is_divide = self
-                            .tokens
-                            .last()
+                            .options
+                            .last_semantic_token
                             .map(|t| t.token.ty == TokenType::Divide)
                             .unwrap_or(false);
 
@@ -1078,11 +998,12 @@ impl Lexer<'_> {
 
         let start = self.pos.saturating_sub(1);
         let end = self.pos + semicolon_idx + 1;
-        if end > self.source.len() {
+        let source = self.file.text();
+        if end > source.len() {
             return None;
         }
 
-        let entity_slice = &self.source[start..end];
+        let entity_slice = &source[start..end];
         let _ = decode_html_entity(entity_slice)?;
 
         for _ in 0..=semicolon_idx {
@@ -1127,14 +1048,15 @@ impl Lexer<'_> {
             _ => {}
         }
         // boolean
-        if first_char == 't' && self.source[start_pos - 1..self.pos].eq("true") {
+        let source = self.file.text();
+        if first_char == 't' && source[start_pos - 1..self.pos].eq("true") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: true }),
             )
         }
         // false
-        else if first_char == 'f' && self.source[start_pos - 1..self.pos].eq("false") {
+        else if first_char == 'f' && source[start_pos - 1..self.pos].eq("false") {
             (
                 TokenType::Literal,
                 Some(LiteralType::Boolean { value: false }),
@@ -1700,6 +1622,54 @@ impl Lexer<'_> {
         false
     }
 
+    /// Return true when a tree closing tag starts after trivia.
+    fn peek_tree_closing_after_trivia(&self) -> bool {
+        // scan forward until we hit a non trivia character
+        let mut iter = self.as_str().char_indices().peekable();
+
+        while let Some((_offset, c)) = iter.next() {
+            // skip whitespace
+            if is_whitespace(c) {
+                continue;
+            }
+
+            // handle comment prefixes and closing tags
+            if c == '/' {
+                let next = iter.peek().map(|(_, c)| *c);
+
+                // skip line comments
+                if next == Some('/') {
+                    iter.next();
+                    for (_offset, c) in iter.by_ref() {
+                        if c == '\n' {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+
+                // skip block comments
+                if next == Some('*') {
+                    iter.next();
+                    let mut prev = '\0';
+                    for (_offset, c) in iter.by_ref() {
+                        if prev == '*' && c == '/' {
+                            break;
+                        }
+                        prev = c;
+                    }
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        false
+    }
+
     /// Tries to eat tree literal text content (TSX-compatible).
     /// Returns a Literal token with TreeString type if there's text content.
     /// Text content ends at `<`, `{`, or `&` (for HTML entities).
@@ -1751,55 +1721,6 @@ impl Lexer<'_> {
         }
     }
 
-    /// Checks if we're in a position where `<` could start a tree literal.
-    /// This uses the same logic as regex detection: `<` starts a tree when
-    /// after operators, keywords, or opening brackets (not after values).
-    fn is_tree_opening_position(&self) -> bool {
-        // if we're already in tree content, nested trees are always allowed
-        if self.in_tree_content() {
-            return true;
-        }
-
-        // use cached tokens for O(1) lookup
-        let last = self.options.last_semantic_token.as_ref();
-        let prev = self.options.prev_semantic_token.as_ref();
-        let last_non_whitespace = self.options.last_non_whitespace_token.as_ref();
-
-        // start of file: tree is allowed (top-level JSX expression)
-        let Some(prev_token) = last else {
-            return true;
-        };
-
-        // after tree-opening tokens: tree is allowed
-        if self.is_tree_expression_start_token(prev_token) {
-            return true;
-        }
-
-        // after control keywords (return, if, etc.): tree is allowed
-        if self.is_control_keyword_token(prev_token) {
-            return true;
-        }
-
-        // after open brace only if we're in tree content (expression container)
-        if self.is_tree_expression_container_open(prev_token) {
-            return true;
-        }
-
-        // after newline if we can safely terminate the previous statement
-        if self.is_statement_boundary_after_newline(last_non_whitespace, prev_token, prev) {
-            return true;
-        }
-
-        // otherwise: it's a comparison operator or generic
-        false
-    }
-
-    /// Check if a token can start an expression where tree literals are allowed.
-    #[inline]
-    fn is_tree_expression_start_token(&self, token: &TokenSpan) -> bool {
-        TREE_OPENING_TOKEN_TYPES.contains(&token.token.ty)
-    }
-
     /// Check if `/` can start a regex literal.
     fn is_expression_start_for_regex(&self) -> bool {
         let last_non_whitespace = self.options.last_non_whitespace_token.as_ref();
@@ -1836,23 +1757,6 @@ impl Lexer<'_> {
         false
     }
 
-    /// Check if a token is a control keyword that can precede an expression.
-    #[inline]
-    fn is_control_keyword_token(&self, token: &TokenSpan) -> bool {
-        if token.token.ty != TokenType::Identifier {
-            return false;
-        }
-        Keyword::from_str(self.get_span_str(token.span))
-            .map(|keyword| keyword.is_control())
-            .unwrap_or(false)
-    }
-
-    /// Check if `{` opens a tree expression container context.
-    #[inline]
-    fn is_tree_expression_container_open(&self, token: &TokenSpan) -> bool {
-        token.token.ty == TokenType::OpenBrace && !self.options.tree_expression_stack.is_empty()
-    }
-
     /// Check whether a newline can terminate a statement before a tree literal.
     fn is_statement_boundary_after_newline(
         &self,
@@ -1876,6 +1780,16 @@ impl Lexer<'_> {
 
         // block end followed by newline starts a new statement
         if last_semantic.token.ty == TokenType::CloseBrace {
+            return true;
+        }
+
+        // regex literals can terminate a statement before another regex literal
+        if last_semantic.token.ty == TokenType::Literal
+            && matches!(
+                last_semantic.token.literal,
+                Some(LiteralType::RegexString { .. })
+            )
+        {
             return true;
         }
 
@@ -1904,262 +1818,7 @@ impl Lexer<'_> {
             return true;
         }
 
-        if self.options.previous_line_starts_type_decl {
-            if last_semantic.token.ty == TokenType::Identifier
-                && Keyword::from_str(self.get_span_str(last_semantic.span))
-                    .is_ok_and(|keyword| keyword == Keyword::Extends)
-            {
-                return false;
-            }
-            let is_continuation = matches!(
-                last_semantic.token.ty,
-                TokenType::Assign
-                    | TokenType::Comma
-                    | TokenType::Colon
-                    | TokenType::Dot
-                    | TokenType::Maybe
-                    | TokenType::LessThan
-                    | TokenType::ShiftLeft
-                    | TokenType::SaturatingShiftLeft
-                    | TokenType::ElementwiseOr
-                    | TokenType::ElementwiseAnd
-                    | TokenType::LogicalOr
-                    | TokenType::LogicalAnd
-                    | TokenType::Arrow
-                    | TokenType::ArrowWide
-                    | TokenType::OpenParenthesis
-                    | TokenType::OpenBracket
-                    | TokenType::OpenBrace
-            );
-            if !is_continuation {
-                return true;
-            }
-        }
-
         false
-    }
-
-    fn update_line_prefix_state(&mut self, token: TokenSpan) {
-        if token.token.ty == TokenType::Newline {
-            self.options.previous_line_starts_type_decl =
-                self.options.current_line_starts_type_decl;
-            self.options.current_line_starts_type_decl = false;
-            self.options.line_prefix_state = LinePrefixState::Start;
-            return;
-        }
-
-        if self.options.current_line_starts_type_decl {
-            return;
-        }
-
-        if token.token.ty != TokenType::Identifier {
-            self.options.line_prefix_state = LinePrefixState::Other;
-            return;
-        }
-
-        let Ok(keyword) = Keyword::from_str(self.get_span_str(token.span)) else {
-            self.options.line_prefix_state = LinePrefixState::Other;
-            return;
-        };
-
-        match self.options.line_prefix_state {
-            LinePrefixState::Start => match keyword {
-                Keyword::Export => self.options.line_prefix_state = LinePrefixState::SawExport,
-                Keyword::Declare => self.options.line_prefix_state = LinePrefixState::SawDeclare,
-                Keyword::Type => self.options.current_line_starts_type_decl = true,
-                _ => self.options.line_prefix_state = LinePrefixState::Other,
-            },
-            LinePrefixState::SawExport => match keyword {
-                Keyword::Declare => {
-                    self.options.line_prefix_state = LinePrefixState::SawExportDeclare
-                }
-                Keyword::Type => self.options.current_line_starts_type_decl = true,
-                _ => self.options.line_prefix_state = LinePrefixState::Other,
-            },
-            LinePrefixState::SawDeclare => match keyword {
-                Keyword::Type => self.options.current_line_starts_type_decl = true,
-                _ => self.options.line_prefix_state = LinePrefixState::Other,
-            },
-            LinePrefixState::SawExportDeclare => match keyword {
-                Keyword::Type => self.options.current_line_starts_type_decl = true,
-                _ => self.options.line_prefix_state = LinePrefixState::Other,
-            },
-            LinePrefixState::Other => {}
-        }
-    }
-
-    /// Checks if the next characters look like a tree tag start, NOT a generic.
-    /// Uses TSX disambiguation rules:
-    /// - `<>` → fragment (tree)
-    /// - `<Ident>` → tree element
-    /// - `<Ident,>` → generic (trailing comma)
-    /// - `<Ident =` → generic (default)
-    /// - `<Ident extends` → generic (constraint)
-    /// - `<Ident :` → generic (Destack type annotation)
-    fn peek_tree_tag_start(&self) -> bool {
-        let s = self.as_str();
-        let bytes = s.as_bytes();
-        if bytes.is_empty() {
-            return false;
-        }
-
-        // skip leading whitespace and comments
-        let mut i = Self::skip_trivia_bytes(bytes, 0);
-
-        if i >= bytes.len() {
-            return false;
-        }
-
-        let Some(first_char) = s[i..].chars().next() else {
-            return false;
-        };
-
-        // `<>` is a fragment
-        if first_char == '>' {
-            return true;
-        }
-
-        // must start with identifier for element name
-        if !is_identifier_start(first_char) {
-            return false;
-        }
-
-        // skip the identifier to see what comes after
-        let ident_start = i;
-        let mut ident_end = i + first_char.len_utf8();
-        let ident_scan_start = ident_end;
-        for (offset, ch) in s[ident_scan_start..].char_indices() {
-            if !is_identifier_continue(ch) {
-                break;
-            }
-            ident_end = ident_scan_start + offset + ch.len_utf8();
-        }
-        let ident = &s[ident_start..ident_end];
-        i = ident_end;
-
-        // `const` type parameter modifier in TSX generic arrows
-        if ident == "const" {
-            let mut j = i;
-            while j < bytes.len() && (is_whitespace(bytes[j] as char) || bytes[j] == b'\n') {
-                j += 1;
-            }
-            if j < bytes.len() {
-                let Some(type_param_start) = s[j..].chars().next() else {
-                    return false;
-                };
-                if is_identifier_start(type_param_start) {
-                    let mut type_param_end = j + type_param_start.len_utf8();
-                    let type_param_scan_start = type_param_end;
-                    for (offset, ch) in s[type_param_scan_start..].char_indices() {
-                        if !is_identifier_continue(ch) {
-                            break;
-                        }
-                        type_param_end = type_param_scan_start + offset + ch.len_utf8();
-                    }
-                    i = type_param_end;
-                }
-            }
-        }
-
-        // skip whitespace AND newlines (TSX allows multiline opening tags)
-        while i < bytes.len() && (is_whitespace(bytes[i] as char) || bytes[i] == b'\n') {
-            i += 1;
-        }
-
-        if i >= bytes.len() {
-            return false;
-        }
-
-        // check for generic indicators (i.e., NOT tree)
-        match bytes[i] as char {
-            // trailing comma: <T,> is generic
-            ',' => false,
-            // default value: <T = X> is generic
-            '=' => false,
-            // constraint: <T extends X> is generic
-            'e' => {
-                // check if it's "extends"
-                let remaining = &s[i..];
-                if remaining.starts_with("extends") {
-                    return false;
-                }
-                true
-            }
-            // Destack type annotation: <T : X> is generic
-            ':' => false,
-            // arrow type: <T>(...) => ...
-            '>' => !self.is_generic_arrow_after_tag(i),
-            // anything else (including >, /, space+attr): likely tree
-            _ => true,
-        }
-    }
-
-    /// Check whether the sequence after `>` looks like a generic arrow function type.
-    fn is_generic_arrow_after_tag(&self, tag_end: usize) -> bool {
-        let s = self.as_str();
-        let bytes = s.as_bytes();
-
-        // skip trivia after `>`
-        let mut i = Self::skip_trivia_bytes(bytes, tag_end + 1);
-        if i >= bytes.len() || bytes[i] != b'(' {
-            return false;
-        }
-
-        // find the matching closing parenthesis
-        i += 1;
-        let mut depth = 1;
-        while i < bytes.len() {
-            let c = bytes[i] as char;
-            match c {
-                '(' => {
-                    depth += 1;
-                }
-                ')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        i += 1;
-                        break;
-                    }
-                }
-                '"' | '\'' => {
-                    i = Self::skip_string_literal_bytes(bytes, i, bytes[i]);
-                    continue;
-                }
-                '`' => {
-                    i = Self::skip_template_literal_bytes(bytes, i);
-                    continue;
-                }
-                '/' => {
-                    if bytes.get(i + 1) == Some(&b'/') {
-                        i += 2;
-                        while i < bytes.len() && bytes[i] != b'\n' {
-                            i += 1;
-                        }
-                        continue;
-                    }
-                    if bytes.get(i + 1) == Some(&b'*') {
-                        i += 2;
-                        while i + 1 < bytes.len() {
-                            if bytes[i] == b'*' && bytes[i + 1] == b'/' {
-                                i += 2;
-                                break;
-                            }
-                            i += 1;
-                        }
-                        continue;
-                    }
-                }
-                _ => {}
-            }
-            i += 1;
-        }
-        if depth != 0 {
-            return false;
-        }
-
-        // skip trivia before the arrow
-        i = Self::skip_trivia_bytes(bytes, i);
-        i + 1 < bytes.len() && bytes[i] == b'=' && bytes[i + 1] == b'>'
     }
 }
 

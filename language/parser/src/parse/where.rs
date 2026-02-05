@@ -103,12 +103,12 @@ impl Parser {
         let right = self.with_options(self.options.in_type(), |parser| parser.eat_expression())?;
         let clause = self
             .tree
-            .insert(WhereClause { left, right }, self.get_span_from(start));
+            .insert(WhereClause { left, right }, self.get_span_from(&start));
 
         // spans
         self.tree.set_main_span(clause, left_span);
         self.tree
-            .set_side_span(clause, NodeSpanType::Type, self.get_span_from(type_start));
+            .set_side_span(clause, NodeSpanType::Type, self.get_span_from(&type_start));
 
         Ok(clause)
     }

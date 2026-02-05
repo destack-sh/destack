@@ -34,7 +34,7 @@ impl Parser {
     /// ```
     pub fn eat_extension(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
@@ -70,7 +70,7 @@ impl Parser {
         self.tree.set_side_span(
             target_type,
             NodeSpanType::Type,
-            self.get_span_from(target_start),
+            self.get_span_from(&target_start),
         );
 
         // implements types
@@ -132,7 +132,7 @@ extension for Foo {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -153,7 +153,7 @@ extension for Foo {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
 
         // target type span
@@ -179,7 +179,7 @@ extension MyExt for Foo<int32> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -217,7 +217,7 @@ extension for Bar<int32> implements Baz {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -263,7 +263,7 @@ extension<U> for Bar<T> implements Baz<T> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -331,7 +331,7 @@ extension MyExt<U> for Bar<T> implements Baz<T> {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, heritage, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -399,7 +399,7 @@ extension for Foo where Guard: Limit {
 
         let start = parser.mark();
         let extension_id = parser
-            .eat_extension(start, DeclarationDescriptor::default())
+            .eat_extension(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, extension_id, Declaration::Extension { descriptor, generics, target_type, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);

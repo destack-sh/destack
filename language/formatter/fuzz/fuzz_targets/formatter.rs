@@ -41,6 +41,7 @@ fuzz_target!(|data: &[u8]| {
     let side_span = parser.compute_side_span();
     let strings = parser.strings.clone().into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
+    let (tokens, side_tokens) = parser.take_tokens();
     let format_options = DestackFormatOptions::default();
 
     let context = DestackFormatContext {
@@ -49,8 +50,8 @@ fuzz_target!(|data: &[u8]| {
         tree: &parser.tree,
         source_map: &parser.tree.source_map,
         parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
+        tokens: &tokens,
+        side_tokens: &side_tokens,
         side_span: &side_span,
         strings: &strings,
         current_argument_group_id: None,

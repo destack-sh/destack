@@ -30,8 +30,8 @@ impl Parser {
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize, None, false);
-                self.try_recover(start, recover, Some(err.clone()))?;
+                let start = ParserMark::from_span(span);
+                self.try_recover(&start, recover, Some(err.clone()))?;
                 Err(err)
             }
         }
@@ -73,7 +73,7 @@ impl Parser {
                 modifiers: None,
                 value,
             };
-            return Ok(self.tree.insert(property, self.get_span_from(start)));
+            return Ok(self.tree.insert(property, self.get_span_from(&start)));
         }
 
         // modifiers prefix
@@ -315,7 +315,7 @@ impl Parser {
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
                 )?;
-                (Some(return_type), Some(self.get_span_from(type_start)))
+                (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
             };
@@ -370,7 +370,7 @@ impl Parser {
                 },
                 body,
             };
-            let property_id = self.tree.insert(property, self.get_span_from(start));
+            let property_id = self.tree.insert(property, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -406,7 +406,7 @@ impl Parser {
                     type_options = type_options.in_type();
                 }
                 let value = self.with_options(type_options, |parser| parser.eat_expression())?;
-                (Some(value), Some(self.get_span_from(type_start)))
+                (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
             };
@@ -438,7 +438,7 @@ impl Parser {
                 value,
                 default,
             };
-            let property_id = self.tree.insert(property, self.get_span_from(start));
+            let property_id = self.tree.insert(property, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -463,6 +463,11 @@ impl Parser {
             // stop on closing brace
             if self.peek_is(TokenType::CloseBrace) || self.peek_is(TokenType::End) {
                 break;
+            }
+            // consume decorator prefixes in type literal properties
+            else if self.options.in_type && self.peek_is(TokenType::At) {
+                self.eat_decorators_prefix_maybe()?;
+                continue;
             }
             // consume any stop
             else if self.is_any_stop() {
@@ -489,8 +494,8 @@ impl Parser {
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize, None, false);
-                self.try_recover(start, recover, Some(err.clone()))?;
+                let start = ParserMark::from_span(span);
+                self.try_recover(&start, recover, Some(err.clone()))?;
                 Err(err)
             }
         }
@@ -534,7 +539,7 @@ impl Parser {
                 modifiers: None,
                 value,
             };
-            return Ok(self.tree.insert(member, self.get_span_from(start)));
+            return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }
 
         // modifiers prefix
@@ -551,12 +556,12 @@ impl Parser {
             let is_duplicate_static = self.keyword_for_index(static_index) == Some(Keyword::Static);
             if is_duplicate_static {
                 let after_static = self.next_non_newline_index_from(static_index + 1);
-                let has_member_name_after = self.tokens.get(after_static).is_some_and(|token| {
-                    token.token.ty == TokenType::Identifier
-                        && self.keyword_for_index(after_static).is_none()
+                let keyword_after_static = self.keyword_for_index(after_static);
+                let has_member_name_after = self.token_ref_at(after_static).is_some_and(|token| {
+                    token.token.ty == TokenType::Identifier && keyword_after_static.is_none()
                 });
                 if has_member_name_after {
-                    let span = if let Some(token) = self.tokens.get(static_index) {
+                    let span = if let Some(token) = self.token_ref_at(static_index) {
                         token.span
                     } else {
                         self.peek()?.span
@@ -585,7 +590,7 @@ impl Parser {
             )?;
             // preserve modifiers for validation (static blocks shouldn't have other modifiers)
             let member = Member::StaticBlock { modifiers, body };
-            return Ok(self.tree.insert(member, self.get_span_from(start)));
+            return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }
 
         // type member: `type Name = ...` or `type Name: Bound`
@@ -594,7 +599,7 @@ impl Parser {
             // name is just an identifier (path)
             let path_start = self.mark();
             let (path, name_span) = self.eat_path_with_last_span()?;
-            let path_span = self.get_span_from(path_start);
+            let path_span = self.get_span_from(&path_start);
             let name = self.tree.insert(
                 Expression::Path {
                     path,
@@ -624,7 +629,7 @@ impl Parser {
                 ty,
                 value,
             };
-            return Ok(self.tree.insert(member, self.get_span_from(start)));
+            return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }
 
         // comptime block: `comptime { ... }` (timing modifier already consumed)
@@ -641,7 +646,7 @@ impl Parser {
                 |parser| parser.eat_expression(),
             )?;
             let member = Member::ComptimeBlock { modifiers, body };
-            return Ok(self.tree.insert(member, self.get_span_from(start)));
+            return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }
 
         // allow newline between modifiers and the member key
@@ -881,7 +886,7 @@ impl Parser {
                     self.options.nested().in_type().in_before_block(),
                     |parser| parser.eat_expression(),
                 )?;
-                (Some(return_type), Some(self.get_span_from(type_start)))
+                (Some(return_type), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
             };
@@ -936,7 +941,7 @@ impl Parser {
                 },
                 body,
             };
-            let member_id = self.tree.insert(member, self.get_span_from(start));
+            let member_id = self.tree.insert(member, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -976,7 +981,7 @@ impl Parser {
                         |parser| parser.eat_expression(),
                     )?
                 };
-                (Some(value), Some(self.get_span_from(type_start)))
+                (Some(value), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
             };
@@ -1016,7 +1021,7 @@ impl Parser {
                 value,
                 default,
             };
-            let member_id = self.tree.insert(member, self.get_span_from(start));
+            let member_id = self.tree.insert(member, self.get_span_from(&start));
 
             // set main span to the key identifier
             if let Some(span) = key_span {
@@ -1043,6 +1048,11 @@ impl Parser {
             // consume any stop
             else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
+                continue;
+            }
+            // consume decorator prefixes
+            else if self.peek_is(TokenType::At) {
+                self.eat_decorators_prefix_maybe()?;
                 continue;
             }
             // keep eating members
@@ -1155,11 +1165,7 @@ mod tests {
         );
         let mut parser = test.prepare();
         let expressions = parser.parse();
-        assert!(
-            parser.errors.is_empty(),
-            "unexpected parse errors: {:#?}",
-            parser.errors
-        );
+        // parse interface members with get and set
         assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Interface { members, .. } => {

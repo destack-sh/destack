@@ -50,72 +50,98 @@ impl Parser {
     /// ```
     pub fn eat_interface(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
         kind: TypeKind,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_INTERFACE);
-        // keyword
-        self.eat_keyword(Keyword::Interface)
-            .for_node_type(NodeType::Declaration)?;
-
-        // interface keyword cannot be followed by a newline
-        if self.peek_is(TokenType::Newline) {
-            let error = ParseError::unexpected(self.peek()?.span);
-            self.error(&error);
-            self.eat_newlines_maybe()?;
-        }
-
-        // optional name / key
-        let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
-            descriptor = descriptor.with_name(name);
-            Some(span)
+        // disable tree literals while parsing typescript interfaces
+        let allow_tree_literals = if self.language.is_typescript() {
+            let allow_tree_literals = self.token_stream.allow_tree_literals();
+            self.token_stream.set_allow_tree_literals(false);
+            Some(allow_tree_literals)
         } else {
             None
         };
 
-        // optional static parameters: < ... >
-        let static_parameters = self.eat_static_parameters_maybe()?;
+        let result = (|| {
+            // keyword
+            self.eat_keyword(Keyword::Interface)
+                .for_node_type(NodeType::Declaration)?;
 
-        // optional extends types
-        let extends_types = self.eat_extends_types_maybe()?;
+            // interface keyword cannot be followed by a newline
+            if self.peek_is(TokenType::Newline) {
+                let error = ParseError::unexpected(self.peek()?.span);
+                self.error(&error);
+                self.eat_newlines_maybe()?;
+            }
 
-        // where
-        let where_clauses = self.eat_where_maybe()?;
+            // optional name / key
+            let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
+                descriptor = descriptor.with_name(name);
+                Some(span)
+            } else {
+                None
+            };
 
-        // body
-        self.eat_newlines_maybe()?;
-        self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
-            .for_node_type(NodeType::Declaration)?;
-        self.eat_newlines_maybe()?;
-        let members = self
-            .with_options(self.options.nested().in_variant(), |parser| {
-                parser.eat_members()
-            })
-            .for_node_type(NodeType::Declaration)?;
-        self.eat_token(TokenType::CloseBrace)
-            .for_node_type(NodeType::Declaration)?;
+            // optional static parameters: < ... >
+            let static_parameters = self.eat_static_parameters_maybe()?;
 
-        // interface
-        let generics = Generics::new(static_parameters, where_clauses);
-        let heritage = Heritage::new(extends_types, None);
-        let interface_id = self.tree.insert(
-            Declaration::Interface {
-                descriptor,
-                kind,
-                generics,
-                heritage,
-                members,
-            },
-            self.get_span_from(start),
-        );
+            // optional extends types
+            let extends_types = self.eat_extends_types_maybe()?;
 
-        // set main span to the name identifier
-        if let Some(span) = name_span {
-            self.tree.set_main_span(interface_id, span);
+            // where
+            let where_clauses = self.eat_where_maybe()?;
+
+            // body
+            self.eat_newlines_maybe()?;
+            self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
+                .for_node_type(NodeType::Declaration)?;
+            self.eat_newlines_maybe()?;
+
+            // parse interface members in type context for typescript
+            let members = if self.language.is_typescript() {
+                self.with_options(self.options.nested().in_variant().in_type(), |parser| {
+                    parser.eat_members()
+                })
+                .for_node_type(NodeType::Declaration)?
+            } else {
+                self.with_options(self.options.nested().in_variant(), |parser| {
+                    parser.eat_members()
+                })
+                .for_node_type(NodeType::Declaration)?
+            };
+            self.eat_token(TokenType::CloseBrace)
+                .for_node_type(NodeType::Declaration)?;
+
+            // interface
+            let generics = Generics::new(static_parameters, where_clauses);
+            let heritage = Heritage::new(extends_types, None);
+            let interface_id = self.tree.insert(
+                Declaration::Interface {
+                    descriptor,
+                    kind,
+                    generics,
+                    heritage,
+                    members,
+                },
+                self.get_span_from(start),
+            );
+
+            // set main span to the name identifier
+            if let Some(span) = name_span {
+                self.tree.set_main_span(interface_id, span);
+            }
+
+            Ok(interface_id)
+        })();
+
+        if let Some(allow_tree_literals) = allow_tree_literals {
+            self.token_stream
+                .set_allow_tree_literals(allow_tree_literals);
         }
 
-        Ok(interface_id)
+        result
     }
 }
 
@@ -137,7 +163,7 @@ mod tests {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -159,7 +185,7 @@ mod tests {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -180,6 +206,54 @@ mod tests {
         });
     }
 
+    /// Parse TSX interface call signatures with generic parameters.
+    #[test]
+    fn test_parse_tsx_interface_generic_call_signature() {
+        let mut test = TestParser::new_with_options(
+            r#"
+interface Foo<G> {
+    <T>(bar: G): T;
+}
+"#,
+            destack_source::LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let start = parser.mark();
+        let interface_id = parser
+            .eat_interface(
+                &start,
+                DeclarationDescriptor::default(),
+                TypeKind::Structural,
+            )
+            .unwrap();
+
+        // interface call signature with generic parameters
+        assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, members, .. } => {
+            assert_string!(parser, descriptor.name.unwrap().string(), "Foo");
+            assert_eq!(members.len(), 1);
+            assert_node!(parser.tree, members[0], Member::Method { key: None, signature, .. } => {
+                assert_eq!(signature.mode, Some(FunctionMode::Call));
+                let static_parameters = signature
+                    .generics
+                    .as_ref()
+                    .and_then(|generics| generics.static_parameters.as_ref())
+                    .expect("expected static parameters");
+                assert_eq!(static_parameters.len(), 1);
+                assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, ty: None, .. } => {
+                    assert_string!(parser, *name, "T");
+                });
+                assert_eq!(signature.dynamic_parameters.len(), 1);
+                assert_node!(parser.tree, signature.dynamic_parameters[0], Parameter::Named { name, ty, .. } => {
+                    assert_string!(parser, *name, "bar");
+                    assert_expression_path!(parser, parser.tree.get(ty.unwrap()), "G");
+                });
+                assert_expression_path!(parser, parser.tree.get(signature.return_type.unwrap()), "T");
+            });
+        });
+    }
+
     #[test]
     fn test_parse_interface_extends_with_newline() {
         let mut test = TestParser::new(
@@ -195,7 +269,7 @@ interface Foo extends Bar
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -222,7 +296,7 @@ Baz {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -253,7 +327,7 @@ interface Foo extends Baz {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -296,7 +370,7 @@ interface Foo extends Baz {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -320,7 +394,7 @@ interface Foo extends Baz {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -352,7 +426,7 @@ interface Foo extends Baz {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -386,7 +460,7 @@ interface Baz<T> where Requirement: Interface {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -435,7 +509,7 @@ interface SQL {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -534,7 +608,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
@@ -590,7 +664,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
 
         let start = parser.mark();
         let interface_id = parser
-            .eat_interface(start, DeclarationDescriptor::default(), TypeKind::Nominal)
+            .eat_interface(&start, DeclarationDescriptor::default(), TypeKind::Nominal)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -615,7 +689,7 @@ interface Add<T, R = Self> {
 
         let start = parser.mark();
         let interface_id = parser
-            .eat_interface(start, DeclarationDescriptor::default(), TypeKind::Nominal)
+            .eat_interface(&start, DeclarationDescriptor::default(), TypeKind::Nominal)
             .unwrap();
         assert_node!(parser.tree, interface_id, Declaration::Interface { descriptor, kind, generics, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -649,7 +723,7 @@ interface Add<T, R = Self> {
         let start = parser.mark();
         let interface_id = parser
             .eat_interface(
-                start,
+                &start,
                 DeclarationDescriptor::default(),
                 TypeKind::Structural,
             )
