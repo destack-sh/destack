@@ -354,9 +354,10 @@ impl Parser {
         // export default <expression>
         if self.peek_keyword(Keyword::Default).is_ok() {
             self.bump(); // eat default
-            let value = self.with_options(self.options.not_in_position(), |parser| {
-                parser.eat_expression()
-            })?;
+            let value = self.with_options(
+                self.options.not_in_position().not_in_sequence_expression(),
+                |parser| parser.eat_expression(),
+            )?;
             let item = self.tree.insert(
                 DependencyItem {
                     mode: DependencyMode::Default,
@@ -625,10 +626,16 @@ impl Parser {
             while !self.peek_is(TokenType::CloseBrace) {
                 let item = self.eat_dependency_item(allow_type_modifier)?;
                 items.push(item);
+
+                self.eat_newlines_maybe()?;
+                if self.peek_is(TokenType::CloseBrace) {
+                    break;
+                }
                 if self.peek_comma().is_ok() {
                     self.eat_item_stop_with_newlines()?;
+                    continue;
                 } else {
-                    self.eat_newlines_maybe()?;
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
             }
             self.eat_newlines_maybe()?;
@@ -750,7 +757,7 @@ impl Parser {
                     .is_ok();
             }
 
-            return true;
+            return false;
         }
 
         true
