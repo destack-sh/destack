@@ -758,9 +758,23 @@ impl Parser {
             {
                 break; // stop outside the enclosing scope
             }
-            if let Some(next_node) =
+            let next_node = if is_block_prefix_only {
                 self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
-            {
+                    .or_else(|| {
+                        self.find_node_enclosing_at(
+                            &next_token.span,
+                            NodeSearchMode::SmallestOutermost,
+                            |span| {
+                                !ANNOTATION_NODE_TYPES.contains(&self.tree.get_node_type(span.idx))
+                                    && !ignore_span.contains(&span.span)
+                            },
+                        )
+                    })
+            } else {
+                self.find_node_starting_at(&next_token.span, NodeSearchMode::BiggestOutermost)
+            };
+
+            if let Some(next_node) = next_node {
                 return Some((
                     AnnotationPosition::BlockPrefix,
                     self.annotation_promote_statement(

@@ -320,6 +320,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_ternary_condition=false`.
+    #[inline]
+    pub(crate) fn not_in_ternary_condition(self) -> Self {
+        Self {
+            in_ternary_condition: false,
+            ..self
+        }
+    }
+
     /// Set `in_type_conditional_right=true`.
     #[inline]
     pub(crate) fn in_type_conditional_right(self) -> Self {

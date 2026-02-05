@@ -10,29 +10,6 @@ use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser};
 
 impl Parser {
-    /// Reject unparenthesized sequence expressions in JSX containers.
-    fn reject_jsx_sequence_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> ParseResult<()> {
-        if !self.language.supports_jsx() {
-            return Ok(());
-        }
-        if !matches!(
-            self.tree.get(expression_id),
-            Expression::SequenceExpression { .. }
-        ) {
-            return Ok(());
-        }
-        let span = self.tree.get_span(expression_id);
-        let span_str = self.get_span_str(span);
-        let trimmed = span_str.trim();
-        if trimmed.starts_with('(') && trimmed.ends_with(')') {
-            return Ok(());
-        }
-        Err(ParseError::unexpected(span))
-    }
-
     /// Return true when the next token can start a member name.
     pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
         // skip newlines after the modifier keyword
@@ -110,6 +87,8 @@ impl Parser {
         let mut seen_static = false;
         let mut seen_override = false;
         let mut seen_readonly = false;
+        let mut seen_variance_in = false;
+        let mut seen_variance_out = false;
 
         // eat modifiers in any order
         loop {
@@ -122,12 +101,20 @@ impl Parser {
             if self.options.in_static || allow_variance_modifier {
                 // handle 'in' variance modifier
                 if self.peek_keyword(Keyword::In).is_ok() {
+                    let span = self.peek()?.span;
                     self.bump(); // eat in
+                    if validate_modifier_order && seen_variance_in {
+                        self.error(&ParseError::unexpected(span));
+                    }
+                    if validate_modifier_order && seen_variance_out {
+                        self.error(&ParseError::unexpected(span));
+                    }
                     modifiers.variance = Some(match modifiers.variance {
                         Some(VarianceModifier::Out) => VarianceModifier::InOut,
                         Some(VarianceModifier::InOut) => VarianceModifier::InOut,
                         _ => VarianceModifier::In,
                     });
+                    seen_variance_in = true;
                     has_modifiers = true;
                     progress = true;
                 }
@@ -136,12 +123,17 @@ impl Parser {
                     && (self.peek_next_is(TokenType::Identifier)
                         || self.peek_next_keyword(Keyword::In).is_ok())
                 {
+                    let span = self.peek()?.span;
                     self.bump(); // eat out
+                    if validate_modifier_order && seen_variance_out {
+                        self.error(&ParseError::unexpected(span));
+                    }
                     modifiers.variance = Some(match modifiers.variance {
                         Some(VarianceModifier::In) => VarianceModifier::InOut,
                         Some(VarianceModifier::InOut) => VarianceModifier::InOut,
                         _ => VarianceModifier::Out,
                     });
+                    seen_variance_out = true;
                     has_modifiers = true;
                     progress = true;
                 }
@@ -912,6 +904,7 @@ impl Parser {
                     self.options
                         .not_in_position()
                         .not_in_tree_literal()
+                        .not_in_ternary_condition()
                         .not_in_left_precedence(),
                     |parser| parser.eat_expression(),
                 )?;
@@ -932,10 +925,10 @@ impl Parser {
                 self.options
                     .not_in_position()
                     .not_in_tree_literal()
+                    .not_in_ternary_condition()
                     .not_in_left_precedence(),
                 |parser| parser.eat_expression(),
             )?;
-            self.reject_jsx_sequence_expression(value)?;
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self.tree.insert(
@@ -1019,6 +1012,7 @@ impl Parser {
                 self.options
                     .not_in_position()
                     .not_in_tree_literal()
+                    .not_in_ternary_condition()
                     .not_in_left_precedence()
                     .not_in_sequence_expression(),
                 |parser| parser.eat_expression(),
@@ -1051,10 +1045,10 @@ impl Parser {
                         self.options
                             .not_in_position()
                             .not_in_tree_literal()
+                            .not_in_ternary_condition()
                             .not_in_left_precedence(),
                         |parser| parser.eat_expression(),
                     )?;
-                    self.reject_jsx_sequence_expression(value)?;
                     self.eat_newlines_maybe()?;
                     self.eat_token(TokenType::CloseBrace)?;
                     value
