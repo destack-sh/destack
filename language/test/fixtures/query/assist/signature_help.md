@@ -117,8 +117,7 @@ function main() {
 ```
 
 ```query signature_help $0
-active_signature=0 active_parameter=1
-signature[0] label=unknownCall(arg0, arg1) documentation=<none> parameters=arg0|arg1 param_docs=<none>|<none>
+<none>
 ```
 
 ## Parameter Documentation

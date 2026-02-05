@@ -76,6 +76,13 @@ impl Resolver {
         specifier: &str,
         ctx: &mut ResolveContext,
     ) -> Result<PathBuf, ResolveError> {
+        if specifier.is_empty() {
+            return Err(ResolveError::InvalidSpecifier {
+                specifier: specifier.to_string(),
+                message: Some("empty specifier".to_string()),
+            });
+        }
+
         // check tsconfig paths
         if let Some(resolved) =
             self.load_tsconfig_paths(path, specifier, &mut ResolveContext::default())?

@@ -15,8 +15,9 @@ use crate::query::common::{
     build_import_edits_with_mode, dynamic_parameter_names, ensure_program_export_index,
     get_canonical_symbol, get_module_by_file_id, matches_symbol_space_filter,
     module_name_from_path, owned_scope_for_symbol, path_component_count, path_distance,
-    program_for_file, resolve_extension_members_for_symbol, resolve_type_members, score_completion,
-    search_importable_symbols_for_program, visible_symbols,
+    program_for_file, resolve_extension_members_for_symbol,
+    resolve_nominal_symbol_from_initializer, resolve_reference_members, resolve_type_members,
+    score_completion, search_importable_symbols_for_program, visible_symbols,
 };
 use crate::{Session, TokenAtCursor};
 
@@ -652,6 +653,8 @@ fn collect_visible_names(
     scope_mark: Option<dir::LocalScopeMark>,
     space_filter: Option<SymbolSpace>,
 ) -> Option<HashSet<String>> {
+    let scope_id = scope_id?;
+
     // resolve the module and query context
     let module = get_module_by_file_id(session, file_id)?;
     let module = module.read();
@@ -660,38 +663,12 @@ fn collect_visible_names(
 
     // collect names from visible symbols when scope is available
     let mut names = HashSet::new();
-    if let Some(scope_id) = scope_id {
-        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        // walk visible symbols in scope order
-        for visible in visible_symbols(&symbols, scope_id, mark, space_filter) {
-            // resolve the symbol name key
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                continue;
-            };
-
-            // insert the name
-            let name = session.strings.get(name_id).to_string();
-            names.insert(name);
-        }
-
-        return Some(names);
-    }
-
-    // fall back to module symbols when there is no scope
-    for symbol in symbols.symbols() {
-        // skip symbols that are not active
-        if !symbol.is_active() {
-            continue;
-        }
-
-        // skip symbols outside the requested space
-        if !matches_symbol_space_filter(symbol.ty, symbol.space, space_filter) {
-            continue;
-        }
-
-        // skip symbols without names
-        let Some(name_id) = symbol.name() else {
+    // walk visible symbols in scope order
+    for visible in visible_symbols(&symbols, scope_id, mark, space_filter) {
+        // resolve the symbol name key
+        let dir::StaticKey::Name(name_id) = visible.key else {
             continue;
         };
 
@@ -1079,13 +1056,42 @@ fn complete_members(
             results.push(completion);
         }
 
-        // release the borrowed module state before moving on
-        drop(types);
-        drop(symbols);
-        drop(module);
+        return results;
     }
+
+    // fallback path: resolve nominal type from the receiver initializer
+    if let Some(symbol_id) = receiver_symbol {
+        let type_symbol = if symbol_id.module_id == ctx.module_id {
+            resolve_nominal_symbol_from_initializer(session, &ctx, symbol_id)
+        } else {
+            let symbol_module = session.modules.get(symbol_id.module_id);
+            let symbol_module = symbol_module.read();
+            let symbol_ctx = session.query_context(&symbol_module);
+            symbol_ctx.and_then(|symbol_ctx| {
+                resolve_nominal_symbol_from_initializer(session, &symbol_ctx, symbol_id)
+            })
+        };
+
+        if let Some(type_symbol) = type_symbol {
+            drop(types);
+            drop(symbols);
+            drop(module);
+
+            let members = resolve_reference_members(type_symbol, session, current_module_id);
+            for member in members {
+                let Some(completion) = completion_for_member(session, member, None) else {
+                    continue;
+                };
+
+                results.push(completion);
+            }
+
+            return results;
+        }
+    }
+
     // fallback path: use receiver symbol (for cases where type inference hasn't run)
-    else if let Some(symbol_id) = receiver_symbol {
+    if let Some(symbol_id) = receiver_symbol {
         // release the current module state before switching contexts
         drop(types);
         drop(symbols);
@@ -1278,6 +1284,10 @@ fn complete_types(
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
 ) -> Vec<Completion> {
+    if scope_id.is_none() {
+        return primitive_type_completions();
+    }
+
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return primitive_type_completions();
@@ -1318,48 +1328,26 @@ fn complete_types(
         canonical_symbol.ty
     };
 
-    // if we have a scope, walk up from it to collect visible types
-    if let Some(scope_id) = scope_id {
-        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+    // walk up from the scope to collect visible types
+    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Type)) {
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                continue;
-            };
+    for visible in visible_symbols(
+        &symbols,
+        scope_id.expect("scope_id is required for type completions"),
+        mark,
+        Some(SymbolSpace::Type),
+    ) {
+        let dir::StaticKey::Name(name_id) = visible.key else {
+            continue;
+        };
 
-            let name = session.strings.get(name_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
-
-            let kind = CompletionKind::from(resolve_symbol_type(visible.id, visible.symbol));
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        let name = session.strings.get(name_id).to_string();
+        if !seen_names.insert(name.clone()) {
+            continue;
         }
-    } else {
-        // no scope, add all module level type symbols
-        for (idx, symbol) in symbols.symbols().enumerate() {
-            if !symbol.is_active() {
-                continue;
-            }
 
-            // only include type space symbols
-            if symbol.space != dir::SymbolSpace::Type && symbol.space != dir::SymbolSpace::TypeValue
-            {
-                continue;
-            }
-
-            let Some(string_id) = symbol.name() else {
-                continue;
-            };
-
-            let name = session.strings.get(string_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
-            let local_id = dir::LocalSymbolId::new(idx as u32);
-            let kind = CompletionKind::from(resolve_symbol_type(local_id, symbol));
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
-        }
+        let kind = CompletionKind::from(resolve_symbol_type(visible.id, visible.symbol));
+        results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
     }
 
     // include type imports and re exports from dependencies
@@ -1467,6 +1455,14 @@ fn complete_values(
     scope_mark: Option<dir::LocalScopeMark>,
     include_keywords: bool,
 ) -> Vec<Completion> {
+    if scope_id.is_none() {
+        return if include_keywords {
+            keyword_completions()
+        } else {
+            Vec::new()
+        };
+    }
+
     // get module AST/DIR
     let Some(module) = get_module_by_file_id(session, file) else {
         return keyword_completions();
@@ -1484,49 +1480,26 @@ fn complete_values(
     // collect symbols to process (to avoid holding symbols lock while generating snippets)
     let mut symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolType)> = Vec::new();
 
-    // if we have a scope, walk visible symbols in scope order
-    if let Some(scope_id) = scope_id {
-        let mut seen_names = HashSet::new();
-        let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
+    // walk visible symbols in scope order
+    let mut seen_names = HashSet::new();
+    let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
-        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                continue;
-            };
+    for visible in visible_symbols(
+        &symbols,
+        scope_id.expect("scope_id is required for value completions"),
+        mark,
+        Some(SymbolSpace::Value),
+    ) {
+        let dir::StaticKey::Name(name_id) = visible.key else {
+            continue;
+        };
 
-            let name = session.strings.get(name_id).to_string();
-            if !seen_names.insert(name.clone()) {
-                continue;
-            }
-
-            symbols_to_process.push((visible.id, name, visible.symbol.ty));
+        let name = session.strings.get(name_id).to_string();
+        if !seen_names.insert(name.clone()) {
+            continue;
         }
-    } else {
-        // no scope, fall back to any active value symbols
-        let mut seen = HashSet::new();
 
-        for (idx, symbol) in symbols.symbols().enumerate() {
-            if !symbol.is_active() {
-                continue;
-            }
-            if symbol.space != dir::SymbolSpace::Value
-                && symbol.space != dir::SymbolSpace::TypeValue
-            {
-                continue;
-            }
-
-            let Some(string_id) = symbol.name() else {
-                continue;
-            };
-
-            let name = session.strings.get(string_id).to_string();
-            if !seen.insert(name.clone()) {
-                continue;
-            }
-
-            let local_id = dir::LocalSymbolId::new(idx as u32);
-            symbols_to_process.push((local_id, name, symbol.ty));
-        }
+        symbols_to_process.push((visible.id, name, visible.symbol.ty));
     }
 
     // release symbol and module handles before formatting snippets
@@ -1572,6 +1545,10 @@ fn complete_new_expression(
     scope_id: Option<dir::LocalScopeId>,
     scope_mark: Option<dir::LocalScopeMark>,
 ) -> Vec<Completion> {
+    if scope_id.is_none() {
+        return Vec::new();
+    }
+
     // resolve the module and query context
     let Some(module) = get_module_by_file_id(session, file) else {
         return Vec::new();
@@ -1588,61 +1565,31 @@ fn complete_new_expression(
     let mark = scope_mark.unwrap_or(dir::LocalScopeMark::end());
 
     // prefer scoped symbol lookup when possible
-    if let Some(scope_id) = scope_id {
-        for visible in visible_symbols(&symbols, scope_id, mark, Some(SymbolSpace::Value)) {
-            // skip symbols that are not constructable
-            if !is_constructable_symbol(visible.symbol.ty) {
-                continue;
-            }
-
-            // resolve the symbol name key
-            let dir::StaticKey::Name(name_id) = visible.key else {
-                continue;
-            };
-
-            // skip duplicate names
-            let name = session.strings.get(name_id).to_string();
-            if !seen.insert(name.clone()) {
-                continue;
-            }
-
-            // push a completion entry
-            let kind = CompletionKind::from(visible.symbol.ty);
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+    for visible in visible_symbols(
+        &symbols,
+        scope_id.expect("scope_id is required for new expression completions"),
+        mark,
+        Some(SymbolSpace::Value),
+    ) {
+        // skip symbols that are not constructable
+        if !is_constructable_symbol(visible.symbol.ty) {
+            continue;
         }
-    } else {
-        // fall back to module symbol scan
-        for symbol in symbols.symbols() {
-            // skip symbols that are not active
-            if !symbol.is_active() {
-                continue;
-            }
 
-            // skip symbols outside the value spaces
-            if symbol.space != SymbolSpace::Value && symbol.space != SymbolSpace::TypeValue {
-                continue;
-            }
+        // resolve the symbol name key
+        let dir::StaticKey::Name(name_id) = visible.key else {
+            continue;
+        };
 
-            // skip symbols that are not constructable
-            if !is_constructable_symbol(symbol.ty) {
-                continue;
-            }
-
-            // skip symbols without names
-            let Some(string_id) = symbol.name() else {
-                continue;
-            };
-
-            // skip duplicate names
-            let name = session.strings.get(string_id).to_string();
-            if !seen.insert(name.clone()) {
-                continue;
-            }
-
-            // push a completion entry
-            let kind = CompletionKind::from(symbol.ty);
-            results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
+        // skip duplicate names
+        let name = session.strings.get(name_id).to_string();
+        if !seen.insert(name.clone()) {
+            continue;
         }
+
+        // push a completion entry
+        let kind = CompletionKind::from(visible.symbol.ty);
+        results.push(Completion::new(name, kind).with_sort_order(SORT_LOCAL_SYMBOL));
     }
 
     // return the new expression completions
@@ -1718,50 +1665,12 @@ fn complete_imports(
 }
 
 /// Complete all symbols (fallback for unknown context).
-fn complete_all(session: &Session, file: FileId, include_keywords: bool) -> Vec<Completion> {
-    // get module AST/DIR
-    let Some(module) = get_module_by_file_id(session, file) else {
-        return if include_keywords {
-            keyword_completions()
-        } else {
-            Vec::new()
-        };
-    };
-    let module = module.read();
-    let Some(ctx) = session.query_context(&module) else {
-        return if include_keywords {
-            keyword_completions()
-        } else {
-            Vec::new()
-        };
-    };
-    let symbols = ctx.symbols();
-
-    // initialize completion buffer
-    let mut results = Vec::new();
-
-    // collect all symbol names
-    for symbol in symbols.symbols() {
-        let Some(string_id) = symbol.name() else {
-            continue;
-        };
-
-        let name = session.strings.get(string_id).to_string();
-        let kind = CompletionKind::from(symbol.ty);
-        results.push(Completion::new(name, kind));
-    }
-
-    // release module state before adding keywords
-    drop(symbols);
-    drop(module);
-
-    // append keywords when requested
+fn complete_all(_session: &Session, _file: FileId, include_keywords: bool) -> Vec<Completion> {
     if include_keywords {
-        results.extend(keyword_completions());
+        keyword_completions()
+    } else {
+        Vec::new()
     }
-
-    // return the combined completions
-    results
 }
 
 /// Get keyword completions.

@@ -558,11 +558,11 @@ Class methods should appear after dot.
 
 ```ds
 class Calculator {
-    function add(a: int32, b: int32): int32 {
+    add(a: int32, b: int32): int32 {
         return a + b;
     }
 
-    function multiply(a: int32, b: int32): int32 {
+    multiply(a: int32, b: int32): int32 {
         return a * b;
     }
 }

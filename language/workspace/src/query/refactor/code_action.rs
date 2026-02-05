@@ -5,6 +5,7 @@ use destack_ast as ast;
 use destack_source::{Applicability, BatchEdit, Diagnostic, Edit, FileEdit, FileId, Span, Uri};
 use serde::{Deserialize, Serialize};
 
+use super::{extract_function, inline_symbol};
 use crate::Session;
 use crate::query::assist::{CompletionContext, detect_completion_context};
 use crate::query::common::{
@@ -151,6 +152,9 @@ pub fn code_actions(
     // collect organize imports action
     collect_organize_imports_action(session, file, &mut actions);
 
+    // collect refactor actions
+    collect_refactor_actions(session, file, range, &mut actions);
+
     // filter by requested kinds when specified
     if !context.only.is_empty() {
         actions.retain(|a| context.only.contains(&a.kind));
@@ -168,6 +172,37 @@ pub fn code_actions(
     actions.dedup_by(|left, right| code_action_key(left) == code_action_key(right));
 
     actions
+}
+
+/// Collect refactor actions for a range.
+fn collect_refactor_actions(
+    session: &Session,
+    file: FileId,
+    range: Span,
+    actions: &mut Vec<CodeAction>,
+) {
+    // inline at the cursor start
+    if let Some(result) = inline_symbol(session, file, range.start)
+        && !result.is_empty()
+    {
+        actions.push(CodeAction::refactor(
+            "Inline symbol",
+            CodeActionKind::RefactorInline,
+            result.edits,
+        ));
+    }
+
+    // extract function for non empty selections
+    if range.start < range.end
+        && let Some(result) = extract_function(session, file, range, "extracted")
+        && !result.is_empty()
+    {
+        actions.push(CodeAction::refactor(
+            "Extract function",
+            CodeActionKind::RefactorExtract,
+            result.edits,
+        ));
+    }
 }
 
 /// Collect organize imports actions for a file.

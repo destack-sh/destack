@@ -2,8 +2,9 @@ use std::collections::HashSet;
 use std::panic;
 use std::sync::Arc;
 
+use destack_ast as ast;
 use destack_dir::{self as dir, LocalNodeIdAny};
-use destack_source::{EnclosingSpan, FileId, Span};
+use destack_source::{EnclosingSpan, File, FileId, Span};
 use parking_lot::RwLock;
 
 use super::QueryContext;
@@ -110,6 +111,14 @@ pub(crate) fn span_contains_span(parent: Span, child: Span) -> bool {
     parent.start <= child.start && parent.end >= child.end
 }
 
+/// Resolve the line start for the given offset.
+pub(crate) fn line_start_for_offset(source: &str, offset: usize) -> usize {
+    // clamp offset within the source bounds
+    let offset = offset.min(source.len());
+    let before = &source[..offset];
+    before.rfind('\n').map(|idx| idx + 1).unwrap_or(0)
+}
+
 /// Extract the string literal prefix before a cursor offset.
 pub(crate) fn extract_string_literal_prefix(source: &str, span: Span, offset: u32) -> String {
     // clamp the span within the source
@@ -191,6 +200,55 @@ pub(crate) fn enclosing_spans_with_previous(
     enclosing.sort_by_key(|span| span.length);
 
     enclosing
+}
+
+/// Find the span for a string literal matching the provided text inside an enclosing span.
+pub(crate) fn string_literal_span_in_enclosing(
+    file: &File,
+    tokens: &[ast::TokenSpan],
+    enclosing: Span,
+    target_text: &str,
+) -> Option<Span> {
+    for token in tokens {
+        if token.span.file != enclosing.file {
+            continue;
+        }
+        if token.span.start < enclosing.start || token.span.end > enclosing.end {
+            continue;
+        }
+        if token.token.ty != ast::TokenType::Literal {
+            continue;
+        }
+        if !matches!(token.token.literal, Some(ast::LiteralType::String { .. })) {
+            continue;
+        }
+
+        let literal = file.span_str(token.span);
+        let value = string_literal_value(literal)?;
+        if value == target_text {
+            return Some(token.span);
+        }
+    }
+
+    None
+}
+
+/// Extract the string literal contents without quotes.
+fn string_literal_value(literal: &str) -> Option<&str> {
+    let bytes = literal.as_bytes();
+    if bytes.len() < 2 {
+        return None;
+    }
+
+    let quote = match bytes[0] {
+        b'"' | b'\'' => bytes[0],
+        _ => return None,
+    };
+    if bytes[bytes.len() - 1] != quote {
+        return None;
+    }
+
+    Some(&literal[1..literal.len() - 1])
 }
 
 /// Sort spans by file and position and remove duplicates.

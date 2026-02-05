@@ -155,14 +155,15 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
                 // resolve the call target symbol and name
                 let call_target = resolve_call_target(session, &ctx, *left);
                 let function_name = call_target.name.unwrap_or_else(|| "<function>".to_string());
+                let Some(symbol_id) = call_target.symbol else {
+                    continue;
+                };
 
-                // build signature info from the resolved symbol or fall back to args
-                let signature = build_signature_info(
-                    session,
-                    &function_name,
-                    call_target.symbol,
-                    dynamic_arguments.len(),
-                );
+                // build signature info from the resolved symbol
+                let Some(signature) = build_signature_info(session, &function_name, symbol_id)
+                else {
+                    continue;
+                };
 
                 // determine active parameter based on cursor position
                 let mut active_parameter = determine_active_parameter(
@@ -197,33 +198,10 @@ pub fn signature_help(session: &Session, file: FileId, offset: u32) -> Option<Si
 fn build_signature_info(
     session: &Session,
     function_name: &str,
-    target_symbol: Option<GlobalSymbolId>,
-    argument_count: usize,
-) -> SignatureInfo {
-    // use formatted signature info when we can resolve the symbol
-    let symbol_id = target_symbol;
-    if let Some(symbol_id) = symbol_id {
-        // try to format the symbol's signature
-        let signature = signature_info_for_symbol(session, symbol_id, function_name);
-        // return the formatted signature when available
-        if let Some(signature) = signature {
-            return signature;
-        }
-    }
-
-    // fall back to placeholder parameters based on argument count
-    let params = fallback_params(argument_count);
-    let param_labels: Vec<_> = params.iter().map(|p| p.label.clone()).collect();
-    let signature_label = format!("{function_name}({})", param_labels.join(", "));
-
-    // assemble the placeholder signature
-    let mut signature = SignatureInfo::new(signature_label);
-    for param in params {
-        signature = signature.with_parameter(param);
-    }
-
-    // return the assembled signature
-    signature
+    target_symbol: GlobalSymbolId,
+) -> Option<SignatureInfo> {
+    // format the symbol's signature when available
+    signature_info_for_symbol(session, target_symbol, function_name)
 }
 
 /// Format signature info from a resolved symbol.
@@ -340,17 +318,6 @@ fn parameter_infos_from_data(labels: &[String], data: &ParameterData) -> Vec<Par
             }
             info
         })
-        .collect()
-}
-
-/// Build placeholder parameter infos when signature data is missing.
-fn fallback_params(argument_count: usize) -> Vec<ParameterInfo> {
-    // ensure at least one parameter placeholder
-    let count = argument_count.max(1);
-
-    // format placeholder parameter labels
-    (0..count)
-        .map(|i| ParameterInfo::new(format!("arg{i}")))
         .collect()
 }
 

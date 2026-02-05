@@ -196,7 +196,7 @@ pub fn goto_type_definition(
     }
     drop(types);
 
-    // final fallback: try to get type from AST context
+    // final fallback: try to get type from declaration context
     if let Some(type_symbol) =
         get_type_from_declaration_context(session, ctx.ast, ctx.dir, symbol_at.node_id)
     {

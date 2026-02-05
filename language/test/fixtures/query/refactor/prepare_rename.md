@@ -195,6 +195,56 @@ const message = greetDefault("Destack");
 greetDefault
 ```
 
+## Exports
+
+### Prepare rename on default export definition
+
+Prepare rename should return the default export name when targeting the declaration.
+
+```ds
+export default function greet(name: string): string {
+//                      ^^^^^ def:default_greet
+    return "Hello, " + name;
+}
+```
+
+```query prepare_rename def:default_greet
+greet
+```
+
+## Type Parameters
+
+### Prepare rename on type parameter
+
+Prepare rename should return the type parameter name.
+
+```ds
+function wrap<T>(value: T): T {
+//            ^ def:type_param
+    return value;
+}
+```
+
+```query prepare_rename def:type_param
+T
+```
+
+## Destructuring
+
+### Prepare rename on destructured binding
+
+Prepare rename should return the binding name for destructured targets.
+
+```ds
+const config = { value: 1 };
+const { value } = config;
+//      ^^^^^ def:destructure
+```
+
+```query prepare_rename def:destructure
+value
+```
+
 ## Keywords
 
 ### Prepare rename on keyword

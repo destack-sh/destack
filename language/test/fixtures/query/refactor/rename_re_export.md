@@ -41,3 +41,45 @@ import { welcome } from "./barrel.ds";
 
 const message = welcome("Destack");
 ```
+
+## Type-Only Re-Exports
+
+### Rename through type-only re-exports
+
+Renaming a type should update type-only re-exports and imports.
+
+```ds:types.ds
+export type Options = {
+//          ^^^^^^^ target
+    enabled: boolean,
+};
+```
+
+```ds:barrel.ds
+export type { Options } from "./types.ds";
+```
+
+```ds:main.ds
+import type { Options } from "./barrel.ds";
+
+const config: Options = { enabled: true };
+```
+
+```query rename target "Settings"
+```
+
+```expected:types
+export type Settings = {
+    enabled: boolean,
+};
+```
+
+```expected:barrel
+export type { Settings } from "./types.ds";
+```
+
+```expected:main
+import type { Settings } from "./barrel.ds";
+
+const config: Settings = { enabled: true };
+```

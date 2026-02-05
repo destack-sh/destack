@@ -10,6 +10,7 @@ use destack_dir::{
 };
 use destack_source::{ModuleId, PathExt, Uri};
 
+use super::module::get_module_exports_maybe;
 use super::symbol::{member_key_name, resolve_symbol_name_id};
 use super::{QueryContext, for_each_visible_extension};
 use crate::Session;
@@ -334,7 +335,7 @@ pub(crate) fn resolve_extension_member_symbol(
     resolved
 }
 
-fn resolve_nominal_symbol_from_initializer(
+pub(crate) fn resolve_nominal_symbol_from_initializer(
     session: &Session,
     ctx: &QueryContext<'_>,
     symbol_id: GlobalSymbolId,
@@ -388,6 +389,11 @@ fn resolve_nominal_symbol_from_value_expression(
     let dir_tree = ctx.tree();
     let expression = dir_tree.get::<Expression>(expression_id);
     match expression {
+        Expression::TaggedScalarExpression { ty, .. }
+        | Expression::TaggedTupleExpression { ty, .. }
+        | Expression::TaggedObjectExpression { ty, .. } => {
+            resolve_nominal_symbol_from_type_expression(session, ctx, *ty)
+        }
         Expression::New { left, .. } => {
             resolve_nominal_symbol_from_type_expression(session, ctx, *left)
         }
@@ -526,7 +532,7 @@ pub(crate) fn resolve_type_symbol_from_dependency_symbol(
     resolve_type_symbol_from_module(session, target_module_id, name_id, &mut HashSet::new())
 }
 
-fn resolve_type_symbol_from_imports(
+pub(crate) fn resolve_type_symbol_from_imports(
     session: &Session,
     ctx: &QueryContext<'_>,
     name_id: StringId,
@@ -590,9 +596,116 @@ fn resolve_type_symbol_from_imports(
     None
 }
 
+/// Resolve a value symbol from a module by scanning re-exports and exports.
+pub(crate) fn resolve_value_symbol_from_module(
+    session: &Session,
+    module_id: ModuleId,
+    name_id: StringId,
+    visited: &mut HashSet<ModuleId>,
+) -> Option<GlobalSymbolId> {
+    // avoid cycles across re-export chains
+    if !visited.insert(module_id) {
+        return None;
+    }
+
+    let module = session.modules.get(module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    let dir_tree = ctx.tree();
+    for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
+        let items = match expr {
+            Expression::ReExport { items, .. } | Expression::UnresolvedReExport { items, .. } => {
+                items
+            }
+            Expression::Export { items, .. } => items,
+            _ => continue,
+        };
+
+        for item_id in items {
+            let item = dir_tree.get::<DependencyItem>(*item_id);
+            let (mode, name, alias, target, target_module) = match item {
+                DependencyItem::Remote {
+                    mode,
+                    name,
+                    alias,
+                    target,
+                    target_module,
+                    ..
+                } => (*mode, *name, *alias, Some(*target), Some(*target_module)),
+                DependencyItem::UnresolvedRemote {
+                    mode,
+                    name,
+                    alias,
+                    target_module,
+                    target,
+                    ..
+                } => (*mode, *name, *alias, Some(*target), *target_module),
+                _ => continue,
+            };
+            if !dependency_item_matches_name(name_id, name, alias, mode, true) {
+                continue;
+            }
+
+            if let Some(target_symbol) = item.target_symbol()
+                && symbol_matches_space(session, target_symbol, SymbolSpace::Value)
+            {
+                return Some(target_symbol);
+            }
+
+            let mut target_module_id = target_module
+                .and_then(|targets| targets.value.or(targets.ty))
+                .and_then(|target| target.module_id());
+            if target_module_id.is_none()
+                && let Some(target) = target
+            {
+                let target_text = session.strings.get(target).to_string();
+                target_module_id =
+                    resolve_module_id_for_import_target(session, &ctx, target_text.as_str());
+            }
+
+            let Some(target_module_id) = target_module_id else {
+                continue;
+            };
+
+            if let Some(symbol_id) =
+                resolve_value_symbol_from_module(session, target_module_id, name_id, visited)
+            {
+                return Some(symbol_id);
+            }
+        }
+    }
+
+    // fall back to direct exports when no explicit export items matched
+    if let Some(exports) = get_module_exports_maybe(session, module_id) {
+        let target_name = session.strings.get(name_id).to_string();
+        for export in exports {
+            if export.name != target_name {
+                continue;
+            }
+
+            if matches!(export.space, SymbolSpace::Value | SymbolSpace::TypeValue) {
+                return Some(GlobalSymbolId::new(export.module_id, export.local_id));
+            }
+        }
+    }
+
+    None
+}
+
 pub(crate) fn resolve_module_id_for_import_target(
     session: &Session,
     ctx: &QueryContext<'_>,
+    target: &str,
+) -> Option<ModuleId> {
+    let source_file = session.files.get(ctx.file_id);
+    let source_path = source_file.path.as_ref()?;
+    resolve_module_id_for_import_target_path(session, source_path, target)
+}
+
+pub(crate) fn resolve_module_id_for_import_target_path(
+    session: &Session,
+    source_path: &Path,
     target: &str,
 ) -> Option<ModuleId> {
     let candidate_target = if target.starts_with("file://") {
@@ -602,8 +715,6 @@ pub(crate) fn resolve_module_id_for_import_target(
         if path.is_absolute() {
             path.to_path_buf()
         } else {
-            let source_file = session.files.get(ctx.file_id);
-            let source_path = source_file.path.as_ref()?;
             source_path.parent()?.join(path)
         }
     };
@@ -792,6 +903,20 @@ pub(crate) fn resolve_type_symbol_from_module(
                 resolve_type_symbol_from_module(session, target_module_id, name_id, visited)
             {
                 return Some(symbol_id);
+            }
+        }
+    }
+
+    // fall back to direct exports when no explicit export items matched
+    if let Some(exports) = get_module_exports_maybe(session, module_id) {
+        let target_name = session.strings.get(name_id).to_string();
+        for export in exports {
+            if export.name != target_name {
+                continue;
+            }
+
+            if matches!(export.space, SymbolSpace::Type | SymbolSpace::TypeValue) {
+                return Some(GlobalSymbolId::new(export.module_id, export.local_id));
             }
         }
     }

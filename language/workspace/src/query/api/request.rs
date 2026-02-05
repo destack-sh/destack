@@ -192,6 +192,9 @@ pub enum QueryRequest {
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
     RenameFiles(refactor::RenameFilesRequest),
+    ExtractFunction(refactor::ExtractFunctionRequest),
+    Inline(refactor::InlineRequest),
+    ChangeSignature(refactor::ChangeSignatureRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -226,6 +229,9 @@ pub enum QueryResponse {
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
     RenameFiles(refactor::RenameFilesResponse),
+    ExtractFunction(refactor::ExtractFunctionResponse),
+    Inline(refactor::InlineResponse),
+    ChangeSignature(refactor::ChangeSignatureResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -261,6 +267,9 @@ enum QueryRequestHuman {
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
     RenameFiles(refactor::RenameFilesRequest),
+    ExtractFunction(refactor::ExtractFunctionRequest),
+    Inline(refactor::InlineRequest),
+    ChangeSignature(refactor::ChangeSignatureRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -295,6 +304,9 @@ enum QueryRequestBinary {
     PrepareRename(refactor::PrepareRenameRequest),
     Rename(refactor::RenameRequest),
     RenameFiles(refactor::RenameFilesRequest),
+    ExtractFunction(refactor::ExtractFunctionRequest),
+    Inline(refactor::InlineRequest),
+    ChangeSignature(refactor::ChangeSignatureRequest),
     CodeActions(refactor::CodeActionsRequest),
 }
 
@@ -330,6 +342,9 @@ enum QueryResponseHuman {
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
     RenameFiles(refactor::RenameFilesResponse),
+    ExtractFunction(refactor::ExtractFunctionResponse),
+    Inline(refactor::InlineResponse),
+    ChangeSignature(refactor::ChangeSignatureResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -364,6 +379,9 @@ enum QueryResponseBinary {
     PrepareRename(refactor::PrepareRenameResponse),
     Rename(refactor::RenameResponse),
     RenameFiles(refactor::RenameFilesResponse),
+    ExtractFunction(refactor::ExtractFunctionResponse),
+    Inline(refactor::InlineResponse),
+    ChangeSignature(refactor::ChangeSignatureResponse),
     CodeActions(refactor::CodeActionsResponse),
 }
 
@@ -400,6 +418,9 @@ macro_rules! map_query_request {
             $from::PrepareRename(params) => $to::PrepareRename(params),
             $from::Rename(params) => $to::Rename(params),
             $from::RenameFiles(params) => $to::RenameFiles(params),
+            $from::ExtractFunction(params) => $to::ExtractFunction(params),
+            $from::Inline(params) => $to::Inline(params),
+            $from::ChangeSignature(params) => $to::ChangeSignature(params),
             $from::CodeActions(params) => $to::CodeActions(params),
         }
     };
@@ -438,6 +459,9 @@ macro_rules! map_query_response {
             $from::PrepareRename(result) => $to::PrepareRename(result),
             $from::Rename(result) => $to::Rename(result),
             $from::RenameFiles(result) => $to::RenameFiles(result),
+            $from::ExtractFunction(result) => $to::ExtractFunction(result),
+            $from::Inline(result) => $to::Inline(result),
+            $from::ChangeSignature(result) => $to::ChangeSignature(result),
             $from::CodeActions(result) => $to::CodeActions(result),
         }
     };

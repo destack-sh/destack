@@ -6,7 +6,9 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::Session;
 use crate::query::common::{
-    get_module_by_file_id, main_or_enclosing_span_for_dir_node, with_query_context_for_file,
+    get_module_by_file_id, main_or_enclosing_span_for_dir_node, module_specifier_in_expression,
+    resolve_module_id_for_import_target_path, string_literal_span_in_enclosing,
+    with_query_context_for_file,
 };
 
 /// A clickable link in a document.
@@ -104,7 +106,16 @@ pub struct ResolveDocumentLinkResponse {
 /// Common uses: import paths, URLs in comments, file references.
 pub fn document_links(session: &Session, file: FileId) -> Vec<DocumentLink> {
     // prefer dir based resolution when possible
-    if let Some(links) = document_links_with_dir(session, file) {
+    if let Some(mut links) = document_links_with_dir(session, file) {
+        let fallback = document_links_with_ast(session, file);
+        for link in fallback {
+            if links.iter().any(|existing| existing.range == link.range) {
+                continue;
+            }
+            if !links.contains(&link) {
+                links.push(link);
+            }
+        }
         return links;
     }
 
@@ -143,10 +154,19 @@ fn document_links_with_dir(session: &Session, file: FileId) -> Option<Vec<Docume
                     };
 
                     // get the span of this import expression
-                    let span = main_or_enclosing_span_for_dir_node(&ctx, &dir_tree, expr_id.into());
+                    let enclosing =
+                        main_or_enclosing_span_for_dir_node(&ctx, &dir_tree, expr_id.into());
+                    let file = session.files.get(ctx.file_id);
+                    let import_path = session.strings.get(*target).to_string();
+                    let span = string_literal_span_in_enclosing(
+                        &file,
+                        &ctx.ast.tokens,
+                        enclosing,
+                        &import_path,
+                    )
+                    .unwrap_or(enclosing);
 
                     // make the link
-                    let import_path = session.strings.get(*target).to_string();
                     links.push(
                         DocumentLink::file(span, path.to_string_lossy().to_string())
                             .with_tooltip(format!("Go to {import_path}")),
@@ -185,29 +205,41 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
     for expression_id in ast.tree.iter_nodes::<ast::Expression>() {
         let expression = ast.tree.get(expression_id);
 
-        // extract the module specifier from the expression
-        let specifier = match expression {
-            ast::Expression::Import { target, .. } => Some(*target),
-            ast::Expression::Export { target, .. } => *target,
-            _ => None,
-        };
-
-        // skip expressions without specifiers
-        let Some(specifier) = specifier else {
+        // resolve the module specifier and dependency kind
+        let Some((specifier, _kind)) = module_specifier_in_expression(expression) else {
             continue;
         };
 
         // resolve the span for the string literal
-        let range = ast
+        let enclosing = ast
             .tree
             .get_main_span(expression_id)
             .unwrap_or_else(|| ast.tree.source_map.get(expression_id.id));
+        let specifier_text = ast.strings.get(specifier).to_string();
+        let range =
+            string_literal_span_in_enclosing(&source_file, &ast.tokens, enclosing, &specifier_text)
+                .unwrap_or(enclosing);
 
         // resolve the target for the specifier
-        let specifier_text = ast.strings.get(specifier).to_string();
-        let target = match document_link_target_for_specifier(base_dir, &specifier_text) {
-            Some(target) => target,
-            None => continue,
+        let target = if let Some(source_path) = source_file.path.as_ref()
+            && (specifier_text.starts_with('.')
+                || specifier_text.starts_with('/')
+                || specifier_text.starts_with("file://"))
+        {
+            resolve_module_id_for_import_target_path(session, source_path, &specifier_text)
+                .and_then(|module_id| {
+                    let module = session.modules.get(module_id);
+                    let module = module.read();
+                    module.path.as_ref().map(|path| DocumentLinkTarget::File {
+                        path: path.to_string_lossy().to_string(),
+                    })
+                })
+                .or_else(|| document_link_target_for_specifier(base_dir, &specifier_text))
+        } else {
+            document_link_target_for_specifier(base_dir, &specifier_text)
+        };
+        let Some(target) = target else {
+            continue;
         };
 
         // emit the document link

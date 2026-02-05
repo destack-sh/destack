@@ -1,10 +1,11 @@
 use std::path::Path;
 
 use destack_ast::{DependencyKind, DependencyMode, Expression, TokenType};
+use destack_base::StringId;
 use destack_source::{Edit, FileId, PathExt, Span};
 
 use crate::Session;
-use crate::query::common::{QueryContext, relative_path};
+use crate::query::common::{QueryContext, normalize_separators, relative_path};
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -116,12 +117,47 @@ impl ImportGroup {
         }
 
         // alias imports: @/ ~/ # (but not scoped packages like @org/pkg)
-        if path.starts_with("@/") || path.starts_with("~/") || path.starts_with('#') {
+        if is_alias_specifier(path) {
             return ImportGroup::Alias;
         }
 
         // everything else is a package
         ImportGroup::Package
+    }
+}
+
+/// Check if a specifier is a known alias form.
+pub fn is_alias_specifier(specifier: &str) -> bool {
+    specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
+}
+
+/// Split a specifier into its alias prefix and suffix.
+pub(crate) fn split_alias_prefix(specifier: &str) -> Option<(&str, &str)> {
+    if let Some(stripped) = specifier.strip_prefix("@/") {
+        return Some(("@/", stripped));
+    }
+    if let Some(stripped) = specifier.strip_prefix("~/") {
+        return Some(("~/", stripped));
+    }
+    if let Some(stripped) = specifier.strip_prefix("#/") {
+        return Some(("#/", stripped));
+    }
+    if let Some(stripped) = specifier.strip_prefix('#') {
+        return Some(("#", stripped));
+    }
+
+    None
+}
+
+/// Resolve a module specifier and dependency kind for an AST expression.
+pub fn module_specifier_in_expression(
+    expression: &Expression,
+) -> Option<(StringId, DependencyKind)> {
+    match expression {
+        Expression::Import { target, kind, .. } => Some((*target, *kind)),
+        Expression::Export { target, kind, .. } => target.map(|target| (target, *kind)),
+        Expression::TypeImport { target, .. } => Some((*target, DependencyKind::Type)),
+        _ => None,
     }
 }
 
@@ -326,11 +362,6 @@ pub fn build_import_display_path_with_options(
 
     // return the normalized display path
     display_path
-}
-
-/// Normalize path separators to forward slashes.
-fn normalize_separators(path: &str) -> String {
-    path.replace('\\', "/")
 }
 
 /// Resolve a module name from a file path.

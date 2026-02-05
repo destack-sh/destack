@@ -56,6 +56,9 @@ pub enum QueryMethodId {
     PrepareRename,
     Rename,
     RenameFiles,
+    ExtractFunction,
+    Inline,
+    ChangeSignature,
     CodeActions,
 }
 
@@ -341,6 +344,38 @@ static QUERY_METHODS: &[QueryMethod] = &[
         result_type: "RenameFilesResponse",
     },
     QueryMethod {
+        id: QueryMethodId::ExtractFunction,
+        name: "extract_function",
+        aliases: &["extractfunction", "refactor/extract_function"],
+        category: QueryCategory::Refactor,
+        summary: "extract a selection into a new function",
+        params_type: "ExtractFunctionRequest",
+        result_type: "ExtractFunctionResponse",
+    },
+    QueryMethod {
+        id: QueryMethodId::Inline,
+        name: "inline",
+        aliases: &["inlinevalue", "refactor/inline"],
+        category: QueryCategory::Refactor,
+        summary: "inline a symbol at a position",
+        params_type: "InlineRequest",
+        result_type: "InlineResponse",
+    },
+    QueryMethod {
+        id: QueryMethodId::ChangeSignature,
+        name: "change_signature",
+        aliases: &[
+            "changesignature",
+            "refactor/change_signature",
+            "change_signature_preview",
+            "refactor/change_signature_preview",
+        ],
+        category: QueryCategory::Refactor,
+        summary: "change a function signature and update call sites",
+        params_type: "ChangeSignatureRequest",
+        result_type: "ChangeSignatureResponse",
+    },
+    QueryMethod {
         id: QueryMethodId::CodeActions,
         name: "code_actions",
         aliases: &["codeaction", "textdocument/codeaction"],
@@ -424,6 +459,9 @@ pub fn parse_query_request(method: &str, params: Value) -> Result<QueryRequest, 
         QueryMethodId::PrepareRename => QueryRequest::PrepareRename(parse_params(params)?),
         QueryMethodId::Rename => QueryRequest::Rename(parse_params(params)?),
         QueryMethodId::RenameFiles => QueryRequest::RenameFiles(parse_params(params)?),
+        QueryMethodId::ExtractFunction => QueryRequest::ExtractFunction(parse_params(params)?),
+        QueryMethodId::Inline => QueryRequest::Inline(parse_params(params)?),
+        QueryMethodId::ChangeSignature => QueryRequest::ChangeSignature(parse_params(params)?),
         QueryMethodId::CodeActions => QueryRequest::CodeActions(parse_params(params)?),
     };
 
