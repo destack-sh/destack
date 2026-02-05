@@ -482,6 +482,40 @@ impl Compiler {
         fields
     }
 
+    /// Collect enum field symbols for a declaration symbol.
+    pub(crate) fn enum_field_symbols_for_enum(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Vec<GlobalSymbolId> {
+        if enum_symbol.module_id != module.id {
+            return self.with_module_tree_symbols(
+                module,
+                profile,
+                enum_symbol.module_id,
+                |owner_module, owner_tree, owner_symbols| {
+                    let fields =
+                        self.enum_fields_for_symbol_in_tree(enum_symbol, owner_tree, owner_symbols);
+                    fields
+                        .into_iter()
+                        .map(|field_id| {
+                            owner_tree.get(field_id).symbol.into_global(owner_module.id)
+                        })
+                        .collect()
+                },
+            );
+        }
+
+        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, tree, symbols);
+        fields
+            .into_iter()
+            .map(|field_id| tree.get(field_id).symbol.into_global(module.id))
+            .collect()
+    }
+
     /// Resolve the integer backing type for an enum expression.
     fn enum_int_type_for_expression(
         &self,

@@ -794,6 +794,10 @@ impl Compiler {
                 // #Suspicious: flow context belongs to a different module (error?)
                 return None;
             }
+            if let Some(environment_id) = flow_context.table.environment_by_node.get(&node_id) {
+                return flow_context.table.environment(*environment_id).cloned();
+            }
+
             let block_id = flow_context
                 .graph
                 .block_by_node
@@ -3766,6 +3770,10 @@ impl Compiler {
                 // nothing to do
             }
             Pattern::Must(pattern_id) => {
+                let binding_ty_id = binding_ty_id.and_then(|binding_ty_id| {
+                    let (non_nullish, _) = self.strip_nullish_from_union(binding_ty_id, types);
+                    non_nullish.or(Some(binding_ty_id))
+                });
                 self.infer_pattern(
                     module,
                     *pattern_id,
@@ -3872,11 +3880,15 @@ impl Compiler {
                 end,
                 is_inclusive: _,
             } => {
+                // range bounds do not enforce binding assignability
+                let bound_type_id = None;
+
+                // infer the lower bound pattern
                 if let Some(start_pattern_id) = start {
                     self.infer_pattern(
                         module,
                         *start_pattern_id,
-                        binding_ty_id,
+                        bound_type_id,
                         tree,
                         symbols,
                         types,
@@ -3884,11 +3896,13 @@ impl Compiler {
                         ctx,
                     )?;
                 }
+
+                // infer the upper bound pattern
                 if let Some(end_pattern_id) = end {
                     self.infer_pattern(
                         module,
                         *end_pattern_id,
-                        binding_ty_id,
+                        bound_type_id,
                         tree,
                         symbols,
                         types,

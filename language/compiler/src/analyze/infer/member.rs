@@ -341,6 +341,7 @@ impl Compiler {
         } else {
             member_ty_id
         };
+
         let has_member = member_ty_id.is_some();
         let resolved_member_ty_id = if let Some(enum_field_value_ty_id) = enum_field_value_ty_id {
             enum_field_value_ty_id

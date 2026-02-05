@@ -59,7 +59,13 @@ pub fn format_type(
         dir::Type::Reference {
             symbol,
             static_arguments,
-        } => format_type_reference(*symbol, static_arguments.as_deref(), modules, strings),
+        } => format_type_reference(
+            *symbol,
+            static_arguments.as_deref(),
+            types,
+            modules,
+            strings,
+        ),
         dir::Type::Unevaluated(_) => "<unevaluated>".to_string(),
         dir::Type::InferVar { id } => format!("<infer {}>", id.0),
         dir::Type::Conditional {
@@ -133,7 +139,7 @@ pub fn format_type(
             if let Some(static_arguments) = static_arguments {
                 let formatted_arguments = static_arguments
                     .iter()
-                    .map(|argument| format_static_argument(argument, strings))
+                    .map(|argument| format_static_argument(argument, types, modules, strings))
                     .collect::<Vec<_>>()
                     .join(", ");
                 result.push('<');
@@ -480,6 +486,7 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
     static_arguments: Option<&[dir::StaticArgument]>,
+    types: &dir::TypeTable,
     modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
@@ -489,7 +496,7 @@ pub fn format_type_reference(
     {
         let argument_strs: Vec<_> = arguments
             .iter()
-            .map(|argument| format_static_argument(argument, strings))
+            .map(|argument| format_static_argument(argument, types, modules, strings))
             .collect();
         format!("{name}<{}>", argument_strs.join(", "))
     } else {
@@ -676,11 +683,16 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 }
 
 /// Format a StaticArgument.
-pub fn format_static_argument(argument: &dir::StaticArgument, strings: &StringPool) -> String {
+pub fn format_static_argument(
+    argument: &dir::StaticArgument,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> String {
     match argument {
         dir::StaticArgument::Unevaluated { .. } => "<unevaluated>".to_string(),
         dir::StaticArgument::Evaluated { name, value } => {
-            let value_str = format_static_expression(value, strings);
+            let value_str = format_static_expression(value, types, modules, strings);
             if let Some(name_id) = name {
                 let name_str = &*strings.get(*name_id);
                 format!("{name_str}: {value_str}")
@@ -694,6 +706,8 @@ pub fn format_static_argument(argument: &dir::StaticArgument, strings: &StringPo
 /// Format a StaticExpression.
 pub fn format_static_expression(
     expression: &dir::StaticExpression,
+    types: &dir::TypeTable,
+    modules: &ModuleRegistry,
     strings: &StringPool,
 ) -> String {
     match expression {
@@ -701,28 +715,31 @@ pub fn format_static_expression(
         dir::StaticExpression::ScalarLiteral { value } => format_scalar_literal(value, strings),
         dir::StaticExpression::TypeLiteral { value } => format_type_literal(value, strings),
         dir::StaticExpression::Declaration { .. } => "<declaration>".to_string(),
-        dir::StaticExpression::Type { .. } => "<type>".to_string(),
+        dir::StaticExpression::Type { ty } => {
+            let ty = types.get_type(*ty);
+            format_type(ty, types, modules, strings)
+        }
         dir::StaticExpression::RangeExpression {
             start,
             end,
             is_inclusive,
         } => {
-            let start_str = format_static_expression(start, strings);
-            let end_str = format_static_expression(end, strings);
+            let start_str = format_static_expression(start, types, modules, strings);
+            let end_str = format_static_expression(end, types, modules, strings);
             let op = if *is_inclusive { "..=" } else { ".." };
             format!("{start_str}{op}{end_str}")
         }
         dir::StaticExpression::ArrayExpression { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_expression(e, strings))
+                .map(|e| format_static_expression(e, types, modules, strings))
                 .collect();
             format!("[{}]", elements.join(", "))
         }
         dir::StaticExpression::TupleExpression { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_expression(e, strings))
+                .map(|e| format_static_expression(e, types, modules, strings))
                 .collect();
             format!("({})", elements.join(", "))
         }

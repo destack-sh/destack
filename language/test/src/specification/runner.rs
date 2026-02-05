@@ -613,7 +613,7 @@ impl ExpectedError {
     fn matches(&self, actual: &str) -> bool {
         match self {
             ExpectedError::Exact(expected) => actual == expected,
-            ExpectedError::Contains(expected) => actual.contains(expected),
+            ExpectedError::Contains(expected) => contains_with_type_placeholder(actual, expected),
         }
     }
 
@@ -623,4 +623,28 @@ impl ExpectedError {
             ExpectedError::Contains(s) => s,
         }
     }
+}
+
+/// Check if an error message contains an expected substring with type wildcards.
+fn contains_with_type_placeholder(actual: &str, expected: &str) -> bool {
+    // fast path for standard contains checks
+    if !expected.contains("<<type>>") {
+        return actual.contains(expected);
+    }
+
+    // split on the placeholder and match parts in order
+    let mut offset = 0;
+    for part in expected.split("<<type>>") {
+        if part.is_empty() {
+            continue;
+        }
+
+        let Some(position) = actual[offset..].find(part) else {
+            return false;
+        };
+
+        offset += position + part.len();
+    }
+
+    true
 }

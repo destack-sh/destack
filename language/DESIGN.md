@@ -105,7 +105,7 @@ Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
 
 ### Patterns
 
-Modern `match` with full pattern matching and exhaustiveness checking:
+Modern `match` with full pattern matching and exhaustiveness checking when the compiler can prove the covered set:
 
 ```
 match (result) {
@@ -116,6 +116,10 @@ match (result) {
 ```
 
 Tagged object patterns accept any object-like type expression.
+
+Exhaustiveness is enforced for finite, statically known sets (enums, literal unions, and discriminated unions with required literal discriminants).
+When the compiler cannot prove exhaustiveness, a `_` fallback arm is required.
+Irrefutable patterns (like `_`, bindings, or tagged nominal patterns on their exact type) are treated as exhaustive.
 
 `match` is an expression and does not allow `break`.
 The match expression type is the union of its case body types.
@@ -715,10 +719,11 @@ Extension methods participate in member resolution, too.
 
 ## Ownership
 
+<!-- FUGU: Ownership surface syntax is a bit ugly and doesn't fit TS well -->
 TypeScript does not encode ownership in its type system.
-Reference types are implicitly GC managed, and value types are copied by default.
-Destack adds opt in explicit "ownership" which determines who can use and drop a value (i.e., its "managedness").
-Note that ownership is orthogonal to identity semantics, which are determined by the base type (structs are value types, classes are reference types).
+Reference types are implicitly GC managed, and value types are copied by default, and that's it.
+In effect, the runtime implicitly owns and manages the lifetime of all values.
+Destack adds an opt-in explicit "ownership" mechanism which determines who can use and drop a value (i.e., its "managedness").
 
 ### Ownership Modifiers
 
@@ -731,23 +736,21 @@ T            // type default (value or managed reference)
 ^mut T       // owned reference (explicitly mutable)
 ```
 
-Raw pointers are separate from ownership modifiers:
+Raw pointers "opt out" of ownership modifiers:
 ```
 *T           // raw pointer (unsafe)
 *mut T       // raw pointer (mutable, unsafe)
 ```
+
 **Borrow semantics:**
 - `&T` and `&mut T` are safe borrows verified by the borrow check pass.
 - Assigning through `&T` is invalid, mutation requires `&mut T`.
-- Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
 - `&expr` takes the address of an addressable place.
-- When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
 - A borrow ends when the reference value is no longer live.
 - Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
 - Derived borrows carry provenance so dropping any origin invalidates the derived borrows.
 - Dropping or freeing a value while it is borrowed is always an error.
-- In strict mode, conflicting borrows and invalidating stores are errors.
-- In lenient mode, the same situations produce warnings.
+- Conflicting borrows and invalidating stores are errors (or warnings in lenient mode).
 
 **Raw pointers:**
 - `*T` and `*mut T` are unsafe pointers with no borrow tracking.

@@ -1,10 +1,12 @@
 # If Let Patterns
 
-## Tuple Patterns
+If let patterns should support tuple, fixed array, ownership, and union forms.
 
-### if let tuple patterns bind positional values
+## Tuple patterns
 
-> Tuple patterns bind positional values in the then branch.
+### if let tuple patterns bind tuple elements
+
+> Tuple patterns in if let bind tuple element types.
 
 ```ds
 declare const pair: (int32, int32);
@@ -15,114 +17,131 @@ if let (left, right) = pair {
 }
 ```
 
-### if let tuple patterns allow ignored bindings
+## Fixed arrays
 
-> Tuple patterns allow ignored bindings with `_`.
+### if let array patterns bind fixed array elements
+
+> Fixed array patterns in if let bind element types.
 
 ```ds
-declare const pair: (int32, int32);
+declare const pair: int32[2];
 
-if let (left, _) = pair {
+if let [left, right] = pair {
     left satisfies int32;
+    right satisfies int32;
 }
 ```
 
-### if let single field tuple patterns bind the first element type
+## Rest patterns
 
-> Single field tuple patterns should bind the first tuple element type.
+### if let rest tuple patterns bind remaining elements
+
+> Rest tuple patterns bind the remaining elements as a tuple.
 
 ```ds
-declare const pair: (int32, string);
+declare const values: (int32, int32, int32);
 
-if let (only) = pair {
-    only satisfies int32;
+if let (first, ...rest) = values {
+    first satisfies int32;
+    rest satisfies (int32, int32);
 }
 ```
 
-## Object Patterns
+### if let rest array patterns bind remaining elements
 
-### if let object patterns bind named fields
-
-> Object patterns bind named fields in the then branch.
+> Rest array patterns bind the remaining elements as an array.
 
 ```ds
-type Point = { x: int32, y: int32 };
-declare const point: Point;
+declare const values: int32[3];
 
-if let { x, y } = point {
+if let [first, ...rest] = values {
+    first satisfies int32;
+    rest satisfies int32[];
+}
+```
+
+### if let rest object patterns bind remaining properties
+
+> Rest object patterns bind the remaining properties.
+
+```ds
+type Config = { enabled: boolean, retries: int32 };
+
+declare const config: Config;
+
+if let { enabled, ...rest } = config {
+    enabled satisfies boolean;
+    rest satisfies { retries: int32 };
+}
+```
+
+## Range patterns
+
+### if let range patterns narrow numeric values
+
+> Range patterns narrow to the covered range.
+
+```ds
+declare const value: 1 | 2 | 3 | 4;
+
+if let 1..3 = value {
+    value satisfies 1 | 2;
+} else {
+    value satisfies 3 | 4;
+}
+```
+
+## Must patterns
+
+### if let must patterns unwrap non nullish values
+
+> Must patterns unwrap non nullish values in the then branch.
+
+```ds
+declare const value: int32 | null;
+
+if let x! = value {
     x satisfies int32;
-    y satisfies int32;
+} else {
+    value satisfies null | undefined;
 }
 ```
 
-### if let object patterns bind aliases to field types
+## Ownership patterns
 
-> Object pattern aliases use the field type of the matched value.
+### if let value patterns bind owned values
+
+> Value patterns in if let bind owned values without unwrapping.
 
 ```ds
-type Point = { x: int32, y: int32 };
-declare const point: Point;
+declare const value: ^int32;
 
-if let { x: left, y } = point {
-    left satisfies int32;
-    y satisfies int32;
+if let ^x = value {
+    x satisfies ^int32;
 }
 ```
 
-## Tagged Object Patterns
+### if let reference patterns bind references
 
-### if let tagged object patterns bind tagged fields
-
-> Tagged object patterns bind field values in the then branch.
+> Reference patterns in if let bind references without unwrapping.
 
 ```ds
-struct Point { x: int32, y: int32 }
-declare const point: Point;
+declare const value: &int32;
 
-if let Point { x, y } = point {
-    x satisfies int32;
-    y satisfies int32;
+if let &x = value {
+    x satisfies &int32;
 }
 ```
 
-### if let object patterns reject structs
+## Newtype patterns
 
-> Untagged object patterns do not match nominal structs.
+### if let scalar newtype patterns bind inner values
 
-```ds
-struct Point { x: int32, y: int32 }
-declare const point: Point;
-
-if let { x, y } = point {
-    x satisfies int32;
-    y satisfies int32;
-}
-```
-
-- contains: not assignable
-
-### if let tagged object patterns accept type aliases
-
-> Tagged object patterns allow type aliases as tags.
-
-```ds
-type Point = { x: int32, y: int32 };
-declare const point: Point;
-
-if let Point { x, y } = point {
-    x satisfies int32;
-    y satisfies int32;
-}
-```
-
-## Newtype Patterns
-
-### if let newtype patterns bind inner values
-
-> Newtype patterns bind the underlying value in the then branch.
+> Scalar newtype patterns bind the underlying value.
 
 ```ds
 newtype UserId = int64;
+
 declare const id: UserId;
 
 if let UserId(value) = id {
@@ -130,26 +149,28 @@ if let UserId(value) = id {
 }
 ```
 
-### if let scalar newtype patterns reject multi field sequence patterns
+### if let tuple newtype patterns bind positional values
 
-> Scalar newtypes should not accept multi field sequence patterns.
+> Tuple newtype patterns bind the underlying tuple values.
 
 ```ds
-newtype UserId = int64;
-declare const id: UserId;
+newtype Point = (float32, float32);
 
-if let UserId(first, second) = id {
+declare const point: Point;
+
+if let Point(x, y) = point {
+    x satisfies float32;
+    y satisfies float32;
 }
 ```
 
-- contains: not assignable
+### if let object newtype patterns require tags
 
-### if let newtype object patterns require tags
-
-> Object newtypes require tagged patterns.
+> Object newtypes require tagged object patterns.
 
 ```ds
 newtype Config = { debug: boolean };
+
 declare const config: Config;
 
 if let Config { debug } = config {
@@ -157,54 +178,87 @@ if let Config { debug } = config {
 }
 ```
 
-### if let newtype object patterns reject untagged objects
+### if let object newtype patterns reject untagged objects
 
 > Untagged object patterns do not match object newtypes.
 
 ```ds
 newtype Config = { debug: boolean };
+
 declare const config: Config;
 
 if let { debug } = config {
-    debug satisfies boolean;
+    debug
 }
 ```
 
 - contains: not assignable
 
-## Binding Patterns
+## Struct patterns
 
-### if let binding patterns introduce names
+### if let struct patterns require tags
 
-> Binding patterns introduce names in the then branch.
+> Struct patterns must use the type tag.
 
 ```ds
-declare const value: int32;
+struct Point {
+    x: int32
+    y: int32
+}
 
-if let bound = value {
-    bound satisfies int32;
+declare const point: Point;
+
+if let Point { x, y } = point {
+    x satisfies int32;
+    y satisfies int32;
 }
 ```
 
-## Wildcard Patterns
+### if let struct patterns reject bare object patterns
 
-### if let wildcard patterns accept any value
-
-> Wildcard patterns match any value without introducing a binding.
+> Bare object patterns do not match nominal structs.
 
 ```ds
-declare const value: int32;
+struct Point {
+    x: int32
+    y: int32
+}
 
-if let _ = value {
-    value satisfies int32;
+declare const point: Point;
+
+if let { x, y } = point {
+    x
 }
 ```
 
-## Union Patterns
+- contains: not assignable
 
-### if let union patterns narrow in both branches
+## Enum patterns
 
-> Union patterns narrow the matched value in then and else branches.
+### if let enum patterns narrow to variants
+
+> Enum patterns in if let narrow to the matched variant.
+
+```ds
+enum State {
+    Ready
+    Failed
+}
+
+declare const state: State;
+
+if let State.Ready = state {
+    state satisfies State.Ready;
+} else {
+    state satisfies State.Failed;
+}
+```
+
+## Union patterns
+
+### if let union patterns narrow to covered literals
+
+> Union patterns narrow to the covered literals in the then branch.
 
 ```ds
 declare const value: 1 | 2 | 3;

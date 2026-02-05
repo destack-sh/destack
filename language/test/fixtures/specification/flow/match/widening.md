@@ -20,9 +20,10 @@ match (pair) {
 }
 ```
 
-### match patterns widen array elements without const assertions
+### match patterns widen array element types without const context
 
 > Array element bindings should widen without a const context.
+> A fallback arm is required because non fixed arrays are not exhaustively covered by a single pattern.
 
 ```ds
 const pair = [1, 2];
@@ -31,6 +32,22 @@ match (pair) {
     [first, second] => {
         first satisfies number;
         second satisfies number;
+    }
+    _ => {}
+}
+```
+
+### match patterns are exhaustive for fixed arrays
+
+> Fixed-size arrays can be exhaustively matched without a fallback arm.
+
+```ds
+declare const pair: int32[2];
+
+match (pair) {
+    [first, second] => {
+        first satisfies int32;
+        second satisfies int32;
     }
 }
 ```
@@ -48,9 +65,21 @@ let value = match (1) {
 value satisfies number;
 ```
 
-### match expression results do not keep single literals in let bindings
+### match expression results widen without fallback for literal scrutinees
 
-> Let bindings should not retain single literal results from match expressions.
+> Exhaustive literal matches still widen at let bindings.
+
+```ds
+let value = match (1) {
+    1 => 1
+};
+
+value satisfies number;
+```
+
+### match expression results widen fresh literals in let bindings
+
+> Let bindings should widen fresh literal results to their primitive types.
 
 ```ds
 let value = match (1) {
