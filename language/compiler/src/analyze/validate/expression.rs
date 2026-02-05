@@ -782,6 +782,17 @@ impl Compiler {
                         .into_anchored(Some(profile)),
                 });
             }
+
+            // validate accessor signatures on object literals
+            if let Property::Method { signature, .. } = property {
+                self.validate_accessor_signature(
+                    module,
+                    profile,
+                    tree,
+                    (*property_id).into_any(),
+                    signature,
+                );
+            }
         }
     }
 

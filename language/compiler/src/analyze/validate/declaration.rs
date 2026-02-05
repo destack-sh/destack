@@ -10,6 +10,28 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+const RESERVED_TYPE_NAMES: [&str; 19] = [
+    "undefined",
+    "unknown",
+    "object",
+    "null",
+    "any",
+    "never",
+    "boolean",
+    "void",
+    "character",
+    "string",
+    "bigint",
+    "number",
+    "int",
+    "isize",
+    "uint",
+    "usize",
+    "float",
+    "symbol",
+    "unique",
+];
+
 /// The kind of declare namespace context for a node.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum DeclareNamespaceContext {
@@ -152,6 +174,27 @@ impl Compiler {
                 // resolve the class node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
 
+                // reject typescript only class syntax in javascript modules
+                if module.language_type.is_javascript() {
+                    let has_abstract =
+                        declaration.descriptor().abstraction == DeclarationAbstraction::Abstract;
+                    let has_implements = heritage.implements_types.is_some();
+                    if has_abstract || has_implements {
+                        self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+                    }
+                }
+
+                // reject intrinsic type names as class identifiers in typescript and destack
+                if (module.language_type.is_typescript() || module.language_type.is_destack())
+                    && let Some(name) = declaration.descriptor().name
+                    && self.is_reserved_type_name(name)
+                {
+                    self.error(AnalyzeError::ReservedIdentifier {
+                        node,
+                        name: name.string(),
+                    });
+                }
+
                 // classes can only extend one class
                 let has_multiple_extends =
                     heritage.extends_types.as_ref().is_some_and(|e| e.len() > 1);
@@ -191,6 +234,12 @@ impl Compiler {
 
             _ => {}
         }
+    }
+
+    /// Check whether a name is reserved as an intrinsic type identifier.
+    fn is_reserved_type_name(&self, name: Name) -> bool {
+        let name_str = self.program.strings.get(name.string());
+        RESERVED_TYPE_NAMES.contains(&name_str.as_ref())
     }
 
     /// Validate an import alias target.

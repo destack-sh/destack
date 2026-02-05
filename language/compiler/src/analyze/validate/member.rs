@@ -1,8 +1,9 @@
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
-    AbstractionModifier, BindingAnchor, BindingKind, Declaration, DeclarationAbstraction,
-    DeclarationKind, DynamicKey, Expression, FunctionAbstraction, FunctionMode, LocalNodeId,
-    Member, Mutability, NodeTree, NodeType, Parameter, TypeLiteral,
+    AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration,
+    DeclarationAbstraction, DeclarationKind, DynamicKey, FunctionAbstraction, FunctionMode,
+    FunctionSignature, LocalNodeId, LocalNodeIdAny, Member, Mutability, NodeTree, NodeType,
+    Parameter,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -44,6 +45,7 @@ impl Compiler {
             // method validation
             Member::Method {
                 modifiers,
+                key,
                 signature,
                 body,
                 ..
@@ -64,6 +66,11 @@ impl Compiler {
                     abstraction,
                     FunctionAbstraction::AbstractOverride | FunctionAbstraction::ConcreteOverride
                 );
+                let is_accessor = matches!(
+                    signature.mode,
+                    Some(FunctionMode::Getter | FunctionMode::Setter)
+                );
+                let is_private_key = matches!(key, Some(DynamicKey::Private(_)));
 
                 // reject typescript-only method syntax in javascript modules
                 if is_javascript {
@@ -104,6 +111,12 @@ impl Compiler {
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
+                // constructor cannot declare a this parameter
+                if is_constructor && signature.this_parameter.is_some() {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidConstructor { node });
+                }
+
                 // abstract methods cannot have bodies
                 if is_abstract && body.is_some() {
                     let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -130,6 +143,17 @@ impl Compiler {
                     self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
+                // validate accessor signature rules
+                if is_accessor {
+                    self.validate_accessor_signature(
+                        module,
+                        profile,
+                        tree,
+                        id.into_any(),
+                        signature,
+                    );
+                }
+
                 // class method constraints
                 if is_class {
                     // collect class modifier flags
@@ -140,10 +164,6 @@ impl Compiler {
                         || is_declare_namespace;
                     let is_declare_member =
                         modifiers.is_some_and(|modifiers| modifiers.declaration.is_some());
-                    let is_accessor = matches!(
-                        signature.mode,
-                        Some(FunctionMode::Getter | FunctionMode::Setter)
-                    );
 
                     // static abstract methods are invalid
                     if is_static && is_abstract {
@@ -151,8 +171,31 @@ impl Compiler {
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
+                    // abstract async methods are invalid
+                    if is_abstract && signature.asynchrony == Asynchrony::Async {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // abstract private methods are invalid
+                    if is_abstract && is_private_key {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
                     // declare members cannot have bodies
                     if (is_declare_class || is_declare_member) && body.is_some() {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
+                    // accessors must have bodies unless abstract or declare
+                    if is_accessor
+                        && body.is_none()
+                        && !is_abstract
+                        && !is_declare_class
+                        && !is_declare_member
+                    {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
@@ -424,7 +467,7 @@ impl Compiler {
         tree: &NodeTree,
         id: LocalNodeId<Member>,
         modifiers: Option<&destack_dir::BindingModifier>,
-        signature: &destack_dir::FunctionSignature,
+        signature: &FunctionSignature,
     ) {
         // reject invalid interface modifiers
         let invalid_modifiers = modifiers.is_some_and(|modifiers| {
@@ -442,69 +485,69 @@ impl Compiler {
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
 
-        // check accessor constraints
-        let is_getter = signature.mode == Some(FunctionMode::Getter);
-        let is_setter = signature.mode == Some(FunctionMode::Setter);
-        if is_getter || is_setter {
-            // accessors cannot be generic or declare a this parameter
-            if signature.generics.is_some() || signature.this_parameter.is_some() {
-                let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                self.error(AnalyzeError::InvalidMemberModifier { node });
-            }
-
-            // handle getter constraints
-            if is_getter {
-                // getters cannot take parameters
-                if !signature.dynamic_parameters.is_empty() {
-                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                    self.error(AnalyzeError::InvalidMemberModifier { node });
-                }
-            }
-            // handle setter constraints
-            else {
-                // setters require exactly one non optional parameter
-                let mut invalid_setter = signature.dynamic_parameters.len() != 1;
-                if let Some(param_id) = signature.dynamic_parameters.first() {
-                    let param = tree.get(*param_id);
-                    invalid_setter = invalid_setter
-                        || matches!(
-                            param,
-                            Parameter::Pattern { .. } | Parameter::Variadic { .. }
-                        )
-                        || param.has_default()
-                        || param
-                            .modifiers()
-                            .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
-                }
-                if invalid_setter {
-                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                    self.error(AnalyzeError::InvalidMemberModifier { node });
-                }
-
-                // setter return type must be void
-                if let Some(return_type) = signature.return_type
-                    && !Self::is_void_type_expression(tree, return_type)
-                {
-                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
-                    self.error(AnalyzeError::InvalidMemberModifier { node });
-                }
-            }
-        }
+        // validate accessor constraints
+        self.validate_accessor_signature(module, profile, tree, id.into_any(), signature);
 
         // reject async signatures in interfaces
-        if signature.asynchrony == destack_dir::Asynchrony::Async {
+        if signature.asynchrony == Asynchrony::Async {
             let node = id.into_global_any(module.id).into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidMemberModifier { node });
         }
     }
 
-    /// Check whether a type expression is the void type.
-    fn is_void_type_expression(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
-        matches!(
-            tree.get(expression_id),
-            Expression::TypeLiteral {
-                value: TypeLiteral::Void,
+    /// Validate getter and setter signatures.
+    pub(super) fn validate_accessor_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        node_id: LocalNodeIdAny,
+        signature: &FunctionSignature,
+    ) {
+        // detect accessor signatures
+        let is_getter = signature.mode == Some(FunctionMode::Getter);
+        let is_setter = signature.mode == Some(FunctionMode::Setter);
+        if !is_getter && !is_setter {
+            return;
+        }
+
+        // accessors cannot be generic or declare a this parameter
+        if signature.generics.is_some() || signature.this_parameter.is_some() {
+            let node = node_id.into_anchored(module.id, Some(profile));
+            self.error(AnalyzeError::InvalidMemberModifier { node });
+        }
+
+        // getters cannot take parameters
+        if is_getter && !signature.dynamic_parameters.is_empty() {
+            let node = node_id.into_anchored(module.id, Some(profile));
+            self.error(AnalyzeError::InvalidMemberModifier { node });
+        }
+
+        // setters require exactly one non optional parameter
+        if is_setter {
+            let mut invalid_setter = signature.dynamic_parameters.len() != 1;
+            if let Some(param_id) = signature.dynamic_parameters.first() {
+                let param = tree.get(*param_id);
+                invalid_setter = invalid_setter
+                    || matches!(
+                        param,
+                        Parameter::Pattern { .. } | Parameter::Variadic { .. }
+                    )
+                    || param.has_default()
+                    || param
+                        .modifiers()
+                        .is_some_and(|modifiers| modifiers.kind == Some(BindingKind::Maybe));
             }
-        )
+            if invalid_setter {
+                let node = node_id.into_anchored(module.id, Some(profile));
+                self.error(AnalyzeError::InvalidMemberModifier { node });
+            }
+
+            // setters cannot declare return types
+            if signature.return_type.is_some() {
+                let node = node_id.into_anchored(module.id, Some(profile));
+                self.error(AnalyzeError::InvalidMemberModifier { node });
+            }
+        }
     }
 }
