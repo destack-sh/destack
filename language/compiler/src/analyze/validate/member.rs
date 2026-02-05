@@ -179,7 +179,7 @@ impl Compiler {
                 });
 
                 // variance modifiers are not valid on members
-                if !modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
+                if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
                     let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
                 }

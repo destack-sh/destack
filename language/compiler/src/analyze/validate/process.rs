@@ -170,6 +170,9 @@ impl Compiler {
                     );
                 }
 
+                // validate module level export constraints
+                self.validate_module_exports(&module, profile, &tree, &dir.roots);
+
                 // validate annotations
                 for (id, annotation) in tree.iter_nodes_of_type::<Annotation>() {
                     if let Some(parent) = tree.get_parent(id.id)

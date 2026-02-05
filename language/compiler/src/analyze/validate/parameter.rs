@@ -8,11 +8,7 @@ use destack_workspace::{Module, ProfileId};
 #[allow(clippy::collapsible_match)]
 impl Compiler {
     /// Return true when variance is allowed for this parameter.
-    fn is_parameter_variable(
-        &self,
-        tree: &NodeTree,
-        parameter_id: LocalNodeId<Parameter>,
-    ) -> bool {
+    fn is_parameter_variable(&self, tree: &NodeTree, parameter_id: LocalNodeId<Parameter>) -> bool {
         let Some(parent) = tree.get_parent(parameter_id.id) else {
             return false;
         };
