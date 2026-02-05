@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_ast::{DependencyKind, DependencyMode, Expression, TokenType};
+use destack_ast::{DependencyKind, DependencyMode, Expression, NodeTree, ScalarLiteral, TokenType};
 use destack_base::StringId;
 use destack_source::{Edit, FileId, PathExt, Span};
 
@@ -151,12 +151,19 @@ pub(crate) fn split_alias_prefix(specifier: &str) -> Option<(&str, &str)> {
 
 /// Resolve a module specifier and dependency kind for an AST expression.
 pub fn module_specifier_in_expression(
+    tree: &NodeTree,
     expression: &Expression,
 ) -> Option<(StringId, DependencyKind)> {
     match expression {
         Expression::Import { target, kind, .. } => Some((*target, *kind)),
         Expression::Export { target, kind, .. } => target.map(|target| (target, *kind)),
-        Expression::TypeImport { target, .. } => Some((*target, DependencyKind::Type)),
+        Expression::TypeImport { target, .. } => {
+            if let Expression::ScalarLiteral(ScalarLiteral::String(target)) = tree.get(*target) {
+                Some((*target, DependencyKind::Type))
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

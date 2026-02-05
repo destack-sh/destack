@@ -35,7 +35,6 @@ impl Parser {
                 | TokenType::Hash
                 | TokenType::OpenBracket
                 | TokenType::OpenBrace
-                | TokenType::OpenParenthesis
                 | TokenType::Spread
                 | TokenType::Multiply
         ) {
@@ -621,7 +620,7 @@ impl Parser {
             options = options.in_type();
         }
         let parameters = self.with_options(options, |parser| parser.eat_parameters_body())?;
-        self.eat_token(TokenType::GreaterThan)?;
+        self.eat_type_angle_close()?;
         Ok(parameters)
     }
 
@@ -930,6 +929,7 @@ impl Parser {
                     .not_in_left_precedence(),
                 |parser| parser.eat_expression(),
             )?;
+
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBrace)?;
             let argument_id = self.tree.insert(

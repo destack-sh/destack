@@ -6319,6 +6319,11 @@ pub(crate) fn format_expression<'ast>(
             write!(f, [Keyword::This])?;
         }
 
+        // super
+        Expression::Super => {
+            write!(f, [Keyword::Super])?;
+        }
+
         // scalar literal
         Expression::ScalarLiteral(node) => {
             format_scalar_literal(node, tree.get_span(node_id), f)?;
@@ -6345,26 +6350,12 @@ pub(crate) fn format_expression<'ast>(
 
         // type import
         Expression::TypeImport {
-            target,
+            target: _,
             arguments,
             qualifier,
             static_arguments,
         } => {
-            if arguments.is_empty() {
-                write!(
-                    f,
-                    [
-                        Keyword::Import,
-                        token("("),
-                        token("\""),
-                        target,
-                        token("\""),
-                        token(")")
-                    ]
-                )?;
-            } else {
-                write!(f, [Keyword::Import, list_like("(", ")", ",", arguments)])?;
-            }
+            write!(f, [Keyword::Import, list_like("(", ")", ",", arguments)])?;
             if let Some(qualifier) = qualifier {
                 write!(f, [token("."), qualifier])?;
             }

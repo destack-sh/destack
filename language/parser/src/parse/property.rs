@@ -1082,9 +1082,9 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        AbstractionModifier, Asynchrony, BindingKind, Declaration, Expression, FunctionAbstraction,
-        FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter, Property, ScalarLiteral,
-        TypeLiteral, Visibility,
+        AbstractionModifier, Asynchrony, BindingAnchor, BindingKind, Declaration, Expression,
+        FunctionAbstraction, FunctionKind, FunctionMode, IntType, Key, Member, Name, Parameter,
+        Property, ScalarLiteral, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1159,6 +1159,42 @@ mod tests {
             assert_string!(parser, *name, "foo");
             assert_eq!(signature.abstraction, FunctionAbstraction::ConcreteOverride);
             assert_eq!(signature.asynchrony, Asynchrony::Async);
+        });
+    }
+
+    #[test]
+    fn test_parse_member_method_named_public_in_javascript() {
+        let mut test = TestParser::new_with_options("public() {}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { modifiers, key: Some(Key::Name(Name::Identifier(name))), .. } => {
+            assert!(modifiers.is_none());
+            assert_string!(parser, *name, "public");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_static_method_named_protected_in_javascript() {
+        let mut test =
+            TestParser::new_with_options("static protected() {}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), .. } => {
+            assert_eq!(modifiers.anchor, Some(BindingAnchor::Static));
+            assert_string!(parser, *name, "protected");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_field_named_static_in_javascript() {
+        let mut test = TestParser::new_with_options("static", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Field { modifiers: None, key: Some(Key::Name(Name::Identifier(name))), value: None, default: None, .. } => {
+            assert_string!(parser, *name, "static");
         });
     }
 

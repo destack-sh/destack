@@ -1277,6 +1277,43 @@ impl Parser {
         self.pos += 1;
     }
 
+    /// Eat a single `>` token in generic close contexts.
+    ///
+    /// This handles glued operator tails like `>=`, `>>=`, and `>>>=`
+    /// by consuming one `>` and leaving the remainder as a pending split token.
+    pub fn eat_type_angle_close(&mut self) -> ParseResult<()> {
+        if self.peek_is(TokenType::GreaterThan) {
+            self.bump();
+            return Ok(());
+        }
+
+        let token = *self.peek()?;
+        let split_type = match token.token.ty {
+            TokenType::GreaterThanOrEqual => TokenType::Assign,
+            TokenType::ShiftRightAssign => TokenType::GreaterThanOrEqual,
+            TokenType::UnsignedShiftRightAssign => TokenType::ShiftRightAssign,
+            _ => return Err(ParseError::unexpected(token.span)),
+        };
+
+        let split_span = Span {
+            file: token.span.file,
+            start: token.span.start + 1,
+            end: token.span.end,
+        };
+
+        self.split_token = Some(TokenSpan {
+            token: Token {
+                ty: split_type,
+                len: token.token.len.saturating_sub(1),
+                literal: None,
+            },
+            span: split_span,
+        });
+        self.split_token_consumed = false;
+        self.pos += 1;
+        Ok(())
+    }
+
     /// Check if there's an active (unconsumed) split token of the given type.
     #[inline]
     pub fn has_split_token(&self, token_type: TokenType) -> bool {

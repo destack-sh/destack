@@ -22,8 +22,6 @@ typescript/cast/type-assertion-before-operator
 typescript/cast/for-of-lhs
 typescript/type-arguments-bit-shift-left-like/after-bit-shift
 
-# typescript syntax in javascript or jsx is out of scope
-
 # the "with" object shape in imports is a typing concern, not a separate error
 # (in theory we could also validate this in the tests but seems annoying, we have separate tests)
 typescript/types/invalid-import-type-dynamic-with-jsx-options
@@ -47,5 +45,3 @@ jsx/errors/attribute-sequence-expression
 
 # babel rejects arrow functions in ternary branches without parentheses
 typescript/arrow-function/arrow-like-in-conditional-2
-
-# flow style type parameters in jsx js files are unsupported

@@ -3,9 +3,9 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, Declaration, DeclarationDescriptor, Expression, FloatType, IntType, IntrinsicType,
-    Keyword, LocalNodeId, Mutability, Name, ScalarLiteral, StringId, TokenType, TypeBinaryOperator,
-    TypeKind, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    Keyword, LocalNodeId, Mutability, Name, StringId, TokenType, TypeBinaryOperator, TypeKind,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypePredicateSubject,
+    TypeUnaryOperator, UnaryOperator, VarianceBound,
 };
 use destack_source::NodeSpanType;
 
@@ -314,12 +314,31 @@ impl Parser {
                 (None, None)
             };
             descriptor.name = name;
+            let static_parameter_open = if self.peek_is(TokenType::LessThan) {
+                Some(self.pos())
+            } else {
+                None
+            };
 
             // static parameters (speculative: may fail for type expressions like Foo<T[number]>)
             let static_parameters = match self.eat_static_parameters_maybe() {
                 Ok(params) => params,
-                Err(_) => {
-                    // failed to parse as parameters, restore and fall through to expression
+                Err(error) => {
+                    // keep hard failures for incomplete type parameter lists
+                    let has_matching_type_parameter_close =
+                        static_parameter_open.is_some_and(|open_pos| {
+                            self.find_matching_close(
+                                Some(open_pos),
+                                TokenType::LessThan,
+                                TokenType::GreaterThan,
+                            )
+                            .is_ok()
+                        });
+                    if !has_matching_type_parameter_close {
+                        return Err(error);
+                    }
+
+                    // otherwise restore and fall through to type expressions
                     self.restore(speculative_start.0.clone(), speculative_start.1);
                     None
                 }
@@ -679,14 +698,7 @@ impl Parser {
                     TokenType::Literal,
                 ));
             };
-            let value_expression = self.tree.get(*value);
-            let Expression::ScalarLiteral(ScalarLiteral::String(target)) = value_expression else {
-                return Err(ParseError::expected(
-                    self.tree.get_span(*value),
-                    TokenType::Literal,
-                ));
-            };
-            (*target, self.tree.get_span(*value))
+            (*value, self.tree.get_span(*value))
         };
 
         // qualifier (e.g., import("mod").Type)
@@ -990,6 +1002,7 @@ impl Parser {
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         // super type list
         let mut types: Vec<LocalNodeId<Expression>> = Vec::new();
+        let mut expect_type = true;
 
         // collect super types until a terminator is seen
         while self.has_more_tokens() {
@@ -1000,6 +1013,10 @@ impl Parser {
                     .iter()
                     .any(|terminator| self.peek_keyword(*terminator).is_ok())
             {
+                // reject trailing commas in heritage clauses
+                if expect_type && !types.is_empty() {
+                    return Err(ParseError::unexpected(self.peek()?.span));
+                }
                 break;
             }
             // stop on newline if the next non-newline token is a terminator
@@ -1012,6 +1029,10 @@ impl Parser {
                         .iter()
                         .any(|terminator| self.peek_keyword(*terminator).is_ok());
                 if is_terminator {
+                    // reject trailing commas in heritage clauses
+                    if expect_type && !types.is_empty() {
+                        return Err(ParseError::unexpected(self.peek()?.span));
+                    }
                     self.rewind(mark);
                     break;
                 } else {
@@ -1021,6 +1042,7 @@ impl Parser {
             // consume any stop
             else if self.is_item_stop() {
                 self.eat_item_stop_with_newlines()?;
+                expect_type = true;
             }
             // keep eating super types
             else {
@@ -1036,6 +1058,7 @@ impl Parser {
 
                 // record the parsed type
                 types.push(ty);
+                expect_type = false;
             }
         }
 
@@ -1136,6 +1159,26 @@ mod tests {
                 assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Int(IntType::Pointer { is_signed: true })));
                 assert!(static_parameters.is_some());
                 assert_eq!(static_parameters.as_ref().unwrap().len(), 2);
+            });
+        });
+    }
+
+    /// Parse a type alias when `>` and `=` are adjacent.
+    #[test]
+    fn test_parse_type_alias_with_static_parameters_without_spacing() {
+        let mut test = TestParser::new_with_options("type T<U>=U;", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T<U>=U
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor, value, static_parameters, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "T");
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments: None } => {
+                    assert_path!(parser, *path, "U");
+                });
+                assert!(static_parameters.is_some());
+                assert_eq!(static_parameters.as_ref().unwrap().len(), 1);
             });
         });
     }
@@ -1836,9 +1879,12 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
-                    assert_string!(parser, *target, "mod");
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "mod");
+                    });
                     assert_eq!(arguments.len(), 1);
                     assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_eq!(*target, *value);
                         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                             assert_string!(parser, *string_id, "mod");
                         });
@@ -1860,9 +1906,12 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, qualifier, static_arguments } => {
-                    assert_string!(parser, *target, "mod");
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "mod");
+                    });
                     assert_eq!(arguments.len(), 1);
                     assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_eq!(*target, *value);
                         assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
                             assert_string!(parser, *string_id, "mod");
                         });
@@ -1893,10 +1942,33 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
-                    assert_string!(parser, *target, "vite");
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "vite");
+                    });
                     assert_eq!(arguments.len(), 2);
                     assert_node!(parser.tree, arguments[1], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::ObjectExpression { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse type import expressions with non-string first arguments.
+    #[test]
+    fn test_parse_type_import_expression_with_non_string_target() {
+        let mut test = TestParser::new("type T = import(1)");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], Argument::Positional { modifiers: _, value } => {
+                        assert_eq!(*target, *value);
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
                     });
                 });
             });
@@ -1913,7 +1985,9 @@ mod tests {
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
-                    assert_string!(parser, *target, "vite");
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "vite");
+                    });
                     assert_eq!(arguments.len(), 1);
                 });
             });
@@ -2763,7 +2837,9 @@ mod tests {
             assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
                 let import_id = *value;
                 assert_node!(parser.tree, *value, Expression::TypeImport { target, arguments, .. } => {
-                    assert_string!(parser, *target, "foo");
+                    assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                        assert_string!(parser, *string_id, "foo");
+                    });
                     assert_eq!(arguments.len(), 1);
                 });
 

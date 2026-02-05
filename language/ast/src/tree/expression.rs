@@ -395,6 +395,9 @@ pub enum Expression {
     /// This reference (value or type context).
     This,
 
+    /// Super reference (value context).
+    Super,
+
     /// Literal scalar value.
     ///
     /// Examples:
@@ -652,7 +655,7 @@ pub enum Expression {
     /// import("mod").Type<T>
     /// ```
     TypeImport {
-        target: StringId,
+        target: LocalNodeId<Expression>,
         arguments: Vec<LocalNodeId<Argument>>,
         qualifier: Option<Path>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,

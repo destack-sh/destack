@@ -957,6 +957,21 @@ impl Compiler {
             ));
         }
 
+        // resolve super intrinsic
+        if first_segment_str.as_str() == "super" {
+            let root_expr = Expression::Super;
+            if path.segments.len() == 1 {
+                return Ok(root_expr);
+            }
+            return Ok(self.build_member_chain(
+                expression_id,
+                root_expr,
+                &path.slice(1..),
+                static_arguments,
+                tree,
+            ));
+        }
+
         // try to resolve root symbol locally
         let cache_key = ResolveAbsoluteSymbolCacheKey::new(
             module.id,

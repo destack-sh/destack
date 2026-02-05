@@ -120,7 +120,7 @@ pub enum Expression {
     },
     /// Type import expression.
     TypeImport {
-        target: StringId,
+        target: LocalNodeId<Expression>,
         arguments: Vec<LocalNodeId<Argument>>,
         qualifier: Option<Path>,
         static_arguments: Option<Vec<LocalNodeId<Argument>>>,
@@ -275,6 +275,8 @@ pub enum Expression {
     ImportMeta,
     /// This intrinsic value.
     This,
+    /// Super intrinsic value.
+    Super,
 
     /// Scalar literal value.
     ScalarLiteral { value: ScalarLiteral },
@@ -509,6 +511,7 @@ impl Expression {
             Expression::PrivateIdentifier { .. } => "private identifier",
             Expression::ImportMeta => "import meta",
             Expression::This => "this",
+            Expression::Super => "super",
 
             Expression::Type { .. } => "type",
             Expression::ScalarLiteral { .. } => "scalar literal",

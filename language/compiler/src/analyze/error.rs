@@ -440,6 +440,38 @@ pub enum AnalyzeError {
     )]
     InvalidOptionalChainTemplate { node: AnchoredGlobalNodeId },
 
+    /// Duplicate labels are not allowed in nested label scopes.
+    #[error(code = "EA243", message = "duplicate statement label")]
+    DuplicateLabel { node: AnchoredGlobalNodeId },
+
+    /// Super calls are only valid in constructors of derived classes.
+    #[error(
+        code = "EA244",
+        message = "super calls are only valid in constructors of derived classes"
+    )]
+    InvalidSuperCall { node: AnchoredGlobalNodeId },
+
+    /// Optional chaining cannot be applied to super.
+    #[error(
+        code = "EA245",
+        message = "optional chaining cannot be applied to super"
+    )]
+    InvalidSuperOptionalChain { node: AnchoredGlobalNodeId },
+
+    /// Catch type annotations are restricted to `any` and `unknown`.
+    #[error(
+        code = "EA246",
+        message = "catch type annotations must be 'any' or 'unknown'"
+    )]
+    InvalidCatchAnnotationType { node: AnchoredGlobalNodeId },
+
+    /// Type import targets must be string literals.
+    #[error(
+        code = "EA247",
+        message = "type import target must be a string literal"
+    )]
+    InvalidTypeImportTarget { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
@@ -616,6 +648,13 @@ pub enum AnalyzeError {
     /// Try unwrap requires a Try return type.
     #[error(code = "EA321", message = "try unwrap requires a Try return type")]
     MissingTryReturnType { node: AnchoredGlobalNodeId },
+
+    /// Invalid for of binding.
+    #[error(
+        code = "EA322",
+        message = "invalid for of binding: `async` is reserved in this context"
+    )]
+    InvalidForOfBinding { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 4xx: Pattern matching

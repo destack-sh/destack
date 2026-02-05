@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachBinding,
-    ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LoopKind, MatchKind, MatchSource, Mutability, NodeTree, NodeType, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type,
-    TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
+    Argument, DeclarationKind, Declarator, DependencyMode, DependencySource, Expression,
+    ForEachBinding, ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LoopKind, MatchKind, MatchSource, Mutability, NodeTree, NodeType, ScopeKind,
+    StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
+    Type, TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -726,8 +726,7 @@ impl Compiler {
                 qualifier,
                 static_arguments,
             } => {
-                let target = self.program.strings.intern_from(&ast.strings, *target);
-                let arguments = arguments
+                let arguments: Vec<LocalNodeId<Argument>> = arguments
                     .iter()
                     .map(|argument| {
                         self.bind_argument(
@@ -743,6 +742,36 @@ impl Compiler {
                         )
                     })
                     .collect();
+                let target = if let Some(first_argument_id) = arguments.first() {
+                    let first_argument = tree.get(*first_argument_id);
+                    if let Argument::Positional { value, .. } = first_argument {
+                        *value
+                    } else {
+                        self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *target,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        )
+                    }
+                } else {
+                    self.bind_expression(
+                        module,
+                        ast,
+                        scope,
+                        *target,
+                        Some(expression_id),
+                        tree,
+                        symbols,
+                        types,
+                        space_order,
+                    )
+                };
                 let qualifier = qualifier
                     .as_ref()
                     .map(|path| self.bind_path(module, ast, path));
@@ -2085,6 +2114,7 @@ impl Compiler {
             }
 
             ast::Expression::This => Expression::This,
+            ast::Expression::Super => Expression::Super,
             ast::Expression::Debugger => Expression::Debugger,
             ast::Expression::Stub => Expression::Stub,
             ast::Expression::Error => Expression::Error,

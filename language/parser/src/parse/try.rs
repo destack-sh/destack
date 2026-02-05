@@ -61,6 +61,7 @@ impl Parser {
                         self.options.not_in_position().in_before_block(),
                         |parser| parser.eat_pattern_parenthesized_maybe(),
                     )?;
+
                     let catch_expression = self.with_options(
                         self.options.not_in_position().in_statement_position(),
                         |parser| parser.eat_expression(),
@@ -211,6 +212,47 @@ try {
                         assert_expression_path!(parser, parser.tree.get(*left), "baz");
                     });
                 });
+            });
+        });
+    }
+
+    #[test]
+    fn test_try_expression_with_typed_catch_pattern() {
+        let mut test = TestParser::new_with_options(
+            r###"
+try {
+    foo()
+} catch (ex: Error) {
+    bar()
+}
+"###,
+            destack_source::LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        parser.eat_newline().unwrap();
+
+        let try_id = parser.eat_try().unwrap();
+        assert_node!(parser.tree, try_id, Expression::Try { catch_pattern: Some(catch_pattern), .. } => {
+            // catch binding
+            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: Some(annotation), .. } => {
+                assert_string!(parser, *name, "ex");
+
+                // catch annotation
+                match parser.tree.get(*annotation) {
+                    Pattern::Expression { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "Error");
+                    }
+                    Pattern::Binding {
+                        name,
+                        pattern: None,
+                        ..
+                    } => {
+                        assert_string!(parser, *name, "Error");
+                    }
+                    other => {
+                        panic!("expected catch type annotation pattern, got {other:?}");
+                    }
+                }
             });
         });
     }

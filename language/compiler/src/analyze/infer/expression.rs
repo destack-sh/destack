@@ -1395,16 +1395,14 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // this: reference to the current instance item
+            // this: reference to the current instance item context
             Expression::This => {
                 let this_symbol = self.resolve_this_symbol(module, expression_id, tree, symbols);
                 if let Some(this_symbol) = this_symbol
                     && let Some(ty_id) = types.get_value_type_id(this_symbol)
                 {
                     ty_id
-                } else if let Some(this_ty_id) =
-                    self.contextual_this_type(module, ctx, types)
-                {
+                } else if let Some(this_ty_id) = self.contextual_this_type(module, ctx, types) {
                     this_ty_id
                 } else {
                     // report implicit this in functions and scripts
@@ -1434,6 +1432,20 @@ impl Compiler {
                         };
                         types.insert_type_from(ty, expression_id)
                     }
+                }
+            }
+
+            // super: reference to the base nominal type when available
+            Expression::Super => {
+                if let Some(super_ty_id) =
+                    self.super_type_for_context(module, expression_id, tree, ctx, types)
+                {
+                    super_ty_id
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    types.insert_type_from(ty, expression_id)
                 }
             }
 
@@ -3253,6 +3265,7 @@ impl Compiler {
             | Expression::ModuleReference { .. }
             | Expression::GlobalReference { .. }
             | Expression::This => Addressability::Place,
+            Expression::Super => Addressability::Value,
             Expression::Member {
                 static_arguments, ..
             }
@@ -3394,6 +3407,79 @@ impl Compiler {
             Type::Function { this_parameter, .. } => *this_parameter,
             _ => None,
         }
+    }
+
+    /// Resolve the super reference type from the enclosing nominal context.
+    pub(crate) fn super_type_for_context(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        ctx: &InferContext,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // resolve the enclosing class declaration
+        let mut current = Some(expression_id.into_any());
+        while let Some(node_id) = current {
+            let Some(parent) = tree.get_parent(node_id.id) else {
+                break;
+            };
+
+            if parent.ty == NodeType::Declaration {
+                let declaration_id = parent.into_typed::<Declaration>();
+                let declaration = tree.get(declaration_id);
+                let Declaration::Class { heritage, .. } = declaration else {
+                    break;
+                };
+
+                // resolve the first extends type for the class
+                let extends_type_id = heritage
+                    .extends_types
+                    .as_ref()
+                    .and_then(|extends_types| extends_types.first())
+                    .copied()?;
+
+                // prefer the declared or inferred base type
+                let extends_global_id = extends_type_id.into_global_any(module.id);
+                if let Some(extends_ty_id) =
+                    types.get_declared_or_inferred_type_id(extends_global_id)
+                {
+                    return Some(extends_ty_id);
+                }
+
+                // fall back to the syntactic target symbol
+                if let Some(target_symbol) = tree.get(extends_type_id).target_symbol() {
+                    let super_type = Type::Reference {
+                        symbol: target_symbol,
+                        static_arguments: None,
+                    };
+                    let super_ty_id = types.insert_type_from(super_type, expression_id);
+
+                    return Some(super_ty_id);
+                }
+
+                break;
+            }
+
+            current = Some(parent);
+        }
+
+        // require a nominal context for super references
+        let enclosing_symbol = ctx.in_nominal_symbol?;
+
+        // resolve the immediate base symbol from the nominal lineage
+        let base_symbol = types
+            .get_lineage_for_symbol(enclosing_symbol)
+            .and_then(|lineage| lineage.extends)?;
+
+        // build a nominal reference to the base type
+        let super_type = Type::Reference {
+            symbol: base_symbol,
+            static_arguments: None,
+        };
+        let super_ty_id = types.insert_type_from(super_type, expression_id);
+
+        Some(super_ty_id)
     }
 
     /// Infer the value type for a shorthand object literal field.

@@ -2,11 +2,11 @@ use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId,
-    LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector, Member, Mutability, NodeTree,
-    NodeType, Path, Pattern, Property, RuntimeCheckKind, ScalarLiteral, StaticKey, StringId,
-    SymbolTable, SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, ForEachBinding,
+    ForEachKind, FunctionMode, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
+    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, Property,
+    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -28,16 +28,36 @@ impl Compiler {
         let is_strict = module.source_type.is_module() || options.always_strict;
 
         match expression {
+            Expression::Labelled { label, .. } => {
+                self.validate_duplicate_label(module, profile, tree, expression_id, *label);
+            }
+            Expression::Try { catch_pattern, .. } => {
+                if let Some(catch_pattern_id) = catch_pattern {
+                    self.validate_catch_annotation_type(
+                        module,
+                        profile,
+                        tree,
+                        expression_id,
+                        *catch_pattern_id,
+                    );
+                }
+            }
             Expression::Assign { left, .. } => {
                 self.validate_assignment_target(module, profile, tree, *left, is_strict);
             }
             Expression::AssignBinary { left, .. } => {
                 self.validate_assignment_target(module, profile, tree, *left, is_strict);
             }
+            Expression::Call { left, .. } => {
+                self.validate_super_call_expression(module, profile, tree, expression_id, *left);
+            }
             Expression::Member { left, .. }
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => {
                 self.validate_instantiation_access(module, profile, tree, expression_id, *left);
+            }
+            Expression::Maybe { left } => {
+                self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
             }
             Expression::PrivateIdentifier { .. } => {
                 self.validate_private_identifier_expression(module, profile, tree, expression_id);
@@ -180,14 +200,23 @@ impl Compiler {
             Expression::TypeImport {
                 target, qualifier, ..
             } => {
-                self.validate_type_import_expression(
+                let target_string = self.validate_type_import_target_expression(
                     module,
                     profile,
-                    types,
+                    tree,
                     expression_id,
                     *target,
-                    qualifier.as_ref(),
                 );
+                if let Some(target_string) = target_string {
+                    self.validate_type_import_expression(
+                        module,
+                        profile,
+                        types,
+                        expression_id,
+                        target_string,
+                        qualifier.as_ref(),
+                    );
+                }
             }
             Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
                 self.validate_tuple_optional_order(module, profile, tree, expression_id, elements);
@@ -199,6 +228,14 @@ impl Compiler {
                         elements,
                     );
                 }
+            }
+            Expression::SequenceExpression { expressions } => {
+                self.validate_empty_parenthesized_sequence(
+                    module,
+                    profile,
+                    expression_id,
+                    expressions,
+                );
             }
             Expression::Delete { value } => {
                 self.validate_delete_expression(
@@ -294,7 +331,239 @@ impl Compiler {
                     self.error(AnalyzeError::InvalidDeclareInitializer { node });
                 }
             }
+            Expression::ForEach {
+                asynchrony,
+                kind,
+                binding,
+                ..
+            } => {
+                self.validate_for_of_binding(
+                    module,
+                    profile,
+                    tree,
+                    expression_id,
+                    *asynchrony,
+                    *kind,
+                    binding,
+                );
+            }
             _ => {}
+        }
+    }
+
+    /// Validate for of binding constraints.
+    fn validate_for_of_binding(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        asynchrony: Asynchrony,
+        kind: ForEachKind,
+        binding: &ForEachBinding,
+    ) {
+        // this rule applies only to sync for of loops
+        if asynchrony != Asynchrony::Sync || kind != ForEachKind::Of {
+            return;
+        }
+
+        // reject bindings named async
+        if self.for_of_binding_is_async_identifier(tree, binding) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidForOfBinding { node });
+        }
+    }
+
+    /// Return true when a for of binding is exactly `async`.
+    fn for_of_binding_is_async_identifier(
+        &self,
+        tree: &NodeTree,
+        binding: &ForEachBinding,
+    ) -> bool {
+        match binding {
+            // pattern and using bindings share the same pattern shape
+            ForEachBinding::Pattern { pattern } | ForEachBinding::Using { pattern, .. } => {
+                self.pattern_is_async_identifier(tree, *pattern)
+            }
+        }
+    }
+
+    /// Return true when a pattern is exactly the identifier `async`.
+    fn pattern_is_async_identifier(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> bool {
+        match tree.get(pattern_id) {
+            Pattern::Binding {
+                name,
+                pattern: None,
+                ..
+            } => self.program.strings.get(*name) == "async",
+            Pattern::Expression { value } => self.expression_is_async_identifier(tree, *value),
+            _ => false,
+        }
+    }
+
+    /// Return true when an expression is exactly the path `async`.
+    fn expression_is_async_identifier(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::UnresolvedPath {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::LocalReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::ModuleReference {
+                path,
+                static_arguments: None,
+                ..
+            }
+            | Expression::GlobalReference {
+                path,
+                static_arguments: None,
+                ..
+            } => path.segments.len() == 1 && self.program.strings.get(path.segments[0]) == "async",
+            _ => false,
+        }
+    }
+
+    /// Validate duplicate labels in nested label scopes.
+    fn validate_duplicate_label(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        label: StringId,
+    ) {
+        // walk parent labels until a function-like boundary
+        let mut current = Some(expression_id.into_any());
+        while let Some(node_id) = current {
+            let Some(parent) = tree.get_parent(node_id.id) else {
+                break;
+            };
+
+            // duplicate labels are invalid in the same label scope chain
+            if parent.ty == NodeType::Expression {
+                let parent_expression = tree.get(parent.into_typed::<Expression>());
+                if let Expression::Labelled {
+                    label: parent_label,
+                    ..
+                } = parent_expression
+                    && *parent_label == label
+                {
+                    let node = expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::DuplicateLabel { node });
+                    return;
+                }
+            }
+
+            // labels do not cross function-like boundaries
+            if self.node_starts_function_scope(tree, parent) {
+                break;
+            }
+
+            current = Some(parent);
+        }
+    }
+
+    /// Validate catch type annotations for js and ts compatibility.
+    fn validate_catch_annotation_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        catch_pattern_id: LocalNodeId<Pattern>,
+    ) {
+        // this restriction only applies to typed ts catch bindings
+        if !module.language_type.is_typescript() {
+            return;
+        }
+
+        // only annotated catch bindings participate in this rule
+        let Pattern::Binding {
+            pattern: Some(annotation_pattern_id),
+            ..
+        } = tree.get(catch_pattern_id)
+        else {
+            return;
+        };
+
+        // reject annotations that are not `any` or `unknown`
+        if !self.catch_annotation_pattern_is_any_or_unknown(tree, *annotation_pattern_id) {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::InvalidCatchAnnotationType { node });
+        }
+    }
+
+    /// Return true when a catch annotation pattern is `any` or `unknown`.
+    fn catch_annotation_pattern_is_any_or_unknown(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> bool {
+        let Pattern::Expression { value } = tree.get(pattern_id) else {
+            return false;
+        };
+
+        self.catch_annotation_expression_is_any_or_unknown(tree, *value)
+    }
+
+    /// Return true when a catch annotation expression is `any` or `unknown`.
+    fn catch_annotation_expression_is_any_or_unknown(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        match tree.get(expression_id) {
+            Expression::TypeLiteral {
+                value: TypeLiteral::Any | TypeLiteral::Unknown,
+            } => true,
+            Expression::Parenthesized { expression } => {
+                self.catch_annotation_expression_is_any_or_unknown(tree, *expression)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return true when a node starts a fresh label scope.
+    fn node_starts_function_scope(&self, tree: &NodeTree, node_id: LocalNodeIdAny) -> bool {
+        match node_id.ty {
+            NodeType::Declaration => {
+                matches!(
+                    tree.get(node_id.into_typed::<Declaration>()),
+                    Declaration::Function { .. }
+                )
+            }
+            NodeType::Member => {
+                matches!(
+                    tree.get(node_id.into_typed::<Member>()),
+                    Member::Method { .. }
+                )
+            }
+            NodeType::Property => {
+                matches!(
+                    tree.get(node_id.into_typed::<Property>()),
+                    Property::Method { .. }
+                )
+            }
+            _ => false,
         }
     }
 
@@ -346,6 +615,28 @@ impl Compiler {
 
         // tuple expressions in value position represent parenthesized expressions
         if elements.is_empty() {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            self.error(AnalyzeError::EmptyParenthesizedExpression { node });
+        }
+    }
+
+    /// Validate empty sequence expressions used as parenthesized forms in js and ts.
+    fn validate_empty_parenthesized_sequence(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        expressions: &[LocalNodeId<Expression>],
+    ) {
+        // only enforce for js and ts modules
+        if !(module.language_type.is_javascript() || module.language_type.is_typescript()) {
+            return;
+        }
+
+        // js and ts represent `()` as an empty sequence expression
+        if expressions.is_empty() {
             let node = expression_id
                 .into_global_any(module.id)
                 .into_anchored(Some(profile));
@@ -475,6 +766,140 @@ impl Compiler {
                 .into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidOptionalChainTemplate { node });
         }
+    }
+
+    /// Validate super call expressions.
+    fn validate_super_call_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+    ) {
+        // skip non super calls
+        let left = self.unwrap_parenthesized_expression(left, tree);
+        if !matches!(tree.get(left), Expression::Super) {
+            return;
+        }
+
+        // allow super calls only in derived constructors
+        if self.can_call_super_in_context(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidSuperCall { node });
+    }
+
+    /// Validate optional chains rooted at super.
+    fn validate_super_optional_chain(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+    ) {
+        // skip non super chains
+        if !self.expression_roots_in_super(tree, left) {
+            return;
+        }
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidSuperOptionalChain { node });
+    }
+
+    /// Return true when an expression is exactly a `super` reference.
+    fn expression_is_super_reference(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+        matches!(tree.get(expression_id), Expression::Super)
+    }
+
+    /// Return true when an expression chain starts at a `super` reference.
+    fn expression_roots_in_super(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        if self.expression_is_super_reference(tree, expression_id) {
+            return true;
+        }
+
+        let expression_id = self.unwrap_parenthesized_expression(expression_id, tree);
+        match tree.get(expression_id) {
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Call { left, .. }
+            | Expression::Index { left, .. }
+            | Expression::Maybe { left }
+            | Expression::Must { left } => self.expression_roots_in_super(tree, *left),
+            _ => false,
+        }
+    }
+
+    /// Return true when the current expression can call `super(...)`.
+    fn can_call_super_in_context(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current = Some(expression_id.into_any());
+        let mut found_constructor_method = false;
+
+        // walk outward through parent scopes
+        while let Some(node_id) = current {
+            let Some(parent) = tree.get_parent(node_id.id) else {
+                break;
+            };
+
+            // constructor methods are the only methods that can call super
+            if parent.ty == NodeType::Member {
+                let member = tree.get(parent.into_typed::<Member>());
+                if let Member::Method { signature, .. } = member {
+                    if signature.mode == Some(FunctionMode::Constructor) {
+                        found_constructor_method = true;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+
+            // nested function boundaries invalidate super calls
+            if parent.ty == NodeType::Declaration {
+                let declaration = tree.get(parent.into_typed::<Declaration>());
+                match declaration {
+                    Declaration::Function { .. } => return false,
+                    Declaration::Class { heritage, .. } => {
+                        if found_constructor_method {
+                            return heritage
+                                .extends_types
+                                .as_ref()
+                                .is_some_and(|types| !types.is_empty());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if parent.ty == NodeType::Property {
+                let property = tree.get(parent.into_typed::<Property>());
+                if matches!(property, Property::Method { .. }) {
+                    return false;
+                }
+            }
+
+            current = Some(parent);
+        }
+
+        false
     }
 
     /// Return true when an expression chain contains optional access.
@@ -1300,6 +1725,16 @@ impl Compiler {
         for argument_id in elements {
             let is_optional = self.tuple_element_is_optional(tree, *argument_id);
             let is_rest = matches!(tree.get(*argument_id), Argument::Spread { .. });
+
+            // tuple members cannot be both optional and rest
+            if is_optional && is_rest {
+                let node = expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile));
+                self.error(AnalyzeError::InvalidTupleElementOrder { node });
+                return;
+            }
+
             if optional_seen && !is_optional && !is_rest {
                 let node = expression_id
                     .into_global_any(module.id)
@@ -1716,6 +2151,29 @@ impl Compiler {
             receiver_ty: receiver_ty_id.into_global(module.id),
             member_key,
         });
+    }
+
+    /// Validate that a type import target is a string literal and return the string id.
+    fn validate_type_import_target_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        target: LocalNodeId<Expression>,
+    ) -> Option<StringId> {
+        if let Expression::ScalarLiteral {
+            value: ScalarLiteral::String(target_string),
+        } = tree.get(target)
+        {
+            return Some(*target_string);
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidTypeImportTarget { node });
+        None
     }
 
     /// Check whether an expression is an enum reference for ambient const initializers.

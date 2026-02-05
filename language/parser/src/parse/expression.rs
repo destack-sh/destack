@@ -109,14 +109,21 @@ fn to_infix_operator(
     language: LanguageType,
     has_newline: bool,
 ) -> ParseResult<(InfixOperator, u8)> {
+    // `>>` and `>>>` require adjacent tokens: comments or trivia between `>` tokens must not glue
+    let has_adjacent_shift_tokens = token.span.end == next_token.span.start;
+    let has_adjacent_unsigned_shift_tokens =
+        has_adjacent_shift_tokens && next_token.span.end == next_next_token.span.start;
+
     // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
     if !options.in_static
         && !options.in_tree_literal
         && !options.in_type
         && token.token.ty == TokenType::GreaterThan
         && next_token.token.ty == TokenType::GreaterThan
+        && has_adjacent_shift_tokens
     {
-        if next_next_token.token.ty == TokenType::GreaterThan {
+        if next_next_token.token.ty == TokenType::GreaterThan && has_adjacent_unsigned_shift_tokens
+        {
             Ok((InfixOperator::Binary(BinaryOperator::UnsignedShiftRight), 3))
         } else {
             Ok((InfixOperator::Binary(BinaryOperator::ShiftRight), 2))
@@ -1157,6 +1164,54 @@ impl Parser {
             || self.is_declare_await_using_at(index)
     }
 
+    /// Return true when the current keyword is followed by a matching member.
+    fn keyword_member_access_is(
+        &mut self,
+        member_name: &str,
+        allow_newlines: bool,
+    ) -> ParseResult<bool> {
+        // require dot member access
+        let dot_index = if allow_newlines {
+            if self
+                .peek_token_after_newlines(self.pos(), TokenType::Dot)
+                .is_err()
+            {
+                return Ok(false);
+            }
+            self.next_non_newline_index_from(self.pos_index() + 1)
+        } else {
+            if !self.peek_next_is(TokenType::Dot) {
+                return Ok(false);
+            }
+            self.index_for_next()
+        };
+
+        // require identifier member
+        let identifier_index = if allow_newlines {
+            self.next_non_newline_index_from(dot_index + 1)
+        } else {
+            dot_index + 1
+        };
+        self.token_stream.ensure_token(identifier_index);
+        let Some(identifier_token) = self.tokens().get(identifier_index).copied() else {
+            return Err(ParseError::unexpected(self.peek()?.span));
+        };
+        if identifier_token.token.ty != TokenType::Identifier {
+            return Err(ParseError::unexpected(identifier_token.span));
+        }
+
+        // match the member name from cached interned identifiers when available
+        let matches_member_name = self
+            .identifier_for_index(identifier_index)
+            .is_some_and(|identifier| self.strings.get(identifier) == member_name)
+            || self.get_span_str(identifier_token.span) == member_name;
+        if matches_member_name {
+            Ok(true)
+        } else {
+            Err(ParseError::unexpected(identifier_token.span))
+        }
+    }
+
     /// Eat a keyword-led expression when possible.
     fn eat_keyword_expression(
         &mut self,
@@ -1478,6 +1533,15 @@ impl Parser {
                         .insert(Expression::This, self.get_span_from(start)),
                 ))
             }
+            // super expression
+            Keyword::Super => {
+                let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
+                self.bump(); // eat super
+                Ok(Some(
+                    self.tree
+                        .insert(Expression::Super, self.get_span_from(start)),
+                ))
+            }
             // new expression
             Keyword::New if !self.options.in_type => {
                 // require a valid new expression start
@@ -1492,9 +1556,18 @@ impl Parser {
                     // parse new expression
                     let _timing = self.timing_scope(tags::PARSE_KEYWORD_EXPRESSION);
                     Ok(Some(self.eat_new()?))
-                // otherwise bail
-                } else {
-                    Ok(None)
+                }
+                // allow `new.target` to fall back to path parsing
+                else if next_token_type == TokenType::Dot {
+                    if self.keyword_member_access_is("target", false)? {
+                        Ok(None)
+                    } else {
+                        Err(ParseError::unexpected(self.peek()?.span))
+                    }
+                }
+                // otherwise reject `new` in expression position
+                else {
+                    Err(ParseError::unexpected(self.peek()?.span))
                 }
             }
             // delete expression
@@ -1516,25 +1589,15 @@ impl Parser {
             }
             // import declaration or import meta
             Keyword::Import => {
-                // validate import meta access
-                // treat `import.meta` as a path, reject other member access
+                // treat `import.meta` as a path and reject other member access
                 if self
                     .peek_token_after_newlines(self.pos(), TokenType::Dot)
                     .is_ok()
                 {
-                    let dot_index = self.next_non_newline_index_from(self.pos_index() + 1);
-                    let ident_index = self.next_non_newline_index_from(dot_index + 1);
-                    let Some(ident_token) = self.tokens().get(ident_index) else {
-                        return Err(ParseError::unexpected(self.peek()?.span));
-                    };
-                    if ident_token.token.ty != TokenType::Identifier {
-                        return Err(ParseError::unexpected(ident_token.span));
-                    }
-                    let ident_str = self.get_span_str(ident_token.span);
-                    if ident_str == "meta" {
+                    if self.keyword_member_access_is("meta", true)? {
                         return Ok(None);
                     }
-                    return Err(ParseError::unexpected(ident_token.span));
+                    return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
                 // require a valid import start
@@ -3435,6 +3498,29 @@ mod tests {
         let mut parser = test.prepare();
         let expression_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expression_id, Expression::This);
+    }
+
+    /// Parse a bare super expression.
+    #[test]
+    fn test_parse_super_expression() {
+        let mut test = TestParser::new_with_options("super", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Super);
+    }
+
+    /// Parse super member access.
+    #[test]
+    fn test_parse_super_member_expression() {
+        let mut test = TestParser::new_with_options("super.value", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // super.value
+        assert_node!(parser.tree, expression_id, Expression::Member { left, name, .. } => {
+            assert_node!(parser.tree, *left, Expression::Super);
+            assert_string!(parser, *name, "value");
+        });
     }
 
     /// Parse a private identifier used in an in expression.

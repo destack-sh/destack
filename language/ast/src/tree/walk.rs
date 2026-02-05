@@ -386,7 +386,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::PrivateIdentifier { name: _ } => {}
 
-        Expression::This => {}
+        Expression::This | Expression::Super => {}
 
         Expression::ScalarLiteral(_) => {
             // no child nodes to visit

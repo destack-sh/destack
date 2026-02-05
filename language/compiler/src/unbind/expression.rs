@@ -251,7 +251,15 @@ impl Compiler {
                     qualifier,
                     static_arguments,
                 } => {
-                    let target = ast_strings.intern_from(&self.program.strings, *target);
+                    let target = self.unbind_expression(
+                        module,
+                        *target,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     let arguments = arguments
                         .iter()
                         .map(|argument| {
@@ -562,6 +570,9 @@ impl Compiler {
                         path,
                         static_arguments: None,
                     }
+                }
+                dir::Expression::Super => {
+                    ast::Expression::Super
                 }
 
                 dir::Expression::ScalarLiteral { value } => {
