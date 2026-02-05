@@ -44,7 +44,7 @@ struct Rectangle {
     width: float32,
     height: float32,
 
-    function area(): float32 {
+    area(): float32 {
         return this.width * this.height;
     }
 }
@@ -57,7 +57,7 @@ The snapshot asserts the full outline tree.
 Rectangle(struct) range=1:1-8:2 selection=1:8-1:17
   width(field) range=2:5-2:19 selection=2:5-2:10
   height(field) range=3:5-3:20 selection=3:5-3:11
-  area(method) range=5:14-7:6 selection=5:14-5:18
+  area(method) range=5:5-7:6 selection=5:5-5:9
 ```
 
 ### Class with members
@@ -70,7 +70,7 @@ class Person {
     name: string
     age: int32
 
-    function greet(): string {
+    greet(): string {
         return "Hello, " + this.name;
     }
 }
@@ -80,7 +80,7 @@ class Person {
 Person(class) range=1:1-8:2 selection=1:7-1:13
   name(field) range=2:5-2:17 selection=2:5-2:9
   age(field) range=3:5-3:15 selection=3:5-3:8
-  greet(method) range=5:14-7:6 selection=5:14-5:19
+  greet(method) range=5:5-7:6 selection=5:5-5:10
 ```
 
 ### Enum with fields
@@ -134,7 +134,7 @@ Document symbols should snapshot classes with fields and methods.
 class Box {
     value: int32
 
-    function get(): int32 {
+    get(): int32 {
         return this.value;
     }
 }
@@ -145,7 +145,7 @@ The snapshot expectation asserts the class and its children with kinds and range
 ```query document_symbols $0
 Box(class) range=1:1-7:2 selection=1:7-1:10
   value(field) range=2:5-2:17 selection=2:5-2:10
-  get(method) range=4:14-6:6 selection=4:14-4:17
+  get(method) range=4:5-6:6 selection=4:5-4:8
 ```
 
 ### Snapshot for struct members
@@ -157,7 +157,7 @@ struct Pair {
     left: int32,
     right: int32,
 
-    function swap(): Pair {
+    swap(): Pair {
         return Pair { left: this.right, right: this.left };
     }
 }
@@ -169,7 +169,7 @@ The snapshot expectation asserts the struct and its children with kinds and rang
 Pair(struct) range=1:1-8:2 selection=1:8-1:12
   left(field) range=2:5-2:16 selection=2:5-2:9
   right(field) range=3:5-3:17 selection=3:5-3:10
-  swap(method) range=5:14-7:6 selection=5:14-5:18
+  swap(method) range=5:5-7:6 selection=5:5-5:9
 ```
 
 ### Snapshot for enum members
@@ -205,7 +205,7 @@ namespace Utils {
 }
 
 interface Drawable {
-    function draw(): void;
+    draw(): void;
 }
 
 type UserId = string;
@@ -215,6 +215,6 @@ type UserId = string;
 Utils(namespace) range=1:1-5:2 selection=1:11-1:16
 format(function) range=2:5-4:6 selection=2:21-2:27
 Drawable(interface) range=7:1-9:2 selection=7:11-7:19
-  draw(method) range=8:14-8:26 selection=8:14-8:18
+  draw(method) range=8:5-8:17 selection=8:5-8:9
 UserId(type_parameter) range=11:1-11:21 selection=11:6-11:12
 ```

@@ -62,7 +62,7 @@ pub enum FileType {
     DestackAst,
     /// `.dir` - Destack DIR cache
     DestackDir,
-    /// `.mir` - Destack MIR text
+    /// `.mir`, `.dsmir` - Destack MIR text.
     DestackMir,
 
     // media: coarse categories (pass-through)
@@ -149,7 +149,7 @@ impl FileType {
             // compiler artifacts
             "ast" => FileType::DestackAst,
             "dir" => FileType::DestackDir,
-            "mir" => FileType::DestackMir,
+            "mir" | "dsmir" => FileType::DestackMir,
 
             // images
             "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "ico" | "bmp" | "tiff" | "tif"
@@ -368,7 +368,7 @@ impl FileType {
             FileType::Object => &["**/*.o"],
             FileType::DestackAst => &["**/*.ast"],
             FileType::DestackDir => &["**/*.dir"],
-            FileType::DestackMir => &["**/*.mir"],
+            FileType::DestackMir => &["**/*.mir", "**/*.dsmir"],
             FileType::Image
             | FileType::Font
             | FileType::Audio

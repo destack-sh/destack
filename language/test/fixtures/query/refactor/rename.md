@@ -26,6 +26,26 @@ const bar = baz + baz;
 console.log(baz);
 ```
 
+### Rename function parameter
+
+Renaming a function parameter should update references inside the body.
+
+```ds
+function greet(name: string): string {
+//             ^^^^ target:param
+    return "Hello, " + name;
+}
+```
+
+```query rename target:param "title"
+```
+
+```expected:main
+function greet(title: string): string {
+    return "Hello, " + title;
+}
+```
+
 ## Classes
 
 ### Rename class with type references
@@ -147,6 +167,42 @@ class Sprite implements Renderable {
 const sprite: Renderable = new Sprite();
 ```
 
+### Rename interface members across implementations
+
+Renaming an interface member should update implementations and member accesses.
+
+```ds
+interface Drawable {
+    draw(): void;
+//  ^^^^ target:member
+}
+
+class Sprite implements Drawable {
+    draw(): void {}
+}
+
+function render(item: Drawable): void {
+    item.draw();
+}
+```
+
+```query rename target:member "paint"
+```
+
+```expected:main
+interface Drawable {
+    paint(): void;
+}
+
+class Sprite implements Drawable {
+    paint(): void {}
+}
+
+function render(item: Drawable): void {
+    item.paint();
+}
+```
+
 ## Cross-Module
 
 ### Rename exported function across imports
@@ -179,6 +235,154 @@ export function salute(name: string): string {
 import { salute } from "./lib.ds";
 
 const message = salute("Destack");
+```
+
+### Rename interface across modules with re-exports
+
+Renaming an interface should update `export type` re-exports and `import type` references.
+
+```ds:base.ds
+export interface Drawable {
+//                 ^^^^^^^ target
+    function draw(): void;
+}
+```
+
+```ds:public.ds
+export type { Drawable } from "./base.ds";
+```
+
+```ds:main.ds
+import type { Drawable } from "./public.ds";
+
+class Sprite implements Drawable {
+    function draw(): void {}
+}
+
+const sprite: Drawable = new Sprite();
+```
+
+```query rename target "Renderable"
+```
+
+```expected:base
+export interface Renderable {
+    function draw(): void;
+}
+```
+
+```expected:public
+export type { Renderable } from "./base.ds";
+```
+
+```expected:main
+import type { Renderable } from "./public.ds";
+
+class Sprite implements Renderable {
+    function draw(): void {}
+}
+
+const sprite: Renderable = new Sprite();
+```
+
+### Rename default export across imports
+
+Renaming a default export should update the export name and default import usage.
+
+```ds:lib_default.ds
+export default function greet(name: string): string {
+//                      ^^^^^ target:default
+    return "Hello, " + name;
+}
+```
+
+```ds:main_default.ds
+import greet from "./lib_default.ds";
+
+const message = greet("Destack");
+```
+
+```query rename target:default "salute"
+```
+
+```expected:lib_default
+export default function salute(name: string): string {
+    return "Hello, " + name;
+}
+```
+
+```expected:main_default
+import salute from "./lib_default.ds";
+
+const message = salute("Destack");
+```
+
+### Rename default exported class across imports
+
+Renaming a default exported class should update the class name and default import usage.
+
+```ds:widget.ds
+export default class Widget {
+//                   ^^^^^^ target:default-class
+    value: int32;
+}
+```
+
+```ds:main_widget.ds
+import Widget from "./widget.ds";
+
+const widget = new Widget();
+```
+
+```query rename target:default-class "Gadget"
+```
+
+```expected:widget
+export default class Gadget {
+    value: int32;
+}
+```
+
+```expected:main_widget
+import Gadget from "./widget.ds";
+
+const widget = new Gadget();
+```
+
+### Rename default exported interface across imports
+
+Renaming a default exported interface should update the interface name and default import usage.
+
+```ds:port.ds
+export default interface Port {
+//                       ^^^^ target:default-interface
+    function open(): void;
+}
+```
+
+```ds:main_port.ds
+import Port from "./port.ds";
+
+class Socket implements Port {
+    function open(): void {}
+}
+```
+
+```query rename target:default-interface "Channel"
+```
+
+```expected:port
+export default interface Channel {
+    function open(): void;
+}
+```
+
+```expected:main_port
+import Channel from "./port.ds";
+
+class Socket implements Channel {
+    function open(): void {}
+}
 ```
 
 ## Members
@@ -291,6 +495,32 @@ function main() {
 
 ## Enums
 
+### Rename enum type
+
+Renaming an enum type should update the declaration name and type references.
+
+```ds
+enum Status {
+//   ^^^^^^ target:enum
+    Pending,
+    Active,
+}
+
+const state: Status = Status.Pending;
+```
+
+```query rename target:enum "State"
+```
+
+```expected:main
+enum State {
+    Pending,
+    Active,
+}
+
+const state: State = State.Pending;
+```
+
 ### Rename enum member
 
 Renaming an enum member should update the definition and all uses.
@@ -316,6 +546,64 @@ enum Status {
 }
 
 const state = Status.Queued;
+```
+
+## Namespaces
+
+### Rename namespace
+
+Renaming a namespace should update the declaration and all member accesses.
+
+```ds
+namespace Api {
+//        ^^^ target:namespace
+    export function greet(): string {
+        return "Hello";
+    }
+}
+
+const message = Api.greet();
+```
+
+```query rename target:namespace "Service"
+```
+
+```expected:main
+namespace Service {
+    export function greet(): string {
+        return "Hello";
+    }
+}
+
+const message = Service.greet();
+```
+
+### Rename namespace member
+
+Renaming a namespace member should update the declaration and member accesses.
+
+```ds
+namespace Api {
+    export function greet(): string {
+//                  ^^^^^ target:namespace-member
+        return "Hello";
+    }
+}
+
+const message = Api.greet();
+```
+
+```query rename target:namespace-member "welcome"
+```
+
+```expected:main
+namespace Api {
+    export function welcome(): string {
+        return "Hello";
+    }
+}
+
+const message = Api.welcome();
 ```
 
 ## Scope and Shadowing
@@ -397,6 +685,34 @@ function configure(options: Config): void {
 }
 ```
 
+### Rename newtype across imports
+
+Renaming a newtype should update type-only imports and constructor calls.
+
+```ds:types_newtype.ds
+export newtype UserId = int64;
+//               ^^^^^^ target:newtype
+```
+
+```ds:main_newtype.ds
+import type { UserId } from "./types_newtype.ds";
+
+const user_id: UserId = UserId(42);
+```
+
+```query rename target:newtype "AccountId"
+```
+
+```expected:types_newtype
+export newtype AccountId = int64;
+```
+
+```expected:main_newtype
+import type { AccountId } from "./types_newtype.ds";
+
+const user_id: AccountId = AccountId(42);
+```
+
 ### Rename exported symbol imported with alias
 
 Renaming an exported symbol should update the imported name but keep the local alias.
@@ -463,4 +779,130 @@ export function welcome(name: string): string {
 import * as api from "./api.ds";
 
 const message = api.welcome("Destack");
+```
+
+## Type Parameters
+
+### Rename function type parameter
+
+Renaming a type parameter should update all references in the signature and body.
+
+```ds
+function wrap<T>(value: T): T {
+//             ^ target:typeparam
+    const current: T = value;
+    return current;
+}
+```
+
+```query rename target:typeparam "U"
+```
+
+```expected:main
+function wrap<U>(value: U): U {
+    const current: U = value;
+    return current;
+}
+```
+
+### Rename class type parameter
+
+Renaming a class type parameter should update references in the class body.
+
+```ds
+class Box<T> {
+//        ^ target:class-param
+    value: T;
+}
+
+const box: Box<int32>;
+```
+
+```query rename target:class-param "U"
+```
+
+```expected:main
+class Box<U> {
+    value: U;
+}
+
+const box: Box<int32>;
+```
+
+### Rename interface type parameter
+
+Renaming an interface type parameter should update references in the interface body.
+
+```ds
+interface Store<T> {
+//              ^ target:interface-param
+    function get(): T;
+}
+
+class Cache implements Store<int32> {
+    function get(): int32 {
+        return 1;
+    }
+}
+```
+
+```query rename target:interface-param "U"
+```
+
+```expected:main
+interface Store<U> {
+    function get(): U;
+}
+
+class Cache implements Store<int32> {
+    function get(): int32 {
+        return 1;
+    }
+}
+```
+
+## Destructuring
+
+### Rename destructured binding
+
+Renaming a binding introduced by destructuring should update its usages.
+
+```ds
+const config = { value: 1 };
+const { value } = config;
+//      ^^^^^ target:destructure
+
+const total = value + value;
+```
+
+```query rename target:destructure "count"
+```
+
+```expected:main
+const config = { value: 1 };
+const { count } = config;
+
+const total = count + count;
+```
+
+### Rename destructured binding with alias
+
+Renaming a binding with a destructuring alias should preserve the property name.
+
+```ds
+const config = { value: 1 };
+const { value: current } = config;
+//             ^^^^^^^ target:alias
+
+const total = current + 1;
+```
+
+```query rename target:alias "amount"
+```
+
+```expected:main
+const config = { value: 1 };
+const { value: amount } = config;
+
+const total = amount + 1;
 ```

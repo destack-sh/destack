@@ -146,6 +146,7 @@ pub fn rename(
 
     // resolve the existing symbol name for span targeting
     let old_name = resolve_rename_name(session, canonical_id, &symbol_at)?;
+    let interface_member_target = resolve_interface_member_target(session, canonical_id);
 
     // collect all spans to rename, grouped by file
     let mut edits_by_file: HashMap<FileId, Vec<Span>> = HashMap::new();
@@ -182,6 +183,42 @@ pub fn rename(
             collect_symbol_references_in_context(session, &ctx, canonical_id, reference_options);
         for span in spans {
             edits_by_file.entry(span.file).or_default().push(span);
+        }
+    }
+
+    // include implementations when renaming interface members
+    if let Some(interface_member_target) = interface_member_target {
+        let implementation_members =
+            collect_interface_member_implementations(session, &interface_member_target, &old_name);
+
+        for member_symbol in implementation_members {
+            if member_symbol == canonical_id {
+                continue;
+            }
+
+            if let Some(definition_span) = get_symbol_definition_span(session, member_symbol) {
+                edits_by_file
+                    .entry(definition_span.file)
+                    .or_default()
+                    .push(definition_span);
+            }
+
+            for module in session.modules.iter() {
+                let module = module.read();
+                let Some(ctx) = session.query_context(&module) else {
+                    continue;
+                };
+
+                let spans = collect_symbol_references_in_context(
+                    session,
+                    &ctx,
+                    member_symbol,
+                    reference_options,
+                );
+                for span in spans {
+                    edits_by_file.entry(span.file).or_default().push(span);
+                }
+            }
         }
     }
 
@@ -281,6 +318,168 @@ fn resolve_name_from_node(
         }
         _ => None,
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InterfaceMemberKind {
+    Method,
+    Field,
+}
+
+#[derive(Debug, Clone)]
+struct InterfaceMemberTarget {
+    interface_symbol: dir::GlobalSymbolId,
+    member_name: String,
+    member_kind: InterfaceMemberKind,
+}
+
+fn resolve_interface_member_target(
+    session: &Session,
+    canonical_id: dir::GlobalSymbolId,
+) -> Option<InterfaceMemberTarget> {
+    // resolve query context for the symbol module
+    let module = session.modules.get(canonical_id.module_id);
+    let module = module.read();
+    let ctx = session.query_context(&module)?;
+
+    // resolve the member declaration node
+    let symbols = ctx.symbols();
+    let symbol = symbols.get_symbol(canonical_id.local_id);
+    let declaration = symbol.primary_declaration?;
+    drop(symbols);
+
+    if declaration.local_id.ty != dir::NodeType::Member {
+        return None;
+    }
+
+    let dir_tree = ctx.tree();
+    let Ok(member_id) = declaration.local_id.try_into() else {
+        return None;
+    };
+    let member = dir_tree.get::<dir::Member>(member_id);
+    let (member_kind, member_key) = match member {
+        dir::Member::Method { key, .. } => (InterfaceMemberKind::Method, key.as_ref()?),
+        dir::Member::Field { key, .. } => (InterfaceMemberKind::Field, key.as_ref()?),
+        _ => return None,
+    };
+    let member_name = member_key_name(session, member_key)?;
+
+    // resolve the parent declaration and ensure it is an interface
+    let parent = dir_tree.get_parent(member_id.id)?;
+    if parent.ty != dir::NodeType::Declaration {
+        return None;
+    }
+    let Ok(declaration_id) = parent.try_into() else {
+        return None;
+    };
+    let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+    let descriptor = match declaration {
+        dir::Declaration::Interface { descriptor, .. } => descriptor,
+        _ => return None,
+    };
+
+    let interface_symbol = get_canonical_symbol(
+        session,
+        dir::GlobalSymbolId::new(ctx.module_id, descriptor.symbol),
+    );
+
+    Some(InterfaceMemberTarget {
+        interface_symbol,
+        member_name,
+        member_kind,
+    })
+}
+
+fn collect_interface_member_implementations(
+    session: &Session,
+    target: &InterfaceMemberTarget,
+    expected_name: &str,
+) -> Vec<dir::GlobalSymbolId> {
+    let mut members = Vec::new();
+
+    for module in session.modules.iter() {
+        let module = module.read();
+        let Some(ctx) = session.query_context(&module) else {
+            continue;
+        };
+
+        let types = ctx.types();
+        let mut implementing_symbols = Vec::new();
+        for (symbol_id, lineage) in types.iter_lineages() {
+            let implements = lineage.implements.iter().any(|symbol| {
+                let canonical = get_canonical_symbol(session, *symbol);
+                canonical == target.interface_symbol
+            });
+            if !implements {
+                continue;
+            }
+            if symbol_id.module_id != ctx.module_id {
+                continue;
+            }
+            implementing_symbols.push(symbol_id.local_id);
+        }
+        drop(types);
+
+        if implementing_symbols.is_empty() {
+            continue;
+        }
+
+        let dir_tree = ctx.tree();
+        for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
+            let Some(parent) = dir_tree.get_parent(member_id.id) else {
+                continue;
+            };
+            if parent.ty != dir::NodeType::Declaration {
+                continue;
+            }
+            let Ok(declaration_id) = parent.try_into() else {
+                continue;
+            };
+            let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
+            let descriptor = match declaration {
+                dir::Declaration::Class { descriptor, .. }
+                | dir::Declaration::Struct { descriptor, .. }
+                | dir::Declaration::Interface { descriptor, .. } => descriptor,
+                _ => continue,
+            };
+            if !implementing_symbols.contains(&descriptor.symbol) {
+                continue;
+            }
+
+            let (member_kind, member_key) = match member {
+                dir::Member::Method { key, .. } => {
+                    let Some(key) = key.as_ref() else {
+                        continue;
+                    };
+                    (InterfaceMemberKind::Method, key)
+                }
+                dir::Member::Field { key, .. } => {
+                    let Some(key) = key.as_ref() else {
+                        continue;
+                    };
+                    (InterfaceMemberKind::Field, key)
+                }
+                _ => continue,
+            };
+            if member_kind != target.member_kind {
+                continue;
+            }
+
+            let Some(member_name) = member_key_name(session, member_key) else {
+                continue;
+            };
+            if member_name != expected_name && member_name != target.member_name {
+                continue;
+            }
+
+            let symbol_id = dir::GlobalSymbolId::new(ctx.module_id, member.symbol());
+            members.push(get_canonical_symbol(session, symbol_id));
+        }
+    }
+
+    members.sort();
+    members.dedup();
+    members
 }
 
 /// Check whether a keyword is a declaration modifier.

@@ -94,6 +94,39 @@ import { foo as pkgFoo } from "my_pkg/utils/bar";
 const sum = foo + pkgFoo;
 ```
 
+## Directory Moves
+
+### Updates imports when a directory is renamed
+
+Rename should update import specifiers for files within a moved directory.
+
+```ds:src/features/old/util.ds
+export const util = 1;
+```
+
+```ds:src/features/old/nested/helper.ds
+export const helper = 2;
+```
+
+```ds:src/main.ds
+import { util } from "./features/old/util";
+import { helper } from "./features/old/nested/helper.ds";
+
+const sum = util + helper;
+```
+
+Renaming the directory should update all nested specifiers.
+
+```query file_rename src/features/old src/features/new
+```
+
+```expected:src/main.ds
+import { util } from "./features/new/util";
+import { helper } from "./features/new/nested/helper.ds";
+
+const sum = util + helper;
+```
+
 ## Parent Relative Specifiers
 
 ### Updates parent relative imports
@@ -160,6 +193,37 @@ The updated main file should point at the new type module.
 import type { Options } from "./types/config";
 
 const defaults: Options = { enabled: true };
+```
+
+## Type-Only Re-Exports
+
+### Updates export type specifiers
+
+Rename should update export type specifiers without changing export kind.
+
+The type module exports `Options`.
+
+```ds:src/types/options.ds
+export type Options = {
+    enabled: boolean,
+};
+```
+
+The barrel file re-exports the type only.
+
+```ds:src/index.ds
+export type { Options } from "./types/options";
+```
+
+Renaming the type module should update the export specifier.
+
+```query file_rename src/types/options.ds src/types/settings.ds
+```
+
+The updated barrel file should point at the new module path.
+
+```expected:src/index.ds
+export type { Options } from "./types/settings";
 ```
 
 ## Re-Exports
@@ -230,6 +294,83 @@ import "./bootstrap";
 const is_ready = true;
 ```
 
+## Dynamic Imports
+
+### Updates dynamic import specifiers
+
+Rename should update `import()` call specifiers.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+async function load(): Promise<int32> {
+    const mod = await import("./utils/foo");
+    return mod.foo;
+}
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+async function load(): Promise<int32> {
+    const mod = await import("./utils/bar");
+    return mod.foo;
+}
+```
+
+## Type Import Expressions
+
+### Updates type import expressions
+
+Rename should update `import()` expressions inside types.
+
+```ds:src/types/foo.ds
+export type Foo = {
+    value: int32,
+};
+```
+
+```ds:src/main.ds
+type Foo = import("./types/foo").Foo;
+```
+
+```query file_rename src/types/foo.ds src/types/bar.ds
+```
+
+```expected:src/main.ds
+type Foo = import("./types/bar").Foo;
+```
+
+## Non-Module Strings
+
+### Skips non-module string literals
+
+Rename should not touch plain strings that are not module specifiers.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+const relative = "./utils/foo";
+const file_uri = "file:///test/src/utils/foo.ds";
+
+import { foo } from "./utils/foo";
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+const relative = "./utils/foo";
+const file_uri = "file:///test/src/utils/foo.ds";
+
+import { foo } from "./utils/bar";
+```
+
 ## Alias Specifier Variants
 
 ### Updates alternate alias prefixes
@@ -267,4 +408,129 @@ import { foo } from "~/aliases/foo_next";
 import { bar } from "#aliases/bar_next";
 
 const sum = foo + bar;
+```
+
+## File Uri Specifiers
+
+### Updates file uri imports
+
+Rename should update file uri specifiers for renamed targets.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { foo } from "file:///test/src/utils/foo.ds";
+
+const value = foo;
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+import { foo } from "file:///test/src/utils/bar.ds";
+
+const value = foo;
+```
+
+## Absolute Specifiers
+
+### Updates absolute path imports
+
+Rename should update absolute path specifiers for renamed targets.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { foo } from "/test/src/utils/foo.ds";
+
+const value = foo;
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+import { foo } from "/test/src/utils/bar.ds";
+
+const value = foo;
+```
+
+## Quote Style
+
+### Preserves single quote specifiers
+
+Rename should preserve single quote specifiers when rewriting paths.
+
+```ds:src/utils/foo.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { foo } from './utils/foo';
+
+const value = foo;
+```
+
+```query file_rename src/utils/foo.ds src/utils/bar.ds
+```
+
+```expected:src/main.ds
+import { foo } from './utils/bar';
+
+const value = foo;
+```
+
+## Query And Fragment Specifiers
+
+### Preserves query and fragment suffixes
+
+Rename should preserve query and fragment suffixes in import specifiers.
+
+```ds:src/assets/raw.ds
+export const data = 1;
+```
+
+```ds:src/main.ds
+import { data } from './assets/raw?raw#fragment';
+
+const value = data;
+```
+
+```query file_rename src/assets/raw.ds src/assets/bytes.ds
+```
+
+```expected:src/main.ds
+import { data } from './assets/bytes?raw#fragment';
+
+const value = data;
+```
+
+## Index Specifiers
+
+### Updates specifiers that resolve to index files
+
+Rename should update specifiers that resolve to `index` modules.
+
+```ds:src/utils/index.ds
+export const foo = 1;
+```
+
+```ds:src/main.ds
+import { foo } from "./utils";
+
+const value = foo;
+```
+
+```query file_rename src/utils/index.ds src/utils/core.ds
+```
+
+```expected:src/main.ds
+import { foo } from "./utils/core";
+
+const value = foo;
 ```

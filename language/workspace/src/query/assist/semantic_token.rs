@@ -358,8 +358,8 @@ pub fn semantic_tokens(session: &Session, file: FileId) -> Vec<SemanticToken> {
                     dir::ScalarLiteral::RegexString { .. } => SemanticTokenType::Regexp,
                     dir::ScalarLiteral::Integer(_)
                     | dir::ScalarLiteral::Float(_)
-                    | dir::ScalarLiteral::Bigint(_) => SemanticTokenType::Number,
-                    dir::ScalarLiteral::Boolean(_) => SemanticTokenType::Keyword,
+                    | dir::ScalarLiteral::Bigint(_)
+                    | dir::ScalarLiteral::Boolean(_) => SemanticTokenType::Number,
                 };
                 tokens.push(SemanticToken::new(span, token_type));
             }

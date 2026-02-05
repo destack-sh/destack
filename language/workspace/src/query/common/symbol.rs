@@ -1,7 +1,8 @@
 use destack_base::StringId;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, DynamicKey, EnumField, Expression,
-    GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern, SymbolSpace,
+    GlobalSymbolId, LocalNodeIdAny, Member, NodeType, Parameter, Pattern, PatternField,
+    SymbolSpace,
 };
 use destack_source::{FileId, Span};
 use std::collections::HashSet;
@@ -14,8 +15,9 @@ use crate::program::{ModuleAst, ModuleDir};
 
 pub(crate) use super::resolve::{
     dependency_item_matches_name, matches_symbol_space_filter, owned_scope_for_symbol,
-    resolve_member_access_symbol, resolve_nominal_symbol_from_type_expression,
-    resolve_type_symbol_from_dependency_symbol, resolve_type_symbol_from_module,
+    resolve_member_access_symbol, resolve_nominal_symbol_from_initializer,
+    resolve_nominal_symbol_from_type_expression, resolve_type_symbol_from_dependency_symbol,
+    resolve_type_symbol_from_module,
 };
 
 /// Result of finding a symbol at an offset.
@@ -56,6 +58,26 @@ pub fn find_symbol_at_offset(
     // prefer the most specific span when multiple nodes tie
     enclosing.sort_by_key(|span| (span.length, -(span.idx as i64)));
 
+    // skip doc and comment tokens before resolving symbols
+    let mut is_comment_token = |token: &ast::TokenSpan| {
+        if token.span.file != ctx.file_id {
+            return false;
+        }
+        matches!(
+            token.token.ty,
+            ast::TokenType::DocLineComment
+                | ast::TokenType::DocBlockComment
+                | ast::TokenType::LineComment
+                | ast::TokenType::BlockComment
+        ) && token.span.contains(offset)
+    };
+
+    if ctx.ast.tokens.iter().any(&mut is_comment_token)
+        || ctx.ast.side_tokens.iter().any(&mut is_comment_token)
+    {
+        return None;
+    }
+
     // check if we're in a doc/comment first (these should not return symbols)
     for enclosing_span in &enclosing {
         let node_type = ctx.ast.tree.get_node_type(enclosing_span.idx);
@@ -65,6 +87,11 @@ pub fn find_symbol_at_offset(
     }
 
     let dir_tree = ctx.tree();
+
+    // check static parameters first to avoid capturing the enclosing declaration
+    if let Some(result) = static_parameter_symbol_at_offset(session, &ctx, offset) {
+        return Some(result);
+    }
 
     // scan member access expressions first to lock onto the member name span
     for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
@@ -157,6 +184,31 @@ pub fn find_symbol_at_offset(
                         ),
                     });
                 }
+            }
+            // check if it's a pattern field (destructuring binding definition)
+            NodeType::PatternField => {
+                let Ok(field_id) = dir_node_id.try_into() else {
+                    continue;
+                };
+                let field = dir_tree.get::<PatternField>(field_id);
+                let Some(local_symbol) = field.symbol() else {
+                    continue;
+                };
+                let symbol_id = global_symbol(ctx.module_id, local_symbol);
+                let span =
+                    get_dir_node_main_span(ctx.ast, ctx.dir, dir_node_id).unwrap_or_else(|| {
+                        Span::new(
+                            ctx.file_id,
+                            enclosing_span.span.start,
+                            enclosing_span.span.end,
+                        )
+                    });
+
+                return Some(SymbolAtOffset {
+                    symbol_id,
+                    node_id: dir_node_id,
+                    span,
+                });
             }
             // check if it's a declaration (function/struct/class definition)
             NodeType::Declaration => {
@@ -320,6 +372,42 @@ pub fn find_symbol_at_offset(
     None
 }
 
+/// Resolve a static parameter symbol at the given offset.
+fn static_parameter_symbol_at_offset(
+    _session: &Session,
+    ctx: &QueryContext<'_>,
+    offset: u32,
+) -> Option<SymbolAtOffset> {
+    // scan declarations with static parameters for a matching name span
+    let dir_tree = ctx.tree();
+    for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
+        let Some(parameters) = declaration.static_parameters() else {
+            continue;
+        };
+
+        for parameter_id in parameters {
+            let ast_node_id = dir_tree.get_source(parameter_id.id);
+            let Some(main_span) = ctx.ast.tree.get_main_span_by_id(ast_node_id) else {
+                continue;
+            };
+            if offset < main_span.start || offset > main_span.end {
+                continue;
+            }
+
+            let parameter = dir_tree.get::<Parameter>(*parameter_id);
+            let symbol_id = global_symbol(ctx.module_id, parameter.symbol());
+            let span = Span::new(ctx.file_id, main_span.start, main_span.end);
+            return Some(SymbolAtOffset {
+                symbol_id,
+                node_id: (*parameter_id).into(),
+                span,
+            });
+        }
+    }
+
+    None
+}
+
 /// Resolve a member access symbol when the cursor is on the member name.
 fn member_symbol_at_offset(
     session: &Session,
@@ -334,7 +422,7 @@ fn member_symbol_at_offset(
     let member_name = session.strings.get(name).to_string();
 
     // resolve the precise name span
-    let name_span = get_member_access_name_span(ctx, expr_id, &member_name)?;
+    let name_span = get_member_access_name_span(session, ctx, expr_id, &member_name)?;
 
     // skip when the cursor is not on the member name
     if offset < name_span.start || offset > name_span.end {
@@ -354,6 +442,7 @@ fn member_symbol_at_offset(
 
 /// Resolve the span for a member access name inside its expression span.
 pub(crate) fn get_member_access_name_span(
+    session: &Session,
     ctx: &QueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     member_name: &str,
@@ -363,13 +452,23 @@ pub(crate) fn get_member_access_name_span(
         return get_dir_node_span(ctx.ast, ctx.dir, expression_id.into());
     }
 
-    // resolve the member name span from the AST expression
+    // resolve the member name span from the AST expression when available
     let ast_node_id = ctx.tree().get_source(expression_id.id);
     if let Some(span) = ctx.ast.tree.get_main_span_by_id(ast_node_id) {
         return Some(span);
     }
 
-    Some(ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id))
+    // fall back to searching within the expression source text
+    let full_span = ctx.ast.tree.source_map.get_main_or_enclosing(ast_node_id);
+    let source_file = session.files.get(ctx.file_id);
+    let expr_text = source_file.span_str(Span::new(ctx.file_id, full_span.start, full_span.end));
+    if let Some(pos) = expr_text.rfind(member_name) {
+        let start = full_span.start + pos as u32;
+        let end = start + member_name.len() as u32;
+        return Some(Span::new(ctx.file_id, start, end));
+    }
+
+    Some(Span::new(ctx.file_id, full_span.start, full_span.end))
 }
 
 /// Get the canonical symbol for a given symbol id.
@@ -447,22 +546,29 @@ pub(crate) fn is_dependency_alias_for_target(
     // check for an alias that targets the canonical symbol
     let dir_tree = ctx.tree();
     let item = dir_tree.get::<DependencyItem>(item_id);
-    let (alias, target_symbol) = match item {
+    let (alias, target_symbol, mode) = match item {
         DependencyItem::Local {
             alias,
             target_symbol,
+            mode,
             ..
         }
         | DependencyItem::Remote {
             alias,
             target_symbol,
+            mode,
             ..
-        } => (alias, target_symbol),
+        } => (alias, target_symbol, mode),
         _ => return false,
     };
 
     // require an explicit alias
     if alias.is_none() {
+        return false;
+    }
+
+    // allow default imports to be renamed with their targets
+    if *mode == DependencyMode::Default {
         return false;
     }
 

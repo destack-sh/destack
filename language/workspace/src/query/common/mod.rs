@@ -31,7 +31,10 @@ pub use module::*;
 pub use parameters::*;
 pub(crate) use path::*;
 pub use references::*;
-pub(crate) use resolve::resolve_module_id_for_import_target;
+pub(crate) use resolve::{
+    resolve_module_id_for_import_target, resolve_module_id_for_import_target_path,
+    resolve_value_symbol_from_module,
+};
 pub use span::*;
 pub use symbol::*;
 pub use symbol_kind::*;

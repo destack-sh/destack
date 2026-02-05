@@ -65,7 +65,7 @@ pub(crate) fn resolve_call_target(
         }
         Expression::Member { left, name, .. } => {
             // resolve the member name string
-            let member_name = ctx.ast.strings.get(*name).to_string();
+            let member_name = session.strings.get(*name).to_string();
 
             // resolve the member symbol when possible
             let member_symbol =
@@ -78,7 +78,7 @@ pub(crate) fn resolve_call_target(
             // resolve the unresolved path name
             let name = path
                 .last_segment()
-                .map(|name_id| ctx.ast.strings.get(name_id).to_string());
+                .map(|name_id| session.strings.get(name_id).to_string());
             CallTarget::new(name, None)
         }
         _ => CallTarget::new(None, None),

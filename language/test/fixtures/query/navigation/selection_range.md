@@ -7,7 +7,7 @@
 The cursor is inside a nested expression. Expanding selection should move through: identifier -> expression -> statement -> function body -> function -> module.
 
 ```ds
-fn add(a: int, b: int) -> int {
+function add(a: int32, b: int32): int32 {
     return $0a + b;
 }
 ```
@@ -19,6 +19,8 @@ main.ds:2:12-2:13
 main.ds:2:12-2:17
 main.ds:2:5-2:17
 main.ds:2:5-2:18
+main.ds:1:41-3:2
+main.ds:1:1-3:2
 ```
 
 ### Selection depth in nested arithmetic

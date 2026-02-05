@@ -306,7 +306,7 @@ fn resolve_type_members_inner(
 }
 
 /// Resolve members from a reference type by looking up the symbol.
-fn resolve_reference_members(
+pub(crate) fn resolve_reference_members(
     symbol_id: GlobalSymbolId,
     session: &Session,
     current_module_id: ModuleId,

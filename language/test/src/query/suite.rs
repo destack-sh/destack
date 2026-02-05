@@ -140,7 +140,8 @@ fn infer_test_type(queries: &[QueryExpectation], expected: &[MdTestFile]) -> Que
             | "semantic_tokens_range"
             | "code_lens"
             | "resolve_code_lens" => QueryTestType::Assist,
-            "rename" | "prepare_rename" => QueryTestType::Refactor,
+            "rename" | "prepare_rename" | "file_rename" | "rename_files" | "extract_function"
+            | "inline" | "change_signature" => QueryTestType::Refactor,
             _ => QueryTestType::Navigation,
         };
     }
@@ -389,6 +390,13 @@ fn run_expected_files(test: &QueryTestCase, session: &QueryTestSession) -> TestR
         "file_rename" | "rename_files" => {
             run_file_rename_expected_files(session, expectation, &test.expected_files)
         }
+        "extract_function" => {
+            run_extract_function_expected_files(session, expectation, &test.expected_files)
+        }
+        "inline" => run_inline_expected_files(session, expectation, &test.expected_files),
+        "change_signature" => {
+            run_change_signature_expected_files(session, expectation, &test.expected_files)
+        }
         other => TestResult::Failed {
             message: format!("expected file validation not implemented for {other}"),
         },
@@ -561,6 +569,262 @@ fn run_file_rename_expected_files(
     TestResult::Passed
 }
 
+/// Run an extract function expectation and validate edited file contents.
+fn run_extract_function_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // resolve the selection span
+    let selection = match runner::position::resolve_query_span(session, &expectation.target) {
+        Ok(span) => span,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    let new_name = expectation
+        .args
+        .first()
+        .map(|name| name.as_str())
+        .unwrap_or("extracted");
+
+    // run extract function edits
+    let result = query::extract_function(&session.session, session.file_id, selection, new_name);
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: "extract_function returned no edits".to_string(),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("extract_function debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
+            return TestResult::Failed {
+                message: format!("extract_function output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Run an inline expectation and validate edited file contents.
+fn run_inline_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // resolve the target position
+    let (file_id, offset) =
+        match runner::position::resolve_query_position(session, &expectation.target) {
+            Ok(pos) => pos,
+            Err(error) => {
+                return TestResult::Failed { message: error };
+            }
+        };
+
+    // run inline edits
+    let result = query::inline_symbol(&session.session, file_id, offset);
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: "inline returned no edits".to_string(),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("inline debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
+            return TestResult::Failed {
+                message: format!("inline output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
+/// Run a change signature expectation and validate edited file contents.
+fn run_change_signature_expected_files(
+    session: &QueryTestSession,
+    expectation: &QueryExpectation,
+    expected_files: &[MdTestFile],
+) -> TestResult {
+    // resolve the target position
+    let (file_id, offset) =
+        match runner::position::resolve_query_position(session, &expectation.target) {
+            Ok(pos) => pos,
+            Err(error) => {
+                return TestResult::Failed { message: error };
+            }
+        };
+
+    let new_parameters = expectation
+        .args
+        .get(0)
+        .map(|value| value.as_str())
+        .unwrap_or("");
+    let new_arguments = expectation
+        .args
+        .get(1)
+        .map(|value| value.as_str())
+        .unwrap_or("");
+
+    // run change signature edits
+    let result = query::change_signature(
+        &session.session,
+        file_id,
+        offset,
+        new_parameters,
+        new_arguments,
+    );
+    let Some(result) = result else {
+        return TestResult::Failed {
+            message: "change_signature returned no edits".to_string(),
+        };
+    };
+
+    // apply edits to sources
+    let applied = match apply_batch_edit(session, &result.edits) {
+        Ok(applied) => applied,
+        Err(error) => {
+            return TestResult::Failed { message: error };
+        }
+    };
+
+    // build expected file lookup
+    let mut expected_paths = HashSet::new();
+    for file in expected_files {
+        expected_paths.insert(file.path.as_str());
+    }
+
+    // ensure all edited files have expectations
+    for path in applied.keys() {
+        if !expected_paths.contains(path.as_str()) {
+            return TestResult::Failed {
+                message: format!("missing expected output for '{path}'"),
+            };
+        }
+    }
+
+    // compare each expected file with actual output
+    for expected in expected_files {
+        let actual = match applied.get(&expected.path) {
+            Some(content) => content.clone(),
+            None => {
+                let Some(file) = session.file(&expected.path) else {
+                    return TestResult::Failed {
+                        message: format!("missing source for '{}'", expected.path),
+                    };
+                };
+                file.source.clone()
+            }
+        };
+
+        let actual = actual.trim_end();
+        let expected_content = expected.content.trim_end();
+        if actual != expected_content {
+            if std::env::var("DESTACK_QUERY_DEBUG_DIFF").is_ok() {
+                eprintln!("change_signature debug: path={}", expected.path);
+                eprintln!("--- expected ---\n{expected_content}");
+                eprintln!("--- actual ---\n{actual}");
+            }
+
+            return TestResult::Failed {
+                message: format!("change_signature output mismatch for '{}'", expected.path),
+            };
+        }
+    }
+
+    TestResult::Passed
+}
+
 /// Apply a batch of edits and return updated contents keyed by file path.
 fn apply_batch_edit(
     session: &QueryTestSession,
@@ -608,6 +872,12 @@ fn apply_file_edits(source: &str, edits: &[Edit]) -> Result<String, String> {
 
         // validate span boundaries
         if start > end || end > updated.len() {
+            eprintln!(
+                "edit span out of bounds: start={start} end={end} len={}",
+                updated.len()
+            );
+            eprintln!("edit span: {:?}", edit.span);
+            eprintln!("edit new_text: {}", edit.new_text);
             return Err("edit span is out of bounds".to_string());
         }
         if !updated.is_char_boundary(start) || !updated.is_char_boundary(end) {
@@ -738,6 +1008,9 @@ fn dispatch_query(
         "rename" => runner::refactor::rename::run(session, expectation),
         "prepare_rename" => runner::refactor::prepare_rename::run(session, expectation),
         "file_rename" | "rename_files" => runner::refactor::file_rename::run(session, expectation),
+        "extract_function" => runner::refactor::extract_function::run(session, expectation),
+        "inline" => runner::refactor::inline::run(session, expectation),
+        "change_signature" => runner::refactor::change_signature::run(session, expectation),
 
         // assist
         "completion" => runner::assist::completion::run(session, expectation),
