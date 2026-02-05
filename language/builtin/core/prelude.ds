@@ -40,7 +40,7 @@ export {
     reduceAnd,
     reduceOr,
     reduceXor,
-} from "./intrinsic/simd.ds";
+} from "./intrinsic/vector.ds";
 
 // decorator metadata (reflection)
 export { DecoratorInfo } from "./reflect/decorator.ds";

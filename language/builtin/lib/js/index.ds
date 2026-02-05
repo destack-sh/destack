@@ -2,4 +2,4 @@
 export { Slice } from "./collections/index.ds";
 
 // simd (ambient)
-export type { Vector } from "../../core/intrinsic/simd.ds";
+export type { Vector } from "../../core/intrinsic/vector.ds";
