@@ -10,21 +10,21 @@ The pass rate intentionally excludes the explicitly skipped tests.
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   693  |     0  |    22  |   693 | 100.00% |
+| babel    |   690  |     0  |    25  |   690 | 100.00% |
 | biome    |   513  |   112  |    12  |   625 |  82.08% |
-| swc      |   527  |     0  |    11  |   527 | 100.00% |
+| swc      |   525  |     0  |    13  |   525 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6143  |  1065  |     45  |  7208 |  85.22% |
+| total    |  6138  |  1065  |     50  |  7203 |  85.21% |
 
-Total Blended Pass Rate: **85.22%**
+Total Blended Pass Rate: **85.21%**
 <!-- end:summary-results -->
 
 ### babel
 <!-- begin:babel-results -->
 | Category             | Passed | Failed | Skipped | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| arrow-function       |    22  |     0  |       -  |    22 | 100.00% |
+| arrow-function       |    21  |     0  |       1  |    21 | 100.00% |
 | assert-predicate     |    10  |     0  |       -  |    10 | 100.00% |
 | assign               |     3  |     0  |       -  |     3 | 100.00% |
 | async-call           |     1  |     0  |       -  |     1 | 100.00% |
@@ -39,7 +39,7 @@ Total Blended Pass Rate: **85.22%**
 | disallow-jsx-ambiguity |     3  |     0  |       -  |     3 | 100.00% |
 | dts                  |     5  |     0  |       -  |     5 | 100.00% |
 | enum                 |    13  |     0  |       -  |    13 | 100.00% |
-| errors               |    28  |     0  |       -  |    28 | 100.00% |
+| errors               |    26  |     0  |       2  |    26 | 100.00% |
 | expect-plugin        |     3  |     0  |       -  |     3 | 100.00% |
 | exponentiation       |     1  |     0  |       2  |     1 | 100.00% |
 | export               |    13  |     0  |       -  |    13 | 100.00% |
@@ -62,7 +62,7 @@ Total Blended Pass Rate: **85.22%**
 | types-arrow-function |     3  |     0  |       -  |     3 | 100.00% |
 | variable-declarator  |     3  |     0  |       -  |     3 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   693  |     0  |      22  |   693 | 100.00% |
+| total                |   690  |     0  |      25  |   690 | 100.00% |
 <!-- end:babel-results -->
 
 ### biome
@@ -122,10 +122,10 @@ Total Blended Pass Rate: **85.22%**
 | types                |    30  |     0  |       -  |    30 | 100.00% |
 | v4                   |     5  |     0  |       -  |     5 | 100.00% |
 | variable-declarator  |     1  |     0  |       -  |     1 | 100.00% |
-| variance-annotations |     2  |     0  |       -  |     2 | 100.00% |
+| variance-annotations |     0  |     0  |       2  |     0 | 100.00% |
 | vercel               |     1  |     0  |       -  |     1 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   527  |     0  |      11  |   527 | 100.00% |
+| total                |   525  |     0  |      13  |   525 | 100.00% |
 <!-- end:swc-results -->
 
 ### test262

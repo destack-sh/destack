@@ -64,6 +64,12 @@ impl Compiler {
                     FunctionAbstraction::AbstractOverride | FunctionAbstraction::ConcreteOverride
                 );
 
+                // variance modifiers are not valid on members
+                if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidMemberModifier { node });
+                }
+
                 // constructor cannot have static parameters
                 if is_constructor && has_static_parameters {
                     let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -171,6 +177,12 @@ impl Compiler {
                         Some(AbstractionModifier::Abstract | AbstractionModifier::AbstractOverride)
                     )
                 });
+
+                // variance modifiers are not valid on members
+                if !modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidMemberModifier { node });
+                }
 
                 // enforce definite assignment assertion policy
                 if has_definite_assignment {

@@ -14,6 +14,8 @@ ok/ts_type_assertion_expression.ts
 ok/type_assertion_primary_expression.ts
 
 # decorators are not supported in .js files
+ok/decorator_export_class_clause.js
+ok/decorator_export_top_level.js
 
 # TypeScript member modifiers are not supported in .js files
 ok/class_member_modifiers.js
