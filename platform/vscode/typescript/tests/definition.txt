@@ -10,6 +10,19 @@ struct Point {
 //  ^ variable.other.property.ds
 }
 
+class Widget {
+    public readonly size: int32
+//                  ^^^^ variable.other.property.ds
+    static get value(): int32 {}
+//         ^^^ keyword.other.accessor.ds
+//             ^^^^^ entity.name.function.definition.ds
+    async compute(): int32 {}
+//        ^^^^^^^ entity.name.function.definition.ds
+    set value(v: int32) {}
+//  ^^^ keyword.other.accessor.ds
+//      ^^^^^ entity.name.function.definition.ds
+}
+
 interface Bar {}
 //         ^ entity.name.type.definition.ds
 
@@ -40,6 +53,22 @@ union Result {
 
 type Alias = Foo
 //   ^^^^^ entity.name.type.definition.ds
+
+struct Box<T, U> {}
+//         ^ entity.name.type.parameter.ds
+//            ^ entity.name.type.parameter.ds
+
+class Derived extends Base implements Iface {}
+//                    ^^^^ entity.name.type.ds
+//                                    ^^^^^ entity.name.type.ds
+
+let value: Result
+//         ^^^^^^ entity.name.type.ds
+
+function makeThing<T>(value: T) -> Result {}
+//                 ^ entity.name.type.parameter.ds
+//                           ^ entity.name.type.ds
+//                                 ^^^^^^ entity.name.type.ds
 
 newtype interface Foo {}
 //  ^ keyword.declaration.type.ds
@@ -73,3 +102,11 @@ value.foo().bar
 
 ...spread.member
 //         ^ variable.other.member.ds
+
+class Secret {
+    #value: int32
+//   ^^^^^ variable.other.property.ds
+}
+
+this.#value
+//    ^^^^^ variable.other.member.ds

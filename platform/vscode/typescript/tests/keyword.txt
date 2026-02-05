@@ -131,6 +131,15 @@ provides
 comptime
 // <- keyword.other.comptime.ds
 
+keyof
+// <- keyword.operator.type.unary.ds
+
+typeof
+// <- keyword.operator.type.unary.ds
+
+infer
+// <- keyword.operator.type.unary.ds
+
 any
 // <- keyword.other.type.ds
 
@@ -211,3 +220,22 @@ set
 
 move
 // <- keyword.other.accessor.ds
+
+if let Some(value) = maybe
+// <- keyword.control.conditional.ds
+// ^^^ keyword.declaration.type.ds
+
+await using resource = open()
+// <- keyword.control.async.ds
+//    ^^^^^ keyword.operator.type.ds
+
+extension for Vector2 { }
+// <- keyword.declaration.type.ds
+//        ^^^ keyword.declaration.type.ds
+
+newtype interface Add<T> { }
+// <- keyword.declaration.type.ds
+//      ^^^^^^^^^ keyword.declaration.type.ds
+
+comptime {
+// <- keyword.other.comptime.ds

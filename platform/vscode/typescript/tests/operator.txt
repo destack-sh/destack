@@ -10,6 +10,16 @@ value--
 value?
 //   ^ keyword.operator.postfix.ds
 
+value?.member
+//   ^ keyword.operator.optional.ds
+//     ^^^^^^ variable.other.member.ds
+
+value?.[index]
+//   ^ keyword.operator.optional.ds
+
+value?.(arg)
+//   ^ keyword.operator.optional.ds
+
 value && !other
 //       ^ keyword.operator.prefix.ds
 
@@ -210,6 +220,12 @@ value ??= other
 // type operators
 value as Type
 //    ^^ keyword.operator.type.binary.ds
+//       ^^^^ entity.name.type.ds
+
+value as Foo<Bar>
+//    ^^ keyword.operator.type.binary.ds
+//       ^^^ entity.name.type.ds
+//           ^^^ entity.name.type.ds
 
 value as const
 //    ^^ keyword.operator.type.binary.ds
@@ -223,6 +239,7 @@ value instanceof Type
 
 value satisfies Constraint
 //    ^^^^^^^^^ keyword.operator.type.binary.ds
+//              ^^^^^^^^^^ entity.name.type.ds
 
 value in collection
 //    ^^ keyword.operator.container.ds
@@ -232,6 +249,11 @@ value of entries
 
 struct Foo implements Bar
 //         ^^^^^^^^^^ keyword.operator.type.binary.ds
+//                    ^^^ entity.name.type.ds
+
+new Widget<Thing>()
+//  ^^^^^^ entity.name.type.ds
+//         ^^^^^ entity.name.type.ds
 
 // type unary operators
 typeof value
