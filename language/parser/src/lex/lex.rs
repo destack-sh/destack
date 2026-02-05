@@ -1225,7 +1225,7 @@ impl Lexer {
             // parse encoding base
             match self.peek() {
                 // binary literal
-                'b' => {
+                'b' | 'B' => {
                     base = NumberBase::Binary;
                     self.eat();
                     if !self.eat_decimal_digits() {
@@ -1238,7 +1238,7 @@ impl Lexer {
                 }
 
                 // octal literal
-                'o' => {
+                'o' | 'O' => {
                     base = NumberBase::Octal;
                     self.eat();
                     if !self.eat_decimal_digits() {
@@ -1251,7 +1251,7 @@ impl Lexer {
                 }
 
                 // hexadecimal literal
-                'x' => {
+                'x' | 'X' => {
                     base = NumberBase::Hexadecimal;
                     self.eat();
                     if !self.eat_hexadecimal_digits() {
@@ -1377,7 +1377,7 @@ impl Lexer {
                 }
                 // escaped character is considered one logical character
                 '\\' => {
-                    self.eat();
+                    self.eat(); // eat '\'
                     if self.is_end() {
                         return Self::finish_single_quoted_literal(
                             logical_len,
@@ -1385,12 +1385,11 @@ impl Lexer {
                             has_invalid_escape,
                         );
                     }
-                    // \8 and \9 are always invalid escape sequences
-                    let escaped = self.peek();
-                    if escaped == '8' || escaped == '9' {
+
+                    // consume escape sequence and track invalid escapes
+                    if self.eat_string_escape_sequence() {
                         has_invalid_escape = true;
                     }
-                    self.eat();
                     logical_len = logical_len.saturating_add(1);
                 }
                 // regular character
@@ -1432,14 +1431,9 @@ impl Lexer {
                     return (true, has_invalid_escape);
                 }
                 '\\' => {
-                    // \8 and \9 are always invalid escape sequences
-                    let escaped = self.peek();
-                    if escaped == '8' || escaped == '9' {
+                    // consume escape sequence and track invalid escapes
+                    if self.eat_string_escape_sequence() {
                         has_invalid_escape = true;
-                    }
-                    // skip escaped backslash or quote
-                    if escaped == '\\' || escaped == '"' {
-                        self.eat();
                     }
                 }
                 _ => (),
@@ -1447,6 +1441,74 @@ impl Lexer {
         }
         // end of file reached
         (false, has_invalid_escape)
+    }
+
+    /// Consume a string escape sequence after `\`.
+    /// Returns true when the escape sequence is invalid.
+    fn eat_string_escape_sequence(&mut self) -> bool {
+        if self.is_end() {
+            return true;
+        }
+
+        let escaped = self.peek();
+        match escaped {
+            // \8 and \9 are always invalid
+            '8' | '9' => {
+                self.eat();
+                true
+            }
+            // \uXXXX and \u{...}
+            'u' => {
+                self.eat(); // eat `u`
+                self.eat_unicode_escape_after_u()
+            }
+            // \xXX
+            'x' => {
+                self.eat(); // eat `x`
+                self.eat_fixed_hex_escape(2)
+            }
+            // regular escaped character
+            _ => {
+                self.eat();
+                false
+            }
+        }
+    }
+
+    /// Consume a unicode escape sequence body after `\u`.
+    /// Returns true when the sequence is invalid.
+    fn eat_unicode_escape_after_u(&mut self) -> bool {
+        if self.peek() == '{' {
+            self.eat(); // eat `{`
+            let mut digits = 0usize;
+            while self.peek().is_ascii_hexdigit() {
+                self.eat();
+                digits += 1;
+                if digits > 6 {
+                    return true;
+                }
+            }
+
+            if digits == 0 || self.peek() != '}' {
+                return true;
+            }
+            self.eat(); // eat `}`
+            false
+        } else {
+            self.eat_fixed_hex_escape(4)
+        }
+    }
+
+    /// Consume an exact number of hexadecimal digits.
+    /// Returns true when the sequence is invalid.
+    fn eat_fixed_hex_escape(&mut self, width: usize) -> bool {
+        for _ in 0..width {
+            if !self.peek().is_ascii_hexdigit() {
+                return true;
+            }
+            self.eat();
+        }
+        false
     }
 
     /// Parses a regex string (excluding first `/`, including any flags after `/`).

@@ -846,6 +846,42 @@ false
 }
 
 #[test]
+fn test_lex_literals_uppercase_radix_prefixes() {
+    assert_tokenize_eq_roundtrip!(
+        "0B101 0O77 0XFF",
+        Token::new(
+            TokenType::Literal,
+            5,
+            Some(LiteralType::Int {
+                base: NumberBase::Binary,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            4,
+            Some(LiteralType::Int {
+                base: NumberBase::Octal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+        Token::new(TokenType::Whitespace, 1, None),
+        Token::new(
+            TokenType::Literal,
+            4,
+            Some(LiteralType::Int {
+                base: NumberBase::Hexadecimal,
+                is_empty: false,
+                is_bigint: false,
+            })
+        ),
+    );
+}
+
+#[test]
 fn test_lex_block_comments_basic_and_doc() {
     assert_tokenize_eq_roundtrip!(
         "/* abc */ /** doc */",
