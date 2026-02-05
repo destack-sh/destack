@@ -299,7 +299,7 @@ impl Compiler {
             return directive.policy.default_kind();
         }
 
-        // default policy: const by value, mutable by reference
+        // default policy: const by valueable by reference
         let mutability = self.mutability_for_symbol(tree, symbols, symbol);
         if mutability == Some(Mutability::Immutable) {
             return CaptureKind::ByValue;

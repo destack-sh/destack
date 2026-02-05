@@ -92,16 +92,16 @@ const view = &value
 const view = &value;
 ```
 
-### mutable reference operator
+### readonly reference operator
 
-Mutable references keep `&mut` tight to the operand.
+Readonly references keep `&readonly` tight to the operand.
 
 ```ds
-const view = &mut value
+const view = &readonly value
 ```
 
 ```ds expected
-const view = &mut value;
+const view = &readonly value;
 ```
 
 ### owned reference operator

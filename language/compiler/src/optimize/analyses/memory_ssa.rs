@@ -2347,8 +2347,8 @@ mod tests {
     #[test]
     fn test_memory_ssa_linear_def_use() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
     v1: i32 = iconst 1i32
     store v0, v1
     v2: i32 = load v0
@@ -2388,8 +2388,8 @@ block0(v0: ref<raw mut i32>):
     #[test]
     fn test_memory_ssa_phi_at_join() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: bool) -> i32 {
-block0(v0: ref<raw mut i32>, v1: bool):
+            r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
+block0(v0: ref<raw i32>, v1: bool):
     branch v1, block1, block2
 block1:
     v2: i32 = iconst 1i32
@@ -2525,8 +2525,8 @@ block0:
     #[test]
     fn test_memory_ssa_clobber_skips_alias_scope() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -2591,8 +2591,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     #[test]
     fn test_memory_ssa_clobber_skips_tbaa() {
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -2661,8 +2661,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_memory_ssa_clobber_alias_scope_symmetry() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -2728,8 +2728,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_memory_ssa_clobber_tbaa_disjoint_offsets() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -2797,8 +2797,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_memory_ssa_clobber_tbaa_overlap_offsets() {
         // input test
         let mut test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -3564,8 +3564,8 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     #[test]
     fn test_memory_ssa_loop_phi_in_header() {
         let test = TestProgram::new(
-            r#"function @test(v0: ref<raw mut i32>, v1: i32) -> i32 {
-block0(v0: ref<raw mut i32>, v1: i32):
+            r#"function @test(v0: ref<raw i32>, v1: i32) -> i32 {
+block0(v0: ref<raw i32>, v1: i32):
     v2: i32 = iconst 0i32
     store v0, v2
     jump block1(v2)

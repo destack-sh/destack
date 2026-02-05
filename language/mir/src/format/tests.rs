@@ -58,7 +58,7 @@ fn test_format_with_locals() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @with_locals() -> i64 {
-    local0: i64 ; owned, mut
+    local0: i64 ; owned
 block0:
     v0: i64 = iconst 42i64
     local.set local0, v0
@@ -98,9 +98,9 @@ fn test_format_local_addr() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @local_addr() -> void {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0:
-    v0: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    v0: ref<borrowed addrspace(stack) i32> = local.addr local0
     return
 }";
     assert_eq!(output, expected);
@@ -426,10 +426,10 @@ fn test_format_global_variable() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-global @counter: i32 = zeroinit ; mut
+global @counter: i32 = zeroinit ;
 function @increment() -> void {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v0: ref<raw addrspace(global) i32> = global.addr @counter
     v1: i32 = load v0
     v2: i32 = iconst 1i32
     v3: i32 = iadd v1, v2

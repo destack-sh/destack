@@ -276,7 +276,7 @@ Lowers to vtable lookup:
 ```mir
 v1 = field.get v0, 0           ; load vtable pointer from object layout
 v2 = field.get v1, 2           ; load update method at vtable slot 2
-v3 = call.indirect v2(v0, delta) -> fn(ref<raw void>, i32) -> void ; indirect call through vtable
+v3 = call.indirect v2(v0, delta) -> fn(ref<raw readonly void>, i32) -> void ; indirect call through vtable
 ```
 
 The key: static resolution means we know *which method signature* (Node::update), but if it's virtual, the actual implementation depends on the concrete type.
@@ -360,7 +360,7 @@ TypeScript has both `null` and `undefined`, and native lowering preserves the di
 A union of a single reference type and `null` lowers to a nullable reference:
 ```ds
 type MaybeRef<T> = T | null  // T is a reference type
-// layout: ref?<managed T>
+// layout: ref?<managed readonly T>
 ```
 
 All other unions that include `null` or `undefined` lower to tagged union layouts:
@@ -490,7 +490,7 @@ String equality (`===`) is always value comparison, never reference comparison.
 
 Lowers to string concatenation:
 ```mir
-type @string = ref<struct { u32, u32, u64, u32, u32, *u8 }>
+type @string = ref<struct readonly { u32, u32, u64, u32, u32, *u8 }>
 
 function @template_example(v0: @string) -> @string {
 block0(v0: @string):
@@ -517,7 +517,7 @@ We also support fixed-size arrays which are more like Rust arrays / slices:
 | Pattern | MIR Type | Notes |
 |---------|----------|-------|
 | `T[N]` | `Type::Array { element, length: N }` | Inline, value semantics |
-| `T[]` | `ref<managed @Array<T>>` | Heap, reference semantics |
+| `T[]` | `ref<managed readonly @Array<T>>` | Heap, reference semantics |
 | `TypedArray` | `Type::Reference(kind: Raw)` to buffer | Direct memory access |
 
 **Important:** `T[]` is NOT `Array<unknown>`. After monomorphization, we know T.
@@ -839,7 +839,7 @@ When contextual typing assigns the union type to a concrete expression, Lower us
 
    ```ds
    type MaybeString = string | null
-   // layout: ref?<managed string>
+   // layout: ref?<managed readonly string>
    ```
 
 2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit).
@@ -1054,7 +1054,7 @@ This inheritance-preserving order ensures:
 ; node.update(delta) where node could be Node or Sprite
 v1 = field.get v0, 0           ; load vtable pointer from object
 v2 = field.get v1, 2           ; load update method (slot 2)
-v3 = call.indirect v2(v0, delta) -> fn(ref<raw void>, i32) -> void ; call with self as first arg
+v3 = call.indirect v2(v0, delta) -> fn(ref<raw readonly void>, i32) -> void ; call with self as first arg
 ```
 
 **Super calls:**
@@ -1071,7 +1071,7 @@ class Sprite extends Node {
 
 Lowers to:
 ```mir
-type @Sprite = struct { ref<raw void>, ref<string>, ref<Texture> }
+type @Sprite = struct { ref<raw readonly void>, ref<string>, ref<Texture> }
 
 function @Sprite.update(v0: ref<@Sprite>, delta: f32) -> void {
 block0(v0: ref<@Sprite>, delta: f32):
@@ -1156,15 +1156,15 @@ function render(d: Drawable) { d.draw(); }
 
 Lowers to:
 ```mir
-type @Drawable = struct { ref<raw void>, ref<raw void> }
+type @Drawable = struct { ref<raw readonly void>, ref<raw readonly void> }
 
-function @render(v0: ref<raw @Drawable>) -> void {
-block0(v0: ref<raw @Drawable>):
+function @render(v0: ref<raw readonly @Drawable>) -> void {
+block0(v0: ref<raw readonly @Drawable>):
     ; v0 is a fat pointer: { objectPtr, itabPtr }
     v1 = field.get v0, 0       ; load objectPtr
     v2 = field.get v0, 1       ; load itabPtr
     v3 = field.get v2, 1       ; load draw method from itab slot 1
-    call.indirect v3(v1) -> fn(ref<raw void>) -> void ; call with object as self
+    call.indirect v3(v1) -> fn(ref<raw readonly void>) -> void ; call with object as self
     return
 }
 ```
@@ -1340,9 +1340,9 @@ Allocator selection for native targets is configured per-target (`allocator`).
 ```mir
 type @Point = struct { f32, f32 }
 
-function @alloc_example() -> ref<managed @Point> {
+function @alloc_example() -> ref<managed readonly @Point> {
 block0:
-    v0 = managed.alloc @Point -> ref<managed @Point>
+    v0 = managed.alloc @Point -> ref<managed readonly @Point>
     return v0
 }
 ```
@@ -1378,7 +1378,7 @@ Cleanup uses `raw.drop` (with dispose) or `raw.free` (without dispose).
 ```mir
 type @SomeType = struct { i64 }
 
-v0 = raw.alloc @SomeType -> ref<raw @SomeType>
+v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
 ; ... use v0 ...
 raw.drop v0    ; drop glue: dispose + deallocate
 ```
@@ -1386,7 +1386,7 @@ raw.drop v0    ; drop glue: dispose + deallocate
 For manual deallocation without dispose (FFI, low-level code):
 
 ```mir
-v0 = raw.alloc @SomeType -> ref<raw @SomeType>
+v0 = raw.alloc @SomeType -> ref<raw readonly @SomeType>
 ; ... use v0 ...
 raw.free v0    ; just deallocate, no dispose
 ```
@@ -1403,7 +1403,7 @@ Cleanup uses `stack.drop` for dispose; deallocation happens automatically when t
 ```mir
 type @SomeType = struct { i64 }
 
-v0 = stack.alloc @SomeType -> ref<raw addrspace(stack) @SomeType>
+v0 = stack.alloc @SomeType -> ref<raw addrspace(stack) readonly @SomeType>
 ; ... use v0 ...
 stack.drop v0    ; drop glue: dispose only, frame handles memory
 ```
@@ -1461,10 +1461,9 @@ To preserve TypeScript semantics, a plain type `T` always follows the same rules
 | Modifier | Semantics | After `foo(x)` | Who cleans up? |
 |----------|-----------|----------------|----------------|
 | `T` | GC managed (implicit) | `x` still valid | GC |
-| `&T` | Borrow (read only) | `x` still valid | Original owner |
-| `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
+| `&readonly T` | Borrow (read only) | `x` still valid | Original owner |
+| `&T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
 | `^T` | Owned reference (move-only) | `x` **invalid** | New owner (or GC fallback) |
-| `^mut T` | Owned reference (mutable) | `x` **invalid** | New owner (or GC fallback) |
 
 For the default (`T`), the compiler optimizes automatically:
 - Small values are passed by copy (registers)
@@ -1490,7 +1489,7 @@ When a `^T` value reaches its **last proven use** without being transferred, it 
 ```ds
 function process() {
     const data = ^LargeData { ... }  // we own this
-    doWork(&data)                     // borrow it
+    doWork(&readonly data)            // borrow it
     // data can be dropped before the next statement
 }
 ```
@@ -1502,20 +1501,20 @@ control flow merges and before coroutine suspension when the value is not used a
 
 #### Borrowing
 
-`&T` and `&mut T` are explicit references (pointers) to data.
+`&T` and `&readonly T` are explicit references (pointers) to data.
 They lower directly to pointer types in MIR:
 
 ```ds
-function process(data: &Point) { ... }   // read only reference
-function mutate(data: &mut Point) { ... } // mutable reference
+function process(data: &readonly Point) { ... }   // read only reference
+function mutate(data: &Point) { ... } // mutable reference
 ```
 
 Lowers to (conceptual):
 ```mir
 type @Point = struct { f32, f32 }
 
-function @process(v0: ref<borrowed @Point>) -> void { ... }
-function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
+function @process(v0: ref<borrowed readonly @Point>) -> void { ... }
+function @mutate(v0: ref<borrowed readonly @Point>) -> void { ... }
 ```
 
 Lower treats locals, `this`, globals, and member or index access as addressable places for `&expr`.
@@ -1532,8 +1531,8 @@ In lenient mode, the same situations produce warnings.
 
 #### Raw pointers
 
-`*T` and `*mut T` are unsafe pointers with no borrow tracking.
-They lower directly to `ref<raw T>` and `ref<raw mut T>`.
+`*T` and `*readonly T` are unsafe pointers with no borrow tracking.
+They lower directly to `ref<raw readonly T>` and `ref<raw readonly T>`.
 Deref and mutation use explicit `load`/`store` and pointer operations.
 Conversions between borrowed references and raw pointers are explicit.
 
@@ -1547,14 +1546,14 @@ Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
 #### Borrow Modes
 
-By default, `&T` and `&mut T` are hints and violations produce warnings.
+By default, `&T` and `&readonly T` are hints and violations produce warnings.
 They help document APIs, guide drops, and enable limited optimizations.
-Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&mut` borrows.
+Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&` borrows.
 Strict mode enables stronger `noalias` optimizations and errors on violations.
 Strict mode forbids:
-- Aliasing `&mut` with any other borrow
-- Storing `&mut` inside managed objects
-- Holding `&mut` across `await` or generator suspension
+- Aliasing `&` with any other borrow
+- Storing `&` inside managed objects
+- Holding `&` across `await` or generator suspension
 
 ### Closures
 

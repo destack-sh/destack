@@ -20,8 +20,8 @@ fn test_tensor_load_store() {
     let mir = r#"
 function @tensor_load_store() -> i32 {
 block0:
-    v0: ref<raw addrspace(stack) mut [i32; 4]> = stack.alloc [i32; 4]
-    v1: tensor_ref<raw addrspace(stack) mut i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) mut i32, [2, 2]>
+    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v1: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
     v2: i32 = iconst 42i32
     v3: i32 = iconst 1i32
     v4: i32 = iconst 0i32
@@ -38,10 +38,10 @@ fn test_tensor_fill_copy() {
     let mir = r#"
 function @tensor_fill_copy() -> i32 {
 block0:
-    v0: ref<raw addrspace(stack) mut [i32; 4]> = stack.alloc [i32; 4]
-    v1: ref<raw addrspace(stack) mut [i32; 4]> = stack.alloc [i32; 4]
-    v2: tensor_ref<raw addrspace(stack) mut i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) mut i32, [2, 2]>
-    v3: tensor_ref<raw addrspace(stack) mut i32, [2, 2]> = bitcast v1 -> tensor_ref<raw addrspace(stack) mut i32, [2, 2]>
+    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v1: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v2: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
+    v3: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v1 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
     v4: i32 = iconst 5i32
     tensor.fill v2, v4
     tensor.copy v3, v2
@@ -344,8 +344,8 @@ fn test_tensor_view() {
     let mir = r#"
 function @tensor_view() -> i32 {
 block0:
-    v0: ref<raw addrspace(stack) mut [i32; 4]> = stack.alloc [i32; 4]
-    v1: tensor_ref<raw addrspace(stack) mut i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) mut i32, [2, 2]>
+    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v1: tensor_ref<raw addrspace(stack) i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) i32, [2, 2]>
     v2: i32 = iconst 0i32
     v3: i32 = iconst 1i32
     v4: i32 = iconst 2i32
@@ -354,7 +354,7 @@ block0:
     tensor.store v1, [v2, v3], v4
     tensor.store v1, [v3, v2], v5
     tensor.store v1, [v3, v3], v4
-    v6: tensor_ref<raw addrspace(stack) mut i32, [2, 1]> = tensor.view v1, offsets=[v2, v3], sizes=[v4, v3], strides=[v3, v3]
+    v6: tensor_ref<raw addrspace(stack) i32, [2, 1]> = tensor.view v1, offsets=[v2, v3], sizes=[v4, v3], strides=[v3, v3]
     v7: i32 = tensor.load v6, [v2, v2]
     return v7
 }"#;

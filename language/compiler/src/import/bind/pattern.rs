@@ -10,12 +10,8 @@ use destack_workspace::{Module, ModuleAst};
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Return the default mutability for bindings without explicit mutability.
-    pub(super) fn default_binding_mutability(&self, module: &Module) -> Mutability {
-        if module.language_type.is_destack() {
-            Mutability::Immutable
-        } else {
-            Mutability::Mutable
-        }
+    pub(super) fn default_binding_mutability(&self, _module: &Module) -> Mutability {
+        Mutability::Mutable
     }
 
     /// Resolve the mutability for a binding symbol.

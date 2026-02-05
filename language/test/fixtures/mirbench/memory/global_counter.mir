@@ -1,19 +1,19 @@
 
-global @seed: i64 = 6364136223846793005i64 ; const
-global @counter: i64 = 0i64 ; mut
+global @seed: i64 = 6364136223846793005i64 ; readonly
+global @counter: i64 = 0i64 ;
 
 function @global_counter(v0: i64) -> i64 {
 
 // entry, init globals
 block0(v0: i64):
-    v1: ref<raw addrspace(global) mut i64> = global.addr @counter
+    v1: ref<raw addrspace(global) i64> = global.addr @counter
     v2: i64 = iconst 0i64
     store v1, v2
     v3: i64 = global.const @seed
     jump block1(v2, v1, v3)
 
 // loop condition, check limit
-block1(v4: i64, v5: ref<raw addrspace(global) mut i64>, v6: i64):
+block1(v4: i64, v5: ref<raw addrspace(global) i64>, v6: i64):
     v7: bool = icmp_sge v4, v0
     branch v7, block3(v5), block2
 
@@ -28,7 +28,7 @@ block2:
     jump block1(v12, v5, v6)
 
 // return accumulated value
-block3(v13: ref<raw addrspace(global) mut i64>):
+block3(v13: ref<raw addrspace(global) i64>):
     v14: i64 = load v13
     return v14
 }

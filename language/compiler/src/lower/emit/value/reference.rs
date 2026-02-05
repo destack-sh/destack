@@ -10,13 +10,13 @@ impl FunctionContext<'_> {
     /// Lower a borrow expression to a reference value.
     ///
     /// ```ds
-    /// function borrow(value: int32): ref<borrowed int32> {
+    /// function borrow(value: int32): ref<borrowed readonly int32> {
     ///     return &value;
     /// }
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<borrowed i32> = local.addr v0 -> ref<borrowed i32>
+    /// v1: ref<borrowed readonly i32> = local.addr v0 -> ref<borrowed readonly i32>
     /// ```
     pub(crate) fn lower_reference_of_expression(
         &mut self,
@@ -28,7 +28,7 @@ impl FunctionContext<'_> {
         let pointee_type = self.lower_type_for_expression(right)?;
         let mir_mutability = mutability
             .map(lower_mutability)
-            .unwrap_or(mir::Mutability::Immutable);
+            .unwrap_or(mir::Mutability::Mutable);
         let result_type = self.state.builder.type_reference(
             mir::ReferenceKind::Borrowed,
             pointee_type,
@@ -254,16 +254,16 @@ impl FunctionContext<'_> {
         }
     }
 
-    /// Lower an ownership conversion to an owned reference.
+    /// Lower an ownership conversion to an owning handle.
     ///
     /// ```ds
-    /// function own(value: int32): ref<owned int32> {
+    /// function own(value: int32): ref<owned readonly int32> {
     ///     return value;
     /// }
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<owned i32> = raw.alloc i32
+    /// v1: ref<owned readonly i32> = raw.alloc i32
     /// store v1, v0
     /// ```
     pub(crate) fn lower_value_of_expression(
@@ -275,7 +275,7 @@ impl FunctionContext<'_> {
         // lower the owned value expression
         let (value, pointee_type) = self.lower_value_expression(right)?;
 
-        // resolve the owned reference type
+        // resolve the owning handle type
         let mutability = mutability
             .map(lower_mutability)
             .unwrap_or(mir::Mutability::Immutable);

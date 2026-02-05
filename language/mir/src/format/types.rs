@@ -75,60 +75,14 @@ fn format_type_inner<'a>(
             };
 
             // render reference syntax
-            if *mutability == Mutability::Mutable && address_space_token.is_some() {
-                let addrspace = address_space_token.as_deref().unwrap_or("");
-                write!(
-                    f,
-                    [
-                        token(ref_token),
-                        token(kind_token),
-                        space(),
-                        text(addrspace),
-                        space(),
-                        token("mut"),
-                        space(),
-                        pointee,
-                        token(">")
-                    ]
-                )
-            } else if *mutability == Mutability::Mutable {
-                write!(
-                    f,
-                    [
-                        token(ref_token),
-                        token(kind_token),
-                        space(),
-                        token("mut"),
-                        space(),
-                        pointee,
-                        token(">")
-                    ]
-                )
-            } else if let Some(addrspace) = address_space_token {
-                write!(
-                    f,
-                    [
-                        token(ref_token),
-                        token(kind_token),
-                        space(),
-                        text(&addrspace),
-                        space(),
-                        pointee,
-                        token(">")
-                    ]
-                )
-            } else {
-                write!(
-                    f,
-                    [
-                        token(ref_token),
-                        token(kind_token),
-                        space(),
-                        pointee,
-                        token(">")
-                    ]
-                )
+            write!(f, [token(ref_token), token(kind_token)])?;
+            if let Some(addrspace) = address_space_token {
+                write!(f, [space(), text(&addrspace)])?;
             }
+            if *mutability == Mutability::Immutable {
+                write!(f, [space(), token("readonly")])?;
+            }
+            write!(f, [space(), pointee, token(">")])
         }
         Type::Array {
             element,
@@ -317,39 +271,14 @@ fn format_view_header<'a>(
             .map(|name| format!("addrspace({name})")),
     };
 
-    if mutability == Mutability::Mutable && address_space_token.is_some() {
-        let addrspace = address_space_token.as_deref().unwrap_or("");
-        write!(
-            f,
-            [
-                token(kind_token),
-                space(),
-                text(addrspace),
-                space(),
-                token("mut"),
-                space(),
-                element
-            ]
-        )
-    } else if mutability == Mutability::Mutable {
-        write!(
-            f,
-            [token(kind_token), space(), token("mut"), space(), element]
-        )
-    } else if let Some(addrspace) = address_space_token {
-        write!(
-            f,
-            [
-                token(kind_token),
-                space(),
-                text(&addrspace),
-                space(),
-                element
-            ]
-        )
-    } else {
-        write!(f, [token(kind_token), space(), element])
+    write!(f, [token(kind_token)])?;
+    if let Some(addrspace) = address_space_token {
+        write!(f, [space(), text(&addrspace)])?;
     }
+    if mutability == Mutability::Immutable {
+        write!(f, [space(), token("readonly")])?;
+    }
+    write!(f, [space(), element])
 }
 
 impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {

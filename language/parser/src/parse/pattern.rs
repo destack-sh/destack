@@ -55,7 +55,7 @@ impl Parser {
             // reference of
             else if self.peek_is(TokenType::ElementwiseAnd) {
                 self.bump(); // eat &
-                let mutability = self.eat_mutability_maybe()?;
+                let mutability = self.eat_reference_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(
                     Pattern::ReferenceOf {
@@ -68,7 +68,7 @@ impl Parser {
             // value of
             else if self.peek_is(TokenType::ElementwiseXor) {
                 self.bump(); // eat ^
-                let mutability = self.eat_mutability_maybe()?;
+                let mutability = self.eat_reference_mutability_maybe()?;
                 let right_id = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                 self.tree.insert(
                     Pattern::ValueOf {
@@ -492,8 +492,8 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_reference() {
-        // &mut _
-        let mut test = TestParser::new("&mut _");
+        // &_
+        let mut test = TestParser::new("&_");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         // &
@@ -511,7 +511,8 @@ mod tests {
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         // &
-        assert_node!(parser.tree, pattern_id, Pattern::ReferenceOf { mutability: None, right } => {
+        assert_node!(parser.tree, pattern_id, Pattern::ReferenceOf { mutability: Some(mutability), right } => {
+            assert_eq!(*mutability, Mutability::Mutable);
             // 1
             assert_node!(parser.tree, *right, Pattern::Expression { value } => {
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
@@ -521,8 +522,8 @@ mod tests {
 
     #[test]
     fn test_parse_pattern_value() {
-        // ^mut _
-        let mut test = TestParser::new("^mut x");
+        // ^x
+        let mut test = TestParser::new("^x");
         let mut parser = test.prepare();
         let pattern_id = parser.eat_pattern().unwrap();
         assert_node!(parser.tree, pattern_id, Pattern::ValueOf { mutability: Some(mutability), right } => {

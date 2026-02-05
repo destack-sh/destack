@@ -179,19 +179,19 @@ pub enum Type {
         operator: TypeUnaryOperator,
         right: LocalTypeId,
     },
-    /// Value `^T` of a `T`. Or `^mut T` for a mutable value.
+    /// Value `^T` of a `T`. Or `^readonly T` for a readonly value.
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
-    /// Borrowed reference type `&T` or `&mut T`.
+    /// Borrowed reference type `&T` or `&readonly T`.
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
-    /// Raw pointer type `*T` or `*mut T`.
+    /// Raw pointer type `*T` or `*readonly T`.
     PointerOf {
         mutability: Option<Mutability>,
         right: LocalTypeId,

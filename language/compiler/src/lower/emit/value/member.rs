@@ -316,7 +316,7 @@ impl FunctionContext<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: i32 = call @Box.size(v0) -> fn(ref<managed @Box>) -> i32
+    /// v1: i32 = call @Box.size(v0) -> fn(ref<managed readonly @Box>) -> i32
     /// ```
     pub(crate) fn lower_getter_call(
         &mut self,
@@ -436,7 +436,7 @@ impl FunctionContext<'_> {
     /// ->
     /// ```mir
     /// v1: i32 = iconst 3
-    /// call @Box.size(v0, v1) -> fn(ref<managed @Box>, i32) -> void
+    /// call @Box.size(v0, v1) -> fn(ref<managed readonly @Box>, i32) -> void
     /// ```
     pub(crate) fn lower_setter_call(
         &mut self,

@@ -126,16 +126,16 @@ type Borrowed = &Buffer
 type Borrowed = &Buffer;
 ```
 
-### mutable borrowed reference type
+### readonly borrowed reference type
 
-Mutable borrows keep `&mut` tight.
+Readonly borrows keep `&readonly` tight.
 
 ```ds
-type Borrowed = &mut Buffer
+type Borrowed = &readonly Buffer
 ```
 
 ```ds expected
-type Borrowed = &mut Buffer;
+type Borrowed = &readonly Buffer;
 ```
 
 ### owned reference type

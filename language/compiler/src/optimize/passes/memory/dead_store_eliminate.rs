@@ -1268,8 +1268,8 @@ block0:
     fn test_preserve_unknown_size_overwrite() {
         // input test
         let input = r#"type @Point = { i32, i32 }
-function @test(v0: ref<raw mut @Point>) -> void {
-block0(v0: ref<raw mut @Point>):
+function @test(v0: ref<raw @Point>) -> void {
+block0(v0: ref<raw @Point>):
     v1: i32 = iconst 1i32
     v2: i32 = iconst 2i32
     v3: @Point = struct @Point (v1, v2)
@@ -1318,8 +1318,8 @@ block0(v0: ref<raw mut @Point>):
     #[test]
     fn test_preserve_store_with_alias_scope_disjoint() {
         // input test
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1371,8 +1371,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     #[test]
     fn test_preserve_store_with_tbaa_disjoint_offsets() {
         // input test
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32

@@ -21,7 +21,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         // resolve the global name before formatting
         let name = f.context().global_name(id).to_string();
 
-        // imported globals: extern global @name: type ; mut
+        // imported globals: extern global @name: type ; readonly
         if self.linkage.is_import() {
             write!(
                 f,
@@ -43,7 +43,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                 write!(f, [token("export"), space()])?;
             }
 
-            // local/exported globals: [export] global @name: type = init ; mut
+            // local/exported globals: [export] global @name: type = init ; readonly
             write!(
                 f,
                 [
@@ -67,10 +67,9 @@ impl<'a> FormatMirNode<'a, Global> for Global {
         }
 
         // mutability annotation
-        write!(f, [space(), token(";"), space()])?;
-        match self.mutability {
-            Mutability::Mutable => write!(f, [token("mut")])?,
-            Mutability::Immutable => write!(f, [token("const")])?,
+        write!(f, [space(), token(";")])?;
+        if self.mutability == Mutability::Immutable {
+            write!(f, [space(), token("readonly")])?;
         }
 
         Ok(())

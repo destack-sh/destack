@@ -201,10 +201,10 @@ block0:
 fn test_roundtrip_function_env() {
     roundtrip(
         r#"extern function @callee(i32) -> i32
-#[closure_env(ref<managed mut void>)]
+#[closure_env(ref<managed void>)]
 function @caller() -> i32 {
 block0:
-    v0: ref<managed mut void> = function.env
+    v0: ref<managed void> = function.env
     v1: fn(i32) -> i32 = function.addr @callee
     v2: i32 = iconst 1i32
     v3: i32 = call.indirect v1(v2, env=v0) -> fn(i32) -> i32
@@ -216,9 +216,9 @@ block0:
 #[test]
 fn test_roundtrip_null_constant() {
     roundtrip(
-        r#"function @caller() -> ref?<managed mut void> {
+        r#"function @caller() -> ref?<managed void> {
 block0:
-    v0: ref?<managed mut void> = iconst null
+    v0: ref?<managed void> = iconst null
     return v0
 }"#,
     );
@@ -345,8 +345,8 @@ block0:
 #[test]
 fn test_roundtrip_addrspace_reference() {
     roundtrip(
-        r#"function @addrspaceTest(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) mut i32>) -> void {
-block0(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) mut i32>):
+        r#"function @addrspaceTest(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) i32>) -> void {
+block0(v0: ref<raw addrspace(shared) i32>, v1: ref<raw addrspace(7) i32>):
     return
 }"#,
     );

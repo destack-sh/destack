@@ -1212,7 +1212,7 @@ block0:
     #[test]
     fn test_detect_local_set_while_borrowed() {
         let input = r#"function @test() -> void {
-local0: i32 ; owned, mut
+local0: i32 ; owned
 block0:
     v0: i32 = iconst 1i32
     local.set local0, v0
@@ -1232,12 +1232,12 @@ block0:
     #[test]
     fn test_verify_local_shared_borrows_no_conflict() {
         let input = r#"function @test() -> void {
-local0: i32 ; owned, mut
+local0: i32 ; owned
 block0:
     v0: i32 = iconst 0i32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
-    v2: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v1: ref<borrowed addrspace(stack) readonly i32> = local.addr local0
+    v2: ref<borrowed addrspace(stack) readonly i32> = local.addr local0
     v3: i32 = load v1
     v4: i32 = load v2
     return
@@ -1252,7 +1252,7 @@ block0:
     #[test]
     fn test_detect_local_borrow_propagates_across_blocks() {
         let input = r#"function @test() -> void {
-local0: i32 ; owned, mut
+local0: i32 ; owned
 block0:
     v0: i32 = iconst 1i32
     local.set local0, v0
@@ -1274,12 +1274,12 @@ block1(v2: ref<borrowed addrspace(stack) i32>):
     #[test]
     fn test_detect_local_borrow_conflict() {
         let input = r#"function @test() -> void {
-local0: i32 ; owned, mut
+local0: i32 ; owned
 block0:
     v0: i32 = iconst 0i32
     local.set local0, v0
-    v1: ref<borrowed addrspace(stack) mut i32> = local.addr local0
-    v2: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    v1: ref<borrowed addrspace(stack) i32> = local.addr local0
+    v2: ref<borrowed addrspace(stack) i32> = local.addr local0
     v3: i32 = load v1
     v4: i32 = load v2
     return
@@ -1571,10 +1571,10 @@ block0:
     /// Mutable borrow while existing mutable borrow is detected in strict mode.
     #[test]
     fn test_detect_mutable_borrow_conflict_strict() {
-        let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
-block0(v0: ref<borrowed mut i32>):
-    v1: ref<borrowed mut i32> = field.addr v0, 0
-    v2: ref<borrowed mut i32> = field.addr v0, 0
+        let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 0
     v3: i32 = load v1
     v4: i32 = load v2
     v5: i32 = iadd v3, v4
@@ -1822,12 +1822,12 @@ block0:
 
     /// Concurrent mutable borrows of different allocations are valid.
     ///
-    /// Even in strict mode, mutable borrows to different allocations don't conflict
+    /// Even in strict modeable borrows to different allocations don't conflict
     /// because alias analysis proves they refer to different memory.
     #[test]
     fn test_alias_concurrent_mutable_borrows_different_allocs() {
-        let input = r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> i32 {
-block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
+        let input = r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
     v2: ref<borrowed i32> = field.addr v0, 0
     v3: ref<borrowed i32> = field.addr v1, 0
     v4: i32 = iconst 42i32
@@ -1978,10 +1978,10 @@ block0:
     #[test]
     fn test_alias_same_allocation_same_field_conflict() {
         // in strict mode with mutable ref, same field access conflicts
-        let input_mut = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
-block0(v0: ref<borrowed mut i32>):
-    v1: ref<borrowed mut i32> = field.addr v0, 0
-    v2: ref<borrowed mut i32> = field.addr v0, 0
+        let input_mut = r#"function @test(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 0
     v3: i32 = load v1
     v4: i32 = load v2
     v5: i32 = iadd v3, v4
@@ -2001,8 +2001,8 @@ block0(v0: ref<borrowed mut i32>):
     /// When a store may alias an existing borrow's origin, the borrow is invalidated.
     #[test]
     fn test_alias_store_invalidates_aliasing_borrow() {
-        let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
-block0(v0: ref<borrowed mut i32>):
+        let input = r#"function @test(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
     v1: ref<borrowed i32> = field.addr v0, 0
     v2: i32 = iconst 99i32
     store v0, v2
@@ -2122,7 +2122,7 @@ block1(v3: ref<borrowed i32>):
     #[test]
     fn test_select_propagates_local_borrows() {
         let input = r#"function @test(v0: bool) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: bool):
     v1: i32 = iconst 42i32
     local.set local0, v1
@@ -2146,7 +2146,7 @@ block0(v0: bool):
     #[test]
     fn test_raw_reference_skips_borrow_tracking() {
         let input = r#"function @test() -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0:
     v0: i32 = iconst 1i32
     local.set local0, v0
@@ -2436,18 +2436,18 @@ block0:
 
     /// Call returning mutable borrowed reference propagates mutability.
     ///
-    /// When a function returns ref<borrowed mut T>, the returned borrow
+    /// When a function returns ref<borrowed T>, the returned borrow
     /// should be tracked as mutable and conflict with other borrows.
     #[test]
     fn test_track_call_mutable_return_conflicts() {
-        let input = r#"function @getMut(v0: ref<borrowed mut i32>) -> ref<borrowed mut i32> {
-block0(v0: ref<borrowed mut i32>):
+        let input = r#"function @getMut(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
     return v0
 }
 
-function @test(v0: ref<borrowed mut i32>) -> i32 {
-block0(v0: ref<borrowed mut i32>):
-    v1: ref<borrowed mut i32> = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
+function @test(v0: ref<borrowed i32>) -> i32 {
+block0(v0: ref<borrowed i32>):
+    v1: ref<borrowed i32> = call @getMut(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     v2: ref<borrowed i32> = field.addr v0, 0
     v3: i32 = load v1
     v4: i32 = load v2
@@ -2460,7 +2460,7 @@ block0(v0: ref<borrowed mut i32>):
         let mut test = TestProgram::new(input);
         test.run_pass_with_options(&BorrowCheck, options);
 
-        // v1 = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32> returns a mutable borrow from v0
+        // v1 = call @getMut(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a mutable borrow from v0
         // v2 = field.addr v0, 0 creates another mutable borrow of v0
         // these should conflict in strict mode
         test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
@@ -2472,15 +2472,15 @@ block0(v0: ref<borrowed mut i32>):
     /// should be tracked as shared and not conflict with other shared borrows.
     #[test]
     fn test_track_call_shared_return_no_conflict() {
-        let input = r#"function @getShared(v0: ref<borrowed i32>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed i32>):
+        let input = r#"function @getShared(v0: ref<borrowed readonly i32>) -> ref<borrowed readonly i32> {
+block0(v0: ref<borrowed readonly i32>):
     return v0
 }
 
-function @test(v0: ref<borrowed i32>) -> i32 {
-block0(v0: ref<borrowed i32>):
-    v1: ref<borrowed i32> = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
-    v2: ref<borrowed i32> = field.addr v0, 0
+function @test(v0: ref<borrowed readonly i32>) -> i32 {
+block0(v0: ref<borrowed readonly i32>):
+    v1: ref<borrowed readonly i32> = call @getShared(v0) -> fn(ref<borrowed readonly i32>) -> ref<borrowed readonly i32>
+    v2: ref<borrowed readonly i32> = field.addr v0, 0
     v3: i32 = load v1
     v4: i32 = load v2
     v5: i32 = iadd v3, v4
@@ -2504,8 +2504,8 @@ block0(v0: ref<borrowed i32>):
     /// detected when creating another mutable borrow.
     #[test]
     fn test_track_call_mutable_borrow_then_field_addr_conflict() {
-        let input = r#"function @getMutRef(v0: ref<borrowed mut i32>) -> ref<borrowed mut i32> {
-block0(v0: ref<borrowed mut i32>):
+        let input = r#"function @getMutRef(v0: ref<borrowed i32>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed i32>):
     v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }
@@ -2515,7 +2515,7 @@ block0:
     v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     v1: i32 = iconst 42i32
     store v0, v1
-    v2: ref<borrowed mut i32> = call @getMutRef(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
+    v2: ref<borrowed i32> = call @getMutRef(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     v3: ref<borrowed i32> = field.addr v0, 0
     v4: i32 = load v2
     v5: i32 = load v3

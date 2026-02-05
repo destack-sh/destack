@@ -736,7 +736,7 @@ block0(v0: i32):
     fn test_remove_overwritten_local_set() {
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = iconst 3i32
@@ -747,7 +747,7 @@ block0(v0: i32):
 
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     v1: i32 = iconst 3i32
     local.set local0, v1
@@ -766,7 +766,7 @@ block0(v0: i32):
     fn test_remove_unread_local_set() {
         // source test
         let input = r#"function @test(v0: i32) -> void {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     return
@@ -774,7 +774,7 @@ block0(v0: i32):
 
         // expected output
         let expected = r#"function @test(v0: i32) -> void {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     return
 }"#;

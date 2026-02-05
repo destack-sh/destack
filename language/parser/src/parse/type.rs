@@ -1143,7 +1143,7 @@ mod tests {
     /// Parse pointer types in a type alias.
     #[test]
     fn test_parse_pointer_type_alias() {
-        let mut test = TestParser::new("type Ptr = *mut int32");
+        let mut test = TestParser::new("type Ptr = *int32");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {

@@ -6,7 +6,7 @@ use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
 #[test]
 fn test_global_get_constant() {
     let mir = r#"
-global @value: i32 = 42i32 ; const
+global @value: i32 = 42i32 ; readonly
 
 function @read() -> i32 {
 block0:
@@ -20,11 +20,11 @@ block0:
 #[test]
 fn test_global_set() {
     let mir = r#"
-global @counter: i32 = 0i32 ; mut
+global @counter: i32 = 0i32 ;
 
 function @increment() -> i32 {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v0: ref<raw addrspace(global) i32> = global.addr @counter
     v1: i32 = load v0
     v2: i32 = iconst 1i32
     v3: i32 = iadd v1, v2
@@ -39,11 +39,11 @@ block0:
 #[test]
 fn test_global_immutable_write() {
     let mir = r#"
-global @CONST: i32 = 42i32 ; const
+global @CONST: i32 = 42i32 ; readonly
 
 function @bad_write() -> void {
 block0:
-    v0: ref<raw addrspace(global) i32> = global.addr @CONST
+    v0: ref<raw addrspace(global) readonly i32> = global.addr @CONST
     v1: i32 = iconst 99i32
     store v0, v1
     return
@@ -58,11 +58,11 @@ block0:
 #[test]
 fn test_global_persists_across_calls() {
     let mir = r#"
-global @counter: i32 = 0i32 ; mut
+global @counter: i32 = 0i32 ;
 
 function @inc() -> void {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v0: ref<raw addrspace(global) i32> = global.addr @counter
     v1: i32 = load v0
     v2: i32 = iconst 1i32
     v3: i32 = iadd v1, v2
@@ -72,7 +72,7 @@ block0:
 
 function @get() -> i32 {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v0: ref<raw addrspace(global) i32> = global.addr @counter
     v1: i32 = load v0
     return v1
 }
@@ -92,11 +92,11 @@ block0:
 #[test]
 fn test_global_zeroinit() {
     let mir = r#"
-global @data: i32 = zeroinit ; mut
+global @data: i32 = zeroinit ;
 
 function @read() -> i32 {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @data
+    v0: ref<raw addrspace(global) i32> = global.addr @data
     v1: i32 = load v0
     return v1
 }"#;
@@ -107,11 +107,11 @@ block0:
 #[test]
 fn test_global_zeroinit_float() {
     let mir = r#"
-global @data: f64 = zeroinit ; mut
+global @data: f64 = zeroinit ;
 
 function @read() -> f64 {
 block0:
-    v0: ref<raw addrspace(global) mut f64> = global.addr @data
+    v0: ref<raw addrspace(global) f64> = global.addr @data
     v1: f64 = load v0
     return v1
 }"#;
@@ -122,11 +122,11 @@ block0:
 #[test]
 fn test_global_zeroinit_bool() {
     let mir = r#"
-global @flag: bool = zeroinit ; mut
+global @flag: bool = zeroinit ;
 
 function @read() -> bool {
 block0:
-    v0: ref<raw addrspace(global) mut bool> = global.addr @flag
+    v0: ref<raw addrspace(global) bool> = global.addr @flag
     v1: bool = load v0
     return v1
 }"#;
@@ -137,7 +137,7 @@ block0:
 #[test]
 fn test_global_aggregate() {
     let mir = r#"
-global @pair: (i32, i32) = {10i32, 20i32} ; const
+global @pair: (i32, i32) = {10i32, 20i32} ; readonly
 
 function @get_second() -> i32 {
 block0:
@@ -152,15 +152,15 @@ block0:
 #[test]
 fn test_multiple_globals() {
     let mir = r#"
-global @a: i32 = 10i32 ; const
-global @b: i32 = 20i32 ; const
-global @c: i32 = 30i32 ; mut
+global @a: i32 = 10i32 ; readonly
+global @b: i32 = 20i32 ; readonly
+global @c: i32 = 30i32 ;
 
 function @sum() -> i32 {
 block0:
     v0: i32 = global.const @a
     v1: i32 = global.const @b
-    v2: ref<raw addrspace(global) mut i32> = global.addr @c
+    v2: ref<raw addrspace(global) i32> = global.addr @c
     v3: i32 = load v2
     v4: i32 = iadd v0, v1
     v5: i32 = iadd v4, v3
@@ -173,11 +173,11 @@ block0:
 #[test]
 fn test_global_multiple_writes() {
     let mir = r#"
-global @value: i32 = 0i32 ; mut
+global @value: i32 = 0i32 ;
 
 function @test() -> i32 {
 block0:
-    v0: ref<raw addrspace(global) mut i32> = global.addr @value
+    v0: ref<raw addrspace(global) i32> = global.addr @value
     v1: i32 = iconst 10i32
     store v0, v1
     v2: i32 = iconst 20i32
@@ -194,7 +194,7 @@ block0:
 #[test]
 fn test_global_negative_init() {
     let mir = r#"
-global @neg: i32 = -42i32 ; const
+global @neg: i32 = -42i32 ; readonly
 
 function @read() -> i32 {
 block0:
@@ -209,7 +209,7 @@ block0:
 #[allow(clippy::approx_constant)]
 fn test_global_float() {
     let mir = r#"
-global @pi: f64 = 3.14159f64 ; const
+global @pi: f64 = 3.14159f64 ; readonly
 
 function @read() -> f64 {
 block0:
@@ -225,11 +225,11 @@ block0:
 #[test]
 fn test_global_bool() {
     let mir = r#"
-global @flag: bool = true ; mut
+global @flag: bool = true ;
 
 function @toggle() -> bool {
 block0:
-    v0: ref<raw addrspace(global) mut bool> = global.addr @flag
+    v0: ref<raw addrspace(global) bool> = global.addr @flag
     v1: bool = load v0
     v2: bool = bnot v1
     store v0, v2

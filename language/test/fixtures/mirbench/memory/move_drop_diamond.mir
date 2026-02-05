@@ -1,6 +1,6 @@
 
 function @move_drop_diamond(v0: i64) -> i64 {
-    local0: ref<managed i64> ; owned, mut
+    local0: ref<managed i64> ; owned
 
 // entry, init state
 block0(v0: i64):

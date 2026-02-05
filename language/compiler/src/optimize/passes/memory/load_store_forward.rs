@@ -1301,8 +1301,8 @@ block0:
     /// Scoped noalias metadata keeps stores from clobbering unrelated loads.
     #[test]
     fn test_forward_across_noalias_scope() {
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1310,8 +1310,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v4: i32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1358,8 +1358,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     /// TBAA tags disambiguate unrelated accesses.
     #[test]
     fn test_forward_across_tbaa_disjoint() {
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1367,8 +1367,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v4: i32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1419,8 +1419,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     /// Disjoint TBAA offsets prevent clobbering stores from blocking forwarding.
     #[test]
     fn test_forward_across_tbaa_disjoint_offsets() {
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32
@@ -1428,8 +1428,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v4: i32 = load v0
     return v4
 }"#;
-        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = iconst 1i32
     store v0, v2
     v3: i32 = iconst 2i32

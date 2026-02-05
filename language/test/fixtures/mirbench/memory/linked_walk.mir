@@ -1,24 +1,24 @@
 
-type @Node = { value: i64, next: ref<raw addrspace(heap) mut @Node> }
+type @Node = { value: i64, next: ref<raw addrspace(heap) @Node> }
 
-function @build_list(v0: i64, v1: ref<raw addrspace(heap) mut @Node>) -> ref<raw addrspace(heap) mut @Node> {
+function @build_list(v0: i64, v1: ref<raw addrspace(heap) @Node>) -> ref<raw addrspace(heap) @Node> {
 
 // entry, init state
-block0(v0: i64, v1: ref<raw addrspace(heap) mut @Node>):
+block0(v0: i64, v1: ref<raw addrspace(heap) @Node>):
     v2: i64 = iconst 0i64
     v3: bool = icmp_eq v0, v2
     branch v3, block2, block1
 
 // return accumulated value
 block1:
-    v4: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node
-    v5: ref<raw addrspace(heap) mut i64> = field.addr v4, 0
+    v4: ref<raw addrspace(heap) @Node> = raw.alloc @Node
+    v5: ref<raw addrspace(heap) i64> = field.addr v4, 0
     store v5, v0
-    v6: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v4, 1
+    v6: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v4, 1
     store v6, v1
     v7: i64 = iconst 1i64
     v8: i64 = isub v0, v7
-    v9: ref<raw addrspace(heap) mut @Node> = call @build_list(v8, v4)
+    v9: ref<raw addrspace(heap) @Node> = call @build_list(v8, v4)
     return v9
 
 // return result
@@ -26,11 +26,11 @@ block2:
     return v1
 }
 
-function @walk_list(v0: ref<raw addrspace(heap) mut @Node>, v1: i64) -> i64 {
+function @walk_list(v0: ref<raw addrspace(heap) @Node>, v1: i64) -> i64 {
 
 // entry, init state
-block0(v0: ref<raw addrspace(heap) mut @Node>, v1: i64):
-    v2: ref<raw addrspace(heap) mut i64> = field.addr v0, 0
+block0(v0: ref<raw addrspace(heap) @Node>, v1: i64):
+    v2: ref<raw addrspace(heap) i64> = field.addr v0, 0
     v3: i64 = load v2
     v4: i64 = iconst 0i64
     v5: bool = icmp_eq v3, v4
@@ -39,8 +39,8 @@ block0(v0: ref<raw addrspace(heap) mut @Node>, v1: i64):
 // return accumulated value
 block1:
     v6: i64 = iadd v1, v3
-    v7: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v0, 1
-    v8: ref<raw addrspace(heap) mut @Node> = load v7
+    v7: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v0, 1
+    v8: ref<raw addrspace(heap) @Node> = load v7
     v9: i64 = call @walk_list(v8, v6)
     return v9
 
@@ -50,19 +50,19 @@ block2:
 }
 
 function @linked_walk(v0: i64) -> i64 {
-local0: ref<raw addrspace(heap) mut @Node>
+local0: ref<raw addrspace(heap) @Node>
 
 // entry, init allocations, call helper
 block0(v0: i64):
-    v1: ref<raw addrspace(heap) mut @Node> = raw.alloc @Node
+    v1: ref<raw addrspace(heap) @Node> = raw.alloc @Node
     v2: i64 = iconst 0i64
     local.set local0, v1
-    v3: ref<raw addrspace(heap) mut @Node> = local.get local0
-    v4: ref<raw addrspace(heap) mut i64> = field.addr v1, 0
+    v3: ref<raw addrspace(heap) @Node> = local.get local0
+    v4: ref<raw addrspace(heap) i64> = field.addr v1, 0
     store v4, v2
-    v5: ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>> = field.addr v1, 1
+    v5: ref<raw addrspace(heap) ref<raw addrspace(heap) @Node>> = field.addr v1, 1
     store v5, v3
-    v6: ref<raw addrspace(heap) mut @Node> = call @build_list(v0, v1)
+    v6: ref<raw addrspace(heap) @Node> = call @build_list(v0, v1)
     v7: i64 = call @walk_list(v6, v2)
     return v7
 }

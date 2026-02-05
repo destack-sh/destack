@@ -212,7 +212,7 @@ impl<'a> Parser<'a> {
 
         // local annotations
         let mut ownership = Ownership::Owned;
-        let mut mutability = Mutability::Immutable;
+        let mut mutability = Mutability::Mutable;
 
         if self.eat_token_maybe(TokenType::Semicolon) {
             // ownership
@@ -228,8 +228,11 @@ impl<'a> Parser<'a> {
             }
 
             // mutability
-            if self.eat_token_maybe(TokenType::Comma) && self.eat_token_maybe(TokenType::Mut) {
-                mutability = Mutability::Mutable;
+            if self.eat_token_maybe(TokenType::Comma)
+                && (self.eat_token_maybe(TokenType::Readonly)
+                    || self.eat_token_maybe(TokenType::Const))
+            {
+                mutability = Mutability::Immutable;
             }
         }
 

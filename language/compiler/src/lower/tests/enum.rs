@@ -227,7 +227,7 @@ function defaultValue(): int32 {
         module_id,
         "native",
         r#"
-global @Status.Default: i32 = 1i32 ; const
+global @Status.Default: i32 = 1i32 ; readonly
 
 function @defaultValue() -> i32 {
 block0:

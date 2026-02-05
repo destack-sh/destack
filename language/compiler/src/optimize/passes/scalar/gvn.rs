@@ -1262,8 +1262,8 @@ block1:
     /// Scoped noalias metadata keeps unrelated stores from blocking load GVN.
     #[test]
     fn test_forward_loads_across_noalias_scope() {
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = load v0
     v3: i32 = iconst 2i32
     store v1, v3
@@ -1271,8 +1271,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v5: i32 = iadd v2, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = load v0
     v3: i32 = iconst 2i32
     store v1, v3
@@ -1319,8 +1319,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     /// Disjoint TBAA offsets allow loads to forward across unrelated stores.
     #[test]
     fn test_forward_loads_across_tbaa_disjoint_offsets() {
-        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let input = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = load v0
     v3: i32 = iconst 2i32
     store v1, v3
@@ -1328,8 +1328,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v5: i32 = iadd v2, v4
     return v5
 }"#;
-        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
-block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+        let expected = r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
     v2: i32 = load v0
     v3: i32 = iconst 2i32
     store v1, v3

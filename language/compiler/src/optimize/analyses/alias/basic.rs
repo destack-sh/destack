@@ -1168,7 +1168,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     fn test_memory_metadata_local_target_aliases_stack_pointer() {
         let mut program = TestProgram::new(
             r#"function @test() -> void {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0:
     v0: ref<raw addrspace(stack) i32> = local.addr local0
     v1: i8 = iconst 0i8

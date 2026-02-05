@@ -142,7 +142,7 @@ logger.log("warn", 2);
 struct Counter { value: number }
 
 extension for Counter {
-    increment(this: &mut Counter): void {
+    increment(this: &Counter): void {
         this.value = this.value + 1
     }
 }

@@ -322,7 +322,7 @@ block3:
     fn test_available_expressions_non_expression() {
         let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = local.get local0

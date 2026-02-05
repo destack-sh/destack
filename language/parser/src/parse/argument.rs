@@ -258,14 +258,6 @@ impl Parser {
                 progress = true;
             }
 
-            // explicit mutability modifiers (mut)
-            if modifiers.mutability.is_none() && self.peek_keyword(Keyword::Mut).is_ok() {
-                self.bump(); // eat mut
-                modifiers.mutability = Some(Mutability::Mutable);
-                has_modifiers = true;
-                progress = true;
-            }
-
             // operator modifiers (const)
             if modifiers.operator.is_none() && self.peek_keyword(Keyword::Const).is_ok() {
                 if !self.next_token_starts_member_name() {

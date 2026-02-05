@@ -4,24 +4,12 @@ Parameter binding mutability depends on the language.
 
 ## Destack
 
-### parameter bindings default to immutable in destack
+### parameter bindings default to mutable in destack
 
-> Destack parameters are immutable unless marked mutable.
+> Destack parameters are mutable by default.
 
 ```ds
 function bump(x: number): void {
-    x = 2;
-}
-```
-
-- contains: immutable binding
-
-### parameter bindings allow explicit mutability in destack
-
-> Destack parameters can be marked mutable with `mut`.
-
-```ds
-function bump(mut x: number): void {
     x = 2;
     x satisfies number;
 }

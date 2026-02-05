@@ -9,8 +9,8 @@ declare_pass! {
     /// Remove unused local globals from the module.
     ///
     /// ```mir
-    /// global @live: i32 = 1i32 ; const
-    /// global @dead: i32 = 2i32 ; const
+    /// global @live: i32 = 1i32 ; readonly
+    /// global @dead: i32 = 2i32 ; readonly
     /// function @root() -> i32 {
     /// block0:
     ///     v0 = global.const @live
@@ -19,8 +19,8 @@ declare_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// global @live: i32 = 1i32 ; const
-    /// extern global @dead: i32 ; const
+    /// global @live: i32 = 1i32 ; readonly
+    /// extern global @dead: i32 ; readonly
     /// function @root() -> i32 {
     /// block0:
     ///     v0 = global.const @live
@@ -134,16 +134,16 @@ mod tests {
     /// Unused globals are downgraded to imports.
     #[test]
     fn test_global_dead_code_eliminate_unused_global() {
-        let input = r#"global @live: i32 = 1i32 ; const
-global @dead: i32 = 2i32 ; const
+        let input = r#"global @live: i32 = 1i32 ; readonly
+global @dead: i32 = 2i32 ; readonly
 function @root() -> i32 {
 block0:
     v0: i32 = global.const @live
     return v0
 }"#;
 
-        let expected = r#"global @live: i32 = 1i32 ; const
-extern global @dead: i32 ; const
+        let expected = r#"global @live: i32 = 1i32 ; readonly
+extern global @dead: i32 ; readonly
 function @root() -> i32 {
 block0:
     v0: i32 = global.const @live
@@ -158,19 +158,19 @@ block0:
     /// Globals referenced via global.addr are preserved.
     #[test]
     fn test_global_dead_code_eliminate_keeps_global_addr() {
-        let input = r#"global @live: i32 = 1i32 ; const
-global @dead: i32 = 2i32 ; const
-function @root() -> ref<raw i32> {
+        let input = r#"global @live: i32 = 1i32 ; readonly
+global @dead: i32 = 2i32 ; readonly
+function @root() -> ref<raw readonly i32> {
 block0:
-    v0: ref<raw i32> = global.addr @live
+    v0: ref<raw readonly i32> = global.addr @live
     return v0
 }"#;
 
-        let expected = r#"global @live: i32 = 1i32 ; const
-extern global @dead: i32 ; const
-function @root() -> ref<raw i32> {
+        let expected = r#"global @live: i32 = 1i32 ; readonly
+extern global @dead: i32 ; readonly
+function @root() -> ref<raw readonly i32> {
 block0:
-    v0: ref<raw i32> = global.addr @live
+    v0: ref<raw readonly i32> = global.addr @live
     return v0
 }"#;
 
@@ -182,8 +182,8 @@ block0:
     /// Debug references keep globals alive.
     #[test]
     fn test_global_dead_code_eliminate_keeps_debug_globals() {
-        let input = r#"global @live: i32 = 1i32 ; const
-global @dead: i32 = 2i32 ; const
+        let input = r#"global @live: i32 = 1i32 ; readonly
+global @dead: i32 = 2i32 ; readonly
 function @root() -> i32 {
 block0:
     v0: i32 = global.const @live

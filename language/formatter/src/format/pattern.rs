@@ -10,7 +10,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("const")]),
-            Mutability::Mutable => write!(f, [token("mut")]),
+            Mutability::Mutable => write!(f, [token("var")]),
         }
     }
 }
@@ -29,18 +29,18 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
             Pattern::ReferenceOf { right, mutability } => {
                 write!(f, [token("&")])?;
                 if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
+                    && *mutability == Mutability::Immutable
                 {
-                    write!(f, [mutability, space()])?;
+                    write!(f, [token("readonly"), space()])?;
                 }
                 write!(f, [right])?;
             }
             Pattern::ValueOf { right, mutability } => {
                 write!(f, [token("^")])?;
                 if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
+                    && *mutability == Mutability::Immutable
                 {
-                    write!(f, [mutability, space()])?;
+                    write!(f, [token("readonly"), space()])?;
                 }
                 write!(f, [right])?;
             }
@@ -118,9 +118,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 pattern,
                 default,
             } => {
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
-                {
+                if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
                 if let Some(pattern) = pattern {
@@ -138,9 +136,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 pattern,
                 default,
             } => {
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
-                {
+                if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
                 write!(f, [token("["), key, token("]")])?;
@@ -157,9 +153,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 alias,
                 default,
             } => {
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
-                {
+                if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
                 write!(f, [name, token(":"), space(), alias])?;
@@ -172,9 +166,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 mutability,
                 pattern,
             } => {
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
-                {
+                if let Some(mutability) = mutability {
                     write!(f, [mutability, space()])?;
                 }
                 write!(f, [token("...")])?;
@@ -204,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_format_pattern_reference() {
-        assert_format!("&mut _", "&mut _", |p| p.eat_pattern());
+        assert_format!("&_", "&_", |p| p.eat_pattern());
 
         assert_format!("&1", "&1", |p| p.eat_pattern());
     }

@@ -142,7 +142,7 @@ function merge<T, U>(): T where (
 Ownership annotations stay attached to their types:
 
 ```
-function process(data: &mut Buffer, out: ^Result): &Output {
+function process(data: &readonly Buffer, out: ^Result): &readonly Output {
     // ...
 }
 ```

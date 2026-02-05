@@ -623,8 +623,8 @@ fn type_key_for_alias(
             }
 
             // append mutability when required
-            if *mutability == Mutability::Mutable {
-                result.push_str(" mut");
+            if *mutability == Mutability::Immutable {
+                result.push_str(" readonly");
             }
 
             // append the pointee key
@@ -721,8 +721,8 @@ fn type_key_for_alias(
                 result.push(' ');
                 result.push_str(&addrspace);
             }
-            if *mutability == Mutability::Mutable {
-                result.push_str(" mut");
+            if *mutability == Mutability::Immutable {
+                result.push_str(" readonly");
             }
             result.push(' ');
             result.push_str(&type_key_for_alias(tree, strings, *element));

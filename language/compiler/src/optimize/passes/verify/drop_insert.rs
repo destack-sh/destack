@@ -22,7 +22,7 @@ declare_pass! {
     /// 3. Insert `drop` after the last use, or before return for still-live values
     ///
     /// Identifies droppable values from:
-    /// - Function and block parameters with owned reference types
+    /// - Function and block parameters with owning handle types
     /// - Explicit ownership values (owned refs and aggregates containing them)
     /// - Instructions with explicit types (struct, tuple, array, cast)
     /// - Local variable loads (local.get)

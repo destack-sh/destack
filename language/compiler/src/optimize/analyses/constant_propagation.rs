@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn test_constant_from_global_const() {
         let test = TestProgram::new(
-            r#"global @flag: bool = true
+            r#"global @flag: bool = true ; readonly
 function @test() -> bool {
 block0:
     v0: bool = global.const @flag
@@ -516,7 +516,7 @@ block0:
     #[test]
     fn test_mutable_global_not_constant() {
         let test = TestProgram::new(
-            r#"global @flag: bool = true ; mut
+            r#"global @flag: bool = true ;
 function @test() -> bool {
 block0:
     v0: bool = global.const @flag
@@ -540,7 +540,7 @@ block0:
     #[test]
     fn test_non_scalar_global_not_constant() {
         let test = TestProgram::new(
-            r#"global @flag: bool = zeroinit ; const
+            r#"global @flag: bool = zeroinit ; readonly
 function @test() -> bool {
 block0:
     v0: bool = global.const @flag

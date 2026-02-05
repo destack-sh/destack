@@ -32,7 +32,7 @@ declare_pass! {
     /// - `field.get(struct/tuple/array(...), i)` = operand i
     /// - `field.get(field.set(..., i, v), i)` = v
     /// - `field.get(field.set(..., i, v), j)` = field.get(original, j) when i != j
-    /// - `element.get(array(...), const_i)` = operand i
+    /// - `element.get(array(...), readonly_i)` = operand i
     /// - `element.get(element.set(..., i, v), i)` = v (when i is constant)
     ///
     /// ```mir
@@ -1783,7 +1783,7 @@ block0(v0: i32, v1: i32):
         test.assert_output(expected);
     }
 
-    /// element.get(array(...), const_i) simplifies to the i-th element.
+    /// element.get(array(...), readonly_i) simplifies to the i-th element.
     #[test]
     fn test_simplify_element_get_array() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {

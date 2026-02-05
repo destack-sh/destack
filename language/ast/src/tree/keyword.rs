@@ -16,8 +16,6 @@ pub enum Keyword {
     Private,
     /// Readonly modifier (alias).
     Readonly,
-    /// Mutability modifier (alias).
-    Mut,
     /// Static modifier (reserved).
     Static,
     /// Final modifier (reserved).
@@ -242,7 +240,6 @@ impl Keyword {
             Keyword::Protected => "protected",
             Keyword::Private => "private",
             Keyword::Readonly => "readonly",
-            Keyword::Mut => "mut",
             Keyword::Static => "static",
             Keyword::Final => "final",
             Keyword::Accessor => "accessor",
@@ -350,7 +347,6 @@ impl FromStr for Keyword {
             "protected" => Ok(Keyword::Protected),
             "private" => Ok(Keyword::Private),
             "readonly" => Ok(Keyword::Readonly),
-            "mut" => Ok(Keyword::Mut),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),
             "accessor" => Ok(Keyword::Accessor),

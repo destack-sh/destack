@@ -4,7 +4,7 @@
 
 ### shared reference expression yields reference type
 
-> Reference expressions yield `&T` types.
+> Reference expressions yield `&readonly T` types.
 
 ```ds
 struct Point {
@@ -12,7 +12,7 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let shared: &Point = &point;
+let shared: &readonly Point = &readonly point;
 ```
 
 ### shared reference is not assignable to owned type
@@ -25,7 +25,7 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let value: Point = &point;
+let value: Point = &readonly point;
 ```
 
 - contains: not assignable
@@ -40,8 +40,8 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let shared: &Point = &point;
-let mutableRef: &mut Point = shared;
+let shared: &readonly Point = &readonly point;
+let mutableRef: &Point = shared;
 ```
 
 - contains: not assignable
@@ -56,7 +56,7 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let shared = &point;
+let shared = &readonly point;
 shared.x = 2;
 ```
 
@@ -68,7 +68,7 @@ shared.x = 2;
 
 ```ds
 let values: int32[] = [1, 2, 3];
-let shared: &int32[] = &values;
+let shared: &readonly int32[] = &readonly values;
 shared[0] = 4;
 ```
 
@@ -78,7 +78,7 @@ shared[0] = 4;
 
 ### mutable reference expression yields mutable reference type
 
-> Mutable reference expressions yield `&mut T` types.
+> Mutable reference expressions yield `&T` types.
 
 ```ds
 struct Point {
@@ -86,7 +86,7 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let mutableRef: &mut Point = &mut point;
+let mutableRef: &Point = &point;
 ```
 
 ### mutable reference allows member assignment
@@ -99,7 +99,7 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let mutableRef: &mut Point = &mut point;
+let mutableRef: &Point = &point;
 mutableRef.x = 2;
 mutableRef.x satisfies int32;
 ```
@@ -114,8 +114,8 @@ struct Point {
 }
 
 let point = Point { x: 1 };
-let mutableRef: &mut Point = &mut point;
-let shared: &Point = mutableRef;
+let mutableRef: &Point = &point;
+let shared: &readonly Point = mutableRef;
 ```
 
 - contains: not assignable
@@ -137,8 +137,8 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &container.data;
-    let mutableRef = &mut container.data;
+    let sharedRef = &readonly container.data;
+    let mutableRef = &container.data;
     sharedRef.value;
     mutableRef.value;
 }
@@ -161,8 +161,8 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let firstRef = &mut container.data;
-    let secondRef = &mut container.data;
+    let firstRef = &container.data;
+    let secondRef = &container.data;
     firstRef.value;
     secondRef.value;
 }
@@ -185,8 +185,8 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let firstRef = &container.data;
-    let secondRef = &container.data;
+    let firstRef = &readonly container.data;
+    let secondRef = &readonly container.data;
     firstRef.value;
     secondRef.value;
 }
@@ -207,9 +207,9 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &container.data;
+    let sharedRef = &readonly container.data;
     sharedRef.value;
-    let mutableRef = &mut container.data;
+    let mutableRef = &container.data;
     mutableRef.value;
 }
 ```
@@ -239,8 +239,8 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &container.data;
-    let mutableRef = &mut container.data;
+    let sharedRef = &readonly container.data;
+    let mutableRef = &container.data;
     sharedRef.value;
     mutableRef.value;
 }
@@ -271,8 +271,8 @@ struct Container {
 
 function run(): void {
     let container = ^Container { data: Data { value: 1 } };
-    let sharedRef = &container.data;
-    let mutableRef = &mut container.data;
+    let sharedRef = &readonly container.data;
+    let mutableRef = &container.data;
     sharedRef.value;
     mutableRef.value;
 }

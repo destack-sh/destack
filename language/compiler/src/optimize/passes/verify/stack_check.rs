@@ -680,7 +680,7 @@ block0:
     #[test]
     fn test_detect_return_local_addr() {
         let input = r#"function @test() -> ref<borrowed i32> {
-local0: i32 ; owned, mut
+local0: i32 ; owned
 block0:
     v0: ref<borrowed addrspace(stack) i32> = local.addr local0
     return v0

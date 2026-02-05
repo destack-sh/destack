@@ -23,7 +23,7 @@ declare_pass! {
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
-    ///     local0: i32 ; owned, mut
+    ///     local0: i32 ; owned
     /// block0(v0: i32):
     ///     local.set local0, v0
     ///     jump block1
@@ -897,7 +897,7 @@ mod tests {
     #[test]
     fn test_promote_simple_local() {
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = local.get local0
@@ -917,7 +917,7 @@ block0(v0: i32):
     #[test]
     fn test_promote_across_blocks() {
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     jump block1
@@ -941,7 +941,7 @@ block1:
     #[test]
     fn test_promote_in_diamond_cfg() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: bool, v1: i32):
     local.set local0, v1
     branch v0, block1, block2
@@ -981,8 +981,8 @@ block3(v4: i32):
     #[test]
     fn test_promote_multiple_locals() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned, mut
-    local1: i32 ; owned, mut
+    local0: i32 ; owned
+    local1: i32 ; owned
 block0(v0: i32, v1: i32):
     local.set local0, v0
     local.set local1, v1
@@ -1020,7 +1020,7 @@ block0(v0: i32):
     #[should_panic(expected = "use of undefined local")]
     fn test_panic_on_undefined_read() {
         let input = r#"function @test() -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0:
     v0: i32 = local.get local0
     return v0
@@ -1034,7 +1034,7 @@ block0:
     #[test]
     fn test_promote_in_loop() {
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     v1: i32 = iconst 0i32
     local.set local0, v1
@@ -1078,7 +1078,7 @@ block3:
     #[test]
     fn test_promote_with_multiple_defs() {
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     local.set local0, v0
     v1: i32 = iconst 42i32
@@ -1101,7 +1101,7 @@ block0(v0: i32):
     #[test]
     fn test_preserve_existing_block_params() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32, v1: i32):
     local.set local0, v0
     jump block1(v1)
@@ -1128,7 +1128,7 @@ block1(v2: i32):
     #[test]
     fn test_promote_with_switch() {
         let input = r#"function @test(v0: i32) -> i32 {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0(v0: i32):
     v1: i32 = iconst 10i32
     local.set local0, v1
@@ -1172,7 +1172,7 @@ block3(v4: i32):
     fn test_promote_call_arguments() {
         let input = r#"extern function @sink(i32) -> void
 function @test() -> void {
-    local0: i32 ; owned, mut
+    local0: i32 ; owned
 block0:
     v0: i32 = iconst 7i32
     local.set local0, v0
