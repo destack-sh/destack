@@ -46,6 +46,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA236", // ImportNotTopLevel
     "EA237", // ExportNotTopLevel
     "EA238", // DuplicateDefaultExport
+    "EA239", // InvalidPrivateIdentifier
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType

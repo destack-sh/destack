@@ -35,6 +35,9 @@ impl Compiler {
             | Expression::Index { left, .. } => {
                 self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
+            Expression::PrivateIdentifier { .. } => {
+                self.validate_private_identifier_expression(module, profile, tree, expression_id);
+            }
             Expression::Match {
                 kind, value, cases, ..
             } => {
@@ -559,6 +562,64 @@ impl Compiler {
             )
         {
             self.validate_type_only_import_bindings(module, profile, tree, kind, items);
+        }
+    }
+
+    /// Validate private identifier usage inside expressions.
+    fn validate_private_identifier_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        // allow private identifiers only as the left operand of an `in` expression
+        if self.private_identifier_is_in_expression(tree, expression_id) {
+            return;
+        }
+
+        let node = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        self.error(AnalyzeError::InvalidPrivateIdentifier { node });
+    }
+
+    /// Return true when a private identifier is used in a `#name in obj` expression.
+    fn private_identifier_is_in_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // walk parenthesized wrappers to locate the binary expression
+        let mut current_id = expression_id;
+        loop {
+            let Some(parent) = tree.get_parent(current_id.id) else {
+                return false;
+            };
+            if parent.ty != NodeType::Expression {
+                return false;
+            }
+
+            let parent_id = parent.into_typed::<Expression>();
+            let parent_expression = tree.get(parent_id);
+            match parent_expression {
+                Expression::Parenthesized { expression } => {
+                    if *expression != current_id {
+                        return false;
+                    }
+                    current_id = parent_id;
+                }
+                Expression::Binary {
+                    operator: BinaryOperator::In,
+                    left,
+                    ..
+                } => {
+                    return *left == current_id;
+                }
+                _ => {
+                    return false;
+                }
+            }
         }
     }
 

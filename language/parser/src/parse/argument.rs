@@ -89,6 +89,7 @@ impl Parser {
         let mut seen_readonly = false;
         let mut seen_variance_in = false;
         let mut seen_variance_out = false;
+        let mut seen_accessor = false;
 
         // eat modifiers in any order
         loop {
@@ -189,6 +190,9 @@ impl Parser {
                 if validate_modifier_order && seen_override {
                     self.error(&ParseError::unexpected(span));
                 }
+                if validate_modifier_order && seen_accessor {
+                    self.error(&ParseError::unexpected(span));
+                }
                 seen_static = true;
                 has_modifiers = true;
                 progress = true;
@@ -286,6 +290,7 @@ impl Parser {
                 }
                 self.bump(); // eat accessor
                 modifiers.accessor = Some(AccessorKind::Accessor);
+                seen_accessor = true;
                 has_modifiers = true;
                 progress = true;
             }

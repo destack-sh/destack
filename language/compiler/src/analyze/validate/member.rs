@@ -37,6 +37,7 @@ impl Compiler {
         let is_class = class_descriptor.is_some();
         let is_interface = interface_descriptor.is_some();
         let is_declare_namespace = self.is_in_declare_namespace(tree, id.into_any());
+        let is_javascript = module.language_type.is_javascript();
 
         // validate by member kind
         match member {
@@ -64,10 +65,37 @@ impl Compiler {
                     FunctionAbstraction::AbstractOverride | FunctionAbstraction::ConcreteOverride
                 );
 
+                // reject typescript-only method syntax in javascript modules
+                if is_javascript {
+                    let has_typescript_modifiers = modifiers.is_some_and(|modifiers| {
+                        modifiers.visibility.is_some()
+                            || modifiers.declaration.is_some()
+                            || modifiers.abstraction.is_some()
+                            || modifiers.mutability.is_some()
+                            || modifiers.kind.is_some()
+                            || modifiers.operator.is_some()
+                            || modifiers.variance.is_some()
+                            || modifiers.timing.is_some()
+                    });
+                    let has_typescript_signature = signature.generics.is_some()
+                        || signature.return_type.is_some()
+                        || signature.this_parameter.is_some();
+                    if has_typescript_modifiers || has_typescript_signature {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+                    }
+                }
+
                 // variance modifiers are not valid on members
                 if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
                     let node = id.into_global_any(module.id).into_anchored(Some(profile));
                     self.error(AnalyzeError::InvalidMemberModifier { node });
+                }
+
+                // abstract constructors are invalid
+                if is_constructor && is_abstract {
+                    let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                    self.error(AnalyzeError::InvalidConstructor { node });
                 }
 
                 // constructor cannot have static parameters
@@ -159,6 +187,7 @@ impl Compiler {
             Member::Field {
                 modifiers,
                 key,
+                value,
                 default,
                 ..
             } => {
@@ -177,6 +206,26 @@ impl Compiler {
                         Some(AbstractionModifier::Abstract | AbstractionModifier::AbstractOverride)
                     )
                 });
+
+                // reject typescript-only field syntax in javascript modules
+                if is_javascript {
+                    let has_typescript_modifiers = modifiers.is_some_and(|modifiers| {
+                        modifiers.visibility.is_some()
+                            || modifiers.declaration.is_some()
+                            || modifiers.abstraction.is_some()
+                            || modifiers.mutability.is_some()
+                            || modifiers.kind.is_some()
+                            || modifiers.operator.is_some()
+                            || modifiers.variance.is_some()
+                            || modifiers.timing.is_some()
+                    });
+                    let has_typescript_syntax =
+                        has_typescript_modifiers || value.is_some() || is_index_signature;
+                    if has_typescript_syntax {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::TypeScriptSyntaxInJavaScript { node });
+                    }
+                }
 
                 // variance modifiers are not valid on members
                 if modifiers.is_some_and(|modifiers| modifiers.variance.is_some()) {
@@ -211,6 +260,12 @@ impl Compiler {
                         modifiers.mutability == Some(Mutability::Immutable)
                     });
 
+                    // abstract fields cannot use definite assignment assertions
+                    if is_abstract_field && has_definite_assignment {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
                     // abstract fields require abstract classes
                     if is_abstract_field && !is_abstract_class {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -241,6 +296,12 @@ impl Compiler {
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
 
+                    // declare fields cannot use definite assignment assertions
+                    if (is_declare_class || is_declare_member) && has_definite_assignment {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidMemberModifier { node });
+                    }
+
                     // declare fields cannot be abstract
                     if is_declare_member && has_abstraction {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -253,6 +314,7 @@ impl Compiler {
                             modifiers.visibility.is_some()
                                 || modifiers.abstraction.is_some()
                                 || modifiers.declaration.is_some()
+                                || modifiers.accessor.is_some()
                                 || modifiers.anchor == Some(BindingAnchor::Static)
                         })
                     {

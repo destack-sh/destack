@@ -79,7 +79,6 @@ error/ts_type_alias_cannot_be_reserved_word.ts
 error/ts_type_parameters_incomplete.ts
 error/typescript_abstract_classes_incomplete.ts
 error/typescript_abstract_classes_invalid_abstract_async_member.ts
-error/typescript_abstract_classes_invalid_abstract_constructor.ts
 error/typescript_abstract_classes_invalid_abstract_private_member.ts
 error/unary_delete.js
 error/unary_delete_parenthesized.js

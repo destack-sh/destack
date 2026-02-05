@@ -682,6 +682,37 @@ impl Parser {
             .unwrap_or(TokenType::End)
     }
 
+    /// Return true when two tokens touch in the source with no whitespace.
+    #[inline]
+    pub(crate) fn tokens_are_adjacent(&mut self, left_index: usize, right_index: usize) -> bool {
+        let Some(left) = self.token_at(left_index) else {
+            return false;
+        };
+        let Some(right) = self.token_at(right_index) else {
+            return false;
+        };
+
+        left.span.end == right.span.start
+    }
+
+    /// Check that two tokens are adjacent (no whitespace between them).
+    #[inline]
+    pub(crate) fn check_tokens_are_adjacent(
+        &mut self,
+        left_index: usize,
+        right_index: usize,
+    ) -> ParseResult<()> {
+        if self.tokens_are_adjacent(left_index, right_index) {
+            return Ok(());
+        }
+
+        let span = self
+            .token_ref_at(right_index)
+            .map(|token| token.span)
+            .unwrap_or(self.eof_span());
+        Err(ParseError::unexpected(span))
+    }
+
     /// Truncate token caches to match the current token count.
     fn truncate_token_caches(&mut self) {
         let len = self.tokens().len();
