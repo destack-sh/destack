@@ -2,7 +2,7 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
     Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
-    StaticProperty, SymbolTable, Timing, Type, TypeLiteral, TypeTable,
+    StaticProperty, SymbolTable, Timing, Type, TypeLiteral, TypeTable, VarianceModifier,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -42,6 +42,38 @@ impl Compiler {
         kind
     }
 
+    /// Resolve the static parameter variance for a symbol.
+    pub(crate) fn static_parameter_variance_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<VarianceModifier> {
+        // reuse cached variance when available
+        if let Some(variance) = types.get_static_parameter_variance(symbol) {
+            return variance;
+        }
+
+        // resolve from the owning module when needed
+        let variance = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            symbol.module_id,
+            tree,
+            symbols,
+            |_, tree, symbols| {
+                self.static_parameter_variance_for_symbol_in_module(symbol, tree, symbols)
+            },
+        );
+
+        // cache resolved variance
+        types.set_static_parameter_variance(symbol, variance);
+        variance
+    }
+
     /// Resolve the static parameter kind inside a module tree.
     pub(crate) fn static_parameter_kind_for_symbol_in_module(
         &self,
@@ -58,6 +90,26 @@ impl Compiler {
         };
         let parameter = tree.get(parameter_id);
         self.static_parameter_kind_for_parameter(parameter)
+    }
+
+    /// Resolve the static parameter variance inside a module tree.
+    pub(crate) fn static_parameter_variance_for_symbol_in_module(
+        &self,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<VarianceModifier> {
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary) = symbol_entry.primary_declaration else {
+            return None;
+        };
+        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
+            return None;
+        };
+        let parameter = tree.get(parameter_id);
+        parameter
+            .modifiers()
+            .and_then(|modifiers| modifiers.variance)
     }
 
     /// Resolve the static parameter kind from a parameter node.

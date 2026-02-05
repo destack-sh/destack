@@ -300,6 +300,7 @@ impl Compiler {
                     | TypeLiteral::Unknown
                     | TypeLiteral::Infer,
             } => true,
+            Type::Predicate { asserts: true, .. } => true,
             Type::Union { elements } => elements
                 .iter()
                 .any(|element| self.return_type_allows_fallthrough(*element, types)),

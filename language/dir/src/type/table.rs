@@ -10,6 +10,7 @@ use crate::{
     GlobalSymbolId, Instance, Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId,
     LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument,
     StaticKey, StaticParameterKind, StringId, SymbolTable, SymbolType, Type, TypeLiteral,
+    VarianceModifier,
 };
 
 /// Select a normalization cache.
@@ -138,6 +139,9 @@ pub struct TypeTable {
     pub(crate) static_parameter_constraint_in_progress: HashSet<GlobalSymbolId>,
     /// Cached static parameter kinds by symbol.
     pub(crate) static_parameter_kind_by_symbol_id: IndexMap<GlobalSymbolId, StaticParameterKind>,
+    /// Cached static parameter variances by symbol.
+    pub(crate) static_parameter_variance_by_symbol_id:
+        IndexMap<GlobalSymbolId, Option<VarianceModifier>>,
     /// Static parameter kind inference in progress.
     pub(crate) static_parameter_kind_in_progress: HashSet<GlobalSymbolId>,
     /// Expression type evaluation in progress.
@@ -257,6 +261,7 @@ impl TypeTable {
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
             static_parameter_constraint_in_progress: HashSet::new(),
             static_parameter_kind_by_symbol_id: IndexMap::new(),
+            static_parameter_variance_by_symbol_id: IndexMap::new(),
             static_parameter_kind_in_progress: HashSet::new(),
             static_argument_resolution_in_progress: Vec::new(),
             expression_type_in_progress: HashSet::new(),
@@ -1135,6 +1140,28 @@ impl TypeTable {
     ) -> Option<StaticParameterKind> {
         // fetch the cached kind
         self.static_parameter_kind_by_symbol_id
+            .get(&symbol_id)
+            .copied()
+    }
+
+    /// Cache the variance for a static parameter symbol.
+    pub fn set_static_parameter_variance(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        variance: Option<VarianceModifier>,
+    ) {
+        // cache the variance
+        self.static_parameter_variance_by_symbol_id
+            .insert(symbol_id, variance);
+    }
+
+    /// Get the cached variance for a static parameter symbol.
+    pub fn get_static_parameter_variance(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<Option<VarianceModifier>> {
+        // fetch the cached variance
+        self.static_parameter_variance_by_symbol_id
             .get(&symbol_id)
             .copied()
     }

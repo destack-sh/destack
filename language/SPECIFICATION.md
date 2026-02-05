@@ -2438,7 +2438,17 @@ match (user) {
 }
 ```
 
-Match must be exhaustive—all possible values must be handled, or use `_` as a catch-all.
+Match exhaustiveness is enforced when the compiler can prove the value set is finite.
+Exhaustive sets include:
+
+- enums
+- literal unions (`"a" | "b" | 1 | 2`)
+- discriminated unions where every member has the same required literal key with a literal value
+
+Irrefutable patterns also satisfy exhaustiveness.
+This includes `_`, binding patterns, tagged nominal patterns applied to their exact type, and fixed-size sequence patterns applied to fixed-size sequences.
+
+When the compiler cannot prove exhaustiveness (for example when any arm has a guard, or when the type is not a finite set), a `_` fallback arm is required.
 The match expression type is the union of its case body types.
 `break` is not allowed inside `match` arms.
 

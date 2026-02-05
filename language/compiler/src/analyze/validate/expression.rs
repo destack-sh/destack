@@ -35,26 +35,33 @@ impl Compiler {
                 self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
             Expression::Match {
-                kind: MatchKind::Switch,
-                cases,
-                ..
-            } => {
-                for case_id in cases {
-                    let (selector, case_span_id) = match tree.get(*case_id) {
-                        MatchCase::Expression { selector, .. }
-                        | MatchCase::Block { selector, .. } => (selector, *case_id),
-                    };
-                    if let MatchSelector::Pattern { pattern, guard } = selector {
-                        if guard.is_some() {
-                            self.error(AnalyzeError::InvalidSwitchCaseGuard {
-                                node: case_span_id
-                                    .into_global_any(module.id)
-                                    .into_anchored(Some(profile)),
-                            });
-                        }
-                        match tree.get(*pattern) {
-                            Pattern::Expression { value } => {
-                                if self.is_invalid_switch_case_expression(tree, *value) {
+                kind, value, cases, ..
+            } => match kind {
+                MatchKind::Switch => {
+                    for case_id in cases {
+                        let (selector, case_span_id) = match tree.get(*case_id) {
+                            MatchCase::Expression { selector, .. }
+                            | MatchCase::Block { selector, .. } => (selector, *case_id),
+                        };
+                        if let MatchSelector::Pattern { pattern, guard } = selector {
+                            if guard.is_some() {
+                                self.error(AnalyzeError::InvalidSwitchCaseGuard {
+                                    node: case_span_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
+                                });
+                            }
+                            match tree.get(*pattern) {
+                                Pattern::Expression { value } => {
+                                    if self.is_invalid_switch_case_expression(tree, *value) {
+                                        self.error(AnalyzeError::InvalidSwitchCasePattern {
+                                            node: pattern
+                                                .into_global_any(module.id)
+                                                .into_anchored(Some(profile)),
+                                        });
+                                    }
+                                }
+                                _ => {
                                     self.error(AnalyzeError::InvalidSwitchCasePattern {
                                         node: pattern
                                             .into_global_any(module.id)
@@ -62,17 +69,22 @@ impl Compiler {
                                     });
                                 }
                             }
-                            _ => {
-                                self.error(AnalyzeError::InvalidSwitchCasePattern {
-                                    node: pattern
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
                         }
                     }
                 }
-            }
+                MatchKind::Match => {
+                    self.validate_match_exhaustiveness(
+                        module,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                        expression_id,
+                        *value,
+                        cases,
+                    );
+                }
+            },
             Expression::Must { .. } => {
                 self.validate_must_assertion(module, profile, tree, expression_id);
             }

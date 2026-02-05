@@ -1,7 +1,8 @@
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, Lineage, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, SymbolTable, SymbolType, Type,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeTable, WellKnownSymbol,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticParameterKind,
+    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    VarianceModifier, WellKnownSymbol,
 };
 use destack_workspace::{ImplicitCollectionConversionPolicy, Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -2555,11 +2556,32 @@ impl Compiler {
             return false;
         }
 
+        let tree = module.dir(profile).tree.read();
+        let parameter_symbols =
+            self.collect_static_parameter_symbols(module, symbol, profile, &tree, symbols);
+
         let target_source_id = types.get_type_source(target_id);
         let source_source_id = types.get_type_source(source_id);
-        for (target_argument, source_argument) in
-            target_arguments.iter().zip(source_arguments.iter())
+        for (index, (target_argument, source_argument)) in target_arguments
+            .iter()
+            .zip(source_arguments.iter())
+            .enumerate()
         {
+            let parameter_symbol = parameter_symbols
+                .as_ref()
+                .and_then(|symbols| symbols.get(index))
+                .copied();
+            let parameter_kind = parameter_symbol.map(|symbol| {
+                self.static_parameter_kind_for_symbol(
+                    module, profile, symbol, &tree, symbols, types,
+                )
+            });
+            let parameter_variance = parameter_symbol.and_then(|symbol| {
+                self.static_parameter_variance_for_symbol(
+                    module, profile, symbol, &tree, symbols, types,
+                )
+            });
+
             let target_ty_id =
                 self.convert_static_argument_type(target_argument, target_source_id, types);
             let source_ty_id =
@@ -2598,29 +2620,52 @@ impl Compiler {
                 continue;
             }
 
-            if self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_ty_id,
-                source_ty_id,
-                types,
-                options,
-            ) != Assignability::Assignable
-            {
-                return false;
-            }
-            if self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                source_ty_id,
-                target_ty_id,
-                types,
-                options,
-            ) != Assignability::Assignable
-            {
-                return false;
+            let target_assignable = self
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_ty_id,
+                    source_ty_id,
+                    types,
+                    options,
+                )
+                .is_assignable();
+            let source_assignable = self
+                .is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    source_ty_id,
+                    target_ty_id,
+                    types,
+                    options,
+                )
+                .is_assignable();
+
+            let use_variance = matches!(parameter_kind, Some(StaticParameterKind::Type));
+            let variance = if use_variance {
+                parameter_variance
+            } else {
+                None
+            };
+
+            match variance {
+                Some(VarianceModifier::Out) => {
+                    if !target_assignable {
+                        return false;
+                    }
+                }
+                Some(VarianceModifier::In) => {
+                    if !source_assignable {
+                        return false;
+                    }
+                }
+                Some(VarianceModifier::InOut) | None => {
+                    if !target_assignable || !source_assignable {
+                        return false;
+                    }
+                }
             }
         }
 

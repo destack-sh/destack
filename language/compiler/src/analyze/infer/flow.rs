@@ -4,11 +4,12 @@ use indexmap::IndexMap;
 
 use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, Declaration, DynamicKey, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment,
-    FlowGraph, FlowGuard, FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, NodeVisitor, NodeVisitorOptions, Pattern, PatternField,
-    RuntimeCheckKind, ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    Argument, BinaryOperator, Declaration, DynamicKey, Expression, FlowBlock, FlowEdge,
+    FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard, FlowTable, FunctionSignature,
+    GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, NodeType,
+    NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, RuntimeCheckKind,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeField, TypeLiteral,
+    TypePredicateSubject, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -16,6 +17,8 @@ use super::super::common::NormalizationMode;
 use super::r#type::TypeGuardTarget;
 
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
+
+const MAX_RANGE_LITERAL_COUNT: i64 = 256;
 
 /// Track whether a tree walk encounters flow sensitive constructs.
 #[derive(Debug, Default)]
@@ -89,6 +92,14 @@ impl NodeVisitor for FlowSensitiveVisitor {
                 ..
             }
         ) {
+            self.mark_flow_required();
+            return;
+        }
+
+        // detect statement-level calls for assertion narrowing
+        if let Expression::Statement { statement } = expression
+            && matches!(tree.get(*statement), Expression::Call { .. })
+        {
             self.mark_flow_required();
             return;
         }
@@ -192,7 +203,15 @@ impl Compiler {
                 .unwrap_or_else(|| FlowEnvironment::new(false));
 
             // compute the exit environment for the block
-            let mut exit_environment = entry_environment.clone();
+            let mut exit_environment = self.flow_environment_after_block_nodes(
+                module,
+                &graph.blocks[block_index],
+                tree,
+                symbols,
+                types,
+                &entry_environment,
+                context,
+            )?;
             if graph.blocks[block_index].is_terminal {
                 exit_environment.is_reachable = false;
             }
@@ -270,10 +289,20 @@ impl Compiler {
         // map node environments using the finalized entry environment for each block
         for block in &graph.blocks {
             let entry_environment_id = flow.entry_environment_by_block[block.id.0 as usize];
-            for node_id in &block.nodes {
-                flow.environment_by_node
-                    .insert(node_id.into_global(module.id), entry_environment_id);
-            }
+            let entry_environment = flow
+                .environment(entry_environment_id)
+                .cloned()
+                .unwrap_or_else(|| FlowEnvironment::new(false));
+            self.map_flow_environment_for_block_nodes(
+                module,
+                block,
+                tree,
+                symbols,
+                types,
+                &entry_environment,
+                context,
+                &mut flow,
+            )?;
         }
 
         // emit unreachable diagnostics when enabled
@@ -282,6 +311,287 @@ impl Compiler {
         }
 
         Ok(flow)
+    }
+
+    /// Compute the exit environment for a block with assertion-aware narrowing.
+    fn flow_environment_after_block_nodes(
+        &self,
+        module: &Module,
+        block: &FlowBlock,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<FlowEnvironment> {
+        // keep unreachable environments unchanged
+        if !environment.is_reachable {
+            return Ok(environment.clone());
+        }
+
+        // apply assertion call narrowings in order
+        let mut current_environment = environment.clone();
+        for node_id in &block.nodes {
+            if let Some(updated) = self.flow_environment_after_node(
+                module,
+                *node_id,
+                tree,
+                symbols,
+                types,
+                &current_environment,
+                context,
+            )? {
+                current_environment = updated;
+            }
+        }
+
+        Ok(current_environment)
+    }
+
+    /// Record per node environments for a block with assertion-aware narrowing.
+    fn map_flow_environment_for_block_nodes(
+        &self,
+        module: &Module,
+        block: &FlowBlock,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+        flow: &mut FlowTable,
+    ) -> AnalyzeResult<()> {
+        // seed the environment for the first node
+        let mut current_environment = environment.clone();
+        let mut current_environment_id = flow.push_environment(current_environment.clone());
+
+        // walk nodes and apply assertion call updates
+        for node_id in &block.nodes {
+            let node_global = (*node_id).into_global(module.id);
+            flow.environment_by_node
+                .insert(node_global, current_environment_id);
+
+            if let Some(updated) = self.flow_environment_after_node(
+                module,
+                *node_id,
+                tree,
+                symbols,
+                types,
+                &current_environment,
+                context,
+            )? && !self.flow_environment_equals(&current_environment, &updated)
+            {
+                current_environment = updated;
+                current_environment_id = flow.push_environment(current_environment.clone());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply assertion call narrowings for a single node when applicable.
+    fn flow_environment_after_node(
+        &self,
+        module: &Module,
+        node_id: LocalNodeIdAny,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<FlowEnvironment>> {
+        // only expressions can update flow state
+        if node_id.ty != NodeType::Expression {
+            return Ok(None);
+        }
+
+        // only apply assertion call narrowings for block expressions
+        let parent = tree.get_parent(node_id.id);
+        let is_block_expression = parent
+            .map(|parent| parent.ty == NodeType::Block)
+            .unwrap_or(true);
+        if !is_block_expression {
+            return Ok(None);
+        }
+
+        let mut expression_id = node_id.into_typed::<Expression>();
+        loop {
+            match tree.get(expression_id) {
+                Expression::Statement { statement } => {
+                    expression_id = *statement;
+                }
+                Expression::Parenthesized { expression } => {
+                    expression_id = *expression;
+                }
+                _ => break,
+            }
+        }
+
+        let expression = tree.get(expression_id);
+        let Expression::Call {
+            left,
+            dynamic_arguments,
+            ..
+        } = expression
+        else {
+            return Ok(None);
+        };
+
+        self.narrow_environment_for_assertion_call(
+            module,
+            expression_id,
+            *left,
+            dynamic_arguments,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )
+    }
+
+    /// Apply assertion narrowing for a call expression when possible.
+    fn narrow_environment_for_assertion_call(
+        &self,
+        module: &Module,
+        call_id: LocalNodeId<Expression>,
+        callee_id: LocalNodeId<Expression>,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<Option<FlowEnvironment>> {
+        // skip when custom guards are disabled
+        if context.options.no_custom_type_guards {
+            return Ok(None);
+        }
+
+        // resolve the callee symbol
+        let callee_id = self.unwrap_parenthesized_expression(callee_id, tree);
+        let callee_symbol =
+            self.reference_symbol_for_expression(module, callee_id, context.profile, tree, symbols);
+        let Some(callee_symbol) = callee_symbol else {
+            return Ok(None);
+        };
+
+        // skip remote signatures until we can translate predicate types across modules
+        if callee_symbol.module_id != module.id {
+            return Ok(None);
+        }
+
+        // resolve the guard signature for parameter mapping
+        let signature = self.guard_signature_for_symbol(module, callee_symbol, tree, symbols);
+        let Some(signature) = signature else {
+            return Ok(None);
+        };
+
+        // resolve the predicate return type for the call
+        let return_type_id = if let Some(return_type) = signature.return_type {
+            Some(self.try_evaluate_expression_to_type(
+                module,
+                context.profile,
+                return_type,
+                tree,
+                symbols,
+                types,
+                true,
+                true,
+            )?)
+        } else {
+            None
+        };
+        let Some(return_type_id) = return_type_id else {
+            return Ok(None);
+        };
+        let Type::Predicate {
+            asserts,
+            subject,
+            target,
+        } = types.get_type(return_type_id)
+        else {
+            return Ok(None);
+        };
+        if !*asserts {
+            return Ok(None);
+        }
+        let Some(target_type_id) = *target else {
+            return Ok(None);
+        };
+        let target_type_id = self.unwrap_type_value(target_type_id, types);
+
+        // find the argument expression for the asserted subject
+        let parameter = self.guard_parameter_for_subject(module, *subject, &signature, tree);
+        let Some((parameter_index, parameter_name)) = parameter else {
+            return Ok(None);
+        };
+        let argument_value = self.guard_argument_for_parameter(
+            parameter_index,
+            parameter_name,
+            dynamic_arguments,
+            tree,
+        );
+        let Some(argument_value) = argument_value else {
+            return Ok(None);
+        };
+        let argument_value = self.unwrap_parenthesized_expression(argument_value, tree);
+        let argument_symbol = self.reference_symbol_for_expression(
+            module,
+            argument_value,
+            context.profile,
+            tree,
+            symbols,
+        );
+        let Some(argument_symbol) = argument_symbol else {
+            return Ok(None);
+        };
+
+        // resolve the base type for the symbol
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            call_id,
+            argument_symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+
+        // compute runtime check kind for guard validity
+        let runtime_check_kind = self.runtime_check_kind_for_relation(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
+        if let Some(kind) = runtime_check_kind {
+            types.set_runtime_check_kind(call_id.into_global_any(module.id), kind);
+        }
+
+        // compute the asserted type
+        let (true_type_id, _) = self.type_guard_types(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
+        let Some(true_type_id) = true_type_id else {
+            return Ok(None);
+        };
+
+        // apply the narrowing
+        let mut updated_environment = environment.clone();
+        updated_environment
+            .bindings
+            .insert(argument_symbol, true_type_id);
+        Ok(Some(updated_environment))
     }
 
     /// Emit diagnostics for unreachable blocks when enabled.
@@ -780,6 +1090,14 @@ impl Compiler {
                         }
                         _ => Ok((environment.clone(), environment.clone())),
                     },
+                    Expression::Call {
+                        left,
+                        dynamic_arguments,
+                        ..
+                    } => {
+                        let _ = (left, dynamic_arguments);
+                        Ok((environment.clone(), environment.clone()))
+                    }
                     _ => Ok((environment.clone(), environment.clone())),
                 }
             }
@@ -834,6 +1152,35 @@ impl Compiler {
             environment,
             context,
         )?;
+
+        // treat irrefutable patterns as non narrowing guards
+        if self.is_irrefutable_pattern_for_type(
+            module,
+            context.profile,
+            pattern_id,
+            base_type_id,
+            tree,
+            symbols,
+            types,
+        ) {
+            return Ok((environment.clone(), environment.clone()));
+        }
+
+        // narrow must patterns by stripping nullish values
+        if matches!(tree.get(pattern_id), Pattern::Must(_)) {
+            let (nullish_type_id, non_nullish_type_id) =
+                self.nullish_guard_types(NullishGuardKind::Nullish, base_type_id, types);
+            let mut true_environment = environment.clone();
+            let mut false_environment = environment.clone();
+            if let Some(type_id) = non_nullish_type_id {
+                true_environment.bindings.insert(symbol, type_id);
+            }
+            if let Some(type_id) = nullish_type_id {
+                false_environment.bindings.insert(symbol, type_id);
+            }
+            return Ok((true_environment, false_environment));
+        }
+
         let Some(target_type_id) = self.pattern_guard_target_type(
             module,
             context.profile,
@@ -904,6 +1251,36 @@ impl Compiler {
                 let target_type_id =
                     self.guard_target_type(module, profile, *ty, tree, symbols, types)?;
                 Ok(Some(self.unwrap_type_value(target_type_id, types)))
+            }
+            Pattern::Range {
+                start,
+                end,
+                is_inclusive,
+            } => {
+                // range patterns require both endpoints
+                let Some(start_id) = start else {
+                    return Ok(None);
+                };
+                let Some(end_id) = end else {
+                    return Ok(None);
+                };
+
+                // resolve scalar literals for endpoints
+                let Some(start_literal) = self.scalar_literal_for_pattern(tree, *start_id) else {
+                    return Ok(None);
+                };
+                let Some(end_literal) = self.scalar_literal_for_pattern(tree, *end_id) else {
+                    return Ok(None);
+                };
+
+                // build a literal union when the range is small enough
+                Ok(self.pattern_range_target_type(
+                    pattern_id,
+                    &start_literal,
+                    &end_literal,
+                    *is_inclusive,
+                    types,
+                ))
             }
             Pattern::Union { patterns } => {
                 let mut target_types = Vec::new();
@@ -1427,7 +1804,9 @@ impl Compiler {
         // skip unsound narrowing when runtime checks are unavailable
         let is_sound_narrowing = matches!(
             runtime_check_kind,
-            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+            Some(RuntimeCheckKind::UnionTag)
+                | Some(RuntimeCheckKind::Constant(_))
+                | Some(RuntimeCheckKind::TypeDescriptor)
         );
         if context.options.no_unsound_narrowing && !is_sound_narrowing {
             return Ok(None);
@@ -1518,7 +1897,9 @@ impl Compiler {
         // skip unsound narrowing when runtime checks are unavailable
         let is_sound_narrowing = matches!(
             runtime_check_kind,
-            Some(RuntimeCheckKind::UnionTag) | Some(RuntimeCheckKind::Constant(_))
+            Some(RuntimeCheckKind::UnionTag)
+                | Some(RuntimeCheckKind::Constant(_))
+                | Some(RuntimeCheckKind::TypeDescriptor)
         );
         if context.options.no_unsound_narrowing && !is_sound_narrowing {
             return Ok(None);
@@ -1567,6 +1948,123 @@ impl Compiler {
         self.try_evaluate_expression_to_type(
             module, profile, target_id, tree, symbols, types, true, true,
         )
+    }
+
+    /// Resolve a guard signature for a callable symbol.
+    fn guard_signature_for_symbol(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<FunctionSignature> {
+        // remote signatures are not yet supported in flow predicates
+        if symbol.module_id != module.id {
+            return None;
+        }
+
+        self.guard_signature_for_symbol_in_tree(symbol, tree, symbols)
+    }
+
+    /// Resolve a guard signature for a symbol within a tree.
+    fn guard_signature_for_symbol_in_tree(
+        &self,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<FunctionSignature> {
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+        if primary_declaration.local_id.ty != NodeType::Declaration {
+            return None;
+        }
+
+        let declaration_id = LocalNodeId::<Declaration>::new(primary_declaration.local_id.id);
+        let declaration = tree.get(declaration_id);
+        let Declaration::Function { signature, .. } = declaration else {
+            return None;
+        };
+
+        Some(signature.clone())
+    }
+
+    /// Find the parameter that matches a guard predicate subject.
+    fn guard_parameter_for_subject(
+        &self,
+        module: &Module,
+        subject: TypePredicateSubject,
+        signature: &FunctionSignature,
+        tree: &NodeTree,
+    ) -> Option<(usize, Option<StringId>)> {
+        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+            let parameter = tree.get(*parameter_id);
+            let parameter_symbol = parameter.symbol().into_global(module.id);
+            let parameter_name = match parameter {
+                Parameter::Named { name, .. } | Parameter::Variadic { name, .. } => Some(*name),
+                _ => None,
+            };
+
+            match subject {
+                TypePredicateSubject::Symbol(symbol) if symbol == parameter_symbol => {
+                    return Some((index, parameter_name));
+                }
+                TypePredicateSubject::Unresolved(name)
+                    if parameter_name.is_some_and(|parameter_name| parameter_name == name) =>
+                {
+                    return Some((index, parameter_name));
+                }
+                TypePredicateSubject::This => return None,
+                _ => {}
+            }
+        }
+
+        None
+    }
+
+    /// Resolve the argument value corresponding to a guard parameter.
+    fn guard_argument_for_parameter(
+        &self,
+        parameter_index: usize,
+        parameter_name: Option<StringId>,
+        arguments: &[LocalNodeId<Argument>],
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<Expression>> {
+        // prefer named arguments when available
+        if let Some(parameter_name) = parameter_name {
+            for argument_id in arguments {
+                match tree.get(*argument_id) {
+                    Argument::Named { name, value, .. } if *name == parameter_name => {
+                        return Some(*value);
+                    }
+                    Argument::Labeled { label, value, .. } if *label == parameter_name => {
+                        return Some(*value);
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // fall back to positional arguments
+        let mut positional_index = 0;
+        for argument_id in arguments {
+            match tree.get(*argument_id) {
+                Argument::Positional { value, .. } => {
+                    if positional_index == parameter_index {
+                        return Some(*value);
+                    }
+                    positional_index += 1;
+                }
+                Argument::Spread { .. } => {
+                    if positional_index == parameter_index {
+                        return None;
+                    }
+                    positional_index += 1;
+                }
+                Argument::Named { .. } | Argument::Labeled { .. } => {}
+            }
+        }
+
+        None
     }
 
     /// Derive guard types for a symbol based on a target type.
@@ -2165,6 +2663,144 @@ impl Compiler {
     ) -> Option<ScalarLiteral> {
         match tree.get(expression_id) {
             Expression::ScalarLiteral { value } => Some(value.clone()),
+            _ => None,
+        }
+    }
+
+    /// Extract a scalar literal from a pattern subtree.
+    fn scalar_literal_for_pattern(
+        &self,
+        tree: &NodeTree,
+        pattern_id: LocalNodeId<Pattern>,
+    ) -> Option<ScalarLiteral> {
+        match tree.get(pattern_id) {
+            // direct literal pattern
+            Pattern::Expression { value } => self.scalar_literal_for_expression(tree, *value),
+            // unwrap bindings
+            Pattern::Binding { pattern, .. } => {
+                pattern.and_then(|inner| self.scalar_literal_for_pattern(tree, inner))
+            }
+            Pattern::Must(inner)
+            | Pattern::ReferenceOf { right: inner, .. }
+            | Pattern::ValueOf { right: inner, .. } => {
+                // unwrap modifier patterns
+                self.scalar_literal_for_pattern(tree, *inner)
+            }
+            _ => None,
+        }
+    }
+
+    /// Build a union type for a scalar literal range.
+    fn pattern_range_target_type(
+        &self,
+        pattern_id: LocalNodeId<Pattern>,
+        start_literal: &ScalarLiteral,
+        end_literal: &ScalarLiteral,
+        is_inclusive: bool,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        match (start_literal, end_literal) {
+            (ScalarLiteral::Integer(start), ScalarLiteral::Integer(end)) => {
+                // normalize bounds
+                let end_value = if is_inclusive { *end } else { end - 1 };
+                if end_value < *start {
+                    return None;
+                }
+
+                // guard against large literal unions
+                let count = end_value - *start + 1;
+                if count > MAX_RANGE_LITERAL_COUNT {
+                    return None;
+                }
+
+                // emit literal union elements
+                let mut elements = Vec::with_capacity(count as usize);
+                for value in *start..=end_value {
+                    let literal = ScalarLiteral::Integer(value);
+                    elements.push(types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(literal),
+                        },
+                        pattern_id,
+                    ));
+                }
+                if elements.len() == 1 {
+                    return Some(elements[0]);
+                }
+                // use a union for multi literal ranges
+                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
+            }
+            (ScalarLiteral::Bigint(start), ScalarLiteral::Bigint(end)) => {
+                // normalize bounds
+                let end_value = if is_inclusive { *end } else { end - 1 };
+                if end_value < *start {
+                    return None;
+                }
+
+                // guard against large literal unions
+                let count = end_value - *start + 1;
+                if count > MAX_RANGE_LITERAL_COUNT {
+                    return None;
+                }
+
+                // emit literal union elements
+                let mut elements = Vec::with_capacity(count as usize);
+                for value in *start..=end_value {
+                    let literal = ScalarLiteral::Bigint(value);
+                    elements.push(types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(literal),
+                        },
+                        pattern_id,
+                    ));
+                }
+                if elements.len() == 1 {
+                    return Some(elements[0]);
+                }
+                // use a union for multi literal ranges
+                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
+            }
+            (ScalarLiteral::Character(start), ScalarLiteral::Character(end)) => {
+                // normalize bounds
+                let start_value = *start as u32;
+                let end_value = *end as u32;
+                let end_value = if is_inclusive {
+                    end_value
+                } else if end_value == 0 {
+                    return None;
+                } else {
+                    end_value - 1
+                };
+                if end_value < start_value {
+                    return None;
+                }
+
+                // guard against large literal unions
+                let count = (end_value - start_value) as i64 + 1;
+                if count > MAX_RANGE_LITERAL_COUNT {
+                    return None;
+                }
+
+                // emit literal union elements
+                let mut elements = Vec::with_capacity(count as usize);
+                for value in start_value..=end_value {
+                    let Some(character) = char::from_u32(value) else {
+                        return None;
+                    };
+                    let literal = ScalarLiteral::Character(character);
+                    elements.push(types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::ScalarLiteral(literal),
+                        },
+                        pattern_id,
+                    ));
+                }
+                if elements.len() == 1 {
+                    return Some(elements[0]);
+                }
+                // use a union for multi literal ranges
+                Some(types.insert_type_from(Type::Union { elements }, pattern_id))
+            }
             _ => None,
         }
     }

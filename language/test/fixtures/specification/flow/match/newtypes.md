@@ -85,6 +85,7 @@ newtype Config = { debug: boolean };
 function read(config: Config): boolean {
     match (config) {
         { debug } => debug
+        _ => false
     }
 }
 ```

@@ -548,10 +548,42 @@ impl Compiler {
                 ctx.with_return_type(return_type)
             };
 
+            // adjust predicate return types for body expectations
+            let mut expected_return_type = context_return_type;
+            let mut constraint_return_type = context_return_type;
+            if let Some(return_ty_id) = context_return_type {
+                match types.get_type(return_ty_id) {
+                    Type::Predicate { asserts: true, .. } => {
+                        let void_ty_id = types.insert_type_from(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Void,
+                            },
+                            body,
+                        );
+                        expected_return_type = Some(void_ty_id);
+                        constraint_return_type = Some(void_ty_id);
+                    }
+                    Type::Predicate { asserts: false, .. } => {
+                        let boolean_ty_id = types.insert_type_from(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                            },
+                            body,
+                        );
+                        expected_return_type = Some(boolean_ty_id);
+                        constraint_return_type = Some(boolean_ty_id);
+                    }
+                    _ => {}
+                }
+            }
+            if expected_return_type != context_return_type {
+                ctx = ctx.with_return_type(expected_return_type);
+            }
+
             // only propagate return type expectations into expression bodies
             let body_expression = !matches!(tree.get(body), Expression::Block { .. });
             if body_expression {
-                ctx = ctx.with_expected_type(context_return_type);
+                ctx = ctx.with_expected_type(expected_return_type);
             } else {
                 ctx = ctx.with_expected_type(None);
             }
@@ -570,7 +602,7 @@ impl Compiler {
             );
 
             // constrain implicit return types against the declared return type
-            if let Some(return_ty_id) = context_return_type
+            if let Some(return_ty_id) = constraint_return_type
                 && has_implicit_return(body, tree)
             {
                 infer.push_constraint(Constraint::Subtype {
@@ -1021,6 +1053,10 @@ impl Compiler {
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = context_return_type
                         && has_implicit_return(*body, tree)
+                        && !matches!(
+                            types.get_type(return_ty_id),
+                            Type::Predicate { asserts: true, .. }
+                        )
                     {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: committed_body_ty_id,
