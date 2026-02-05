@@ -266,13 +266,14 @@ function missingReturn(flag: boolean): int32 {
 ```
 
 - contains: missing return
+- contains: not assignable
 
 ### noImplicitReturns allows missing return when false
 
 > Missing returns are allowed when noImplicitReturns is false.
 
 ```ds:main.ds
-function missingReturn(flag: boolean): int32 {
+function missingReturn(flag: boolean): int32 | void {
     if flag {
         return 1;
     }

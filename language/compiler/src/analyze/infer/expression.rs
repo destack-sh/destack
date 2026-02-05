@@ -5698,7 +5698,11 @@ pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: 
         Expression::Statement { .. }
         | Expression::Return { .. }
         | Expression::Break { .. }
-        | Expression::Continue { .. } => false,
+        | Expression::Continue { .. }
+        | Expression::If {
+            else_expression: None,
+            ..
+        } => false,
         Expression::Block { block } => {
             // read the block expression list
             let block = tree.get(*block);
@@ -5714,6 +5718,10 @@ pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: 
                     | Expression::Return { .. }
                     | Expression::Break { .. }
                     | Expression::Continue { .. }
+                    | Expression::If {
+                        else_expression: None,
+                        ..
+                    }
             )
         }
         _ => true,
