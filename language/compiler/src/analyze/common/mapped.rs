@@ -9,6 +9,7 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::key::KeySet;
+use super::template::TemplateLiteralKeyShape;
 use crate::Compiler;
 use crate::analyze::common::{CanonicalSymbolMode, RelationMode};
 
@@ -60,11 +61,11 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         mode: NormalizationMode,
-        _relation_mode: RelationMode,
+        relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // key queries should always use type operations semantics
-        let key_relation_mode = RelationMode::TYPE_OPS;
+        let relation_mode = relation_mode.for_type_ops();
 
         // TODO #Cleanup: move this instantiation gate into structural normalization, keep keyof unevaluated until inference binds parameters
         // preserve keyof when the operand still depends on instantiation
@@ -84,7 +85,7 @@ impl Compiler {
             symbols,
             types,
             normalize_mode,
-            key_relation_mode,
+            relation_mode,
             visited,
         );
 
@@ -133,7 +134,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            key_relation_mode,
+            relation_mode,
             visited,
             &mut visited_keys,
         );
@@ -147,7 +148,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            key_relation_mode,
+            relation_mode,
             visited,
         )
     }
@@ -551,6 +552,9 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // conditional types use type operations semantics
+        let relation_mode = relation_mode.for_type_ops();
+
         // normalize the condition operands
         let original_left = left;
         let original_right = right;
@@ -855,6 +859,9 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
+        // index access uses type operations semantics
+        let relation_mode = relation_mode.for_type_ops();
+
         let resolution = self.resolve_index_access_types(
             module,
             profile,
@@ -911,6 +918,9 @@ impl Compiler {
         relation_mode: RelationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> IndexAccessResolution {
+        // index access uses type operations semantics
+        let relation_mode = relation_mode.for_type_ops();
+
         // resolve apparent operand types before index evaluation
         let left = self.apparent_type(module, profile, left, symbols, types, relation_mode);
         let index = self.apparent_type(module, profile, index, symbols, types, relation_mode);
@@ -1733,7 +1743,7 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // mapped key queries should use type operations semantics
-        let key_relation_mode = RelationMode::TYPE_OPS;
+        let relation_mode = relation_mode.for_type_ops();
 
         let TypeMappedParameter {
             name,
@@ -1814,7 +1824,7 @@ impl Compiler {
             symbols,
             types,
             mode,
-            key_relation_mode,
+            relation_mode,
             visited,
         );
         let normalized_key_remap = key_remap.map(|key_remap| {
@@ -1825,7 +1835,7 @@ impl Compiler {
                 symbols,
                 types,
                 mode,
-                key_relation_mode,
+                relation_mode,
                 visited,
             )
         });
@@ -1838,7 +1848,7 @@ impl Compiler {
             normalized_constraint,
             symbols,
             types,
-            key_relation_mode,
+            relation_mode,
             &mut keys,
         );
         if keys.is_empty() {
@@ -1887,7 +1897,7 @@ impl Compiler {
                 key_remap,
                 symbols,
                 types,
-                key_relation_mode,
+                relation_mode,
                 &mut remapped,
             );
             Some(remapped)
@@ -1966,7 +1976,7 @@ impl Compiler {
                     symbols,
                     types,
                     mode,
-                    key_relation_mode,
+                    relation_mode,
                     visited,
                 );
                 let mut remapped = Vec::new();
@@ -1976,7 +1986,7 @@ impl Compiler {
                     normalized_remap,
                     symbols,
                     types,
-                    key_relation_mode,
+                    relation_mode,
                     &mut remapped,
                 );
                 remapped
@@ -2358,6 +2368,38 @@ impl Compiler {
                         types,
                     ),
                 });
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                // expand template literal keys into literal fields when possible
+                if let Some(shape) = self.template_literal_key_shape(
+                    module,
+                    profile,
+                    &strings,
+                    &spans,
+                    symbols,
+                    types,
+                    relation_mode,
+                ) {
+                    match shape {
+                        TemplateLiteralKeyShape::Literal(literal_keys) => {
+                            for key in literal_keys {
+                                let key_type =
+                                    self.key_type_id_for_static_key(key, source_id, types);
+                                keys.push(MappedKey::Field { key, key_type });
+                            }
+                        }
+                        TemplateLiteralKeyShape::StringIndex => {
+                            keys.push(MappedKey::Index {
+                                kind: MappedIndexKind::String,
+                                key_type: self.key_type_id_for_index_kind(
+                                    MappedIndexKind::String,
+                                    source_id,
+                                    types,
+                                ),
+                            });
+                        }
+                    }
+                }
             }
             _ => {}
         }

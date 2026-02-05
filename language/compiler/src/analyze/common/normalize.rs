@@ -1190,6 +1190,9 @@ impl Compiler {
         mode: NormalizationMode,
         relation_mode: RelationMode,
     ) -> Option<LocalTypeId> {
+        // type operators always use type operations semantics
+        let relation_mode = relation_mode.for_type_ops();
+
         if !matches!(
             operator,
             TypeBinaryOperator::In

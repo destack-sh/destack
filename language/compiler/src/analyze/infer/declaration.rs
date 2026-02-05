@@ -2058,9 +2058,23 @@ impl Compiler {
         // commit binding types for inferred values without annotations
         let binding_ty_id = declared_ty_id.or(inferred_ty_id);
         let committed_binding_ty_id = if declared_ty_id.is_none() {
+            // preserve literal types when the initializer uses satisfies
+            let preserve_literals =
+                value.is_some_and(|value_id| self.expression_is_satisfies(tree, value_id));
             let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
+            let commit_ctx = if preserve_literals {
+                ctx.fork().with_preserve_literals()
+            } else {
+                ctx.fork()
+            };
             binding_ty_id.map(|binding_ty_id| {
-                self.commit_binding_type(module, ctx, binding_ty_id, types, is_const_asserted)
+                self.commit_binding_type(
+                    module,
+                    &commit_ctx,
+                    binding_ty_id,
+                    types,
+                    is_const_asserted,
+                )
             })
         } else {
             binding_ty_id

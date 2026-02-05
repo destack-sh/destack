@@ -642,6 +642,9 @@ impl Compiler {
             return Ok(None);
         };
 
+        // preserve literal types when the initializer uses satisfies
+        let preserve_literals = self.expression_is_satisfies(tree, value_id);
+
         // seed a placeholder to avoid recursion through self references
         let scope = InferScope {
             owner: symbol,
@@ -682,11 +685,45 @@ impl Compiler {
 
         // commit the binding type before caching it
         let is_const_asserted = self.declarator_is_const_assertion(declarator_id, tree);
-        let committed_ty_id =
-            self.commit_binding_type(module, &value_ctx, inferred_ty_id, types, is_const_asserted);
+        let commit_ctx = if preserve_literals {
+            value_ctx.fork().with_preserve_literals()
+        } else {
+            value_ctx.fork()
+        };
+        let committed_ty_id = self.commit_binding_type(
+            module,
+            &commit_ctx,
+            inferred_ty_id,
+            types,
+            is_const_asserted,
+        );
         types.set_value_type(symbol, committed_ty_id);
 
         Ok(Some(committed_ty_id))
+    }
+
+    /// Return true when the expression is a satisfies type binary expression.
+    pub(super) fn expression_is_satisfies(
+        &self,
+        tree: &NodeTree,
+        mut expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        loop {
+            match tree.get(expression_id) {
+                Expression::Parenthesized { expression } => {
+                    expression_id = *expression;
+                }
+                Expression::TypeBinary {
+                    operator: TypeBinaryOperator::Satisfies,
+                    ..
+                } => {
+                    return true;
+                }
+                _ => {
+                    return false;
+                }
+            }
+        }
     }
 
     /// Infer an (expression) body with flow aware typing.
@@ -1822,11 +1859,15 @@ impl Compiler {
                     infer,
                     ctx,
                 )?;
+
+                // fall back to the contextual expected type for union excess checks
+                let excess_check_ty_id = expected_object_ty_id.or(ctx.expected_type);
+
                 self.check_excess_object_literal_properties(
                     module,
                     ctx.profile,
                     expression_id.into_any(),
-                    expected_object_ty_id,
+                    excess_check_ty_id,
                     &literal_fields,
                     &ctx.options,
                     tree,

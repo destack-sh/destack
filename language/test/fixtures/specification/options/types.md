@@ -226,7 +226,7 @@ const bad: Box = { value: undefined };
 ```
 
 ```json:dsconfig.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": true } }
+{ "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
 - contains: not assignable
@@ -247,7 +247,7 @@ ok.value satisfies string | undefined;
 ```
 
 ```json:dsconfig.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": true } }
+{ "compilerOptions": { "exactOptionalPropertyTypes": true, "checkTs": true } }
 ```
 
 ### exactOptionalPropertyTypes allows undefined when false
@@ -266,7 +266,7 @@ ok.value satisfies string | undefined;
 ```
 
 ```json:dsconfig.json
-{ "compilerOptions": { "exactOptionalPropertyTypes": false } }
+{ "compilerOptions": { "exactOptionalPropertyTypes": false, "checkTs": true } }
 ```
 
 ## noUncheckedIndexedAccess
