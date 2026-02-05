@@ -143,6 +143,19 @@ fn to_infix_operator(
         && let Some(type_binary_operator) =
             TypeBinaryOperator::from_token(token_str, token.token.ty)
         && (!options.in_type_mapped_constraint || type_binary_operator != TypeBinaryOperator::Cast)
+        && (!options.in_for_each || type_binary_operator != TypeBinaryOperator::In)
+        && (options.in_type
+            || matches!(
+                type_binary_operator,
+                TypeBinaryOperator::Cast | TypeBinaryOperator::Satisfies
+            )
+            || (language.is_destack()
+                && matches!(
+                    type_binary_operator,
+                    TypeBinaryOperator::Extends
+                        | TypeBinaryOperator::Implements
+                        | TypeBinaryOperator::Is
+                )))
         && (language.is_destack() || !has_newline)
     {
         Ok((InfixOperator::TypeBinary(type_binary_operator), 1))
@@ -929,6 +942,11 @@ impl Parser {
             }
 
             descriptor.export = export_mode;
+
+            // allow decorators after export modifier
+            if self.peek_is(TokenType::At) {
+                self.eat_decorators_prefix_maybe()?;
+            }
         }
 
         // skip newlines before export import equals
@@ -2147,9 +2165,7 @@ impl Parser {
                             && (self.language.is_destack() || self.language.is_typescript())
                             && !self.options.in_before_type
                             && !self.options.in_match_case
-                            && (!self.options.in_type
-                                || !self.options.in_ternary_condition
-                                || !has_top_level_comma);
+                            && (!self.options.in_type || !has_top_level_comma);
                         let mut lambda_expression_id = None;
 
                         // parse lambda when we see a likely arrow or colon
@@ -2163,11 +2179,16 @@ impl Parser {
                                 if let Ok(lambda_id) =
                                     self.eat_function(&start, descriptor, false, false)
                                 {
+                                    let has_ternary_delimiter = self.peek_is(TokenType::Colon)
+                                        || self
+                                            .peek_token_after_newlines(self.pos(), TokenType::Colon)
+                                            .is_ok();
                                     let should_accept = match self.tree.get(lambda_id) {
                                         Declaration::Function { body, .. } => {
-                                            body.is_some() || self.options.in_type
+                                            (body.is_some() || self.options.in_type)
+                                                && has_ternary_delimiter
                                         }
-                                        _ => true,
+                                        _ => has_ternary_delimiter,
                                     };
                                     if should_accept {
                                         lambda_expression_id = Some(self.tree.insert(
@@ -4726,6 +4747,72 @@ f<x> !== g<y>;
                     assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeLiteral(TypeLiteral::Void));
                 });
             });
+        });
+    }
+
+    /// Parse TSX tree attributes with typed arrow function values.
+    #[test]
+    fn test_parse_tsx_tree_attribute_typed_arrow_value() {
+        let mut test = TestParser::new_with_options(
+            "<StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} />",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::TreeExpression { arguments, .. } => {
+            let arguments = arguments.as_ref().expect("expected arguments");
+            let class_name_argument = arguments.iter().copied().find(|argument_id| {
+                matches!(
+                    parser.tree.get(*argument_id),
+                    Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+                )
+            });
+            let class_name_argument = class_name_argument.expect("expected className argument");
+            assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+                assert_name!(parser, *name, "className");
+                assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                    assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                        assert_eq!(signature.kind, FunctionKind::Lambda);
+                        let return_type = signature.return_type.expect("expected return type");
+                        assert_node!(parser.tree, return_type, Expression::ObjectExpression { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse ternaries with typed arrow functions inside TSX tree attributes.
+    #[test]
+    fn test_parse_tsx_ternary_tree_attribute_typed_arrow() {
+        let mut test = TestParser::new_with_options(
+            "disabled ? <StyledComponent className={({ theme }): { [key: string]: any } => ({ color: theme.blue })} /> : null",
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expr_id, Expression::If { kind, then_expression, else_expression, .. } => {
+            assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(parser.tree, *then_expression, Expression::TreeExpression { arguments, .. } => {
+                let arguments = arguments.as_ref().expect("expected arguments");
+                let class_name_argument = arguments.iter().copied().find(|argument_id| {
+                    matches!(
+                        parser.tree.get(*argument_id),
+                        Argument::Named { name, .. } if parser.strings.get(name.string()) == "className"
+                    )
+                });
+                let class_name_argument = class_name_argument.expect("expected className argument");
+                assert_node!(parser.tree, class_name_argument, Argument::Named { name, value, .. } => {
+                    assert_name!(parser, *name, "className");
+                    assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                        assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, .. } => {
+                            assert_eq!(signature.kind, FunctionKind::Lambda);
+                            let return_type = signature.return_type.expect("expected return type");
+                            assert_node!(parser.tree, return_type, Expression::ObjectExpression { .. });
+                        });
+                    });
+                });
+            });
+            assert!(else_expression.is_some());
         });
     }
 
