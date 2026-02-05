@@ -1,7 +1,7 @@
 {
     "name": "destack",
     "displayName": "Destack",
-    "description": "Destack for VSCode (.ds, .d.ds, .dst, .mir)",
+    "description": "Destack for VSCode (.ds, .d.ds, .dst, .mir, .dsmir)",
     "version": "0.53.0",
     "license": "MIT",
     "engines": {
@@ -127,7 +127,8 @@
                     "Destack MIR"
                 ],
                 "extensions": [
-                    ".mir"
+                    ".mir",
+                    ".dsmir"
                 ],
                 "configuration": "./destack-mir.json"
             }
