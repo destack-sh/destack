@@ -36,6 +36,22 @@ function greet(name: string): string {
 }
 ```
 
+### declare async functions are allowed
+
+> Declared function signatures can use async markers.
+
+```ds
+declare async function load(): void
+```
+
+### declare generator functions are allowed
+
+> Declared function signatures can use generator markers.
+
+```ds
+declare function* ids(): void
+```
+
 ## invalid declarations
 
 ### declare functions cannot have bodies
@@ -46,6 +62,16 @@ function greet(name: string): string {
 declare function greet(): string {
     return "hi";
 }
+```
+
+- contains: invalid function
+
+### arrow functions cannot declare explicit this parameters
+
+> Value level arrow functions cannot declare explicit this parameters.
+
+```ds
+let f = (this: string) => {}
 ```
 
 - contains: invalid function

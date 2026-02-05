@@ -354,6 +354,12 @@ impl Parser {
         // export default <expression>
         if self.peek_keyword(Keyword::Default).is_ok() {
             self.bump(); // eat default
+
+            // reject export default enum declarations
+            if self.peek_keyword(Keyword::Enum).is_ok() {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             let value = self.with_options(
                 self.options.not_in_position().not_in_sequence_expression(),
                 |parser| parser.eat_expression(),
@@ -455,6 +461,11 @@ impl Parser {
             self.tree.set_main_span(export, target_span);
 
             return Ok(export);
+        }
+
+        // require a binding after export and optional type modifier
+        if self.peek_dependency_binding().is_err() {
+            return Err(ParseError::unexpected(self.peek()?.span));
         }
 
         // binding
@@ -1484,5 +1495,32 @@ export type { CreateUIMessage, UIMessage }
                 assert_string!(parser, *alias, "baz");
             });
         });
+    }
+
+    #[test]
+    fn test_reject_export_type_without_binding() {
+        let mut test = TestParser::new_with_options("export type", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let result = parser.eat_export();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reject_export_default_enum() {
+        let mut test = TestParser::new("export default enum A { X, Y, Z }");
+        let mut parser = test.prepare();
+        let result = parser.eat_export();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reject_export_function_without_name() {
+        let mut test = TestParser::new_with_options(
+            "export function(option: any): void",
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let result = parser.eat_export();
+        assert!(result.is_err());
     }
 }

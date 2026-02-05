@@ -13,27 +13,31 @@ impl Compiler {
             return false;
         };
 
-        match parent.ty {
-            NodeType::Declaration => {
-                let declaration = tree.get(parent.into_typed::<Declaration>());
-                matches!(
-                    declaration,
-                    Declaration::Class { .. }
-                        | Declaration::Interface { .. }
-                        | Declaration::Type { .. }
-                        | Declaration::Function { .. }
-                )
-            }
-            NodeType::Member => {
-                let member = tree.get(parent.into_typed::<Member>());
-                matches!(member, Member::Method { .. })
-            }
-            NodeType::Property => {
-                let property = tree.get(parent.into_typed::<Property>());
-                matches!(property, Property::Method { .. })
-            }
-            _ => false,
+        // declaration parameters
+        if parent.ty == NodeType::Declaration {
+            let declaration = tree.get(parent.into_typed::<Declaration>());
+            return matches!(
+                declaration,
+                Declaration::Class { .. }
+                    | Declaration::Interface { .. }
+                    | Declaration::Type { .. }
+                    | Declaration::Function { .. }
+            );
         }
+
+        // method parameters
+        if parent.ty == NodeType::Member {
+            let member = tree.get(parent.into_typed::<Member>());
+            return matches!(member, Member::Method { .. });
+        }
+
+        // object method parameters
+        if parent.ty == NodeType::Property {
+            let property = tree.get(parent.into_typed::<Property>());
+            return matches!(property, Property::Method { .. });
+        }
+
+        false
     }
 
     /// Check whether a binding modifier indicates a parameter property.

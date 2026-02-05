@@ -4,9 +4,9 @@ use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
-    BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind, DependencyKind,
-    DependencyMode, Expression, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree,
-    NodeType, Path, TypeTable,
+    Asynchrony, BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind,
+    DependencyKind, DependencyMode, Expression, FunctionCardinality, FunctionKind,
+    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, Path, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -85,6 +85,17 @@ impl Compiler {
                     self.error(AnalyzeError::InvalidInterface { node });
                 }
 
+                // reject intrinsic type names as interface identifiers in typescript and destack
+                if (module.language_type.is_typescript() || module.language_type.is_destack())
+                    && let Some(name) = descriptor.name
+                    && self.is_reserved_type_name(name)
+                {
+                    self.error(AnalyzeError::ReservedIdentifier {
+                        node,
+                        name: name.string(),
+                    });
+                }
+
                 // reject empty extends clauses
                 let has_empty_extends = heritage
                     .extends_types
@@ -101,10 +112,14 @@ impl Compiler {
             }
 
             Declaration::Function {
-                descriptor, body, ..
+                descriptor,
+                signature,
+                body,
+                ..
             } => {
                 // resolve the function node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                let is_destack = module.language_type.is_destack();
 
                 // declare functions cannot have a body
                 let is_declare = descriptor.kind == DeclarationKind::Declaration
@@ -112,11 +127,48 @@ impl Compiler {
                 if is_declare && body.is_some() {
                     self.error(AnalyzeError::InvalidFunction { node });
                 }
+
+                // arrow function values cannot declare explicit this parameters
+                if signature.kind == FunctionKind::Lambda
+                    && body.is_some()
+                    && signature.this_parameter.is_some()
+                {
+                    self.error(AnalyzeError::InvalidFunction { node });
+                }
+
+                // declare functions cannot be async
+                if !is_destack && is_declare && signature.asynchrony == Asynchrony::Async {
+                    self.error(AnalyzeError::InvalidFunction { node });
+                }
+
+                // declare functions cannot be generators
+                if !is_destack
+                    && is_declare
+                    && signature.cardinality == FunctionCardinality::Generator
+                {
+                    self.error(AnalyzeError::InvalidFunction { node });
+                }
             }
 
             Declaration::Type {
-                static_parameters, ..
+                descriptor,
+                static_parameters,
+                ..
             } => {
+                // resolve the type alias node for diagnostics
+                let node = id.into_global_any(module.id).into_anchored(Some(profile));
+
+                // reject intrinsic type names as type alias identifiers in typescript and destack
+                if (module.language_type.is_typescript() || module.language_type.is_destack())
+                    && let Some(name) = descriptor.name
+                    && self.is_reserved_type_name(name)
+                {
+                    self.error(AnalyzeError::ReservedIdentifier {
+                        node,
+                        name: name.string(),
+                    });
+                }
+
                 // reject invalid type parameter modifiers in type aliases
                 if let Some(static_parameters) = static_parameters {
                     for parameter_id in static_parameters {

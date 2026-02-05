@@ -959,9 +959,20 @@ impl Parser {
             let next_keyword = self.peek_any_keyword().ok();
             let has_declaration_keyword =
                 next_keyword.is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw));
+
+            // reject export default enum declarations
+            if export_mode == Some(DependencyMode::Default)
+                && self.peek_keyword(Keyword::Enum).is_ok()
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             let is_export_type_binding = self.peek_keyword(Keyword::Type).is_ok()
                 && (self.peek_next_is(TokenType::OpenBrace)
-                    || self.peek_next_is(TokenType::Multiply));
+                    || self.peek_next_is(TokenType::Multiply)
+                    || self.peek_next_is(TokenType::Semicolon)
+                    || self.peek_next_is(TokenType::Newline)
+                    || self.peek_next_is(TokenType::End));
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
                 || (!has_declaration_keyword && self.peek_dependency_binding().is_ok())
@@ -3730,6 +3741,22 @@ type = type * 2
                 assert!(export.is_some());
             });
         });
+    }
+
+    #[test]
+    fn test_reject_export_type_without_binding_or_declaration() {
+        let mut test = TestParser::new("export type");
+        let mut parser = test.prepare();
+        let result = parser.eat_expression();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_reject_export_default_enum() {
+        let mut test = TestParser::new("export default enum A { X, Y, Z }");
+        let mut parser = test.prepare();
+        let result = parser.eat_expression();
+        assert!(result.is_err());
     }
 
     /// Parse `export import foo = bar.baz`.
@@ -6601,6 +6628,82 @@ const value =
                 assert_node!(parser.tree, fields[1], EnumField { name, value } => {
                     assert_string!(parser, name.string(), "B");
                     assert!(value.is_none());
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_arrow_body_with_anonymous_class_expression() {
+        let mut test = TestParser::new_with_options(
+            r###"<P extends Props>(
+  wrapped: ComponentType<P>
+) => class extends Component<Omit<P, keyof A> & Partial<B>, C> {
+  static displayName = `x`;
+}"###,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // lambda with class expression body
+        assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+
+                // anonymous class extends generic component
+                assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
+                    assert_node!(parser.tree, *class_id, Declaration::Class { descriptor, heritage, members, .. } => {
+                        assert!(descriptor.name.is_none());
+                        assert_eq!(members.len(), 1);
+
+                        let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+                        assert_eq!(extends_types.len(), 1);
+
+                        // Component<Omit<...>, C>
+                        assert_node!(parser.tree, extends_types[0], Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                            assert_path!(parser, *path, "Component");
+                            assert_eq!(static_arguments.len(), 2);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_arrow_body_with_multiline_class_heritage_static_arguments() {
+        let mut test = TestParser::new_with_options(
+            r###"<P extends Props>(
+  wrapped: React.ComponentType<P>
+) => class extends React.Component<
+  Omit<P, keyof Props> & Partial<Props>,
+  Props
+> {
+  static displayName = `x`;
+}"###,
+            LanguageType::TypeScriptXml,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // lambda with multiline class heritage static arguments
+        assert_node!(parser.tree, expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.kind, FunctionKind::Lambda);
+
+                // class extends React.Component<...>
+                assert_node!(parser.tree, *body, Expression::Declaration(class_id) => {
+                    assert_node!(parser.tree, *class_id, Declaration::Class { heritage, .. } => {
+                        let extends_types = heritage.extends_types.as_ref().expect("expected extends type");
+                        assert_eq!(extends_types.len(), 1);
+
+                        // React.Component<Omit<...>, Props>
+                        assert_node!(parser.tree, extends_types[0], Expression::Path { path, static_arguments: Some(static_arguments) } => {
+                            assert_path!(parser, *path, "React.Component");
+                            assert_eq!(static_arguments.len(), 2);
+                        });
+                    });
                 });
             });
         });
