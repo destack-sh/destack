@@ -2,10 +2,11 @@ use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, DeclarationKind, Declarator, DependencyItem,
-    DependencyKind, DependencyMode, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny,
-    MatchCase, MatchKind, MatchSelector, Mutability, NodeTree, Path, Pattern, Property,
-    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
-    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    DependencyKind, DependencyMode, DependencySource, Expression, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, MatchCase, MatchKind, MatchSelector, Mutability, NodeTree, NodeType, Path,
+    Pattern, Property, RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable,
+    SymbolType, TemplateLiteral, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -82,13 +83,24 @@ impl Compiler {
                     });
                 }
             }
-            Expression::Import { kind, items, .. }
-            | Expression::UnresolvedImport { kind, items, .. } => {
+            Expression::Import {
+                source,
+                kind,
+                items,
+                ..
+            }
+            | Expression::UnresolvedImport {
+                source,
+                kind,
+                items,
+                ..
+            } => {
                 self.validate_dependency_expression(
                     module,
                     profile,
                     tree,
                     expression_id,
+                    *source,
                     *kind,
                     Some(items),
                 );
@@ -101,6 +113,7 @@ impl Compiler {
                     profile,
                     tree,
                     expression_id,
+                    DependencySource::ExportStatement,
                     *kind,
                     None,
                 );
@@ -509,9 +522,27 @@ impl Compiler {
         profile: ProfileId,
         tree: &NodeTree,
         expression_id: LocalNodeId<Expression>,
+        source: DependencySource,
         kind: DependencyKind,
         items: Option<&[LocalNodeId<DependencyItem>]>,
     ) {
+        // top level enforcement for static dependencies
+        if self.dependency_requires_top_level(source)
+            && !self.is_top_level_dependency_expression(tree, expression_id)
+        {
+            let node = expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile));
+            if matches!(
+                source,
+                DependencySource::ImportStatement | DependencySource::ImportEquals
+            ) {
+                self.error(AnalyzeError::ImportNotTopLevel { node });
+            } else {
+                self.error(AnalyzeError::ExportNotTopLevel { node });
+            }
+        }
+
         // reject type-only dependencies in JavaScript modules
         if module.language_type.is_javascript() && kind == DependencyKind::Type {
             let node = expression_id
@@ -521,8 +552,148 @@ impl Compiler {
         }
 
         // validate type-only import bindings
-        if let Some(items) = items {
+        if let Some(items) = items
+            && matches!(
+                source,
+                DependencySource::ImportStatement | DependencySource::ImportEquals
+            )
+        {
             self.validate_type_only_import_bindings(module, profile, tree, kind, items);
+        }
+    }
+
+    /// Return true when a dependency source must be top level.
+    fn dependency_requires_top_level(&self, source: DependencySource) -> bool {
+        matches!(
+            source,
+            DependencySource::ImportStatement
+                | DependencySource::ImportEquals
+                | DependencySource::ExportStatement
+                | DependencySource::ValueExpression
+        )
+    }
+
+    /// Return true when a dependency expression is rooted at the module.
+    fn is_top_level_dependency_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        let mut current = expression_id.into_any();
+
+        // unwrap statement wrappers to find the outer parent
+        loop {
+            let Some(parent) = tree.get_parent(current.id) else {
+                return true;
+            };
+            if parent.ty != NodeType::Expression {
+                return false;
+            }
+
+            let parent_expression = tree.get(parent.into_typed::<Expression>());
+            if matches!(parent_expression, Expression::Statement { .. }) {
+                current = parent;
+                continue;
+            }
+
+            return false;
+        }
+    }
+
+    /// Validate module level export rules.
+    pub(super) fn validate_module_exports(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        roots: &[LocalNodeId<Expression>],
+    ) {
+        // collect default export sites
+        let mut default_exports = Vec::new();
+        for root_id in roots {
+            let expression_id = self.unwrap_statement_expression(tree, *root_id);
+            let expression = tree.get(expression_id);
+            match expression {
+                Expression::Declaration { declaration } => {
+                    let declaration_id = *declaration;
+                    let declaration = tree.get(declaration_id);
+                    if self.declaration_is_default_export(declaration) {
+                        default_exports.push(declaration_id.into_any());
+                    }
+                }
+                Expression::Export { items, .. }
+                | Expression::ReExport { items, .. }
+                | Expression::UnresolvedReExport { items, .. } => {
+                    for item_id in items {
+                        let item = tree.get(*item_id);
+                        let mode = match item {
+                            DependencyItem::Value { mode, .. }
+                            | DependencyItem::Local { mode, .. }
+                            | DependencyItem::UnresolvedLocal { mode, .. }
+                            | DependencyItem::UnresolvedRemote { mode, .. }
+                            | DependencyItem::Remote { mode, .. } => *mode,
+                        };
+                        if mode == DependencyMode::Default {
+                            default_exports.push(item_id.into_any());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // report duplicates
+        if default_exports.len() <= 1 {
+            return;
+        }
+
+        // select the primary export for comparison
+        let primary = default_exports[0];
+        let other_node = primary.into_anchored(module.id, Some(profile));
+
+        // report duplicate exports
+        for duplicate in default_exports.into_iter().skip(1) {
+            let node = duplicate.into_anchored(module.id, Some(profile));
+            self.error(AnalyzeError::DuplicateDefaultExport { node, other_node });
+        }
+    }
+
+    /// Unwrap statement expressions to their inner expression.
+    fn unwrap_statement_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        let mut current = expression_id;
+
+        // walk through statement wrappers
+        loop {
+            let expression = tree.get(current);
+            if let Expression::Statement { statement } = expression {
+                current = *statement;
+                continue;
+            }
+            return current;
+        }
+    }
+
+    /// Return true when a declaration is a default export.
+    fn declaration_is_default_export(&self, declaration: &destack_dir::Declaration) -> bool {
+        use destack_dir::Declaration;
+
+        match declaration {
+            Declaration::Global { descriptor, .. }
+            | Declaration::Namespace { descriptor, .. }
+            | Declaration::Type { descriptor, .. }
+            | Declaration::ImportAlias { descriptor, .. }
+            | Declaration::Struct { descriptor, .. }
+            | Declaration::Class { descriptor, .. }
+            | Declaration::Enum { descriptor, .. }
+            | Declaration::Interface { descriptor, .. }
+            | Declaration::Function { descriptor, .. }
+            | Declaration::Extension { descriptor, .. } => {
+                descriptor.export == Some(DependencyMode::Default)
+            }
         }
     }
 

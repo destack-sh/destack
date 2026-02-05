@@ -400,6 +400,21 @@ pub enum AnalyzeError {
     #[error(code = "EA235", message = "object pattern rest must be an identifier")]
     ObjectPatternRestNotIdentifier { node: AnchoredGlobalNodeId },
 
+    /// Import declarations must be at the top level.
+    #[error(code = "EA236", message = "import declarations must be top-level")]
+    ImportNotTopLevel { node: AnchoredGlobalNodeId },
+
+    /// Export declarations must be at the top level.
+    #[error(code = "EA237", message = "export declarations must be top-level")]
+    ExportNotTopLevel { node: AnchoredGlobalNodeId },
+
+    /// Duplicate default export in a module.
+    #[error(code = "EA238", message = "duplicate default export")]
+    DuplicateDefaultExport {
+        node: AnchoredGlobalNodeId,
+        other_node: AnchoredGlobalNodeId,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------

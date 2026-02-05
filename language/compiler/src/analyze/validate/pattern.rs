@@ -748,7 +748,6 @@ impl Compiler {
             profile,
             value_type_id,
             source_id,
-            tree,
             symbols,
             types,
         ) else {
@@ -837,8 +836,8 @@ impl Compiler {
                     if field_ty.is_optional {
                         return false;
                     }
-                    if let Some(inner) = pattern {
-                        if !self.is_irrefutable_pattern_for_type_inner(
+                    if let Some(inner) = pattern
+                        && !self.is_irrefutable_pattern_for_type_inner(
                             module,
                             profile,
                             *inner,
@@ -847,9 +846,9 @@ impl Compiler {
                             symbols,
                             types,
                             visited,
-                        ) {
-                            return false;
-                        }
+                        )
+                    {
+                        return false;
                     }
                 }
                 PatternField::Alias { name, .. } => {
@@ -877,8 +876,8 @@ impl Compiler {
                     if field_ty.is_optional {
                         return false;
                     }
-                    if let Some(inner) = pattern {
-                        if !self.is_irrefutable_pattern_for_type_inner(
+                    if let Some(inner) = pattern
+                        && !self.is_irrefutable_pattern_for_type_inner(
                             module,
                             profile,
                             *inner,
@@ -887,9 +886,9 @@ impl Compiler {
                             symbols,
                             types,
                             visited,
-                        ) {
-                            return false;
-                        }
+                        )
+                    {
+                        return false;
                     }
                 }
                 PatternField::Positional { .. } | PatternField::Elision => {
@@ -961,15 +960,12 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> Option<usize> {
         // prefer static evaluation for fixed array sizes
-        if let Ok(Some(static_value)) = self
+        if let Ok(Some(StaticExpression::ScalarLiteral {
+            value: ScalarLiteral::Integer(value),
+        })) = self
             .evaluate_static_expression_value(module, profile, count, tree, symbols, types, None)
         {
-            if let StaticExpression::ScalarLiteral {
-                value: ScalarLiteral::Integer(value),
-            } = static_value
-            {
-                return usize::try_from(value).ok();
-            }
+            return usize::try_from(value).ok();
         }
 
         // fall back to inferred literal types when static evaluation is missing
@@ -993,7 +989,6 @@ impl Compiler {
         profile: ProfileId,
         value_type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<HashMap<StaticKey, TypeField>> {
@@ -1011,12 +1006,12 @@ impl Compiler {
                 )?;
                 let target_id = types.unwrap_value_type_id(target_id);
                 self.object_field_map_for_type(
-                    module, profile, target_id, source_id, tree, symbols, types,
+                    module, profile, target_id, source_id, symbols, types,
                 )
             }
-            Type::Value { value } => self.object_field_map_for_type(
-                module, profile, *value, source_id, tree, symbols, types,
-            ),
+            Type::Value { value } => {
+                self.object_field_map_for_type(module, profile, *value, source_id, symbols, types)
+            }
             _ => None,
         }
     }
@@ -1215,18 +1210,17 @@ impl Compiler {
                 }
                 if let Some(instance_id) = types.get_instance_type_id(*symbol) {
                     if instance_id == type_id {
-                        return None;
+                        None
+                    } else {
+                        self.discriminant_union_values_for_type(instance_id, types)
                     }
-                    return self.discriminant_union_values_for_type(instance_id, types);
+                } else {
+                    None
                 }
-                return None;
             }
-            Type::Value { value } => {
-                return self.discriminant_union_values_for_type(*value, types);
-            }
+            Type::Value { value } => self.discriminant_union_values_for_type(*value, types),
             Type::Union { elements } => {
                 // continue below
-                let elements = elements;
                 // collect discriminant maps for each union element
                 let mut maps = Vec::with_capacity(elements.len());
                 for element_id in elements {
@@ -1234,16 +1228,12 @@ impl Compiler {
                     maps.push(map);
                 }
 
-                let Some((first, rest)) = maps.split_first() else {
-                    return None;
-                };
+                let (first, rest) = maps.split_first()?;
 
                 // pick the first key shared by every element
                 let mut candidate_keys: Vec<StaticKey> = first.keys().copied().collect();
                 candidate_keys.retain(|key| rest.iter().all(|map| map.contains_key(key)));
-                let Some(discriminant_key) = candidate_keys.into_iter().next() else {
-                    return None;
-                };
+                let discriminant_key = candidate_keys.into_iter().next()?;
 
                 let mut values = HashSet::new();
                 for map in maps {
@@ -1255,12 +1245,12 @@ impl Compiler {
                 }
 
                 if values.is_empty() {
-                    return None;
+                    None
+                } else {
+                    Some((discriminant_key, values))
                 }
-
-                return Some((discriminant_key, values));
             }
-            _ => return None,
+            _ => None,
         }
     }
 
@@ -1388,10 +1378,7 @@ impl Compiler {
                         enum_fields,
                         tree,
                         symbols,
-                    );
-                    let Some(coverage) = coverage else {
-                        return None;
-                    };
+                    )?;
                     match coverage {
                         MatchPatternCoverage::All => return Some(MatchPatternCoverage::All),
                         MatchPatternCoverage::Values(fields) => {
@@ -1464,12 +1451,8 @@ impl Compiler {
                 is_inclusive,
             } => {
                 // expand range patterns into literal coverage
-                let Some(start_id) = *start else {
-                    return None;
-                };
-                let Some(end_id) = *end else {
-                    return None;
-                };
+                let start_id = (*start)?;
+                let end_id = (*end)?;
                 let start_literal = self.match_literal_from_pattern(start_id, tree)?;
                 let end_literal = self.match_literal_from_pattern(end_id, tree)?;
                 let literals =
@@ -1608,9 +1591,7 @@ impl Compiler {
             }
         }
 
-        let Some(field_id) = matching_field else {
-            return None;
-        };
+        let field_id = matching_field?;
 
         // resolve the literal from the field pattern
         match tree.get(field_id) {
@@ -1771,9 +1752,7 @@ impl Compiler {
                 // emit the literal range
                 let mut literals = Vec::with_capacity(count as usize);
                 for value in start_value..=end_value {
-                    let Some(character) = char::from_u32(value) else {
-                        return None;
-                    };
+                    let character = char::from_u32(value)?;
                     literals.push(MatchLiteral::Character(character));
                 }
                 Some(literals)
