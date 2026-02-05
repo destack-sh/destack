@@ -1,13 +1,15 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    IntType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StringId, SymbolTable,
-    Type, TypeLiteral, TypeTable,
+    IntType, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, StringId,
+    SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
-use super::NormalizationMode;
+use super::{NormalizationMode, RelationMode};
 use crate::{AnalyzeOptions, Assignability, Compiler};
+
+const TEMPLATE_LITERAL_KEY_EXPANSION_LIMIT: usize = 256;
 
 /// Represent the source segment that maps to a single template span.
 #[derive(Debug, Clone)]
@@ -47,6 +49,15 @@ enum TemplateSpanMatch {
     Any,
     /// The span must match a concrete type.
     Type(LocalTypeId),
+}
+
+/// The resolved key shape for a template literal.
+#[derive(Debug, Clone)]
+pub(super) enum TemplateLiteralKeyShape {
+    /// Literal property keys produced by the template.
+    Literal(Vec<StaticKey>),
+    /// A string index signature fallback for broad templates.
+    StringIndex,
 }
 
 /// Parsed numeric string parts.
@@ -1286,6 +1297,251 @@ impl Compiler {
         }
 
         has_span
+    }
+
+    /// Resolve the key shape for a template literal type.
+    pub(super) fn template_literal_key_shape(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        strings: &[StringId],
+        spans: &[LocalTypeId],
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        relation_mode: RelationMode,
+    ) -> Option<TemplateLiteralKeyShape> {
+        // ensure the template literal layout is valid
+        if strings.len() != spans.len() + 1 {
+            return None;
+        }
+
+        // template literals that accept all strings become string index keys
+        if self
+            .template_literal_is_string_supertype(module, profile, strings, spans, symbols, types)
+        {
+            return Some(TemplateLiteralKeyShape::StringIndex);
+        }
+
+        // expand spans into literal string values when possible
+        let mut span_values = Vec::new();
+        let mut visited = HashSet::new();
+        for span in spans {
+            let Some(values) = self.template_literal_span_literal_values(
+                module,
+                profile,
+                *span,
+                symbols,
+                types,
+                relation_mode,
+                &mut visited,
+            ) else {
+                return Some(TemplateLiteralKeyShape::StringIndex);
+            };
+            span_values.push(values);
+        }
+
+        // build all literal string combinations
+        let mut combinations = vec![self.program.strings.get(strings[0]).to_string()];
+        for (index, values) in span_values.iter().enumerate() {
+            let suffix = self.program.strings.get(strings[index + 1]);
+            let mut next = Vec::new();
+            for base in combinations.iter() {
+                for value in values.iter() {
+                    let mut combined = String::new();
+                    combined.push_str(base);
+                    combined.push_str(value);
+                    combined.push_str(suffix.as_ref());
+                    next.push(combined);
+                    if next.len() > TEMPLATE_LITERAL_KEY_EXPANSION_LIMIT {
+                        return Some(TemplateLiteralKeyShape::StringIndex);
+                    }
+                }
+            }
+            combinations = next;
+        }
+
+        // intern literal keys
+        let mut literal_keys = Vec::new();
+        for value in combinations {
+            let key_id = self.program.strings.intern(&value);
+            literal_keys.push(StaticKey::Name(key_id));
+        }
+
+        Some(TemplateLiteralKeyShape::Literal(literal_keys))
+    }
+
+    /// Collect literal string values for a template literal span type.
+    fn template_literal_span_literal_values(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        span_type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        relation_mode: RelationMode,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<Vec<String>> {
+        // resolve static parameter constraints when available
+        let source_id = types.get_type_source(span_type_id);
+        let span_type_id = if let Type::Reference { symbol, .. } = types.get_type(span_type_id) {
+            if self.symbol_is_static_parameter(module, profile, *symbol, symbols, types) {
+                let constraint_id = self.static_parameter_constraint_type(
+                    module, profile, *symbol, source_id, symbols, types,
+                )?;
+                match types.get_type(constraint_id) {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    } => return None,
+                    _ => constraint_id,
+                }
+            } else {
+                span_type_id
+            }
+        } else {
+            span_type_id
+        };
+
+        // normalize span types before extracting literals
+        let mut normalize_visited = Vec::new();
+        let normalized_id = self.normalize_type_inner(
+            module,
+            profile,
+            span_type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+            relation_mode,
+            &mut normalize_visited,
+        );
+        if normalized_id != span_type_id {
+            return self.template_literal_span_literal_values(
+                module,
+                profile,
+                normalized_id,
+                symbols,
+                types,
+                relation_mode,
+                visited,
+            );
+        }
+
+        // avoid recursion cycles
+        if !visited.insert(span_type_id) {
+            return None;
+        }
+
+        // collect literal values from the normalized span type
+        let result = match types.get_type(span_type_id).clone() {
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(literal),
+            } => {
+                let value = match literal {
+                    ScalarLiteral::String(name) => self.program.strings.get(name).to_string(),
+                    ScalarLiteral::Integer(value) => value.to_string(),
+                    ScalarLiteral::Bigint(value) => value.to_string(),
+                    ScalarLiteral::Float(value) => value.to_string(),
+                    ScalarLiteral::Boolean(value) => value.to_string(),
+                    ScalarLiteral::Character(value) => value.to_string(),
+                    ScalarLiteral::RegexString { .. } => return None,
+                };
+                Some(vec![value])
+            }
+            Type::TypeLiteral {
+                value: TypeLiteral::Null,
+            } => Some(vec!["null".to_string()]),
+            Type::TypeLiteral {
+                value: TypeLiteral::Undefined,
+            } => Some(vec!["undefined".to_string()]),
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            } => Some(vec!["true".to_string(), "false".to_string()]),
+            Type::Union { elements } => {
+                let mut values = Vec::new();
+                for element in elements {
+                    let element_values = self.template_literal_span_literal_values(
+                        module,
+                        profile,
+                        element,
+                        symbols,
+                        types,
+                        relation_mode,
+                        visited,
+                    )?;
+                    values.extend(element_values);
+                }
+                Some(values)
+            }
+            Type::TemplateLiteral { strings, spans } => self.template_literal_string_values(
+                module,
+                profile,
+                &strings,
+                &spans,
+                symbols,
+                types,
+                relation_mode,
+                visited,
+            ),
+            _ => None,
+        };
+
+        visited.remove(&span_type_id);
+
+        result
+    }
+
+    /// Expand template literal types into literal string values when possible.
+    fn template_literal_string_values(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        strings: &[StringId],
+        spans: &[LocalTypeId],
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        relation_mode: RelationMode,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<Vec<String>> {
+        // validate template structure
+        if strings.len() != spans.len() + 1 {
+            return None;
+        }
+
+        // collect values for each span
+        let mut span_values = Vec::new();
+        for span in spans {
+            let values = self.template_literal_span_literal_values(
+                module,
+                profile,
+                *span,
+                symbols,
+                types,
+                relation_mode,
+                visited,
+            )?;
+            span_values.push(values);
+        }
+
+        // build all string combinations
+        let mut combinations = vec![self.program.strings.get(strings[0]).to_string()];
+        for (index, values) in span_values.iter().enumerate() {
+            let suffix = self.program.strings.get(strings[index + 1]);
+            let mut next = Vec::new();
+            for base in combinations.iter() {
+                for value in values.iter() {
+                    let mut combined = String::new();
+                    combined.push_str(base);
+                    combined.push_str(value);
+                    combined.push_str(suffix.as_ref());
+                    next.push(combined);
+                    if next.len() > TEMPLATE_LITERAL_KEY_EXPANSION_LIMIT {
+                        return None;
+                    }
+                }
+            }
+            combinations = next;
+        }
+
+        Some(combinations)
     }
 
     /// Check whether a span type can accept any string.

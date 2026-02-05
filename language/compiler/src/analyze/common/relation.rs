@@ -67,6 +67,11 @@ impl RelationMode {
         flags: RelationFlags::TYPE_OPS,
     };
 
+    /// Return the relation mode to use for type operators.
+    pub(crate) fn for_type_ops(self) -> Self {
+        Self::TYPE_OPS
+    }
+
     /// Return a cache key representing this relation mode.
     pub(crate) fn cache_key(self) -> u64 {
         if self == Self::ASSIGN {

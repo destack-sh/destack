@@ -75,7 +75,7 @@ const ok: Name = "Ada";
 ```ts
 type A = { value: number };
 type B = { value: string };
-type Values<T> = T extends any ? T["value"] : never;
+type Values<T> = T extends unknown ? T["value"] : never;
 
 const ok: Values<A | B> = 1;
 const ok2: Values<A | B> = "hi";
@@ -88,7 +88,7 @@ const ok2: Values<A | B> = "hi";
 ```ts
 type A = { value: number };
 type B = { value: string };
-type Values<T> = T extends any ? T["value"] : never;
+type Values<T> = T extends unknown ? T["value"] : never;
 
 const bad: Values<A | B> = true;
 ```
