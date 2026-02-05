@@ -180,3 +180,36 @@ type Template = `foo${Bar}${Baz<Qux>}`
 //                    ^^^ entity.name.type.ds
 //                          ^^^ entity.name.type.ds
 //                              ^^^ entity.name.type.ds
+
+type Borrowed = &Foo
+//   ^^^^^^^^ entity.name.type.definition.ds
+//              ^ keyword.operator.elementwise.ds
+//               ^^^ entity.name.type.ds
+
+type BorrowedMut = &mut Foo
+//   ^^^^^^^^^^^ entity.name.type.definition.ds
+//                 ^ keyword.operator.elementwise.ds
+//                  ^^^ keyword.other.modifier.ds
+//                      ^^^ entity.name.type.ds
+
+type Owned = ^Foo
+//   ^^^^^ entity.name.type.definition.ds
+//           ^ keyword.operator.elementwise.ds
+//            ^^^ entity.name.type.ds
+
+type OwnedMut = ^mut Foo
+//   ^^^^^^^^ entity.name.type.definition.ds
+//              ^ keyword.operator.elementwise.ds
+//               ^^^ keyword.other.modifier.ds
+//                   ^^^ entity.name.type.ds
+
+type Raw = *Foo
+//   ^^^ entity.name.type.definition.ds
+//         ^ keyword.operator.pointer.ds
+//          ^^^ entity.name.type.ds
+
+type RawMut = *mut Foo
+//   ^^^^^^ entity.name.type.definition.ds
+//            ^ keyword.operator.pointer.ds
+//             ^^^ keyword.other.modifier.ds
+//                 ^^^ entity.name.type.ds

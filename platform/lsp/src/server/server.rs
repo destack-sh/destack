@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -11,7 +12,7 @@ use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
-    File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
+    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem,
     PhysicalFileSystem, Span,
 };
 use destack_workspace::{Session, Workspace, query};
@@ -58,6 +59,13 @@ struct OpenDocument {
 struct CompletionResolveData {
     /// The documentation payload for the completion item.
     documentation: Option<String>,
+}
+
+/// Additional information used when resolving code actions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CodeActionResolveData {
+    /// The workspace edits for the selected code action.
+    edits: BatchEdit,
 }
 
 /// Configuration for completion behavior.
@@ -117,6 +125,10 @@ pub struct DestackLanguageServer {
     watch_registration_id: OnceLock<String>,
     /// Whether completion label details are supported by the client.
     completion_label_details_supported: OnceLock<bool>,
+    /// Whether code action data payloads are supported by the client.
+    code_action_data_supported: OnceLock<bool>,
+    /// Whether code action edit payloads can be resolved lazily.
+    code_action_edit_resolve_supported: OnceLock<bool>,
     /// LSP configuration settings.
     settings: RwLock<LspSettings>,
 }
@@ -137,6 +149,8 @@ impl DestackLanguageServer {
             cancelled_progress_tokens: DashSet::new(),
             watch_registration_id: OnceLock::new(),
             completion_label_details_supported: OnceLock::new(),
+            code_action_data_supported: OnceLock::new(),
+            code_action_edit_resolve_supported: OnceLock::new(),
             settings: RwLock::new(LspSettings::default()),
         }
     }
@@ -178,6 +192,22 @@ impl DestackLanguageServer {
     /// Check whether completion label details are supported.
     fn completion_label_details_supported(&self) -> bool {
         self.completion_label_details_supported
+            .get()
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Check whether code action data payloads are supported.
+    fn code_action_data_supported(&self) -> bool {
+        self.code_action_data_supported
+            .get()
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Check whether code action edit payloads can be resolved lazily.
+    fn code_action_edit_resolve_supported(&self) -> bool {
+        self.code_action_edit_resolve_supported
             .get()
             .copied()
             .unwrap_or(false)
@@ -233,10 +263,14 @@ impl DestackLanguageServer {
         self.cancelled_progress_tokens.remove(token);
     }
 
-    /// Ensure the module backing a file is analyzed.
+    /// Load a file snapshot for query operations.
+    fn get_query_file(&self, file_id: FileId) -> Arc<File> {
+        self.session().files.get(file_id)
+    }
+
+    /// Ensure analysis state is current for a file backed by a physical path.
     fn ensure_analyzed_for_file(&self, file_id: FileId) {
-        let session = self.session();
-        let file = session.files.get(file_id);
+        let file = self.session().files.get(file_id);
         let Some(path) = file.path.as_ref() else {
             return;
         };
@@ -246,10 +280,94 @@ impl DestackLanguageServer {
         }
     }
 
-    /// Prepare a file for queries by ensuring analysis is current.
-    fn get_analyzed_file(&self, file_id: FileId) -> Arc<File> {
-        self.ensure_analyzed_for_file(file_id);
-        self.session().files.get(file_id)
+    /// Convert an LSP code action kind into workspace query kinds.
+    fn query_code_action_kinds(kind: &lsp::CodeActionKind) -> Vec<query::CodeActionKind> {
+        let kind_name = kind.as_str();
+
+        // quick fixes and sub kinds
+        if kind_name == lsp::CodeActionKind::QUICKFIX.as_str() || kind_name.starts_with("quickfix.")
+        {
+            return vec![query::CodeActionKind::QuickFix];
+        }
+
+        // extract refactors and sub kinds
+        if kind_name == lsp::CodeActionKind::REFACTOR_EXTRACT.as_str()
+            || kind_name.starts_with("refactor.extract.")
+        {
+            return vec![query::CodeActionKind::RefactorExtract];
+        }
+
+        // inline refactors and sub kinds
+        if kind_name == lsp::CodeActionKind::REFACTOR_INLINE.as_str()
+            || kind_name.starts_with("refactor.inline.")
+        {
+            return vec![query::CodeActionKind::RefactorInline];
+        }
+
+        // rewrite refactors and sub kinds
+        if kind_name == lsp::CodeActionKind::REFACTOR_REWRITE.as_str()
+            || kind_name.starts_with("refactor.rewrite.")
+        {
+            return vec![query::CodeActionKind::RefactorRewrite];
+        }
+
+        // umbrella refactor kinds
+        if kind_name == lsp::CodeActionKind::REFACTOR.as_str() || kind_name.starts_with("refactor.")
+        {
+            return vec![
+                query::CodeActionKind::Refactor,
+                query::CodeActionKind::RefactorExtract,
+                query::CodeActionKind::RefactorInline,
+                query::CodeActionKind::RefactorRewrite,
+            ];
+        }
+
+        // organize import source kinds
+        if kind_name == lsp::CodeActionKind::SOURCE_ORGANIZE_IMPORTS.as_str()
+            || kind_name.starts_with("source.organizeImports.")
+        {
+            return vec![query::CodeActionKind::SourceOrganizeImports];
+        }
+
+        // fix all source kinds
+        if kind_name == lsp::CodeActionKind::SOURCE_FIX_ALL.as_str()
+            || kind_name.starts_with("source.fixAll.")
+        {
+            return vec![query::CodeActionKind::SourceFixAll];
+        }
+
+        // umbrella source kinds
+        if kind_name == lsp::CodeActionKind::SOURCE.as_str() || kind_name.starts_with("source.") {
+            return vec![
+                query::CodeActionKind::Source,
+                query::CodeActionKind::SourceOrganizeImports,
+                query::CodeActionKind::SourceFixAll,
+            ];
+        }
+
+        Vec::new()
+    }
+
+    /// Build query code action context from LSP code action context.
+    fn query_code_action_context(context: &lsp::CodeActionContext) -> query::CodeActionContext {
+        let mut only = Vec::new();
+        let mut seen = HashSet::new();
+
+        // map each requested lsp kind to workspace code action kinds
+        if let Some(kinds) = context.only.as_ref() {
+            for kind in kinds {
+                for query_kind in Self::query_code_action_kinds(kind) {
+                    if seen.insert(query_kind) {
+                        only.push(query_kind);
+                    }
+                }
+            }
+        }
+
+        query::CodeActionContext {
+            only,
+            include_disabled: context.only.as_ref().is_some_and(|kinds| !kinds.is_empty()),
+        }
     }
 
     /// Register file watchers with the client.
@@ -508,6 +626,25 @@ impl LanguageServer for DestackLanguageServer {
         let _ = self
             .completion_label_details_supported
             .set(label_details_supported);
+
+        // record client code action capabilities
+        let code_action_capabilities = params
+            .capabilities
+            .text_document
+            .as_ref()
+            .and_then(|text| text.code_action.as_ref());
+        let code_action_data_supported = code_action_capabilities
+            .and_then(|capabilities| capabilities.data_support)
+            .unwrap_or(false);
+        let code_action_edit_resolve_supported = code_action_capabilities
+            .and_then(|capabilities| capabilities.resolve_support.as_ref())
+            .is_some_and(|resolve| resolve.properties.iter().any(|property| property == "edit"));
+        let _ = self
+            .code_action_data_supported
+            .set(code_action_data_supported);
+        let _ = self
+            .code_action_edit_resolve_supported
+            .set(code_action_edit_resolve_supported);
 
         // build file operation filters for workspace notifications
         let file_operation_filters: Vec<lsp::FileOperationFilter> = tracked_file_globs()
@@ -1097,7 +1234,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
 
-        let file = self.get_analyzed_file(file_id);
+        let file = self.get_query_file(file_id);
         let program = query::program_for_file(session, file_id);
         let diagnostics = program.diagnostic_store.diagnostics_for_file(file_id);
         let result_id = diagnostic_result_id(&diagnostics);
@@ -1315,7 +1452,10 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+
+        // keep refactor inputs on a fresh analyzed snapshot
+        self.ensure_analyzed_for_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1345,7 +1485,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1374,7 +1514,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1399,7 +1539,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -1499,7 +1639,7 @@ impl LanguageServer for DestackLanguageServer {
         .await;
 
         // convert to LSP symbols
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let partial_token = params.partial_result_params.partial_result_token;
         let mut lsp_symbols = Vec::new();
         let mut partial_symbols = Vec::new();
@@ -1635,7 +1775,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1722,7 +1862,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1754,7 +1894,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -1924,7 +2064,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1987,7 +2127,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // query semantic tokens
         let tokens = query::semantic_tokens(session, doc.file_id);
@@ -2028,7 +2168,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // query semantic tokens
         let tokens = query::semantic_tokens(session, doc.file_id);
@@ -2085,7 +2225,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -2214,7 +2354,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // get formatter options from program (respects dsconfig.json)
         let formatter = file
@@ -2260,7 +2400,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // get formatter options from program
         let formatter = file
@@ -2307,7 +2447,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // convert positions to byte offsets
         let positions: Vec<u32> = params
@@ -2386,7 +2526,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -2419,7 +2559,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // query document links
         let links = query::document_links(session, doc.file_id);
@@ -2505,7 +2645,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -2517,8 +2657,40 @@ impl LanguageServer for DestackLanguageServer {
         let span = Span::new(doc.file_id, start, end);
 
         // query code actions
-        let context = query::CodeActionContext::default();
-        let actions = query::code_actions(session, doc.file_id, span, &context);
+        let has_only_filter = params
+            .context
+            .only
+            .as_ref()
+            .is_some_and(|kinds| !kinds.is_empty());
+        let context = Self::query_code_action_context(&params.context);
+
+        // skip when lsp only filters were provided but none map to workspace kinds
+        if has_only_filter && context.only.is_empty() {
+            return Ok(None);
+        }
+
+        let mut actions = query::code_actions(session, doc.file_id, span, &context);
+
+        // filter diagnostic linked quick fixes by requested diagnostic codes
+        let diagnostic_codes: HashSet<String> = params
+            .context
+            .diagnostics
+            .iter()
+            .filter_map(|diagnostic| match diagnostic.code.as_ref() {
+                Some(lsp::NumberOrString::String(value)) => Some(value.clone()),
+                Some(lsp::NumberOrString::Number(value)) => Some(value.to_string()),
+                _ => None,
+            })
+            .collect();
+        if !diagnostic_codes.is_empty() {
+            actions.retain(|action| {
+                action
+                    .diagnostic_code
+                    .as_ref()
+                    .is_none_or(|code| diagnostic_codes.contains(code))
+            });
+        }
+
         if actions.is_empty() {
             return Ok(None);
         }
@@ -2536,8 +2708,19 @@ impl LanguageServer for DestackLanguageServer {
         let mut lsp_actions = Vec::new();
         let mut partial_actions = Vec::new();
         let mut processed = 0usize;
+        let prefer_lazy_code_action_edits =
+            self.code_action_data_supported() && self.code_action_edit_resolve_supported();
         for action in actions.iter() {
-            let Some(lsp_action) = code_action_to_lsp(session, action) else {
+            let data = if prefer_lazy_code_action_edits {
+                to_value(CodeActionResolveData {
+                    edits: action.edits.clone(),
+                })
+                .ok()
+            } else {
+                None
+            };
+            let include_edit = !prefer_lazy_code_action_edits || data.is_none();
+            let Some(lsp_action) = code_action_to_lsp(session, action, include_edit, data) else {
                 continue;
             };
             if let Some(token) = partial_token.as_ref() {
@@ -2581,8 +2764,29 @@ impl LanguageServer for DestackLanguageServer {
 
     async fn code_action_resolve(
         &self,
-        params: lsp::CodeAction,
+        mut params: lsp::CodeAction,
     ) -> jsonrpc::Result<lsp::CodeAction> {
+        if params.edit.is_some() {
+            return Ok(params);
+        }
+
+        let Some(data) = params.data.take() else {
+            return Ok(params);
+        };
+
+        let resolved = match from_value::<CodeActionResolveData>(data.clone()) {
+            Ok(resolved) => resolved,
+            Err(_) => {
+                params.data = Some(data);
+                return Ok(params);
+            }
+        };
+
+        params.edit = Some(batch_edit_to_workspace_edit(
+            self.session(),
+            &resolved.edits,
+        ));
+
         Ok(params)
     }
 
@@ -2600,7 +2804,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // query code lenses
         let lenses = query::code_lenses(session, doc.file_id);
@@ -2672,7 +2876,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -2709,7 +2913,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.position) else {
             return Ok(None);
         };
@@ -2737,7 +2941,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -2770,7 +2974,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -2860,7 +3064,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = self.get_analyzed_file(doc.file_id);
+        let file = self.get_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -2929,5 +3133,78 @@ impl LanguageServer for DestackLanguageServer {
             .collect();
 
         Ok(Some(lsp_items))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DestackLanguageServer;
+    use destack_lsp_types as lsp;
+    use destack_workspace::query;
+
+    /// Map umbrella refactor kinds to all workspace refactor buckets.
+    #[test]
+    fn test_query_code_action_kinds_maps_refactor_umbrella() {
+        let mapped = DestackLanguageServer::query_code_action_kinds(&lsp::CodeActionKind::REFACTOR);
+
+        assert_eq!(
+            mapped,
+            vec![
+                query::CodeActionKind::Refactor,
+                query::CodeActionKind::RefactorExtract,
+                query::CodeActionKind::RefactorInline,
+                query::CodeActionKind::RefactorRewrite,
+            ]
+        );
+    }
+
+    /// Map source kind sub prefixes to organize imports.
+    #[test]
+    fn test_query_code_action_kinds_maps_source_sub_prefix() {
+        let kind = lsp::CodeActionKind::new("source.organizeImports.destack");
+        let mapped = DestackLanguageServer::query_code_action_kinds(&kind);
+
+        assert_eq!(mapped, vec![query::CodeActionKind::SourceOrganizeImports]);
+    }
+
+    /// Build query context with deduplicated mapped kinds.
+    #[test]
+    fn test_query_code_action_context_deduplicates_mapped_kinds() {
+        let context = lsp::CodeActionContext {
+            diagnostics: Vec::new(),
+            only: Some(vec![
+                lsp::CodeActionKind::REFACTOR,
+                lsp::CodeActionKind::REFACTOR_INLINE,
+            ]),
+            trigger_kind: Some(lsp::CodeActionTriggerKind::INVOKED),
+        };
+
+        let mapped = DestackLanguageServer::query_code_action_context(&context);
+
+        assert_eq!(
+            mapped.only,
+            vec![
+                query::CodeActionKind::Refactor,
+                query::CodeActionKind::RefactorExtract,
+                query::CodeActionKind::RefactorInline,
+                query::CodeActionKind::RefactorRewrite,
+            ]
+        );
+        assert!(mapped.include_disabled);
+    }
+
+    /// Keep include disabled false when no kind filter exists.
+    #[test]
+    fn test_query_code_action_context_without_only_filter() {
+        let context = lsp::CodeActionContext {
+            diagnostics: Vec::new(),
+            only: None,
+            trigger_kind: Some(lsp::CodeActionTriggerKind::INVOKED),
+        };
+
+        let mapped = DestackLanguageServer::query_code_action_context(&context);
+
+        assert!(mapped.only.is_empty());
+        assert!(!mapped.include_disabled);
     }
 }

@@ -27,7 +27,6 @@
         "onLanguage:destack",
         "onLanguage:dst",
         "onLanguage:dsb",
-        "onLanguage:destack-mir",
         "workspaceContains:dsconfig.json"
     ],
     "main": "./out/extension.js",
@@ -87,6 +86,14 @@
             {
                 "command": "destack.clearCache",
                 "title": "Destack: Clear Cache"
+            },
+            {
+                "command": "destack.showClientLogs",
+                "title": "Destack: Show Client Logs"
+            },
+            {
+                "command": "destack.showServerLogs",
+                "title": "Destack: Show Server Logs"
             }
         ],
         "languages": [
@@ -150,6 +157,43 @@
                 "path": "./destack-mir.tmLanguage.json"
             }
         ],
+        "semanticTokenModifiers": [
+            {
+                "id": "mutable",
+                "description": "A mutable declaration or reference."
+            }
+        ],
+        "semanticTokenScopes": [
+            {
+                "scopes": {
+                    "namespace": ["entity.name.namespace.ds"],
+                    "type": ["entity.name.type.ds"],
+                    "class": ["entity.name.type.class.ds", "entity.name.type.ds"],
+                    "enum": ["entity.name.type.enum.ds", "entity.name.type.ds"],
+                    "interface": ["entity.name.type.interface.ds", "entity.name.type.ds"],
+                    "struct": ["entity.name.type.struct.ds", "entity.name.type.ds"],
+                    "typeParameter": ["entity.name.type.parameter.ds"],
+                    "parameter": ["variable.parameter.ds", "variable.other.binding.ds"],
+                    "variable": ["variable.other.binding.ds"],
+                    "variable.readonly": ["variable.other.binding.readonly.ds", "variable.other.binding.ds"],
+                    "variable.mutable": ["variable.other.binding.mutable.ds", "variable.other.binding.ds"],
+                    "property": ["variable.other.property.ds"],
+                    "property.readonly": ["variable.other.property.readonly.ds", "variable.other.property.ds"],
+                    "enumMember": ["variable.other.member.ds", "variable.other.property.ds"],
+                    "function": ["entity.name.function.ds"],
+                    "method": ["entity.name.function.member.ds", "entity.name.function.ds"],
+                    "macro": ["entity.name.function.ds"],
+                    "keyword": ["keyword.ds"],
+                    "modifier": ["keyword.other.modifier.ds"],
+                    "comment": ["comment.ds"],
+                    "string": ["string.quoted.double.ds", "string.quoted.single.ds"],
+                    "number": ["constant.numeric.ds"],
+                    "regexp": ["string.regexp.ds"],
+                    "operator": ["keyword.operator.ds"],
+                    "decorator": ["entity.name.type.decorator.ds"]
+                }
+            }
+        ],
         "jsonValidation": [
             {
                 "fileMatch": ["dsconfig.json", "*.dsconfig.json"],
@@ -158,8 +202,8 @@
         ]
     },
     "scripts": {
-        "bundle": "esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
-        "vscode:prepublish": "bun run bundle",
+        "bundle": "bunx --bun esbuild typescript/extension.ts --bundle --platform=node --format=cjs --legal-comments=none --minify --outfile=out/extension.js --external:vscode",
+        "vscode:prepublish": "bun install --no-save --ignore-scripts && bun run bundle",
         "package": "bunx --bun @vscode/vsce@latest package --no-dependencies",
         "publish:live": "bunx --bun @vscode/vsce@latest publish",
         "check:grammar": "node scripts/check-grammar.mjs",

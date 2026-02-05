@@ -108,6 +108,14 @@
           "match": "\\b(?:return|jump|branch|switch|yield|check|unreachable)\\b"
         },
         {
+          "name": "keyword.operator.arrow.dsmir",
+          "match": "->"
+        },
+        {
+          "name": "keyword.other.memory.dsmir",
+          "match": "\\b(?:managed|borrowed|owned|raw)\\b"
+        },
+        {
           "name": "keyword.declaration.function.dsmir",
           "match": "\\bfunction\\b"
         }
@@ -133,7 +141,7 @@
       "patterns": [
         {
           "name": "support.type.dsmir",
-          "match": "\\b(?:i\\d+|u\\d+|f\\d+|bool|void|ptr|ref|addr|any)\\b"
+          "match": "\\b(?:i\\d+|u\\d+|f\\d+|bool|void|ptr|ref|addr|any|fn)\\b"
         }
       ]
     },
@@ -141,7 +149,7 @@
       "patterns": [
         {
           "name": "constant.numeric.dsmir",
-          "match": "(?x)\\b\\d+(?:_\\d+)*(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?(?:[iu]\\d+)?\\b"
+          "match": "(?x)(?<![A-Za-z0-9_])[+-]?\\d+(?:_\\d+)*(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?(?:[iu]\\d+)?\\b"
         }
       ]
     }

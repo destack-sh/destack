@@ -16,15 +16,39 @@ import {
 
 let client: LanguageClient | undefined;
 let serverProc: ChildProcessWithoutNullStreams | undefined;
+let clientLogOutput: vscode.LogOutputChannel | undefined;
+let serverLogOutput: vscode.LogOutputChannel | undefined;
+let isConfigRestartInFlight = false;
 
 const DEBUG = false;
 const FALLBACK_COMMANDS = ["destack", "ds", "dsc"];
+const SERVER_SETTING_KEYS = [
+    "destack.server.command",
+    "destack.server.args",
+    "destack.server.cwd",
+];
 
 type ResolvedServerCommand = {
     command: string;
     args: string[];
     cwd?: string;
 };
+
+function activeWorkspaceFolder(): vscode.WorkspaceFolder | undefined {
+    const activeUri = vscode.window.activeTextEditor?.document.uri;
+    if (activeUri) {
+        const folder = vscode.workspace.getWorkspaceFolder(activeUri);
+        if (folder) {
+            return folder;
+        }
+    }
+
+    return vscode.workspace.workspaceFolders?.[0];
+}
+
+function shouldRestartForConfigurationChange(event: vscode.ConfigurationChangeEvent): boolean {
+    return SERVER_SETTING_KEYS.some((settingKey) => event.affectsConfiguration(settingKey));
+}
 
 function expandPath(value: string, workspaceFolder?: vscode.WorkspaceFolder): string {
     if (!value) return value;
@@ -151,7 +175,7 @@ async function stopServerProc(serverLog: vscode.OutputChannel) {
     serverProc = undefined;
 
     try {
-        // Close stdin to encourage graceful shutdown.
+        // close stdin to encourage graceful shutdown
         proc.stdin.end();
     } catch {}
 
@@ -179,6 +203,54 @@ async function stopServerProc(serverLog: vscode.OutputChannel) {
     }
 }
 
+async function restartLanguageClient(
+    status: vscode.StatusBarItem,
+    serverLog: vscode.OutputChannel,
+    successMessage: string,
+) {
+    const languageClient = client;
+    if (!languageClient) {
+        return;
+    }
+
+    status.text = "Destack: Restarting";
+    status.tooltip = "Destack language server is restarting";
+
+    // fully stop before starting again
+    await languageClient.stop();
+    await stopServerProc(serverLog);
+    await languageClient.start();
+
+    vscode.window.showInformationMessage(successMessage);
+}
+
+async function executeServerCommand(
+    status: vscode.StatusBarItem,
+    actionLabel: string,
+    command: string,
+    successMessage: string,
+    failurePrefix: string,
+) {
+    const languageClient = client;
+    if (!languageClient) {
+        vscode.window.showErrorMessage("Destack server is not running.");
+        return;
+    }
+
+    status.text = `Destack: ${actionLabel}`;
+    try {
+        await languageClient.sendRequest("workspace/executeCommand", {
+            command,
+            arguments: [],
+        });
+        status.text = "Destack: Ready";
+        vscode.window.showInformationMessage(successMessage);
+    } catch (error: any) {
+        status.text = "Destack: Ready";
+        vscode.window.showErrorMessage(`${failurePrefix}: ${error?.message || error}`);
+    }
+}
+
 /**
  * Activate the Destack VSCode extension.
  * Sets up the language server client and establishes communication.
@@ -186,8 +258,8 @@ async function stopServerProc(serverLog: vscode.OutputChannel) {
 export async function activate(ctx: vscode.ExtensionContext) {
     const clientLog = vscode.window.createOutputChannel("Destack Client", { log: true });
     const serverLog = vscode.window.createOutputChannel("Destack Server", { log: true });
-    const cfg = vscode.workspace.getConfiguration("destack");
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    clientLogOutput = clientLog;
+    serverLogOutput = serverLog;
     const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     status.command = "destack.restart";
     status.text = "Destack: Starting";
@@ -195,6 +267,9 @@ export async function activate(ctx: vscode.ExtensionContext) {
     status.show();
 
     const serverOptions: ServerOptions = async (): Promise<StreamInfo> => {
+        const cfg = vscode.workspace.getConfiguration("destack");
+        const workspaceFolder = activeWorkspaceFolder();
+
         let resolved: ResolvedServerCommand;
         try {
             resolved = resolveServerCommand(cfg, workspaceFolder);
@@ -281,7 +356,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     client = new LanguageClient("destack", "Destack", serverOptions, clientOptions);
 
-    // When client fully stops, make sure the child is gone.
+    // when the client fully stops, make sure the child is gone
     client.onDidChangeState((e) => {
         switch (e.newState) {
             case State.Starting:
@@ -298,7 +373,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
                 break;
         }
 
-        // 2 === Stopped
+        // 2 === stopped
         if (e.newState == State.Stopped) {
             stopServerProc(serverLog);
         }
@@ -338,7 +413,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
         serverLog,
         status,
         new vscode.Disposable(() => {
-            // Final guard on extension deactivation/disposal.
+            // final guard on extension deactivation and disposal
             void stopServerProc(serverLog);
         }),
     );
@@ -347,11 +422,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
     ctx.subscriptions.push(
         vscode.commands.registerCommand("destack.restart", async () => {
             try {
-                // Ensure the previous child is gone before starting anew.
-                await client!.stop();
-                await stopServerProc(serverLog);
-                await client!.start();
-                vscode.window.showInformationMessage(`Destack restarted.`);
+                await restartLanguageClient(status, serverLog, "Destack restarted.");
             } catch (e: any) {
                 vscode.window.showErrorMessage(`Destack restart failed: ${e?.message || e}`);
             }
@@ -360,52 +431,68 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     ctx.subscriptions.push(
         vscode.commands.registerCommand("destack.rescan", async () => {
-            try {
-                status.text = "Destack: Rescanning";
-                await client!.sendRequest("workspace/executeCommand", {
-                    command: "destack.rescan",
-                    arguments: [],
-                });
-                status.text = "Destack: Ready";
-                vscode.window.showInformationMessage("Destack rescan completed.");
-            } catch (e: any) {
-                status.text = "Destack: Ready";
-                vscode.window.showErrorMessage(`Destack rescan failed: ${e?.message || e}`);
-            }
+            await executeServerCommand(
+                status,
+                "Rescanning",
+                "destack.rescan",
+                "Destack rescan completed.",
+                "Destack rescan failed",
+            );
         }),
     );
 
     ctx.subscriptions.push(
         vscode.commands.registerCommand("destack.reindex", async () => {
-            try {
-                status.text = "Destack: Reindexing";
-                await client!.sendRequest("workspace/executeCommand", {
-                    command: "destack.reindex",
-                    arguments: [],
-                });
-                status.text = "Destack: Ready";
-                vscode.window.showInformationMessage("Destack reindex completed.");
-            } catch (e: any) {
-                status.text = "Destack: Ready";
-                vscode.window.showErrorMessage(`Destack reindex failed: ${e?.message || e}`);
-            }
+            await executeServerCommand(
+                status,
+                "Reindexing",
+                "destack.reindex",
+                "Destack reindex completed.",
+                "Destack reindex failed",
+            );
         }),
     );
 
     ctx.subscriptions.push(
         vscode.commands.registerCommand("destack.clearCache", async () => {
-            try {
-                status.text = "Destack: Clearing Cache";
-                await client!.sendRequest("workspace/executeCommand", {
-                    command: "destack.clearCache",
-                    arguments: [],
-                });
-                status.text = "Destack: Ready";
-                vscode.window.showInformationMessage("Destack cache cleared.");
-            } catch (e: any) {
-                status.text = "Destack: Ready";
-                vscode.window.showErrorMessage(`Destack cache clear failed: ${e?.message || e}`);
+            await executeServerCommand(
+                status,
+                "Clearing Cache",
+                "destack.clearCache",
+                "Destack cache cleared.",
+                "Destack cache clear failed",
+            );
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(async (event) => {
+            if (!shouldRestartForConfigurationChange(event) || isConfigRestartInFlight) {
+                return;
             }
+
+            isConfigRestartInFlight = true;
+            try {
+                await restartLanguageClient(status, serverLog, "Destack restarted for settings.");
+            } catch (error: any) {
+                vscode.window.showErrorMessage(
+                    `Destack restart after settings change failed: ${error?.message || error}`,
+                );
+            } finally {
+                isConfigRestartInFlight = false;
+            }
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.commands.registerCommand("destack.showClientLogs", () => {
+            clientLog.show(true);
+        }),
+    );
+
+    ctx.subscriptions.push(
+        vscode.commands.registerCommand("destack.showServerLogs", () => {
+            serverLog.show(true);
         }),
     );
 }
@@ -418,9 +505,15 @@ export async function deactivate() {
     try {
         await client?.stop();
     } finally {
-        // Ensure server process is terminated.
-        const serverLog = vscode.window.createOutputChannel("Destack Server", { log: true });
-        await stopServerProc(serverLog);
-        serverLog.dispose();
+        // ensure server process is terminated
+        const serverLog = serverLogOutput;
+        if (serverLog) {
+            await stopServerProc(serverLog);
+        }
+
+        client = undefined;
+        serverProc = undefined;
+        clientLogOutput = undefined;
+        serverLogOutput = undefined;
     }
 }

@@ -280,6 +280,7 @@ pub(super) fn format_file(
 
     // build format context
     let side_span = parser.compute_side_span();
+    let (tokens, side_tokens) = parser.take_tokens();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let context = DestackFormatContext {
@@ -288,8 +289,8 @@ pub(super) fn format_file(
         tree: &parser.tree,
         source_map: &parser.tree.source_map,
         parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
+        tokens: &tokens,
+        side_tokens: &side_tokens,
         side_span: &side_span,
         strings: &strings,
         current_argument_group_id: None,
@@ -361,6 +362,7 @@ pub(super) fn format_range(
 
     // build format context
     let side_span = parser.compute_side_span();
+    let (tokens, side_tokens) = parser.take_tokens();
     let strings = parser.strings.into_immutable();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
@@ -373,8 +375,8 @@ pub(super) fn format_range(
         tree: &parser.tree,
         source_map: &parser.tree.source_map,
         parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
+        tokens: &tokens,
+        side_tokens: &side_tokens,
         side_span: &side_span,
         strings: &strings,
         current_argument_group_id: None,

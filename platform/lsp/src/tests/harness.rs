@@ -192,6 +192,24 @@ impl LspHarness {
         self.notify(notification).await;
     }
 
+    /// Send a didChange notification with explicit incremental edits.
+    pub async fn did_change_incremental(
+        &mut self,
+        uri: lsp::Uri,
+        changes: Vec<lsp::TextDocumentContentChangeEvent>,
+        version: i32,
+    ) {
+        // build didChange params
+        let params = lsp::DidChangeTextDocumentParams {
+            text_document: lsp::VersionedTextDocumentIdentifier::new(uri, version),
+            content_changes: changes,
+        };
+
+        // send the notification
+        let notification = notification_with_params("textDocument/didChange", params);
+        self.notify(notification).await;
+    }
+
     /// Send a didChangeWatchedFiles notification.
     pub async fn did_change_watched(&mut self, uri: lsp::Uri, change_type: lsp::FileChangeType) {
         // build watched files params
@@ -265,9 +283,14 @@ impl LspHarness {
             root_uri: Some(uri_for_path(&self.root)),
             ..Default::default()
         };
-        let request = request_with_params("initialize", 1, params);
 
+        self.initialize_with_params(params).await;
+    }
+
+    /// Initialize the LSP server with custom initialize params.
+    pub async fn initialize_with_params(&mut self, params: lsp::InitializeParams) {
         // send initialize and validate response
+        let request = request_with_params("initialize", 1, params);
         let response = self.call(request).await;
         let response = response.expect("initialize response missing");
         assert!(response.is_ok());
