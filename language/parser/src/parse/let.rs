@@ -102,7 +102,7 @@ impl Parser {
     /// ```
     pub fn eat_let(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
         let _timing = self.timing_scope(tags::PARSE_LET);
@@ -147,7 +147,7 @@ impl Parser {
     /// ```
     pub fn eat_using(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         descriptor: DeclarationDescriptor,
         asynchrony: Asynchrony,
     ) -> ParseResult<LocalNodeId<Expression>> {
@@ -240,7 +240,7 @@ impl Parser {
                             name,
                             pattern: None,
                         },
-                        self.get_span_from(start),
+                        self.get_span_from(&start),
                     );
                     self.tree.set_main_span(pattern_id, name_span);
                     pattern_id
@@ -280,7 +280,7 @@ impl Parser {
             let ty = self.with_options(self.options.not_in_position().in_type(), |parser| {
                 parser.eat_expression()
             })?;
-            (Some(ty), Some(self.get_span_from(type_start)))
+            (Some(ty), Some(self.get_span_from(&type_start)))
         } else {
             (None, None)
         };
@@ -311,7 +311,7 @@ impl Parser {
                 ty,
                 value,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
 
         // set type span for the type annotation
@@ -347,7 +347,7 @@ const x: int32 = 1
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -386,7 +386,7 @@ const constants:
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -413,7 +413,7 @@ using x = open()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Sync)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -487,7 +487,7 @@ await using conn = openConnection()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Async)
+            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Async)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { asynchrony, declarators, .. } => {
@@ -508,7 +508,7 @@ using a = openA(), b = openB()
 
         let start = parser.mark();
         let using_id = parser
-            .eat_using(start, DeclarationDescriptor::default(), Asynchrony::Sync)
+            .eat_using(&start, DeclarationDescriptor::default(), Asynchrony::Sync)
             .unwrap();
 
         assert_node!(parser.tree, using_id, Expression::Using { declarators, .. } => {
@@ -528,7 +528,7 @@ var x: float64[3] = undefined
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -566,7 +566,7 @@ const (x, y) = foo()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
@@ -603,7 +603,7 @@ const (x, y) = foo()
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, let_id, Expression::Let { declarators, .. } => {
@@ -623,7 +623,7 @@ const (x, y) = foo()
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         // let x: int32
@@ -655,7 +655,7 @@ const x =
 
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
 
         // const x = foo.parse()
@@ -743,7 +743,7 @@ const registry: Map<
         let mut parser = test.prepare();
         let start = parser.mark();
         let let_id = parser
-            .eat_let(start, DeclarationDescriptor::default())
+            .eat_let(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
             assert_eq!(*mutability, Mutability::Mutable);

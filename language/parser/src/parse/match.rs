@@ -58,7 +58,7 @@ impl Parser {
                 value: value_id,
                 cases: cases_id,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(match_id)
     }
@@ -108,6 +108,11 @@ impl Parser {
     /// }
     /// ```
     fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
+        // decorators before match arms
+        if self.peek_is(TokenType::At) {
+            self.eat_decorators_prefix_maybe()?;
+        }
+
         let start = self.mark();
 
         let selector = match kind {
@@ -127,7 +132,7 @@ impl Parser {
                     let pattern = if self.peek_identifier_str("_").is_ok() {
                         self.bump();
                         self.tree
-                            .insert(Pattern::Wildcard, self.get_span_from(pattern_start))
+                            .insert(Pattern::Wildcard, self.get_span_from(&pattern_start))
                     } else {
                         let value = self.with_options(
                             self.options
@@ -138,7 +143,7 @@ impl Parser {
                         )?;
                         self.tree.insert(
                             Pattern::Expression { value },
-                            self.get_span_from(pattern_start),
+                            self.get_span_from(&pattern_start),
                         )
                     };
                     // guard
@@ -199,7 +204,7 @@ impl Parser {
                     selector,
                     body: block_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(match_case_id)
         }
@@ -224,14 +229,14 @@ impl Parser {
                         format: BlockFormat::Implicit,
                         expressions: Vec::new(),
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 let match_case_id = self.tree.insert(
                     MatchCase::Block {
                         selector,
                         body: block_id,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 return Ok(match_case_id);
             }
@@ -261,7 +266,7 @@ impl Parser {
                         selector,
                         body: expressions[0],
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 )
             }
             // multiple expression block
@@ -271,14 +276,14 @@ impl Parser {
                         format: BlockFormat::Implicit,
                         expressions,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 self.tree.insert(
                     MatchCase::Block {
                         selector,
                         body: block_id,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 )
             };
             Ok(match_case_id)
@@ -291,7 +296,7 @@ impl Parser {
                     selector,
                     body: expression_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(match_case_id)
         }

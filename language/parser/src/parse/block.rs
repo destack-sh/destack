@@ -25,7 +25,7 @@ impl Parser {
                     format: BlockFormat::Implicit,
                     expressions: vec![],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             return Ok(block_id);
         }
@@ -46,14 +46,14 @@ impl Parser {
                 format: BlockFormat::Implicit,
                 expressions: vec![expression_id],
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(block_id)
     }
 
     /// Peek a block. Optional `do` prefix for disambiguation.
     #[inline]
-    pub fn peek_block(&self) -> ParseResult<()> {
+    pub fn peek_block(&mut self) -> ParseResult<()> {
         if self.peek_is(TokenType::OpenBrace)
             || self.language.is_destack()
                 && self.peek_keyword(Keyword::Do).is_ok()
@@ -61,16 +61,13 @@ impl Parser {
         {
             Ok(())
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::OpenBrace,
-            ))
+            Err(ParseError::expected(self.eof_span(), TokenType::OpenBrace))
         }
     }
 
     /// Peek a next block. Optional `do` prefix for disambiguation.
     #[inline]
-    pub fn peek_next_block(&self) -> ParseResult<()> {
+    pub fn peek_next_block(&mut self) -> ParseResult<()> {
         if self.peek_next_is(TokenType::OpenBrace)
             || self.language.is_destack()
                 && self.peek_next_keyword(Keyword::Do).is_ok()
@@ -78,10 +75,7 @@ impl Parser {
         {
             Ok(())
         } else {
-            Err(ParseError::expected(
-                self.peek_next().unwrap_or(&self.eof_token).span,
-                TokenType::OpenBrace,
-            ))
+            Err(ParseError::expected(self.eof_span(), TokenType::OpenBrace))
         }
     }
 
@@ -113,7 +107,7 @@ impl Parser {
                 format: BlockFormat::Explicit,
                 expressions,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(block_id)
     }
@@ -140,6 +134,11 @@ impl Parser {
             else if next_token == TokenType::Newline || next_token == TokenType::Semicolon {
                 self.bump(); // eat semicolon or newline
                 self.eat_newlines_maybe()?;
+            }
+            // consume decorator prefixes
+            else if next_token == TokenType::At {
+                self.eat_decorators_prefix_maybe()?;
+                continue;
             }
             // eat expressions
             else {
@@ -194,7 +193,7 @@ impl Parser {
                     self.bump(); // eat semicolon
                     let expression_id = self.tree.insert(
                         Expression::Statement(expression_id),
-                        self.get_span_from(start),
+                        self.get_span_from(&start),
                     );
                     Ok((expression_id, true))
                 } else {
@@ -220,11 +219,11 @@ impl Parser {
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize, None, false);
-                self.try_recover(start, TokenType::Newline, Some(err))?;
+                let start = ParserMark::from_span(span);
+                self.try_recover(&start, TokenType::Newline, Some(err))?;
                 let error_id = self
                     .tree
-                    .insert(Expression::Error, self.get_span_from(start));
+                    .insert(Expression::Error, self.get_span_from(&start));
                 Ok((error_id, true))
             }
         }
@@ -296,7 +295,7 @@ impl Parser {
                 label,
                 value: value_id,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         if let Some(label_span) = label_span {
             self.tree.set_main_span(break_id, label_span);
@@ -344,7 +343,7 @@ impl Parser {
         // continue
         let continue_id = self
             .tree
-            .insert(Expression::Continue { label }, self.get_span_from(start));
+            .insert(Expression::Continue { label }, self.get_span_from(&start));
         if let Some(label_span) = label_span {
             self.tree.set_main_span(continue_id, label_span);
         }
@@ -385,7 +384,7 @@ impl Parser {
                 expression: expression_id,
             }
         };
-        let await_id = self.tree.insert(expression, self.get_span_from(start));
+        let await_id = self.tree.insert(expression, self.get_span_from(&start));
         Ok(await_id)
     }
 
@@ -416,7 +415,7 @@ impl Parser {
         // comptime
         let comptime_id = self.tree.insert(
             Expression::Comptime { body: body_id },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(comptime_id)
     }
@@ -444,7 +443,7 @@ impl Parser {
                     cardinality: YieldCardinality::Scalar,
                     value: None,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             return Ok(yield_id);
         }
@@ -474,7 +473,7 @@ impl Parser {
                 cardinality,
                 value: value_id,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(yield_id)
     }
@@ -496,7 +495,7 @@ impl Parser {
         // value
         if self.is_statement_stop() || self.peek().is_err() {
             return Err(ParseError::unexpected_for(
-                self.get_span_from(start),
+                self.get_span_from(&start),
                 NodeType::Expression,
             ));
         }
@@ -507,7 +506,7 @@ impl Parser {
         // throw
         let throw_id = self.tree.insert(
             Expression::Throw { value: value_id },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(throw_id)
     }
@@ -536,7 +535,7 @@ impl Parser {
         // return
         let return_id = self.tree.insert(
             Expression::Return { value: value_id },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(return_id)
     }
@@ -827,10 +826,7 @@ mod tests {
         // try to parse *a as next statement - should fail in JS mode
         // (because * is not valid as unary prefix in JS)
         let result = parser.eat_expression();
-        assert!(
-            result.is_err() || !parser.diagnostics.is_empty(),
-            "*a should fail in JavaScript mode"
-        );
+        assert!(result.is_err(), "*a should fail in JavaScript mode");
     }
 
     #[test]

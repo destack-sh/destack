@@ -1,10 +1,12 @@
-use crate::{ParseError, ParseResult, Parser};
-use destack_ast::{TokenSpan, TokenType};
+use std::str::FromStr;
+
+use crate::{EXPRESSION_START_TOKEN_TYPES, ParseError, ParseResult, Parser};
+use destack_ast::{Keyword, LiteralType, TokenSpan, TokenType, UnaryOperator};
 
 impl Parser {
     /// Return true when the next token is a statement stop.
     #[inline]
-    pub fn is_statement_stop(&self) -> bool {
+    pub fn is_statement_stop(&mut self) -> bool {
         matches!(
             self.peek_token_type(),
             TokenType::Newline | TokenType::Semicolon | TokenType::End
@@ -13,7 +15,7 @@ impl Parser {
 
     /// Return true when the next token is an item stop.
     #[inline]
-    pub fn is_item_stop(&self) -> bool {
+    pub fn is_item_stop(&mut self) -> bool {
         matches!(
             self.peek_token_type(),
             TokenType::Comma | TokenType::Newline | TokenType::End
@@ -22,7 +24,7 @@ impl Parser {
 
     /// Return true when the next token is any stop.
     #[inline]
-    pub fn is_any_stop(&self) -> bool {
+    pub fn is_any_stop(&mut self) -> bool {
         matches!(
             self.peek_token_type(),
             TokenType::Comma | TokenType::Semicolon | TokenType::Newline | TokenType::End
@@ -31,16 +33,14 @@ impl Parser {
 
     /// Peek an item stop (comma or newline).
     #[inline]
-    pub fn peek_item_stop(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_item_stop(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Comma || token.token.ty == TokenType::Newline)
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Comma,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::Comma))
         }
     }
 
@@ -53,10 +53,7 @@ impl Parser {
         {
             self.bump();
         } else {
-            return Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Comma,
-            ));
+            return Err(ParseError::expected(self.eof_span(), TokenType::Comma));
         }
         self.eat_newlines_maybe()?;
         Ok(())
@@ -64,7 +61,8 @@ impl Parser {
 
     /// Peek a statement stop (semicolon or newline).
     #[inline]
-    pub fn peek_statement_stop(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_statement_stop(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -72,10 +70,7 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::Newline))
         }
     }
 
@@ -89,10 +84,7 @@ impl Parser {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ));
+            return Err(ParseError::expected(self.eof_span(), TokenType::Newline));
         }
         Ok(())
     }
@@ -108,10 +100,7 @@ impl Parser {
         {
             self.bump(); // eat semicolon or newline
         } else {
-            return Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ));
+            return Err(ParseError::expected(self.eof_span(), TokenType::Newline));
         }
         self.eat_newlines_maybe()?;
         Ok(())
@@ -119,7 +108,8 @@ impl Parser {
 
     /// Peek any stop (comma, semicolon, or newline).
     #[inline]
-    pub fn peek_any_stop(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_any_stop(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -128,16 +118,14 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::Newline))
         }
     }
 
     /// Peek next any stop (comma, semicolon, or newline).
     #[inline]
-    pub fn peek_next_any_stop(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_next_any_stop(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek_next()
             && (token.token.ty == TokenType::Newline
                 || token.token.ty == TokenType::Semicolon
@@ -146,10 +134,7 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek_next().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::Newline))
         }
     }
 
@@ -165,10 +150,7 @@ impl Parser {
         {
             self.bump();
         } else {
-            return Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Newline,
-            ));
+            return Err(ParseError::expected(self.eof_span(), TokenType::Newline));
         }
         self.eat_newlines_maybe()?;
         Ok(())
@@ -176,7 +158,8 @@ impl Parser {
 
     /// Peek any open parenthesis (`(`, `[`, `{`)
     #[inline]
-    pub fn peek_any_open_parenthesis(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_any_open_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::OpenParenthesis
                 || token.token.ty == TokenType::OpenBracket
@@ -184,16 +167,14 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::OpenParenthesis,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::OpenParenthesis))
         }
     }
 
     /// Peek any close parenthesis (`)`, `]`, `}`)
     #[inline]
     pub fn peek_any_close_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek()
             && (token.token.ty == TokenType::CloseParenthesis
                 || token.token.ty == TokenType::CloseBracket
@@ -201,16 +182,14 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::CloseParenthesis,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::CloseParenthesis))
         }
     }
 
     /// Peek next any close parenthesis (`)`, `]`, `}`)
     #[inline]
     pub fn peek_next_any_close_parenthesis(&mut self) -> ParseResult<&TokenSpan> {
+        let eof_span = self.eof_span();
         if let Ok(token) = self.peek_next()
             && (token.token.ty == TokenType::CloseParenthesis
                 || token.token.ty == TokenType::CloseBracket
@@ -218,46 +197,47 @@ impl Parser {
         {
             Ok(token)
         } else {
-            Err(ParseError::expected(
-                self.peek_next().unwrap_or(&self.eof_token).span,
-                TokenType::CloseParenthesis,
-            ))
+            Err(ParseError::expected(eof_span, TokenType::CloseParenthesis))
         }
     }
 
     /// Find a token.
     #[inline]
-    pub fn find_token(&self, target_token: TokenType) -> ParseResult<u32> {
+    pub fn find_token(&mut self, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = self.pos() as usize;
-        while let Some(token) = self.tokens.get(pos) {
+        loop {
+            self.token_stream.ensure_token(pos);
+            let Some(token) = self.tokens().get(pos) else {
+                break;
+            };
             if token.token.ty == target_token {
                 return Ok(pos as u32);
             }
             pos += 1;
         }
-        Err(ParseError::unexpected(
-            self.peek().unwrap_or(&self.eof_token).span,
-        ))
+        Err(ParseError::unexpected(self.eof_span()))
     }
 
     /// Find a token after a position.
     #[inline]
-    pub fn find_token_after(&self, pos: u32, target_token: TokenType) -> ParseResult<u32> {
+    pub fn find_token_after(&mut self, pos: u32, target_token: TokenType) -> ParseResult<u32> {
         let mut pos = pos as usize;
-        while let Some(token) = self.tokens.get(pos) {
+        loop {
+            self.token_stream.ensure_token(pos);
+            let Some(token) = self.tokens().get(pos) else {
+                break;
+            };
             if token.token.ty == target_token {
                 return Ok(pos as u32);
             }
             pos += 1;
         }
-        Err(ParseError::unexpected(
-            self.peek().unwrap_or(&self.eof_token).span,
-        ))
+        Err(ParseError::unexpected(self.eof_span()))
     }
 
     /// Find an open and a matching close token.
     pub fn find_open_and_matching_close(
-        &self,
+        &mut self,
         open_token: TokenType,
         close_token: TokenType,
     ) -> ParseResult<u32> {
@@ -268,7 +248,7 @@ impl Parser {
 
     /// Find closing pair for a pair of tokens.
     pub fn find_matching_close(
-        &self,
+        &mut self,
         pos: Option<u32>,
         open_token: TokenType,
         close_token: TokenType,
@@ -286,9 +266,9 @@ impl Parser {
         // we should start at the open token (unless we have a split token)
         #[cfg(debug_assertions)]
         if !has_split_open {
+            self.token_stream.ensure_token(pos);
             let first_token = self
-                .tokens
-                .get(pos)
+                .token_ref_at(pos)
                 .map(|token| token.token.ty)
                 .unwrap_or(TokenType::End);
             debug_assert_eq!(
@@ -305,21 +285,23 @@ impl Parser {
                 TokenType::OpenBracket => Some(TokenType::CloseBracket),
                 _ => None,
             };
+            self.token_stream.ensure_token(pos);
             if expected_close == Some(close_token)
                 && self
-                    .tokens
-                    .get(pos)
+                    .token_ref_at(pos)
                     .is_some_and(|token| token.token.ty == open_token)
+                && let Some(matching) = self.token_stream.matching_pair(pos)
             {
-                let matching = self.matching_pairs.get(pos).copied().unwrap_or(u32::MAX);
-                if matching != u32::MAX {
-                    return Ok(matching);
-                }
+                return Ok(matching as u32);
             }
         }
 
         // seek until we find the matching close token
-        while let Some(token) = self.tokens.get(pos) {
+        loop {
+            self.token_stream.ensure_token(pos);
+            let Some(token) = self.tokens().get(pos) else {
+                break;
+            };
             // open: +1
             if token.token.ty == open_token {
                 depth += 1;
@@ -336,22 +318,23 @@ impl Parser {
             pos += 1;
         }
 
-        Err(ParseError::expected(
-            self.peek().unwrap_or(&self.eof_token).span,
-            open_token,
-        ))
+        Err(ParseError::expected(self.eof_span(), open_token))
     }
 
     /// Find a token *within* a matching pair of tokens.
     pub fn find_before_matching_close(
-        &self,
+        &mut self,
         open_token: TokenType,
         close_token: TokenType,
         target_type: TokenType,
     ) -> ParseResult<u32> {
         let mut depth = 0;
         let mut pos = self.pos() as usize;
-        while let Some(token) = self.tokens.get(pos) {
+        loop {
+            self.token_stream.ensure_token(pos);
+            let Some(token) = self.tokens().get(pos) else {
+                break;
+            };
             // open: +1
             if token.token.ty == open_token {
                 depth += 1;
@@ -370,15 +353,12 @@ impl Parser {
             }
             pos += 1;
         }
-        Err(ParseError::expected(
-            self.peek().unwrap_or(&self.eof_token).span,
-            open_token,
-        ))
+        Err(ParseError::expected(self.eof_span(), open_token))
     }
 
     /// Check whether a parenthesized expression has a top level token.
     pub fn has_token_before_matching_close(
-        &self,
+        &mut self,
         open_pos: u32,
         close_pos: u32,
         target_token: TokenType,
@@ -391,14 +371,32 @@ impl Parser {
         let mut angle_depth = 0u32;
         let mut pos = open_pos as usize;
         let close_pos = close_pos as usize;
+        let mut last_non_whitespace_index: Option<usize> = None;
+        let mut last_semantic_index: Option<usize> = None;
+        let mut prev_semantic_index: Option<usize> = None;
+        let tree_literals_allowed = self.language.supports_jsx()
+            && self.token_stream.allow_tree_literals()
+            && !self.options.in_type;
 
         // scan the parenthesis contents
         while pos <= close_pos {
-            let ty = self
-                .tokens
-                .get(pos)
-                .map(|token| token.token.ty)
-                .unwrap_or(TokenType::End);
+            let ty = match self.token_ref_at(pos) {
+                Some(token) => token.token.ty,
+                None => break,
+            };
+            let can_start_expression = self.is_expression_start_after_tokens(
+                last_non_whitespace_index,
+                last_semantic_index,
+                prev_semantic_index,
+            );
+
+            // enter tree literal mode when a JSX literal starts at an expression boundary
+            if ty == TokenType::LessThan && tree_literals_allowed && can_start_expression {
+                let can_start_tree = self.with_pos(pos, |parser| parser.can_start_tree_literal());
+                if can_start_tree {
+                    self.token_stream.enter_tree_opening_tag();
+                }
+            }
 
             match ty {
                 TokenType::OpenParenthesis => paren_depth += 1,
@@ -430,26 +428,125 @@ impl Parser {
                 _ => {}
             }
 
+            last_non_whitespace_index = Some(pos);
+            if ty != TokenType::Newline {
+                prev_semantic_index = last_semantic_index;
+                last_semantic_index = Some(pos);
+            }
             pos += 1;
         }
 
         Ok(false)
     }
 
+    /// Return true when the current position can start an expression.
+    fn is_expression_start_after_tokens(
+        &mut self,
+        last_non_whitespace_index: Option<usize>,
+        last_semantic_index: Option<usize>,
+        prev_semantic_index: Option<usize>,
+    ) -> bool {
+        let Some(last_non_whitespace_index) = last_non_whitespace_index else {
+            return true;
+        };
+        let Some(last_non_whitespace) = self.token_ref_at(last_non_whitespace_index) else {
+            return true;
+        };
+
+        if last_non_whitespace.token.ty == TokenType::Newline {
+            let Some(last_semantic_index) = last_semantic_index else {
+                return true;
+            };
+            let Some(last_semantic) = self.token_ref_at(last_semantic_index).copied() else {
+                return true;
+            };
+            let prev_semantic =
+                prev_semantic_index.and_then(|index| self.token_ref_at(index).copied());
+            return self.is_statement_boundary_after_newline_tokens(
+                &last_semantic,
+                prev_semantic.as_ref(),
+            );
+        }
+
+        if EXPRESSION_START_TOKEN_TYPES.contains(&last_non_whitespace.token.ty) {
+            return true;
+        }
+
+        if last_non_whitespace.token.ty == TokenType::Identifier {
+            let keyword = self.keyword_for_index(last_non_whitespace_index);
+            return keyword
+                .map(|keyword| {
+                    keyword.is_control()
+                        || keyword == Keyword::Delete
+                        || UnaryOperator::from_prefix_keyword(keyword).is_some()
+                })
+                .unwrap_or(false);
+        }
+
+        false
+    }
+
+    /// Return true when a newline terminates a statement at this token.
+    fn is_statement_boundary_after_newline_tokens(
+        &self,
+        last_semantic: &TokenSpan,
+        prev_semantic: Option<&TokenSpan>,
+    ) -> bool {
+        if last_semantic.token.ty == TokenType::Semicolon {
+            return true;
+        }
+
+        if last_semantic.token.ty == TokenType::CloseBrace {
+            return true;
+        }
+
+        if last_semantic.token.ty == TokenType::Literal
+            && matches!(
+                last_semantic.token.literal,
+                Some(LiteralType::RegexString { .. })
+            )
+        {
+            return true;
+        }
+
+        if last_semantic.token.ty == TokenType::Identifier
+            && let Ok(keyword) = Keyword::from_str(self.get_span_str(last_semantic.span))
+            && matches!(
+                keyword,
+                Keyword::Return
+                    | Keyword::Break
+                    | Keyword::Continue
+                    | Keyword::Debugger
+                    | Keyword::Yield
+            )
+        {
+            return true;
+        }
+
+        if let Some(prev_token) = prev_semantic
+            && last_semantic.token.ty == TokenType::Identifier
+            && prev_token.token.ty == TokenType::Identifier
+            && let Ok(keyword) = Keyword::from_str(self.get_span_str(prev_token.span))
+            && matches!(keyword, Keyword::Let | Keyword::Var)
+        {
+            return true;
+        }
+
+        false
+    }
+
     /// Skip any newlines at and after a position.
     #[inline]
     pub fn skip_newlines(&mut self, pos: u32) -> ParseResult<u32> {
         let pos = pos as usize;
-        let len = self.tokens.len();
+        self.token_stream.ensure_token(pos);
+        let len = self.tokens().len();
         if pos >= len {
             return Ok(pos as u32);
         }
-        let next = self
-            .next_non_newline
-            .get(pos)
-            .copied()
-            .unwrap_or(len as u32) as usize;
-        if next == pos + 1 {
+
+        let next = self.token_stream.next_non_newline_index_from(pos);
+        if next == pos {
             return Ok(pos as u32);
         }
         if next >= len {
@@ -463,15 +560,8 @@ impl Parser {
 
     /// Find the next token index that is not a newline.
     #[inline]
-    pub fn next_non_newline_index_from(&self, start: usize) -> usize {
-        // skip over any newline tokens
-        let mut pos = start;
-        while let Some(token) = self.tokens.get(pos)
-            && token.token.ty == TokenType::Newline
-        {
-            pos += 1;
-        }
-        pos
+    pub fn next_non_newline_index_from(&mut self, start: usize) -> usize {
+        self.token_stream.next_non_newline_index_from(start)
     }
 
     /// Skip any newlines at and after a position and check if there's a specific token after.
@@ -480,14 +570,15 @@ impl Parser {
         pos: u32,
         target_token: TokenType,
     ) -> ParseResult<u32> {
-        let pos = pos as usize;
-        let len = self.tokens.len();
-        let next = self
-            .next_non_newline
-            .get(pos)
-            .copied()
-            .unwrap_or(len as u32) as usize;
-        if let Some(token) = self.tokens.get(next)
+        let mut pos = pos as usize;
+        self.token_stream.ensure_token(pos);
+        if let Some(token) = self.tokens().get(pos)
+            && token.token.ty != TokenType::Newline
+        {
+            pos = pos.saturating_add(1);
+        }
+        let next = self.token_stream.next_non_newline_index_from(pos);
+        if let Some(token) = self.tokens().get(next)
             && token.token.ty == target_token
         {
             if next == 0 {

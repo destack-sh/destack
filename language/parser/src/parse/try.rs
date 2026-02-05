@@ -39,9 +39,10 @@ impl Parser {
         if self.peek_block().is_ok() {
             // try block
             let try_expression = self.eat_block()?;
-            let try_expression = self
-                .tree
-                .insert(Expression::Block(try_expression), self.get_span_from(start));
+            let try_expression = self.tree.insert(
+                Expression::Block(try_expression),
+                self.get_span_from(&start),
+            );
 
             // catch
             let (catch_expression, catch_pattern) = if self.peek_keyword(Keyword::Catch).is_ok() {
@@ -90,7 +91,7 @@ impl Parser {
                     catch_expression,
                     finally_expression,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(try_id)
         }
@@ -106,7 +107,7 @@ impl Parser {
                     catch_expression: None,
                     finally_expression: None,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(try_id)
         }

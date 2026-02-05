@@ -4,7 +4,7 @@ use destack_ast::{TokenSpan, TokenType};
 impl Parser {
     /// Peek a colon.
     #[inline]
-    pub fn peek_colon(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_colon(&mut self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Colon)
     }
 
@@ -16,7 +16,7 @@ impl Parser {
 
     /// Peek a semicolon.
     #[inline]
-    pub fn peek_semicolon(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_semicolon(&mut self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Semicolon)
     }
 
@@ -28,7 +28,7 @@ impl Parser {
 
     /// Peek a comma.
     #[inline]
-    pub fn peek_comma(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_comma(&mut self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Comma)
     }
 
@@ -40,7 +40,7 @@ impl Parser {
 
     /// Peek a newline.
     #[inline]
-    pub fn peek_newline(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_newline(&mut self) -> ParseResult<&TokenSpan> {
         self.peek_token(TokenType::Newline)
     }
 
@@ -71,27 +71,23 @@ impl Parser {
         }
 
         let pos = self.pos_index();
+        self.token_stream.ensure_token(pos);
         if !self
-            .tokens
+            .tokens()
             .get(pos)
             .is_some_and(|token| token.token.ty == TokenType::Newline)
         {
             return Ok(());
         }
 
-        let len = self.tokens.len();
-        let next = self
-            .next_non_newline
-            .get(pos)
-            .copied()
-            .unwrap_or(len as u32) as usize;
+        let next = self.token_stream.next_non_newline_index_from(pos);
         self.advance_to(next);
         Ok(())
     }
 
     /// Peek an arrow.
     #[inline]
-    pub fn peek_arrow(&self) -> ParseResult<&TokenSpan> {
+    pub fn peek_arrow(&mut self) -> ParseResult<&TokenSpan> {
         let token = self.peek()?;
         if token.token.ty == TokenType::ArrowWide || token.token.ty == TokenType::Arrow {
             Ok(token)

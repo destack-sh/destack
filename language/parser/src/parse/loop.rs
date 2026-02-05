@@ -31,7 +31,7 @@ impl Parser {
         // loop
         let loop_id = self.tree.insert(
             Expression::Loop { body: body_id },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
         Ok(loop_id)
     }
@@ -126,7 +126,7 @@ impl Parser {
                     increment: increment_id,
                     body: body_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(for_id)
         }
@@ -170,7 +170,7 @@ impl Parser {
                     iterator: iterator_id,
                     body: body_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(for_id)
         }
@@ -214,7 +214,7 @@ impl Parser {
                 && (self.peek_keyword(Keyword::As).is_ok()
                     || self.peek_keyword(Keyword::Satisfies).is_ok())
             {
-                self.restore(start, start_idx);
+                self.restore(start.clone(), start_idx);
                 let expression = self.with_options(
                     self.options
                         .not_in_position()
@@ -224,7 +224,7 @@ impl Parser {
                 )?;
                 let pattern = self.tree.insert(
                     Pattern::Expression { value: expression },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 Ok(ForEachBinding::Pattern { pattern })
             } else {
@@ -280,7 +280,7 @@ impl Parser {
                     condition: condition_id,
                     body: body_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(while_id)
         }
@@ -305,7 +305,7 @@ impl Parser {
                     condition: condition_id,
                     body: body_id,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(while_id)
         }

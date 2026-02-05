@@ -1,8 +1,8 @@
 use std::fmt::Debug;
-use std::str::Chars;
+use std::sync::Arc;
 
 use destack_ast::TokenSpan;
-use destack_source::{FileId, LanguageType, Span};
+use destack_source::{File, FileId, LanguageType, Span};
 
 use memchr::memchr;
 
@@ -18,22 +18,6 @@ pub(super) enum TreeState {
     ClosingTag,
     /// Inside tree literal content (after `>`, before `</` or `{`).
     Content,
-}
-
-/// Tracks the keyword prefix at the start of a line.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(super) enum LinePrefixState {
-    #[default]
-    /// The line starts with a keyword.
-    Start,
-    /// The line saw an `export` keyword.
-    SawExport,
-    /// The line saw a `declare` keyword.
-    SawDeclare,
-    /// The line saw an `export declare` keyword.
-    SawExportDeclare,
-    /// The line does not start with a keyword.
-    Other,
 }
 
 /// Entry tracking where a tree expression container started.
@@ -72,29 +56,22 @@ pub(super) struct LexerOptions {
     pub(super) prev_semantic_token: Option<TokenSpan>,
     /// The third-to-last semantic token (excludes whitespace, comments, and newlines).
     pub(super) prev_prev_semantic_token: Option<TokenSpan>,
-    /// The keyword prefix state at the start of the current line.
-    pub(super) line_prefix_state: LinePrefixState,
-    /// Whether the current line starts a type alias declaration.
-    pub(super) current_line_starts_type_decl: bool,
-    /// Whether the previous line started a type alias declaration.
-    pub(super) previous_line_starts_type_decl: bool,
+    /// Whether tree literal lexing is allowed in the current context.
+    pub(super) allow_tree_literals: bool,
 }
 
 /// Lexer over a source string.
-pub struct Lexer<'a> {
+pub struct Lexer {
+    /// The source file.
+    pub file: Arc<File>,
     /// The source ID.
     pub file_id: FileId,
-    /// The string to tokenize.
-    pub source: &'a str,
-    /// The character iterator over the string.
-    chars: Chars<'a>, // Chars is faster than a &str (according to rustc)
-
     /// The current head ("next") byte position in the string.
     pub(super) pos: usize,
     /// The options for the lexer.
     pub(super) options: LexerOptions,
-    /// The number of bytes remaining in the current token.
-    len_remaining_in_token: usize,
+    /// The byte position where the current token started.
+    token_start: usize,
     /// The previous character.
     prev: char,
     /// The semantic tokens (identifiers, keywords, literals, operators).
@@ -109,33 +86,52 @@ pub struct Lexer<'a> {
     pub(super) has_at: bool,
 }
 
-impl Debug for Lexer<'_> {
+impl Debug for Lexer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "<Lexer {{ source: {}, pos: {} }}>",
-            self.source, self.pos
+            "<Lexer {{ file_id: {:?}, pos: {} }}>",
+            self.file_id, self.pos
         )
     }
 }
 
 pub const EOF_CHAR: char = '\0';
 
-impl<'a> Lexer<'a> {
-    /// Create a new Lexer from a string.
-    pub fn new(file_id: FileId, source: &'a str, language: LanguageType) -> Lexer<'a> {
+/// Snapshot of lexer state for speculative parsing.
+#[derive(Debug, Clone)]
+pub struct LexerSnapshot {
+    /// The byte position of the lexer head.
+    pub(super) pos: usize,
+    /// The byte position where the current token started.
+    pub(super) token_start: usize,
+    /// The most recently consumed character.
+    pub(super) prev: char,
+    /// The snapshot of lexer options and stacks.
+    pub(super) options: LexerOptions,
+    /// Whether an `@` token has been observed.
+    pub(super) has_at: bool,
+}
+
+impl Lexer {
+    /// Create a new Lexer from a file.
+    pub fn new(file: Arc<File>, language: LanguageType) -> Lexer {
         // estimate ~6 bytes per token on average for capacity hint
         // semantic tokens are roughly 60% of all tokens
-        let estimated_tokens = source.len() / 6;
+        let source_len = file.text().len();
+        let estimated_tokens = source_len / 6;
         let estimated_semantic = estimated_tokens * 3 / 5;
         let estimated_side = estimated_tokens - estimated_semantic;
+        let file_id = file.id;
         Lexer {
+            file,
             file_id,
-            source,
             pos: 0,
-            options: LexerOptions::default(),
-            len_remaining_in_token: source.len(),
-            chars: source.chars(),
+            options: LexerOptions {
+                allow_tree_literals: language.supports_jsx(),
+                ..LexerOptions::default()
+            },
+            token_start: 0,
             prev: EOF_CHAR,
             tokens: Vec::with_capacity(estimated_semantic),
             side_tokens: Vec::with_capacity(estimated_side),
@@ -146,14 +142,18 @@ impl<'a> Lexer<'a> {
 
     /// Gets the underlying string.
     #[inline]
-    pub fn as_str(&self) -> &'a str {
-        self.chars.as_str()
+    pub fn as_str(&self) -> &str {
+        let source = self.file.text();
+        if self.pos >= source.len() {
+            return "";
+        }
+        &source[self.pos..]
     }
 
     /// Gets the string content of a span.
     #[inline]
-    pub fn get_span_str(&self, span: Span) -> &'a str {
-        &self.source[span.start as usize..span.end as usize]
+    pub fn get_span_str(&self, span: Span) -> &str {
+        self.file.span_str(span)
     }
 
     /// Gets the last eaten symbol (or `'\0'` in release builds).
@@ -165,13 +165,13 @@ impl<'a> Lexer<'a> {
     /// Peeks the next symbol from the input stream without consuming it.
     #[inline]
     pub fn peek(&self) -> char {
-        self.chars.clone().next().unwrap_or(EOF_CHAR)
+        self.as_str().chars().next().unwrap_or(EOF_CHAR)
     }
 
     /// Peeks the second symbol from the input stream without consuming it.
     #[inline]
     pub fn peek_next(&self) -> char {
-        let mut iter = self.chars.clone();
+        let mut iter = self.as_str().chars();
         iter.next();
         iter.next().unwrap_or(EOF_CHAR)
     }
@@ -179,7 +179,7 @@ impl<'a> Lexer<'a> {
     /// Peeks the third symbol from the input stream without consuming it.
     #[inline]
     pub fn peek_next_next(&self) -> char {
-        let mut iter = self.chars.clone();
+        let mut iter = self.as_str().chars();
         iter.next();
         iter.next();
         iter.next().unwrap_or(EOF_CHAR)
@@ -188,33 +188,55 @@ impl<'a> Lexer<'a> {
     /// Checks if there is nothing more to consume.
     #[inline]
     pub fn is_end(&self) -> bool {
-        self.chars.as_str().is_empty()
+        self.pos >= self.file.text().len()
     }
 
     /// Gets the amount of already consumed symbols.
     #[inline]
     pub fn get_pos_within_token(&self) -> u32 {
-        (self.len_remaining_in_token - self.chars.as_str().len()) as u32
+        (self.pos - self.token_start) as u32
     }
 
     /// Resets the number of bytes consumed to 0.
     #[inline]
     pub fn reset_pos_within_token(&mut self) {
-        self.len_remaining_in_token = self.chars.as_str().len();
+        self.token_start = self.pos;
     }
 
     /// Moves to the next character.
     pub fn eat(&mut self) -> Option<char> {
-        let c = self.chars.next()?;
-        self.pos = self.source.len() - self.chars.as_str().len();
+        let c = self.as_str().chars().next()?;
+        self.pos += c.len_utf8();
         self.prev = c;
         Some(c)
     }
 
+    /// Snapshot lexer state for speculative parsing.
+    #[inline]
+    pub fn snapshot(&self) -> LexerSnapshot {
+        LexerSnapshot {
+            pos: self.pos,
+            token_start: self.token_start,
+            prev: self.prev,
+            options: self.options.clone(),
+            has_at: self.has_at,
+        }
+    }
+
+    /// Restore lexer state from a snapshot.
+    #[inline]
+    pub fn restore(&mut self, snapshot: LexerSnapshot) {
+        self.pos = snapshot.pos;
+        self.token_start = snapshot.token_start;
+        self.prev = snapshot.prev;
+        self.options = snapshot.options;
+        self.has_at = snapshot.has_at;
+    }
+
     /// Eats symbols while predicate returns true or until the end of file is reached.
     pub fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
-        // NOTE: #Performance: rustc tried making optimized version of this for
-        //  e.g., line comments, but apparently LLVM inlines all this to fast iteration over bytes.
+        // NOTE #Performance: rustc tried making optimized version of this for e.g. line comments,
+        // but apparently LLVM inlines all this to fast iteration over bytes
         while predicate(self.peek()) && !self.is_end() {
             self.eat();
         }
@@ -229,12 +251,10 @@ impl<'a> Lexer<'a> {
         match memchr(byte, s.as_bytes()) {
             Some(idx) => {
                 // idx is at a UTF-8 boundary because we only search ASCII bytes
-                self.chars = s[idx..].chars();
-                self.pos = self.source.len() - self.chars.as_str().len();
+                self.pos += idx;
             }
             None => {
-                self.chars = "".chars();
-                self.pos = self.source.len();
+                self.pos = self.file.text().len();
             }
         }
     }
@@ -276,30 +296,32 @@ impl<'a> Lexer<'a> {
     /// Returns false if we're inside a tree expression container (after `{`).
     #[inline]
     pub(super) fn in_tree_content(&self) -> bool {
-        // not in content mode at all
+        // require content mode
         if self.tree_state() != TreeState::Content {
             return false;
         }
-        // check if we're inside a tree expression container
-        // if so, we're not in "true" content mode (we're lexing code)
+
+        // check for an active tree expression container
         if let Some(entry) = self.options.tree_expression_stack.last() {
-            // If we're at a deeper tree level than when the expression container started,
-            // we're in a nested tree and should lex tree content
+            // treat deeper tree levels as tree content
             let current_tree_depth = self.options.tree_state_stack.len();
             if current_tree_depth > entry.tree_depth {
                 return true;
             }
-            // We're at the same tree level, so check if we're inside the expression
+
+            // treat same-level expression containers as code
             if self.options.parentheses_depth > entry.parentheses_depth {
                 return false;
             }
         }
+
         true
     }
 
     /// Checks if we're inside an attribute expression container for the current opening tag.
     #[inline]
     pub(super) fn in_tree_attribute_expression(&self) -> bool {
+        // require a tree expression entry at the current tree depth
         if let Some(entry) = self.options.tree_expression_stack.last() {
             entry.tree_depth == self.options.tree_state_stack.len() && !entry.from_content
         } else {

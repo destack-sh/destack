@@ -40,7 +40,7 @@ impl Parser {
     /// ```
     pub fn eat_enum(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         kind: EnumKind,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
@@ -122,6 +122,10 @@ impl Parser {
             else if self.is_any_stop() {
                 self.eat_any_stop_with_newlines()?;
             }
+            // consume decorator prefixes
+            else if self.peek_is(TokenType::At) {
+                self.eat_decorators_prefix_maybe()?;
+            }
             // enum field
             else if self.peek_enum_field().is_ok() {
                 let field = self.eat_enum_field().for_node_type(NodeType::EnumField)?;
@@ -142,7 +146,7 @@ impl Parser {
     }
 
     /// Peek an enum field.
-    fn peek_enum_field(&self) -> ParseResult<()> {
+    fn peek_enum_field(&mut self) -> ParseResult<()> {
         let is_computed_name = self.peek_is(TokenType::OpenBracket);
         let is_bare_name = (self.peek_name().is_ok() || self.peek_numeric_literal().is_ok())
             && (self.peek_next_is(TokenType::Assign)
@@ -154,10 +158,7 @@ impl Parser {
         if is_computed_name || is_bare_name {
             Ok(())
         } else {
-            Err(ParseError::expected(
-                self.peek().unwrap_or(&self.eof_token).span,
-                TokenType::Identifier,
-            ))
+            Err(ParseError::expected(self.eof_span(), TokenType::Identifier))
         }
     }
 
@@ -182,7 +183,7 @@ impl Parser {
 
         let field_id = self
             .tree
-            .insert(EnumField { name, value }, self.get_span_from(start));
+            .insert(EnumField { name, value }, self.get_span_from(&start));
 
         // set main span to the name identifier
         self.tree.set_main_span(field_id, name_span);
@@ -226,7 +227,7 @@ impl Parser {
 
             self.eat_newlines_maybe()?;
             self.eat_token(TokenType::CloseBracket)?;
-            Ok((name, self.get_span_from(start)))
+            Ok((name, self.get_span_from(&start)))
         } else if self.peek_numeric_literal().is_ok() {
             let token = *self.peek_numeric_literal()?;
             let key_str = self.file.span_str(token.span);
@@ -260,7 +261,7 @@ enum Foo extends Day {}
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, heritage, fields, members, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -294,7 +295,7 @@ enum {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -330,7 +331,7 @@ enum Foo extends Day {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, fields, generics, heritage, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -379,7 +380,7 @@ enum CHAR {
         parser.eat_newline().unwrap();
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { fields, .. } => {
             assert_eq!(fields.len(), 3);
@@ -415,7 +416,7 @@ enum Machine<T: int32 = 3, IsSomething: boolean = true> {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -454,7 +455,7 @@ enum Foo where Requirement: Interface {
 
         let start = parser.mark();
         let enum_id = parser
-            .eat_enum(start, EnumKind::Enum, DeclarationDescriptor::default())
+            .eat_enum(&start, EnumKind::Enum, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, enum_id, Declaration::Enum { descriptor, generics, fields, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);

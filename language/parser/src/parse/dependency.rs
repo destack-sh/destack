@@ -12,7 +12,7 @@ impl Parser {
     /// Eat a dynamic import call expression (`import("foo")`).
     pub fn eat_import_call_expression(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // keyword
         self.eat_keyword(Keyword::Import)?;
@@ -100,7 +100,7 @@ impl Parser {
                 let target = ImportAliasTarget::Require { target };
                 let descriptor = DeclarationDescriptor::default();
                 let expression_id =
-                    self.build_import_alias(start, descriptor, kind, name, name_span, target);
+                    self.build_import_alias(&start, descriptor, kind, name, name_span, target);
                 return Ok(expression_id);
             }
 
@@ -116,7 +116,7 @@ impl Parser {
             let descriptor = DeclarationDescriptor::default();
             let target = ImportAliasTarget::Path { value };
             let expression_id =
-                self.build_import_alias(start, descriptor, kind, name, name_span, target);
+                self.build_import_alias(&start, descriptor, kind, name, name_span, target);
             return Ok(expression_id);
         }
 
@@ -147,7 +147,7 @@ impl Parser {
                 items,
                 arguments,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
 
         // set main span to the import target string
@@ -157,7 +157,7 @@ impl Parser {
     }
 
     /// Check whether the tokens after the current `import` keyword form an import equals clause.
-    pub(crate) fn peek_import_equals_after_import(&self) -> bool {
+    pub(crate) fn peek_import_equals_after_import(&mut self) -> bool {
         let mut pos = self.pos_index() + 1;
         pos = self.next_non_newline_index_from(pos);
 
@@ -167,17 +167,17 @@ impl Parser {
         }
 
         // require `name =`
-        self.tokens
-            .get(pos)
+        self.token_ref_at(pos)
             .is_some_and(|token| token.token.ty == TokenType::Identifier)
-            && self
-                .tokens
-                .get(self.next_non_newline_index_from(pos + 1))
-                .is_some_and(|token| token.token.ty == TokenType::Assign)
+            && {
+                let after = self.next_non_newline_index_from(pos + 1);
+                self.token_ref_at(after)
+                    .is_some_and(|token| token.token.ty == TokenType::Assign)
+            }
     }
 
     /// Decide whether `type` after `import` is a type-only modifier.
-    fn should_parse_import_type_modifier(&self) -> bool {
+    fn should_parse_import_type_modifier(&mut self) -> bool {
         if self.peek_keyword(Keyword::Type).is_err() {
             return false;
         }
@@ -185,7 +185,7 @@ impl Parser {
         // examine the token after type
         let mut pos = self.pos_index() + 1;
         pos = self.next_non_newline_index_from(pos);
-        let token = self.tokens.get(pos);
+        let token = self.token_ref_at(pos);
 
         // binding forms like `import type { ... }` or `import type * as`
         if matches!(
@@ -203,8 +203,7 @@ impl Parser {
                 let mut after_from = pos + 1;
                 after_from = self.next_non_newline_index_from(after_from);
                 if self
-                    .tokens
-                    .get(after_from)
+                    .token_ref_at(after_from)
                     .is_some_and(|token| token.token.ty == TokenType::Assign)
                     || self.keyword_for_index(after_from) == Some(Keyword::From)
                 {
@@ -258,7 +257,7 @@ impl Parser {
     /// Eat `export import Foo = Bar.Baz` as an exported import alias.
     pub fn eat_export_import_equals(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Expression>> {
         // import keyword
@@ -316,7 +315,7 @@ impl Parser {
     /// Build an import alias declaration.
     fn build_import_alias(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         mut descriptor: DeclarationDescriptor,
         kind: Option<DependencyKind>,
         name: StringId,
@@ -366,7 +365,7 @@ impl Parser {
                     alias: None,
                     value: Some(value),
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             let export = self.tree.insert(
                 Expression::Export {
@@ -374,7 +373,7 @@ impl Parser {
                     target: None,
                     items: vec![item],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             return Ok(export);
         }
@@ -387,7 +386,7 @@ impl Parser {
             let (name, name_span) = self.eat_identifier_with_span()?;
             let export_id = self.tree.insert(
                 Expression::ExportNamespace { name },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             self.tree.set_main_span(export_id, name_span);
             return Ok(export_id);
@@ -404,7 +403,7 @@ impl Parser {
                     alias: None,
                     value: Some(value),
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             let export = self.tree.insert(
                 Expression::Export {
@@ -412,7 +411,7 @@ impl Parser {
                     target: None,
                     items: vec![item],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             return Ok(export);
         }
@@ -438,14 +437,14 @@ impl Parser {
                 alias: None,
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(start));
+            let item_id = self.tree.insert(item, self.get_span_from(&start));
             let export = self.tree.insert(
                 Expression::Export {
                     kind: kind.unwrap_or(DependencyKind::Value),
                     target: Some(target),
                     items: vec![item_id],
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
 
             // set main span to the export target string
@@ -489,7 +488,7 @@ impl Parser {
                 target,
                 items,
             },
-            self.get_span_from(start),
+            self.get_span_from(&start),
         );
 
         // set main span to the export target string if present
@@ -592,7 +591,7 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(start));
+            let item_id = self.tree.insert(item, self.get_span_from(&start));
             self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
@@ -614,7 +613,7 @@ impl Parser {
                 alias: Some(alias),
                 value: None,
             };
-            let item_id = self.tree.insert(item, self.get_span_from(start));
+            let item_id = self.tree.insert(item, self.get_span_from(&start));
             self.tree.set_main_span(item_id, alias_span);
             items.push(item_id);
         }
@@ -687,7 +686,7 @@ impl Parser {
                     alias,
                     value: None,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             if let Some(alias_span) = alias_span {
                 self.tree.set_main_span(item, alias_span);
@@ -718,7 +717,7 @@ impl Parser {
                     alias,
                     value: None,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             self.tree.set_side_span(item, NodeSpanType::Type, name_span);
             let main_span = alias_span.unwrap_or(name_span);
@@ -728,7 +727,7 @@ impl Parser {
     }
 
     /// Decide whether `type` should be parsed as a dependency item modifier.
-    fn should_parse_dependency_type_modifier(&self) -> bool {
+    fn should_parse_dependency_type_modifier(&mut self) -> bool {
         // require `type` keyword
         if self.peek_keyword(Keyword::Type).is_err() {
             return false;

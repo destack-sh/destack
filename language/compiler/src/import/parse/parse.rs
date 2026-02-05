@@ -209,6 +209,7 @@ impl Compiler {
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
+        let (tokens, side_tokens) = parser.take_tokens();
         let strings = StringPool::from_local(parser.strings);
         let mut ast = ModuleAst::from_tree(
             module_id,
@@ -216,8 +217,8 @@ impl Compiler {
             parser.tree,
             expressions,
             strings,
-            parser.tokens,
-            parser.side_tokens,
+            tokens,
+            side_tokens,
         );
         ast.ensure_anchor_expression(file_id);
         module.code_mut().ast = Some(ast);

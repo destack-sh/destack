@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::harness::{TestResult, format_diagnostics};
 use crate::mdtest::MdTestCase;
-use destack_ast::NodeParentIndex;
+use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, source_colorizer};
@@ -120,8 +120,11 @@ pub(super) fn run(test: &MdTestCase) -> TestResult {
     }
 
     // format
+    let (tokens, side_tokens) = parser.take_tokens();
     let formatted = format_expressions(
         &parser,
+        &tokens,
+        &side_tokens,
         &expressions,
         &file,
         language_type,
@@ -159,6 +162,8 @@ fn normalize_output(s: &str) -> String {
 /// Format a list of expressions.
 fn format_expressions(
     parser: &Parser,
+    tokens: &Vec<TokenSpan>,
+    side_tokens: &Vec<TokenSpan>,
     expressions: &[destack_ast::LocalNodeId<destack_ast::Expression>],
     file: &File,
     language_type: LanguageType,
@@ -178,8 +183,8 @@ fn format_expressions(
         tree: &parser.tree,
         source_map: &parser.tree.source_map,
         parents,
-        tokens: &parser.tokens,
-        side_tokens: &parser.side_tokens,
+        tokens,
+        side_tokens,
         side_span: &side_span,
         strings: &strings,
         current_argument_group_id: None,

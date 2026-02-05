@@ -4,7 +4,7 @@ use destack_ast::{Keyword, Visibility};
 impl Parser {
     /// Peek a visibility.
     #[inline]
-    pub fn peek_visibility(&self) -> ParseResult<Option<Visibility>> {
+    pub fn peek_visibility(&mut self) -> ParseResult<Option<Visibility>> {
         if self.peek_keyword(Keyword::Public).is_ok() {
             Ok(Some(Visibility::Public))
         } else if self.peek_keyword(Keyword::Protected).is_ok() {

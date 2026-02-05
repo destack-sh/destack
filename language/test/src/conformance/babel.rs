@@ -198,8 +198,23 @@ impl BabelSuite {
     }
 
     fn disallow_ambiguous_tree_literal(&self, test_dir: &Path) -> bool {
-        let options = Self::options(test_dir);
-        options.is_some_and(|options| options.disallow_ambiguous_jsx_like)
+        let Some(options) = Self::options(test_dir) else {
+            return false;
+        };
+
+        if options.disallow_ambiguous_jsx_like {
+            return true;
+        }
+
+        let has_jsx = options.has_plugin("jsx");
+        let has_flow = options.has_plugin("flow");
+        let has_typescript = options.has_plugin("typescript");
+
+        if has_jsx && has_typescript {
+            return true;
+        }
+
+        has_jsx && !has_flow && !has_typescript
     }
 
     /// Read the nearest options.json (current dir or first ancestor).

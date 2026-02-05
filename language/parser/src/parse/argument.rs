@@ -34,15 +34,20 @@ impl Parser {
     }
 
     /// Return true when the next token can start a member name.
-    pub(crate) fn next_token_starts_member_name(&self) -> bool {
+    pub(crate) fn next_token_starts_member_name(&mut self) -> bool {
         // skip newlines after the modifier keyword
         let mut pos = self.pos() as usize;
-        while let Some(token) = self.tokens.get(pos + 1)
-            && token.token.ty == TokenType::Newline
-        {
+        loop {
+            self.token_stream.ensure_token(pos + 1);
+            let Some(token) = self.tokens().get(pos + 1) else {
+                break;
+            };
+            if token.token.ty != TokenType::Newline {
+                break;
+            }
             pos += 1;
         }
-        let Some(next_token) = self.tokens.get(pos + 1) else {
+        let Some(next_token) = self.tokens().get(pos + 1) else {
             return false;
         };
 
@@ -81,7 +86,7 @@ impl Parser {
     }
 
     /// Return true when `abstract` and `override` can be parsed as modifiers.
-    fn can_parse_abstraction_modifier(&self) -> bool {
+    fn can_parse_abstraction_modifier(&mut self) -> bool {
         !self.peek_next_is(TokenType::Colon)
             && !self.peek_next_is(TokenType::Maybe)
             && !self.peek_next_is(TokenType::LessThan)
@@ -375,6 +380,11 @@ impl Parser {
     /// ...args: int32[]
     /// ```
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
+        // decorators are only allowed on runtime parameters
+        if !self.options.in_type {
+            self.eat_decorators_prefix_maybe()?;
+        }
+
         let start = self.mark();
 
         let mut modifiers =
@@ -458,7 +468,7 @@ impl Parser {
                 let ty = self
                     .with_options(type_options, |parser| parser.eat_expression())
                     .for_node_type(NodeType::Parameter)?;
-                (Some(ty), Some(self.get_span_from(type_start)))
+                (Some(ty), Some(self.get_span_from(&type_start)))
             } else {
                 (None, None)
             }
@@ -535,7 +545,7 @@ impl Parser {
         };
 
         // parameter
-        let parameter_id = self.tree.insert(parameter, self.get_span_from(start));
+        let parameter_id = self.tree.insert(parameter, self.get_span_from(&start));
 
         // set main span to the name identifier
         if let Some(span) = name_span {
@@ -569,6 +579,8 @@ impl Parser {
             || self.peek_is(TokenType::OpenParenthesis)
             || self.peek_is(TokenType::OpenBracket)
             || self.peek_is(TokenType::OpenBrace)
+            // decorator
+            || (!self.options.in_type && self.peek_is(TokenType::At))
         {
             let parameter = self.eat_parameter().for_node_type(NodeType::Parameter)?;
             parameters.push(parameter);
@@ -605,7 +617,7 @@ impl Parser {
         // empty static parameters are not allowed
         if self.peek_is(TokenType::GreaterThan) {
             return Err(ParseError::expected(
-                self.get_span_from(start),
+                self.get_span_from(&start),
                 TokenType::Identifier,
             ));
         }
@@ -739,7 +751,7 @@ impl Parser {
                     label,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             if let Some(label_span) = label_span {
                 self.tree.set_main_span(argument_id, label_span);
@@ -771,7 +783,7 @@ impl Parser {
                     label,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             self.tree.set_main_span(argument_id, label_span);
             Ok(argument_id)
@@ -811,7 +823,7 @@ impl Parser {
             }
             let argument_id = self.tree.insert(
                 Argument::Positional { modifiers, value },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -849,7 +861,7 @@ impl Parser {
                     name,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             self.tree.set_main_span(argument_id, name_span);
             Ok(argument_id)
@@ -867,7 +879,7 @@ impl Parser {
                     label: None,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -882,13 +894,13 @@ impl Parser {
                 // insert a stub expression for empty container
                 let value = self
                     .tree
-                    .insert(Expression::Stub, self.get_span_from(start));
+                    .insert(Expression::Stub, self.get_span_from(&start));
                 let argument_id = self.tree.insert(
                     Argument::Positional {
                         modifiers: None,
                         value,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 return Ok(argument_id);
             }
@@ -911,7 +923,7 @@ impl Parser {
                         label: None,
                         value,
                     },
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 );
                 return Ok(argument_id);
             }
@@ -931,15 +943,15 @@ impl Parser {
                     modifiers: None,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
         // positional argument (bare expression like nested <Element />)
         else {
             // jsx content without braces must be text or nested tags
-            if self.language.supports_jsx() {
-                let token = self.peek()?;
+            if self.language.supports_jsx() && self.options.in_tree_literal {
+                let token = *self.peek()?;
                 let is_tree_text = token.token.ty == TokenType::Literal
                     && matches!(
                         token.token.literal,
@@ -964,7 +976,7 @@ impl Parser {
                     modifiers: None,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -994,7 +1006,7 @@ impl Parser {
                     label: None,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -1019,7 +1031,7 @@ impl Parser {
                     label: None,
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -1064,7 +1076,7 @@ impl Parser {
                     )?;
                     self.tree.insert(
                         Expression::ArrayExpression { elements },
-                        self.get_span_from(value_start),
+                        self.get_span_from(&value_start),
                     )
                 }
                 // tree literal attribute value
@@ -1085,7 +1097,7 @@ impl Parser {
             else {
                 self.tree.insert(
                     Expression::ScalarLiteral(ScalarLiteral::Boolean(true)),
-                    self.get_span_from(start),
+                    self.get_span_from(&start),
                 )
             };
 
@@ -1095,7 +1107,7 @@ impl Parser {
                     name: Name::Identifier(name),
                     value,
                 },
-                self.get_span_from(start),
+                self.get_span_from(&start),
             );
             Ok(argument_id)
         }
@@ -1135,7 +1147,7 @@ impl Parser {
         // empty static arguments are not allowed
         if self.peek_is(TokenType::GreaterThan) {
             return Err(ParseError::expected(
-                self.get_span_from(start),
+                self.get_span_from(&start),
                 TokenType::Identifier,
             ));
         }
@@ -1259,8 +1271,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, BindingKind, BindingOperator, Expression, IntType, Mutability, Name, Parameter,
-        Pattern, PatternField, ScalarLiteral, Timing, TypeLiteral, Visibility,
+        Argument, BindingKind, BindingOperator, Decorator, Expression, IntType, Mutability, Name,
+        Parameter, Pattern, PatternField, ScalarLiteral, Timing, TypeLiteral, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1463,6 +1475,26 @@ mod tests {
             assert_string!(parser, *name, "n");
             assert_eq!(modifiers.timing, Some(Timing::Comptime));
         });
+    }
+
+    /// Parse TypeScript parameter decorators in constructors and methods.
+    #[test]
+    fn test_parse_parameter_decorators_typescript() {
+        let input = r#"
+class Test {
+    constructor(@p1 t1, @p2 private t2, @p3 ...t3) {}
+
+    method(@p1 t1, @p1 @p2 ...t2) {}
+}
+"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        // ensure decorators are attached on parameters
+        let decorators = parser.tree.get_nodes::<Decorator>();
+        assert_eq!(expressions.len(), 1);
+        assert_eq!(decorators.len(), 6, "decorators: {decorators:?}");
     }
 
     // named arguments (only valid for tree literals, not dynamic or static arguments)

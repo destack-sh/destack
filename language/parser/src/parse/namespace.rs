@@ -10,7 +10,7 @@ impl Parser {
     /// Eat a global augmentation declaration (like `declare global { ... }`).
     pub fn eat_global(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         self.eat_identifier_str("global")?;
@@ -33,7 +33,7 @@ impl Parser {
     /// Eat a namespace declaration (incl. `namespace` or `module` keyword).
     pub fn eat_namespace(
         &mut self,
-        start: ParserMark,
+        start: &ParserMark,
         descriptor: DeclarationDescriptor,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         let _timing = self.timing_scope(tags::PARSE_NAMESPACE);
@@ -409,7 +409,7 @@ module "foo" {
         let mut parser = test.prepare();
         let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(start, DeclarationDescriptor::default())
+            .eat_namespace(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -433,7 +433,7 @@ namespace Foo where Guard: Limit {
 
         let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(start, DeclarationDescriptor::default())
+            .eat_namespace(&start, DeclarationDescriptor::default())
             .unwrap();
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {
             assert_eq!(descriptor.kind, DeclarationKind::Definition);
@@ -458,7 +458,7 @@ namespace Foo where Guard: Limit {
         let mut parser = test.prepare();
         let start = parser.mark();
         let namespace_id = parser
-            .eat_namespace(start, DeclarationDescriptor::default())
+            .eat_namespace(&start, DeclarationDescriptor::default())
             .unwrap();
 
         assert_node!(parser.tree, namespace_id, Declaration::Namespace { descriptor, expressions, generics, .. } => {

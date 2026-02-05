@@ -43,11 +43,12 @@ impl TestFormatter {
             let mut parser = Parser::lex_file(file.clone(), language);
             let n = parse_fn(&mut parser)?;
             parser.finish();
+            let (tokens, side_tokens) = parser.take_tokens();
             (
                 parser.compute_side_span(),
                 parser.tree,
-                parser.tokens,
-                parser.side_tokens,
+                tokens,
+                side_tokens,
                 parser.strings.into_immutable(),
                 n,
             )
