@@ -1050,13 +1050,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::TypeTemplateLiteral", id.id).end();
             }
             Expression::TypeImport {
-                target,
+                target: _,
                 arguments: _,
                 qualifier,
                 static_arguments: _,
             } => {
                 self.node("Expression::TypeImport", id.id)
-                    .field("target", target)
                     .field_optional("qualifier", qualifier)
                     .end();
             }
@@ -1212,6 +1211,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             }
             Expression::This => {
                 self.node("Expression::This", id.id).end();
+            }
+            Expression::Super => {
+                self.node("Expression::Super", id.id).end();
             }
 
             Expression::Type { value: _ } => {

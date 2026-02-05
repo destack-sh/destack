@@ -1,7 +1,7 @@
 use destack_base::StringId;
 use destack_dir::{
     Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
-    Path, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Path, ScalarLiteral, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
@@ -585,11 +585,16 @@ impl Compiler {
                     });
                 }
                 Expression::TypeImport { target, .. } => {
-                    targets.push(DependencyTarget {
-                        target: *target,
-                        node: expression_id.into_global_any(module_id),
-                        kind: DependencyKind::Type,
-                    });
+                    if let Expression::ScalarLiteral {
+                        value: ScalarLiteral::String(target),
+                    } = tree.get(*target)
+                    {
+                        targets.push(DependencyTarget {
+                            target: *target,
+                            node: expression_id.into_global_any(module_id),
+                            kind: DependencyKind::Type,
+                        });
+                    }
                 }
                 _ => {}
             }

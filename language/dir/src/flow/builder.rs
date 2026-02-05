@@ -1733,9 +1733,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
             | Expression::GlobalReference {
                 static_arguments, ..
             } => self.build_arguments(static_arguments.as_deref(), current_block_id),
-            Expression::PrivateIdentifier { .. } | Expression::ImportMeta | Expression::This => {
-                Some(current_block_id)
-            }
+            Expression::PrivateIdentifier { .. }
+            | Expression::ImportMeta
+            | Expression::This
+            | Expression::Super => Some(current_block_id),
             Expression::Type { .. }
             | Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }

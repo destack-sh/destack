@@ -10,6 +10,8 @@ pub enum ReferenceBase {
     Symbol(dir::GlobalSymbolId),
     /// A `this` reference.
     This,
+    /// A `super` reference.
+    Super,
 }
 
 /// A reference path from a base symbol to member names.
@@ -70,6 +72,7 @@ pub fn expression_is_global_qualified_member(
     match path.base {
         ReferenceBase::Symbol(symbol) => qualifiers.contains(&symbol),
         ReferenceBase::This => false,
+        ReferenceBase::Super => false,
     }
 }
 
@@ -176,6 +179,7 @@ fn expression_reference_path_base(
             expression_reference_path_base(tree, *left, members)
         }
         dir::Expression::This => Some(ReferenceBase::This),
+        dir::Expression::Super => Some(ReferenceBase::Super),
         _ => expression.target_symbol().map(ReferenceBase::Symbol),
     }
 }

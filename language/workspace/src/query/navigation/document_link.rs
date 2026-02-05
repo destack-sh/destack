@@ -206,7 +206,7 @@ fn document_links_with_ast(session: &Session, file: FileId) -> Vec<DocumentLink>
         let expression = ast.tree.get(expression_id);
 
         // resolve the module specifier and dependency kind
-        let Some((specifier, _kind)) = module_specifier_in_expression(expression) else {
+        let Some((specifier, _kind)) = module_specifier_in_expression(&ast.tree, expression) else {
             continue;
         };
 

@@ -72,7 +72,7 @@ impl<'a> CaptureCollector<'a> {
             | Expression::GlobalReference { target_symbol, .. } => {
                 self.capture_symbol(*target_symbol);
             }
-            Expression::This => {
+            Expression::This | Expression::Super => {
                 if let Some(symbol) = self.compiler.resolve_this_symbol(
                     self.module,
                     expression_id,

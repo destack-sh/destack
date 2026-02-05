@@ -5,19 +5,21 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 ## Status
 
 The pass rate intentionally excludes the explicitly ignored tests.
+We exclude a small subset of legacy, non-standard or mutually conflicting test expectations.
+(See the individual *-ignored.txt files for details.)
 
 <!-- (results are automatically updated by the conformance test runner) -->
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Ignored | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
 | babel    |   690  |     0  |    25  |   690 | 100.00% |
-| biome    |   588  |    17  |    32  |   605 |  97.19% |
+| biome    |   608  |     0  |    29  |   608 | 100.00% |
 | swc      |   525  |     0  |    13  |   525 | 100.00% |
 | test262  |  4410  |   953  |     -  |  5363 |  82.23% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6213  |   970  |     70  |  7183 |  86.50% |
+| total    |  6233  |   953  |     67  |  7186 |  86.74% |
 
-Total Blended Pass Rate: **86.50%**
+Total Blended Pass Rate: **86.74%**
 <!-- end:summary-results -->
 
 ### babel
@@ -69,10 +71,10 @@ Total Blended Pass Rate: **86.50%**
 <!-- begin:biome-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| error                |   265  |    17  |      20  |   282 |  93.97% |
-| ok                   |   323  |     0  |      12  |   323 | 100.00% |
+| error                |   283  |     0  |      19  |   283 | 100.00% |
+| ok                   |   325  |     0  |      10  |   325 | 100.00% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |   588  |    17  |      32  |   605 |  97.19% |
+| total                |   608  |     0  |      29  |   608 | 100.00% |
 <!-- end:biome-results -->
 
 ### swc

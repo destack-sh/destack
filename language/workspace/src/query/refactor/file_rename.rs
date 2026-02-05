@@ -129,7 +129,8 @@ pub fn rename_files(session: &Session, renames: &[FileRenameEntry]) -> Option<Fi
         for expr_id in ctx.ast.tree.iter_nodes::<ast::Expression>() {
             // resolve the module specifier and dependency kind
             let expression = ctx.ast.tree.get(expr_id);
-            let Some((target, kind)) = module_specifier_in_expression(expression) else {
+            let Some((target, kind)) = module_specifier_in_expression(&ctx.ast.tree, expression)
+            else {
                 continue;
             };
 

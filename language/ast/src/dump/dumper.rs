@@ -923,6 +923,9 @@ impl<'a> NodeVisitor for Dumper<'a> {
             Expression::This => {
                 self.node("Expression::This", _id.id).end();
             }
+            Expression::Super => {
+                self.node("Expression::Super", _id.id).end();
+            }
             Expression::ScalarLiteral(value) => {
                 self.node("Expression::ScalarLiteral", _id.id)
                     .value(value)
@@ -1124,14 +1127,12 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Expression::TypeTemplateLiteral", _id.id).end();
             }
             Expression::TypeImport {
-                target,
+                target: _,
                 arguments: _,
                 qualifier: _,
                 static_arguments: _,
             } => {
-                self.node("Expression::TypeImport", _id.id)
-                    .field("target", target)
-                    .end();
+                self.node("Expression::TypeImport", _id.id).end();
             }
             Expression::TypeInfer {
                 name,

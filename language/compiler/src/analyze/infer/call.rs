@@ -6,10 +6,11 @@ use crate::analyze::common::CanonicalSymbolMode;
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
-    InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
-    NodeTree, ResolutionCandidate, ResolvedSignature, StaticArgument, StaticExpression, StaticKey,
-    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, FunctionMode,
+    GlobalSymbolId, InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Member, NodeTree, NodeType, ResolutionCandidate, ResolvedSignature,
+    StaticArgument, StaticExpression, StaticKey, StaticParameterKind, SymbolTable, SymbolType,
+    Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -1366,7 +1367,10 @@ impl Compiler {
         let mut call_receiver_ty_id = None;
         let mut member_call_context = None;
         let mut prefilled_static_arguments = None;
+        let mut super_constructor_value_ty_id = None;
         let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, tree);
+        let is_super_constructor_call =
+            self.expression_is_super_reference_for_call(tree, unwrapped_left_id);
 
         // resolve inherited static arguments and the callee symbol
         let mut inherited_static_arguments = Vec::new();
@@ -1477,16 +1481,45 @@ impl Compiler {
 
                 (member_symbol, has_static_argument_conflict)
             }
-            _ => (
-                self.reference_symbol_for_expression(
-                    module,
-                    unwrapped_left_id,
-                    ctx.profile,
-                    tree,
-                    symbols,
-                ),
-                false,
-            ),
+            _ => {
+                // resolve super constructor symbols from the enclosing base class
+                if is_super_constructor_call {
+                    let super_symbol = self.super_symbol_for_type(callee_ty_id, types);
+                    if let Some(super_symbol) = super_symbol {
+                        super_constructor_value_ty_id = self
+                            .super_constructor_value_type_for_symbol(
+                                module,
+                                ctx.profile,
+                                expression_id.into_any(),
+                                super_symbol,
+                                types,
+                            )?;
+                    }
+
+                    let super_symbol = self.super_constructor_symbol_from_type(
+                        module,
+                        ctx.profile,
+                        callee_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    (super_symbol, false)
+                }
+                // resolve plain reference calls through normal symbol lookup
+                else {
+                    (
+                        self.reference_symbol_for_expression(
+                            module,
+                            unwrapped_left_id,
+                            ctx.profile,
+                            tree,
+                            symbols,
+                        ),
+                        false,
+                    )
+                }
+            }
         };
 
         // resolve the callee signature and static arguments
@@ -1733,7 +1766,15 @@ impl Compiler {
             return Ok(finish_result(return_type_id, types));
         }
 
-        let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
+        let call_signatures = if is_super_constructor_call {
+            if let Some(super_constructor_value_ty_id) = super_constructor_value_ty_id {
+                self.construct_signatures_for_type(super_constructor_value_ty_id, types)
+            } else {
+                Vec::new()
+            }
+        } else {
+            self.call_signatures_for_type(callee_ty_id, types)
+        };
         let ty_id = if !call_signatures.is_empty() {
             let bound_substitutions =
                 (!inherited_substitutions.is_empty()).then_some(&inherited_substitutions);
@@ -2001,6 +2042,124 @@ impl Compiler {
             }
             _ => false,
         }
+    }
+
+    /// Return true when a call target is exactly `super`.
+    fn expression_is_super_reference_for_call(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        matches!(tree.get(expression_id), Expression::Super)
+    }
+
+    /// Resolve the explicit constructor symbol for a super constructor call.
+    fn super_constructor_symbol_from_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        super_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // resolve the base symbol from the inferred super type
+        let base_symbol = self.super_symbol_for_type(super_ty_id, types)?;
+
+        self.explicit_constructor_symbol_for_class(module, profile, base_symbol, tree, symbols)
+    }
+
+    /// Resolve the nominal symbol from an inferred super type.
+    fn super_symbol_for_type(
+        &self,
+        super_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        match types.get_type(super_ty_id) {
+            Type::Reference { symbol, .. } => Some(*symbol),
+            Type::Value { value } => self.super_symbol_for_type(*value, types),
+            _ => None,
+        }
+    }
+
+    /// Resolve the value type for a super constructor target symbol.
+    fn super_constructor_value_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        super_symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // reuse local value types when they are already available
+        if let Some(value_ty_id) = types.get_value_type_id(super_symbol) {
+            return Ok(Some(value_ty_id));
+        }
+
+        // resolve local symbols from the current module table
+        if super_symbol.module_id == module.id {
+            return Ok(types.get_value_type_id(super_symbol));
+        }
+
+        // import remote value types on demand
+        let value_ty_id = self.resolve_remote_symbol_value_type(
+            module,
+            profile,
+            node_id,
+            super_symbol,
+            false,
+            types,
+        )?;
+
+        Ok(Some(value_ty_id))
+    }
+
+    /// Resolve an explicit constructor method symbol for a class.
+    fn explicit_constructor_symbol_for_class(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        class_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            class_symbol.module_id,
+            tree,
+            symbols,
+            |owner_module, owner_tree, owner_symbols| {
+                // resolve the nominal declaration for the class symbol
+                let class_entry = owner_symbols.get_symbol(class_symbol.local_id);
+                let declaration_id = class_entry.primary_declaration?.local_id;
+                if declaration_id.ty != NodeType::Declaration {
+                    return None;
+                }
+
+                // resolve class members and locate the explicit constructor method
+                let declaration_id = declaration_id.into_typed::<Declaration>();
+                let Declaration::Class { members, .. } = owner_tree.get(declaration_id) else {
+                    return None;
+                };
+
+                for member_id in members {
+                    let member = owner_tree.get(*member_id);
+                    let Member::Method {
+                        signature, symbol, ..
+                    } = member
+                    else {
+                        continue;
+                    };
+
+                    if signature.mode == Some(FunctionMode::Constructor) {
+                        return Some(symbol.into_global(owner_module.id));
+                    }
+                }
+
+                None
+            },
+        )
     }
 
     /// Infer a constructor call expression.

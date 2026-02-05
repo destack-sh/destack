@@ -50,6 +50,11 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA240", // InvalidExponentLeftUnary
     "EA241", // EmptyParenthesizedExpression
     "EA242", // InvalidOptionalChainTemplate
+    "EA243", // DuplicateLabel
+    "EA244", // InvalidSuperCall
+    "EA245", // InvalidSuperOptionalChain
+    "EA246", // InvalidCatchAnnotationType
+    "EA247", // InvalidTypeImportTarget
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType
@@ -72,6 +77,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA302", // InvalidAwait
     "EA303", // InvalidYield
     "EA304", // InvalidReturn
+    "EA322", // InvalidForOfBinding
     "EA501", // InvalidConstructor
     "EA502", // InvalidInterface
     "EA503", // InvalidFunction

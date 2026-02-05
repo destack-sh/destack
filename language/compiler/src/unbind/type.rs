@@ -362,7 +362,7 @@ impl Compiler {
                     context,
                 );
                 ast::Expression::TypeImport {
-                    target,
+                    target: target_expression_id,
                     arguments,
                     qualifier,
                     static_arguments,

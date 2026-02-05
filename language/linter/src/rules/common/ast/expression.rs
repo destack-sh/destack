@@ -490,7 +490,7 @@ pub fn expression_has_side_effects(
         | ast::Expression::PrivateIdentifier { .. } => false,
 
         // pure: paths (variable references)
-        ast::Expression::Path { .. } | ast::Expression::This => false,
+        ast::Expression::Path { .. } | ast::Expression::This | ast::Expression::Super => false,
 
         // pure: containers (if elements are pure)
         ast::Expression::ArrayExpression { elements }

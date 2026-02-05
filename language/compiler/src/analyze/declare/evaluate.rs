@@ -2198,7 +2198,7 @@ impl Compiler {
                             }
                         }
                     }
-                    Expression::This => Type::This,
+                    Expression::This | Expression::Super => Type::This,
                     Expression::Parenthesized { expression } => {
                         return self.evaluate_expression_to_type(
                             module,
@@ -2672,10 +2672,19 @@ impl Compiler {
                             symbols,
                             types,
                         )?;
-                        Type::Import {
-                            target,
-                            qualifier: qualifier.clone(),
-                            static_arguments,
+                        if let Expression::ScalarLiteral {
+                            value: ScalarLiteral::String(target),
+                        } = tree.get(target)
+                        {
+                            Type::Import {
+                                target: *target,
+                                qualifier: qualifier.clone(),
+                                static_arguments,
+                            }
+                        } else {
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            }
                         }
                     }
                     Expression::TypeInfer { name, constraint } => {

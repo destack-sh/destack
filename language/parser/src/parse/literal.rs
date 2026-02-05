@@ -110,6 +110,17 @@ impl Parser {
                     ));
                 }
 
+                // js and ts reject legacy leading-zero decimal forms
+                if (self.language.is_javascript() || self.language.is_typescript())
+                    && self.int_literal_is_invalid_js_ts(literal_str, base, is_bigint)
+                {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
                 // strip underscores for parsing
                 let content: Cow<'_, str> = if literal_str.contains('_') {
                     Cow::Owned(literal_str.replace('_', ""))
@@ -127,9 +138,15 @@ impl Parser {
                 // handle base-specific prefixes
                 let digits = match base {
                     NumberBase::Decimal => content,
-                    NumberBase::Binary => Cow::Borrowed(content.trim_start_matches("0b")),
-                    NumberBase::Octal => Cow::Borrowed(content.trim_start_matches("0o")),
-                    NumberBase::Hexadecimal => Cow::Borrowed(content.trim_start_matches("0x")),
+                    NumberBase::Binary => {
+                        Cow::Borrowed(self.strip_radix_prefix(&content, NumberBase::Binary))
+                    }
+                    NumberBase::Octal => {
+                        Cow::Borrowed(self.strip_radix_prefix(&content, NumberBase::Octal))
+                    }
+                    NumberBase::Hexadecimal => {
+                        Cow::Borrowed(self.strip_radix_prefix(&content, NumberBase::Hexadecimal))
+                    }
                 };
 
                 // parse with saturation to avoid overflow errors in parsing
@@ -149,6 +166,17 @@ impl Parser {
                 is_empty_exponent,
             } => {
                 if is_empty_exponent {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
+                // js and ts reject legacy leading-zero decimal forms
+                if (self.language.is_javascript() || self.language.is_typescript())
+                    && self.float_literal_is_invalid_js_ts(literal_str)
+                {
                     return Err(ParseError::expected_for(
                         literal_span.span,
                         TokenType::Literal,
@@ -258,6 +286,13 @@ impl Parser {
                     let last_slash_index = literal_str.rfind('/').unwrap();
                     let content = &literal_str[1..last_slash_index];
                     let flags = &literal_str[last_slash_index + 1..];
+                    if !self.regex_flags_are_valid(flags) {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
                     let string_id = self.strings.intern(content);
                     let flags_id = self.strings.intern(flags);
                     Ok(ScalarLiteral::RegexString {
@@ -307,6 +342,135 @@ impl Parser {
 
         // finalize with saturation
         value as i64
+    }
+
+    /// Strip a radix prefix from an integer literal body.
+    fn strip_radix_prefix<'a>(&self, literal: &'a str, base: NumberBase) -> &'a str {
+        match base {
+            NumberBase::Decimal => literal,
+            NumberBase::Binary => literal
+                .strip_prefix("0b")
+                .or_else(|| literal.strip_prefix("0B"))
+                .unwrap_or(literal),
+            NumberBase::Octal => literal
+                .strip_prefix("0o")
+                .or_else(|| literal.strip_prefix("0O"))
+                .unwrap_or(literal),
+            NumberBase::Hexadecimal => literal
+                .strip_prefix("0x")
+                .or_else(|| literal.strip_prefix("0X"))
+                .unwrap_or(literal),
+        }
+    }
+
+    /// Return true when an int literal uses legacy js and ts leading-zero syntax.
+    fn int_literal_is_invalid_js_ts(
+        &self,
+        literal: &str,
+        base: NumberBase,
+        is_bigint: bool,
+    ) -> bool {
+        if base != NumberBase::Decimal {
+            return false;
+        }
+
+        let body = if is_bigint {
+            literal.trim_end_matches('n')
+        } else {
+            literal
+        };
+        let bytes = body.as_bytes();
+
+        if bytes.len() < 2 || bytes[0] != b'0' {
+            return false;
+        }
+
+        let second = bytes[1] as char;
+        second.is_ascii_digit() || second == '_'
+    }
+
+    /// Return true when a float literal uses legacy js and ts leading-zero syntax.
+    fn float_literal_is_invalid_js_ts(&self, literal: &str) -> bool {
+        let bytes = literal.as_bytes();
+        if bytes.len() < 2 || bytes[0] != b'0' {
+            return false;
+        }
+
+        let second = bytes[1] as char;
+        second.is_ascii_digit() || second == '_'
+    }
+
+    /// Return true when regex flags are valid for modern js and ts.
+    fn regex_flags_are_valid(&self, flags: &str) -> bool {
+        let mut seen_d = false;
+        let mut seen_g = false;
+        let mut seen_i = false;
+        let mut seen_m = false;
+        let mut seen_s = false;
+        let mut seen_u = false;
+        let mut seen_v = false;
+        let mut seen_y = false;
+
+        for flag in flags.chars() {
+            match flag {
+                'd' => {
+                    if seen_d {
+                        return false;
+                    }
+                    seen_d = true;
+                }
+                'g' => {
+                    if seen_g {
+                        return false;
+                    }
+                    seen_g = true;
+                }
+                'i' => {
+                    if seen_i {
+                        return false;
+                    }
+                    seen_i = true;
+                }
+                'm' => {
+                    if seen_m {
+                        return false;
+                    }
+                    seen_m = true;
+                }
+                's' => {
+                    if seen_s {
+                        return false;
+                    }
+                    seen_s = true;
+                }
+                'u' => {
+                    if seen_u {
+                        return false;
+                    }
+                    seen_u = true;
+                }
+                'v' => {
+                    if seen_v {
+                        return false;
+                    }
+                    seen_v = true;
+                }
+                'y' => {
+                    if seen_y {
+                        return false;
+                    }
+                    seen_y = true;
+                }
+                _ => return false,
+            }
+        }
+
+        // unicode and unicode-sets are mutually exclusive
+        if seen_u && seen_v {
+            return false;
+        }
+
+        true
     }
 
     /// Peek a template literal.
@@ -544,6 +708,13 @@ impl Parser {
         self.eat_token(TokenType::OpenBrace)?;
         self.eat_newlines_maybe()?;
         let properties = self.eat_properties()?;
+
+        // js and ts object shorthand only supports identifier names
+        if (self.language.is_javascript() || self.language.is_typescript()) && !self.options.in_type
+        {
+            self.validate_object_literal_shorthand_keys(&properties)?;
+        }
+
         self.eat_token(TokenType::CloseBrace)?;
         Ok(properties)
     }
@@ -865,6 +1036,12 @@ impl Parser {
         let mut path_name_span = None;
         let path: Option<Path> = if self.peek_is(TokenType::Identifier) {
             let (path, name_span) = self.eat_tree_literal_path_with_last_span()?;
+
+            // jsx namespace names cannot be followed by member access
+            if self.tree_literal_path_has_namespace_member(&path) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
+
             path_name_span = Some(name_span);
             Some(path)
         } else {
@@ -973,6 +1150,12 @@ impl Parser {
                                 self.bump(); // eat /
                                 self.eat_newlines_maybe()?;
                                 let closing_path = self.eat_tree_literal_path()?;
+
+                                // jsx namespace names cannot be followed by member access
+                                if self.tree_literal_path_has_namespace_member(&closing_path) {
+                                    return Err(ParseError::unexpected(self.peek()?.span));
+                                }
+
                                 if closing_path == *path {
                                     self.eat_token(TokenType::GreaterThan)?;
                                     found_closing = true;
@@ -1025,6 +1208,56 @@ impl Parser {
         };
         Ok(self.tree.insert(expression, self.get_span_from(&start)))
     }
+
+    /// Validate shorthand object literal keys in js and ts.
+    fn validate_object_literal_shorthand_keys(
+        &self,
+        properties: &[LocalNodeId<Property>],
+    ) -> ParseResult<()> {
+        for property_id in properties {
+            let property = self.tree.get(*property_id);
+            let Property::Field {
+                key,
+                value,
+                default,
+                ..
+            } = property
+            else {
+                continue;
+            };
+
+            // fields with explicit values are always valid
+            if value.is_some() || default.is_some() {
+                continue;
+            }
+
+            // shorthand keys must be identifiers
+            let is_identifier_shorthand = matches!(
+                key,
+                Some(destack_ast::Key::Name(destack_ast::Name::Identifier(_)))
+            );
+            if is_identifier_shorthand {
+                continue;
+            }
+
+            return Err(ParseError::unexpected(self.tree.get_span(*property_id)));
+        }
+
+        Ok(())
+    }
+
+    /// Return true when a tree literal path combines namespace and member syntax.
+    fn tree_literal_path_has_namespace_member(&self, path: &Path) -> bool {
+        if path.segments.len() <= 1 {
+            return false;
+        }
+
+        let Some(first_segment) = path.segments.first() else {
+            return false;
+        };
+
+        self.strings.get(*first_segment).contains(':')
+    }
 }
 
 #[cfg(test)]
@@ -1059,6 +1292,26 @@ mod tests {
         assert_eq!(
             parser.eat_scalar_literal().unwrap(),
             ScalarLiteral::Bigint(2)
+        );
+    }
+
+    /// Parse integer literals with uppercase radix prefixes.
+    #[test]
+    fn test_parse_integer_literal_uppercase_radix_prefixes() {
+        let mut test = TestParser::new_with_options("0B101 0O77 0Xff", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Integer(5)
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Integer(63)
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Integer(255)
         );
     }
 
