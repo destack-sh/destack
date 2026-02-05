@@ -7,6 +7,13 @@ use tiktoken_rs::o200k_base;
 
 use crate::console::{bold, color, dim, style, visible_width};
 
+/// Marker definitions: (name, ansi_color_code, dot_char)
+const MARKERS: &[(&str, &str, char)] = &[
+    ("NOTE", "34", '●'), // blue
+    ("TODO", "33", '●'), // yellow
+    ("FUGU", "31", '●'), // red
+];
+
 /// Arguments for the stats command.
 #[derive(Args, Debug, Clone)]
 pub struct StatsArgs {
@@ -36,21 +43,60 @@ pub struct StatsArgs {
 struct Stats {
     /// Number of files
     files: usize,
-    /// Total lines of code
+    /// Total lines
     lines: usize,
+    /// Lines containing code (may also have comments)
+    lines_code: usize,
+    /// Lines containing only comments (no code)
+    lines_comment: usize,
+    /// Blank lines (whitespace only)
+    lines_blank: usize,
     /// Total bytes
     bytes: usize,
     /// Total tokens (when tokenization is enabled)
     tokens: usize,
+    /// Marker counts (indexed same as MARKERS constant)
+    markers: Vec<usize>,
+    /// Tag counts (discovered dynamically, e.g., #Performance, @Cleanup)
+    tags: BTreeMap<String, usize>,
 }
 
 impl Stats {
+    /// Create with proper marker vec size.
+    fn new() -> Self {
+        Self {
+            markers: vec![0; MARKERS.len()],
+            ..Default::default()
+        }
+    }
+
     /// Add another Stats instance to this one.
     fn add(&mut self, other: &Stats) {
         self.files += other.files;
         self.lines += other.lines;
+        self.lines_code += other.lines_code;
+        self.lines_comment += other.lines_comment;
+        self.lines_blank += other.lines_blank;
         self.bytes += other.bytes;
         self.tokens += other.tokens;
+        for (i, count) in other.markers.iter().enumerate() {
+            if i < self.markers.len() {
+                self.markers[i] += count;
+            }
+        }
+        for (tag, count) in &other.tags {
+            *self.tags.entry(tag.clone()).or_default() += count;
+        }
+    }
+
+    /// Total marker count.
+    fn markers_total(&self) -> usize {
+        self.markers.iter().sum()
+    }
+
+    /// Check if any marker of given index exists.
+    fn has_marker(&self, index: usize) -> bool {
+        self.markers.get(index).is_some_and(|&c| c > 0)
     }
 }
 
@@ -72,7 +118,7 @@ impl DirNode {
     fn new(name: String) -> Self {
         Self {
             name,
-            stats: Stats::default(),
+            stats: Stats::new(),
             by_extension: BTreeMap::new(),
             children: BTreeMap::new(),
         }
@@ -240,18 +286,23 @@ fn walk_directory(
 
             // count stats
             let lines = content.lines().count();
+            let analysis = analyze_content(&content, &extension);
             let bytes = content.len();
             let tokens = tokenizer
                 .as_ref()
                 .map(|t| t.encode_with_special_tokens(&content).len())
                 .unwrap_or(0);
 
-            let stats = Stats {
-                files: 1,
-                lines,
-                bytes,
-                tokens,
-            };
+            let mut stats = Stats::new();
+            stats.files = 1;
+            stats.lines = lines;
+            stats.lines_code = analysis.lines_code;
+            stats.lines_comment = analysis.lines_comment;
+            stats.lines_blank = analysis.lines_blank;
+            stats.bytes = bytes;
+            stats.tokens = tokens;
+            stats.markers = analysis.markers;
+            stats.tags = analysis.tags;
             node.add_file(&extension, stats);
         }
     }
@@ -313,6 +364,397 @@ fn is_binary_extension(extension: &str) -> bool {
     )
 }
 
+/// Comment style for a language.
+#[derive(Debug, Clone, Copy)]
+enum CommentStyle {
+    /// C-style: // and /* */
+    CStyle,
+    /// Hash-style: #
+    Hash,
+    /// Dash-style: -- and optionally --[[ ]]
+    Dash,
+    /// HTML-style: <!-- -->
+    Html,
+    /// No recognized comment style
+    None,
+}
+
+/// Get the comment style for a file extension.
+fn comment_style_for_extension(extension: &str) -> CommentStyle {
+    match extension.to_lowercase().as_str() {
+        // c-style comments
+        ".rs" | ".js" | ".ts" | ".tsx" | ".jsx" | ".ds" | ".c" | ".cpp" | ".cc" | ".cxx" | ".h"
+        | ".hpp" | ".hxx" | ".java" | ".go" | ".swift" | ".kt" | ".kts" | ".scala" | ".cs"
+        | ".m" | ".mm" | ".php" | ".css" | ".scss" | ".sass" | ".less" | ".json" | ".jsonc"
+        | ".proto" | ".zig" | ".v" | ".d" | ".vert" | ".frag" | ".glsl" | ".hlsl" | ".wgsl"
+        | ".metal" => CommentStyle::CStyle,
+
+        // hash-style comments
+        ".py" | ".rb" | ".sh" | ".bash" | ".zsh" | ".fish" | ".pl" | ".pm" | ".r" | ".yml"
+        | ".yaml" | ".toml" | ".ini" | ".conf" | ".cfg" | ".makefile" | ".mk" | ".cmake"
+        | ".dockerfile" | ".gitignore" | ".env" | ".editorconfig" | ".tf" | ".hcl" | ".nix"
+        | ".just" | ".justfile" => CommentStyle::Hash,
+
+        // dash-style comments
+        ".lua" | ".sql" | ".hs" | ".lhs" | ".elm" | ".purs" | ".ada" | ".adb" | ".ads" => {
+            CommentStyle::Dash
+        }
+
+        // html-style comments
+        ".html" | ".htm" | ".xml" | ".svg" | ".vue" | ".svelte" | ".astro" => CommentStyle::Html,
+
+        // markdown uses html comments but also has other constructs, treat as html
+        ".md" | ".mdx" => CommentStyle::Html,
+
+        _ => CommentStyle::None,
+    }
+}
+
+/// Results of analyzing file content.
+#[derive(Debug, Clone, Default)]
+struct LineAnalysis {
+    lines_code: usize,
+    lines_comment: usize,
+    lines_blank: usize,
+    /// Marker counts (indexed same as MARKERS constant)
+    markers: Vec<usize>,
+    /// Tag counts (discovered dynamically)
+    tags: BTreeMap<String, usize>,
+}
+
+impl LineAnalysis {
+    fn new() -> Self {
+        Self {
+            markers: vec![0; MARKERS.len()],
+            ..Default::default()
+        }
+    }
+}
+
+/// Analyze file content for line types and markers.
+///
+/// A blank line contains only whitespace.
+/// A comment line contains only a comment (with optional whitespace).
+/// A code line contains any non-comment content (may also have trailing comments).
+fn analyze_content(content: &str, extension: &str) -> LineAnalysis {
+    let style = comment_style_for_extension(extension);
+    let mut result = LineAnalysis::new();
+    let mut in_block_comment = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        // count markers and tags
+        let mut has_marker = false;
+        for (i, (marker, _, _)) in MARKERS.iter().enumerate() {
+            let count = count_marker(line, marker);
+            result.markers[i] += count;
+            if count > 0 {
+                has_marker = true;
+            }
+        }
+
+        // discover tags on lines that have markers (both #Tag and @Tag)
+        if has_marker {
+            extract_tags(line, &mut result.tags);
+        }
+
+        // blank line
+        if trimmed.is_empty() {
+            result.lines_blank += 1;
+            continue;
+        }
+
+        // classify based on comment style
+        let line_type = classify_line(trimmed, style, &mut in_block_comment);
+        match line_type {
+            LineType::Code => result.lines_code += 1,
+            LineType::Comment => result.lines_comment += 1,
+        }
+    }
+
+    result
+}
+
+/// Extract #Tag or @Tag patterns from a line.
+fn extract_tags(line: &str, tags: &mut BTreeMap<String, usize>) {
+    let bytes = line.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        // look for # or @
+        if bytes[i] == b'#' || bytes[i] == b'@' {
+            let start = i + 1;
+
+            // tag must start with uppercase letter
+            if start < len && bytes[start].is_ascii_uppercase() {
+                let mut end = start;
+
+                // collect alphanumeric characters
+                while end < len && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'_') {
+                    end += 1;
+                }
+
+                // must have at least 2 chars and be PascalCase (start with uppercase)
+                if end > start + 1 {
+                    let tag = &line[start..end];
+                    *tags.entry(tag.to_string()).or_default() += 1;
+                }
+
+                i = end;
+                continue;
+            }
+        }
+        i += 1;
+    }
+}
+
+/// Count occurrences of a marker in a line with word boundary checking.
+fn count_marker(line: &str, marker: &str) -> usize {
+    let mut count = 0;
+    let mut search_start = 0;
+    let line_bytes = line.as_bytes();
+    let marker_len = marker.len();
+
+    while let Some(pos) = line[search_start..].find(marker) {
+        let abs_pos = search_start + pos;
+        let end_pos = abs_pos + marker_len;
+
+        // check word boundary before (must not be alphanumeric or underscore)
+        let valid_before = abs_pos == 0
+            || !line_bytes[abs_pos - 1].is_ascii_alphanumeric() && line_bytes[abs_pos - 1] != b'_';
+
+        // check word boundary after (must not be alphanumeric or underscore, or followed by colon/space)
+        let valid_after = end_pos >= line.len()
+            || !line_bytes[end_pos].is_ascii_alphanumeric() && line_bytes[end_pos] != b'_';
+
+        if valid_before && valid_after {
+            count += 1;
+        }
+
+        search_start = abs_pos + 1;
+    }
+
+    count
+}
+
+/// Line classification result.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum LineType {
+    Code,
+    Comment,
+}
+
+/// Classify a single line (already trimmed, known non-empty).
+fn classify_line(trimmed: &str, style: CommentStyle, in_block: &mut bool) -> LineType {
+    match style {
+        CommentStyle::CStyle => classify_c_style(trimmed, in_block),
+        CommentStyle::Hash => classify_hash_style(trimmed),
+        CommentStyle::Dash => classify_dash_style(trimmed, in_block),
+        CommentStyle::Html => classify_html_style(trimmed, in_block),
+        CommentStyle::None => LineType::Code,
+    }
+}
+
+/// Classify a line with C-style comments (// and /* */).
+fn classify_c_style(trimmed: &str, in_block: &mut bool) -> LineType {
+    // if we're in a block comment
+    if *in_block {
+        if let Some(end_pos) = trimmed.find("*/") {
+            *in_block = false;
+            let after_comment = trimmed[end_pos + 2..].trim();
+            if after_comment.is_empty() {
+                return LineType::Comment;
+            }
+            // there's content after the block comment ends, check if it's code or another comment
+            return classify_c_style(after_comment, in_block);
+        }
+        return LineType::Comment;
+    }
+
+    // check for single-line comment (not inside a string)
+    if let Some(pos) = find_outside_strings(trimmed, "//") {
+        if pos == 0 {
+            return LineType::Comment;
+        }
+        // there's code before the comment
+        return LineType::Code;
+    }
+
+    // check for block comment start (not inside a string)
+    if let Some(start_pos) = find_outside_strings(trimmed, "/*") {
+        let before_comment = trimmed[..start_pos].trim();
+
+        // check if block comment ends on same line
+        if let Some(end_offset) = trimmed[start_pos + 2..].find("*/") {
+            let after_comment = trimmed[start_pos + 2 + end_offset + 2..].trim();
+            if before_comment.is_empty() && after_comment.is_empty() {
+                return LineType::Comment;
+            }
+            if before_comment.is_empty() {
+                // recurse to check what's after
+                return classify_c_style(after_comment, in_block);
+            }
+            // there's code before the comment
+            return LineType::Code;
+        }
+
+        // block comment continues to next line
+        *in_block = true;
+        if before_comment.is_empty() {
+            return LineType::Comment;
+        }
+        return LineType::Code;
+    }
+
+    LineType::Code
+}
+
+/// Find a pattern outside of string literals (simple heuristic).
+///
+/// Returns the position of the pattern if found outside strings, None otherwise.
+/// Handles double-quoted, single-quoted, and backtick strings.
+/// Handles basic escape sequences.
+fn find_outside_strings(s: &str, pattern: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let len = bytes.len();
+    let pattern_bytes = pattern.as_bytes();
+    let pattern_len = pattern_bytes.len();
+
+    let mut i = 0;
+    while i < len {
+        let ch = bytes[i];
+
+        // check for string delimiters
+        if ch == b'"' || ch == b'\'' || ch == b'`' {
+            let delimiter = ch;
+            i += 1;
+
+            // skip until closing delimiter (handling escapes)
+            while i < len {
+                if bytes[i] == b'\\' && i + 1 < len {
+                    i += 2; // skip escape sequence
+                } else if bytes[i] == delimiter {
+                    i += 1;
+                    break;
+                } else {
+                    i += 1;
+                }
+            }
+            continue;
+        }
+
+        // check for pattern match
+        if i + pattern_len <= len && &bytes[i..i + pattern_len] == pattern_bytes {
+            return Some(i);
+        }
+
+        i += 1;
+    }
+
+    None
+}
+
+/// Classify a line with hash-style comments (#).
+fn classify_hash_style(trimmed: &str) -> LineType {
+    // check for shebang as code (it's executable)
+    if trimmed.starts_with("#!") {
+        return LineType::Code;
+    }
+
+    if trimmed.starts_with('#') {
+        return LineType::Comment;
+    }
+
+    // check for inline comment
+    if let Some(hash_pos) = trimmed.find('#') {
+        // make sure it's not inside a string (simple heuristic: count quotes before)
+        let before = &trimmed[..hash_pos];
+        let single_quotes = before.matches('\'').count();
+        let double_quotes = before.matches('"').count();
+        // if we have an odd number of either quote type, the # is likely in a string
+        if single_quotes.is_multiple_of(2) && double_quotes.is_multiple_of(2) {
+            // there's code before the comment
+            return LineType::Code;
+        }
+    }
+
+    LineType::Code
+}
+
+/// Classify a line with dash-style comments (-- and --[[ ]]).
+fn classify_dash_style(trimmed: &str, in_block: &mut bool) -> LineType {
+    // lua block comments: --[[ ]]
+    if *in_block {
+        if trimmed.contains("]]") {
+            *in_block = false;
+            let end_pos = trimmed.find("]]").unwrap();
+            let after = trimmed[end_pos + 2..].trim();
+            if after.is_empty() {
+                return LineType::Comment;
+            }
+            return classify_dash_style(after, in_block);
+        }
+        return LineType::Comment;
+    }
+
+    // check for block comment start
+    if trimmed.starts_with("--[[") {
+        *in_block = true;
+        if trimmed.contains("]]") {
+            *in_block = false;
+        }
+        return LineType::Comment;
+    }
+
+    // single-line dash comment
+    if trimmed.starts_with("--") {
+        return LineType::Comment;
+    }
+
+    LineType::Code
+}
+
+/// Classify a line with HTML-style comments (<!-- -->).
+fn classify_html_style(trimmed: &str, in_block: &mut bool) -> LineType {
+    if *in_block {
+        if let Some(end_pos) = trimmed.find("-->") {
+            *in_block = false;
+            let after = trimmed[end_pos + 3..].trim();
+            if after.is_empty() {
+                return LineType::Comment;
+            }
+            return classify_html_style(after, in_block);
+        }
+        return LineType::Comment;
+    }
+
+    if let Some(start_pos) = trimmed.find("<!--") {
+        let before = trimmed[..start_pos].trim();
+
+        // check if comment ends on same line
+        if let Some(end_pos) = trimmed[start_pos + 4..].find("-->") {
+            let after = trimmed[start_pos + 4 + end_pos + 3..].trim();
+            if before.is_empty() && after.is_empty() {
+                return LineType::Comment;
+            }
+            if before.is_empty() {
+                return classify_html_style(after, in_block);
+            }
+            return LineType::Code;
+        }
+
+        *in_block = true;
+        if before.is_empty() {
+            return LineType::Comment;
+        }
+        return LineType::Code;
+    }
+
+    LineType::Code
+}
+
 /// Calculate the maximum directory column width needed for the tree.
 ///
 /// # Arguments
@@ -369,11 +811,11 @@ fn render_tree(tree: &DirNode, max_depth: usize, by_type: bool, show_tokens: boo
     let dir_width = calc_max_dir_width(tree, 0, 0, max_depth).max(40) + 2;
 
     // calculate total width for separators
-    // columns: Files(8) + Lines(10) + Bytes(10) + Chars(10) + [Tokens(10)] + B/L(5) + [T/L(5)]
+    // columns: Files(8) + Lines(10) + Code(8) + Comment(8) + Blank(8) + Bytes(10) + [Tokens(10)] + L/F(5) + B/L(5) + [T/L(5)]
     let sep_width = if show_tokens {
-        dir_width + 2 + 8 + 2 + 10 + 2 + 10 + 2 + 10 + 2 + 10 + 2 + 5 + 2 + 5
+        dir_width + 2 + 8 + 2 + 10 + 2 + 8 + 2 + 8 + 2 + 8 + 2 + 10 + 2 + 10 + 2 + 5 + 2 + 5 + 2 + 5
     } else {
-        dir_width + 2 + 8 + 2 + 10 + 2 + 10 + 2 + 10 + 2 + 5
+        dir_width + 2 + 8 + 2 + 10 + 2 + 8 + 2 + 8 + 2 + 8 + 2 + 10 + 2 + 5 + 2 + 5
     };
 
     // header
@@ -426,10 +868,13 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
 
     if show_tokens {
         format!(
-            "{}  {}  {}  {}  {}  {}  {}  {}",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}",
             padded_dir,
             dim(&format!("{:>8}", "Files")),
             dim(&format!("{:>10}", "Lines")),
+            dim(&format!("{:>8}", "Code")),
+            dim(&format!("{:>8}", "Comment")),
+            dim(&format!("{:>8}", "Blank")),
             dim(&format!("{:>10}", "Bytes")),
             dim(&format!("{:>10}", "Tokens")),
             dim(&format!("{:>5}", "L/F")),
@@ -438,10 +883,13 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
         )
     } else {
         format!(
-            "{}  {}  {}  {}  {}  {}",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}",
             padded_dir,
             dim(&format!("{:>8}", "Files")),
             dim(&format!("{:>10}", "Lines")),
+            dim(&format!("{:>8}", "Code")),
+            dim(&format!("{:>8}", "Comment")),
+            dim(&format!("{:>8}", "Blank")),
             dim(&format!("{:>10}", "Bytes")),
             dim(&format!("{:>5}", "L/F")),
             dim(&format!("{:>5}", "B/L"))
@@ -465,6 +913,9 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
 
     let files = format_number(stats.files);
     let lines = format_number(stats.lines);
+    let lines_code = format_number(stats.lines_code);
+    let lines_comment = format_number(stats.lines_comment);
+    let lines_blank = format_number(stats.lines_blank);
     let bytes = format_number(stats.bytes);
     let lf = format_ratio(stats.lines, stats.files);
     let bl = format_ratio(stats.bytes, stats.lines);
@@ -473,10 +924,13 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
         let tokens = format_number(stats.tokens);
         let tl = format_ratio(stats.tokens, stats.lines);
         format!(
-            "{}  {}  {}  {}  {}  {}  {}  {}\n",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_label,
             style(&format!("{files:>8}"), &["1", "36"]),
             style(&format!("{lines:>10}"), &["1", "33"]),
+            style(&format!("{lines_code:>8}"), &["1", "33"]),
+            style(&format!("{lines_comment:>8}"), &["1", "90"]),
+            style(&format!("{lines_blank:>8}"), &["1", "90"]),
             style(&format!("{bytes:>10}"), &["1", "32"]),
             style(&format!("{tokens:>10}"), &["1", "35"]),
             dim(&format!("{lf:>5}")),
@@ -485,10 +939,13 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
         )
     } else {
         format!(
-            "{}  {}  {}  {}  {}  {}\n",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_label,
             style(&format!("{files:>8}"), &["1", "36"]),
             style(&format!("{lines:>10}"), &["1", "33"]),
+            style(&format!("{lines_code:>8}"), &["1", "33"]),
+            style(&format!("{lines_comment:>8}"), &["1", "90"]),
+            style(&format!("{lines_blank:>8}"), &["1", "90"]),
             style(&format!("{bytes:>10}"), &["1", "32"]),
             dim(&format!("{lf:>5}")),
             dim(&format!("{bl:>5}"))
@@ -496,7 +953,7 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
     }
 }
 
-/// Render summary section with context window comparisons.
+/// Render summary section with markers and context window comparisons.
 ///
 /// # Arguments
 /// * `stats` - Statistics to summarize
@@ -505,39 +962,89 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
 /// # Returns
 /// Formatted summary string
 fn render_summary(stats: &Stats, show_tokens: bool) -> String {
-    if !show_tokens || stats.tokens == 0 {
-        return String::new();
-    }
+    let mut output = String::new();
 
-    let tokens = stats.tokens as f64;
-
-    // context window sizes
-    let windows = [
-        ("32K", 32_000.0),
-        ("128K", 128_000.0),
-        ("200K", 200_000.0),
-        ("1M", 1_000_000.0),
-        ("10M", 10_000_000.0),
-    ];
-
-    // format each comparison as "Nx SIZE"
-    let comparisons: Vec<String> = windows
-        .iter()
-        .map(|(name, size)| {
-            let ratio = tokens / size;
-            if ratio >= 1.0 {
-                format!("{} {}", style(&format!("{ratio:.1}×"), &["35"]), dim(name))
-            } else {
+    // markers summary
+    if stats.markers_total() > 0 {
+        let marker_strs: Vec<String> = MARKERS
+            .iter()
+            .zip(stats.markers.iter())
+            .filter(|(_, count)| **count > 0)
+            .map(|((name, color_code, _), count)| {
                 format!(
                     "{} {}",
-                    style(&format!("{:.0}%", ratio * 100.0), &["32"]),
+                    color(&format_number(*count), color_code),
                     dim(name)
                 )
-            }
-        })
-        .collect();
+            })
+            .collect();
 
-    format!("{} {}\n", dim("Context:"), comparisons.join(&dim(" · ")))
+        output.push_str(&format!(
+            "{} {}\n",
+            dim("Markers:"),
+            marker_strs.join(&dim(" · "))
+        ));
+    }
+
+    // tags summary (sorted by count descending)
+    if !stats.tags.is_empty() {
+        let mut tag_vec: Vec<_> = stats.tags.iter().collect();
+        tag_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+        let tag_strs: Vec<String> = tag_vec
+            .iter()
+            .map(|(tag, count)| {
+                format!(
+                    "{} {}",
+                    color(&format_number(**count), "37"),
+                    dim(&format!("#{tag}"))
+                )
+            })
+            .collect();
+
+        output.push_str(&format!(
+            "{}    {}\n",
+            dim("Tags:"),
+            tag_strs.join(&dim(" · "))
+        ));
+    }
+
+    // context window comparisons
+    if show_tokens && stats.tokens > 0 {
+        let tokens = stats.tokens as f64;
+
+        let windows = [
+            ("32K", 32_000.0),
+            ("128K", 128_000.0),
+            ("200K", 200_000.0),
+            ("1M", 1_000_000.0),
+            ("10M", 10_000_000.0),
+        ];
+
+        let comparisons: Vec<String> = windows
+            .iter()
+            .map(|(name, size)| {
+                let ratio = tokens / size;
+                if ratio >= 1.0 {
+                    format!("{} {}", style(&format!("{ratio:.1}×"), &["35"]), dim(name))
+                } else {
+                    format!(
+                        "{} {}",
+                        style(&format!("{:.0}%", ratio * 100.0), &["32"]),
+                        dim(name)
+                    )
+                }
+            })
+            .collect();
+
+        output.push_str(&format!(
+            "{} {}\n",
+            dim("Context:"),
+            comparisons.join(&dim(" · "))
+        ));
+    }
+
+    output
 }
 
 /// Recursively render a directory node.
@@ -577,13 +1084,20 @@ fn render_node(
     let dir_display = format!("{prefix}{connector}{}", color(&node.name, "1;34"));
     let dir_visible_width = visible_width(&dir_display);
 
-    // pad to column width
-    let pad_width = dir_width.saturating_sub(dir_visible_width);
-    let padded_dir = format!("{dir_display}{}", " ".repeat(pad_width));
+    // format marker dots (right-aligned, fixed width for all marker types)
+    let dots = format_marker_dots(&node.stats);
+    let dots_display_width = MARKERS.len(); // fixed width slot for dots
+
+    // pad between name and dots, then add dots at the right edge
+    let pad_width = dir_width.saturating_sub(dir_visible_width + dots_display_width + 1);
+    let padded_dir = format!("{dir_display}{} {dots}", " ".repeat(pad_width));
 
     // format numbers
     let files = format_number(node.stats.files);
     let lines = format_number(node.stats.lines);
+    let lines_code = format_number(node.stats.lines_code);
+    let lines_comment = format_number(node.stats.lines_comment);
+    let lines_blank = format_number(node.stats.lines_blank);
     let bytes = format_number(node.stats.bytes);
     let lf = format_ratio(node.stats.lines, node.stats.files);
     let bl = format_ratio(node.stats.bytes, node.stats.lines);
@@ -593,10 +1107,13 @@ fn render_node(
         let tokens = format_number(node.stats.tokens);
         let tl = format_ratio(node.stats.tokens, node.stats.lines);
         output.push_str(&format!(
-            "{}  {}  {}  {}  {}  {}  {}  {}\n",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_dir,
             color(&format!("{files:>8}"), "36"),
             color(&format!("{lines:>10}"), "33"),
+            color(&format!("{lines_code:>8}"), "33"),
+            dim(&format!("{lines_comment:>8}")),
+            dim(&format!("{lines_blank:>8}")),
             color(&format!("{bytes:>10}"), "32"),
             color(&format!("{tokens:>10}"), "35"),
             dim(&format!("{lf:>5}")),
@@ -605,10 +1122,13 @@ fn render_node(
         ));
     } else {
         output.push_str(&format!(
-            "{}  {}  {}  {}  {}  {}\n",
+            "{}  {}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_dir,
             color(&format!("{files:>8}"), "36"),
             color(&format!("{lines:>10}"), "33"),
+            color(&format!("{lines_code:>8}"), "33"),
+            dim(&format!("{lines_comment:>8}")),
+            dim(&format!("{lines_blank:>8}")),
             color(&format!("{bytes:>10}"), "32"),
             dim(&format!("{lf:>5}")),
             dim(&format!("{bl:>5}"))
@@ -717,6 +1237,9 @@ fn render_extension_breakdown(
 
         let files = format_number(stats.files);
         let lines = format_number(stats.lines);
+        let lines_code = format_number(stats.lines_code);
+        let lines_comment = format_number(stats.lines_comment);
+        let lines_blank = format_number(stats.lines_blank);
         let bytes = format_number(stats.bytes);
         let lf = format_ratio(stats.lines, stats.files);
         let bl = format_ratio(stats.bytes, stats.lines);
@@ -725,10 +1248,13 @@ fn render_extension_breakdown(
             let tokens = format_number(stats.tokens);
             let tl = format_ratio(stats.tokens, stats.lines);
             output.push_str(&format!(
-                "{}  {}  {}  {}  {}  {}  {}  {}\n",
+                "{}  {}  {}  {}  {}  {}  {}  {}  {}  {}  {}\n",
                 padded_ext,
                 dim(&format!("{files:>8}")),
                 dim(&format!("{lines:>10}")),
+                dim(&format!("{lines_code:>8}")),
+                dim(&format!("{lines_comment:>8}")),
+                dim(&format!("{lines_blank:>8}")),
                 dim(&format!("{bytes:>10}")),
                 dim(&format!("{tokens:>10}")),
                 dim(&format!("{lf:>5}")),
@@ -737,10 +1263,13 @@ fn render_extension_breakdown(
             ));
         } else {
             output.push_str(&format!(
-                "{}  {}  {}  {}  {}  {}\n",
+                "{}  {}  {}  {}  {}  {}  {}  {}  {}\n",
                 padded_ext,
                 dim(&format!("{files:>8}")),
                 dim(&format!("{lines:>10}")),
+                dim(&format!("{lines_code:>8}")),
+                dim(&format!("{lines_comment:>8}")),
+                dim(&format!("{lines_blank:>8}")),
                 dim(&format!("{bytes:>10}")),
                 dim(&format!("{lf:>5}")),
                 dim(&format!("{bl:>5}"))
@@ -773,6 +1302,22 @@ fn format_number(n: usize) -> String {
         result.push(*ch);
     }
     result
+}
+
+/// Format marker dots for a stats entry.
+///
+/// Returns colored dots indicating which marker types are present.
+/// Always outputs fixed width (one char per marker type) for alignment.
+fn format_marker_dots(stats: &Stats) -> String {
+    let mut dots = String::new();
+    for (i, (_, color_code, dot)) in MARKERS.iter().enumerate() {
+        if stats.has_marker(i) {
+            dots.push_str(&color(&dot.to_string(), color_code));
+        } else {
+            dots.push(' ');
+        }
+    }
+    dots
 }
 
 /// Format a ratio (numerator / denominator) as a short string.
