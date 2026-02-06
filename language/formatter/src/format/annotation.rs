@@ -404,6 +404,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 
 fn decorator_needs_parentheses(tree: &NodeTree, expression_id: LocalNodeId<Expression>) -> bool {
     match tree.get(expression_id) {
+        Expression::Parenthesized { .. } => false,
         Expression::Path {
             static_arguments, ..
         } => static_arguments.is_some(),
@@ -474,6 +475,21 @@ mod tests {
     @foo(1, 2, 3)
     // comment after foo
     struct Entity { }
+}"#;
+        assert_format!(
+            source,
+            source,
+            |p| p.eat_block(),
+            DestackFormatOptions::default()
+        );
+    }
+
+    /// Decorator expressions should not grow extra parentheses across formatting.
+    #[test]
+    fn test_format_decorator_parentheses_are_stable() {
+        let source = r#"{
+    @(chain.first().second())
+    function chained() { }
 }"#;
         assert_format!(
             source,

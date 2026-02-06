@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -6,9 +7,10 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
+use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_source::{
-    DiagnosticCollection, DiagnosticOptions, DiagnosticSeverity, File, FileId, FileSystem,
-    FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, File, FileId,
+    FileSystem, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
 };
 use destack_workspace::{FormatterOptions, Program};
 use parking_lot::Mutex;
@@ -35,8 +37,14 @@ pub struct CommandFormatPayload {
     pub files: usize,
     /// The number of files that would change.
     pub changed: usize,
+    /// Paths for files that changed or would change in check mode.
+    #[serde(default)]
+    pub changed_files: Vec<String>,
     /// The number of errors encountered.
     pub errors: usize,
+    /// Paths for files that failed formatting.
+    #[serde(default)]
+    pub error_files: Vec<String>,
     /// Whether this was a check-only run.
     pub check: bool,
     /// Formatted output for eval mode.
@@ -62,28 +70,34 @@ impl CommandContext<'_> {
         // build formatter state
         let mut summary = FmtSummary::new(check);
         let default_formatting = self.program.formatter;
+        let resolver = Resolver::from_program(self.program.as_ref(), ResolveOptions::default());
 
         // format inline eval when provided
         if let Some(eval) = format_options.eval.as_ref() {
             summary.files_total = 1;
             let file_id = FileId::new(0);
-            let file = Arc::new(File::from_text(
+            let file = File::from_text(
                 file_id,
                 "<eval>".to_string(),
                 Uri::from_string("<eval>"),
                 None,
                 FileType::Destack,
                 eval.clone(),
-            ));
+            );
+            self.program.files.insert(file.clone());
+            let file = Arc::new(file);
 
-            let formatted = format_file(file.clone(), default_formatting, &self.program);
+            let (formatted, diagnostics) = format_file(file.clone(), default_formatting);
+            self.program.diagnostics.merge_from(&diagnostics);
             if check_and_collect_errors(
                 &self.program,
+                &diagnostics,
                 &diagnostic_options,
                 suppress_output,
                 self.output,
             ) {
                 summary.errors += 1;
+                summary.error_files.push("<eval>".to_string());
                 let diagnostics = self.collect_diagnostics();
                 let data = summary_payload(&summary)?;
                 return Ok(CommandOutcome::new(diagnostics, 1, 0, 0, 0, None).with_data(data));
@@ -110,14 +124,21 @@ impl CommandContext<'_> {
 
         // format each path or directory
         let mut did_any_change = false;
+        let mut seen_files = HashSet::new();
         for path in paths {
             let metadata = fs.metadata(&path).ok();
             if matches!(metadata, Some(meta) if meta.is_file) {
+                if !seen_files.insert(path.clone()) {
+                    continue;
+                }
                 summary.files_total += 1;
                 let result = format_single_file(
                     fs.as_ref(),
+                    &resolver,
                     &self.program,
                     &path,
+                    &self.program.cwd,
+                    self.common.config_path.as_deref(),
                     default_formatting,
                     &diagnostic_options,
                     suppress_output,
@@ -129,8 +150,12 @@ impl CommandContext<'_> {
                     FormatResult::Changed => {
                         did_any_change = true;
                         summary.files_changed += 1;
+                        summary.changed_files.push(path.display().to_string());
                     }
-                    FormatResult::Error => summary.errors += 1,
+                    FormatResult::Error => {
+                        summary.errors += 1;
+                        summary.error_files.push(path.display().to_string());
+                    }
                 }
                 continue;
             }
@@ -138,11 +163,17 @@ impl CommandContext<'_> {
             if matches!(metadata, Some(meta) if meta.is_directory) {
                 let files = collect_formattable_files(fs.as_ref(), &path);
                 for file_path in files {
+                    if !seen_files.insert(file_path.clone()) {
+                        continue;
+                    }
                     summary.files_total += 1;
                     let result = format_single_file(
                         fs.as_ref(),
+                        &resolver,
                         &self.program,
                         &file_path,
+                        &self.program.cwd,
+                        self.common.config_path.as_deref(),
                         default_formatting,
                         &diagnostic_options,
                         suppress_output,
@@ -154,14 +185,19 @@ impl CommandContext<'_> {
                         FormatResult::Changed => {
                             did_any_change = true;
                             summary.files_changed += 1;
+                            summary.changed_files.push(file_path.display().to_string());
                         }
-                        FormatResult::Error => summary.errors += 1,
+                        FormatResult::Error => {
+                            summary.errors += 1;
+                            summary.error_files.push(file_path.display().to_string());
+                        }
                     }
                 }
                 continue;
             }
 
             summary.errors += 1;
+            summary.error_files.push(path.display().to_string());
             self.output
                 .push_stderr(format!("invalid path: {}\n", path.display()).into_bytes());
         }
@@ -183,8 +219,12 @@ struct FmtSummary {
     files_total: usize,
     /// The number of files that would change.
     files_changed: usize,
+    /// The list of changed file paths.
+    changed_files: Vec<String>,
     /// The number of errors encountered.
     errors: usize,
+    /// The list of file paths with formatting errors.
+    error_files: Vec<String>,
     /// Whether this is a check-only run.
     check: bool,
     /// Formatted output for eval mode.
@@ -198,6 +238,8 @@ impl FmtSummary {
             files_total: 0,
             files_changed: 0,
             errors: 0,
+            changed_files: Vec::new(),
+            error_files: Vec::new(),
             check,
             formatted_output: None,
         }
@@ -209,7 +251,9 @@ fn summary_payload(summary: &FmtSummary) -> Result<serde_json::Value, String> {
     let payload = CommandFormatPayload {
         files: summary.files_total,
         changed: summary.files_changed,
+        changed_files: summary.changed_files.clone(),
         errors: summary.errors,
+        error_files: summary.error_files.clone(),
         check: summary.check,
         formatted: summary.formatted_output.clone(),
     };
@@ -219,12 +263,13 @@ fn summary_payload(summary: &FmtSummary) -> Result<serde_json::Value, String> {
 /// Print diagnostics and return whether there were errors.
 fn check_and_collect_errors(
     program: &Arc<Program>,
+    diagnostics: &DiagnosticCollector,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
     output: &mut CommandOutputBuffer,
 ) -> bool {
     // collect diagnostics and check for errors
-    let diagnostics = program.diagnostics.collect().map(diagnostic_options);
+    let diagnostics = diagnostics.collect().map(diagnostic_options);
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
     if has_errors && !suppress_output {
         print_diagnostics_to_output(program, &diagnostics, output);
@@ -263,12 +308,12 @@ fn print_diagnostics_to_output(
 }
 
 /// Format a single file and return the formatted content.
-fn format_file(file: Arc<File>, formatter: FormatterOptions, program: &Arc<Program>) -> String {
+fn format_file(file: Arc<File>, formatter: FormatterOptions) -> (String, DiagnosticCollector) {
     let language_type = LanguageType::from(file.ty);
     let mut parser = Parser::lex_file(file.clone(), language_type);
     let expressions = parser.parse();
     parser.finish();
-    program.diagnostics.merge_from(&parser.diagnostics);
+    let diagnostics = parser.diagnostics.clone();
 
     let side_span = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
@@ -303,13 +348,14 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: &Arc<Progr
         result.push('\n');
     }
 
-    result
+    (result, diagnostics)
 }
 
 /// Collect all formattable files in a directory.
 fn collect_formattable_files(fs: &dyn FileSystem, directory: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
     collect_formattable_files_in_dir(fs, directory, &mut files);
+    files.sort();
     files
 }
 
@@ -322,12 +368,17 @@ fn collect_formattable_files_in_dir(
     let Ok(entries) = fs.read_dir(directory) else {
         return;
     };
+    let mut entries = entries;
+    entries.sort();
 
     for entry in entries {
         let Ok(metadata) = fs.metadata(&entry) else {
             continue;
         };
         if metadata.is_directory {
+            if should_ignore_directory(&entry) {
+                continue;
+            }
             collect_formattable_files_in_dir(fs, &entry, files);
             continue;
         }
@@ -338,7 +389,7 @@ fn collect_formattable_files_in_dir(
         let Some(file_type) = FileType::from_path(&entry) else {
             continue;
         };
-        if FORMATTABLE_TYPES.contains(&file_type) {
+        if is_formattable_file_type(file_type) {
             files.push(entry);
         }
     }
@@ -347,13 +398,17 @@ fn collect_formattable_files_in_dir(
 /// Get formatting options for a file, checking for dsconfig.json.
 fn get_formatting_options(
     fs: &dyn FileSystem,
+    resolver: &Resolver,
     path: &Path,
+    cwd: &Path,
+    config_override: Option<&Path>,
     default: FormatterOptions,
 ) -> FormatterOptions {
-    if let Some(dsconfig_path) = find_dsconfig_json(fs, path)
-        && let Some(options) = load_dsconfig_formatting(fs, &dsconfig_path)
-    {
-        return options;
+    let Some(dsconfig_path) = find_dsconfig_json(fs, path, cwd, config_override) else {
+        return default;
+    };
+    if let Some(options) = load_dsconfig_formatting(resolver, &dsconfig_path) {
+        return merge_formatter_options(options, default);
     }
     default
 }
@@ -363,16 +418,35 @@ fn get_formatting_options(
 #[allow(clippy::too_many_arguments)]
 fn format_single_file(
     fs: &dyn FileSystem,
+    resolver: &Resolver,
     program: &Arc<Program>,
     path: &Path,
+    cwd: &Path,
+    config_override: Option<&Path>,
     default_formatting: FormatterOptions,
     diagnostic_options: &DiagnosticOptions,
     suppress_output: bool,
     check: bool,
     output: &mut CommandOutputBuffer,
 ) -> FormatResult {
+    // dispatch by file type
+    let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
+    if !is_formattable_file_type(file_type) {
+        if !suppress_output {
+            output.push_stderr(
+                format!(
+                    "error formatting '{}': unsupported file type\n",
+                    path.display()
+                )
+                .into_bytes(),
+            );
+        }
+        return FormatResult::Error;
+    }
+
     // get formatting options from dsconfig
-    let formatting_options = get_formatting_options(fs, path, default_formatting);
+    let formatting_options =
+        get_formatting_options(fs, resolver, path, cwd, config_override, default_formatting);
 
     // read file
     let content = match fs.read_to_string(path) {
@@ -386,8 +460,6 @@ fn format_single_file(
         }
     };
 
-    // dispatch by file type
-    let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
     let formatted = match file_type {
         FileType::Json => match format_json_content(&content, formatting_options) {
             Ok(f) => f,
@@ -414,9 +486,16 @@ fn format_single_file(
             program.files.insert(file);
 
             let file = program.files.get_by_uri(&uri).expect("file not found");
-            let result = format_file(file.clone(), formatting_options, program);
+            let (result, diagnostics) = format_file(file.clone(), formatting_options);
+            program.diagnostics.merge_from(&diagnostics);
 
-            if check_and_collect_errors(program, diagnostic_options, suppress_output, output) {
+            if check_and_collect_errors(
+                program,
+                &diagnostics,
+                diagnostic_options,
+                suppress_output,
+                output,
+            ) {
                 return FormatResult::Error;
             }
 
@@ -449,7 +528,7 @@ fn format_single_file(
             return FormatResult::Error;
         }
         if !suppress_output {
-            output.push_stdout(format!("'{}'\n", path.display()).into_bytes());
+            output.push_stdout(format!("{}\n", path.display()).into_bytes());
         }
         return FormatResult::Changed;
     }
@@ -490,7 +569,26 @@ enum FormatResult {
 }
 
 /// Find the nearest dsconfig.json by walking up parent directories.
-fn find_dsconfig_json(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
+fn find_dsconfig_json(
+    fs: &dyn FileSystem,
+    path: &Path,
+    cwd: &Path,
+    config_override: Option<&Path>,
+) -> Option<PathBuf> {
+    if let Some(config_override) = config_override {
+        let resolved = if config_override.is_absolute() {
+            config_override.to_path_buf()
+        } else {
+            cwd.join(config_override)
+        };
+        let metadata = fs.metadata(&resolved).ok()?;
+        return if metadata.is_directory {
+            Some(resolved.join("dsconfig.json"))
+        } else {
+            Some(resolved)
+        };
+    }
+
     let metadata = fs.metadata(path).ok();
     let is_file = matches!(metadata, Some(meta) if meta.is_file);
     let mut current = if is_file {
@@ -506,101 +604,112 @@ fn find_dsconfig_json(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
         }
         current = dir.parent().map(|p| p.to_path_buf());
     }
+
     None
 }
 
-/// Formatting options from dsconfig.json.
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct DsConfigFormatting {
-    /// Line ending style for formatted files.
-    line_ending: Option<LineEndingJson>,
-    /// Indentation style for formatted files.
-    indent_style: Option<IndentStyleJson>,
-    /// Indentation width for formatted files.
-    indent_width: Option<u8>,
-    /// Maximum line width for formatted files.
-    line_width: Option<u16>,
-}
-
-/// Minimal dsconfig.json structure for formatting.
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct DsConfigJson {
-    /// Formatting section from the config file.
-    #[serde(default)]
-    formatter: DsConfigFormatting,
-}
-
-/// Line ending style for JSON deserialization.
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum LineEndingJson {
-    #[serde(alias = "lf")]
-    /// Line feed endings.
-    LineFeed,
-    #[serde(alias = "crlf")]
-    /// Carriage return and line feed endings.
-    CarriageReturnLineFeed,
-    #[serde(alias = "cr")]
-    /// Carriage return endings.
-    CarriageReturn,
-}
-
-impl From<LineEndingJson> for destack_source::LineEnding {
-    fn from(value: LineEndingJson) -> Self {
-        match value {
-            LineEndingJson::LineFeed => Self::LineFeed,
-            LineEndingJson::CarriageReturnLineFeed => Self::CarriageReturnLineFeed,
-            LineEndingJson::CarriageReturn => Self::CarriageReturn,
-        }
-    }
-}
-
-/// Indent style for JSON deserialization.
-#[derive(Debug, Clone, Copy, serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-enum IndentStyleJson {
-    #[serde(alias = "tabs")]
-    /// Tab indentation.
-    Tab,
-    #[serde(alias = "spaces")]
-    /// Space indentation.
-    Space,
-}
-
-impl From<IndentStyleJson> for destack_source::IndentStyle {
-    fn from(value: IndentStyleJson) -> Self {
-        match value {
-            IndentStyleJson::Tab => Self::Tab,
-            IndentStyleJson::Space => Self::Space,
-        }
-    }
-}
-
 /// Load formatting options from a dsconfig.json file.
-fn load_dsconfig_formatting(fs: &dyn FileSystem, dsconfig_path: &Path) -> Option<FormatterOptions> {
-    let content = fs.read_to_string(dsconfig_path).ok()?;
-    let dsconfig: DsConfigJson = serde_json::from_str(&content).ok()?;
-    let fmt = &dsconfig.formatter;
+fn load_dsconfig_formatting(resolver: &Resolver, dsconfig_path: &Path) -> Option<FormatterOptions> {
+    let dsconfig = resolver
+        .load_dsconfig(dsconfig_path, CachePolicy::UseCache)
+        .ok()?;
+    Some(dsconfig.options.formatter)
+}
 
-    let mut options = FormatterOptions::default();
-    if let Some(line_ending) = fmt.line_ending {
-        options.line_ending = line_ending.into();
+/// Merge formatter options with CLI precedence.
+///
+/// Uses non-default CLI option values to override config-derived values.
+fn merge_formatter_options(
+    config_options: FormatterOptions,
+    cli_and_default_options: FormatterOptions,
+) -> FormatterOptions {
+    let default_options = FormatterOptions::default();
+    let mut merged_options = config_options;
+
+    if cli_and_default_options.line_ending != default_options.line_ending {
+        merged_options.line_ending = cli_and_default_options.line_ending;
     }
-    if let Some(indent_style) = fmt.indent_style {
-        options.indent_style = indent_style.into();
+    if cli_and_default_options.indent_style != default_options.indent_style {
+        merged_options.indent_style = cli_and_default_options.indent_style;
     }
-    if let Some(indent_width) = fmt.indent_width {
-        options.indent_width = indent_width;
+    if cli_and_default_options.indent_width != default_options.indent_width {
+        merged_options.indent_width = cli_and_default_options.indent_width;
     }
-    if let Some(line_width) = fmt.line_width {
-        options.line_width = line_width;
+    if cli_and_default_options.line_width != default_options.line_width {
+        merged_options.line_width = cli_and_default_options.line_width;
+    }
+    if cli_and_default_options.quote_style != default_options.quote_style {
+        merged_options.quote_style = cli_and_default_options.quote_style;
+    }
+    if cli_and_default_options.trailing_comma != default_options.trailing_comma {
+        merged_options.trailing_comma = cli_and_default_options.trailing_comma;
+    }
+    if cli_and_default_options.bracket_spacing != default_options.bracket_spacing {
+        merged_options.bracket_spacing = cli_and_default_options.bracket_spacing;
+    }
+    if cli_and_default_options.arrow_parentheses != default_options.arrow_parentheses {
+        merged_options.arrow_parentheses = cli_and_default_options.arrow_parentheses;
+    }
+    if cli_and_default_options.quote_property != default_options.quote_property {
+        merged_options.quote_property = cli_and_default_options.quote_property;
+    }
+    if cli_and_default_options.bracket_same_line != default_options.bracket_same_line {
+        merged_options.bracket_same_line = cli_and_default_options.bracket_same_line;
+    }
+    if cli_and_default_options.single_attribute_per_line
+        != default_options.single_attribute_per_line
+    {
+        merged_options.single_attribute_per_line =
+            cli_and_default_options.single_attribute_per_line;
+    }
+    if cli_and_default_options.organize_imports != default_options.organize_imports {
+        merged_options.organize_imports = cli_and_default_options.organize_imports;
+    }
+    if cli_and_default_options.import_sort_order != default_options.import_sort_order {
+        merged_options.import_sort_order = cli_and_default_options.import_sort_order;
     }
 
-    Some(options)
+    merged_options
+}
+
+/// Return whether a file type should be formatted by default.
+fn is_formattable_file_type(file_type: FileType) -> bool {
+    FORMATTABLE_TYPES.contains(&file_type)
+}
+
+/// Return whether a directory should be skipped by formatter traversal.
+fn should_ignore_directory(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    IGNORED_DIRECTORIES.contains(&name)
 }
 
 /// File types that the formatter can process.
-/// File types that the formatter can process.
-const FORMATTABLE_TYPES: &[FileType] = &[FileType::Destack, FileType::Json];
+const FORMATTABLE_TYPES: &[FileType] = &[
+    FileType::Destack,
+    FileType::DestackDeclaration,
+    FileType::JavaScript,
+    FileType::JavaScriptXml,
+    FileType::TypeScript,
+    FileType::TypeScriptXml,
+    FileType::TypeScriptDeclaration,
+    FileType::Json,
+];
+
+/// Directory names skipped by formatter traversal.
+const IGNORED_DIRECTORIES: &[&str] = &[
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    "coverage",
+    ".next",
+    ".nuxt",
+    ".parcel-cache",
+    ".turbo",
+    ".cache",
+];

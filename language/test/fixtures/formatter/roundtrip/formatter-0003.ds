@@ -7,10 +7,10 @@ type UserId = string;
 type Result<T> = { ok: true, value: T } | { ok: false, error: Error };
 
 interface UserService {
-    findById(id: UserId): Promise<User | undefined>,
-    create(data: CreateUserInput): Promise<Result<User>>,
-    update(id: UserId, data: UpdateUserInput): Promise<Result<User>>,
-    delete(id: UserId): Promise<Result<void>>,
+    findById(id: UserId): Promise<User | undefined>
+    create(data: CreateUserInput): Promise<Result<User>>
+    update(id: UserId, data: UpdateUserInput): Promise<Result<User>>
+    delete(id: UserId): Promise<Result<void>>
 }
 
 @entity
@@ -42,7 +42,8 @@ export class User {
 
 export const userRouter = Router.create()
     .get("/users", async (ctx) => {
-        const users = await ctx.db
+        const users = await ctx
+            .db
             .query<User>()
             .where({ active: true })
             .orderBy("createdAt", "desc")
@@ -52,23 +53,16 @@ export const userRouter = Router.create()
         return Response.json(users);
     })
     .get("/users/:id", async (ctx) => {
-        const user = await ctx.db
-            .query<User>()
-            .where({ id: ctx.params.id })
-            .first();
+        const user = await ctx.db.query<User>().where({ id: ctx.params.id }).first();
 
-        return user
-            ? Response.json(user)
-            : Response.notFound({ error: "User not found" });
+        return user ? Response.json(user) : Response.notFound({ error: "User not found" });
     })
     .post("/users", async (ctx) => {
         const input = await ctx.body<CreateUserInput>();
 
         const result = await ctx.services.user.create(input);
 
-        return result.ok
-            ? Response.created(result.value)
-            : Response.badRequest(result.error);
+        return result.ok ? Response.created(result.value) : Response.badRequest(result.error);
     });
 
 function processItems<T>(
@@ -76,10 +70,7 @@ function processItems<T>(
     transformer: (item: T, index: number) => T,
     filter?: (item: T) => boolean,
 ): T[] {
-    return items
-        .filter(filter ?? (() => true))
-        .map(transformer)
-        .filter((item) => item !== null);
+    return items.filter(filter ?? (() => true)).map(transformer).filter((item) => item !== null);
 }
 
 const config = {
