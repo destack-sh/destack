@@ -7662,18 +7662,18 @@ mod tests {
         assert!(super::expression_has_complex_callback(&context, *value));
     }
 
-    /// Redundant const on borrows is omitted in type formatting.
+    /// Const on borrows normalizes to readonly in type formatting.
     #[test]
-    fn test_format_type_redundant_const_borrow() {
-        assert_format!("&const Foo", "&Foo", |p| p.eat_expression());
+    fn test_format_type_const_borrow_normalizes_to_readonly() {
+        assert_format!("&const Foo", "&readonly Foo", |p| p.eat_expression());
     }
 
-    /// Redundant const on pointers is omitted in type formatting.
+    /// Const on pointers normalizes to readonly in type formatting.
     #[test]
-    fn test_format_type_redundant_const_pointer() {
+    fn test_format_type_const_pointer_normalizes_to_readonly() {
         assert_format!(
             "type T = *const Foo",
-            "*Foo",
+            "*readonly Foo",
             |p| p.eat_type(&p.mark(), DeclarationDescriptor::default()),
             |tree: &NodeTree, expr_id| {
                 let expression = tree.get(expr_id);

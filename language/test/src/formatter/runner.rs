@@ -37,8 +37,9 @@ impl FormatterSuite {
     }
 
     fn discover_roundtrip_tests(&mut self, base_dir: &Path) {
+        let roundtrip_dir = base_dir.join("roundtrip");
         let ds_tests = discover_test_files(
-            base_dir,
+            &roundtrip_dir,
             &["ds", ".d.ds"],
             "destack_test::formatter::roundtrip",
         )
