@@ -160,6 +160,7 @@ pub(crate) const REWRITER_TAG_INFER_SUBSTITUTION: u64 = 2;
 pub(crate) const REWRITER_TAG_INFER_MATERIALIZER: u64 = 3;
 pub(crate) const REWRITER_TAG_LITERAL_WIDENING: u64 = 4;
 pub(crate) const REWRITER_TAG_STATIC_ARGUMENT: u64 = 5;
+pub(crate) const REWRITER_TAG_ASSOCIATED_ALIAS: u64 = 6;
 
 fn materialization_mode_key(mode: MaterializationMode) -> u64 {
     match mode {

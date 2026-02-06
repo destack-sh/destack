@@ -3205,6 +3205,67 @@ mapper(1);
     }
 }
 
+/// Preserve outer generic inference for member signatures that reference associated aliases.
+#[test]
+fn test_analyze_associated_alias_member_keeps_outer_generic_inference() {
+    // associated aliases in member signatures should not erase outer class inference
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Box<T> {
+    type Item = T;
+    value: Item;
+
+    constructor(value: Item) {
+        this.value = value;
+    }
+}
+
+let box = new Box("ok");
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let box_symbol = test
+        .resolve_to_symbol("test.ds", "box")
+        .expect("expected box symbol");
+    let box_type_id = view
+        .types()
+        .get_value_type_id(box_symbol)
+        .expect("expected box value type");
+
+    match view.types().get_type(box_type_id) {
+        Type::Reference {
+            static_arguments: Some(arguments),
+            ..
+        } => {
+            let first_argument = arguments
+                .first()
+                .expect("expected one static type argument");
+            match first_argument {
+                StaticArgument::Evaluated { value, .. } => match value {
+                    StaticExpression::Type { ty } => match view.types().get_type(*ty) {
+                        Type::TypeLiteral {
+                            value:
+                                TypeLiteral::Primitive(PrimitiveType::String)
+                                | TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+                        } => {}
+                        other => panic!("expected string-like static argument, found {other:?}"),
+                    },
+                    _ => panic!("expected type static argument"),
+                },
+                _ => panic!("expected evaluated static argument"),
+            }
+        }
+        other => panic!("expected generic class reference, found {other:?}"),
+    }
+}
+
 /// Analyze substitute type reference arguments.
 #[test]
 fn test_analyze_substitute_type_reference_arguments() {

@@ -56,6 +56,12 @@ impl Compiler {
         // normalize to the declared symbol type
         let normalized =
             GlobalSymbolId::new(owner_module.id, symbol.local_id.with_type(symbol_entry.ty));
+
+        // preserve static parameter identity across symbol space normalization
+        if symbol_entry.is_static_parameter() {
+            return normalized;
+        }
+
         if matches!(
             symbol_entry.space,
             SymbolSpace::Type | SymbolSpace::TypeValue

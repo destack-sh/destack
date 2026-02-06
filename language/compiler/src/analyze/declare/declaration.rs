@@ -474,7 +474,7 @@ impl Compiler {
 
                 // nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
-                let static_arguments = self.static_argument_placeholders_for_declaration(
+                let static_arguments = self.self_type_static_arguments_for_declaration(
                     module,
                     generics.static_parameters.as_deref(),
                     tree,
@@ -590,7 +590,7 @@ impl Compiler {
 
                 // prepare nominal reference for constructors
                 let symbol = descriptor.symbol.into_global(module.id);
-                let static_arguments = self.static_argument_placeholders_for_declaration(
+                let static_arguments = self.self_type_static_arguments_for_declaration(
                     module,
                     generics.static_parameters.as_deref(),
                     tree,
@@ -707,7 +707,7 @@ impl Compiler {
 
                 // prepare the nominal reference for enum values
                 let symbol = descriptor.symbol.into_global(module.id);
-                let static_arguments = self.static_argument_placeholders_for_declaration(
+                let static_arguments = self.self_type_static_arguments_for_declaration(
                     module,
                     generics.static_parameters.as_deref(),
                     tree,
@@ -1315,8 +1315,8 @@ impl Compiler {
         placeholders
     }
 
-    /// Build static argument placeholders for a declaration reference.
-    fn static_argument_placeholders_for_declaration(
+    /// Build `Self<...>` static arguments for declaration-local nominal references.
+    fn self_type_static_arguments_for_declaration(
         &self,
         module: &Module,
         static_parameters: Option<&[LocalNodeId<Parameter>]>,
@@ -1475,32 +1475,22 @@ impl Compiler {
         // initialize member shapes
         let mut shapes = ObjectShapeSet::default();
 
+        // predeclare associated type members so later member references can resolve by symbol
+        self.declare_associated_type_members(
+            module,
+            profile,
+            members,
+            tree,
+            symbols,
+            types,
+            defer_type_evaluation,
+        )?;
+
         // collect member contributions
         for member_id in members {
             let member = tree.get(*member_id);
-
             match member {
-                Member::Type {
-                    static_parameters,
-                    where_clauses,
-                    ty,
-                    value,
-                    ..
-                } => {
-                    self.declare_associated_type_member(
-                        module,
-                        profile,
-                        *member_id,
-                        static_parameters.as_deref(),
-                        where_clauses.as_deref(),
-                        *ty,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                        defer_type_evaluation,
-                    )?;
-                }
+                Member::Type { .. } => {}
                 Member::Field {
                     modifiers,
                     key,
@@ -1807,6 +1797,17 @@ impl Compiler {
         let defer_type_evaluation = self.should_defer_declaration_types(module);
         let mut shape = ObjectShape::default();
 
+        // predeclare associated type members so later member references can resolve by symbol
+        self.declare_associated_type_members(
+            module,
+            profile,
+            members,
+            tree,
+            symbols,
+            types,
+            defer_type_evaluation,
+        )?;
+
         // collect member contributions
         for member_id in members {
             let member_shape = self.declare_member(
@@ -1841,29 +1842,7 @@ impl Compiler {
         let mut shape = ObjectShape::default();
 
         match member {
-            Member::Type {
-                static_parameters,
-                where_clauses,
-                ty,
-                value,
-                ..
-            } => {
-                self.declare_associated_type_member(
-                    module,
-                    profile,
-                    member_id,
-                    static_parameters.as_deref(),
-                    where_clauses.as_deref(),
-                    *ty,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    defer_type_evaluation,
-                )?;
-
-                Ok(shape)
-            }
+            Member::Type { .. } => Ok(shape),
             Member::Field {
                 modifiers,
                 key,
@@ -2658,6 +2637,47 @@ impl Compiler {
             }
             _ => None,
         }
+    }
+
+    /// Declare a type member alias and its generics.
+    fn declare_associated_type_members(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        defer_type_evaluation: bool,
+    ) -> AnalyzeResult<()> {
+        for member_id in members {
+            let Member::Type {
+                static_parameters,
+                where_clauses,
+                ty,
+                value,
+                ..
+            } = tree.get(*member_id)
+            else {
+                continue;
+            };
+
+            self.declare_associated_type_member(
+                module,
+                profile,
+                *member_id,
+                static_parameters.as_deref(),
+                where_clauses.as_deref(),
+                *ty,
+                *value,
+                tree,
+                symbols,
+                types,
+                defer_type_evaluation,
+            )?;
+        }
+
+        Ok(())
     }
 
     /// Declare a type member alias and its generics.

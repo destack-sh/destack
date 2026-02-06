@@ -346,9 +346,33 @@ impl Compiler {
         let resolved_member_ty_id = if let Some(enum_field_value_ty_id) = enum_field_value_ty_id {
             enum_field_value_ty_id
         } else if let Some(member_ty_id) = member_ty_id {
+            // apply receiver and extension substitutions
             let member_ty_id = if !substitutions.is_empty() {
                 let mut cache = HashMap::new();
                 self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
+            } else {
+                member_ty_id
+            };
+
+            // rewrite owner scoped associated aliases after substitution
+            let member_ty_id = if let Some(member_symbol) = member_symbol {
+                if let Some(owner_symbol) =
+                    self.owner_symbol_for_member_symbol(module, ctx.profile, member_symbol, symbols)
+                {
+                    self.rewrite_associated_aliases_for_owner(
+                        module,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        owner_symbol,
+                        &substitutions,
+                        member_ty_id,
+                        tree,
+                        symbols,
+                        types,
+                    )
+                } else {
+                    member_ty_id
+                }
             } else {
                 member_ty_id
             };
