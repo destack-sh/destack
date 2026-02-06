@@ -5,7 +5,7 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 ## Status
 
 The pass rate intentionally excludes the explicitly ignored tests.
-We exclude a small subset of legacy, non-standard or mutually conflicting test expectations.
+We exclude a small subset of legacy, non-standard and mutually conflicting test expectations.
 (See the individual *-ignored.txt files for details.)
 
 <!-- (results are automatically updated by the conformance test runner) -->
@@ -15,11 +15,11 @@ We exclude a small subset of legacy, non-standard or mutually conflicting test e
 | babel    |   690  |     0  |    25  |   690 | 100.00% |
 | biome    |   608  |     0  |    29  |   608 | 100.00% |
 | swc      |   525  |     0  |    13  |   525 | 100.00% |
-| test262  |  4410  |   953  |     -  |  5363 |  82.23% |
+| test262  |  4561  |   642  |   160  |  5203 |  87.66% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  6233  |   953  |     67  |  7186 |  86.74% |
+| total    |  6384  |   642  |    227  |  7026 |  90.86% |
 
-Total Blended Pass Rate: **86.74%**
+Total Blended Pass Rate: **90.86%**
 <!-- end:summary-results -->
 
 ### babel
@@ -134,12 +134,12 @@ Total Blended Pass Rate: **86.74%**
 <!-- begin:test262-results -->
 | Category             | Passed | Failed | Ignored | Total |  Rate   |
 |:---------------------|-------:|-------:|--------:|------:|--------:|
-| early                |   338  |   330  |       -  |   668 |  50.60% |
-| fail                 |   380  |   349  |       -  |   729 |  52.13% |
-| pass                 |  1829  |   154  |       -  |  1983 |  92.23% |
-| pass-explicit        |  1863  |   120  |       -  |  1983 |  93.95% |
+| early                |   411  |   257  |       -  |   668 |  61.53% |
+| fail                 |   436  |   293  |       -  |   729 |  59.81% |
+| pass                 |  1834  |    46  |     103  |  1880 |  97.55% |
+| pass-explicit        |  1880  |    46  |      57  |  1926 |  97.61% |
 |----------------------|--------|--------|---------|-------|---------|
-| total                |  4410  |   953  |       -  |  5363 |  82.23% |
+| total                |  4561  |   642  |     160  |  5203 |  87.66% |
 <!-- end:test262-results -->
 
 ## Notes
