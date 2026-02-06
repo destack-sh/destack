@@ -427,7 +427,7 @@ mod tests {
     use destack_ast::{
         Argument, Asynchrony, BinaryOperator, Declaration, DeclarationDescriptor, Expression,
         FunctionCardinality, FunctionKind, FunctionMode, IntType, Parameter, ScalarLiteral,
-        TypeLiteral, VarianceModifier, WhereClause,
+        TypeLiteral, VarianceModifier, WhereClause, YieldCardinality,
     };
 
     use destack_source::LanguageType;
@@ -869,6 +869,218 @@ async function* foo() => int32 {
             assert_string!(parser, descriptor.name.unwrap().string(), "foo");
             assert_eq!(signature.asynchrony, Asynchrony::Async);
             assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+        });
+    }
+
+    /// Parse a generator function with a bare yield call argument.
+    #[test]
+    fn test_parse_function_generator_call_argument_with_bare_yield_javascript() {
+        // source: function* a() { b.c(yield); }
+        let mut test =
+            TestParser::new_with_options("function* a() { b.c(yield); }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // function* a() { b.c(yield); }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                // { b.c(yield); }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    // b.c(yield);
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Call { left, dynamic_arguments, .. } => {
+                            assert_eq!(dynamic_arguments.len(), 1);
+                            // b.c
+                            assert_expression_path!(parser, parser.tree.get(*left), "b.c");
+                            // yield
+                            assert_node!(parser.tree, dynamic_arguments[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::Yield { cardinality, value } => {
+                                    assert_eq!(*cardinality, YieldCardinality::Scalar);
+                                    assert!(value.is_none());
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse nested generator yield expressions.
+    #[test]
+    fn test_parse_function_generator_nested_yield_javascript() {
+        // source: function *a() { yield yield }
+        let mut test =
+            TestParser::new_with_options("function *a() { yield yield }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // function *a() { yield yield }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                // { yield yield }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    // yield yield
+                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
+                        assert_eq!(*cardinality, YieldCardinality::Scalar);
+                        assert!(value.is_some());
+                        // yield
+                        assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Scalar);
+                            assert!(value.is_none());
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse delegated generator yield with a direct identifier operand.
+    #[test]
+    fn test_parse_function_generator_delegate_yield_javascript() {
+        // source: function *a() { yield *a }
+        let mut test =
+            TestParser::new_with_options("function *a() { yield *a }", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // function *a() { yield *a }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                // { yield *a }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    // yield *a
+                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
+                        assert_eq!(*cardinality, YieldCardinality::Generator);
+                        assert!(value.is_some());
+                        assert_expression_path!(parser, parser.tree.get(value.unwrap()), "a");
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse delegated generator yield with a nested bare yield operand.
+    #[test]
+    fn test_parse_function_generator_delegate_nested_yield_javascript() {
+        // source: function *a() { yield *yield }
+        let mut test = TestParser::new_with_options(
+            "function *a() { yield *yield }",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // function *a() { yield *yield }
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                // { yield *yield }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    // yield *yield
+                    assert_node!(parser.tree, block.expressions[0], Expression::Yield { cardinality, value } => {
+                        assert_eq!(*cardinality, YieldCardinality::Generator);
+                        assert!(value.is_some());
+                        // yield
+                        assert_node!(parser.tree, value.unwrap(), Expression::Yield { cardinality, value } => {
+                            assert_eq!(*cardinality, YieldCardinality::Scalar);
+                            assert!(value.is_none());
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Reject delegated generator yield when a line terminator appears before `*`.
+    #[test]
+    fn test_reject_function_generator_delegate_after_newline_javascript() {
+        // source: function *a(){yield
+        // *a}
+        let mut test =
+            TestParser::new_with_options("function *a(){yield\n*a}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        // *
+        assert_eq!(parser.get_span_str(error.leaf_span()), "*");
+    }
+
+    /// Parse generator yield in class heritage expression.
+    #[test]
+    fn test_parse_function_generator_yield_in_class_heritage_javascript() {
+        // source: function* a(){(class extends (yield) {});}
+        let mut test = TestParser::new_with_options(
+            "function* a(){(class extends (yield) {});}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        // function* a(){(class extends (yield) {});}
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                // { (class extends (yield) {}); }
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    assert_node!(parser.tree, block.expressions[0], Expression::Statement(statement_id) => {
+                        assert_node!(parser.tree, *statement_id, Expression::Parenthesized { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse generator yield in computed property keys and assignment targets.
+    #[test]
+    fn test_parse_function_generator_yield_in_computed_keys_javascript() {
+        // source: function* a(){(class {[yield](){}})};
+        let mut test = TestParser::new_with_options(
+            "function* a(){(class {[yield](){}})};",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    assert_node!(parser.tree, block.expressions[0], Expression::Parenthesized { .. });
+                });
+            });
+        });
+
+        // source: function* a(){({[yield]:a}=1)}
+        let mut test = TestParser::new_with_options(
+            "function* a(){({[yield]:a}=1)}",
+            LanguageType::JavaScript,
+        );
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+            assert_node!(parser.tree, *declaration_id, Declaration::Function { signature, body: Some(body), .. } => {
+                assert_eq!(signature.cardinality, FunctionCardinality::Generator);
+                assert_node!(parser.tree, *body, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.expressions.len(), 1);
+                    assert_node!(parser.tree, block.expressions[0], Expression::Parenthesized { .. });
+                });
+            });
         });
     }
 

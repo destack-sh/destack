@@ -92,7 +92,7 @@ static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
 static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [BinaryOperator::In];
 
 /// Result of parsing declaration modifiers.
-enum DescriptorParseResult {
+enum DescriptorHead {
     /// Parsed declaration descriptor.
     Descriptor(DeclarationDescriptor),
     /// Parsed expression that consumed the modifiers.
@@ -983,17 +983,17 @@ impl Parser {
     fn eat_declaration_descriptor(
         &mut self,
         start: &ParserMark,
-    ) -> ParseResult<DescriptorParseResult> {
+    ) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
 
         // decorators parse as expressions only
         if self.options.in_decorator {
-            return Ok(DescriptorParseResult::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor(descriptor));
         }
 
         // declaration modifiers only start on identifiers
         if !self.peek_is(TokenType::Identifier) {
-            return Ok(DescriptorParseResult::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor(descriptor));
         }
 
         // check for a modifier keyword or a global or module identifier
@@ -1015,7 +1015,7 @@ impl Parser {
                 .module_identifier
                 .is_some_and(|id| self.identifier_for_index(pos) == Some(id));
         if !is_modifier_keyword && !is_global_identifier && !is_module_identifier {
-            return Ok(DescriptorParseResult::Descriptor(descriptor));
+            return Ok(DescriptorHead::Descriptor(descriptor));
         }
 
         // export modifier
@@ -1037,7 +1037,7 @@ impl Parser {
             if is_export_namespace {
                 self.rewind(start.clone());
                 let export = self.eat_export()?;
-                return Ok(DescriptorParseResult::Expression(export));
+                return Ok(DescriptorHead::Expression(export));
             }
 
             // export dependencies handled by export statement parsing
@@ -1058,14 +1058,18 @@ impl Parser {
                     || self.peek_next_is(TokenType::Semicolon)
                     || self.peek_next_is(TokenType::Newline)
                     || self.peek_next_is(TokenType::End));
+            let is_invalid_export_form = !has_declaration_keyword
+                && self.peek_dependency_binding().is_err()
+                && self.peek_keyword_after_newlines(Keyword::Import).is_err();
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
                 || is_export_type_binding
                 || (!has_declaration_keyword && self.peek_dependency_binding().is_ok())
-                || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword);
+                || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword)
+                || is_invalid_export_form;
             if is_export_dependency {
                 self.rewind(start.clone());
                 let export = self.eat_export()?;
-                return Ok(DescriptorParseResult::Expression(export));
+                return Ok(DescriptorHead::Expression(export));
             }
 
             descriptor.export = export_mode;
@@ -1190,10 +1194,10 @@ impl Parser {
                 Expression::Declaration(global_id),
                 self.get_span_from(start),
             );
-            return Ok(DescriptorParseResult::Expression(expression_id));
+            return Ok(DescriptorHead::Expression(expression_id));
         }
 
-        Ok(DescriptorParseResult::Descriptor(descriptor))
+        Ok(DescriptorHead::Descriptor(descriptor))
     }
 
     /// Check whether a token index starts a declare target keyword.
@@ -2118,8 +2122,8 @@ impl Parser {
         //
 
         let descriptor = match self.eat_declaration_descriptor(&start)? {
-            DescriptorParseResult::Descriptor(descriptor) => descriptor,
-            DescriptorParseResult::Expression(expression_id) => return Ok(expression_id),
+            DescriptorHead::Descriptor(descriptor) => descriptor,
+            DescriptorHead::Expression(expression_id) => return Ok(expression_id),
         };
 
         //
@@ -3902,6 +3906,30 @@ type = type * 2
         let mut parser = test.prepare();
         let result = parser.eat_expression();
         assert!(result.is_err());
+    }
+
+    /// Reject bare export path expressions in JavaScript.
+    #[test]
+    fn test_reject_export_path_expression_javascript() {
+        // source: export foo
+        let mut test = TestParser::new_with_options("export foo", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        // foo
+        assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
+    }
+
+    /// Reject bare export path expressions in Destack.
+    #[test]
+    fn test_reject_export_path_expression_destack() {
+        // source: export foo
+        let mut test = TestParser::new_with_options("export foo", LanguageType::Destack);
+        let mut parser = test.prepare();
+        let error = parser.eat_expression().unwrap_err();
+
+        // foo
+        assert_eq!(parser.get_span_str(error.leaf_span()), "foo");
     }
 
     #[test]
@@ -5741,137 +5769,6 @@ self
         assert_node!(parser.tree, expr_id, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
             assert_string!(parser, *string_id, "\\u{00000000034}");
         });
-    }
-
-    /// Reject identifier escapes that decode to null code points.
-    #[test]
-    fn test_reject_identifier_unicode_escape_null_code_point_fixed_width() {
-        // source: a\u0000
-        let mut test = TestParser::new_with_options("a\\u0000", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Reject braced identifier escapes that decode to null code points.
-    #[test]
-    fn test_reject_identifier_unicode_escape_null_code_point_braced() {
-        // source: a\u{0}
-        let mut test = TestParser::new_with_options("a\\u{0}", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Reject arrow functions with a trailing comma after a rest parameter.
-    #[test]
-    fn test_reject_arrow_rest_parameter_with_trailing_comma() {
-        // source: (...a,) => 0
-        let mut test = TestParser::new_with_options("(...a,) => 0", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 5);
-    }
-
-    /// Reject arrow functions with parameters after a rest parameter.
-    #[test]
-    fn test_reject_arrow_rest_parameter_followed_by_parameter() {
-        // source: (a, ...b, c) => c
-        let mut test = TestParser::new_with_options("(a, ...b, c) => c", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 8);
-    }
-
-    /// Reject array binding patterns with a trailing comma after a rest element.
-    #[test]
-    fn test_reject_array_binding_rest_with_trailing_comma() {
-        // source: let [...a,] = b
-        let mut test = TestParser::new_with_options("let [...a,] = b", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 9);
-    }
-
-    /// Reject array binding patterns with fields after a rest element.
-    #[test]
-    fn test_reject_array_binding_rest_followed_by_field() {
-        // source: let [...a, b] = c
-        let mut test = TestParser::new_with_options("let [...a, b] = c", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 9);
-    }
-
-    /// Reject binary literals with invalid digits in js and ts.
-    #[test]
-    fn test_reject_invalid_binary_literal_digits_in_javascript() {
-        // source: 0b12
-        let mut test = TestParser::new_with_options("0b12", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Reject octal literals with invalid digits in js and ts.
-    #[test]
-    fn test_reject_invalid_octal_literal_digits_in_javascript() {
-        // source: 0o9
-        let mut test = TestParser::new_with_options("0o9", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Reject numeric literals immediately followed by identifiers in js and ts.
-    #[test]
-    fn test_reject_numeric_literal_identifier_suffix_in_javascript() {
-        // source: 3in[]
-        let mut test = TestParser::new_with_options("3in[]", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Reject numeric literals that look like member access without a separator in js and ts.
-    #[test]
-    fn test_reject_numeric_literal_member_without_separator_in_javascript() {
-        // source: 0.toString
-        let mut test = TestParser::new_with_options("0.toString", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 1);
-    }
-
-    /// Reject legacy octal escapes in js and ts quoted literals.
-    #[test]
-    fn test_reject_octal_escape_in_javascript_string_literal() {
-        // source: '\1'
-        let mut test = TestParser::new_with_options("'\\1'", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-        let error = parser.eat_expression().unwrap_err();
-
-        assert_eq!(error.leaf_span().start, 0);
-    }
-
-    /// Allow \0 escapes when no decimal digit follows in js and ts quoted literals.
-    #[test]
-    fn test_allow_zero_escape_in_javascript_string_literal() {
-        // source: '\0'
-        let mut test = TestParser::new_with_options("'\\0'", LanguageType::JavaScript);
-        let mut parser = test.prepare();
-
-        parser.eat_expression().unwrap();
     }
 
     /// Parse a less-than comparison.

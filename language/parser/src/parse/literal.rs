@@ -304,9 +304,33 @@ impl Parser {
 
             // regex string literal (ignore quotes)
             LiteralType::RegexString { has_flags } => {
+                // regex literals require a closing slash
+                if !literal_str.starts_with('/') {
+                    return Err(ParseError::expected_for(
+                        literal_span.span,
+                        TokenType::Literal,
+                        NodeType::Expression,
+                    ));
+                }
+
                 // regex without flags
                 if !has_flags {
-                    let content = literal_str.trim_start_matches("/").trim_end_matches("/");
+                    if !literal_str.ends_with('/') || literal_str.len() < 2 {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
+
+                    let content = &literal_str[1..literal_str.len() - 1];
+                    if self.contains_js_line_terminator(content) {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
                     let string_id = self.strings.intern(content);
                     Ok(ScalarLiteral::RegexString {
                         content: string_id,
@@ -315,9 +339,30 @@ impl Parser {
                 }
                 // regex with flags
                 else {
-                    let last_slash_index = literal_str.rfind('/').unwrap();
+                    let Some(last_slash_index) = literal_str.rfind('/') else {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    };
+                    if last_slash_index == 0 {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
+
                     let content = &literal_str[1..last_slash_index];
                     let flags = &literal_str[last_slash_index + 1..];
+                    if flags.is_empty() || self.contains_js_line_terminator(content) {
+                        return Err(ParseError::expected_for(
+                            literal_span.span,
+                            TokenType::Literal,
+                            NodeType::Expression,
+                        ));
+                    }
                     if !self.regex_flags_are_valid(flags) {
                         return Err(ParseError::expected_for(
                             literal_span.span,
@@ -490,6 +535,17 @@ impl Parser {
         }
 
         next.span.start == literal.span.end
+    }
+
+    /// Return true when content contains a js line terminator code point.
+    ///
+    /// Regex literal bodies cannot contain raw line terminators.
+    /// This stays in parser validation because the lexer intentionally tokenizes
+    /// regex literals broadly and defers syntax-specific checks to parse.
+    fn contains_js_line_terminator(&self, content: &str) -> bool {
+        content
+            .chars()
+            .any(|character| matches!(character, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
     }
 
     /// Return true when regex flags are valid for modern js and ts.
@@ -1553,6 +1609,34 @@ mod tests {
         );
     }
 
+    /// Parse a single quoted line separator character literal.
+    #[test]
+    fn test_parse_single_quoted_line_separator_character_literal() {
+        // source: ('\u{2028}')
+        let mut test = TestParser::new("('\u{2028}')");
+        let mut parser = test.prepare();
+
+        parser
+            .eat_token(destack_ast::TokenType::OpenParenthesis)
+            .unwrap();
+        let literal = parser.eat_scalar_literal().unwrap();
+        assert!(matches!(literal, ScalarLiteral::Character('\u{2028}')));
+    }
+
+    /// Parse a single quoted paragraph separator character literal.
+    #[test]
+    fn test_parse_single_quoted_paragraph_separator_character_literal() {
+        // source: ('\u{2029}')
+        let mut test = TestParser::new("('\u{2029}')");
+        let mut parser = test.prepare();
+
+        parser
+            .eat_token(destack_ast::TokenType::OpenParenthesis)
+            .unwrap();
+        let literal = parser.eat_scalar_literal().unwrap();
+        assert!(matches!(literal, ScalarLiteral::Character('\u{2029}')));
+    }
+
     /// Parse a regex string literal.
     #[test]
     fn test_parse_regex_string_literal() {
@@ -1579,6 +1663,29 @@ mod tests {
             }
             other => panic!("expected regex string literal, got {other:?}"),
         }
+    }
+
+    /// Reject unterminated regex literals.
+    #[test]
+    fn test_reject_unterminated_regex_literal() {
+        // source: /42
+        let mut test = TestParser::new("/42");
+        let mut parser = test.prepare();
+
+        let result = parser.eat_scalar_literal();
+        assert!(result.is_err());
+    }
+
+    /// Reject regex literals with raw line terminators.
+    #[test]
+    fn test_reject_regex_literal_with_line_terminator() {
+        // source: /test
+        // /
+        let mut test = TestParser::new("/test\n/");
+        let mut parser = test.prepare();
+
+        let result = parser.eat_scalar_literal();
+        assert!(result.is_err());
     }
 
     /// Parse a template string literal.

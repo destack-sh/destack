@@ -339,10 +339,10 @@ impl Parser {
                     let pattern = self.eat_pattern().for_node_type(NodeType::Pattern)?;
                     let default = if self.peek_is(TokenType::Assign) {
                         self.bump(); // eat assign
-                        let default = self
-                            .with_options(self.options.not_in_position(), |parser| {
-                                parser.eat_expression()
-                            })?;
+                        let default = self.with_options(
+                            self.options.not_in_position().not_in_sequence_expression(),
+                            |parser| parser.eat_expression(),
+                        )?;
                         Some(default)
                     } else {
                         None
@@ -399,10 +399,10 @@ impl Parser {
                             // default
                             let default = if self.peek_is(TokenType::Assign) {
                                 self.bump(); // eat assign
-                                let default = self
-                                    .with_options(self.options.not_in_position(), |parser| {
-                                        parser.eat_expression()
-                                    })?;
+                                let default = self.with_options(
+                                    self.options.not_in_position().not_in_sequence_expression(),
+                                    |parser| parser.eat_expression(),
+                                )?;
                                 Some(default)
                             } else {
                                 None
@@ -420,10 +420,10 @@ impl Parser {
                             // default
                             let default = if self.peek_is(TokenType::Assign) {
                                 self.bump(); // eat assign
-                                let default = self
-                                    .with_options(self.options.not_in_position(), |parser| {
-                                        parser.eat_expression()
-                                    })?;
+                                let default = self.with_options(
+                                    self.options.not_in_position().not_in_sequence_expression(),
+                                    |parser| parser.eat_expression(),
+                                )?;
                                 Some(default)
                             } else {
                                 None
@@ -443,10 +443,10 @@ impl Parser {
                         // default
                         let default = if self.peek_is(TokenType::Assign) {
                             self.bump(); // eat assign
-                            let default = self
-                                .with_options(self.options.not_in_position(), |parser| {
-                                    parser.eat_expression()
-                                })?;
+                            let default = self.with_options(
+                                self.options.not_in_position().not_in_sequence_expression(),
+                                |parser| parser.eat_expression(),
+                            )?;
                             Some(default)
                         } else {
                             None
@@ -498,6 +498,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{Expression, Mutability, Pattern, PatternField, ScalarLiteral};
+    use destack_source::LanguageType;
 
     use crate::{
         TestParser, assert_expression_path, assert_name, assert_node, assert_path, assert_string,
@@ -974,6 +975,67 @@ mod tests {
             // a (identifiers are parsed as Named shorthand)
             assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, pattern: None, default: None } => {
                 assert_name!(parser, *name, "a");
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_object_pattern_defaults_do_not_consume_following_fields_javascript() {
+        // {a,b=1,c:d,e:f=2,[g]:[h]}
+        let mut test =
+            TestParser::new_with_options("{a,b=1,c:d,e:f=2,[g]:[h]}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 5);
+
+            // b=1
+            assert_node!(parser.tree, fields[1], PatternField::Named { default, .. } => {
+                assert!(default.is_some());
+            });
+
+            // c:d
+            assert_node!(parser.tree, fields[2], PatternField::Alias { default, .. } => {
+                assert!(default.is_none());
+            });
+
+            // e:f=2
+            assert_node!(parser.tree, fields[3], PatternField::Alias { default, .. } => {
+                assert!(default.is_some());
+            });
+
+            // [g]:[h]
+            assert_node!(parser.tree, fields[4], PatternField::Computed { pattern, .. } => {
+                assert!(pattern.is_some());
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_object_pattern_alias_and_computed_defaults_javascript() {
+        // {c, d:e=1, [f]:g=2, h=i}
+        let mut test =
+            TestParser::new_with_options("{c, d:e=1, [f]:g=2, h=i}", LanguageType::JavaScript);
+        let mut parser = test.prepare();
+        let pattern_id = parser.eat_pattern().unwrap();
+
+        assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
+            assert_eq!(fields.len(), 4);
+
+            // d:e=1
+            assert_node!(parser.tree, fields[1], PatternField::Alias { default, .. } => {
+                assert!(default.is_some());
+            });
+
+            // [f]:g=2
+            assert_node!(parser.tree, fields[2], PatternField::Computed { default, .. } => {
+                assert!(default.is_some());
+            });
+
+            // h=i
+            assert_node!(parser.tree, fields[3], PatternField::Named { default, .. } => {
+                assert!(default.is_some());
             });
         });
     }
