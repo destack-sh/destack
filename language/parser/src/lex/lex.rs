@@ -1377,6 +1377,14 @@ impl Lexer {
                         has_invalid_escape,
                     );
                 }
+                // line terminators are not allowed in single quoted strings
+                '\n' | '\r' => {
+                    return Self::finish_single_quoted_literal(
+                        logical_len,
+                        false,
+                        has_invalid_escape,
+                    );
+                }
                 // escaped character is considered one logical character
                 '\\' => {
                     self.eat(); // eat '\'
@@ -1427,18 +1435,26 @@ impl Lexer {
     fn eat_double_quoted_string(&mut self) -> (bool, bool) {
         debug_assert!(self.prev() == '"');
         let mut has_invalid_escape = false;
-        while let Some(c) = self.eat() {
-            match c {
+        while !self.is_end() {
+            match self.peek() {
                 '"' => {
+                    self.eat();
                     return (true, has_invalid_escape);
                 }
                 '\\' => {
+                    self.eat();
                     // consume escape sequence and track invalid escapes
                     if self.eat_string_escape_sequence() {
                         has_invalid_escape = true;
                     }
                 }
-                _ => (),
+                // line terminators are not allowed in double quoted strings
+                '\n' | '\r' => {
+                    return (false, has_invalid_escape);
+                }
+                _ => {
+                    self.eat();
+                }
             }
         }
         // end of file reached
