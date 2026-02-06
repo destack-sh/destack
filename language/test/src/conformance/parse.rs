@@ -55,6 +55,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA245", // InvalidSuperOptionalChain
     "EA246", // InvalidCatchAnnotationType
     "EA247", // InvalidTypeImportTarget
+    "EA248", // InvalidNewTarget
     "EA249", // UnsupportedObjectPrototypeSetter
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
@@ -78,6 +79,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA302", // InvalidAwait
     "EA303", // InvalidYield
     "EA304", // InvalidReturn
+    "EA307", // IncompleteTry
     "EA322", // InvalidForOfBinding
     "EA501", // InvalidConstructor
     "EA502", // InvalidInterface
@@ -96,6 +98,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
 const EARLY_RESOLVE_CODES: &[&str] = &[
     "ER201", // MissingTarget
     "ER202", // InvalidTarget
+    "ER104", // MissingExportBinding
 ];
 
 impl TestArea {

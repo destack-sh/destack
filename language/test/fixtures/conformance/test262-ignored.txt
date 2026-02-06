@@ -51,6 +51,33 @@ pass/f0d9a7a2f5d42210
 pass/f0fbbdabdaca2146
 pass/f2e41488e95243a8
 
+# sloppy mode: legacy octal escapes in string literals
+pass-explicit/0b281915a3227177
+pass-explicit/20644d335e3cd008
+pass-explicit/27ca96102da82628
+pass-explicit/3fb07536eb5aea8d
+pass-explicit/7b514406528ff126
+pass-explicit/ade301f0d871c610
+pass-explicit/d483926898410cae
+pass-explicit/fa736f4b0cf19c0c
+pass/0b281915a3227177
+pass/20644d335e3cd008
+pass/27ca96102da82628
+pass/2e371094f1b1ac51
+pass/3990bb94b19b1071
+pass/3e48826018d23c85
+pass/3fb07536eb5aea8d
+pass/71e066a0fa01825b
+pass/7b514406528ff126
+pass/8e3f0660b32fbfd2
+pass/95ab0d795c04ff38
+pass/ade301f0d871c610
+pass/b5cf21a87ec272d1
+pass/cb095c303f88cd0b
+pass/d38771967621cb8e
+pass/d483926898410cae
+pass/fa736f4b0cf19c0c
+
 # script mode: parses in script and fails in strict module
 pass-explicit/06f0deb843fbf358
 pass-explicit/123285734ee7f954
@@ -172,3 +199,17 @@ pass/59ae0289778b80cd
 pass/a4d62a651f69d815
 pass/ba21e63736d8fd46
 pass/c06df922631aeabc
+
+# script goal mismatch: declarations that are invalid in script but valid in modules
+fail/0f8806b7b4358487
+fail/4554c00dbb28cad8
+fail/7fdf990c6f42edcd
+fail/80da22a7d2a15fc5
+fail/975d02f132c05a98
+
+# modern class fields: parser tests still expect these legacy failures
+fail/98204d734f8c72b3
+fail/ef81b93cf9bdb4ec
+
+# non standard syntax: expression closures are intentionally unsupported
+fail/e82474d52b99f1b7

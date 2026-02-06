@@ -66,6 +66,13 @@ impl Compiler {
         }
 
         let name_str = self.program.strings.get(name);
+        if name_str.as_ref() == "null"
+            || name_str.as_ref() == "true"
+            || name_str.as_ref() == "false"
+        {
+            return true;
+        }
+
         let Ok(keyword) = Keyword::from_str(name_str.as_ref()) else {
             return false;
         };
@@ -74,10 +81,8 @@ impl Compiler {
 
     /// Check if a name is reserved for strict mode assignment targets.
     pub(super) fn is_reserved_strict_assignment_name(&self, name: StringId) -> bool {
-        let eval_name = self.program.strings.intern("eval");
-        let arguments_name = self.program.strings.intern("arguments");
-
-        name == eval_name || name == arguments_name
+        let name_str = self.program.strings.get(name);
+        name_str.as_ref() == "eval" || name_str.as_ref() == "arguments"
     }
 
     /// Validate binding identifiers.

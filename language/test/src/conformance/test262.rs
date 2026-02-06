@@ -126,9 +126,12 @@ impl ConformanceSuite for Test262Suite {
             Err(_) => return TestOutcome::Failed,
         };
 
-        // early/ tests check for early errors (bind + flow), others only check parse errors
+        // early tests use the full early pipeline
+        // fail fixtures include many early syntax errors we intentionally enforce in analyze
         let area = if category == "early" {
             TestArea::Early
+        } else if category == "fail" {
+            TestArea::EarlySyntax
         } else {
             TestArea::Parse
         };
