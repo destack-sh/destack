@@ -10,7 +10,6 @@ use destack_dir::{
     Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
-use std::collections::HashSet;
 use std::str::FromStr;
 
 #[allow(clippy::too_many_arguments)]
@@ -118,14 +117,7 @@ impl Compiler {
             | Expression::Index { left, .. } => {
                 self.validate_new_target_expression(module, profile, tree, expression_id);
                 self.validate_super_property_expression(module, profile, tree, expression_id);
-                self.validate_instantiation_access(
-                    module,
-                    profile,
-                    tree,
-                    types,
-                    expression_id,
-                    *left,
-                );
+                self.validate_instantiation_access(module, profile, tree, expression_id, *left);
             }
             Expression::Maybe { left } => {
                 self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
@@ -1853,7 +1845,6 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
-        types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
@@ -1862,45 +1853,11 @@ impl Compiler {
             return;
         }
 
-        // only report on value-space instantiations
-        if !self.instantiation_access_target_is_value_space(module, tree, types, left) {
-            return;
-        }
-
         // report invalid instantiation access
         let node = expression_id
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidInstantiationAccess { node });
-    }
-
-    /// Check whether an instantiation access target is a value-space callable.
-    fn instantiation_access_target_is_value_space(
-        &self,
-        module: &Module,
-        tree: &NodeTree,
-        types: &TypeTable,
-        expression_id: LocalNodeId<Expression>,
-    ) -> bool {
-        if let Some(type_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id))
-        {
-            let mut visited = HashSet::new();
-            return self.type_is_callable_instantiation_target(type_id, types, &mut visited);
-        }
-
-        match tree.get(expression_id) {
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                matches!(target_symbol.ty(), SymbolType::Function)
-            }
-            Expression::Member { left, .. }
-            | Expression::PrivateMember { left, .. }
-            | Expression::Maybe { left } => {
-                self.instantiation_access_target_is_value_space(module, tree, types, *left)
-            }
-            _ => false,
-        }
     }
 
     /// Check whether a receiver is an unparenthesized instantiation expression.

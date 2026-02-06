@@ -980,10 +980,7 @@ impl Parser {
     }
 
     /// Eat declaration modifiers and return a descriptor or a parsed expression.
-    fn eat_declaration_descriptor(
-        &mut self,
-        start: &ParserMark,
-    ) -> ParseResult<DescriptorHead> {
+    fn eat_declaration_descriptor(&mut self, start: &ParserMark) -> ParseResult<DescriptorHead> {
         let mut descriptor: DeclarationDescriptor = DeclarationDescriptor::default();
 
         // decorators parse as expressions only
@@ -1042,8 +1039,11 @@ impl Parser {
 
             // export dependencies handled by export statement parsing
             let next_keyword = self.peek_any_keyword().ok();
-            let has_declaration_keyword =
-                next_keyword.is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw));
+            let has_module_identifier_declaration = self.language.supports_module_declaration()
+                && self.peek_identifier_str("module").is_ok();
+            let has_declaration_keyword = next_keyword
+                .is_some_and(|kw| DECLARATION_KEYWORDS.contains(&kw))
+                || has_module_identifier_declaration;
 
             // reject export default enum declarations
             if export_mode == Some(DependencyMode::Default)
@@ -1059,6 +1059,7 @@ impl Parser {
                     || self.peek_next_is(TokenType::Newline)
                     || self.peek_next_is(TokenType::End));
             let is_invalid_export_form = !has_declaration_keyword
+                && !self.peek_is(TokenType::At)
                 && self.peek_dependency_binding().is_err()
                 && self.peek_keyword_after_newlines(Keyword::Import).is_err();
             let is_export_dependency = export_mode == Some(DependencyMode::Namespace)

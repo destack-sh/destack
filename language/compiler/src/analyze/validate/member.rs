@@ -261,6 +261,12 @@ impl Compiler {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidMemberModifier { node });
                     }
+
+                    // js class methods must provide bodies
+                    if is_javascript && body.is_none() && !is_declare_class && !is_declare_member {
+                        let node = id.into_global_any(module.id).into_anchored(Some(profile));
+                        self.error(AnalyzeError::InvalidFunction { node });
+                    }
                 }
 
                 // interface method constraints
@@ -728,6 +734,42 @@ mod tests {
         test.analyze_module(module_id);
         test.compile();
         test.check_no_diagnostic_code("EA501");
+    }
+
+    /// Reject duplicate constructor implementations with constructor named string keys.
+    #[test]
+    fn test_reject_duplicate_constructor_named_string_method() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { constructor() {} 'constructor'() {} }
+        let module_id = test.add_module(
+            "test.js",
+            r#"class A { constructor() {} 'constructor'() {} }"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA501");
+    }
+
+    /// Reject JavaScript class method signatures without bodies.
+    #[test]
+    fn test_reject_javascript_class_method_without_body() {
+        let test = TestProgram::memory_sequential();
+
+        // source: class A { constructor() {} 'constructor'() }
+        let module_id =
+            test.add_module("test.js", r#"class A { constructor() {} 'constructor'() }"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA503");
     }
 
     /// Reject non-simple class method parameters with strict directive prologues in JS and TS.

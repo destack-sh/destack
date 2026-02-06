@@ -81,6 +81,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA304", // InvalidReturn
     "EA307", // IncompleteTry
     "EA322", // InvalidForOfBinding
+    "EA323", // InvalidCatchBinding
     "EA501", // InvalidConstructor
     "EA502", // InvalidInterface
     "EA503", // InvalidFunction
