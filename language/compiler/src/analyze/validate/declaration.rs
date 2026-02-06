@@ -4,10 +4,10 @@ use crate::{AnalyzeError, Compiler};
 use destack_ast::Keyword;
 use destack_base::StringId;
 use destack_dir::{
-    Asynchrony, BindingOperator, Declaration, DeclarationAbstraction, DeclarationKind,
-    DependencyKind, DependencyMode, Expression, FunctionCardinality, FunctionKind,
-    ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Name, NodeTree, NodeType, Path, SymbolTable,
-    TypeTable,
+    Asynchrony, BindingAnchor, BindingOperator, Declaration, DeclarationAbstraction,
+    DeclarationKind, DependencyKind, DependencyMode, DynamicKey, Expression, FunctionCardinality,
+    FunctionKind, FunctionMode, ImportAliasTarget, LocalNodeId, LocalNodeIdAny, Member, Name,
+    NodeTree, NodeType, Path, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -230,9 +230,7 @@ impl Compiler {
             }
 
             Declaration::Class {
-                heritage,
-                members: _,
-                ..
+                heritage, members, ..
             } => {
                 // resolve the class node for diagnostics
                 let node = id.into_global_any(module.id).into_anchored(Some(profile));
@@ -293,6 +291,9 @@ impl Compiler {
                         embedded_symbols: Vec::new(),
                     });
                 }
+
+                // class bodies can contain at most one constructor definition
+                self.validate_class_constructor_members(module, profile, tree, members);
             }
 
             Declaration::Extension {
@@ -303,6 +304,86 @@ impl Compiler {
 
             _ => {}
         }
+    }
+
+    /// Validate duplicate constructor definitions in class members.
+    fn validate_class_constructor_members(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        members: &[LocalNodeId<Member>],
+    ) {
+        // track whether a constructor has already been declared
+        let mut has_constructor_member = false;
+
+        // scan class members in source order
+        for member_id in members {
+            let Member::Method {
+                modifiers,
+                key,
+                signature,
+                ..
+            } = tree.get(*member_id)
+            else {
+                continue;
+            };
+
+            // skip members that are not constructor definitions
+            if !self.class_member_is_constructor_definition(
+                modifiers.as_ref(),
+                key.as_ref(),
+                signature,
+            ) {
+                continue;
+            }
+
+            // report duplicate constructor definitions
+            if has_constructor_member {
+                let node = (*member_id)
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile));
+                self.error(AnalyzeError::InvalidConstructor { node });
+                continue;
+            }
+
+            has_constructor_member = true;
+        }
+    }
+
+    /// Return true when a class method is a constructor definition.
+    fn class_member_is_constructor_definition(
+        &self,
+        modifiers: Option<&destack_dir::BindingModifier>,
+        key: Option<&DynamicKey>,
+        signature: &destack_dir::FunctionSignature,
+    ) -> bool {
+        // static methods are never constructors
+        let is_static =
+            modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
+        if is_static {
+            return false;
+        }
+
+        // explicit constructor signatures are constructors
+        if signature.mode == Some(FunctionMode::Constructor) {
+            return true;
+        }
+
+        // accessor forms do not define constructors
+        if matches!(
+            signature.mode,
+            Some(FunctionMode::Getter | FunctionMode::Setter)
+        ) {
+            return false;
+        }
+
+        // named methods with the key `constructor` also define constructors
+        let Some(DynamicKey::Name(name)) = key else {
+            return false;
+        };
+
+        self.program.strings.get(*name) == "constructor"
     }
 
     /// Check whether a name is reserved as an intrinsic type identifier.

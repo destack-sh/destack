@@ -55,6 +55,7 @@ const EARLY_SYNTAX_ANALYZE_CODES: &[&str] = &[
     "EA245", // InvalidSuperOptionalChain
     "EA246", // InvalidCatchAnnotationType
     "EA247", // InvalidTypeImportTarget
+    "EA249", // UnsupportedObjectPrototypeSetter
     "EA218", // ExportNamespaceOutsideDeclaration
     "EA219", // InvalidTypeParameterModifier
     "EA220", // InvalidReadonlyType
