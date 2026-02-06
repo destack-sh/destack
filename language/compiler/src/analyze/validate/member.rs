@@ -53,7 +53,7 @@ impl Compiler {
             } => {
                 // normalize modifiers and flags
                 let modifiers = modifiers.as_ref();
-                let is_constructor = signature.mode == Some(FunctionMode::Constructor);
+                let is_constructor = self.method_signature_is_constructor(signature, key.as_ref());
                 let has_static_parameters = signature
                     .generics
                     .as_ref()
@@ -184,10 +184,7 @@ impl Compiler {
                         key_name.is_some_and(|name| self.program.strings.get(name) == "prototype");
 
                     // reject invalid constructor named instance members
-                    if !is_static
-                        && is_constructor_name
-                        && signature.mode != Some(FunctionMode::Constructor)
-                    {
+                    if !is_static && is_constructor_name && !is_constructor {
                         let node = id.into_global_any(module.id).into_anchored(Some(profile));
                         self.error(AnalyzeError::InvalidConstructor { node });
                     }
@@ -478,6 +475,33 @@ impl Compiler {
 
             _ => {}
         }
+    }
+
+    /// Check whether a method signature is a constructor.
+    fn method_signature_is_constructor(
+        &self,
+        signature: &FunctionSignature,
+        key: Option<&DynamicKey>,
+    ) -> bool {
+        // preserve explicit constructor mode from parsing
+        if signature.mode == Some(FunctionMode::Constructor) {
+            return true;
+        }
+
+        // only plain methods can fall back to constructor key matching
+        if !matches!(signature.mode, None | Some(FunctionMode::Call)) {
+            return false;
+        }
+
+        // constructors cannot be async or generator methods
+        if signature.asynchrony == Asynchrony::Async
+            || signature.cardinality == FunctionCardinality::Generator
+        {
+            return false;
+        }
+
+        let key_name = self.member_key_name(key);
+        key_name.is_some_and(|name| self.program.strings.get(name) == "constructor")
     }
 
     /// Check whether a member belongs to an abstract class.

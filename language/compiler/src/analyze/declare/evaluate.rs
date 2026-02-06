@@ -5,9 +5,9 @@ use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
     Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
     LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions,
-    Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace, SymbolSpaceOrder,
-    SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    Parameter, Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
     TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -838,6 +838,16 @@ impl Compiler {
                 });
             if !defer_type_evaluation {
                 self.evaluate_type(module, profile, declared_type_id, tree, symbols, types)?;
+            }
+
+            // expand tuple rest parameters into positional call parameters
+            if matches!(tree.get(*parameter_id), Parameter::Variadic { .. })
+                && let Type::Tuple { elements, .. } = types.get_type(declared_type_id)
+            {
+                for element in elements {
+                    dynamic_parameters.push(element.ty);
+                }
+                continue;
             }
 
             dynamic_parameters.push(declared_type_id);
@@ -1952,7 +1962,7 @@ impl Compiler {
         let defer_reference_resolution = module.language_type.is_declaration()
             && (module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)));
 
-        let expression = tree.get(expression_id);
+        let expression = tree.get(expression_id).clone();
         let ty = match expression {
             Expression::Member {
                 left,
@@ -1960,13 +1970,13 @@ impl Compiler {
                 static_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
-                let member_key = StaticKey::Name(*name);
+                let member_key = StaticKey::Name(name);
 
                 let Some(member_resolution) = self.select_type_member_symbol(
                     module,
                     profile,
                     expression_id,
-                    *left,
+                    left,
                     member_key,
                     tree,
                     symbols,
@@ -2071,7 +2081,7 @@ impl Compiler {
                     self.resolve_type_reference_symbol_for_evaluation(
                         module,
                         profile,
-                        *target_symbol,
+                        target_symbol,
                         tree,
                         symbols,
                     )
@@ -2105,1209 +2115,992 @@ impl Compiler {
                     types,
                 )?
             }
-            _ => {
-                let expression = expression.clone();
-                match expression {
-                    Expression::ScalarLiteral { value } => Type::TypeLiteral {
-                        value: TypeLiteral::ScalarLiteral(value.clone()),
-                    },
-                    Expression::TypeLiteral { value } => {
-                        // reject forbidden type literals in user code
-                        if is_user_module {
-                            // disallow explicit any
-                            if options.no_any && matches!(value, TypeLiteral::Any) {
-                                return Err(AnalyzeError::AnyTypeDisabled {
-                                    node: expression_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
-
-                            // disallow explicit unknown
-                            if options.no_unknown && matches!(value, TypeLiteral::Unknown) {
-                                return Err(AnalyzeError::UnknownTypeDisabled {
-                                    node: expression_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
-
-                            // disallow imprecise primitives
-                            if options.no_imprecise_primitives
-                                && matches!(value, TypeLiteral::Primitive(PrimitiveType::Number))
-                            {
-                                return Err(AnalyzeError::ImprecisePrimitiveDisabled {
-                                    node: expression_id
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
-                        }
-
-                        // map builtin iterator return to configured strictness
-                        if let TypeLiteral::Intrinsic(IntrinsicType::BuiltinIteratorReturn) = value
-                        {
-                            let profile = self.program.profile(profile);
-                            let mapped = if profile.key.flags.strict_builtin_iterator_return {
-                                TypeLiteral::Undefined
-                            } else {
-                                TypeLiteral::Any
-                            };
-                            Type::TypeLiteral { value: mapped }
-                        } else {
-                            Type::TypeLiteral {
-                                value: value.clone(),
-                            }
-                        }
-                    }
-                    Expression::This | Expression::Super => Type::This,
-                    Expression::Parenthesized { expression } => {
-                        return self.evaluate_expression_to_type(
-                            module,
-                            profile,
-                            expression,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                            resolve_static_arguments,
-                        );
-                    }
-
-                    Expression::Declaration {
-                        declaration: declaration_id,
-                    } => {
-                        let declaration = tree.get(declaration_id).clone();
-                        if let Declaration::Function { signature, .. } = declaration {
-                            self.evaluate_function_signature_to_type(
-                                module,
-                                profile,
-                                &signature,
-                                declaration_id.into_any(),
-                                tree,
-                                symbols,
-                                types,
-                                false,
-                            )?
-                        } else {
-                            // #Incomplete: only function declarations are evaluable as types (?)
-                            return Ok(None);
-                        }
-                    }
-
-                    // not
-                    Expression::Unary {
-                        operator: UnaryOperator::Not,
-                        right,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Unary {
-                            operator: TypeUnaryOperator::Not,
-                            right: type_id,
-                        }
-                    }
-                    // maybe
-                    Expression::Maybe { .. } => {
-                        return Ok(None); // cannot be evaluated to a type here (not supported in type contexts)
-                    }
-                    // must
-                    Expression::Must { left } => {
-                        let type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            left,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Unary {
-                            operator: TypeUnaryOperator::Must,
-                            right: type_id,
-                        }
-                    }
-                    // value
-                    Expression::ValueOf {
-                        mutability,
-                        variance,
-                        right,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            false,
-                        )?;
-                        Type::ValueOf {
-                            mutability,
-                            variance,
-                            right: type_id,
-                        }
-                    }
-                    // reference
-                    Expression::ReferenceOf {
-                        mutability,
-                        variance,
-                        right,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            false,
-                        )?;
-                        Type::ReferenceOf {
-                            mutability,
-                            variance,
-                            right: type_id,
-                        }
-                    }
-                    // pointer
-                    Expression::PointerOf { mutability, right } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            false,
-                        )?;
-                        Type::PointerOf {
-                            mutability,
-                            right: type_id,
-                        }
-                    }
-                    // unary
-                    Expression::TypeUnary { operator, right } => {
-                        if operator == TypeUnaryOperator::Typeof {
-                            return Ok(Some(self.evaluate_typeof_expression(
-                                module,
-                                profile,
-                                expression_id,
-                                right,
-                                tree,
-                                symbols,
-                                types,
-                            )?));
-                        }
-
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let right_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Unary {
-                            operator,
-                            right: right_id,
-                        }
-                    }
-                    // binary
-                    Expression::TypeBinary {
-                        left,
-                        operator,
-                        right,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let left_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            left,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        let right_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Binary {
-                            left: left_id,
-                            operator,
-                            right: right_id,
-                        }
-                    }
-                    Expression::TypeConditional {
-                        left,
-                        right,
-                        then_type,
-                        else_type,
-                    } => {
-                        let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_CONDITIONAL);
-
-                        let left_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            left,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        let right_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            right,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        let distributive_symbol = self.conditional_left_distributive_symbol(
-                            module, profile, left_id, symbols, types,
-                        );
-                        let should_validate_branches = !self.type_contains_static_parameters(
-                            module,
-                            profile,
-                            left_id,
-                            symbols,
-                            types,
-                            &mut HashSet::new(),
-                        ) && validate_static_argument_bounds;
-                        let then_type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            then_type,
-                            tree,
-                            symbols,
-                            types,
-                            should_validate_branches,
-                            enforce_implicit_managed,
-                        )?;
-                        let else_type_id = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            else_type,
-                            tree,
-                            symbols,
-                            types,
-                            should_validate_branches,
-                            enforce_implicit_managed,
-                        )?;
-                        Type::Conditional {
-                            distributive_symbol,
-                            left: left_id,
-                            right: right_id,
-                            then_type: then_type_id,
-                            else_type: else_type_id,
-                        }
-                    }
-                    Expression::TypeMapped {
-                        parameter,
-                        modifiers,
-                        value,
-                    } => {
-                        let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_MAPPED);
-
-                        let constraint = self.try_evaluate_expression_to_type(
-                            module,
-                            profile,
-                            parameter.constraint,
-                            tree,
-                            symbols,
-                            types,
-                            validate_static_argument_bounds,
-                            enforce_implicit_managed,
-                        )?;
-                        // cache the mapped parameter constraint for later validation
-                        let parameter_symbol = parameter.symbol.into_global(module.id);
-                        types.set_static_parameter_constraint_type(parameter_symbol, constraint);
-                        let key_remap = parameter.key_remap.map(|key_remap| {
-                            self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                key_remap,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )
+            Expression::ScalarLiteral { value } => Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value.clone()),
+            },
+            Expression::TypeLiteral { value } => {
+                // reject forbidden type literals in user code
+                if is_user_module {
+                    // disallow explicit any
+                    if options.no_any && matches!(value, TypeLiteral::Any) {
+                        return Err(AnalyzeError::AnyTypeDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
                         });
-                        let key_remap = match key_remap {
-                            Some(Ok(key_remap)) => Some(key_remap),
-                            Some(Err(error)) => return Err(error),
-                            None => None,
-                        };
-                        let value_id = self.try_evaluate_expression_to_type(
+                    }
+
+                    // disallow explicit unknown
+                    if options.no_unknown && matches!(value, TypeLiteral::Unknown) {
+                        return Err(AnalyzeError::UnknownTypeDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+
+                    // disallow imprecise primitives
+                    if options.no_imprecise_primitives
+                        && matches!(value, TypeLiteral::Primitive(PrimitiveType::Number))
+                    {
+                        return Err(AnalyzeError::ImprecisePrimitiveDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+                }
+
+                // map builtin iterator return to configured strictness
+                if let TypeLiteral::Intrinsic(IntrinsicType::BuiltinIteratorReturn) = value {
+                    let profile = self.program.profile(profile);
+                    let mapped = if profile.key.flags.strict_builtin_iterator_return {
+                        TypeLiteral::Undefined
+                    } else {
+                        TypeLiteral::Any
+                    };
+                    Type::TypeLiteral { value: mapped }
+                } else {
+                    Type::TypeLiteral {
+                        value: value.clone(),
+                    }
+                }
+            }
+            Expression::This | Expression::Super => Type::This,
+            Expression::Parenthesized { expression } => {
+                return self.evaluate_expression_to_type(
+                    module,
+                    profile,
+                    expression,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                    resolve_static_arguments,
+                );
+            }
+
+            Expression::Declaration {
+                declaration: declaration_id,
+            } => {
+                let declaration = tree.get(declaration_id).clone();
+                if let Declaration::Function { signature, .. } = declaration {
+                    self.evaluate_function_signature_to_type(
+                        module,
+                        profile,
+                        &signature,
+                        declaration_id.into_any(),
+                        tree,
+                        symbols,
+                        types,
+                        false,
+                    )?
+                } else {
+                    // #Incomplete: only function declarations are evaluable as types (?)
+                    return Ok(None);
+                }
+            }
+
+            // not
+            Expression::Unary {
+                operator: UnaryOperator::Not,
+                right,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Unary {
+                    operator: TypeUnaryOperator::Not,
+                    right: type_id,
+                }
+            }
+            // maybe
+            Expression::Maybe { .. } => {
+                return Ok(None); // cannot be evaluated to a type here (not supported in type contexts)
+            }
+            // must
+            Expression::Must { left } => {
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Unary {
+                    operator: TypeUnaryOperator::Must,
+                    right: type_id,
+                }
+            }
+            // value
+            Expression::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    false,
+                )?;
+                Type::ValueOf {
+                    mutability,
+                    variance,
+                    right: type_id,
+                }
+            }
+            // reference
+            Expression::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    false,
+                )?;
+                Type::ReferenceOf {
+                    mutability,
+                    variance,
+                    right: type_id,
+                }
+            }
+            // pointer
+            Expression::PointerOf { mutability, right } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    false,
+                )?;
+                Type::PointerOf {
+                    mutability,
+                    right: type_id,
+                }
+            }
+            // unary
+            Expression::TypeUnary { operator, right } => {
+                if operator == TypeUnaryOperator::Typeof {
+                    return Ok(Some(self.evaluate_typeof_expression(
+                        module,
+                        profile,
+                        expression_id,
+                        right,
+                        tree,
+                        symbols,
+                        types,
+                    )?));
+                }
+
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let right_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Unary {
+                    operator,
+                    right: right_id,
+                }
+            }
+            // binary
+            Expression::TypeBinary {
+                left,
+                operator,
+                right,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                Type::Binary {
+                    left: left_id,
+                    operator,
+                    right: right_id,
+                }
+            }
+            Expression::TypeConditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_CONDITIONAL);
+
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                let distributive_symbol = self
+                    .conditional_left_distributive_symbol(module, profile, left_id, symbols, types);
+                let should_validate_branches = !self.type_contains_static_parameters(
+                    module,
+                    profile,
+                    left_id,
+                    symbols,
+                    types,
+                    &mut HashSet::new(),
+                ) && validate_static_argument_bounds;
+                let then_type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    then_type,
+                    tree,
+                    symbols,
+                    types,
+                    should_validate_branches,
+                    enforce_implicit_managed,
+                )?;
+                let else_type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    else_type,
+                    tree,
+                    symbols,
+                    types,
+                    should_validate_branches,
+                    enforce_implicit_managed,
+                )?;
+                Type::Conditional {
+                    distributive_symbol,
+                    left: left_id,
+                    right: right_id,
+                    then_type: then_type_id,
+                    else_type: else_type_id,
+                }
+            }
+            Expression::TypeMapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_MAPPED);
+
+                let constraint = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    parameter.constraint,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                // cache the mapped parameter constraint for later validation
+                let parameter_symbol = parameter.symbol.into_global(module.id);
+                types.set_static_parameter_constraint_type(parameter_symbol, constraint);
+                let key_remap = parameter.key_remap.map(|key_remap| {
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        key_remap,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )
+                });
+                let key_remap = match key_remap {
+                    Some(Ok(key_remap)) => Some(key_remap),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                let value_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    value,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+                let parameter = TypeMappedParameter {
+                    name: parameter.name,
+                    symbol: parameter_symbol,
+                    constraint,
+                    key_remap,
+                };
+                Type::Mapped {
+                    parameter,
+                    modifiers,
+                    value: value_id,
+                }
+            }
+            Expression::TypeIndex { left, index } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
+
+                // resolve the left type
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                    enforce_implicit_managed,
+                )?;
+
+                // treat declaration modules as index access only
+                let is_index_access = if module.language_type.is_declaration() {
+                    true
+                } else {
+                    // check whether the left type supports index access
+                    let supports_index_access = self.type_supports_index_access(
+                        module, profile, left_id, tree, symbols, types,
+                    )?;
+                    let is_primitive_literal = self.type_is_primitive_literal(left_id, types);
+                    supports_index_access && !is_primitive_literal
+                };
+
+                // compute the type index result
+                if !is_index_access {
+                    // treat static integer literals as array sizes
+                    if let Some(value) = self.evaluate_integer_static_literal(
+                        module, profile, index, tree, symbols, types,
+                    )? {
+                        if value < 0 {
+                            return Err(AnalyzeError::InvalidArraySize {
+                                node: index
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                            });
+                        }
+                        self.set_integer_literal_type(module.id, index, value, types);
+                        Type::ArraySized {
+                            element: left_id,
+                            count: index,
+                            is_readonly: false,
+                        }
+                    } else if self
+                        .resolve_array_size_parameter_type(
                             module,
                             profile,
-                            value,
+                            index,
+                            tree,
+                            symbols,
+                            types,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )?
+                        .is_some()
+                    {
+                        Type::ArraySized {
+                            element: left_id,
+                            count: index,
+                            is_readonly: false,
+                        }
+                    } else {
+                        let index_id = self.try_evaluate_expression_to_type(
+                            module,
+                            profile,
+                            index,
                             tree,
                             symbols,
                             types,
                             validate_static_argument_bounds,
                             enforce_implicit_managed,
                         )?;
-                        let parameter = TypeMappedParameter {
-                            name: parameter.name,
-                            symbol: parameter_symbol,
-                            constraint,
-                            key_remap,
-                        };
-                        Type::Mapped {
-                            parameter,
-                            modifiers,
-                            value: value_id,
+                        Type::Index {
+                            left: left_id,
+                            index: index_id,
                         }
                     }
-                    Expression::TypeIndex { left, index } => {
-                        let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_INDEX);
-
-                        // resolve the left type
-                        let left_id = self.try_evaluate_expression_to_type(
+                } else {
+                    let index_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        index,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Index {
+                        left: left_id,
+                        index: index_id,
+                    }
+                }
+            }
+            Expression::TypeTemplateLiteral { strings, spans } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let spans = spans
+                    .iter()
+                    .map(|span| {
+                        self.evaluate_template_literal_span_type(
                             module,
                             profile,
-                            left,
+                            *span,
                             tree,
                             symbols,
                             types,
                             validate_static_argument_bounds,
                             enforce_implicit_managed,
-                        )?;
+                        )
+                    })
+                    .collect::<AnalyzeResult<Vec<_>>>()?;
+                Type::TemplateLiteral {
+                    strings: strings.clone(),
+                    spans,
+                }
+            }
+            Expression::TypeImport {
+                target,
+                arguments: _,
+                qualifier,
+                static_arguments,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let static_arguments = self.evaluate_static_arguments(
+                    module,
+                    profile,
+                    static_arguments.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                if let Expression::ScalarLiteral {
+                    value: ScalarLiteral::String(target),
+                } = tree.get(target)
+                {
+                    Type::Import {
+                        target: *target,
+                        qualifier: qualifier.clone(),
+                        static_arguments,
+                    }
+                } else {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    }
+                }
+            }
+            Expression::TypeInfer { name, constraint } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let constraint = constraint.map(|constraint| {
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        constraint,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )
+                });
+                let constraint = match constraint {
+                    Some(Ok(constraint)) => Some(constraint),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                Type::Infer { name, constraint }
+            }
+            Expression::TypePredicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                let target = target.map(|target| {
+                    self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        target,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )
+                });
+                let target = match target {
+                    Some(Ok(target)) => Some(target),
+                    Some(Err(error)) => return Err(error),
+                    None => None,
+                };
+                Type::Predicate {
+                    asserts,
+                    subject,
+                    target,
+                }
+            }
 
-                        // treat declaration modules as index access only
-                        let is_index_access = if module.language_type.is_declaration() {
-                            true
-                        } else {
-                            // check whether the left type supports index access
-                            let supports_index_access = self.type_supports_index_access(
-                                module, profile, left_id, tree, symbols, types,
-                            )?;
-                            let is_primitive_literal =
-                                self.type_is_primitive_literal(left_id, types);
-                            supports_index_access && !is_primitive_literal
-                        };
+            // union and intersection types
+            Expression::Binary {
+                left,
+                operator,
+                right,
+                ..
+            } => match operator {
+                BinaryOperator::ElementwiseOr => {
+                    let _timing =
+                        self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                    let elements = self.collect_binary_type_elements(
+                        module,
+                        profile,
+                        left,
+                        right,
+                        operator,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Union { elements }
+                }
+                BinaryOperator::ElementwiseAnd => {
+                    let _timing =
+                        self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
+                    let elements = self.collect_binary_type_elements(
+                        module,
+                        profile,
+                        left,
+                        right,
+                        operator,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Intersection { elements }
+                }
+                _ => return Ok(None),
+            },
 
-                        // compute the type index result
-                        if !is_index_access {
-                            // treat static integer literals as array sizes
-                            if let Some(value) = self.evaluate_integer_static_literal(
-                                module, profile, index, tree, symbols, types,
-                            )? {
-                                if value < 0 {
-                                    return Err(AnalyzeError::InvalidArraySize {
-                                        node: index
-                                            .into_global_any(module.id)
-                                            .into_anchored(Some(profile)),
-                                    });
-                                }
-                                self.set_integer_literal_type(module.id, index, value, types);
-                                Type::ArraySized {
-                                    element: left_id,
-                                    count: index,
-                                    is_readonly: false,
-                                }
-                            } else if self
-                                .resolve_array_size_parameter_type(
+            // tuple (anonymous)
+            Expression::ArrayExpression { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                // evaluate element types
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let argument = tree.get(element_id);
+                    let value_id = argument.value();
+                    let value_ty_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        value_id,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    let mut element = TypeElement::new(value_ty_id);
+                    match argument {
+                        Argument::Labeled { label, .. } => {
+                            element.label = Some(*label);
+                        }
+                        Argument::Spread { .. } => {
+                            element.is_rest = true;
+                        }
+                        _ => {}
+                    }
+                    let modifiers = match argument {
+                        Argument::Named { modifiers, .. }
+                        | Argument::Labeled { modifiers, .. }
+                        | Argument::Positional { modifiers, .. }
+                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                    };
+                    if let Some(modifiers) = modifiers {
+                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
+                            element.is_optional = true;
+                        }
+                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
+                            element.is_readonly = true;
+                        }
+                    }
+                    element_types.push(element);
+                }
+
+                Type::Tuple {
+                    elements: element_types,
+                    is_readonly: false,
+                }
+            }
+
+            // tuple (anonymous)
+            Expression::TupleExpression { elements } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                // evaluate element types
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let argument = tree.get(element_id);
+                    let value_id = argument.value();
+                    let value_ty_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        value_id,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    let mut element = TypeElement::new(value_ty_id);
+                    let modifiers = match argument {
+                        Argument::Named { modifiers, .. }
+                        | Argument::Labeled { modifiers, .. }
+                        | Argument::Positional { modifiers, .. }
+                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                    };
+                    if let Some(modifiers) = modifiers {
+                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
+                            element.is_optional = true;
+                        }
+                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
+                            element.is_readonly = true;
+                        }
+                    }
+                    element_types.push(element);
+                }
+
+                Type::Tuple {
+                    elements: element_types,
+                    is_readonly: false,
+                }
+            }
+            // sequence expression (comma operator)
+            Expression::SequenceExpression { .. } => {
+                return Err(AnalyzeError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            }
+            // object (anonymous)
+            Expression::ObjectExpression { properties } => {
+                let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
+                // evaluate object fields
+                // #Cleanup: extract property -> type field evaluation?
+                let mut fields = Vec::with_capacity(properties.len());
+                let mut call_signatures = Vec::new();
+                let mut construct_signatures = Vec::new();
+                let mut index_signatures = Vec::new();
+                for property_id in properties {
+                    let property = tree.get(property_id).clone();
+                    let field = match property {
+                        Property::Field {
+                            modifiers,
+                            key,
+                            value,
+                            ..
+                        } => {
+                            // index signature
+                            if let Some(DynamicKey::NamedExpression { name, key }) = key {
+                                let key_type = self.try_evaluate_expression_to_type(
                                     module,
                                     profile,
-                                    index,
-                                    tree,
-                                    symbols,
-                                    types,
-                                    validate_static_argument_bounds,
-                                    enforce_implicit_managed,
-                                )?
-                                .is_some()
-                            {
-                                Type::ArraySized {
-                                    element: left_id,
-                                    count: index,
-                                    is_readonly: false,
-                                }
-                            } else {
-                                let index_id = self.try_evaluate_expression_to_type(
-                                    module,
-                                    profile,
-                                    index,
+                                    key,
                                     tree,
                                     symbols,
                                     types,
                                     validate_static_argument_bounds,
                                     enforce_implicit_managed,
                                 )?;
-                                Type::Index {
-                                    left: left_id,
-                                    index: index_id,
+                                let value_type = if let Some(value_id) = value {
+                                    self.try_evaluate_expression_to_type(
+                                        module,
+                                        profile,
+                                        value_id,
+                                        tree,
+                                        symbols,
+                                        types,
+                                        validate_static_argument_bounds,
+                                        enforce_implicit_managed,
+                                    )?
+                                } else {
+                                    let ty = Type::TypeLiteral {
+                                        value: TypeLiteral::Unknown,
+                                    };
+                                    types.insert_type_from(ty, property_id)
+                                };
+                                let is_readonly = modifiers.is_some_and(|modifiers| {
+                                    modifiers.mutability == Some(Mutability::Immutable)
+                                });
+                                index_signatures.push(TypeIndexSignature {
+                                    name,
+                                    key_type,
+                                    value_type,
+                                    is_readonly,
+                                });
+                                continue;
+                            }
+
+                            let Some(key) = key.and_then(|key| {
+                                self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                            }) else {
+                                if module.language_type.is_declaration() {
+                                    continue;
                                 }
-                            }
-                        } else {
-                            let index_id = self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                index,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-                            Type::Index {
-                                left: left_id,
-                                index: index_id,
-                            }
-                        }
-                    }
-                    Expression::TypeTemplateLiteral { strings, spans } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let spans = spans
-                            .iter()
-                            .map(|span| {
-                                self.evaluate_template_literal_span_type(
+                                return Err(AnalyzeError::UnsupportedConstruct {
+                                    node: property_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
+                                });
+                            };
+
+                            let ty = if let Some(value_id) = value {
+                                self.try_evaluate_expression_to_type(
                                     module,
                                     profile,
-                                    *span,
+                                    value_id,
                                     tree,
                                     symbols,
                                     types,
                                     validate_static_argument_bounds,
                                     enforce_implicit_managed,
+                                )?
+                            } else {
+                                let ty = Type::TypeLiteral {
+                                    value: TypeLiteral::Unknown,
+                                };
+                                types.insert_type_from(ty, property_id)
+                            };
+                            let is_optional = modifiers.is_some_and(|modifiers| {
+                                modifiers.kind == Some(BindingKind::Maybe)
+                            });
+                            let is_readonly = modifiers.is_some_and(|modifiers| {
+                                modifiers.mutability == Some(Mutability::Immutable)
+                            });
+
+                            TypeField {
+                                key,
+                                ty,
+                                is_optional,
+                                is_readonly,
+                            }
+                        }
+                        Property::Method {
+                            modifiers,
+                            key,
+                            signature,
+                            ..
+                        } => {
+                            // call or construct signature
+                            if key.is_none()
+                                && matches!(
+                                    signature.mode,
+                                    Some(FunctionMode::Call)
+                                        | Some(FunctionMode::New)
+                                        | Some(FunctionMode::Constructor)
                                 )
-                            })
-                            .collect::<AnalyzeResult<Vec<_>>>()?;
-                        Type::TemplateLiteral {
-                            strings: strings.clone(),
-                            spans,
-                        }
-                    }
-                    Expression::TypeImport {
-                        target,
-                        arguments: _,
-                        qualifier,
-                        static_arguments,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let static_arguments = self.evaluate_static_arguments(
-                            module,
-                            profile,
-                            static_arguments.as_deref(),
-                            tree,
-                            symbols,
-                            types,
-                        )?;
-                        if let Expression::ScalarLiteral {
-                            value: ScalarLiteral::String(target),
-                        } = tree.get(target)
-                        {
-                            Type::Import {
-                                target: *target,
-                                qualifier: qualifier.clone(),
-                                static_arguments,
-                            }
-                        } else {
-                            Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
-                            }
-                        }
-                    }
-                    Expression::TypeInfer { name, constraint } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let constraint = constraint.map(|constraint| {
-                            self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                constraint,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )
-                        });
-                        let constraint = match constraint {
-                            Some(Ok(constraint)) => Some(constraint),
-                            Some(Err(error)) => return Err(error),
-                            None => None,
-                        };
-                        Type::Infer { name, constraint }
-                    }
-                    Expression::TypePredicate {
-                        asserts,
-                        subject,
-                        target,
-                    } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                        let target = target.map(|target| {
-                            self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                target,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )
-                        });
-                        let target = match target {
-                            Some(Ok(target)) => Some(target),
-                            Some(Err(error)) => return Err(error),
-                            None => None,
-                        };
-                        Type::Predicate {
-                            asserts,
-                            subject,
-                            target,
-                        }
-                    }
-
-                    // union and intersection types
-                    Expression::Binary {
-                        left,
-                        operator,
-                        right,
-                        ..
-                    } => match operator {
-                        BinaryOperator::ElementwiseOr => {
-                            let _timing =
-                                self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                            let elements = self.collect_binary_type_elements(
-                                module,
-                                profile,
-                                left,
-                                right,
-                                operator,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-                            Type::Union { elements }
-                        }
-                        BinaryOperator::ElementwiseAnd => {
-                            let _timing =
-                                self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_TYPE_OP);
-                            let elements = self.collect_binary_type_elements(
-                                module,
-                                profile,
-                                left,
-                                right,
-                                operator,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-                            Type::Intersection { elements }
-                        }
-                        _ => return Ok(None),
-                    },
-
-                    // references
-                    Expression::LocalReference {
-                        target_symbol,
-                        static_arguments,
-                        ..
-                    }
-                    | Expression::ModuleReference {
-                        target_symbol,
-                        static_arguments,
-                        ..
-                    }
-                    | Expression::GlobalReference {
-                        target_symbol,
-                        static_arguments,
-                        ..
-                    } => {
-                        let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
-
-                        // follow dependency items for local imports before canonicalization
-                        let target_symbol = {
-                            let _timing =
-                                self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_CANONICAL);
-                            let mut target_symbol = target_symbol;
-                            if target_symbol.module_id == module.id {
-                                let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-                                if let Some(primary_declaration) = symbol_entry.primary_declaration
-                                    && primary_declaration.local_id.ty == NodeType::DependencyItem
-                                {
-                                    let item_id =
-                                        primary_declaration.local_id.into_typed::<DependencyItem>();
-                                    if let DependencyItem::Local {
-                                        target_symbol: dependency_target,
-                                        ..
-                                    }
-                                    | DependencyItem::Remote {
-                                        target_symbol: dependency_target,
-                                        ..
-                                    } = tree.get(item_id)
-                                    {
-                                        target_symbol = *dependency_target;
-                                    }
-                                }
-                            }
-
-                            // normalize and canonicalize the reference symbol
-                            if target_symbol.module_id == module.id {
-                                let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-                                let is_simple = symbol_entry.target_symbol.is_none()
-                                    && symbol_entry.canonical_symbol.is_none()
-                                    && symbol_entry.merge_group.is_none()
-                                    && symbol_entry.kind != SymbolKind::Namespace;
-                                let is_type_space = matches!(
-                                    symbol_entry.space,
-                                    SymbolSpace::Type | SymbolSpace::TypeValue
-                                );
-                                if is_simple && is_type_space {
-                                    GlobalSymbolId::new(
-                                        module.id,
-                                        target_symbol.local_id.with_type(symbol_entry.ty),
-                                    )
-                                } else {
-                                    let target_symbol = self.normalize_reference_symbol_id(
-                                        module,
-                                        profile,
-                                        target_symbol,
-                                    );
-                                    let target_symbol = self.canonical_symbol_id(
-                                        module,
-                                        symbols,
-                                        profile,
-                                        target_symbol,
-                                        CanonicalSymbolMode::PreserveAliases,
-                                    );
-                                    self.merged_type_symbol_id(
-                                        module,
-                                        symbols,
-                                        profile,
-                                        target_symbol,
-                                    )
-                                }
-                            } else {
-                                let target_symbol = self.normalize_reference_symbol_id(
+                            {
+                                let ty = self.evaluate_function_signature_to_type(
                                     module,
                                     profile,
-                                    target_symbol,
-                                );
-                                let target_symbol = self.canonical_symbol_id(
-                                    module,
-                                    symbols,
-                                    profile,
-                                    target_symbol,
-                                    CanonicalSymbolMode::PreserveAliases,
-                                );
-                                self.merged_type_symbol_id(module, symbols, profile, target_symbol)
-                            }
-                        };
-                        let static_arguments = {
-                            let _timing =
-                                self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-                            self.evaluate_static_arguments(
-                                module,
-                                profile,
-                                static_arguments.as_deref(),
-                                tree,
-                                symbols,
-                                types,
-                            )?
-                        };
-                        if !resolve_static_arguments {
-                            return Ok(Some(Type::Reference {
-                                symbol: target_symbol,
-                                static_arguments,
-                            }));
-                        }
-                        let options = self.analyze_context_options_for_module(module.id);
-                        // skip resolution when we know the reference is non-generic
-                        let has_explicit_arguments = static_arguments
-                            .as_ref()
-                            .is_some_and(|arguments| !arguments.is_empty());
-                        let parameter_symbols = self.collect_static_parameter_symbols(
-                            module,
-                            target_symbol,
-                            profile,
-                            tree,
-                            symbols,
-                            types,
-                        );
-                        let parameters_known = parameter_symbols.is_some();
-                        let has_parameters =
-                            parameter_symbols.is_some_and(|parameters| !parameters.is_empty());
-                        let resolved_arguments =
-                            if !has_explicit_arguments && parameters_known && !has_parameters {
-                                None
-                            } else {
-                                let _timing = self
-                                    .timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_ARGUMENTS);
-                                self.resolve_type_reference_static_arguments_for_symbol(
-                                    module,
-                                    profile,
-                                    expression_id.into_any(),
-                                    target_symbol,
-                                    static_arguments.as_deref(),
-                                    validate_static_argument_bounds,
-                                    &options,
+                                    &signature,
+                                    property_id.into_any(),
                                     tree,
                                     symbols,
                                     types,
-                                )?
+                                    false,
+                                )?;
+                                let ty_id = types.insert_type_from(ty, property_id);
+                                match signature.mode {
+                                    Some(FunctionMode::New) | Some(FunctionMode::Constructor) => {
+                                        construct_signatures.push(ty_id);
+                                    }
+                                    _ => {
+                                        call_signatures.push(ty_id);
+                                    }
+                                }
+                                continue;
+                            }
+
+                            let Some(key) = key.and_then(|key| {
+                                self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                            }) else {
+                                if module.language_type.is_declaration() {
+                                    continue;
+                                }
+                                return Err(AnalyzeError::UnsupportedConstruct {
+                                    node: property_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(profile)),
+                                });
                             };
-                        let static_arguments = resolved_arguments.or(static_arguments);
-                        if let Some(arguments) = static_arguments.as_deref()
-                            && arguments.iter().any(|argument| match argument {
-                                StaticArgument::Evaluated {
-                                    value: StaticExpression::Type { ty },
-                                    ..
-                                } => matches!(types.get_type(*ty), Type::Error),
-                                _ => false,
-                            })
-                        {
-                            return Ok(Some(Type::Error));
-                        }
 
-                        // normalize well known references into canonical structural types
-                        let normalized = if let Some(well_known) =
-                            self.well_known_array_kind(profile, target_symbol)
-                        {
-                            let _timing = self
-                                .timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE_WELL_KNOWN);
-                            self.normalize_well_known_type_reference(
-                                module,
-                                symbols,
-                                profile,
-                                expression_id.into_any(),
-                                target_symbol,
-                                well_known,
-                                static_arguments.as_deref(),
-                                types,
-                            )
-                        } else {
-                            None
-                        };
-                        if let Some(normalized) = normalized {
-                            return Ok(Some(normalized));
-                        }
-
-                        Type::Reference {
-                            symbol: target_symbol,
-                            static_arguments,
-                        }
-                    }
-
-                    // tuple (anonymous)
-                    Expression::ArrayExpression { elements } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
-                        // evaluate element types
-                        let mut element_types = Vec::with_capacity(elements.len());
-                        for element_id in elements {
-                            let argument = tree.get(element_id);
-                            let value_id = argument.value();
-                            let value_ty_id = self.try_evaluate_expression_to_type(
+                            let ty = self.evaluate_function_signature_to_type(
                                 module,
                                 profile,
-                                value_id,
+                                &signature,
+                                property_id.into_any(),
                                 tree,
                                 symbols,
                                 types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
+                                false,
                             )?;
-                            let mut element = TypeElement::new(value_ty_id);
-                            match argument {
-                                Argument::Labeled { label, .. } => {
-                                    element.label = Some(*label);
-                                }
-                                Argument::Spread { .. } => {
-                                    element.is_rest = true;
-                                }
-                                _ => {}
-                            }
-                            let modifiers = match argument {
-                                Argument::Named { modifiers, .. }
-                                | Argument::Labeled { modifiers, .. }
-                                | Argument::Positional { modifiers, .. }
-                                | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
-                            };
-                            if let Some(modifiers) = modifiers {
-                                if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
-                                    element.is_optional = true;
-                                }
-                                if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
-                                    element.is_readonly = true;
-                                }
-                            }
-                            element_types.push(element);
-                        }
+                            let ty_id = types.insert_type_from(ty, property_id);
 
-                        Type::Tuple {
-                            elements: element_types,
-                            is_readonly: false,
-                        }
-                    }
+                            let is_optional = modifiers.is_some_and(|modifiers| {
+                                modifiers.kind == Some(BindingKind::Maybe)
+                            });
+                            let is_readonly = modifiers.is_some_and(|modifiers| {
+                                modifiers.mutability == Some(Mutability::Immutable)
+                            });
 
-                    // tuple (anonymous)
-                    Expression::TupleExpression { elements } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
-                        // evaluate element types
-                        let mut element_types = Vec::with_capacity(elements.len());
-                        for element_id in elements {
-                            let argument = tree.get(element_id);
-                            let value_id = argument.value();
-                            let value_ty_id = self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                value_id,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-                            let mut element = TypeElement::new(value_ty_id);
-                            let modifiers = match argument {
-                                Argument::Named { modifiers, .. }
-                                | Argument::Labeled { modifiers, .. }
-                                | Argument::Positional { modifiers, .. }
-                                | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
-                            };
-                            if let Some(modifiers) = modifiers {
-                                if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
-                                    element.is_optional = true;
-                                }
-                                if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
-                                    element.is_readonly = true;
-                                }
+                            TypeField {
+                                key,
+                                ty: ty_id,
+                                is_optional,
+                                is_readonly,
                             }
-                            element_types.push(element);
                         }
+                        Property::Spread { .. } => {
+                            // #Incomplete: spread properties into types
+                            return Err(AnalyzeError::UnsupportedConstruct {
+                                node: property_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                            });
+                        }
+                    };
 
-                        Type::Tuple {
-                            elements: element_types,
-                            is_readonly: false,
-                        }
-                    }
-                    // sequence expression (comma operator)
-                    Expression::SequenceExpression { .. } => {
-                        return Err(AnalyzeError::UnsupportedConstruct {
-                            node: expression_id
+                    fields.push(field);
+                }
+
+                Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                }
+            }
+
+            // array or slice
+            Expression::Index { left, right } => {
+                // array with static length
+                if let Some(right) = right {
+                    // resolve the element type
+                    let left_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        left,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+
+                    // require a literal length for array types
+                    let value = self
+                        .evaluate_integer_static_literal(
+                            module, profile, right, tree, symbols, types,
+                        )?
+                        .ok_or_else(|| AnalyzeError::InvalidArraySize {
+                            node: right
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        })?;
+                    if value < 0 {
+                        return Err(AnalyzeError::InvalidArraySize {
+                            node: right
                                 .into_global_any(module.id)
                                 .into_anchored(Some(profile)),
                         });
                     }
-                    // object (anonymous)
-                    Expression::ObjectExpression { properties } => {
-                        let _timing =
-                            self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_EXPRESSION_LITERAL);
-                        // evaluate object fields
-                        // #Cleanup: extract property -> type field evaluation?
-                        let mut fields = Vec::with_capacity(properties.len());
-                        let mut call_signatures = Vec::new();
-                        let mut construct_signatures = Vec::new();
-                        let mut index_signatures = Vec::new();
-                        for property_id in properties {
-                            let property = tree.get(property_id).clone();
-                            let field = match property {
-                                Property::Field {
-                                    modifiers,
-                                    key,
-                                    value,
-                                    ..
-                                } => {
-                                    // index signature
-                                    if let Some(DynamicKey::NamedExpression { name, key }) = key {
-                                        let key_type = self.try_evaluate_expression_to_type(
-                                            module,
-                                            profile,
-                                            key,
-                                            tree,
-                                            symbols,
-                                            types,
-                                            validate_static_argument_bounds,
-                                            enforce_implicit_managed,
-                                        )?;
-                                        let value_type = if let Some(value_id) = value {
-                                            self.try_evaluate_expression_to_type(
-                                                module,
-                                                profile,
-                                                value_id,
-                                                tree,
-                                                symbols,
-                                                types,
-                                                validate_static_argument_bounds,
-                                                enforce_implicit_managed,
-                                            )?
-                                        } else {
-                                            let ty = Type::TypeLiteral {
-                                                value: TypeLiteral::Unknown,
-                                            };
-                                            types.insert_type_from(ty, property_id)
-                                        };
-                                        let is_readonly = modifiers.is_some_and(|modifiers| {
-                                            modifiers.mutability == Some(Mutability::Immutable)
-                                        });
-                                        index_signatures.push(TypeIndexSignature {
-                                            name,
-                                            key_type,
-                                            value_type,
-                                            is_readonly,
-                                        });
-                                        continue;
-                                    }
-
-                                    let Some(key) = key.and_then(|key| {
-                                        self.static_key_from_dynamic_key(
-                                            profile, key, tree, symbols, types,
-                                        )
-                                    }) else {
-                                        if module.language_type.is_declaration() {
-                                            continue;
-                                        }
-                                        return Err(AnalyzeError::UnsupportedConstruct {
-                                            node: property_id
-                                                .into_global_any(module.id)
-                                                .into_anchored(Some(profile)),
-                                        });
-                                    };
-
-                                    let ty = if let Some(value_id) = value {
-                                        self.try_evaluate_expression_to_type(
-                                            module,
-                                            profile,
-                                            value_id,
-                                            tree,
-                                            symbols,
-                                            types,
-                                            validate_static_argument_bounds,
-                                            enforce_implicit_managed,
-                                        )?
-                                    } else {
-                                        let ty = Type::TypeLiteral {
-                                            value: TypeLiteral::Unknown,
-                                        };
-                                        types.insert_type_from(ty, property_id)
-                                    };
-                                    let is_optional = modifiers.is_some_and(|modifiers| {
-                                        modifiers.kind == Some(BindingKind::Maybe)
-                                    });
-                                    let is_readonly = modifiers.is_some_and(|modifiers| {
-                                        modifiers.mutability == Some(Mutability::Immutable)
-                                    });
-
-                                    TypeField {
-                                        key,
-                                        ty,
-                                        is_optional,
-                                        is_readonly,
-                                    }
-                                }
-                                Property::Method {
-                                    modifiers,
-                                    key,
-                                    signature,
-                                    ..
-                                } => {
-                                    // call or construct signature
-                                    if key.is_none()
-                                        && matches!(
-                                            signature.mode,
-                                            Some(FunctionMode::Call)
-                                                | Some(FunctionMode::New)
-                                                | Some(FunctionMode::Constructor)
-                                        )
-                                    {
-                                        let ty = self.evaluate_function_signature_to_type(
-                                            module,
-                                            profile,
-                                            &signature,
-                                            property_id.into_any(),
-                                            tree,
-                                            symbols,
-                                            types,
-                                            false,
-                                        )?;
-                                        let ty_id = types.insert_type_from(ty, property_id);
-                                        match signature.mode {
-                                            Some(FunctionMode::New)
-                                            | Some(FunctionMode::Constructor) => {
-                                                construct_signatures.push(ty_id);
-                                            }
-                                            _ => {
-                                                call_signatures.push(ty_id);
-                                            }
-                                        }
-                                        continue;
-                                    }
-
-                                    let Some(key) = key.and_then(|key| {
-                                        self.static_key_from_dynamic_key(
-                                            profile, key, tree, symbols, types,
-                                        )
-                                    }) else {
-                                        if module.language_type.is_declaration() {
-                                            continue;
-                                        }
-                                        return Err(AnalyzeError::UnsupportedConstruct {
-                                            node: property_id
-                                                .into_global_any(module.id)
-                                                .into_anchored(Some(profile)),
-                                        });
-                                    };
-
-                                    let ty = self.evaluate_function_signature_to_type(
-                                        module,
-                                        profile,
-                                        &signature,
-                                        property_id.into_any(),
-                                        tree,
-                                        symbols,
-                                        types,
-                                        false,
-                                    )?;
-                                    let ty_id = types.insert_type_from(ty, property_id);
-
-                                    let is_optional = modifiers.is_some_and(|modifiers| {
-                                        modifiers.kind == Some(BindingKind::Maybe)
-                                    });
-                                    let is_readonly = modifiers.is_some_and(|modifiers| {
-                                        modifiers.mutability == Some(Mutability::Immutable)
-                                    });
-
-                                    TypeField {
-                                        key,
-                                        ty: ty_id,
-                                        is_optional,
-                                        is_readonly,
-                                    }
-                                }
-                                Property::Spread { .. } => {
-                                    // #Incomplete: spread properties into types
-                                    return Err(AnalyzeError::UnsupportedConstruct {
-                                        node: property_id
-                                            .into_global_any(module.id)
-                                            .into_anchored(Some(profile)),
-                                    });
-                                }
-                            };
-
-                            fields.push(field);
-                        }
-
-                        Type::Object {
-                            fields,
-                            call_signatures,
-                            construct_signatures,
-                            index_signatures,
-                        }
+                    self.set_integer_literal_type(module.id, right, value, types);
+                    Type::ArraySized {
+                        element: left_id,
+                        count: right,
+                        is_readonly: false,
                     }
-
-                    // array or slice
-                    Expression::Index { left, right } => {
-                        // array with static length
-                        if let Some(right) = right {
-                            // resolve the element type
-                            let left_id = self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                left,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-
-                            // require a literal length for array types
-                            let value = self
-                                .evaluate_integer_static_literal(
-                                    module, profile, right, tree, symbols, types,
-                                )?
-                                .ok_or_else(|| AnalyzeError::InvalidArraySize {
-                                    node: right
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                })?;
-                            if value < 0 {
-                                return Err(AnalyzeError::InvalidArraySize {
-                                    node: right
-                                        .into_global_any(module.id)
-                                        .into_anchored(Some(profile)),
-                                });
-                            }
-                            self.set_integer_literal_type(module.id, right, value, types);
-                            Type::ArraySized {
-                                element: left_id,
-                                count: right,
-                                is_readonly: false,
-                            }
-                        }
-                        // slice
-                        else {
-                            // resolve the element type
-                            let left_id = self.try_evaluate_expression_to_type(
-                                module,
-                                profile,
-                                left,
-                                tree,
-                                symbols,
-                                types,
-                                validate_static_argument_bounds,
-                                enforce_implicit_managed,
-                            )?;
-                            Type::Array {
-                                element: Some(left_id),
-                                is_readonly: false,
-                            }
-                        }
+                }
+                // slice
+                else {
+                    // resolve the element type
+                    let left_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        left,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Array {
+                        element: Some(left_id),
+                        is_readonly: false,
                     }
-
-                    _ => return Ok(None),
                 }
             }
+
+            _ => return Ok(None),
         };
 
         // enforce implicit managed restrictions for type expressions

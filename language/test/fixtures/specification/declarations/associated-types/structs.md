@@ -286,6 +286,23 @@ declare const value: Grid<string>.Cell<int32, 2>;
 value satisfies [string, int32, 2];
 ```
 
+### struct associated projections work on constrained generic parameters
+
+> Generic constraints can project struct associated types with mixed static arguments.
+
+```ds
+struct Grid<T> {
+    type Cell<U, comptime n: uint> = [T, U, n];
+}
+
+function project<G: Grid<string>>(value: G.Cell<int32, 2>): G.Cell<int32, 2> {
+    value
+}
+
+declare const value: [string, int32, 2];
+project(value) satisfies [string, int32, 2];
+```
+
 ### struct associated defaults support multiple static value parameters
 
 > Struct associated defaults can combine multiple static value parameters.
@@ -317,3 +334,18 @@ extension<T> for Buffer<T> implements Projected<T> {}
 declare const value: Buffer<int32>.View<boolean>;
 value satisfies [int32, boolean];
 ```
+
+### struct associated types are not runtime members
+
+> Associated type aliases are type only and cannot be accessed as runtime values.
+
+```ds
+struct Box<T> {
+    type Item = T;
+    value: T;
+}
+
+const value = Box.Item;
+```
+
+- contains: does not exist

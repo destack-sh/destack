@@ -419,6 +419,51 @@ declare const edge: IntGraph.Edge<boolean>;
 edge satisfies [int32, boolean];
 ```
 
+### constrained projections preserve interface associated type substitutions
+
+> Functions constrained by an interface can project associated types from implementors.
+
+```ds
+interface Container<T> {
+    type Item = T;
+    get(): Item;
+}
+
+struct Counter {
+    value: int32 = 0;
+}
+
+extension for Counter implements Container<int32> {
+    get(): Item {
+        this.value
+    }
+}
+
+function read<C: Container<int32>>(container: C): C.Item {
+    container.get()
+}
+
+declare const counter: Counter;
+read(counter) satisfies int32;
+```
+
+### class implementors can override mixed generic associated defaults
+
+> Class implementors can override mixed type and static value associated defaults.
+
+```ds
+interface MatrixLike<T> {
+    type View<U, comptime n: uint> = [T, U, n];
+}
+
+class Matrix<T> implements MatrixLike<T> {
+    type View<U, comptime n: uint> = { left: T, right: U, size: n };
+}
+
+declare const view: Matrix<int32>.View<boolean, 4>;
+view satisfies { left: int32, right: boolean, size: 4 };
+```
+
 ### associated type projection on constrained type parameters
 
 > Projections are allowed on constrained type parameters.

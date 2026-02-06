@@ -5,8 +5,11 @@ Associated types are static type members on class-shaped declarations.
 ## Coverage
 
 - **Structs**: Associated type aliases, constraints, and projections on structs.
-- **Classes**: Associated type aliases and constraint validation on classes.
-- **Interfaces**: Associated type requirements, defaults, and implementor rules.
+- **Classes**: Associated type aliases, inheritance, and constrained projections on classes.
+- **Interfaces**: Associated type requirements, defaults, overrides, and implementor rules.
+- **Mixed generics**: Type and static value parameters on generic associated type members.
+- **Module boundaries**: Cross module projections and inherited associated defaults.
+- **Runtime model**: Associated type members stay type only and are not runtime values.
 
 ## Files
 

@@ -1768,14 +1768,14 @@ impl Compiler {
                     return Ok(Some(field_ty));
                 }
 
-                // prefer strict bind/call/apply inference when enabled
+                // override bind/call/apply signatures based on strictness policy
                 let options = self.analyze_context_options_for_module(module.id);
-                if options.strict_bind_call_apply
-                    && !call_signatures.is_empty()
-                    && let Some(synthetic) = self.strict_bind_call_apply_member_type(
+                if !call_signatures.is_empty()
+                    && let Some(synthetic) = self.bind_call_apply_member_type(
                         node_id,
                         receiver_ty,
                         member_key,
+                        options.strict_bind_call_apply,
                         types,
                     )
                 {
@@ -1990,15 +1990,14 @@ impl Compiler {
             Type::Function { .. } => {
                 let options = self.analyze_context_options_for_module(module.id);
 
-                // prefer strict bind/call/apply inference when enabled
-                if options.strict_bind_call_apply
-                    && let Some(synthetic) = self.strict_bind_call_apply_member_type(
-                        node_id,
-                        receiver_ty,
-                        member_key,
-                        types,
-                    )
-                {
+                // override bind/call/apply signatures based on strictness policy
+                if let Some(synthetic) = self.bind_call_apply_member_type(
+                    node_id,
+                    receiver_ty,
+                    member_key,
+                    options.strict_bind_call_apply,
+                    types,
+                ) {
                     return Ok(Some(synthetic));
                 }
 
@@ -2079,12 +2078,13 @@ impl Compiler {
         Some(self.union_type_from_list(matching, source_type_id, types))
     }
 
-    /// Build strict bind/call/apply member types for callable receivers.
-    fn strict_bind_call_apply_member_type(
+    /// Build bind/call/apply member types for callable receivers.
+    fn bind_call_apply_member_type(
         &self,
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
+        is_strict_bind_call_apply: bool,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let member_name = member_key.name()?;
@@ -2099,10 +2099,11 @@ impl Compiler {
         let mut member_signatures = Vec::new();
         match receiver_ty {
             Type::Function { .. } => {
-                if let Some(signature_id) = self.strict_bind_call_apply_signature_from_type(
+                if let Some(signature_id) = self.bind_call_apply_signature_from_type(
                     node_id,
                     receiver_ty,
                     member_name,
+                    is_strict_bind_call_apply,
                     types,
                 ) {
                     member_signatures.push(signature_id);
@@ -2113,14 +2114,13 @@ impl Compiler {
             } => {
                 for signature_id in call_signatures {
                     let signature_ty = types.get_type(*signature_id).clone();
-                    if let Some(member_signature_id) = self
-                        .strict_bind_call_apply_signature_from_type(
-                            node_id,
-                            &signature_ty,
-                            member_name,
-                            types,
-                        )
-                    {
+                    if let Some(member_signature_id) = self.bind_call_apply_signature_from_type(
+                        node_id,
+                        &signature_ty,
+                        member_name,
+                        is_strict_bind_call_apply,
+                        types,
+                    ) {
                         member_signatures.push(member_signature_id);
                     }
                 }
@@ -2145,11 +2145,12 @@ impl Compiler {
         Some(types.insert_type_from_any(overload_set, node_id))
     }
 
-    fn strict_bind_call_apply_signature_from_type(
+    fn bind_call_apply_signature_from_type(
         &self,
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_name: &str,
+        is_strict_bind_call_apply: bool,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
         let Type::Function {
@@ -2163,14 +2164,32 @@ impl Compiler {
             return None;
         };
 
-        // resolve the implicit this argument type
-        let this_arg = if let Some(this_parameter) = this_parameter {
+        // resolve the strict this argument type
+        let strict_this_arg = if let Some(this_parameter) = this_parameter {
             *this_parameter
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
             types.insert_type_from_any(ty, node_id)
+        };
+        let non_strict_arg = {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            types.insert_type_from_any(ty, node_id)
+        };
+
+        // use strict or permissive bind/call/apply argument typing
+        let this_arg = if is_strict_bind_call_apply {
+            strict_this_arg
+        } else {
+            non_strict_arg
+        };
+        let call_parameters = if is_strict_bind_call_apply {
+            dynamic_parameters.clone()
+        } else {
+            vec![non_strict_arg]
         };
 
         // build shared function metadata
@@ -2181,9 +2200,9 @@ impl Compiler {
         let member_ty = match member_name {
             "call" => {
                 // call(thisArg, ...args) -> return_type
-                let mut params = Vec::with_capacity(dynamic_parameters.len() + 1);
+                let mut params = Vec::with_capacity(call_parameters.len() + 1);
                 params.push(this_arg);
-                params.extend_from_slice(dynamic_parameters);
+                params.extend_from_slice(&call_parameters);
 
                 Type::Function {
                     asynchrony,
@@ -2196,7 +2215,7 @@ impl Compiler {
             }
             "apply" => {
                 // apply(thisArg, argsTuple) -> return_type
-                let tuple_elements = dynamic_parameters
+                let tuple_elements = call_parameters
                     .iter()
                     .map(|ty| TypeElement::new(*ty))
                     .collect();
@@ -2217,16 +2236,16 @@ impl Compiler {
             }
             "bind" => {
                 // bind(thisArg, ...args) -> bound function
-                let mut params = Vec::with_capacity(dynamic_parameters.len() + 1);
+                let mut params = Vec::with_capacity(call_parameters.len() + 1);
                 params.push(this_arg);
-                params.extend_from_slice(dynamic_parameters);
+                params.extend_from_slice(&call_parameters);
 
                 let bound_function = Type::Function {
                     asynchrony,
                     cardinality,
                     static_parameters: static_parameters.clone(),
                     this_parameter: None,
-                    dynamic_parameters: dynamic_parameters.clone(),
+                    dynamic_parameters: call_parameters,
                     return_type: *return_type,
                 };
                 let bound_function_id = types.insert_type_from_any(bound_function, node_id);

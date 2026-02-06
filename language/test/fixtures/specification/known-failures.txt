@@ -1,14 +1,6 @@
-destack_test::specification::declarations/classes/constructor.md/strictpropertyinitialization/definite-assignment-assertions-allow-uninitialized-fields
-destack_test::specification::declarations/classes/members.md/accessors/accessors-expose-property-types
-destack_test::specification::declarations/classes/members.md/accessors/accessors-reject-incompatible-assignments
-destack_test::specification::declarations/classes/members.md/parameter-properties/parameter-properties-declare-and-initialize-members
-destack_test::specification::declarations/functions/invocation.md/strictbindcallapply/non-strict-call-allows-mismatched-this
-destack_test::specification::declarations/functions/parameters.md/dynamic-parameters/tuple-rest-parameters-infer-element-types
-destack_test::specification::declarations/interfaces/nominal.md/assignment/nominal-interface-requires-explicit-implements
 destack_test::specification::expressions/comptime/conditions.md/comptime-conditions/comptime-type-condition-narrows-in-true-branch
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-throw-when-true
 destack_test::specification::options/runtime.md/noexceptions/noexceptions-reports-try-catch-when-true
-destack_test::specification::options/strict.md/strictbindcallapply/strictbindcallapply-allows-invalid-call-arguments-when-false
 destack_test::specification::options/strict.md/strictfunctiontypes/strictfunctiontypes-allows-narrow-method-parameters-when-false
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/array-concatenation-uses-builtin-overload
 destack_test::specification::resolution/overloads/operators/operators.md/builtin-overloading/map-merge-uses-builtin-overload

@@ -7,11 +7,11 @@ use destack_base::StringId;
 use destack_dir::{
     Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
     DeclarationDescriptor, DeclarationKind, Declarator, DependencyItem, DependencyMode, DynamicKey,
-    Expression, FunctionCardinality, FunctionKind, FunctionSignature, GlobalNodeIdAny,
-    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, ModuleTarget, Mutability, NodeTree, NodeType, NormalizationMode,
-    Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
+    Expression, FunctionCardinality, FunctionKind, FunctionMode, FunctionSignature,
+    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, Mutability, NodeTree, NodeType,
+    NormalizationMode, Parameter, Pattern, PrimitiveType, StaticArgument, StaticKey, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -1785,7 +1785,11 @@ impl Compiler {
                 };
 
                 // attach the method type for member symbol lookups
-                if types.get_value_type_id(member_symbol).is_none() {
+                if let Some(accessor_value_ty_id) =
+                    self.accessor_value_type_for_signature(signature, method_ty_id, types)
+                {
+                    types.set_value_type(member_symbol, accessor_value_ty_id);
+                } else if types.get_value_type_id(member_symbol).is_none() {
                     types.set_value_type(member_symbol, method_ty_id);
                 }
 
@@ -3068,5 +3072,29 @@ impl Compiler {
         }
 
         Ok(())
+    }
+
+    /// Resolve the exposed property type for an accessor method signature.
+    fn accessor_value_type_for_signature(
+        &self,
+        signature: &FunctionSignature,
+        method_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // getters expose their return type as the property value
+        if signature.mode == Some(FunctionMode::Getter) {
+            return self.function_return_type(method_ty_id, types);
+        }
+
+        // setters expose their first dynamic parameter type
+        if signature.mode == Some(FunctionMode::Setter)
+            && let Type::Function {
+                dynamic_parameters, ..
+            } = types.get_type(method_ty_id)
+        {
+            return dynamic_parameters.first().copied();
+        }
+
+        None
     }
 }
