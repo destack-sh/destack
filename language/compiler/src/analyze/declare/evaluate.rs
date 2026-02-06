@@ -1,17 +1,17 @@
-use crate::analyze::common::CanonicalSymbolMode;
+use crate::analyze::common::{CanonicalSymbolMode, TypeRewriteCache};
 use crate::timing::tags;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DependencyMode, DynamicKey,
     EnumFieldValue, Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, NodeVisitor,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, Mutability, NodeTree, NodeType, NodeVisitor,
     NodeVisitorOptions, Path, PrimitiveType, Property, Resolution, ScalarLiteral, StaticArgument,
     StaticExpression, StaticKey, StaticParameterKind, StaticProperty, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
+    SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, walk_expression,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::cache::EvaluateExpressionContext;
 
@@ -899,7 +899,7 @@ impl Compiler {
     }
 
     /// Evaluate static arguments for a type reference.
-    fn evaluate_static_arguments(
+    pub(crate) fn evaluate_static_arguments(
         &self,
         module: &Module,
         _profile: ProfileId,
@@ -1945,70 +1945,214 @@ impl Compiler {
                 static_arguments,
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
+                let mut receiver_symbol = None;
+                let mut receiver_arguments = Vec::new();
+                let member_key = StaticKey::Name(*name);
 
-                // only resolve namespace member access from local imports
-                let left_expression = tree.get(*left);
-                let (Expression::LocalReference { target_symbol, .. }
+                // resolve namespace import members first
+                let mut resolved_member_symbol = None;
+                if let Expression::LocalReference { target_symbol, .. }
                 | Expression::ModuleReference { target_symbol, .. }
-                | Expression::GlobalReference { target_symbol, .. }) = left_expression
-                else {
-                    return Ok(None);
-                };
-                if target_symbol.module_id != module.id {
-                    return Ok(None);
+                | Expression::GlobalReference { target_symbol, .. } = tree.get(*left)
+                    && target_symbol.module_id == module.id
+                {
+                    let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+                    if let Some(primary_declaration) = symbol_entry.primary_declaration
+                        && primary_declaration.local_id.ty == NodeType::DependencyItem
+                    {
+                        let dependency_id =
+                            primary_declaration.local_id.into_typed::<DependencyItem>();
+                        let dependency = tree.get(dependency_id);
+                        let (mode, target_module) = match dependency {
+                            DependencyItem::Remote {
+                                mode,
+                                target_module,
+                                ..
+                            } => (*mode, Some(*target_module)),
+                            DependencyItem::UnresolvedRemote {
+                                mode,
+                                target_module,
+                                ..
+                            } => (*mode, *target_module),
+                            _ => (DependencyMode::Item, None),
+                        };
+                        if mode == DependencyMode::Namespace
+                            && let Some(target_module) = target_module
+                            && let Some(target_module) = target_module.ty.or(target_module.value)
+                        {
+                            resolved_member_symbol = self
+                                .resolve_export_symbol_for_target(
+                                    module.id,
+                                    expression_id.into_global_any(module.id),
+                                    target_module,
+                                    profile,
+                                    SymbolSpaceOrder::TypeThenValue,
+                                    member_key,
+                                )
+                                .ok()
+                                .flatten();
+                        }
+                    }
                 }
 
-                // ensure the reference was introduced by a namespace import
-                let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-                let Some(primary_declaration) = symbol_entry.primary_declaration else {
-                    return Ok(None);
-                };
-                if primary_declaration.local_id.ty != NodeType::DependencyItem {
-                    return Ok(None);
-                }
-                let dependency_id = primary_declaration.local_id.into_typed::<DependencyItem>();
-                let dependency = tree.get(dependency_id);
-                let (mode, target_module) = match dependency {
-                    DependencyItem::Remote {
-                        mode,
-                        target_module,
-                        ..
-                    } => (*mode, Some(*target_module)),
-                    DependencyItem::UnresolvedRemote {
-                        mode,
-                        target_module,
-                        ..
-                    } => (*mode, *target_module),
-                    _ => return Ok(None),
-                };
-                if mode != DependencyMode::Namespace {
-                    return Ok(None);
-                }
-                let Some(target_module) = target_module else {
-                    return Ok(None);
-                };
-                let Some(target_module) = target_module.ty.or(target_module.value) else {
-                    return Ok(None);
-                };
-
-                // resolve the member symbol from the target module export surface
-                let key = StaticKey::Name(*name);
-                let resolved_symbol = self
-                    .resolve_export_symbol_for_target(
-                        module.id,
-                        expression_id.into_global_any(module.id),
-                        target_module,
+                // resolve projected type members from nominal receivers
+                if resolved_member_symbol.is_none() {
+                    // evaluate the receiver to a reference-like type
+                    let left_ty_id = self.try_evaluate_expression_to_type(
+                        module,
                         profile,
-                        SymbolSpaceOrder::TypeThenValue,
-                        key,
-                    )
-                    .ok()
-                    .flatten();
-                let Some(target_symbol) = resolved_symbol else {
+                        *left,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    let left_ty = types.get_type(left_ty_id).clone();
+                    let receiver_reference = match left_ty {
+                        Type::Reference {
+                            symbol,
+                            static_arguments,
+                        } => Some((symbol, static_arguments.unwrap_or_default())),
+                        Type::Value { value } => {
+                            if let Type::Reference {
+                                symbol,
+                                static_arguments,
+                            } = types.get_type(value)
+                            {
+                                Some((*symbol, static_arguments.clone().unwrap_or_default()))
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+                    let Some((mut lookup_symbol, mut lookup_arguments)) = receiver_reference else {
+                        return Ok(None);
+                    };
+
+                    // follow static parameter constraints for projected members
+                    if self.symbol_is_static_parameter(
+                        module,
+                        profile,
+                        lookup_symbol,
+                        symbols,
+                        types,
+                    ) && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
+                        module,
+                        profile,
+                        lookup_symbol,
+                        expression_id.into_any(),
+                        symbols,
+                        types,
+                    ) && let Type::Reference {
+                        symbol,
+                        static_arguments,
+                    } = types.get_type(constraint_ty_id)
+                    {
+                        lookup_symbol = *symbol;
+                        lookup_arguments = static_arguments.clone().unwrap_or_default();
+                    }
+
+                    // project through alias references before static member lookup
+                    if let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+                        module,
+                        profile,
+                        lookup_symbol,
+                        expression_id.into_any(),
+                        symbols,
+                        types,
+                    ) {
+                        let mapped_alias_target = if lookup_arguments.is_empty() {
+                            alias_target_id
+                        } else {
+                            let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                                module,
+                                profile,
+                                lookup_symbol,
+                                expression_id.into_any(),
+                                &lookup_arguments,
+                                tree,
+                                symbols,
+                                types,
+                            );
+                            if substitutions.is_empty() {
+                                alias_target_id
+                            } else {
+                                let mut substitution_cache = HashMap::new();
+                                self.substitute_static_parameters(
+                                    alias_target_id,
+                                    &substitutions,
+                                    types,
+                                    &mut substitution_cache,
+                                )
+                            }
+                        };
+
+                        let mut materialize_cache = TypeRewriteCache::new();
+                        let mapped_alias_target = self.materialize_static_arguments_in_type(
+                            module,
+                            profile,
+                            mapped_alias_target,
+                            tree,
+                            symbols,
+                            types,
+                            &mut materialize_cache,
+                        );
+                        if let Some((alias_symbol, alias_arguments, _)) =
+                            self.unwrap_type_symbol(types, mapped_alias_target)
+                        {
+                            lookup_symbol = alias_symbol;
+                            lookup_arguments = alias_arguments.unwrap_or_default();
+                        }
+                    }
+
+                    receiver_symbol = Some(lookup_symbol);
+                    receiver_arguments = lookup_arguments;
+                    resolved_member_symbol = self.with_module_tree_symbols_or_local(
+                        module,
+                        profile,
+                        lookup_symbol.module_id,
+                        tree,
+                        symbols,
+                        |owner_module, owner_tree, owner_symbols| {
+                            self.resolve_static_member_symbol_in_tables(
+                                owner_module,
+                                profile,
+                                lookup_symbol,
+                                member_key,
+                                owner_tree,
+                                owner_symbols,
+                            )
+                        },
+                    );
+                }
+
+                let Some(target_symbol) = resolved_member_symbol else {
                     return Ok(None);
                 };
 
-                // resolve static arguments for the referenced symbol
+                // require explicit arguments for generic associated type projections
+                let has_explicit_static_arguments = static_arguments
+                    .as_ref()
+                    .is_some_and(|arguments| !arguments.is_empty());
+                if !has_explicit_static_arguments
+                    && self.associated_type_requires_static_arguments(
+                        module,
+                        profile,
+                        target_symbol,
+                        tree,
+                        symbols,
+                    )
+                {
+                    let node = expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile));
+                    self.error(AnalyzeError::MissingStaticArgument { node });
+                    return Ok(Some(Type::Error));
+                }
+
+                // evaluate static arguments for the referenced symbol
                 let static_arguments = self.evaluate_static_arguments(
                     module,
                     profile,
@@ -2019,15 +2163,29 @@ impl Compiler {
                 )?;
                 let resolve_static_arguments =
                     resolve_static_arguments && !defer_reference_resolution;
-                self.evaluate_type_reference_for_symbol(
+                let member_ty = self.evaluate_type_reference_for_symbol(
                     module,
                     profile,
                     expression_id,
                     target_symbol,
-                    static_arguments,
+                    static_arguments.clone(),
                     resolve_static_arguments,
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                self.materialize_associated_member_projection(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    target_symbol,
+                    receiver_symbol,
+                    &receiver_arguments,
+                    static_arguments.as_deref(),
+                    member_ty,
                     tree,
                     symbols,
                     types,
@@ -2036,16 +2194,19 @@ impl Compiler {
             Expression::LocalReference {
                 target_symbol,
                 static_arguments,
+                path: _,
                 ..
             }
             | Expression::ModuleReference {
                 target_symbol,
                 static_arguments,
+                path: _,
                 ..
             }
             | Expression::GlobalReference {
                 target_symbol,
                 static_arguments,
+                path: _,
                 ..
             } => {
                 let _timing = self.timing_scope(tags::ANALYZE_TYPES_EVALUATE_REFERENCE);
@@ -2142,9 +2303,7 @@ impl Compiler {
                 )?
             }
             _ => {
-                // clone to avoid holding a tree borrow across recursive evaluation
                 let expression = expression.clone();
-
                 match expression {
                     Expression::ScalarLiteral { value } => Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(value.clone()),
@@ -3443,6 +3602,82 @@ impl Compiler {
         });
         if has_error_argument {
             return Ok(Type::Error);
+        }
+
+        // inline associated type aliases so member type references keep their target shape
+        let is_associated_type_alias = self.with_module_tree_symbols_or_local(
+            module,
+            profile,
+            target_symbol.module_id,
+            tree,
+            symbols,
+            |_owner_module, owner_tree, owner_symbols| {
+                let symbol_entry = owner_symbols.get_symbol(target_symbol.local_id);
+                if symbol_entry.ty != SymbolType::TypeAlias {
+                    return false;
+                }
+                let Some(primary_declaration) = symbol_entry.primary_declaration else {
+                    return false;
+                };
+                if primary_declaration.local_id.ty != NodeType::Member {
+                    return false;
+                }
+                let member_id = primary_declaration.local_id.into_typed::<Member>();
+                matches!(owner_tree.get(member_id), Member::Type { .. })
+            },
+        );
+        if is_associated_type_alias
+            && let Some(alias_target_id) = self.alias_target_type_id_for_symbol(
+                module,
+                profile,
+                target_symbol,
+                expression_id.into_any(),
+                symbols,
+                types,
+            )
+        {
+            let mapped_alias = if let Some(arguments) = static_arguments.as_deref() {
+                if arguments.is_empty() {
+                    alias_target_id
+                } else {
+                    let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                        module,
+                        profile,
+                        target_symbol,
+                        expression_id.into_any(),
+                        arguments,
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    if substitutions.is_empty() {
+                        alias_target_id
+                    } else {
+                        let mut cache = HashMap::new();
+                        self.substitute_static_parameters(
+                            alias_target_id,
+                            &substitutions,
+                            types,
+                            &mut cache,
+                        )
+                    }
+                }
+            } else {
+                alias_target_id
+            };
+            let mut materialize_cache = TypeRewriteCache::new();
+            let mapped_alias = self.materialize_static_arguments_in_type(
+                module,
+                profile,
+                mapped_alias,
+                tree,
+                symbols,
+                types,
+                &mut materialize_cache,
+            );
+            let alias_ty = types.get_type(mapped_alias).clone();
+            self.cache_type_reference_maybe(reference_cache_key, &alias_ty, types);
+            return Ok(alias_ty);
         }
 
         // normalize well known references into canonical structural types

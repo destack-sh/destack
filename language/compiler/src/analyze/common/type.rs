@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    Block, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree,
     NodeType, PrimitiveType, RuntimeCheckKind, ScalarLiteral, StaticArgument, StaticExpression,
     StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
     TypeVisitor, TypeVisitorOptions, walk_static_argument, walk_static_expression, walk_type,
@@ -467,6 +467,35 @@ impl TypeVisitor for TypeContainmentVisitor<'_> {
                     if inserted {
                         let mut bound = self.take_free_static_bound();
                         bound.remove(&parameter.symbol);
+                        self.restore_free_static_bound(bound);
+                    }
+                    return;
+                }
+                Type::Conditional {
+                    distributive_symbol,
+                    left,
+                    right,
+                    then_type,
+                    else_type,
+                } => {
+                    // treat distributive symbols as binders for this conditional
+                    let mut inserted = false;
+                    if let Some(distributive_symbol) = distributive_symbol {
+                        let mut bound = self.take_free_static_bound();
+                        inserted = bound.insert(*distributive_symbol);
+                        self.restore_free_static_bound(bound);
+                    }
+
+                    self.visit_type_id(types, *left);
+                    self.visit_type_id(types, *right);
+                    self.visit_type_id(types, *then_type);
+                    self.visit_type_id(types, *else_type);
+
+                    if inserted {
+                        let mut bound = self.take_free_static_bound();
+                        if let Some(distributive_symbol) = distributive_symbol {
+                            bound.remove(distributive_symbol);
+                        }
                         self.restore_free_static_bound(bound);
                     }
                     return;
@@ -1058,14 +1087,50 @@ impl Compiler {
             // load the local alias target when the symbol is local
             if current.module_id == module.id {
                 let symbol_entry = symbols.get_symbol(current.local_id);
+                let typed_symbol = GlobalSymbolId::new(
+                    current.module_id,
+                    current.local_id.with_type(symbol_entry.ty),
+                );
+
+                // check the incoming symbol first, then the declaration-typed symbol
+                types.record_normalization_symbol_dependency(current);
+                if let Some(target) = types.get_alias_target_type_id(current) {
+                    return Some(target);
+                }
+
                 if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                    let typed_symbol = GlobalSymbolId::new(
-                        current.module_id,
-                        current.local_id.with_type(symbol_entry.ty),
-                    );
                     types.record_normalization_symbol_dependency(typed_symbol);
                     if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
                         return Some(target);
+                    }
+
+                    // lazily hydrate member type aliases when the declare pass has not populated the map yet
+                    if let Some(primary_declaration) = symbol_entry.primary_declaration
+                        && primary_declaration.local_id.ty == NodeType::Member
+                    {
+                        let member_id = primary_declaration.local_id.into_typed::<Member>();
+                        let tree = module.dir(profile).tree.read();
+                        if let Member::Type {
+                            value: Some(value_id),
+                            ..
+                        } = tree.get(member_id)
+                        {
+                            let value_global = value_id.into_global_any(module.id);
+                            let lazy_target = types
+                                .get_declared_type_id(value_global)
+                                .or_else(|| types.get_inferred_type_id(value_global))
+                                .or_else(|| {
+                                    self.try_evaluate_expression_to_type(
+                                        module, profile, *value_id, &tree, symbols, types, true,
+                                        true,
+                                    )
+                                    .ok()
+                                });
+                            if let Some(target) = lazy_target {
+                                types.set_alias_target_type_id(typed_symbol, target);
+                                return Some(target);
+                            }
+                        }
                     }
                 }
 
@@ -1677,5 +1742,58 @@ impl Compiler {
         let mut visitor = TypeContainmentVisitor::new_unevaluated_static(visited);
         visitor.visit_static_expression(types, expression);
         visitor.found
+    }
+
+    /// Check whether a type can be instantiated as a callable value target.
+    pub(crate) fn type_is_callable_instantiation_target(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        match types.get_type(type_id) {
+            Type::Function { .. } => true,
+            Type::Object {
+                call_signatures, ..
+            } => !call_signatures.is_empty(),
+            Type::Union {
+                elements: candidates,
+                ..
+            }
+            | Type::Intersection {
+                elements: candidates,
+                ..
+            } => candidates.iter().any(|candidate| {
+                self.type_is_callable_instantiation_target(*candidate, types, visited)
+            }),
+            Type::Reference { symbol, .. } => {
+                if symbol.ty() == SymbolType::Function {
+                    return true;
+                }
+
+                // follow alias and instance wrappers around callable targets
+                if let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) {
+                    return self.type_is_callable_instantiation_target(
+                        alias_target_id,
+                        types,
+                        visited,
+                    );
+                }
+                if let Some(instance_type_id) = types.get_instance_type_id(*symbol) {
+                    return self.type_is_callable_instantiation_target(
+                        instance_type_id,
+                        types,
+                        visited,
+                    );
+                }
+
+                false
+            }
+            _ => false,
+        }
     }
 }

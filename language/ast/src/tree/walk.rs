@@ -1063,12 +1063,24 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
     match member {
         Member::Type {
             modifiers: _,
-            name,
+            name: _,
+            static_parameters,
+            where_clauses,
             ty,
             value,
         } => {
-            let name_expr = tree.get(*name);
-            visitor.visit_expression(tree, *name, name_expr);
+            if let Some(static_parameters) = static_parameters {
+                for parameter_id in static_parameters {
+                    let parameter = tree.get(*parameter_id);
+                    visitor.visit_parameter(tree, *parameter_id, parameter);
+                }
+            }
+            if let Some(where_clauses) = where_clauses {
+                for where_clause_id in where_clauses {
+                    let where_clause = tree.get(*where_clause_id);
+                    visitor.visit_where_clause(tree, *where_clause_id, where_clause);
+                }
+            }
             if let Some(ty) = ty {
                 let ty_expr = tree.get(*ty);
                 visitor.visit_expression(tree, *ty, ty_expr);

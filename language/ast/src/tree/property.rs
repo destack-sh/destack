@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     DeclarationKind, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability, Node,
-    NodeType, Visibility,
+    NodeType, Parameter, StringId, Visibility, WhereClause,
 };
 
 /// The type of a binding.
@@ -276,7 +276,9 @@ pub enum Member {
     /// Associated type alias (like `type Item = T`).
     Type {
         modifiers: Option<BindingModifier>,
-        name: LocalNodeId<Expression>,
+        name: StringId,
+        static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
+        where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
         ty: Option<LocalNodeId<Expression>>,
         value: Option<LocalNodeId<Expression>>,
     },

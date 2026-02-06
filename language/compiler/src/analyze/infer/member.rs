@@ -41,11 +41,11 @@ pub(super) struct MemberResolutionCandidate {
 
 /// Resolved extension metadata for a member lookup.
 #[derive(Debug, Clone)]
-pub(super) struct ExtensionMemberContext {
+pub(crate) struct ExtensionMemberContext {
     /// The resolved static arguments for the extension parameters.
-    pub(super) arguments: Vec<StaticArgument>,
+    pub(crate) arguments: Vec<StaticArgument>,
     /// The substitutions for extension type parameters.
-    pub(super) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
+    pub(crate) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
 /// Select which members are visible during lookup.
@@ -978,7 +978,7 @@ impl Compiler {
     }
 
     /// Resolve extension arguments and substitutions for a member lookup.
-    pub(super) fn resolve_extension_member_context(
+    pub(crate) fn resolve_extension_member_context(
         &self,
         module: &Module,
         profile: ProfileId,

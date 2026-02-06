@@ -141,21 +141,47 @@ impl Compiler {
             dir::Member::Type {
                 modifiers,
                 name,
+                static_parameters,
+                where_clauses,
                 ty,
                 value,
                 ..
             } => {
                 let modifiers =
                     modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
-                let name = self.unbind_expression(
-                    module,
-                    *name,
-                    tree,
-                    symbols,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
+                let name = ast_strings.intern_from(&self.program.strings, *name);
+                let static_parameters = static_parameters.as_ref().map(|static_parameters| {
+                    static_parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.unbind_parameter(
+                                module,
+                                *parameter,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        })
+                        .collect()
+                });
+                let where_clauses = where_clauses.as_ref().map(|where_clauses| {
+                    where_clauses
+                        .iter()
+                        .map(|where_clause| {
+                            self.unbind_where_clause(
+                                module,
+                                *where_clause,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            )
+                        })
+                        .collect()
+                });
                 let ty = ty.map(|ty| {
                     self.unbind_expression(
                         module,
@@ -181,6 +207,8 @@ impl Compiler {
                 ast::Member::Type {
                     modifiers,
                     name,
+                    static_parameters,
+                    where_clauses,
                     ty,
                     value,
                 }

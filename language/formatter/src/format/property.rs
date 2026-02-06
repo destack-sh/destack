@@ -511,6 +511,8 @@ impl<'ast> FormatNode<'ast, Member> for Member {
             Member::Type {
                 modifiers,
                 name,
+                static_parameters,
+                where_clauses,
                 ty,
                 value,
             } => {
@@ -520,6 +522,19 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 write!(f, [Keyword::Type, space()])?;
                 // name
                 write!(f, [name])?;
+                // static parameters
+                if let Some(static_parameters) = static_parameters
+                    && !static_parameters.is_empty()
+                {
+                    write!(f, [list_like("<", ">", ",", static_parameters)])?;
+                }
+                // where clauses
+                if let Some(where_clauses) = where_clauses
+                    && !where_clauses.is_empty()
+                {
+                    write!(f, [space(), Keyword::Where, space()])?;
+                    write!(f, [list_like("", "", ",", where_clauses)])?;
+                }
                 // type bound
                 if let Some(ty) = ty {
                     write!(f, [token(":"), space(), ty])?;

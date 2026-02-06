@@ -199,7 +199,7 @@ impl Compiler {
     }
 
     /// Unwrap `type` operator annotations to reach the underlying reference.
-    pub(super) fn unwrap_type_symbol(
+    pub(crate) fn unwrap_type_symbol(
         &self,
         types: &TypeTable,
         ty_id: LocalTypeId,
@@ -212,6 +212,17 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => (*symbol, static_arguments.clone()),
+            Type::Value { value } => {
+                let value_ty = types.get_type(*value);
+                let Type::Reference {
+                    symbol,
+                    static_arguments,
+                } = value_ty
+                else {
+                    return None;
+                };
+                (*symbol, static_arguments.clone())
+            }
             Type::Unary {
                 operator: TypeUnaryOperator::Type,
                 right,

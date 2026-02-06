@@ -139,7 +139,15 @@ impl Compiler {
                     if !symbol.is_active() {
                         continue;
                     }
-                    self.validate_declaration(&module, profile, &tree, &types, id, declaration);
+                    self.validate_declaration(
+                        &module,
+                        profile,
+                        &tree,
+                        &symbols,
+                        &mut types,
+                        id,
+                        declaration,
+                    );
                 }
 
                 // validate parameters

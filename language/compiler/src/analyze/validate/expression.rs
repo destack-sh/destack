@@ -9,6 +9,7 @@ use destack_dir::{
     TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
+use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -56,7 +57,14 @@ impl Compiler {
             | Expression::PrivateMember { left, .. }
             | Expression::Index { left, .. } => {
                 self.validate_super_property_expression(module, profile, tree, expression_id);
-                self.validate_instantiation_access(module, profile, tree, expression_id, *left);
+                self.validate_instantiation_access(
+                    module,
+                    profile,
+                    tree,
+                    types,
+                    expression_id,
+                    *left,
+                );
             }
             Expression::Maybe { left } => {
                 self.validate_super_optional_chain(module, profile, tree, expression_id, *left);
@@ -1126,6 +1134,7 @@ impl Compiler {
         module: &Module,
         profile: ProfileId,
         tree: &NodeTree,
+        types: &TypeTable,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
     ) {
@@ -1134,11 +1143,45 @@ impl Compiler {
             return;
         }
 
+        // only report on value-space instantiations
+        if !self.instantiation_access_target_is_value_space(module, tree, types, left) {
+            return;
+        }
+
         // report invalid instantiation access
         let node = expression_id
             .into_global_any(module.id)
             .into_anchored(Some(profile));
         self.error(AnalyzeError::InvalidInstantiationAccess { node });
+    }
+
+    /// Check whether an instantiation access target is a value-space callable.
+    fn instantiation_access_target_is_value_space(
+        &self,
+        module: &Module,
+        tree: &NodeTree,
+        types: &TypeTable,
+        expression_id: LocalNodeId<Expression>,
+    ) -> bool {
+        if let Some(type_id) = types.get_inferred_type_id(expression_id.into_global_any(module.id))
+        {
+            let mut visited = HashSet::new();
+            return self.type_is_callable_instantiation_target(type_id, types, &mut visited);
+        }
+
+        match tree.get(expression_id) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                matches!(target_symbol.ty(), SymbolType::Function)
+            }
+            Expression::Member { left, .. }
+            | Expression::PrivateMember { left, .. }
+            | Expression::Maybe { left } => {
+                self.instantiation_access_target_is_value_space(module, tree, types, *left)
+            }
+            _ => false,
+        }
     }
 
     /// Check whether a receiver is an unparenthesized instantiation expression.
@@ -1150,29 +1193,29 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::Instantiation { .. } => true,
             Expression::UnresolvedPath {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
             }
             | Expression::LocalReference {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
             }
             | Expression::ModuleReference {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
             }
             | Expression::GlobalReference {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
             }
             | Expression::Member {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
             }
             | Expression::PrivateMember {
-                static_arguments: Some(_),
+                static_arguments: Some(static_arguments),
                 ..
-            } => true,
+            } => !static_arguments.is_empty(),
             Expression::Maybe { left } => {
                 self.is_unparenthesized_instantiation_access_target(tree, *left)
             }
@@ -1633,22 +1676,6 @@ impl Compiler {
             let node = node.into_anchored(module.id, Some(profile));
             self.error(AnalyzeError::InvalidTypeOnlyImportBindings { node });
         };
-
-        // optional conformance debug hook
-        if std::env::var("DESTACK_CONFORMANCE_DEBUG").is_ok() {
-            let mut modes = Vec::new();
-            for item_id in items {
-                let mode = match tree.get(*item_id) {
-                    DependencyItem::UnresolvedRemote { mode, .. }
-                    | DependencyItem::UnresolvedLocal { mode, .. }
-                    | DependencyItem::Local { mode, .. }
-                    | DependencyItem::Remote { mode, .. }
-                    | DependencyItem::Value { mode, .. } => *mode,
-                };
-                modes.push(mode);
-            }
-            eprintln!("conformance import bindings: kind={kind:?} modes={modes:?}");
-        }
 
         // only enforce for type-only imports
         if kind != DependencyKind::Type {

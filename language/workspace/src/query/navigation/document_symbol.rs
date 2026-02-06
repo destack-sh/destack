@@ -219,12 +219,19 @@ fn member_to_document_symbol(
     let member = dir_tree.get::<Member>(member_id);
     let range = span_for_dir_node(ctx, dir_tree, member_id.into());
 
-    // get the member name from the key
-    let key = member.key()?;
-    let name = member_key_name(session, key)?;
-
-    // get kind based on member type
-    let kind = member_symbol_kind(member)?;
+    // get the member name and symbol kind
+    let (name, kind) = match member {
+        Member::Type { name, .. } => {
+            let name = session.strings.get(*name).to_string();
+            (name, SymbolKind::TypeParameter)
+        }
+        _ => {
+            let key = member.key()?;
+            let name = member_key_name(session, key)?;
+            let kind = member_symbol_kind(member)?;
+            (name, kind)
+        }
+    };
 
     // skip synthetic function keyword fields for methods
     if is_synthetic_function_keyword_field(member, &name, range) {
@@ -307,7 +314,7 @@ fn member_to_document_symbol_ast(
     // resolve the member name and kind
     let (name, kind) = match member {
         ast::Member::Type { name, .. } => {
-            let name = expression_name_ast(ast, *name)?;
+            let name = ast.strings.get(*name).to_string();
             (name, SymbolKind::TypeParameter)
         }
         ast::Member::Field { key, .. } => {
@@ -365,26 +372,5 @@ fn member_key_name_ast(ast: &ModuleAst, key: &ast::Key) -> Option<String> {
         }
         ast::Key::NamedExpression { name, .. } => Some(ast.strings.get(*name).to_string()),
         ast::Key::Expression(_) => None,
-    }
-}
-
-/// Resolve a display name for an expression used as a symbol name.
-fn expression_name_ast(
-    ast: &ModuleAst,
-    expression_id: ast::LocalNodeId<ast::Expression>,
-) -> Option<String> {
-    // resolve the expression node
-    let expression = ast.tree.get(expression_id);
-
-    match expression {
-        ast::Expression::Path { path, .. } => {
-            let segment = path.segments.last()?;
-            Some(ast.strings.get(*segment).to_string())
-        }
-        ast::Expression::PrivateIdentifier { name } => {
-            let name = ast.strings.get(*name).to_string();
-            Some(format!("#{name}"))
-        }
-        _ => None,
     }
 }

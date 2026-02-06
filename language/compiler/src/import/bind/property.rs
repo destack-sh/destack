@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     BindingModifier, DynamicKey, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member,
-    NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    TypeTable, Visibility,
+    NodeTree, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolSpaceOrder, SymbolTable, SymbolType, TypeTable, Visibility,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -250,6 +250,8 @@ impl Compiler {
             ast::Member::Type {
                 modifiers,
                 name,
+                static_parameters,
+                where_clauses,
                 ty,
                 value,
             } => {
@@ -257,17 +259,50 @@ impl Compiler {
                     tree.reserve_from_source(NodeType::Member, ast_member_id.id, scope, parent_id);
                 let modifiers =
                     modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
-                let name = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *name,
-                    Some(member_id),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpaceOrder::TypeThenValue,
-                );
+                let name = self.program.strings.intern_from(&ast.strings, *name);
+
+                // bind associated type static parameters
+                let static_parameters = static_parameters.as_ref().map(|parameters| {
+                    parameters
+                        .iter()
+                        .map(|parameter| {
+                            self.bind_parameter(
+                                module,
+                                ast,
+                                scope,
+                                SymbolSpace::Type,
+                                *parameter,
+                                Some(member_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+
+                // refresh scope so type member parameters are visible
+                let scope = (scope.0, symbols.get_scope_mark(scope.0));
+
+                // bind associated type where clauses in parameter scope
+                let where_clauses = where_clauses.as_ref().map(|where_clauses| {
+                    where_clauses
+                        .iter()
+                        .map(|where_clause| {
+                            self.bind_where_clause(
+                                module,
+                                ast,
+                                scope,
+                                *where_clause,
+                                Some(member_id),
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+
                 let ty = ty.map(|ty| {
                     self.bind_expression(
                         module,
@@ -294,14 +329,24 @@ impl Compiler {
                         SymbolSpaceOrder::TypeThenValue,
                     )
                 });
-                // Type members are in Type space
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Type, scope, None, symbols);
+
+                // type members are named type aliases in type space
+                let (symbol_id, _) = symbols.insert_symbol(
+                    SymbolKind::Item,
+                    SymbolType::TypeAlias,
+                    SymbolSpace::Type,
+                    SymbolBinding::Runtime,
+                    Some(StaticKey::Name(name)),
+                    scope,
+                    None,
+                );
                 let member_id = tree.insert(
                     member_id,
                     Member::Type {
                         modifiers,
                         name,
+                        static_parameters,
+                        where_clauses,
                         ty,
                         value,
                         symbol: symbol_id,

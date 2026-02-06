@@ -598,21 +598,16 @@ impl Parser {
             return Ok(self.tree.insert(member, self.get_span_from(&start)));
         }
 
-        // type member: `type Name = ...` or `type Name: Bound`
+        // type member: `type Name<U> = ...` or `type Name: Bound`
         if self.peek_keyword(Keyword::Type).is_ok() && self.peek_next_is(TokenType::Identifier) {
             self.bump(); // eat type keyword
-            // name is just an identifier (path)
-            let path_start = self.mark();
-            let (path, name_span) = self.eat_path_with_last_span()?;
-            let path_span = self.get_span_from(&path_start);
-            let name = self.tree.insert(
-                Expression::Path {
-                    path,
-                    static_arguments: None,
-                },
-                path_span,
-            );
-            self.tree.set_main_span(name, name_span);
+            // parse type member name
+            let (name, _name_span) = self.eat_identifier_with_span()?;
+
+            // parse optional static parameters and where clauses
+            let static_parameters = self.eat_static_parameters_maybe()?;
+            let where_clauses = self.eat_where_maybe()?;
+
             // optional type bound: `: Bound`
             let ty = if self.peek_colon().is_ok() {
                 self.bump(); // eat colon
@@ -631,6 +626,8 @@ impl Parser {
             let member = Member::Type {
                 modifiers,
                 name,
+                static_parameters,
+                where_clauses,
                 ty,
                 value,
             };
@@ -1408,8 +1405,8 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: None, value: Some(value) } => {
-            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, static_parameters: None, where_clauses: None, ty: None, value: Some(value) } => {
+            assert_string!(parser, *name, "Item");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
         });
     }
@@ -1419,8 +1416,8 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item: Hashable");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: None } => {
-            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, static_parameters: None, where_clauses: None, ty: Some(ty), value: None } => {
+            assert_string!(parser, *name, "Item");
             assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
         });
     }
@@ -1434,8 +1431,8 @@ foo(): string;"#,
         );
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: None } => {
-            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, static_parameters: None, where_clauses: None, ty: Some(ty), value: None } => {
+            assert_string!(parser, *name, "Item");
             assert_node!(parser.tree, *ty, Expression::Binary { .. });
         });
     }
@@ -1445,8 +1442,8 @@ foo(): string;"#,
         let mut test = TestParser::new("type Item: Hashable = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, ty: Some(ty), value: Some(value) } => {
-            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: None, name, static_parameters: None, where_clauses: None, ty: Some(ty), value: Some(value) } => {
+            assert_string!(parser, *name, "Item");
             assert_expression_path!(parser, parser.tree.get(*ty), "Hashable");
             assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
         });
@@ -1457,9 +1454,23 @@ foo(): string;"#,
         let mut test = TestParser::new("public type Item = string");
         let mut parser = test.prepare();
         let member_id = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member_id, Member::Type { modifiers: Some(modifiers), name, ty: None, value: Some(_) } => {
+        assert_node!(parser.tree, member_id, Member::Type { modifiers: Some(modifiers), name, static_parameters: None, where_clauses: None, ty: None, value: Some(_) } => {
             assert_eq!(modifiers.visibility.unwrap(), Visibility::Public);
-            assert_expression_path!(parser, parser.tree.get(*name), "Item");
+            assert_string!(parser, *name, "Item");
+        });
+    }
+
+    #[test]
+    fn test_parse_member_type_with_static_parameters() {
+        let mut test = TestParser::new("type View<U> = [Item, U]");
+        let mut parser = test.prepare();
+        let member_id = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member_id, Member::Type { name, static_parameters: Some(static_parameters), where_clauses: None, ty: None, value: Some(_), .. } => {
+            assert_string!(parser, *name, "View");
+            assert_eq!(static_parameters.len(), 1);
+            assert_node!(parser.tree, static_parameters[0], Parameter::Named { name, .. } => {
+                assert_string!(parser, *name, "U");
+            });
         });
     }
 
