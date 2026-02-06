@@ -472,6 +472,13 @@ pub enum AnalyzeError {
     )]
     InvalidTypeImportTarget { node: AnchoredGlobalNodeId },
 
+    /// Object literal `__proto__` setters are not supported.
+    #[error(
+        code = "EA249",
+        message = "object literal '__proto__' setters are not supported"
+    )]
+    UnsupportedObjectPrototypeSetter { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------

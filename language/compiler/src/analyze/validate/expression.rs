@@ -2,11 +2,11 @@ use crate::analyze::common::{NormalizationMode, RelationMode};
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     Argument, Asynchrony, BinaryOperator, BindingKind, Declaration, DeclarationKind, Declarator,
-    DependencyItem, DependencyKind, DependencyMode, DependencySource, Expression, ForEachBinding,
-    ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind, MatchSelector,
-    Member, Mutability, NodeTree, NodeType, Path, Pattern, Property, RuntimeCheckKind,
-    ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral, Type,
-    TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
+    DependencyItem, DependencyKind, DependencyMode, DependencySource, DynamicKey, Expression,
+    ForEachBinding, ForEachKind, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, MatchCase, MatchKind,
+    MatchSelector, Member, Mutability, NodeTree, NodeType, Path, Pattern, Property,
+    RuntimeCheckKind, ScalarLiteral, StaticKey, StringId, SymbolTable, SymbolType, TemplateLiteral,
+    Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::HashSet;
@@ -358,6 +358,7 @@ impl Compiler {
                     *asynchrony,
                     *kind,
                     binding,
+                    is_strict,
                 );
             }
             _ => {}
@@ -399,7 +400,11 @@ impl Compiler {
         asynchrony: Asynchrony,
         kind: ForEachKind,
         binding: &ForEachBinding,
+        is_strict: bool,
     ) {
+        // validate assignment targets for non declaration bindings
+        self.validate_for_each_assignment_binding(module, profile, tree, binding, is_strict);
+
         // this rule applies only to sync for of loops
         if asynchrony != Asynchrony::Sync || kind != ForEachKind::Of {
             return;
@@ -412,6 +417,32 @@ impl Compiler {
                 .into_anchored(Some(profile));
             self.error(AnalyzeError::InvalidForOfBinding { node });
         }
+    }
+
+    /// Validate assignment target rules for for each non declaration bindings.
+    fn validate_for_each_assignment_binding(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        tree: &NodeTree,
+        binding: &ForEachBinding,
+        is_strict: bool,
+    ) {
+        // this rule only applies to plain pattern bindings without a declaration keyword
+        let ForEachBinding::Pattern {
+            pattern,
+            declaration_kind: None,
+        } = binding
+        else {
+            return;
+        };
+
+        // expression patterns in this position must be assignment targets
+        let Pattern::Expression { value } = tree.get(*pattern) else {
+            return;
+        };
+
+        self.validate_assignment_target(module, profile, tree, *value, is_strict);
     }
 
     /// Return true when a for of binding is exactly `async`.
@@ -1489,103 +1520,6 @@ impl Compiler {
         }
     }
 
-    /// Validate module level export rules.
-    pub(super) fn validate_module_exports(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        tree: &NodeTree,
-        roots: &[LocalNodeId<Expression>],
-    ) {
-        // collect default export sites
-        let mut default_exports = Vec::new();
-        for root_id in roots {
-            let expression_id = self.unwrap_statement_expression(tree, *root_id);
-            let expression = tree.get(expression_id);
-            match expression {
-                Expression::Declaration { declaration } => {
-                    let declaration_id = *declaration;
-                    let declaration = tree.get(declaration_id);
-                    if self.declaration_is_default_export(declaration) {
-                        default_exports.push(declaration_id.into_any());
-                    }
-                }
-                Expression::Export { items, .. }
-                | Expression::ReExport { items, .. }
-                | Expression::UnresolvedReExport { items, .. } => {
-                    for item_id in items {
-                        let item = tree.get(*item_id);
-                        let mode = match item {
-                            DependencyItem::Value { mode, .. }
-                            | DependencyItem::Local { mode, .. }
-                            | DependencyItem::UnresolvedLocal { mode, .. }
-                            | DependencyItem::UnresolvedRemote { mode, .. }
-                            | DependencyItem::Remote { mode, .. } => *mode,
-                        };
-                        if mode == DependencyMode::Default {
-                            default_exports.push(item_id.into_any());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        // report duplicates
-        if default_exports.len() <= 1 {
-            return;
-        }
-
-        // select the primary export for comparison
-        let primary = default_exports[0];
-        let other_node = primary.into_anchored(module.id, Some(profile));
-
-        // report duplicate exports
-        for duplicate in default_exports.into_iter().skip(1) {
-            let node = duplicate.into_anchored(module.id, Some(profile));
-            self.error(AnalyzeError::DuplicateDefaultExport { node, other_node });
-        }
-    }
-
-    /// Unwrap statement expressions to their inner expression.
-    fn unwrap_statement_expression(
-        &self,
-        tree: &NodeTree,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LocalNodeId<Expression> {
-        let mut current = expression_id;
-
-        // walk through statement wrappers
-        loop {
-            let expression = tree.get(current);
-            if let Expression::Statement { statement } = expression {
-                current = *statement;
-                continue;
-            }
-            return current;
-        }
-    }
-
-    /// Return true when a declaration is a default export.
-    fn declaration_is_default_export(&self, declaration: &destack_dir::Declaration) -> bool {
-        use destack_dir::Declaration;
-
-        match declaration {
-            Declaration::Global { descriptor, .. }
-            | Declaration::Namespace { descriptor, .. }
-            | Declaration::Type { descriptor, .. }
-            | Declaration::ImportAlias { descriptor, .. }
-            | Declaration::Struct { descriptor, .. }
-            | Declaration::Class { descriptor, .. }
-            | Declaration::Enum { descriptor, .. }
-            | Declaration::Interface { descriptor, .. }
-            | Declaration::Function { descriptor, .. }
-            | Declaration::Extension { descriptor, .. } => {
-                descriptor.export == Some(DependencyMode::Default)
-            }
-        }
-    }
-
     /// Validate defaults on object literal properties.
     fn validate_object_literal_properties(
         &self,
@@ -1594,9 +1528,22 @@ impl Compiler {
         tree: &NodeTree,
         properties: &[LocalNodeId<Property>],
     ) {
-        // reject defaults on object literal properties
+        // reserve the proto setter key once per object
+        let proto_name = self.program.strings.intern("__proto__");
+
+        // validate each property for object literal restrictions
         for property_id in properties {
             let property = tree.get(*property_id);
+
+            // reject object literal `__proto__` setter fields
+            if self.is_object_proto_setter_field(property, proto_name) {
+                let node = property_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile));
+                self.error(AnalyzeError::UnsupportedObjectPrototypeSetter { node });
+            }
+
+            // reject defaults on object literal properties
             if matches!(
                 property,
                 Property::Field {
@@ -1622,6 +1569,18 @@ impl Compiler {
                 );
             }
         }
+    }
+
+    /// Return true when a property defines an object literal `__proto__` setter.
+    fn is_object_proto_setter_field(&self, property: &Property, proto_name: StringId) -> bool {
+        matches!(
+            property,
+            Property::Field {
+                key: Some(DynamicKey::Name(name)),
+                value: Some(_),
+                ..
+            } if *name == proto_name
+        )
     }
 
     /// Check whether await is valid in the current node context.
@@ -2512,5 +2471,73 @@ function a() {
         test.analyze_module(module_id);
         test.compile();
         test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject object literal `__proto__` setter fields.
+    #[test]
+    fn test_reject_object_proto_setter() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.js", r#"({ "__proto__": null });"#);
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA249");
+    }
+
+    /// Reject non-assignable for of binding targets.
+    #[test]
+    fn test_reject_for_of_literal_binding_target() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module("test.js", "for(0 of 0);");
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA226");
+    }
+
+    /// Reject object literals that mix shorthand and proto setter fields.
+    #[test]
+    fn test_reject_shorthand_proto_with_setter() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+const __proto__ = 1;
+({ __proto__, "__proto__": null });
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_has_diagnostic("EA249");
+    }
+
+    /// Allow plain shorthand `__proto__` bindings in object literals.
+    #[test]
+    fn test_allow_shorthand_proto_without_setter() {
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.js",
+            r#"
+const __proto__ = 1;
+({ __proto__ });
+"#,
+        );
+        test.apply_dsconfig(
+            module_id,
+            r#"{"compilerOptions":{"checkTs":true,"checkJs":true}}"#,
+        );
+        test.analyze_module(module_id);
+        test.compile();
+        test.check_no_diagnostic_code("EA249");
     }
 }
