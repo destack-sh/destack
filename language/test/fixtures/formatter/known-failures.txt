@@ -1,0 +1,3 @@
+# formatter known failures
+# entries use full names like:
+# destack_test::formatter::smoke::suite/category/case

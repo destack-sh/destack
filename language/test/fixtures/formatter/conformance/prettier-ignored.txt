@@ -1,0 +1,2 @@
+# prettier formatter conformance ignored tests
+# entries are relative test names inside the suite root

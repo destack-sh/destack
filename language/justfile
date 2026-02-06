@@ -14,11 +14,18 @@ install:
     ./test/fixtures/conformance/babel-fetch.sh
     ./test/fixtures/conformance/swc-fetch.sh
     ./test/fixtures/conformance/biome-fetch.sh
+    just install-formatter-conformance
     ./test/fixtures/ecosystem/ecosystem-fetch.sh
     just install-resolver
 
 # alias for install
 install-fixtures := "install"
+
+# install formatter conformance sources
+install-formatter-conformance:
+    ./test/fixtures/formatter/conformance/biome-fetch.sh
+    ./test/fixtures/formatter/conformance/prettier-fetch.sh
+    ./test/fixtures/formatter/conformance/oxfmt-fetch.sh
 
 # install resolver fixture dependencies
 install-resolver:
@@ -124,6 +131,14 @@ test-conformance-update:
 # run formatter tests
 test-formatter:
     cargo test --release --test formatter
+
+# run formatter conformance tests
+test-formatter-conformance:
+    cargo test --release --test formatter-conformance
+
+# update formatter conformance known failures
+test-formatter-conformance-update:
+    cargo test --release --test formatter-conformance -- --update-known-failures
 
 # run ecosystem tests
 test-ecosystem:

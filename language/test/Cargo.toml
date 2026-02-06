@@ -27,6 +27,11 @@ path = "src/formatter/main.rs"
 harness = false
 
 [[test]]
+name = "formatter-conformance"
+path = "src/formatter/conformance/main.rs"
+harness = false
+
+[[test]]
 name = "specification"
 path = "src/specification/main.rs"
 harness = false
